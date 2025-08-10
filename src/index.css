@@ -171,4 +171,26 @@
       linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
     background-size: 24px 24px;
   }
+
+  /* Feature cards: dark gradient from bottom to top with subtle stroke */
+  .feature-gradient { position: relative; background: hsl(var(--panel)); border-radius: var(--radius); }
+  .feature-gradient::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, hsl(var(--muted) / 0.22), hsl(var(--muted) / 0));
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .feature-stroke { border: 1px solid hsl(var(--border) / 0.6); }
+
+  /* Simple marquee utilities */
+  .marquee { overflow: hidden; }
+  .marquee-inner { display: flex; gap: 3.5rem; white-space: nowrap; will-change: transform; animation: marquee 28s linear infinite; }
+  .marquee-item { font-size: 0.875rem; letter-spacing: 0.04em; color: hsl(var(--muted-foreground)); }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
