@@ -18,7 +18,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 7%;
 
-    --primary: 0 0% 10%;              /* deep gray/near-black */
+    --primary: 0 0% 12%;              /* refined deep gray (not pure black) */
     --primary-foreground: 0 0% 100%;  /* white */
 
     --secondary: 0 0% 98%;            /* off-white cards */
@@ -48,6 +48,10 @@
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 0 0% 90%;
     --sidebar-ring: 0 0% 40%;
+
+    /* Additional surfaces */
+    --panel: 0 0% 12%;
+    --panel-foreground: 0 0% 96%;
 
     /* Effects */
     --cta-foreground: 0 0% 100%;
@@ -133,4 +137,30 @@
   .container-tight { @apply max-w-6xl mx-auto px-4 sm:px-6; }
 
   .hover-scale { @apply transition-transform duration-200 hover:scale-105; }
+
+  /* New utilities */
+  .nav-glass { @apply glass-surface rounded-full border border-border/70 shadow-elegant px-4 py-2; }
+
+  .card-soft {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    position: relative;
+  }
+  .card-soft::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 120% at 0% 0%, hsl(0 0% 100% / 0.6) 0%, transparent 50%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .input-pill { border-radius: 9999px; }
+
+  .panel-dark { background: hsl(var(--panel)); color: hsl(var(--panel-foreground)); }
+
+  .animate-bg-pan { animation: bg-pan 24s linear infinite; }
+
+  .cta-glow { box-shadow: 0 8px 30px -10px hsl(0 0% 0% / 0.25); }
 }
