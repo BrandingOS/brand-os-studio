@@ -103,7 +103,7 @@ const Index = () => {
     Start Now
   </Button>
 </form>
-                <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p>
+                {/* <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p> */}
               </div>
             </div>
 
