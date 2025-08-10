@@ -40,8 +40,8 @@ function useScrollReveal() {
   }, []);
 }
 
-const Badge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">{children}</span>
+const Badge = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <span className={`inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground ${className}`}>{children}</span>
 );
 
 const FeatureCard = ({ icon: Icon, title, desc }: { icon: any; title: string; desc: string }) => (
@@ -73,7 +73,7 @@ const Index = () => {
         <section className="section bg-dot-grid">
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl my-[1rem]" data-animate>
-            <Badge variant="outline" className="badge-orbit text-white">
+            <Badge className="badge-orbit text-white">
               Set <span className="arrow-pulse"> → </span> Sync <span className="arrow-pulse"> → </span> Shine
             </Badge>
               <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
@@ -171,7 +171,7 @@ const Index = () => {
         </section>
 
         {/* Magic Moment */}
-        <section id="how" className="section bg-dot-grid" id="setup">
+        <section id="how" className="section bg-dot-grid">
           <div className="container-tight">
             <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
             <div className="space-y-10">
