@@ -9,26 +9,26 @@ export default function Footer() {
           {/* dark panel background */}
           <div className="absolute inset-0 rounded-3xl bg-[#0F1011]" aria-hidden />
 
-          {/* subtle grid only at edges */}
+          {/* subtle grid: light, dynamic, stronger at edges */}
           <div
             className="
               pointer-events-none absolute inset-0 rounded-3xl
-              [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_56px),repeating-linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_56px)]
-              opacity-30
-              [mask-image:radial-gradient(115%_80%_at_50%_50%,transparent_45%,black_80%)]
+              [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.10)_0_1px,transparent_1px_56px),
+                                  repeating-linear-gradient(90deg,rgba(255,255,255,0.10)_0_1px,transparent_1px_56px)]
+              opacity-45
+              [mask-image:radial-gradient(120%_95%_at_50%_50%,transparent_32%,black_72%)]
             "
             aria-hidden
           />
 
           {/* content */}
           <div className="relative space-y-6 flex flex-col items-center">
-            {/* order-1: heading */}
-            <h3 className="order-1 font-display text-2xl font-semibold text-white">
+            <h3 className="font-display text-2xl font-semibold text-white">
               Your Brand. Everywhere. Always.
             </h3>
 
-            {/* order-2: links grid */}
-            <div className="order-2 mt-6 grid w-full grid-cols-2 gap-6 sm:grid-cols-3 justify-items-center">
+            {/* links grid */}
+            <div className="mt-6 grid w-full grid-cols-2 gap-6 sm:grid-cols-3 justify-items-center">
               <div>
                 <h4 className="mb-3 text-sm font-medium text-white">Product</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -55,15 +55,30 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* order-3: lightweight pills under links (kept same structure, just reordered visually) */}
-            <div className="order-3 flex items-center justify-center gap-2 mt-4">
-              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+            {/* lightweight pills under links (same structure, lighter style) */}
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button
+                variant="secondary"
+                size="sm"
+                shape="pill"
+                className="bg-transparent text-white border border-white/25 hover:border-white/40 hover:bg-white/5 px-3 py-1.5 text-xs"
+              >
                 License
               </Button>
-              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+              <Button
+                variant="secondary"
+                size="sm"
+                shape="pill"
+                className="bg-transparent text-white border border-white/25 hover:border-white/40 hover:bg-white/5 px-3 py-1.5 text-xs"
+              >
                 Changelog
               </Button>
-              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+              <Button
+                variant="secondary"
+                size="sm"
+                shape="pill"
+                className="bg-transparent text-white border border-white/25 hover:border-white/40 hover:bg-white/5 px-3 py-1.5 text-xs"
+              >
                 Status
               </Button>
             </div>
