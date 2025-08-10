@@ -54,7 +54,7 @@ const FeatureCard = ({ icon: Icon, title, desc }: { icon: any; title: string; de
 
 const Stat = ({ value, label }: { value: string; label: string }) => (
   <div data-animate className="text-center">
-    <div className="text-6xl font-semibold">{value}</div>
+    <div className="text-4xl font-semibold">{value}</div>
     <div className="text-sm text-muted-foreground">{label}</div>
   </div>
 );
