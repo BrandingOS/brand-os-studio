@@ -10,7 +10,7 @@
   :root {
     /* Core palette */
     --background: 0 0% 100%;          /* #ffffff */
-    --foreground: 0 0% 7%;            /* ~#121212 */
+    --foreground: 0 0% 10%;            /* ~#121212 */
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
@@ -126,6 +126,12 @@
     color: hsl(var(--cta-foreground));
     box-shadow: var(--shadow-glow);
   }
+  .btn-hero:hover {
+      background: hsl(var(--primary-foreground)); /* white */
+      color: hsl(var(--primary));                 /* deep gray */
+      border: 1px solid hsl(var(--primary) / 0.2);
+      box-shadow: none; /* optional: reduce glow on invert */
+    }
 
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
@@ -196,65 +202,3 @@
 }
 
 
-
-
-.badge-orbit {
-  position: relative;
-  isolation: isolate;          /* مهم علشان طبقات ::before */
-  overflow: hidden;
-  border: none !important;      /* هنستخدم الحد بالـ ::before */
-}
-
-.badge-orbit::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  padding: 2px;                 /* جرّب 2px علشان تتأكد إنه ظاهر */
-  border-radius: 9999px;
-  background: conic-gradient(
-    from 0deg,
-    rgba(244,98,34,0.95) 0deg,
-    transparent 110deg,
-    rgba(244,98,34,0.95) 180deg,
-    transparent 290deg,
-    rgba(244,98,34,0.95) 360deg
-  );
-
-  /* نعرض الخلفية كـ "حدّ" فقط باستخدام القناع */
-  -webkit-mask: 
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-
-  z-index: 0;
-  animation: badge-orbit-rotate 2.2s linear infinite;
-  will-change: transform;
-}
-
-.badge-orbit > * {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes badge-orbit-rotate { to { transform: rotate(360deg); } }
-
-/* بديل بدون mask: نرسم الحدّ بطبقتين */
-.badge-orbit-fallback {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  border-radius: 9999px;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(#0F1011, #0F1011) padding-box,     /* خلفية داخلية */
-    conic-gradient(
-      from 0deg,
-      rgba(244,98,34,0.95) 0deg,
-      transparent 110deg,
-      rgba(244,98,34,0.95) 180deg,
-      transparent 290deg,
-      rgba(244,98,34,0.95) 360deg
-    ) border-box;                                      /* الحدّ المتحرك */
-  animation: badge-orbit-rotate 2.2s linear infinite;
-}
