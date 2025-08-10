@@ -91,7 +91,7 @@ const Index = () => {
   data-animate
 >
   <Input
-    className="w-full md:w-64 input-pill h-12 px-5"
+    className="w-full md:w-64 input-pill h-12 px-5 text-center"
     placeholder="Enter your brand name"
     aria-label="Brand name"
   />
