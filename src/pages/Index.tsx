@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import heroImage from "@/assets/hero-dashboard.png";
 import illusUploadCoreAssets from "@/assets/illus-upload-core-assets.webp";
 import illusAutoGenerate from "@/assets/illus-auto-generate.webp";
@@ -54,7 +54,7 @@ const FeatureCard = ({ icon: Icon, title, desc }: { icon: any; title: string; de
 
 const Stat = ({ value, label }: { value: string; label: string }) => (
   <div data-animate className="text-center">
-    <div className="text-5xl md:text-6xl font-semibold">{value}</div>
+    <div className="text-3xl font-semibold">{value}</div>
     <div className="text-sm text-muted-foreground">{label}</div>
   </div>
 );
@@ -62,68 +62,32 @@ const Stat = ({ value, label }: { value: string; label: string }) => (
 const Index = () => {
   useScrollReveal();
 
-  // Scroll-fade effect for attractive opacity motion
-  useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.fade-on-scroll'));
-    const onScroll = () => {
-      const vh = window.innerHeight;
-      els.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        const d = Math.abs(mid - vh / 2);
-        const ratio = Math.max(0, 1 - d / (vh * 0.8));
-        el.style.opacity = String(0.45 + ratio * 0.55);
-        el.style.transform = `translateY(${(1 - ratio) * 8}px)`;
-      });
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Steps progress indicator
-  const stepTitles = ["Upload Core Assets", "Auto‑Generate Everything", "Use Anywhere"];
-  const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
-  const [activeStep, setActiveStep] = useState(0);
-  useEffect(() => {
-    const obs = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        const idx = stepRefs.findIndex((r) => r.current === e.target);
-        if (idx !== -1 && e.isIntersecting) setActiveStep(idx);
-      });
-    }, { threshold: 0.5 });
-    stepRefs.forEach((r) => r.current && obs.observe(r.current!));
-    return () => obs.disconnect();
-  }, []);
-
   return (
     <div className="min-h-screen bg-background bg-dot-grid text-foreground animate-bg-pan">
       <Navbar />
 
       <main>
         {/* Hero */}
-        <section className="section">
+        <section className="section bg-dot-grid">
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl" data-animate>
-              <div className="inline-block rounded-full ring-infinity p-[2px]">
-                <Badge>One-time setup → Endless consistency</Badge>
-              </div>
-              <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold text-gradient-hero fade-on-scroll">
+              <Badge>One-time setup → Endless consistency</Badge>
+              <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
                 One Setup. Infinite Branded Possibilities.
               </h1>
-              <p className="mt-4 text-lg text-muted-foreground fade-on-scroll">
-                Turn your brand into a living system that powers every creation.
+              <p className="mt-4 text-lg text-muted-foreground">
+                Set it once. Your brand auto-applies to every asset.
               </p>
               <div className="mt-8 mx-auto max-w-md">
                 <form className="flex items-center gap-2 justify-center" data-animate>
-                  <Input className="w-72 input-pill h-12 px-5 text-center" placeholder="Enter your brand name" aria-label="Brand name" />
+                  <Input className="w-64 input-pill h-12 px-5" placeholder="Enter your brand name" aria-label="Brand name" />
                   <Button variant="hero" shape="pill" className="h-12 px-6">Start Now</Button>
                 </form>
                 <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p>
               </div>
             </div>
 
-            <div className="relative mt-16" data-animate>
+            <div className="relative mt-12" data-animate>
               {/* Animated ripple background */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="h-64 w-64 rounded-full border border-border/60 animate-ripple-slow"></div>
@@ -154,23 +118,21 @@ const Index = () => {
         {/* Marquee */}
         <section className="py-6">
           <div className="container-tight">
-            <div className="ring-infinity rounded-full p-[2px]">
-              <div className="marquee rounded-full bg-secondary/60 border border-border/60">
-                <div className="marquee-inner px-6 py-3">
-                  <span className="marquee-item">One source of truth •</span>
-                  <span className="marquee-item">On‑brand, every time •</span>
-                  <span className="marquee-item">Auto‑generated assets •</span>
-                  <span className="marquee-item">Export anywhere •</span>
-                  <span className="marquee-item">Live brand logic •</span>
-                  <span className="marquee-item">Design faster •</span>
-                  {/* duplicate for seamless loop */}
-                  <span className="marquee-item">One source of truth •</span>
-                  <span className="marquee-item">On‑brand, every time •</span>
-                  <span className="marquee-item">Auto‑generated assets •</span>
-                  <span className="marquee-item">Export anywhere •</span>
-                  <span className="marquee-item">Live brand logic •</span>
-                  <span className="marquee-item">Design faster •</span>
-                </div>
+            <div className="marquee rounded-full bg-secondary/60 border border-border/60">
+              <div className="marquee-inner px-6 py-3">
+                <span className="marquee-item">One source of truth •</span>
+                <span className="marquee-item">On‑brand, every time •</span>
+                <span className="marquee-item">Auto‑generated assets •</span>
+                <span className="marquee-item">Export anywhere •</span>
+                <span className="marquee-item">Share live guidelines •</span>
+                <span className="marquee-item">Design faster •</span>
+                {/* duplicate for seamless loop */}
+                <span className="marquee-item">One source of truth •</span>
+                <span className="marquee-item">On‑brand, every time •</span>
+                <span className="marquee-item">Auto‑generated assets •</span>
+                <span className="marquee-item">Export anywhere •</span>
+                <span className="marquee-item">Share live guidelines •</span>
+                <span className="marquee-item">Design faster •</span>
               </div>
             </div>
           </div>
@@ -189,109 +151,84 @@ const Index = () => {
         </section>
 
         {/* Magic Moment */}
-        <section id="how" className="section">
+        <section id="how" className="section bg-dot-grid">
           <div className="container-tight">
-            <h2 data-animate className="text-3xl font-semibold text-center mb-10 fade-on-scroll">Set It Up Once. Brand Everything.</h2>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-              {/* Sticky step indicator */}
-              <aside className="hidden md:block md:col-span-3">
-                <div className="sticky top-28 h-[280px] relative">
-                  <div className="absolute left-3 top-2 bottom-2 w-px bg-border/70" />
-                  <div className="absolute left-3 top-2 w-px bg-foreground/80 transition-all" style={{ height: `${(activeStep/(stepTitles.length-1))*100}%` }} />
-                  <ul className="relative space-y-10 ml-8">
-                    {stepTitles.map((t, i) => (
-                      <li key={t} className="relative">
-                        <span className="absolute -left-8 top-1.5 block h-3 w-3 rounded-full" style={{ background: i===activeStep ? 'hsl(var(--accent-orange))' : 'hsl(var(--border))', boxShadow: i===activeStep ? '0 0 0 6px hsl(var(--accent-orange) / 0.18)' : 'none' }} />
-                        <span className={`${i===activeStep ? 'text-foreground' : 'text-muted-foreground'} text-sm`}>{t}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </aside>
-
-              {/* Steps */}
-              <div className="md:col-span-9 space-y-10">
-                <div ref={stepRefs[0]}>
-                  <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth.">
-                    <img src={illusUploadCoreAssets} alt="Grayscale illustration of uploading core brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft contrast-125 saturate-110" />
-                  </SectionSplit>
-                </div>
-                <div ref={stepRefs[1]}>
-                  <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website.">
-                    <img src={illusAutoGenerate} alt="Grayscale illustration of auto-generating brand outputs" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft contrast-125 saturate-110" />
-                  </SectionSplit>
-                </div>
-                <div ref={stepRefs[2]}>
-                  <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly.">
-                    <img src={illusUseAnywhere} alt="Grayscale illustration of publishing and exporting brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft contrast-125 saturate-110" />
-                  </SectionSplit>
-                </div>
-              </div>
+            <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
+            <div className="space-y-10">
+              <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth.">
+                <img src={illusUploadCoreAssets} alt="Grayscale illustration of uploading core brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
+              </SectionSplit>
+              <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website.">
+                <img src={illusAutoGenerate} alt="Grayscale illustration of auto-generating brand outputs" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
+              </SectionSplit>
+              <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly.">
+                <img src={illusUseAnywhere} alt="Grayscale illustration of publishing and exporting brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
+              </SectionSplit>
             </div>
           </div>
         </section>
 
-        {/* Why + All-in-One (boxed dark) */}
-        <section className="section">
+        {/* Why + All-in-One (Dark continuous) */}
+        <section className="section panel-dark bg-dot-grid">
           <div className="container-tight">
-            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 animate-gradient-shift max-w-5xl mx-auto panel-dark">
+            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 animate-gradient-shift max-w-5xl mx-auto">
               <span className="inline-block rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Why Brand OS</span>
-              <h2 className="mt-4 text-3xl md:text-4xl font-semibold fade-on-scroll">More than guidelines — your brand OS.</h2>
-              <p className="mt-3 text-base text-muted-foreground max-w-2xl fade-on-scroll">Live brand logic that auto‑applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
+              <h2 className="mt-4 text-3xl md:text-4xl font-semibold">More than guidelines — your brand OS.</h2>
+              <p className="mt-3 text-base text-muted-foreground max-w-2xl">Live brand logic that auto‑applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
               <div className="mt-6">
                 <Button variant="glass" shape="pill" className="bg-background text-foreground">Explore Modules</Button>
               </div>
             </div>
 
             <div className="mt-10" id="features">
-              <h3 data-animate className="text-3xl font-semibold text-center fade-on-scroll">All‑in‑One Branding Powerhouse</h3>
+              <h3 data-animate className="text-3xl font-semibold text-center">All‑in‑One Branding Powerhouse</h3>
               <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {/* Card 1 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Layout className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Layout className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
                   <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
-                  <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
 
                 {/* Card 2 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Palette className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Palette className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
                   <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
-                  <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
 
                 {/* Card 3 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Printer className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Printer className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
                   <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
-                  <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
 
                 {/* Card 4 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Download className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Download className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
                   <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
-                  <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
 
                 {/* Card 5 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Globe className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Globe className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
                   <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
-                  <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
 
                 {/* Card 6 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="icon-badge"><Wand2 className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Wand2 className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
                   <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
-                  <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 contrast-125 saturate-110" />
+                  <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
                 </div>
               </div>
             </div>
@@ -299,7 +236,7 @@ const Index = () => {
         </section>
 
         {/* Proof / Stats */}
-        <section className="section bg-secondary">
+        <section className="section bg-secondary bg-dot-grid">
           <div className="container-tight grid gap-8 sm:grid-cols-3">
             <Stat value="80%" label="Brand Recognition Boost" />
             <Stat value="10–20%" label="Revenue Growth through Consistency" />
@@ -311,10 +248,10 @@ const Index = () => {
         <Pricing />
 
         {/* Final CTA */}
-        <section className="section">
+        <section className="section bg-dot-grid">
           <div className="container-tight text-center">
-            <h2 data-animate className="text-3xl font-semibold fade-on-scroll">Brand Once. Use Forever.</h2>
-            <p className="mt-3 text-lg text-muted-foreground fade-on-scroll" data-animate>
+            <h2 data-animate className="text-3xl font-semibold">Brand Once. Use Forever.</h2>
+            <p className="mt-3 text-lg text-muted-foreground" data-animate>
               Upload your brand today — never worry about consistency again.
             </p>
             <div className="mt-6 flex items-center justify-center gap-3" data-animate>

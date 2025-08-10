@@ -8,7 +8,7 @@ export default function Pricing() {
   const proPrice = annual ? 29 * 0.8 : 29;
 
   return (
-    <section id="pricing" className="section">
+    <section id="pricing" className="section bg-dot-grid">
       <div className="container-tight">
         <div className="text-center" data-animate>
           <h2 className="text-3xl font-semibold">Plans That Grow With Your Brand</h2>
@@ -85,7 +85,7 @@ export default function Pricing() {
           “We saved 20+ hours per month since switching to Brand OS” — Agency Owner
         </div>
 
-        <div className="mt-6" data-animate>
+        <div className="mt-10" data-animate>
           <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto">
             <AccordionItem value="item-1">
               <AccordionTrigger>Can I upgrade anytime?</AccordionTrigger>
