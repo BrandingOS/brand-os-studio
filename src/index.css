@@ -125,12 +125,16 @@
     background: var(--gradient-cta);
     color: hsl(var(--cta-foreground));
     box-shadow: var(--shadow-glow);
+    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); /* ease-out قوية */
+    transform: translateY(0);
   }
+
   .btn-hero:hover {
       background: hsl(var(--primary-foreground)); /* white */
       color: hsl(var(--primary));                 /* deep gray */
       border: 1px solid hsl(var(--primary) / 0.2);
       box-shadow: none; /* optional: reduce glow on invert */
+      transform: translateY(-4px) scale(1.05); /* بروز مع تكبير بسيط */
     }
 
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
