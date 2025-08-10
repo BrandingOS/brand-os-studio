@@ -185,7 +185,7 @@ const Index = () => {
               <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {/* Card 1 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Layout className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Layout className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
                   <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
                   <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
@@ -193,7 +193,7 @@ const Index = () => {
 
                 {/* Card 2 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Palette className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Palette className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
                   <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
                   <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
@@ -201,7 +201,7 @@ const Index = () => {
 
                 {/* Card 3 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Printer className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Printer className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
                   <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
                   <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
@@ -209,7 +209,7 @@ const Index = () => {
 
                 {/* Card 4 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Download className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Download className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
                   <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
                   <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
@@ -217,7 +217,7 @@ const Index = () => {
 
                 {/* Card 5 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Globe className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Globe className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
                   <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
                   <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
@@ -225,7 +225,7 @@ const Index = () => {
 
                 {/* Card 6 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Wand2 className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Wand2 className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
                   <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
                   <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
