@@ -72,7 +72,7 @@ const Index = () => {
               <div className="mt-8 mx-auto max-w-md">
                 <form className="flex items-center gap-2 justify-center" data-animate>
                   <Input className="w-64 input-pill h-12 px-5" placeholder="Enter your brand name" aria-label="Brand name" />
-                  <Button variant="hero" shape="pill" className="h-12 px-6">Start</Button>
+                  <Button variant="hero" shape="pill" className="h-12 px-6">Start Now</Button>
                 </form>
                 <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p>
               </div>
