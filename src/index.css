@@ -125,6 +125,7 @@
     background: var(--gradient-cta);
     color: hsl(var(--cta-foreground));
     box-shadow: var(--shadow-glow);
+    border: 1px solid hsl(var(--primary) / 0.2);
   }
 
   .btn-hero:hover {
