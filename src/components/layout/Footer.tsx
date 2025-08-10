@@ -5,19 +5,32 @@ export default function Footer() {
     <footer className="mt-20">
       <div className="container-tight">
         {/* Floating dark widget (not full width) */}
-        <div className="mx-auto max-w-5xl panel-dark bg-grid rounded-3xl px-8 py-12 text-center">
-          <div className="space-y-6" data-animate>
-            <h3 className="font-display text-2xl font-semibold">Your Brand. Everywhere. Always.</h3>
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="secondary" size="sm" shape="pill">License</Button>
-              <Button variant="secondary" size="sm" shape="pill">Changelog</Button>
-              <Button variant="secondary" size="sm" shape="pill">Status</Button>
-            </div>
+        <div className="relative mx-auto max-w-5xl rounded-3xl px-8 py-12 text-center">
+          {/* dark panel background */}
+          <div className="absolute inset-0 rounded-3xl bg-[#0F1011]" aria-hidden />
 
-            {/* Dummy footer data */}
-            <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-6 text-left">
+          {/* subtle grid only at edges */}
+          <div
+            className="
+              pointer-events-none absolute inset-0 rounded-3xl
+              [background-image:repeating-linear-gradient(0deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_56px),repeating-linear-gradient(90deg,rgba(255,255,255,0.08)_0_1px,transparent_1px_56px)]
+              opacity-30
+              [mask-image:radial-gradient(115%_80%_at_50%_50%,transparent_45%,black_80%)]
+            "
+            aria-hidden
+          />
+
+          {/* content */}
+          <div className="relative space-y-6 flex flex-col items-center">
+            {/* order-1: heading */}
+            <h3 className="order-1 font-display text-2xl font-semibold text-white">
+              Your Brand. Everywhere. Always.
+            </h3>
+
+            {/* order-2: links grid */}
+            <div className="order-2 mt-6 grid w-full grid-cols-2 gap-6 sm:grid-cols-3 justify-items-center">
               <div>
-                <h4 className="text-sm font-medium mb-3">Product</h4>
+                <h4 className="mb-3 text-sm font-medium text-white">Product</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><a className="hover:underline" href="#">Overview</a></li>
                   <li><a className="hover:underline" href="#">Guidelines</a></li>
@@ -25,7 +38,7 @@ export default function Footer() {
                 </ul>
               </div>
               <div>
-                <h4 className="text-sm font-medium mb-3">Resources</h4>
+                <h4 className="mb-3 text-sm font-medium text-white">Resources</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><a className="hover:underline" href="#">Blog</a></li>
                   <li><a className="hover:underline" href="#">Help Center</a></li>
@@ -33,13 +46,26 @@ export default function Footer() {
                 </ul>
               </div>
               <div>
-                <h4 className="text-sm font-medium mb-3">Company</h4>
+                <h4 className="mb-3 text-sm font-medium text-white">Company</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><a className="hover:underline" href="#">About</a></li>
                   <li><a className="hover:underline" href="#">Careers</a></li>
                   <li><a className="hover:underline" href="#">Contact</a></li>
                 </ul>
               </div>
+            </div>
+
+            {/* order-3: lightweight pills under links (kept same structure, just reordered visually) */}
+            <div className="order-3 flex items-center justify-center gap-2 mt-4">
+              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+                License
+              </Button>
+              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+                Changelog
+              </Button>
+              <Button variant="secondary" size="sm" shape="pill" className="opacity-90 hover:opacity-100">
+                Status
+              </Button>
             </div>
           </div>
         </div>
