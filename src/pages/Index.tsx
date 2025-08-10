@@ -74,7 +74,7 @@ const Index = () => {
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl my-[1rem]" data-animate>
             <Badge variant="outline" className="badge-orbit text-white">
-              One-time setup <span className="arrow-pulse">→</span> Endless consistency
+              One-time setup <span className="arrow-pulse"> → </span> Endless consistency
             </Badge>
               <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
                 One Setup. Infinite Branded Possibilities.
