@@ -3,14 +3,12 @@ import heroImage from "@/assets/hero-dashboard.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Palette, Upload, Wand2, Globe, Layout, Download, Printer, FileStack, Play, Rocket, Building2, Share2, Twitter, Github, Linkedin } from "lucide-react";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+import SectionSplit from "@/components/sections/SectionSplit";
+import Pricing from "@/components/sections/Pricing";
 
-const navItems = [
-  { label: "Features", href: "#features" },
-  { label: "Solutions", href: "#solutions" },
-  { label: "Showcase", href: "#showcase" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Docs", href: "#docs" },
-];
+// nav items moved into Navbar component
 
 function useScrollReveal() {
   useEffect(() => {
@@ -57,26 +55,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background bg-dot-grid text-foreground animate-bg-pan">
-      <header className="sticky top-4 z-40">
-        <div className="container-tight">
-          <div className="nav-glass flex items-center justify-between rounded-full">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <a href="#" className="font-display text-lg font-semibold">Brand OS</a>
-            </div>
-            <div className="hidden md:flex items-center gap-6">
-              {navItems.map((n) => (
-                <a key={n.label} href={n.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">{n.label}</a>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="hero" shape="pill" className="cta-glow">Request Waitlist</Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <main>
         {/* Hero */}
@@ -90,9 +69,9 @@ const Index = () => {
               <p className="mt-4 text-lg text-muted-foreground">
                 Set it once. Your brand auto-applies to every asset.
               </p>
-              <div className="mt-8 mx-auto max-w-xl">
-                <form className="flex gap-2">
-                  <Input className="flex-1 input-pill h-12 px-5" placeholder="Enter your brand name" aria-label="Brand name" />
+              <div className="mt-8 mx-auto max-w-md">
+                <form className="flex items-center gap-2 justify-center" data-animate>
+                  <Input className="w-64 input-pill h-12 px-5" placeholder="Enter your brand name" aria-label="Brand name" />
                   <Button variant="hero" shape="pill" className="h-12 px-6">Start</Button>
                 </form>
                 <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p>
@@ -140,42 +119,94 @@ const Index = () => {
         </section>
 
         {/* Magic Moment */}
-        <section id="how" className="section bg-muted/50">
+        <section id="how" className="section bg-dot-grid">
           <div className="container-tight">
             <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
-            <div className="grid gap-6 md:grid-cols-3">
-              <FeatureCard icon={Upload} title="Upload Core Assets" desc="Logo, colors, fonts, tone of voice." />
-              <FeatureCard icon={Wand2} title="Auto-Generate Everything" desc="Guidelines, print files, templates, website." />
-              <FeatureCard icon={Share2} title="Use Anywhere" desc="Download, export, or publish instantly." />
+            <div className="space-y-10">
+              <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth." />
+              <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website." />
+              <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly." />
             </div>
           </div>
         </section>
 
-        {/* Differentiator Dark Panel */}
-        <section className="section">
+        {/* Why + All-in-One (Dark continuous) */}
+        <section className="section panel-dark bg-dot-grid">
           <div className="container-tight">
-            <div className="panel-dark relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14">
-              <Badge>Why Brand OS</Badge>
+            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 animate-gradient-shift">
+              <span className="inline-block rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Why Brand OS</span>
               <h2 className="mt-4 text-3xl md:text-4xl font-semibold">More than guidelines — your brand OS.</h2>
-              <p className="mt-3 text-base text-muted-foreground max-w-2xl">Live brand logic that auto-applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
+              <p className="mt-3 text-base text-muted-foreground max-w-2xl">Live brand logic that auto‑applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
               <div className="mt-6">
                 <Button variant="glass" shape="pill" className="bg-background text-foreground">Explore Modules</Button>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* Core Modules */}
-        <section id="features" className="section">
-          <div className="container-tight">
-            <h2 data-animate className="text-3xl font-semibold text-center">All-in-One Branding Powerhouse</h2>
-            <div className="mt-10 grid gap-6 md:grid-cols-6">
-              <div className="md:col-span-3"><FeatureCard icon={Layout} title="Live Brand Guidelines" desc="Instantly updated, shareable, beautiful." /></div>
-              <div className="md:col-span-3"><FeatureCard icon={Palette} title="Design Studio" desc="Create on-brand designs without leaving the OS." /></div>
-              <div className="md:col-span-2"><FeatureCard icon={Printer} title="Print & Collateral" desc="Auto-generate business cards, letterheads, packaging." /></div>
-              <div className="md:col-span-2"><FeatureCard icon={Download} title="Brand Export" desc="One-click full brand folder, perfectly organized." /></div>
-              <div className="md:col-span-2"><FeatureCard icon={Globe} title="Website Builder" desc="Launch a branded site in hours, not weeks." /></div>
-              <div className="md:col-span-6"><FeatureCard icon={Wand2} title="Smart AI Assist" desc="Suggestions for colors, layouts, and copy." /></div>
+            <div className="mt-10" id="features">
+              <h3 data-animate className="text-3xl font-semibold text-center">All‑in‑One Branding Powerhouse</h3>
+              <div className="mt-10 space-y-6">
+                {/* Large Feature Rows */}
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Layout className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
+                    <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Palette className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
+                    <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Printer className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
+                    <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Download className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
+                    <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Globe className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
+                    <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Wand2 className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
+                    <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -183,53 +214,14 @@ const Index = () => {
         {/* Proof / Stats */}
         <section className="section bg-secondary bg-dot-grid">
           <div className="container-tight grid gap-8 sm:grid-cols-3">
-            <Stat value="5,000+" label="Brands launched" />
-            <Stat value="3.1M+" label="Assets generated" />
-            <Stat value="99.9%" label="Consistency score" />
+            <Stat value="80%" label="Brand Recognition Boost" />
+            <Stat value="10–20%" label="Revenue Growth through Consistency" />
+            <Stat value="87%" label="Consumer Trust for Consistent Brands" />
           </div>
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="section bg-dot-grid">
-          <div className="container-tight">
-            <h2 data-animate className="text-3xl font-semibold text-center">Simple, Transparent Pricing</h2>
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
-              {/* Free */}
-              <div data-animate className="rounded-2xl border p-6 card-soft">
-                <h3 className="text-xl font-semibold">Free</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Start your brand in minutes.</p>
-                <ul className="mt-4 space-y-2 text-sm">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Core assets</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Basic guidelines</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Limited exports</li>
-                </ul>
-                <Button variant="hero" shape="pill" className="mt-6 w-full">Start Free</Button>
-              </div>
-              {/* Pro */}
-              <div data-animate className="rounded-2xl border p-6 glass-surface shadow-elegant">
-                <h3 className="text-xl font-semibold">Pro</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Everything to scale your brand.</p>
-                <ul className="mt-4 space-y-2 text-sm">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> All modules unlocked</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Unlimited exports</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Website publish</li>
-                </ul>
-                <Button variant="hero" shape="pill" className="mt-6 w-full">Upgrade</Button>
-              </div>
-              {/* Enterprise */}
-              <div data-animate className="rounded-2xl border p-6 card-soft">
-                <h3 className="text-xl font-semibold">Enterprise</h3>
-                <p className="mt-2 text-sm text-muted-foreground">For large teams and agencies.</p>
-                <ul className="mt-4 space-y-2 text-sm">
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> SSO & permissions</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Custom workflows</li>
-                  <li className="flex items-center gap-2"><Check className="h-4 w-4"/> Priority support</li>
-                </ul>
-                <Button variant="outline" shape="pill" className="mt-6 w-full">Contact sales</Button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <Pricing />
 
         {/* Final CTA */}
         <section className="section bg-dot-grid">
@@ -246,53 +238,7 @@ const Index = () => {
         </section>
       </main>
 
-      <footer className="border-t border-border panel-dark">
-        <div className="container-tight py-14 grid gap-10 md:grid-cols-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted"><Building2 className="h-5 w-5"/></div>
-              <span className="font-display text-lg font-semibold">Brand OS</span>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground">Your Brand. Everywhere. Always.</p>
-          </div>
-          <nav className="grid gap-2 text-sm">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Product</span>
-            <a href="#features" className="hover:text-foreground">Features</a>
-            <a href="#solutions" className="hover:text-foreground">Solutions</a>
-            <a href="#showcase" className="hover:text-foreground">Showcase</a>
-            <a href="#pricing" className="hover:text-foreground">Pricing</a>
-          </nav>
-          <nav className="grid gap-2 text-sm">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Company</span>
-            <a href="#" className="hover:text-foreground">About</a>
-            <a href="#" className="hover:text-foreground">Blog</a>
-            <a href="#" className="hover:text-foreground">Careers</a>
-            <a href="#" className="hover:text-foreground">Contact</a>
-          </nav>
-          <div>
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Stay in the loop</span>
-            <form className="mt-3 flex gap-2">
-              <Input className="input-pill h-10 px-4" placeholder="Your email" aria-label="Email" />
-              <Button variant="hero" shape="pill" className="h-10 px-5">Join</Button>
-            </form>
-            <div className="mt-4 flex items-center gap-3 text-muted-foreground">
-              <a href="#" aria-label="Twitter" className="hover:text-foreground"><Twitter className="h-5 w-5"/></a>
-              <a href="#" aria-label="GitHub" className="hover:text-foreground"><Github className="h-5 w-5"/></a>
-              <a href="#" aria-label="LinkedIn" className="hover:text-foreground"><Linkedin className="h-5 w-5"/></a>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-border">
-          <div className="container-tight py-6 text-xs text-muted-foreground flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>© {new Date().getFullYear()} Brand OS — Your Brand. Everywhere. Always.</div>
-            <div className="flex gap-5">
-              <a href="#" className="hover:text-foreground">Privacy</a>
-              <a href="#" className="hover:text-foreground">Terms</a>
-              <a href="#" className="hover:text-foreground">Status</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

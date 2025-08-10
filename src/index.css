@@ -62,7 +62,7 @@
     --shadow-glow: 0 12px 40px -10px hsl(0 0% 0% / 0.25);
 
     --gradient-glass: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(0 0% 100% / 0.35));
-    --gradient-cta: linear-gradient(180deg, hsl(0 0% 0% / 0.9), hsl(0 0% 0% / 1));
+    --gradient-cta: linear-gradient(180deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 1));
   }
 
   .dark {
@@ -96,7 +96,7 @@
 
     --dot-color: 0 0% 20%;
     --gradient-glass: linear-gradient(180deg, hsl(0 0% 100% / 0.08), hsl(0 0% 100% / 0.04));
-    --gradient-cta: linear-gradient(180deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.06));
+    --gradient-cta: linear-gradient(180deg, hsl(var(--primary) / 0.96), hsl(var(--primary) / 0.88));
   }
 }
 
@@ -116,8 +116,8 @@
 
   .glass-surface { 
     background: var(--gradient-glass);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid hsl(var(--border) / 0.7);
   }
 
@@ -163,4 +163,12 @@
   .animate-bg-pan { animation: bg-pan 24s linear infinite; }
 
   .cta-glow { box-shadow: 0 8px 30px -10px hsl(0 0% 0% / 0.25); }
+
+  /* Extra overlays */
+  .bg-grid {
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
 }
