@@ -28,7 +28,7 @@ export default function Navbar() {
               ))}
             </nav>
 
-            <div className="flex items-center gap-2" data-animate>
+            <div className="hidden sm:flex items-center gap-2" data-animate>
               <Button variant="hero" shape="pill" className="cta-glow">Request Waitlist</Button>
             </div>
           </div>
