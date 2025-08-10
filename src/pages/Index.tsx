@@ -16,11 +16,12 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SectionSplit from "@/components/sections/SectionSplit";
 import Pricing from "@/components/sections/Pricing";
-
+import StepsProgress from "@/components/StepsProgress";
 // nav items moved into Navbar component
 
 function useScrollReveal() {
   useEffect(() => {
+    // entrance animations
     const els = document.querySelectorAll<HTMLElement>('[data-animate]');
     const obs = new IntersectionObserver(
       (entries) => {
@@ -34,12 +35,31 @@ function useScrollReveal() {
       { threshold: 0.15 }
     );
     els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+
+    // scroll-fade opacity
+    const fades = Array.from(document.querySelectorAll<HTMLElement>('[data-scroll-fade]'));
+    const update = () => {
+      const vh = window.innerHeight;
+      fades.forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const visible = Math.min(Math.max(vh - Math.abs(r.top - vh * 0.5), 0), vh);
+        const o = Math.max(0, Math.min(1, visible / (vh * 0.9)));
+        el.style.setProperty('--sf-o', o.toString());
+      });
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
   }, []);
 }
 
 const Badge = ({ children }: { children: React.ReactNode }) => (
-  <span className="inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">{children}</span>
+  <span className="relative inline-flex items-center rounded-full border border-border bg-secondary/70 px-3 py-1 text-xs font-medium text-muted-foreground loop-stroke" data-scroll-fade>{children}</span>
 );
 
 const FeatureCard = ({ icon: Icon, title, desc }: { icon: any; title: string; desc: string }) => (
@@ -53,8 +73,8 @@ const FeatureCard = ({ icon: Icon, title, desc }: { icon: any; title: string; de
 );
 
 const Stat = ({ value, label }: { value: string; label: string }) => (
-  <div data-animate className="text-center">
-    <div className="text-3xl font-semibold">{value}</div>
+  <div data-animate data-scroll-fade className="text-center">
+    <div className="text-4xl md:text-5xl font-semibold">{value}</div>
     <div className="text-sm text-muted-foreground">{label}</div>
   </div>
 );
@@ -68,33 +88,33 @@ const Index = () => {
 
       <main>
         {/* Hero */}
-        <section className="section bg-dot-grid">
+        <section className="section">
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl" data-animate>
               <Badge>One-time setup → Endless consistency</Badge>
-              <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
+              <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold text-gradient-subtle" data-scroll-fade>
                 One Setup. Infinite Branded Possibilities.
               </h1>
-              <p className="mt-4 text-lg text-muted-foreground">
-                Set it once. Your brand auto-applies to every asset.
+              <p className="mt-4 text-lg text-muted-foreground" data-scroll-fade>
+                Turn your brand into a living system that powers every creation.
               </p>
               <div className="mt-8 mx-auto max-w-md">
                 <form className="flex items-center gap-2 justify-center" data-animate>
-                  <Input className="w-64 input-pill h-12 px-5" placeholder="Enter your brand name" aria-label="Brand name" />
+                  <Input className="w-64 input-pill h-12 px-5 text-center" placeholder="Enter your brand name" aria-label="Brand name" />
                   <Button variant="hero" shape="pill" className="h-12 px-6">Start Now</Button>
                 </form>
-                <p className="mt-2 text-xs text-muted-foreground">No credit card required.</p>
+                <p className="mt-2 text-xs text-muted-foreground" data-scroll-fade>No credit card required.</p>
               </div>
             </div>
 
-            <div className="relative mt-12" data-animate>
+            <div className="relative mt-16 md:mt-20" data-animate>
               {/* Animated ripple background */}
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="h-64 w-64 rounded-full border border-border/60 animate-ripple-slow"></div>
                 <div className="absolute h-80 w-80 rounded-full border border-border/40 animate-ripple-slow [animation-delay:1s]"></div>
               </div>
 
-              <img src={heroImage} alt="Brand OS dashboard mockup" loading="eager" className="w-full rounded-3xl shadow-elegant relative" />
+              <img src={heroImage} alt="Brand OS dashboard mockup" loading="eager" className="w-full rounded-3xl shadow-elegant relative img-rich" />
               {/* floating tiles */}
               <div className="pointer-events-none absolute -right-2 -top-6 hidden md:block animate-float">
                 <div className="glass-surface rounded-xl px-4 py-3 shadow-elegant flex items-center gap-2">
@@ -118,7 +138,7 @@ const Index = () => {
         {/* Marquee */}
         <section className="py-6">
           <div className="container-tight">
-            <div className="marquee rounded-full bg-secondary/60 border border-border/60">
+            <div className="relative marquee rounded-full bg-secondary/60 border border-border/60 loop-stroke">
               <div className="marquee-inner px-6 py-3">
                 <span className="marquee-item">One source of truth •</span>
                 <span className="marquee-item">On‑brand, every time •</span>
@@ -151,27 +171,38 @@ const Index = () => {
         </section>
 
         {/* Magic Moment */}
-        <section id="how" className="section bg-dot-grid">
-          <div className="container-tight">
-            <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
-            <div className="space-y-10">
-              <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth.">
-                <img src={illusUploadCoreAssets} alt="Grayscale illustration of uploading core brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
-              <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website.">
-                <img src={illusAutoGenerate} alt="Grayscale illustration of auto-generating brand outputs" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
-              <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly.">
-                <img src={illusUseAnywhere} alt="Grayscale illustration of publishing and exporting brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
+        <section id="how" className="section">
+          <div className="container-tight relative">
+            <StepsProgress steps={[
+              { id: 'step-1', label: 'Upload Core Assets' },
+              { id: 'step-2', label: 'Auto‑Generate Everything' },
+              { id: 'step-3', label: 'Use Anywhere' },
+            ]} />
+            <h2 data-animate className="text-3xl font-semibold text-center mb-10" data-scroll-fade>Set It Up Once. Brand Everything.</h2>
+            <div className="space-y-12">
+              <div id="step-1">
+                <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth.">
+                  <img src={illusUploadCoreAssets} alt="Grayscale illustration of uploading core brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft img-rich" />
+                </SectionSplit>
+              </div>
+              <div id="step-2">
+                <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website.">
+                  <img src={illusAutoGenerate} alt="Grayscale illustration of auto-generating brand outputs" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft img-rich" />
+                </SectionSplit>
+              </div>
+              <div id="step-3">
+                <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly.">
+                  <img src={illusUseAnywhere} alt="Grayscale illustration of publishing and exporting brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft img-rich" />
+                </SectionSplit>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Why + All-in-One (Dark continuous) */}
-        <section className="section panel-dark bg-dot-grid">
+        <section className="section">
           <div className="container-tight">
-            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 animate-gradient-shift max-w-5xl mx-auto">
+            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 max-w-5xl mx-auto panel-dark bg-grid-soft" data-scroll-fade>
               <span className="inline-block rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Why Brand OS</span>
               <h2 className="mt-4 text-3xl md:text-4xl font-semibold">More than guidelines — your brand OS.</h2>
               <p className="mt-3 text-base text-muted-foreground max-w-2xl">Live brand logic that auto‑applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
@@ -185,50 +216,50 @@ const Index = () => {
               <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {/* Card 1 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Layout className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Layout className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
                   <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
-                  <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
 
                 {/* Card 2 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Palette className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Palette className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
                   <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
-                  <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
 
                 {/* Card 3 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Printer className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Printer className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
                   <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
-                  <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
 
                 {/* Card 4 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Download className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Download className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
                   <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
-                  <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
 
                 {/* Card 5 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Globe className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Globe className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
                   <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
-                  <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
 
                 {/* Card 6 */}
                 <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Wand2 className="h-6 w-6"/></div>
+                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border feature-stroke" style={{ background: 'hsl(var(--accent-orange) / 0.12)', borderColor: 'hsl(var(--accent-orange) / 0.35)' }}><Wand2 className="h-6 w-6"/></div>
                   <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
                   <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
-                  <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                  <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90 img-rich" />
                 </div>
               </div>
             </div>
@@ -236,7 +267,7 @@ const Index = () => {
         </section>
 
         {/* Proof / Stats */}
-        <section className="section bg-secondary bg-dot-grid">
+        <section className="section bg-secondary">
           <div className="container-tight grid gap-8 sm:grid-cols-3">
             <Stat value="80%" label="Brand Recognition Boost" />
             <Stat value="10–20%" label="Revenue Growth through Consistency" />
@@ -248,10 +279,10 @@ const Index = () => {
         <Pricing />
 
         {/* Final CTA */}
-        <section className="section bg-dot-grid">
+        <section className="section">
           <div className="container-tight text-center">
-            <h2 data-animate className="text-3xl font-semibold">Brand Once. Use Forever.</h2>
-            <p className="mt-3 text-lg text-muted-foreground" data-animate>
+            <h2 data-animate className="text-3xl font-semibold" data-scroll-fade>Brand Once. Use Forever.</h2>
+            <p className="mt-3 text-lg text-muted-foreground" data-animate data-scroll-fade>
               Upload your brand today — never worry about consistency again.
             </p>
             <div className="mt-6 flex items-center justify-center gap-3" data-animate>

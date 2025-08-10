@@ -63,6 +63,17 @@
 
     --gradient-glass: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(0 0% 100% / 0.35));
     --gradient-cta: linear-gradient(180deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 1));
+
+    /* Accent palette */
+    --accent-orange: 18 90% 55%;
+    --accent-orange-weak: 18 90% 65%;
+
+    /* Subtle text gradient */
+    --gradient-text-subtle: linear-gradient(90deg,
+      hsl(var(--foreground)) 0%,
+      hsl(var(--foreground) / 0.92) 60%,
+      hsl(var(--accent-orange) / 0.75) 100%
+    );
   }
 
   .dark {
@@ -178,7 +189,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, hsl(var(--muted) / 0.22), hsl(var(--muted) / 0));
+    background: linear-gradient(to top, hsl(var(--muted) / 0.12), hsl(var(--muted) / 0));
     border-radius: inherit;
     pointer-events: none;
   }
@@ -194,3 +205,49 @@
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+/* Additional custom utilities */
+@layer utilities {
+  .text-gradient-subtle { 
+    background: var(--gradient-text-subtle);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .img-rich { filter: contrast(1.15) saturate(1.1); }
+
+  .loop-stroke { position: relative; }
+  .loop-stroke::before {
+    content: ""; position: absolute; inset: -1px; padding: 1px; border-radius: inherit;
+    background: conic-gradient(
+      from 0deg,
+      hsl(var(--accent-orange)) 0%,
+      hsl(var(--accent-orange-weak)) 25%,
+      transparent 50%,
+      hsl(var(--accent-orange)) 75%,
+      hsl(var(--accent-orange-weak)) 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spin-linear 6s linear infinite;
+  }
+
+  .bg-grid-soft { 
+    background-image: 
+      linear-gradient(to right, hsl(var(--border) / 0.25) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.25) 1px, transparent 1px);
+    background-size: 24px 24px;
+    mask: radial-gradient(60% 60% at 0% 0%, #000 40%, transparent 70%),
+          radial-gradient(60% 60% at 100% 100%, #000 40%, transparent 70%);
+    -webkit-mask-composite: source-over;
+  }
+
+  .badge-soft { @apply inline-flex items-center rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary; }
+  .icon-badge { @apply inline-flex h-12 w-12 items-center justify-center rounded-full border border-border bg-accent/20 text-foreground; }
+
+  [data-scroll-fade] { 
+    opacity: var(--sf-o, 0.2); 
+    transform: translateY(calc(10px * (1 - var(--sf-o, 0)))); 
+    transition: opacity 0.3s ease, transform 0.3s ease; 
+  }
+}
+
+@keyframes spin-linear { to { transform: rotate(360deg); } }

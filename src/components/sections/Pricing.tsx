@@ -85,8 +85,8 @@ export default function Pricing() {
           “We saved 20+ hours per month since switching to Brand OS” — Agency Owner
         </div>
 
-        <div className="mt-10" data-animate>
-          <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto">
+        <div className="mt-8" data-animate>
+          <Accordion type="single" collapsible className="w-full max-w-3xl mx-auto space-y-2">
             <AccordionItem value="item-1">
               <AccordionTrigger>Can I upgrade anytime?</AccordionTrigger>
               <AccordionContent>Yes, upgrades take effect immediately and are prorated.</AccordionContent>
