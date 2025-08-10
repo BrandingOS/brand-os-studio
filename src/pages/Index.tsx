@@ -155,7 +155,7 @@ const Index = () => {
         </section>
 
         {/* Magic Moment */}
-        <section id="how" className="section bg-dot-grid">
+        <section id="how" className="section bg-dot-grid" id="setup">
           <div className="container-tight">
             <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
             <div className="space-y-10">

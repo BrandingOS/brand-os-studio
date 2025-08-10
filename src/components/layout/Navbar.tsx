@@ -3,7 +3,7 @@ import { Building2 } from "lucide-react";
 
 const navItems = [
   { label: "Features", href: "#features" },
-  { label: "Solutions", href: "#solutions" },
+  { label: "Setup", href: "#setup" },
   { label: "Pricing", href: "#pricing" },
 ];
 
