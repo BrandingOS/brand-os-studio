@@ -46,6 +46,9 @@ export default function Footer() {
                   <li><a className="hover:underline" href="#">Careers</a></li>
                   <li><a className="hover:underline" href="#">Contact</a></li>
                 </ul>
+              </div>
+            </div>
+
             {/* Socials */}
             <div className="mt-8 flex items-center justify-center gap-4 text-muted-foreground" aria-label="Social media">
               <a href="#" aria-label="Twitter" className="hover:text-foreground transition-colors"><Twitter className="h-4 w-4"/></a>
@@ -53,6 +56,7 @@ export default function Footer() {
               <a href="#" aria-label="GitHub" className="hover:text-foreground transition-colors"><Github className="h-4 w-4"/></a>
               <a href="#" aria-label="Instagram" className="hover:text-foreground transition-colors"><Instagram className="h-4 w-4"/></a>
             </div>
+          </div>
         </div>
 
         {/* Copyright: last element on the page */}
