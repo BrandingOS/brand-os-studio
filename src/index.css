@@ -61,8 +61,11 @@
     --shadow-elegant: 0 8px 30px -10px hsl(0 0% 0% / 0.15);
     --shadow-glow: 0 12px 40px -10px hsl(0 0% 0% / 0.25);
 
+    --accent-orange: 19 90% 55%;
+
     --gradient-glass: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(0 0% 100% / 0.35));
     --gradient-cta: linear-gradient(180deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 1));
+    --gradient-hero: linear-gradient(90deg, hsl(var(--primary) / 0.9), hsl(var(--accent-orange) / 0.9));
   }
 
   .dark {
@@ -178,7 +181,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, hsl(var(--muted) / 0.22), hsl(var(--muted) / 0));
+    background: linear-gradient(to top, hsl(var(--muted) / 0.12), hsl(var(--muted) / 0));
     border-radius: inherit;
     pointer-events: none;
   }
@@ -188,9 +191,52 @@
   .marquee { overflow: hidden; }
   .marquee-inner { display: flex; gap: 3.5rem; white-space: nowrap; will-change: transform; animation: marquee 28s linear infinite; }
   .marquee-item { font-size: 0.875rem; letter-spacing: 0.04em; color: hsl(var(--muted-foreground)); }
+
+  /* Hero gradient text */
+  .text-gradient-hero {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Animated conic border ring (infinity-like loop) */
+  .ring-infinity { position: relative; }
+  .ring-infinity::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: conic-gradient(from 0deg, hsl(var(--accent-orange)) 0deg, transparent 120deg, hsl(var(--accent-orange)) 240deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    padding: 2px;
+    animation: spin 6s linear infinite;
+    pointer-events: none;
+  }
+
+  /* Subtle grid fade helper */
+  .grid-fade {
+    mask-image: radial-gradient(120% 120% at 10% 10%, #000 20%, transparent 65%),
+                radial-gradient(140% 140% at 90% 60%, #000 25%, transparent 70%);
+    -webkit-mask-image: radial-gradient(120% 120% at 10% 10%, #000 20%, transparent 65%),
+                        radial-gradient(140% 140% at 90% 60%, #000 25%, transparent 70%);
+    mask-composite: add;
+  }
+
+  /* Icon badge style (stroke + subtle color) */
+  .icon-badge { @apply inline-flex h-12 w-12 items-center justify-center rounded-full border border-border/60 bg-transparent; }
+
+  /* Scroll fade utility */
+  .fade-on-scroll { transition: opacity 300ms ease, transform 300ms ease; opacity: 0.85; }
 }
 
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
