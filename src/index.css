@@ -194,39 +194,3 @@
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-
-// Badge-Orbit
-
-/* هنا حط أي CSS مخصص */
-.badge-orbit {
-  position: relative;
-  overflow: hidden;
-  border: none !important;
-}
-.badge-orbit::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  border-radius: 9999px;
-  background: conic-gradient(
-    from 0deg,
-    rgba(244,98,34,0.95) 0deg,
-    transparent 110deg,
-    rgba(244,98,34,0.95) 180deg,
-    transparent 290deg,
-    rgba(244,98,34,0.95) 360deg
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 0;
-  animation: badge-orbit-rotate 2.2s linear infinite;
-}
-.badge-orbit > * {
-  position: relative;
-  z-index: 1;
-}
-@keyframes badge-orbit-rotate {
-  to { transform: rotate(360deg); }
-}
