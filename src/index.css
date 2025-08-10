@@ -238,3 +238,23 @@
 }
 
 @keyframes badge-orbit-rotate { to { transform: rotate(360deg); } }
+
+/* بديل بدون mask: نرسم الحدّ بطبقتين */
+.badge-orbit-fallback {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#0F1011, #0F1011) padding-box,     /* خلفية داخلية */
+    conic-gradient(
+      from 0deg,
+      rgba(244,98,34,0.95) 0deg,
+      transparent 110deg,
+      rgba(244,98,34,0.95) 180deg,
+      transparent 290deg,
+      rgba(244,98,34,0.95) 360deg
+    ) border-box;                                      /* الحدّ المتحرك */
+  animation: badge-orbit-rotate 2.2s linear infinite;
+}
