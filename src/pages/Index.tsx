@@ -73,7 +73,7 @@ const Index = () => {
         <section className="section bg-dot-grid">
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl my-[1rem]" data-animate>
-            <Badge variant="outline" className="badge-orbit text-white">
+            <Badge className="badge-orbit text-white">
               Set <span className="arrow-pulse"> → </span> Sync <span className="arrow-pulse"> → </span> Shine
             </Badge>
               <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
