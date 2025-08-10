@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import heroImage from "@/assets/hero-dashboard.png";
+// import heroImage from "@/assets/hero-dashboard.png";
+import heroImage from "https://i.pinimg.com/1200x/18/ec/a2/18eca28a85c40aa0b255742cbe3a0656.jpg";
 import illusUploadCoreAssets from "@/assets/illus-upload-core-assets.webp";
 import illusAutoGenerate from "@/assets/illus-auto-generate.webp";
 import illusUseAnywhere from "@/assets/illus-use-anywhere.webp";
