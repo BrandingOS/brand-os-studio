@@ -74,13 +74,13 @@ const Index = () => {
           <div className="container-tight">
             <div className="mx-auto text-center max-w-3xl my-[1rem]" data-animate>
             <Badge variant="outline" className="badge-orbit text-white">
-              One-time setup <span className="arrow-pulse"> → </span> Endless consistency
+              From Setup <span className="arrow-pulse"> → </span> to Scale
             </Badge>
               <h1 className="mt-4 font-display text-4xl sm:text-5xl md:text-6xl leading-tight font-extrabold">
                 One Setup. Infinite Branded Possibilities.
               </h1>
               <p className="mt-4 text-lg text-muted-foreground">
-                Set it once. Your brand auto-applies to every asset.
+                Our system applies your brand across every asset automatically.
               </p>
               <div className="mt-8 mx-auto max-w-md">
                <form
