@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Building2 } from "lucide-react";
 
 const navItems = [
-  { label: "Features", href: "#features" },
   { label: "Setup", href: "#setup" },
+  { label: "Features", href: "#features" },
   { label: "Pricing", href: "#pricing" },
 ];
 
