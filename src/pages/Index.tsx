@@ -1,17 +1,8 @@
 import { useEffect } from "react";
 import heroImage from "@/assets/hero-dashboard.png";
-import illusUploadCoreAssets from "@/assets/illus-upload-core-assets.webp";
-import illusAutoGenerate from "@/assets/illus-auto-generate.webp";
-import illusUseAnywhere from "@/assets/illus-use-anywhere.webp";
-import illusGuidelines from "@/assets/illus-guidelines.webp";
-import illusDesignStudio from "@/assets/illus-design-studio.webp";
-import illusPrintCollateral from "@/assets/illus-print-collateral.webp";
-import illusBrandExport from "@/assets/illus-brand-export.webp";
-import illusWebsiteBuilder from "@/assets/illus-website-builder.webp";
-import illusSmartAI from "@/assets/illus-smart-ai.webp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Palette, Upload, Wand2, Globe, Layout, Download, Printer, FileStack, Play, Rocket } from "lucide-react";
+import { Check, Palette, Upload, Wand2, Globe, Layout, Download, Printer, FileStack, Play, Rocket, Building2, Share2, Twitter, Github, Linkedin } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SectionSplit from "@/components/sections/SectionSplit";
@@ -115,29 +106,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Marquee */}
-        <section className="py-6">
-          <div className="container-tight">
-            <div className="marquee rounded-full bg-secondary/60 border border-border/60">
-              <div className="marquee-inner px-6 py-3">
-                <span className="marquee-item">One source of truth •</span>
-                <span className="marquee-item">On‑brand, every time •</span>
-                <span className="marquee-item">Auto‑generated assets •</span>
-                <span className="marquee-item">Export anywhere •</span>
-                <span className="marquee-item">Share live guidelines •</span>
-                <span className="marquee-item">Design faster •</span>
-                {/* duplicate for seamless loop */}
-                <span className="marquee-item">One source of truth •</span>
-                <span className="marquee-item">On‑brand, every time •</span>
-                <span className="marquee-item">Auto‑generated assets •</span>
-                <span className="marquee-item">Export anywhere •</span>
-                <span className="marquee-item">Share live guidelines •</span>
-                <span className="marquee-item">Design faster •</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Pain → Control */}
         <section id="pain" className="section">
           <div className="container-tight">
@@ -155,15 +123,9 @@ const Index = () => {
           <div className="container-tight">
             <h2 data-animate className="text-3xl font-semibold text-center mb-10">Set It Up Once. Brand Everything.</h2>
             <div className="space-y-10">
-              <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth.">
-                <img src={illusUploadCoreAssets} alt="Grayscale illustration of uploading core brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
-              <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website.">
-                <img src={illusAutoGenerate} alt="Grayscale illustration of auto-generating brand outputs" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
-              <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly.">
-                <img src={illusUseAnywhere} alt="Grayscale illustration of publishing and exporting brand assets" loading="lazy" className="rounded-2xl w-full h-auto object-cover card-soft" />
-              </SectionSplit>
+              <SectionSplit title="Upload Core Assets" subtitle="Logo, colors, fonts, voice — your source of truth." />
+              <SectionSplit title="Auto‑Generate Everything" subtitle="Guidelines, templates, print files, even a website." />
+              <SectionSplit title="Use Anywhere" subtitle="Download, export, or publish instantly." />
             </div>
           </div>
         </section>
@@ -171,7 +133,7 @@ const Index = () => {
         {/* Why + All-in-One (Dark continuous) */}
         <section className="section panel-dark bg-dot-grid">
           <div className="container-tight">
-            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl p-10 md:p-14 animate-gradient-shift max-w-5xl mx-auto">
+            <div className="relative overflow-hidden rounded-tl-3xl rounded-tr-none rounded-b-3xl py-10 md:p-14 animate-gradient-shift">
               <span className="inline-block rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Why Brand OS</span>
               <h2 className="mt-4 text-3xl md:text-4xl font-semibold">More than guidelines — your brand OS.</h2>
               <p className="mt-3 text-base text-muted-foreground max-w-2xl">Live brand logic that auto‑applies to every output — from slides and posts to print and your website. One source of truth, used everywhere.</p>
@@ -182,53 +144,67 @@ const Index = () => {
 
             <div className="mt-10" id="features">
               <h3 data-animate className="text-3xl font-semibold text-center">All‑in‑One Branding Powerhouse</h3>
-              <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {/* Card 1 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Layout className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
-                  <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
-                  <img src={illusGuidelines} alt="Grayscale illustration of live brand guidelines" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+              <div className="mt-10 space-y-6">
+                {/* Large Feature Rows */}
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Layout className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Live Brand Guidelines</h4>
+                    <p className="text-sm text-muted-foreground">Instantly updated, shareable, beautiful.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
-
-                {/* Card 2 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Palette className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
-                  <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
-                  <img src={illusDesignStudio} alt="Grayscale illustration of a design studio canvas" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Palette className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Design Studio</h4>
+                    <p className="text-sm text-muted-foreground">Create on‑brand designs without leaving the OS.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
-
-                {/* Card 3 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Printer className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
-                  <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
-                  <img src={illusPrintCollateral} alt="Grayscale illustration of print and collateral items" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Printer className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Print & Collateral</h4>
+                    <p className="text-sm text-muted-foreground">Auto‑generate business cards, letterheads, packaging.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
-
-                {/* Card 4 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Download className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
-                  <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
-                  <img src={illusBrandExport} alt="Grayscale illustration of brand export folders" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Download className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Brand Export</h4>
+                    <p className="text-sm text-muted-foreground">One‑click full brand folder, perfectly organized.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
-
-                {/* Card 5 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Globe className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
-                  <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
-                  <img src={illusWebsiteBuilder} alt="Grayscale illustration of a website wireframe" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Globe className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Website Builder</h4>
+                    <p className="text-sm text-muted-foreground">Launch a branded site in hours, not weeks.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
-
-                {/* Card 6 */}
-                <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-                  <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent"><Wand2 className="h-6 w-6"/></div>
-                  <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
-                  <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
-                  <img src={illusSmartAI} alt="Grayscale illustration of AI assistance for branding" loading="lazy" className="mt-4 rounded-xl w-full h-28 object-cover opacity-90" />
+                <div className="grid items-center gap-6 md:grid-cols-5 card-soft p-6" data-animate>
+                  <div className="md:col-span-2">
+                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted"><Wand2 className="h-6 w-6"/></div>
+                    <h4 className="mt-3 text-xl font-semibold">Smart AI Assist</h4>
+                    <p className="text-sm text-muted-foreground">Suggestions for colors, layouts, and copy.</p>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="aspect-video rounded-2xl glass-surface" />
+                  </div>
                 </div>
               </div>
             </div>
