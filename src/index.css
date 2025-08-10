@@ -213,11 +213,11 @@
   }
   50% {
     color: hsl(var(--accent-pop));
-    transform: translateX(4px);
+    transform: translateX(1px);
   }
 }
 
 .arrow-pulse {
   display: inline-block;
-  animation: arrowPulse 1s ease-in-out infinite;
+  animation: arrowPulse 2s ease-in-out infinite;
 }
