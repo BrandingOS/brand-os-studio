@@ -60,17 +60,23 @@ export function OnboardingWizard() {
   };
 
   const handleComplete = async () => {
+    console.log('Complete button clicked');
     const error = validateCurrentStep();
     if (error) {
+      console.log('Validation error:', error);
       alert(error);
       return;
     }
     
+    console.log('Validation passed, creating brand...');
     try {
       await createBrandFromAnswers();
+      console.log('Brand creation completed successfully');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
-      alert('Failed to create brand. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create brand. Please try again.';
+      console.error('Error message:', errorMessage);
+      alert(errorMessage);
     }
   };
 

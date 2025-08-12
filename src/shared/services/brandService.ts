@@ -40,9 +40,12 @@ class BrandServiceGuest implements BrandService {
   async create(input: CreateBrandInput): Promise<Brand> {
     const brands = this.getBrands();
     
-    // Guest users can only have one brand
+    // Guest users can only have one brand - replace existing one
+    console.log('Creating brand for guest, existing brands:', brands.length);
     if (brands.length >= 1) {
-      throw new Error('Guest users can only create one brand. Sign up to create more.');
+      console.log('Replacing existing brand for guest user');
+      // Clear existing brands for guest users
+      this.saveBrands([]);
     }
 
     const brand: Brand = {
@@ -53,8 +56,9 @@ class BrandServiceGuest implements BrandService {
       updatedAt: new Date(),
     };
 
-    brands.push(brand);
-    this.saveBrands(brands);
+    console.log('Created brand:', brand);
+    const newBrands = [brand]; // Only keep the new brand for guest users
+    this.saveBrands(newBrands);
     return brand;
   }
 

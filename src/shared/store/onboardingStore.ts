@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { StepDef, OnboardingState } from '../types/onboarding';
+import { demoOnboardingAnswers } from '@/data/demo';
 
 const DEFAULT_STEPS: StepDef[] = [
   {
@@ -60,7 +61,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
     (set, get) => ({
       steps: DEFAULT_STEPS,
       currentStepIndex: 0,
-      answers: {},
+      answers: demoOnboardingAnswers, // Pre-fill with demo data
       isComplete: false,
 
       setAnswer: (stepId: string, value: any) => {
@@ -93,10 +94,11 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
 
       reset: () => {
-        set({
-          currentStepIndex: 0,
-          answers: {},
-          isComplete: false
+        console.log('Resetting onboarding store');
+        set({ 
+          currentStepIndex: 0, 
+          answers: {}, // Don't pre-fill after reset
+          isComplete: false 
         }, false, 'reset');
       },
 
