@@ -9,10 +9,6 @@ export function useOnboardingFlow() {
   const { create: createBrand } = useBrandStore();
 
   const createBrandFromAnswers = async (): Promise<void> => {
-    if (!isComplete) {
-      throw new Error('Onboarding not complete');
-    }
-
     const brandInput: CreateBrandInput = {
       name: answers['brand-name'] || 'Untitled Brand',
       logo: answers['logo-upload'],
@@ -29,7 +25,7 @@ export function useOnboardingFlow() {
     try {
       const brand = await createBrand(brandInput);
       reset(); // Clear onboarding data
-      navigate('/brand/preview', { state: { brandId: brand.id } });
+      navigate('/dashboard');
     } catch (error) {
       console.error('Failed to create brand:', error);
       throw error;

@@ -60,6 +60,12 @@ export function OnboardingWizard() {
   };
 
   const handleComplete = async () => {
+    const error = validateCurrentStep();
+    if (error) {
+      alert(error);
+      return;
+    }
+    
     try {
       await createBrandFromAnswers();
     } catch (error) {

@@ -5,7 +5,13 @@ import { Badge } from "@/shared/components/Badge";
 
 const heroImage = "https://i.pinimg.com/1200x/18/ec/a2/18eca28a85c40aa0b255742cbe3a0656.jpg";
 
-export const HeroSection = () => {
+interface HeroSectionProps {
+  onBrandNameChange: (name: string) => void;
+  onStartClick: () => void;
+  brandName: string;
+}
+
+export const HeroSection = ({ onBrandNameChange, onStartClick, brandName }: HeroSectionProps) => {
   return (
     <section className="section bg-dot-grid">
       <div className="container-tight">
@@ -23,13 +29,20 @@ export const HeroSection = () => {
             <form
               className="flex flex-col md:flex-row items-center gap-2 justify-center"
               data-animate
+              onSubmit={(e) => {
+                e.preventDefault();
+                onStartClick();
+              }}
             >
               <Input
                 className="w-full md:w-64 input-pill h-12 px-5 text-center"
                 placeholder="Enter your brand name"
                 aria-label="Brand name"
+                value={brandName}
+                onChange={(e) => onBrandNameChange(e.target.value)}
               />
               <Button
+                type="submit"
                 variant="hero"
                 shape="pill"
                 className="h-12 px-6 w-full md:w-auto"
