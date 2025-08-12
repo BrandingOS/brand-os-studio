@@ -34,7 +34,7 @@ import illusSmartAI from "@/assets/illus-smart-ai.webp";
 export const heroContent: HeroContent = {
   badge: {
     text: "Set → Sync → Shine",
-    className: "badge-orbit"
+    className: "badge-orbit text-white"
   },
   headline: "Save hours of repetitive boring work",
   description: "Create your brand system once—our platform syncs it across every asset automatically.",
