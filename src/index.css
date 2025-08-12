@@ -115,7 +115,7 @@
     background-position: 0 0;
   }
 
-  .glass-suxrface { 
+  .glass-surface { 
     background: var(--gradient-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
