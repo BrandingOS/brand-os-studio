@@ -109,13 +109,13 @@
 
 /* Utilities and design primitives */
 @layer utilities {
-  .bg-dot-grid {
+  /*.bg-dot-grid {
     background-image: radial-gradient(hsl(var(--dot-color)) 1px, transparent 1px);
     background-size: var(--dot-size) var(--dot-size);
     background-position: 0 0;
-  }
+  }*/
 
-  .glass-surface { 
+  .glass-suxrface { 
     background: var(--gradient-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
