@@ -139,29 +139,3 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 }
-
-// Additional missing types
-export interface Design {
-  id: string;
-  name: string;
-  brandId: string;
-  userId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Asset {
-  id: string;
-  name: string;
-  url: string;
-  brandId: string;
-  userId: string;
-  createdAt: Date;
-}
-
-export interface GeneratedAsset {
-  id: string;
-  name: string;
-  url: string;
-  type: string;
-}
