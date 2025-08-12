@@ -35,7 +35,7 @@ export const HeroSection = ({ onBrandNameChange, onStartClick, brandName }: Hero
               }}
             >
               <Input
-                className="w-full md:w-64 input-pill h-12 px-5 text-center"
+                className="w-full md:w-64 input-pill h-12 px-5 text-center focus:placeholder-transparent"
                 placeholder="Enter your brand name"
                 aria-label="Brand name"
                 value={brandName}
