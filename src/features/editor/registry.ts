@@ -1,10 +1,12 @@
-// Editor Registry - Placeholder for future tool registration system
+import { ComponentType } from 'react';
+import { ColorPaletteTool } from './tools/ColorPaletteTool';
+import { LogoTool } from './tools/LogoTool';
 
 export interface EditorTool {
   id: string;
   name: string;
   icon: string;
-  component: React.ComponentType<any>;
+  component: ComponentType<{ brandId: string }>;
 }
 
 export interface EditorModule {
@@ -18,18 +20,32 @@ export interface EditorContext {
   currentTool?: string;
   selectedElement?: string;
   canvasSize: { width: number; height: number };
+  brandId?: string;
 }
 
-// Empty registry - to be populated with actual tools later
+// Registry with actual tools
 export const editorRegistry: {
   tools: Record<string, EditorTool>;
   modules: Record<string, EditorModule>;
 } = {
-  tools: {},
+  tools: {
+    'brand-colors': {
+      id: 'brand-colors',
+      name: 'Color Palette',
+      icon: 'Palette',
+      component: ColorPaletteTool,
+    },
+    'logo': {
+      id: 'logo',
+      name: 'Logo Management',
+      icon: 'Image',
+      component: LogoTool,
+    },
+  },
   modules: {},
 };
 
-// Placeholder functions for future implementation
+// Tool registration functions
 export function registerTool(tool: EditorTool): void {
   editorRegistry.tools[tool.id] = tool;
 }

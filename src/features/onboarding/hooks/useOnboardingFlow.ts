@@ -1,12 +1,11 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
-import { useBrandStore } from '@/shared/store/brandStore';
 import { useNavigate } from 'react-router-dom';
+import { brandsService } from '@/features/brand/services/brands.local';
 import type { CreateBrandInput } from '@/shared/types/brand';
 
 export function useOnboardingFlow() {
   const navigate = useNavigate();
   const { answers, isComplete, reset } = useOnboardingStore();
-  const { create: createBrand } = useBrandStore();
 
   const createBrandFromAnswers = async (): Promise<void> => {
     console.log('Creating brand from answers:', answers);
@@ -27,8 +26,8 @@ export function useOnboardingFlow() {
     console.log('Brand input:', brandInput);
 
     try {
-      console.log('Calling createBrand with input:', brandInput);
-      const brand = await createBrand(brandInput);
+      console.log('Calling brandsService.create with input:', brandInput);
+      const brand = await brandsService.create(brandInput);
       console.log('Brand created successfully:', brand);
       reset(); // Clear onboarding data
       navigate('/dashboard');
