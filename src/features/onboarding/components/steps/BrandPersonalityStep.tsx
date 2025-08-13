@@ -10,7 +10,7 @@ interface BrandPersonalityStepProps {
 const toneOptions = [
   { value: 'professional', label: 'Professional', desc: 'Serious, trustworthy, corporate', emoji: '💼' },
   { value: 'friendly', label: 'Friendly', desc: 'Warm, approachable, personal', emoji: '😊' },
-  { value: 'modern', label: 'Modern', desc: 'Cutting-edge, innovative, tech-forward', emoji: '🚀' },
+  { value: 'modern', label: 'Modern', desc: 'Cutting-edge, innovative, tech', emoji: '🚀' },
   { value: 'elegant', label: 'Elegant', desc: 'Sophisticated, refined, luxury', emoji: '✨' },
   { value: 'playful', label: 'Playful', desc: 'Fun, energetic, creative', emoji: '🎨' },
   { value: 'minimalist', label: 'Minimalist', desc: 'Clean, simple, focused', emoji: '🎯' },
@@ -58,7 +58,7 @@ export function BrandPersonalityStep({ value = {}, stepId }: BrandPersonalitySte
                 <span className="text-xl">{option.emoji}</span>
                 <div>
                   <div className="font-medium">{option.label}</div>
-                  <div className="text-sm text-muted-foreground mt-1">{option.desc}</div>
+                  <div className="text-sm text-muted-foreground mt-1 overflow-scroll ">{option.desc}</div>
                 </div>
               </div>
             </Button>

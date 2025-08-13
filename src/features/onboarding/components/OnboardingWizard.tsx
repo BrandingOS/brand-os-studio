@@ -103,12 +103,12 @@ export function OnboardingWizard() {
   };
 
   return (
-    <Section container={false} className="min-h-screen bg-background">
-      <div className="max-w-5xl mx-auto px-4 py-8">
+    <Section container={false} className="min-h-screen bg-background ">
+      <div className="max-w-5xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-2">Brand Identity Brief</h1>
-          <p className="text-muted-foreground text-lg">
+          <h1 className="text-2xl font-bold mb-2">Brand Identity Brief</h1>
+          <p className="text-muted-foreground text-sm">
             Help us craft the perfect brand strategy for you
           </p>
         </div>
@@ -144,9 +144,9 @@ export function OnboardingWizard() {
                   onClick={() => goToStep(index)}
                 >
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
                       status === 'completed'
-                        ? 'bg-green-500 text-white'
+                        ? 'bg-primary text-primary-foreground'
                         : status === 'skipped'
                         ? 'bg-muted text-muted-foreground'
                         : isActive
