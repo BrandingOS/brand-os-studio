@@ -5,55 +5,95 @@ import { demoOnboardingAnswers } from '@/data/demo';
 
 const DEFAULT_STEPS: StepDef[] = [
   {
-    id: 'brand-name',
-    title: 'Brand Name',
-    description: 'What\'s your brand name?',
-    component: 'BrandNameStep',
+    id: 'company-basics',
+    title: 'Company Basics',
+    description: 'Tell us about your company',
+    component: 'CompanyBasicsStep',
     required: true,
-    validation: (value: string) => !value?.trim() ? 'Brand name is required' : null,
+    icon: 'Building2',
+    category: 'Foundation',
+    canSkip: false,
+    validation: (value: any) => !value?.brandName?.trim() ? 'Brand name is required' : null,
   },
   {
-    id: 'logo-upload',
-    title: 'Logo Upload',
-    description: 'Upload your logo (optional)',
-    component: 'LogoUploadStep',
-    required: false,
-  },
-  {
-    id: 'primary-color',
-    title: 'Primary Color',
-    description: 'Choose your primary brand color',
-    component: 'ColorPickerStep',
-    required: true,
-    validation: (value: string) => !value ? 'Primary color is required' : null,
-  },
-  {
-    id: 'tone',
-    title: 'Brand Tone',
-    description: 'How does your brand speak?',
-    component: 'ToneStep',
-    required: true,
-    validation: (value: string) => !value ? 'Brand tone is required' : null,
-  },
-  {
-    id: 'audience',
+    id: 'target-audience',
     title: 'Target Audience',
-    description: 'Who is your target audience?',
-    component: 'AudienceStep',
+    description: 'Who are you building for? (Select 2-4 groups)',
+    component: 'TargetAudienceStep',
     required: true,
-    validation: (value: string) => !value ? 'Target audience is required' : null,
+    icon: 'Users',
+    category: 'Strategy',
+    canSkip: false,
+    validation: (value: any) => !value?.length ? 'Please select at least one audience' : null,
+  },
+  {
+    id: 'brand-personality',
+    title: 'Brand Personality',
+    description: 'How does your brand speak and feel?',
+    component: 'BrandPersonalityStep',
+    required: true,
+    icon: 'Heart',
+    category: 'Identity',
+    canSkip: false,
+    validation: (value: any) => !value?.tone ? 'Brand tone is required' : null,
+  },
+  {
+    id: 'business-goals',
+    title: 'Business Goals',
+    description: 'What are your primary objectives?',
+    component: 'BusinessGoalsStep',
+    required: false,
+    icon: 'Target',
+    category: 'Strategy',
+    canSkip: true,
+  },
+  {
+    id: 'market-position',
+    title: 'Market Position',
+    description: 'How do you position against competitors?',
+    component: 'MarketPositionStep',
+    required: false,
+    icon: 'TrendingUp',
+    category: 'Strategy',
+    canSkip: true,
+  },
+  {
+    id: 'style-values',
+    title: 'Style & Values',
+    description: 'Visual style and core values',
+    component: 'StyleValuesStep',
+    required: true,
+    icon: 'Palette',
+    category: 'Design',
+    canSkip: false,
+    validation: (value: any) => !value?.primaryColor ? 'Primary color is required' : null,
+  },
+  {
+    id: 'logo-assets',
+    title: 'Logo & Assets',
+    description: 'Upload your brand assets',
+    component: 'LogoAssetsStep',
+    required: false,
+    icon: 'Image',
+    category: 'Assets',
+    canSkip: true,
   },
 ];
 
 interface OnboardingStore extends OnboardingState {
   setAnswer: (stepId: string, value: any) => void;
+  skipStep: (stepId: string) => void;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (index: number) => void;
   reset: () => void;
   validateCurrentStep: () => string | null;
   canProceed: () => boolean;
+  canSkipCurrent: () => boolean;
   getCompletionPercentage: () => number;
+  getStepStatus: (stepId: string) => 'completed' | 'skipped' | 'current' | 'pending';
+  addDynamicStep: (step: StepDef, afterStepId?: string) => void;
+  removeDynamicStep: (stepId: string) => void;
 }
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -62,12 +102,21 @@ export const useOnboardingStore = create<OnboardingStore>()(
       steps: DEFAULT_STEPS,
       currentStepIndex: 0,
       answers: demoOnboardingAnswers, // Pre-fill with demo data
+      skippedSteps: new Set(),
       isComplete: false,
+      dynamicSteps: true,
 
       setAnswer: (stepId: string, value: any) => {
         set((state) => ({
-          answers: { ...state.answers, [stepId]: value }
+          answers: { ...state.answers, [stepId]: value },
+          skippedSteps: new Set([...state.skippedSteps].filter(id => id !== stepId))
         }), false, 'setAnswer');
+      },
+
+      skipStep: (stepId: string) => {
+        set((state) => ({
+          skippedSteps: new Set([...state.skippedSteps, stepId])
+        }), false, 'skipStep');
       },
 
       nextStep: () => {
@@ -97,15 +146,19 @@ export const useOnboardingStore = create<OnboardingStore>()(
         console.log('Resetting onboarding store');
         set({ 
           currentStepIndex: 0, 
-          answers: {}, // Don't pre-fill after reset
+          answers: {}, 
+          skippedSteps: new Set(),
           isComplete: false 
         }, false, 'reset');
       },
 
       validateCurrentStep: () => {
-        const { steps, currentStepIndex, answers } = get();
+        const { steps, currentStepIndex, answers, skippedSteps } = get();
         const currentStep = steps[currentStepIndex];
         if (!currentStep) return null;
+        
+        // Skip validation if step is skipped
+        if (skippedSteps.has(currentStep.id)) return null;
         
         const value = answers[currentStep.id];
         return currentStep.validation ? currentStep.validation(value) : null;
@@ -116,13 +169,48 @@ export const useOnboardingStore = create<OnboardingStore>()(
         return validateCurrentStep() === null;
       },
 
+      canSkipCurrent: () => {
+        const { steps, currentStepIndex } = get();
+        const currentStep = steps[currentStepIndex];
+        return currentStep?.canSkip || false;
+      },
+
       getCompletionPercentage: () => {
-        const { steps, answers } = get();
-        const requiredSteps = steps.filter(step => step.required);
-        const completedRequired = requiredSteps.filter(step => 
-          answers[step.id] !== undefined && answers[step.id] !== ''
+        const { steps, answers, skippedSteps } = get();
+        const completedSteps = steps.filter(step => 
+          answers[step.id] !== undefined || skippedSteps.has(step.id)
         );
-        return Math.round((completedRequired.length / requiredSteps.length) * 100);
+        return Math.round((completedSteps.length / steps.length) * 100);
+      },
+
+      getStepStatus: (stepId: string) => {
+        const { steps, currentStepIndex, answers, skippedSteps } = get();
+        const stepIndex = steps.findIndex(step => step.id === stepId);
+        const currentStep = steps[currentStepIndex];
+        
+        if (stepIndex === currentStepIndex) return 'current';
+        if (skippedSteps.has(stepId)) return 'skipped';
+        if (answers[stepId] !== undefined) return 'completed';
+        return 'pending';
+      },
+
+      addDynamicStep: (step: StepDef, afterStepId?: string) => {
+        set((state) => {
+          const steps = [...state.steps];
+          if (afterStepId) {
+            const insertIndex = steps.findIndex(s => s.id === afterStepId) + 1;
+            steps.splice(insertIndex, 0, step);
+          } else {
+            steps.push(step);
+          }
+          return { steps };
+        }, false, 'addDynamicStep');
+      },
+
+      removeDynamicStep: (stepId: string) => {
+        set((state) => ({
+          steps: state.steps.filter(step => step.id !== stepId)
+        }), false, 'removeDynamicStep');
       },
     }),
     { name: 'onboarding-store' }

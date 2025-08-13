@@ -69,12 +69,29 @@ export const demoBrandIdentity: Brand = {
 };
 
 export const demoOnboardingAnswers = {
-  'brand-name': 'TechFlow Solutions',
-  'logo-upload': 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=200&fit=crop&crop=center',
-  'primary-color': '#2563eb',
-  'secondary-color': '#f59e0b',
-  'primary-font': 'Inter',
-  'secondary-font': 'Poppins',
-  'tone': 'Professional & Innovative',
-  'audience': 'Tech-savvy businesses and startups',
+  'company-basics': {
+    brandName: 'TechFlow Solutions',
+    description: 'We create innovative technology solutions for modern businesses',
+    industry: 'Technology',
+    companySize: '11-50'
+  },
+  'target-audience': ['professionals', 'entrepreneurs'],
+  'brand-personality': {
+    tone: 'modern',
+    traits: ['Innovative', 'Trustworthy', 'Expert'],
+    voice: 'Professional yet approachable, confident but not arrogant'
+  },
+  'business-goals': {
+    goals: ['brand-awareness', 'sales-growth'],
+    timeframe: '1-year',
+    successMetrics: 'Increased market recognition and 30% growth in sales'
+  },
+  'style-values': {
+    primaryColor: '#2563eb',
+    stylePreference: 'modern',
+    coreValues: ['Innovation', 'Quality', 'Trust']
+  },
+  'logo-assets': {
+    primaryLogo: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=200&fit=crop&crop=center'
+  }
 };

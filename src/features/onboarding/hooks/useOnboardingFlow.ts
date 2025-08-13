@@ -10,17 +10,23 @@ export function useOnboardingFlow() {
   const createBrandFromAnswers = async (): Promise<void> => {
     console.log('Creating brand from answers:', answers);
     
+    const companyBasics = answers['company-basics'] || {};
+    const styleValues = answers['style-values'] || {};
+    const brandPersonality = answers['brand-personality'] || {};
+    const targetAudience = answers['target-audience'] || [];
+    const logoAssets = answers['logo-assets'] || {};
+    
     const brandInput: CreateBrandInput = {
-      name: answers['brand-name'] || 'Untitled Brand',
-      logo: answers['logo-upload'],
-      primaryColor: answers['primary-color'] || '#000000',
-      secondaryColor: answers['secondary-color'],
+      name: companyBasics.brandName || 'Untitled Brand',
+      logo: logoAssets.primaryLogo,
+      primaryColor: styleValues.primaryColor || '#000000',
+      secondaryColor: styleValues.secondaryColor,
       fonts: {
-        primary: answers['primary-font'] || 'Inter',
-        secondary: answers['secondary-font'],
+        primary: 'Inter',
+        secondary: 'Roboto',
       },
-      tone: answers['tone'] || 'Professional',
-      audience: answers['audience'] || 'General',
+      tone: brandPersonality.tone || 'Professional',
+      audience: targetAudience.length > 0 ? targetAudience.join(', ') : 'General',
     };
 
     console.log('Brand input:', brandInput);
