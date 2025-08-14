@@ -18,23 +18,56 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const { settings } = useGuidelinesStore();
   const [zoom, setZoom] = React.useState(1);
   const [previewMode, setPreviewMode] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [autoFitScale, setAutoFitScale] = React.useState(1);
 
   const TemplateComponent = getTemplateComponent(settings.template);
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
+  // Calculate auto-fit scale based on available container space
+  React.useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateScale = () => {
+      const container = containerRef.current!;
+      const containerRect = container.getBoundingClientRect();
+      
+      // Account for padding (32px on each side = 64px total)
+      const availableWidth = containerRect.width - 64;
+      const availableHeight = containerRect.height - 64;
+      
+      // Calculate scale to fit both width and height, using the smaller ratio
+      const scaleX = availableWidth / settings.size.width;
+      const scaleY = availableHeight / settings.size.height;
+      const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+      
+      setAutoFitScale(fitScale);
+    };
+
+    updateScale();
+    
+    const resizeObserver = new ResizeObserver(updateScale);
+    resizeObserver.observe(containerRef.current);
+    
+    return () => resizeObserver.disconnect();
+  }, [settings.size.width, settings.size.height]);
+
+  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
+  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.2));
   const handleResetZoom = () => setZoom(1);
+
+  // Combined scale: auto-fit scale * manual zoom
+  const finalScale = autoFitScale * zoom;
 
   const canvasStyle = {
     width: `${settings.size.width}px`,
     height: `${settings.size.height}px`,
-    transform: `scale(${zoom})`,
-    transformOrigin: 'center top',
+    transform: `scale(${finalScale})`,
+    transformOrigin: 'center',
   };
 
   const containerStyle = {
-    width: `${settings.size.width * zoom}px`,
-    height: `${settings.size.height * zoom}px`,
+    width: `${settings.size.width * finalScale}px`,
+    height: `${settings.size.height * finalScale}px`,
   };
 
   if (!currentSlide) {
@@ -93,8 +126,8 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
       {/* Canvas */}
-      <div className="flex-1 overflow-auto bg-muted/10 p-8">
-        <div className="flex justify-center">
+      <div ref={containerRef} className="flex-1 overflow-auto bg-muted/10 p-8">
+        <div className="flex justify-center items-center min-h-full">
           <div style={containerStyle}>
             <div 
               className="bg-white shadow-lg border border-border/20 overflow-hidden"
