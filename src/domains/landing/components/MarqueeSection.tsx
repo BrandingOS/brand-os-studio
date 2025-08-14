@@ -10,7 +10,7 @@ export const MarqueeSection = () => {
             <span className="marquee-item">Export anywhere •</span>
             <span className="marquee-item">Share live guidelines •</span>
             <span className="marquee-item">Design faster •</span>
-            {/* duplicate for seamless loop */}
+            {/* duplicate for seamless loops */}
             <span className="marquee-item">One source of truth •</span>
             <span className="marquee-item">On‑brand, every time •</span>
             <span className="marquee-item">Auto‑generated assets •</span>
