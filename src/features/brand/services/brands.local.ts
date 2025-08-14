@@ -14,7 +14,17 @@ export class LocalBrandsService implements BrandsService {
   private getBrands(): Brand[] {
     try {
       const data = localStorage.getItem(this.storageKey);
-      return data ? JSON.parse(data) : [];
+      const brands = data ? JSON.parse(data) : [];
+      
+      // Initialize with demo data if no brands exist
+      if (brands.length === 0) {
+        const { demoBrandIdentity } = require('@/data/demo');
+        const demoData = [demoBrandIdentity];
+        this.saveBrands(demoData);
+        return demoData;
+      }
+      
+      return brands;
     } catch {
       return [];
     }

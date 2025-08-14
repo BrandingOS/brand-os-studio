@@ -28,7 +28,9 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     if (!containerRef.current) return;
 
     const updateScale = () => {
-      const container = containerRef.current!;
+      const container = containerRef.current;
+      if (!container) return;
+      
       const containerRect = container.getBoundingClientRect();
       
       // Account for padding (32px on each side = 64px total)
@@ -40,15 +42,23 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       const scaleY = availableHeight / settings.size.height;
       const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
       
-      setAutoFitScale(fitScale);
+      setAutoFitScale(Math.max(fitScale, 0.1)); // Minimum 10% scale
     };
 
+    // Initial calculation
     updateScale();
     
+    // Use ResizeObserver for more accurate updates
     const resizeObserver = new ResizeObserver(updateScale);
     resizeObserver.observe(containerRef.current);
     
-    return () => resizeObserver.disconnect();
+    // Also listen to window resize as fallback
+    window.addEventListener('resize', updateScale);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
   }, [settings.size.width, settings.size.height]);
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 3));
