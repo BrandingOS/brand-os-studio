@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useGuidelinesStore } from '../store/guidelinesStore';
 import { getTemplateComponent } from '../templates/template-registry';
 import type { GuidelineSlide } from '../types/guidelines';
 import type { Brand } from '@/shared/types/brand';
 import { Button } from '@/shared/ui/Button';
-import { ZoomIn, ZoomOut, RotateCcw, Download, Eye } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 
 interface PreviewCanvasProps {
   brand: Brand;
@@ -16,26 +16,48 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   currentSlide,
 }) => {
   const { settings } = useGuidelinesStore();
-  const [zoom, setZoom] = React.useState(1);
-  const [previewMode, setPreviewMode] = React.useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [editorScale, setEditorScale] = useState(1);
+  const stageContainerRef = useRef<HTMLDivElement>(null);
 
   const TemplateComponent = getTemplateComponent(settings.template);
+  const baseWidth = settings.size.width;
+  const baseHeight = settings.size.height;
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.1, 2));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.1, 0.5));
-  const handleResetZoom = () => setZoom(1);
-
-  const canvasStyle = {
-    width: `${settings.size.width}px`,
-    height: `${settings.size.height}px`,
-    transform: `scale(${zoom})`,
-    transformOrigin: 'center top',
+  // Calculate editor scale based on available width
+  const calculateScale = () => {
+    if (!stageContainerRef.current) return 1;
+    
+    const stagePadding = 32; // 2rem padding on each side
+    const availableWidth = stageContainerRef.current.clientWidth - (stagePadding * 2);
+    const scale = availableWidth / baseWidth;
+    
+    return Math.max(scale, 0.1); // Prevent extreme scaling
   };
 
-  const containerStyle = {
-    width: `${settings.size.width * zoom}px`,
-    height: `${settings.size.height * zoom}px`,
-  };
+  // Update scale on resize
+  useEffect(() => {
+    const updateScale = () => {
+      const newScale = calculateScale();
+      setEditorScale(newScale);
+    };
+
+    updateScale();
+
+    const resizeObserver = new ResizeObserver(updateScale);
+    if (stageContainerRef.current) {
+      resizeObserver.observe(stageContainerRef.current);
+    }
+
+    return () => {
+      if (stageContainerRef.current) {
+        resizeObserver.unobserve(stageContainerRef.current);
+      }
+    };
+  }, [baseWidth]);
+
+  const scaledWidth = baseWidth * editorScale;
+  const scaledHeight = baseHeight * editorScale;
 
   if (!currentSlide) {
     return (
@@ -60,23 +82,9 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleZoomOut}>
-            <ZoomOut className="w-4 h-4" />
-          </Button>
-          
           <span className="text-sm min-w-16 text-center">
-            {Math.round(zoom * 100)}%
+            {Math.round(editorScale * 100)}%
           </span>
-          
-          <Button variant="ghost" size="sm" onClick={handleZoomIn}>
-            <ZoomIn className="w-4 h-4" />
-          </Button>
-          
-          <Button variant="ghost" size="sm" onClick={handleResetZoom}>
-            <RotateCcw className="w-4 h-4" />
-          </Button>
-          
-          <div className="w-px h-6 bg-border mx-2" />
           
           <Button 
             variant={previewMode ? 'default' : 'ghost'} 
@@ -95,10 +103,22 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       {/* Canvas */}
       <div className="flex-1 overflow-auto bg-muted/10 p-8">
         <div className="flex justify-center">
-          <div style={containerStyle}>
+          <div 
+            style={{ 
+              width: `${scaledWidth}px`, 
+              height: `${scaledHeight}px`,
+              contain: 'layout paint size'
+            }}
+          >
             <div 
               className="bg-white shadow-lg border border-border/20 overflow-hidden"
-              style={canvasStyle}
+              style={{
+                width: `${baseWidth}px`,
+                height: `${baseHeight}px`,
+                transform: `scale(${editorScale})`,
+                transformOrigin: 'top left',
+                willChange: 'transform'
+              }}
             >
               <TemplateComponent
                 brand={brand}
