@@ -45,7 +45,7 @@ export function useOnboardingFlow() {
   };
 
   const goToPreview = () => {
-    navigate('/brand/preview');
+    navigate('/onboarding/preview');
   };
 
   const goToDashboard = () => {

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Palette, Users, AlertCircle, Briefcase, FileText } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { Section } from '@/shared/ui/Section';
-import { Container } from '@/shared/ui/Container';
 import { brandsService } from '@/features/brand/services/brands.local';
 import type { Brand } from '@/shared/types/brand';
 
@@ -50,38 +48,73 @@ export function DashboardMain() {
 
   if (isLoading && brands.length === 0) {
     return (
-      <Container className="py-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your brands...</p>
-        </div>
-      </Container>
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex h-16 items-center justify-between">
+              <h1 className="text-xl font-semibold">Brand OS Dashboard</h1>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your brands...</p>
+          </div>
+        </main>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Container className="py-8">
-        <Card className="text-center p-8">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Error Loading Brands</h3>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={loadBrands}>Try Again</Button>
-        </Card>
-      </Container>
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-card">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex h-16 items-center justify-between">
+              <h1 className="text-xl font-semibold">Brand OS Dashboard</h1>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card className="text-center p-8">
+            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Brands</h3>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <Button onClick={loadBrands}>Try Again</Button>
+          </Card>
+        </main>
+      </div>
     );
   }
 
   return (
-    <Container className="py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Brand Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your brand systems and assets
-          </p>
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-card">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <h1 className="text-xl font-semibold">Brand OS Dashboard</h1>
+            <div className="flex items-center gap-4">
+              {/* Future: User menu, notifications, etc. */}
+            </div>
+          </div>
         </div>
+      </header>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-2xl font-semibold">Welcome to Brand OS</h2>
+            <p className="text-muted-foreground">Manage your brand system from here.</p>
+          </div>
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h3 className="text-xl font-bold">Your Brands</h3>
+              <p className="text-muted-foreground mt-1">
+                Manage your brand systems and assets
+              </p>
+            </div>
         <Button
           onClick={handleCreateBrand}
           disabled={brands.length >= 1} // Guest mode limitation
@@ -183,8 +216,10 @@ export function DashboardMain() {
               </Card>
             </div>
           ))}
+          </div>
+        )}
         </div>
-      )}
-    </Container>
+      </main>
+    </div>
   );
 }

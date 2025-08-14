@@ -18,11 +18,11 @@ export default function GuidelinesHubPage() {
   const { brandId } = useParams<{ brandId: string }>();
   const navigate = useNavigate();
 
-  // Check if we should show the editor (when 'editor' query param is present)
+  // Default to editor unless 'hub' param is present
   const urlParams = new URLSearchParams(window.location.search);
-  const showEditor = urlParams.get('editor') === 'true';
+  const showHub = urlParams.get('hub') === 'true';
 
-  if (showEditor) {
+  if (!showHub) {
     return <GuidelinesEditor />;
   }
 
@@ -38,7 +38,7 @@ export default function GuidelinesHubPage() {
             <div className="flex gap-3">
               <Button 
                 variant="outline" 
-                onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines?editor=true`)}
+                onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines`)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Open Editor
@@ -67,7 +67,7 @@ export default function GuidelinesHubPage() {
             </div>
             <Button 
               size="lg"
-              onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines?editor=true`)}
+              onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines`)}
             >
               <Edit className="w-5 h-5 mr-2" />
               Launch Editor
@@ -123,7 +123,7 @@ export default function GuidelinesHubPage() {
                 <Button 
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines?editor=true&section=${doc.id}`)}
+                  onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines?section=${doc.id}`)}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>

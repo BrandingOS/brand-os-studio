@@ -1,5 +1,5 @@
-import DashboardPage from '../../app/dashboard/page';
+import { DashboardMain } from '@/features/dashboard/components/DashboardMain';
 
 export default function DashboardRoute() {
-  return <DashboardPage />;
+  return <DashboardMain />;
 }
