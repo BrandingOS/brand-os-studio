@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { GuidelineSettings, GuidelineSlide, GuidelinePanel } from '../types/guidelines';
-import { DEFAULT_GUIDELINE_SETTINGS } from '../types/guidelines';
+import { DEFAULT_GUIDELINE_SETTINGS, SIZE_PRESETS } from '../types/guidelines';
 
 interface GuidelinesStore {
   // Settings
@@ -75,7 +75,6 @@ export const useGuidelinesStore = create<GuidelinesStore>()(
         },
 
         setSizeFormat: (format) => {
-          const { SIZE_PRESETS } = require('../types/guidelines');
           const dimensions = SIZE_PRESETS[format];
           
           set((state) => ({
@@ -153,7 +152,7 @@ export const useGuidelinesStore = create<GuidelinesStore>()(
             const [removed] = newSlides.splice(fromIndex, 1);
             newSlides.splice(toIndex, 0, removed);
             return { slides: newSlides };
-          }), false, 'reorderSlides');
+          }, false, 'reorderSlides');
         },
 
         // Panel actions

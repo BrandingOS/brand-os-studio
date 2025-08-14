@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
+import type { GuidelineSlide } from '../types/guidelines';
 import { SlideNavigator } from './SlideNavigator';
 import { PreviewCanvas } from './PreviewCanvas';
 import { GuidelineCustomizer } from './GuidelineCustomizer';
@@ -28,7 +29,7 @@ export const GuidelinesEditor: React.FC = () => {
   // Initialize slides when brand is loaded
   useEffect(() => {
     if (brand && slides.length === 0) {
-      const initialSlides = [
+      const initialSlides: GuidelineSlide[] = [
         { id: 'cover', type: 'cover', title: 'Cover', content: { pageNumber: 1 }, order: 0, enabled: true },
         { id: 'strategy', type: 'strategy', title: 'Brand Strategy', content: { pageNumber: 2 }, order: 1, enabled: true },
         { id: 'logos', type: 'logos', title: 'Logo System', content: { pageNumber: 3 }, order: 2, enabled: true },
