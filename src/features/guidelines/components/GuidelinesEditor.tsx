@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
@@ -14,41 +14,10 @@ export const GuidelinesEditor: React.FC = () => {
   const { current: brand, isLoading, loadById } = useBrandStore();
   const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStore();
 
-  // --- measure center column so the slide can width-fit responsively ---
-  const centerRef = useRef<HTMLDivElement | null>(null);
-  const [centerWidth, setCenterWidth] = useState(0);
-  const [centerHeight, setCenterHeight] = useState(0);
-
-  useEffect(() => {
-    const el = centerRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(([entry]) => {
-      const w =
-        (Array.isArray(entry.contentBoxSize)
-          ? entry.contentBoxSize[0]?.inlineSize
-          : (entry.contentBoxSize as any)?.inlineSize) ?? entry.contentRect.width;
-
-      const h =
-        (Array.isArray(entry.contentBoxSize)
-          ? entry.contentBoxSize[0]?.blockSize
-          : (entry.contentBoxSize as any)?.blockSize) ?? entry.contentRect.height;
-
-      setCenterWidth(Math.max(0, Math.floor(w)));
-      setCenterHeight(Math.max(0, Math.floor(h)));
-    });
-
-    ro.observe(el);
-    // initial read
-    setCenterWidth(el.clientWidth);
-    setCenterHeight(el.clientHeight);
-
-    return () => ro.disconnect();
-  }, []);
-
   // Load brand data
   useEffect(() => {
     if (brandId && brandId !== brand?.id) {
+      // For demo purposes, use demo brand if brandId matches
       if (brandId === 'demo-brand-1') {
         useBrandStore.getState().setCurrent(demoBrandIdentity);
       } else {
@@ -72,7 +41,10 @@ export const GuidelinesEditor: React.FC = () => {
         { id: 'stationery', type: 'stationery', title: 'Stationery', content: { pageNumber: 9 }, order: 8, enabled: true },
         { id: 'applications', type: 'applications', title: 'Applications', content: { pageNumber: 10 }, order: 9, enabled: true },
       ];
-      initialSlides.forEach(slide => useGuidelinesStore.getState().addSlide(slide));
+      
+      initialSlides.forEach(slide => {
+        useGuidelinesStore.getState().addSlide(slide);
+      });
     }
   }, [brand, slides.length]);
 
@@ -118,15 +90,11 @@ export const GuidelinesEditor: React.FC = () => {
     }
   };
 
-  // The scroll area inside PreviewCanvas has p-8 (32px each side).
-  // Subtract that so the slide truly fits within visible content.
-  const AVAILABLE_WIDTH_FOR_SLIDE = Math.max(0, centerWidth - 64);
-
   return (
     <div className="flex h-screen bg-background">
       {/* Left Panel - Slide Navigator */}
       <div className="w-80 border-r border-border bg-muted/20">
-        <SlideNavigator
+        <SlideNavigator 
           slides={slides}
           currentSlide={currentSlide}
           onSlideSelect={setCurrentSlide}
@@ -135,12 +103,10 @@ export const GuidelinesEditor: React.FC = () => {
       </div>
 
       {/* Center Panel - Preview Canvas */}
-      <div ref={centerRef} className="flex-1 flex flex-col bg-muted/5">
-        <PreviewCanvas
+      <div className="flex-1 flex flex-col bg-muted/5">
+        <PreviewCanvas 
           brand={brand}
           currentSlide={slides[currentSlide]}
-          availableWidth={AVAILABLE_WIDTH_FOR_SLIDE}
-          availableHeight={centerHeight} // not used now, but handy if you later fit height too
         />
       </div>
 
