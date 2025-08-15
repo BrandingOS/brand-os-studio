@@ -5,7 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Pages
 import IndexPage from "./pages/Index";
-import OnboardingRoute from "./pages/onboarding";
+import OnboardingPage from "./app/onboarding/page";
 import BrandPreviewPage from "./pages/onboarding/preview";
 import DashboardRoute from "./pages/dashboard";
 import BrandHomePage from "./pages/dashboard/brand/[brandId]";
@@ -26,7 +26,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<IndexPage />} />
-          <Route path="/onboarding" element={<OnboardingRoute />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/dashboard/brand/:brandId" element={<BrandHomePage />} />

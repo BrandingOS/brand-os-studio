@@ -49,3 +49,4 @@ export const EditSlideForm: React.FC<EditSlideFormProps> = ({ slide }) => {
       </div>
     </div>
   );
+};
