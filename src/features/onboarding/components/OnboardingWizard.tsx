@@ -92,47 +92,46 @@ export function OnboardingWizard() {
             </div>
 
             {/* Small step icons row (scrollable if tight) */}
-            <nav className="-mx-1 flex items-center gap-4 overflow-x-auto pb-1">
-              {steps.map((step, index) => {
-                const IconComponent = iconMap[step.icon as keyof typeof iconMap];
-                const status = getStepStatus(step.id);
-                const isActive = index === currentStepIndex;
-                return (
-                  <button
-                    key={step.id}
-                    onClick={() => goToStep(index)}
-                    className="shrink-0 flex flex-col items-center group"
-                    aria-current={isActive ? 'step' : undefined}
+           <div className="flex justify-between items-center">
+            {steps.map((step, index) => {
+              const IconComponent = iconMap[step.icon as keyof typeof iconMap];
+              const status = getStepStatus(step.id);
+              const isActive = index === currentStepIndex;
+              
+              return (
+                <div
+                  key={step.id}
+                  className="flex flex-col items-center cursor-pointer group"
+                  onClick={() => goToStep(index)}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
+                      status === 'completed'
+                        ? 'bg-primary text-primary-foreground'
+                        : status === 'skipped'
+                        ? 'bg-muted text-muted-foreground'
+                        : isActive
+                        ? 'bg-primary text-primary-foreground ring-4 ring-primary/20'
+                        : 'bg-muted text-muted-foreground group-hover:bg-muted-foreground/10'
+                    }`}
                   >
-                    <div
-                      className={[
-                        'w-7 h-7 rounded-full flex items-center justify-center transition-all',
-                        status === 'completed'
-                          ? 'bg-foreground text-background'
-                          : status === 'skipped'
-                          ? 'bg-muted text-muted-foreground'
-                          : isActive
-                          ? 'bg-foreground text-background ring-2 ring-foreground/20'
-                          : 'bg-muted text-muted-foreground group-hover:bg-muted-foreground/10',
-                      ].join(' ')}
-                    >
-                      {status === 'completed' ? (
-                        <CheckCircle className="h-4 w-4" />
-                      ) : status === 'skipped' ? (
-                        <SkipForward className="h-4 w-4" />
-                      ) : (
-                        <IconComponent className="h-4 w-4" />
-                      )}
-                    </div>
-                    <span className={`mt-1 text-[11px] leading-tight text-center max-w-20 ${
-                      isActive ? 'text-foreground font-medium' : 'text-muted-foreground'
-                    }`}>
-                      {step.title}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
+                    {status === 'completed' ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : status === 'skipped' ? (
+                      <SkipForward className="h-5 w-5" />
+                    ) : (
+                      <IconComponent className="h-5 w-5" />
+                    )}
+                  </div>
+                  <span className={`text-xs text-center max-w-16 leading-tight ${
+                    isActive ? 'text-foreground font-medium' : 'text-muted-foreground'
+                  }`}>
+                    {step.title}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
           </div>
         </header>
 
