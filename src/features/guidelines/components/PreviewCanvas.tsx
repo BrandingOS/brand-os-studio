@@ -54,9 +54,12 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const scale = fitScale * userZoom;
 
   const canvasStyle: React.CSSProperties = {
-    width: `${baseW}px`,
-    height: `${baseH}px`,
+    width: `1200px`,
+    height: `1000px`,
     transform: `scale(${scale})`,
+    // width: `${baseW}px`,
+    // height: `${baseH}px`,
+    // transform: `scale(${scale})`,
     transformOrigin: 'top left',
   };
 
@@ -111,13 +114,15 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       {/* Canvas container: fill and center */}
       <div ref={containerRef} className="flex-1 relative bg-muted/10 slide-canvas">
         <div className="absolute inset-0 overflow-auto p-6">
-          <div style={canvasStyle} className="bg-white shadow-lg border border-border/20">
+          
+          <div style={canvasStyle} className="bg-white shadow-lg border border-border/20 slide-canvas">
             <TemplateComponent
               brand={brand}
               settings={settings}
               slideContent={currentSlide.content}
               slideType={currentSlide.type}
             />
+
           </div>
         </div>
       </div>
