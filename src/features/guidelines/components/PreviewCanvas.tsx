@@ -16,68 +16,48 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   currentSlide,
 }) => {
   const { settings } = useGuidelinesStore();
-
-  // user zoom MULTIPLIER (1 = 100%)
   const [userZoom, setUserZoom] = React.useState(1);
   const [previewMode, setPreviewMode] = React.useState(false);
 
-  const TemplateComponent = getTemplateComponent(settings.template);
-
-  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-
-  const handleZoomIn = () => setUserZoom(prev => clamp(prev + 0.1, 0.25, 4));
-  const handleZoomOut = () => setUserZoom(prev => clamp(prev - 0.1, 0.25, 4));
-  const handleResetZoom = () => setUserZoom(1);
-
   const baseW = settings.size.width;
   const baseH = settings.size.height;
+  const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 
-  // --- self-measure available width (between panels), *excluding* padding ---
-  // We'll observe the inner container that is full-width inside the stage padding.
-  const measureRef = React.useRef<HTMLDivElement | null>(null);
-  const [availableWidth, setAvailableWidth] = React.useState<number>(0);
+  // measure available space
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  const [containerHeight, setContainerHeight] = React.useState(0);
 
   React.useEffect(() => {
-    const el = measureRef.current;
+    const el = containerRef.current;
     if (!el) return;
-
     const ro = new ResizeObserver(([entry]) => {
-      const w =
-        (Array.isArray(entry.contentBoxSize)
-          ? entry.contentBoxSize[0]?.inlineSize
-          : (entry as any).contentBoxSize?.inlineSize) ?? entry.contentRect.width;
-      setAvailableWidth(Math.max(0, Math.floor(w)));
+      const { width, height } = entry.contentRect;
+      setContainerWidth(width);
+      setContainerHeight(height);
     });
-
     ro.observe(el);
     // initial
-    setAvailableWidth(el.clientWidth);
-
+    setContainerWidth(el.clientWidth);
+    setContainerHeight(el.clientHeight);
     return () => ro.disconnect();
   }, []);
 
-  // Fit-by-width autoscale using live measured width
-  const autoScale = React.useMemo(() => {
-    if (!availableWidth || availableWidth <= 0 || !baseW) return 1;
-    return clamp(availableWidth / baseW, 0.05, 10);
-  }, [availableWidth, baseW]);
+  // scale to fit both dimensions, then apply userZoom
+  const fitScale = React.useMemo(() => {
+    if (!containerWidth || !containerHeight) return 1;
+    const scaleW = containerWidth / baseW;
+    const scaleH = containerHeight / baseH;
+    return clamp(Math.min(scaleW, scaleH), 0.05, 10);
+  }, [containerWidth, containerHeight, baseW, baseH]);
 
-  const editorScale = autoScale * userZoom;
+  const scale = fitScale * userZoom;
 
-  // Keep the inner slide at native pixels; scale via CSS transform only.
-  const nativeCanvasStyle: React.CSSProperties = {
+  const canvasStyle: React.CSSProperties = {
     width: `${baseW}px`,
     height: `${baseH}px`,
-    transform: `scale(${editorScale})`,
+    transform: `scale(${scale})`,
     transformOrigin: 'top left',
-    willChange: 'transform',
-    contain: 'layout paint size',
-  };
-
-  // Footprint matches scaled size so flex centering works.
-  const footprintStyle: React.CSSProperties = {
-    width: `${baseW * editorScale}px`,
-    height: `${baseH * editorScale}px`,
   };
 
   if (!currentSlide) {
@@ -91,6 +71,8 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     );
   }
 
+  const TemplateComponent = getTemplateComponent(settings.template);
+
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
@@ -101,21 +83,18 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             {settings.size.format} • {baseW}×{baseH}
           </span>
         </div>
-
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={handleZoomOut}>
+          <Button variant="ghost" size="sm" onClick={() => setUserZoom(prev => clamp(prev - 0.1, 0.05, 10))}>
             <ZoomOut className="w-4 h-4" />
           </Button>
-          <span className="text-sm min-w-16 text-center">{Math.round(editorScale * 100)}%</span>
-          <Button variant="ghost" size="sm" onClick={handleZoomIn}>
+          <span className="text-sm min-w-16 text-center">{Math.round(scale * 100)}%</span>
+          <Button variant="ghost" size="sm" onClick={() => setUserZoom(prev => clamp(prev + 0.1, 0.05, 10))}>
             <ZoomIn className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleResetZoom}>
+          <Button variant="ghost" size="sm" onClick={() => setUserZoom(1)}>
             <RotateCcw className="w-4 h-4" />
           </Button>
-
           <div className="w-px h-6 bg-border mx-2" />
-
           <Button
             variant={previewMode ? 'default' : 'ghost'}
             size="sm"
@@ -129,26 +108,16 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         </div>
       </div>
 
-      {/* Stage */}
-      {/* p-8 adds 32px left/right padding on the stage. We measure width *inside* that padding. */}
-      <div className="flex-1 min-h-0 overflow-auto bg-muted/10 p-8">
-        {/* This wrapper is full width of the content box (i.e., after p-8). We observe it. */}
-        <div ref={measureRef} className="w-full">
-          <div className="flex justify-center">
-            <div style={footprintStyle}>
-              <div
-                id="editor-slide-native" // export THIS node for exact pixels
-                className="bg-white shadow-lg border border-border/20 overflow-hidden"
-                style={nativeCanvasStyle}
-              >
-                <TemplateComponent
-                  brand={brand}
-                  settings={settings}
-                  slideContent={currentSlide.content}
-                  slideType={currentSlide.type}
-                />
-              </div>
-            </div>
+      {/* Canvas container: fill and center */}
+      <div ref={containerRef} className="flex-1 relative bg-muted/10">
+        <div className="absolute inset-0 overflow-auto p-6">
+          <div style={canvasStyle} className="bg-white shadow-lg border border-border/20">
+            <TemplateComponent
+              brand={brand}
+              settings={settings}
+              slideContent={currentSlide.content}
+              slideType={currentSlide.type}
+            />
           </div>
         </div>
       </div>
@@ -160,7 +129,7 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <span>Language: {settings.language.direction.toUpperCase()}</span>
         </div>
         <div className="flex items-center gap-4">
-          <span>Slide {(currentSlide.content?.pageNumber || 1)} of {brand.guidelines ? 10 : 1}</span>
+          <span>Slide {currentSlide.content?.pageNumber || 1} of {brand.guidelines ? 10 : 1}</span>
           <span>Last saved: Just now</span>
         </div>
       </div>

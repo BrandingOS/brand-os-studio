@@ -91,7 +91,7 @@ const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStor
   };
 
 return (
-  <div className="flex h-screen bg-background">
+  <div className="flex h-screen bg-background overflow-x-hidden">
     {/* Left Panel - Collapsible Tabs */}
     <aside className={`flex flex-col bg-muted/20 border-r border-border transition-width duration-200 ${isCollapsed ? 'w-12' : 'w-80'}`}>
       {/* Collapse Toggle */}
@@ -133,7 +133,7 @@ return (
     </aside>
 
     {/* Right Side - Live Preview */}
-    <main className="flex-1 min-w-0 flex flex-col bg-muted/5">
+    <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-muted/5">
       <PreviewCanvas 
         brand={brand}
         currentSlide={slides[currentSlide]}
