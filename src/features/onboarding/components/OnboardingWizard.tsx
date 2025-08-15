@@ -5,20 +5,10 @@ import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
 import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  Building2,
-  Users,
-  Heart,
-  Target,
-  TrendingUp,
-  Palette,
-  Image,
-  SkipForward,
+  ArrowLeft, ArrowRight, CheckCircle,
+  Building2, Users, Heart, Target, TrendingUp, Palette, Image, SkipForward
 } from 'lucide-react';
 
-// Import step components
 import { CompanyBasicsStep } from './steps/CompanyBasicsStep';
 import { TargetAudienceStep } from './steps/TargetAudienceStep';
 import { BrandPersonalityStep } from './steps/BrandPersonalityStep';
@@ -37,163 +27,106 @@ const stepComponents = {
   LogoAssetsStep,
 };
 
-const iconMap = {
-  Building2,
-  Users,
-  Heart,
-  Target,
-  TrendingUp,
-  Palette,
-  Image,
-};
+const iconMap = { Building2, Users, Heart, Target, TrendingUp, Palette, Image };
 
 export function OnboardingWizard() {
   const {
-    steps,
-    currentStepIndex,
-    answers,
-    nextStep,
-    prevStep,
-    goToStep,
-    canProceed,
-    canSkipCurrent,
-    skipStep,
-    getCompletionPercentage,
-    getStepStatus,
-    isComplete,
-    validateCurrentStep,
+    steps, currentStepIndex, answers, nextStep, prevStep, goToStep,
+    canProceed, canSkipCurrent, skipStep, getCompletionPercentage,
+    getStepStatus, isComplete, validateCurrentStep,
   } = useOnboardingStore();
-
   const { createBrandFromAnswers } = useOnboardingFlow();
 
   const currentStep = steps[currentStepIndex];
   const isLastStep = currentStepIndex === steps.length - 1;
   const completionPercentage = getCompletionPercentage();
 
-  useEffect(() => {
-    if (isComplete) {
-      createBrandFromAnswers().catch(console.error);
-    }
-  }, [isComplete, createBrandFromAnswers]);
+  useEffect(() => { if (isComplete) createBrandFromAnswers().catch(console.error); }, [isComplete, createBrandFromAnswers]);
+  if (!currentStep) return <div>Loading...</div>;
 
-  if (!currentStep) {
-    return <div>Loading...</div>;
-  }
-
-  const StepComponent =
-    stepComponents[currentStep.component as keyof typeof stepComponents];
+  const StepComponent = stepComponents[currentStep.component as keyof typeof stepComponents];
 
   const handleNext = () => {
     const error = validateCurrentStep();
-    if (error) {
-      alert(error);
-      return;
-    }
+    if (error) { alert(error); return; }
     nextStep();
   };
-
-  const handleSkip = () => {
-    if (canSkipCurrent()) {
-      skipStep(currentStep.id);
-      nextStep();
-    }
-  };
-
+  const handleSkip = () => { if (canSkipCurrent()) { skipStep(currentStep.id); nextStep(); } };
   const handleComplete = async () => {
     const error = validateCurrentStep();
-    if (error) {
-      alert(error);
-      return;
-    }
-
-    try {
-      await createBrandFromAnswers();
-    } catch (error) {
+    if (error) { alert(error); return; }
+    try { await createBrandFromAnswers(); }
+    catch (error) {
       console.error('Failed to complete onboarding:', error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to create brand. Please try again.';
-      alert(errorMessage);
+      alert(error instanceof Error ? error.message : 'Failed to create brand. Please try again.');
     }
   };
 
   return (
     <Section container={false} className="min-h-screen bg-background">
-      {/* Page shell: header (sticky) + scroll area + footer (sticky) */}
+      {/* Shell: header (sticky) + content (page scroll) + footer (fixed) */}
       <div className="min-h-screen flex flex-col">
-        {/* HEADER (sticky) */}
+        {/* COMPACT HEADER */}
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-          <div className="max-w-5xl mx-auto px-4 py-4">
-            {/* Title */}
-            <div className="text-center mb-4">
-              <h1 className="text-2xl font-bold mb-1">Brand Identity Brief</h1>
-              <p className="text-muted-foreground text-sm">
-                Help us craft the perfect brand strategy for you
-              </p>
-            </div>
-
-            {/* Steps summary + percentage */}
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-sm text-muted-foreground">
+          <div className="max-w-5xl mx-auto px-4 py-3">
+            {/* Single-row meta like the reference */}
+            <div className="grid grid-cols-3 items-center">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Step {currentStepIndex + 1} of {steps.length}
-              </span>
-              <span className="text-sm font-medium">
+              </div>
+              <div className="text-center">
+                <h1 className="text-lg sm:text-xl font-semibold">Brand Identity Brief</h1>
+                <p className="hidden sm:block text-xs text-muted-foreground">Help us craft the perfect brand strategy for you</p>
+              </div>
+              <div className="text-right text-xs sm:text-sm font-medium">
                 {completionPercentage}% Complete
-              </span>
+              </div>
             </div>
 
-            {/* Progress bar */}
-            <div className="w-full bg-muted rounded-full h-2 mb-4 overflow-hidden">
+            {/* Slim progress bar */}
+            <div className="mt-3 mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className="bg-primary h-2 rounded-full transition-all duration-500"
+                className="h-1.5 bg-foreground/90 rounded-full transition-all duration-500"
                 style={{ width: `${completionPercentage}%` }}
               />
             </div>
 
-            {/* Step Icons */}
-            <nav
-              aria-label="Onboarding steps"
-              className="flex justify-between items-center pb-1"
-            >
+            {/* Small step icons row (scrollable if tight) */}
+            <nav className="-mx-1 flex items-center gap-4 overflow-x-auto pb-1">
               {steps.map((step, index) => {
                 const IconComponent = iconMap[step.icon as keyof typeof iconMap];
                 const status = getStepStatus(step.id);
                 const isActive = index === currentStepIndex;
-
                 return (
                   <button
                     key={step.id}
                     onClick={() => goToStep(index)}
-                    className="flex flex-col items-center group focus:outline-none"
+                    className="shrink-0 flex flex-col items-center group"
                     aria-current={isActive ? 'step' : undefined}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 transition-all duration-300 ${
+                      className={[
+                        'w-7 h-7 rounded-full flex items-center justify-center transition-all',
                         status === 'completed'
-                          ? 'bg-primary text-primary-foreground'
+                          ? 'bg-foreground text-background'
                           : status === 'skipped'
                           ? 'bg-muted text-muted-foreground'
                           : isActive
-                          ? 'bg-primary text-primary-foreground ring-4 ring-primary/20'
-                          : 'bg-muted text-muted-foreground group-hover:bg-muted-foreground/10'
-                      }`}
+                          ? 'bg-foreground text-background ring-2 ring-foreground/20'
+                          : 'bg-muted text-muted-foreground group-hover:bg-muted-foreground/10',
+                      ].join(' ')}
                     >
                       {status === 'completed' ? (
-                        <CheckCircle className="h-5 w-5" />
+                        <CheckCircle className="h-4 w-4" />
                       ) : status === 'skipped' ? (
-                        <SkipForward className="h-5 w-5" />
+                        <SkipForward className="h-4 w-4" />
                       ) : (
-                        <IconComponent className="h-5 w-5" />
+                        <IconComponent className="h-4 w-4" />
                       )}
                     </div>
-                    <span
-                      className={`text-xs text-center max-w-16 leading-tight ${
-                        isActive
-                          ? 'text-foreground font-medium'
-                          : 'text-muted-foreground'
-                      }`}
-                    >
+                    <span className={`mt-1 text-[11px] leading-tight text-center max-w-20 ${
+                      isActive ? 'text-foreground font-medium' : 'text-muted-foreground'
+                    }`}>
                       {step.title}
                     </span>
                   </button>
@@ -203,41 +136,32 @@ export function OnboardingWizard() {
           </div>
         </header>
 
-        {/* MAIN SCROLL AREA */}
-        {/* Add fixed top/bottom paddings so content always starts from same Y and never hides under footer */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-4 pt-8 pb-28">
-            {/* Step Content */}
-            <Card className="p-8">
-              <div className="text-center mb-8">
-                <div className="flex items-center justify-center mb-4">
+        {/* MAIN (page scroll) */}
+        {/* Bottom padding matches fixed footer height so content never hides behind it */}
+        <main className="flex-1">
+          <div className="max-w-5xl mx-auto px-4 pt-6 pb-28">
+            <Card className="p-6 sm:p-8">
+              <div className="text-center mb-6 sm:mb-8">
+                <div className="flex items-center justify-center mb-3">
                   {(() => {
-                    const IconComponent =
-                      iconMap[currentStep.icon as keyof typeof iconMap];
-                    return <IconComponent className="h-8 w-8 text-primary" />;
+                    const IconComponent = iconMap[currentStep.icon as keyof typeof iconMap];
+                    return <IconComponent className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />;
                   })()}
                 </div>
-                <h2 className="text-2xl font-semibold mb-2">
-                  {currentStep.title}
-                </h2>
-                <p className="text-muted-foreground">
-                  {currentStep.description}
-                </p>
+                <h2 className="text-xl sm:text-2xl font-semibold mb-1">{currentStep.title}</h2>
+                <p className="text-sm text-muted-foreground">{currentStep.description}</p>
               </div>
 
               <div className="max-w-2xl mx-auto">
-                <StepComponent
-                  value={answers[currentStep.id]}
-                  stepId={currentStep.id}
-                />
+                <StepComponent value={answers[currentStep.id]} stepId={currentStep.id} />
               </div>
             </Card>
           </div>
         </main>
 
-        {/* FOOTER (sticky) */}
-        <footer className="sticky bottom-0 z-40 border-t bg-background/80 backdrop-blur">
-          <div className="max-w-5xl mx-auto px-4 py-4">
+        {/* FIXED FOOTER (always visible, no more scrolling past it) */}
+        <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/80 backdrop-blur">
+          <div className="max-w-5xl mx-auto px-4 py-3">
             <div className="flex justify-between items-center">
               <Button
                 variant="outline"
@@ -245,39 +169,23 @@ export function OnboardingWizard() {
                 disabled={currentStepIndex === 0}
                 className="flex items-center gap-2"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Previous
+                <ArrowLeft className="h-4 w-4" /> Previous
               </Button>
 
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3">
                 {canSkipCurrent() && (
-                  <Button
-                    variant="ghost"
-                    onClick={handleSkip}
-                    className="flex items-center gap-2"
-                  >
-                    <SkipForward className="h-4 w-4" />
-                    Skip
+                  <Button variant="ghost" onClick={handleSkip} className="flex items-center gap-2">
+                    <SkipForward className="h-4 w-4" /> Skip
                   </Button>
                 )}
 
                 {isLastStep ? (
-                  <Button
-                    onClick={handleComplete}
-                    disabled={!canProceed()}
-                    className="flex items-center gap-2"
-                  >
-                    Complete Setup
-                    <CheckCircle className="h-4 w-4" />
+                  <Button onClick={handleComplete} disabled={!canProceed()} className="flex items-center gap-2">
+                    Complete Setup <CheckCircle className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!canProceed()}
-                    className="flex items-center gap-2"
-                  >
-                    Continue
-                    <ArrowRight className="h-4 w-4" />
+                  <Button onClick={handleNext} disabled={!canProceed()} className="flex items-center gap-2">
+                    Continue <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}
               </div>
