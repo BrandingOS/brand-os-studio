@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
@@ -6,13 +6,17 @@ import type { GuidelineSlide } from '../types/guidelines';
 import { SlideNavigator } from './SlideNavigator';
 import { PreviewCanvas } from './PreviewCanvas';
 import { GuidelineCustomizer } from './GuidelineCustomizer';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { demoBrandIdentity } from '@/data/demo';
 
 export const GuidelinesEditor: React.FC = () => {
   const { brandId } = useParams<{ brandId: string }>();
-  const { current: brand, isLoading, loadById } = useBrandStore();
-  const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStore();
+const { current: brand, isLoading, loadById } = useBrandStore();
+const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStore();
+
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<'navigator' | 'customize' | 'panels'>('navigator');
 
   // Load brand data
   useEffect(() => {
@@ -86,30 +90,55 @@ export const GuidelinesEditor: React.FC = () => {
     }
   };
 
-  return (
-    <div className="flex h-screen bg-background">
-      {/* Left Panel - Slide Navigator */}
-      <div className="w-80 border-r border-border bg-muted/20">
-        <SlideNavigator 
-          slides={slides}
-          currentSlide={currentSlide}
-          onSlideSelect={setCurrentSlide}
-          brand={brand}
-        />
-      </div>
+return (
+  <div className="flex h-screen bg-background">
+    {/* Left Panel - Collapsible Tabs */}
+    <aside className={`flex flex-col bg-muted/20 border-r border-border transition-width duration-200 ${isCollapsed ? 'w-12' : 'w-80'}`}>
+      {/* Collapse Toggle */}
+      <button
+        className="p-2 focus:outline-none"
+        onClick={() => setIsCollapsed(prev => !prev)}
+      >
+        {isCollapsed ? '›' : '‹'}
+      </button>
+      <Tabs value={activeTab} onValueChange={(val: string) => setActiveTab(val as 'navigator' | 'customize' | 'panels')} className="flex-1 flex flex-col">
+        <TabsList>
+          <TabsTrigger value="navigator" className="flex-1 text-xs">
+            Navigator
+          </TabsTrigger>
+          <TabsTrigger value="customize" className="flex-1 text-xs">
+            Customize
+          </TabsTrigger>
+          <TabsTrigger value="panels" className="flex-1 text-xs">
+            Panels
+          </TabsTrigger>
+        </TabsList>
+        <div className="flex-1 overflow-auto">
+          <TabsContent value="navigator" className="h-full">
+            <SlideNavigator 
+              slides={slides}
+              currentSlide={currentSlide}
+              onSlideSelect={setCurrentSlide}
+              brand={brand}
+            />
+          </TabsContent>
+          <TabsContent value="customize" className="h-full">
+            <GuidelineCustomizer />
+          </TabsContent>
+          <TabsContent value="panels" className="h-full">
+            {renderRightPanel()}
+          </TabsContent>
+        </div>
+      </Tabs>
+    </aside>
 
-      {/* Center Panel - make it shrinkable */}
-      <div className="flex-1 min-w-0 flex flex-col bg-muted/5">
-        <PreviewCanvas 
-          brand={brand}
-          currentSlide={slides[currentSlide]}
-        />
-      </div>
-
-      {/* Right Panel - Controls */}
-      <div className="w-96 border-l border-border bg-background">
-        {renderRightPanel()}
-      </div>
-    </div>
-  );
-};
+    {/* Right Side - Live Preview */}
+    <main className="flex-1 min-w-0 flex flex-col bg-muted/5">
+      <PreviewCanvas 
+        brand={brand}
+        currentSlide={slides[currentSlide]}
+      />
+    </main>
+  </div>
+);
+}
