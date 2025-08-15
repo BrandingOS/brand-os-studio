@@ -17,7 +17,6 @@ export const GuidelinesEditor: React.FC = () => {
   // Load brand data
   useEffect(() => {
     if (brandId && brandId !== brand?.id) {
-      // For demo purposes, use demo brand if brandId matches
       if (brandId === 'demo-brand-1') {
         useBrandStore.getState().setCurrent(demoBrandIdentity);
       } else {
@@ -41,10 +40,7 @@ export const GuidelinesEditor: React.FC = () => {
         { id: 'stationery', type: 'stationery', title: 'Stationery', content: { pageNumber: 9 }, order: 8, enabled: true },
         { id: 'applications', type: 'applications', title: 'Applications', content: { pageNumber: 10 }, order: 9, enabled: true },
       ];
-      
-      initialSlides.forEach(slide => {
-        useGuidelinesStore.getState().addSlide(slide);
-      });
+      initialSlides.forEach(slide => useGuidelinesStore.getState().addSlide(slide));
     }
   }, [brand, slides.length]);
 
@@ -102,8 +98,8 @@ export const GuidelinesEditor: React.FC = () => {
         />
       </div>
 
-      {/* Center Panel - Preview Canvas */}
-      <div className="flex-1 flex flex-col bg-muted/5">
+      {/* Center Panel - make it shrinkable */}
+      <div className="flex-1 min-w-0 flex flex-col bg-muted/5">
         <PreviewCanvas 
           brand={brand}
           currentSlide={slides[currentSlide]}
