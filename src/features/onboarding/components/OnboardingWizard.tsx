@@ -65,34 +65,34 @@ export function OnboardingWizard() {
   return (
     <Section container={false} className="min-h-screen bg-background">
       {/* Shell: header (sticky) + content (page scroll) + footer (fixed) */}
-      <div className="min-h-screen flex flex-col max-w-5xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-2xl font-bold mb-2">Brand Identity Brief</h1>
-          <p className="text-muted-foreground text-sm">
-            Help us craft the perfect brand strategy for you
-          </p>
-        </div>
+      <div className="min-h-screen flex flex-col">
+        {/* COMPACT HEADER */}
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+          <div className="max-w-5xl mx-auto px-4 py-3">
+            {/* Single-row meta like the reference */}
+            <div className="grid grid-cols-3 items-center">
+              <div className="text-xs sm:text-sm text-muted-foreground">
+                Step {currentStepIndex + 1} of {steps.length}
+              </div>
+              <div className="text-center">
+                <h1 className="text-lg sm:text-xl font-semibold">Brand Identity Brief</h1>
+                <p className="hidden sm:block text-xs text-muted-foreground">Help us craft the perfect brand strategy for you</p>
+              </div>
+              <div className="text-right text-xs sm:text-sm font-medium">
+                {completionPercentage}% Complete
+              </div>
+            </div>
 
-        {/* Progress Steps */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <span className="text-sm text-muted-foreground">
-              Step {currentStepIndex + 1} of {steps.length}
-            </span>
-            <span className="text-sm font-medium">{completionPercentage}% Complete</span>
-          </div>
-          
-          {/* Progress Bar */}
-          <div className="w-full bg-muted rounded-full h-2 mb-8">
-            <div
-              className="bg-primary h-2 rounded-full transition-all duration-500"
-              style={{ width: `${completionPercentage}%` }}
-            />
-          </div>
+            {/* Slim progress bar */}
+            <div className="mt-3 mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-1.5 bg-foreground/90 rounded-full transition-all duration-500"
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
 
-          {/* Step Icons */}
-          <div className="flex justify-between items-center">
+            {/* Small step icons row (scrollable if tight) */}
+           <div className="flex justify-between items-center">
             {steps.map((step, index) => {
               const IconComponent = iconMap[step.icon as keyof typeof iconMap];
               const status = getStepStatus(step.id);
@@ -132,8 +132,8 @@ export function OnboardingWizard() {
               );
             })}
           </div>
-        </div>
-
+          </div>
+        </header>
 
         {/* MAIN (page scroll) */}
         {/* Bottom padding matches fixed footer height so content never hides behind it */}
