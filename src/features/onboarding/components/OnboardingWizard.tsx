@@ -65,7 +65,7 @@ export function OnboardingWizard() {
   return (
     <Section container={false} className="min-h-screen bg-background">
       {/* Shell: header (sticky) + content (page scroll) + footer (fixed) */}
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col max-w-5xl mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-2xl font-bold mb-2">Brand Identity Brief</h1>
