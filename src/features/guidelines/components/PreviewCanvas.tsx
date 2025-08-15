@@ -109,7 +109,7 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
       {/* Canvas container: fill and center */}
-      <div ref={containerRef} className="flex-1 relative bg-muted/10">
+      <div ref={containerRef} className="flex-1 relative bg-muted/10 slide-canvas">
         <div className="absolute inset-0 overflow-auto p-6">
           <div style={canvasStyle} className="bg-white shadow-lg border border-border/20">
             <TemplateComponent
