@@ -149,15 +149,15 @@ useEffect(() => {
           <div className="max-w-5xl mx-auto px-4 pt-6 pb-28">
             <Card className="p-6 sm:p-8">
               <div className="text-center mb-6 sm:mb-8">
-                <div className="flex items-center justify-center mb-3">
+                {/* <div className="flex items-center justify-center mb-3">
                   {(() => {
                     const IconComponent = iconMap[currentStep.icon as keyof typeof iconMap];
                     return <IconComponent className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />;
                   })()}
-                </div>
+                </div> */}
                 <h2 className="text-xl sm:text-2xl font-semibold mb-1">{currentStep.title}</h2>
                 <p className="text-sm text-muted-foreground">{currentStep.description}</p>
-              </div>
+              </div> 
 
               <div className="max-w-2xl mx-auto">
                 <StepComponent value={answers[currentStep.id]} stepId={currentStep.id} />
