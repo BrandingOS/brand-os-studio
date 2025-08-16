@@ -76,7 +76,7 @@ useEffect(() => {
   <div className="h-full flex flex-col">
         {/* COMPACT HEADER */}
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur shrink-0">
-          <div className="max-w-5xl mx-auto px-4 py-3">
+          <div className="max-w-5xl mx-auto px-4">
             {/* Single-row meta like the reference */}
             <div className="grid grid-cols-3 items-center">
               <div className="text-xs sm:text-sm text-muted-foreground">
@@ -92,7 +92,7 @@ useEffect(() => {
             </div>
 
             {/* Slim progress bar */}
-            <div className="mt-3 mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className=" mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-1.5 bg-foreground/90 rounded-full transition-all duration-500"
                 style={{ width: `${completionPercentage}%` }}
