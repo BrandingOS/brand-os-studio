@@ -76,7 +76,7 @@ useEffect(() => {
   <div className="h-full flex flex-col">
         {/* COMPACT HEADER */}
         <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur shrink-0">
-          <div className="max-w-5xl mx-auto px-4">
+          <div className="max-w-5xl mx-auto px-4 py-3">
             {/* Single-row meta like the reference */}
             <div className="grid grid-cols-3 items-center">
               <div className="text-xs sm:text-sm text-muted-foreground">
@@ -92,7 +92,7 @@ useEffect(() => {
             </div>
 
             {/* Slim progress bar */}
-            <div className=" mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="mt-3 mb-2 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-1.5 bg-foreground/90 rounded-full transition-all duration-500"
                 style={{ width: `${completionPercentage}%` }}
@@ -145,8 +145,8 @@ useEffect(() => {
 
         {/* MAIN (page scroll) */}
         {/* Bottom padding matches fixed footer height so content never hides behind it */}
-        <main className="flex-1 overflow-auto">
-          <div className="max-w-5xl mx-auto px-4 pt-6 pb-28">
+        <main className="flex-1 overflow-hidden">
+          <div className="max-w-5xl mx-auto px-4 pt-6 pb-28 overflow-hidden">
             <Card className="p-6 sm:p-8">
               <div className="text-center mb-6 sm:mb-8">
                 {/* <div className="flex items-center justify-center mb-3">
