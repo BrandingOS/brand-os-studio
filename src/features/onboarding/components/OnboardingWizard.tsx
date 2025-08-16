@@ -61,13 +61,21 @@ export function OnboardingWizard() {
       alert(error instanceof Error ? error.message : 'Failed to create brand. Please try again.');
     }
   };
+useEffect(() => {
+  // lock scrolling on mount
+  document.body.style.overflow = "hidden";
+  return () => {
+    // restore scrolling on unmount
+    document.body.style.overflow = "";
+  };
+}, []);
 
   return (
-    <Section container={false} className="min-h-screen bg-background">
+<Section container={false} className="h-screen overflow-hidden bg-background">
       {/* Shell: header (sticky) + content (page scroll) + footer (fixed) */}
-      <div className="min-h-screen flex flex-col">
+  <div className="h-full flex flex-col">
         {/* COMPACT HEADER */}
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur shrink-0">
           <div className="max-w-5xl mx-auto px-4 py-3">
             {/* Single-row meta like the reference */}
             <div className="grid grid-cols-3 items-center">
@@ -137,7 +145,7 @@ export function OnboardingWizard() {
 
         {/* MAIN (page scroll) */}
         {/* Bottom padding matches fixed footer height so content never hides behind it */}
-        <main className="flex-1">
+        <main className="flex-1 overflow-auto">
           <div className="max-w-5xl mx-auto px-4 pt-6 pb-28">
             <Card className="p-6 sm:p-8">
               <div className="text-center mb-6 sm:mb-8">
@@ -159,7 +167,7 @@ export function OnboardingWizard() {
         </main>
 
         {/* FIXED FOOTER (always visible, no more scrolling past it) */}
-        <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/80 backdrop-blur">
+        <footer className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/80 backdrop-blur shrink-0">
           <div className="max-w-5xl mx-auto px-4 py-3">
             <div className="flex justify-between items-center">
               <Button
