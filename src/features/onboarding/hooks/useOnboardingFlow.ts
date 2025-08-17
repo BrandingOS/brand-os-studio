@@ -1,13 +1,21 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useNavigate } from 'react-router-dom';
 import { brandsService } from '@/features/brand/services/brands.local';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CreateBrandInput } from '@/shared/types/brand';
 
 export function useOnboardingFlow() {
   const navigate = useNavigate();
   const { answers, isComplete, reset } = useOnboardingStore();
+  const { isAuthenticated } = useAuth();
 
   const createBrandFromAnswers = async (): Promise<void> => {
+    // Check if user is authenticated before creating brand
+    if (!isAuthenticated) {
+      navigate('/?auth=required');
+      return;
+    }
+
     console.log('Creating brand from answers:', answers);
     
     const companyBasics = answers['company-basics'] || {};

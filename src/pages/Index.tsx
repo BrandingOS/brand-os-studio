@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Pricing from "@/components/sections/Pricing";
@@ -12,12 +12,22 @@ import { ProductModulesSection } from "@/domains/landing/components/ProductModul
 import { StatisticsSection } from "@/domains/landing/components/StatisticsSection";
 import { FinalCTASection } from "@/domains/landing/components/FinalCTASection";
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
+import { AuthModal } from '@/features/auth/components/AuthModal';
 
 const Index = () => {
   useScrollReveal();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setAnswer } = useOnboardingStore();
   const [brandName, setBrandName] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Check for auth requirement on mount
+  useEffect(() => {
+    if (searchParams.get('auth') === 'required') {
+      setShowAuthModal(true);
+    }
+  }, [searchParams]);
 
   const handleStartOnboarding = () => {
     if (brandName.trim()) {
@@ -44,6 +54,12 @@ const Index = () => {
         <FinalCTASection />
       </main>
       <Footer />
+      
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 };

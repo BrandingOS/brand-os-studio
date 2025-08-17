@@ -32,16 +32,8 @@ const App = () => (
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<IndexPage />} />
-          <Route path="/onboarding" element={
-            <ProtectedRoute>
-              <OnboardingPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/onboarding/preview" element={
-            <ProtectedRoute>
-              <BrandPreviewPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardRoute />

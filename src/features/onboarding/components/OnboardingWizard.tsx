@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useOnboardingFlow } from '../hooks/useOnboardingFlow';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { AuthModal } from '@/features/auth/components/AuthModal';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
@@ -36,12 +38,20 @@ export function OnboardingWizard() {
     getStepStatus, isComplete, validateCurrentStep,
   } = useOnboardingStore();
   const { createBrandFromAnswers } = useOnboardingFlow();
+  const { isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const currentStep = steps[currentStepIndex];
   const isLastStep = currentStepIndex === steps.length - 1;
   const completionPercentage = getCompletionPercentage();
 
-  useEffect(() => { if (isComplete) createBrandFromAnswers().catch(console.error); }, [isComplete, createBrandFromAnswers]);
+  // Auto-create brand when onboarding is complete and user is authenticated
+  useEffect(() => { 
+    if (isComplete && isAuthenticated && !showAuthModal) {
+      createBrandFromAnswers().catch(console.error); 
+    }
+  }, [isComplete, isAuthenticated, showAuthModal, createBrandFromAnswers]);
+  
   if (!currentStep) return <div>Loading...</div>;
 
   const StepComponent = stepComponents[currentStep.component as keyof typeof stepComponents];
@@ -55,12 +65,26 @@ export function OnboardingWizard() {
   const handleComplete = async () => {
     const error = validateCurrentStep();
     if (error) { alert(error); return; }
+    
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    
     try { await createBrandFromAnswers(); }
     catch (error) {
       console.error('Failed to complete onboarding:', error);
       alert(error instanceof Error ? error.message : 'Failed to create brand. Please try again.');
     }
   };
+  // Close auth modal when user becomes authenticated
+  useEffect(() => {
+    if (isAuthenticated && showAuthModal) {
+      setShowAuthModal(false);
+    }
+  }, [isAuthenticated, showAuthModal]);
+
 useEffect(() => {
   // lock scrolling on mount
   document.body.style.overflow = "hidden";
@@ -200,6 +224,12 @@ useEffect(() => {
           </div>
         </footer>
       </div>
+
+      {/* Auth Modal for completion */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+      />
     </Section>
   );
 }
