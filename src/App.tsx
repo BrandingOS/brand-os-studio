@@ -2,6 +2,11 @@ import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
+import { AuthProvider } from "@/features/auth/components/AuthProvider";
+
+// Initialize admin user in development
+import "@/features/auth/utils/createAdminUser";
 
 // Pages
 import IndexPage from "./pages/Index";
@@ -14,6 +19,7 @@ import BrandKitModulePage from "./pages/dashboard/brand/[brandId]/brandkit/[modu
 import { GuidelinesEditor } from "./features/guidelines/components/GuidelinesEditor";
 import AccountSettingsPage from "./pages/settings/account";
 import BrandDetailPage from "./app/brand/[id]/page";
+import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,23 +27,57 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      
-      <Toaster />
-      <BrowserRouter>
+      <AuthProvider>
+        <Toaster />
+        <BrowserRouter>
         <Routes>
           <Route path="/" element={<IndexPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
-          <Route path="/dashboard" element={<DashboardRoute />} />
-          <Route path="/dashboard/brand/:brandId" element={<BrandHomePage />} />
-          <Route path="/dashboard/brand/:brandId/brandkit" element={<BrandKitHubPage />} />
-          <Route path="/dashboard/brand/:brandId/brandkit/:moduleId" element={<BrandKitModulePage />} />
-          <Route path="/dashboard/brand/:brandId/guidelines" element={<GuidelinesEditor />} />
-          <Route path="/settings/account" element={<AccountSettingsPage />} />
+          <Route path="/onboarding" element={
+            <ProtectedRoute>
+              <OnboardingPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/onboarding/preview" element={
+            <ProtectedRoute>
+              <BrandPreviewPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardRoute />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:brandId" element={
+            <ProtectedRoute>
+              <BrandHomePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:brandId/brandkit" element={
+            <ProtectedRoute>
+              <BrandKitHubPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:brandId/brandkit/:moduleId" element={
+            <ProtectedRoute>
+              <BrandKitModulePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:brandId/guidelines" element={
+            <ProtectedRoute>
+              <GuidelinesEditor />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings/account" element={
+            <ProtectedRoute>
+              <AccountSettingsPage />
+            </ProtectedRoute>
+          } />
           <Route path="/brand/:id" element={<BrandDetailPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

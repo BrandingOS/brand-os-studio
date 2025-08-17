@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Building2 } from "lucide-react";
+import { AuthModal } from '@/features/auth/components/AuthModal';
+import { UserMenu } from '@/features/auth/components/UserMenu';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const navItems = [
   { label: "Setup", href: "#setup" },
@@ -8,7 +12,15 @@ const navItems = [
 ];
 
 export default function Navbar() {
+  const { isAuthenticated } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   return (
+    <>
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     <header className="sticky top-4 z-40">
       <div className="container-tight">
         <div className="mx-auto max-w-4xl">
@@ -29,11 +41,23 @@ export default function Navbar() {
             </nav>
 
             <div className="hidden sm:flex items-center gap-2" data-animate>
-              <Button variant="hero" shape="pill" className="cta-glow">Request Waitlist</Button>
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <Button 
+                  variant="hero" 
+                  shape="pill" 
+                  className="cta-glow"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  Sign In
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
     </header>
+    </>
   );
 }
