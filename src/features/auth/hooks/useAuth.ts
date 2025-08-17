@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '@/shared/types/user';
 
@@ -18,14 +19,25 @@ export const useAuth = () => {
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading } = useSessionStore();
 
   useEffect(() => {
+    // Skip authentication setup if Supabase isn't configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured. Authentication features will be limited.');
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     const getInitialSession = async () => {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const mappedUser = mapSupabaseUser(session.user);
-        signIn(mappedUser);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          const mappedUser = mapSupabaseUser(session.user);
+          signIn(mappedUser);
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
       }
       setLoading(false);
     };
@@ -48,71 +60,115 @@ export const useAuth = () => {
   }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    setLoading(false);
+    if (!isSupabaseConfigured) {
+      toast.error('Authentication not available. Please check Supabase configuration.');
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) throw error;
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name || email.split('@')[0]
-        }
-      }
-    });
-    setLoading(false);
+    if (!isSupabaseConfigured) {
+      toast.error('Authentication not available. Please check Supabase configuration.');
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name || email.split('@')[0]
+          }
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loginWithGoogle = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    });
-    setLoading(false);
+    if (!isSupabaseConfigured) {
+      toast.error('Social login not available. Please check Supabase configuration.');
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loginWithFacebook = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`
-      }
-    });
-    setLoading(false);
+    if (!isSupabaseConfigured) {
+      toast.error('Social login not available. Please check Supabase configuration.');
+      throw new Error('Supabase not configured');
+    }
     
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'facebook',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+      
+      if (error) throw error;
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signOut();
-    setLoading(false);
+    if (!isSupabaseConfigured) {
+      signOut(); // Use local signOut from store
+      return;
+    }
     
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetPassword = async (email: string) => {
+    if (!isSupabaseConfigured) {
+      toast.error('Password reset not available. Please check Supabase configuration.');
+      throw new Error('Supabase not configured');
+    }
+    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`
     });
@@ -129,6 +185,7 @@ export const useAuth = () => {
     loginWithGoogle,
     loginWithFacebook,
     logout,
-    resetPassword
+    resetPassword,
+    isSupabaseConfigured
   };
 };
