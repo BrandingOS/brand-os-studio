@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, UserCheck } from 'lucide-react';
 import { FaGoogle, FaFacebook } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
 
 interface AuthModalProps {
@@ -27,6 +28,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
   });
 
   const { login, register, loginWithGoogle, loginWithFacebook, resetPassword, isLoading } = useAuth();
+  const { switchToGuest } = useSessionStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +66,12 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     } catch (error: any) {
       toast.error(error.message || 'Social login failed');
     }
+  };
+
+  const handleGuestMode = () => {
+    switchToGuest();
+    toast.success('Welcome! Exploring as guest');
+    onClose();
   };
 
   const resetForm = () => {
@@ -215,13 +223,34 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                   mode === 'login' ? 'Sign In' :
                   mode === 'register' ? 'Create Account' :
                   'Send Reset Email'
-                }
-              </Button>
-            </form>
+                 }
+               </Button>
+             </form>
 
-            {/* Footer Links */}
-            <div className="mt-6 text-center text-sm">
-              {mode === 'login' && (
+             {/* Guest Mode Button */}
+             <div className="mt-4">
+               <div className="relative mb-4">
+                 <Separator />
+                 <div className="absolute inset-0 flex items-center justify-center">
+                   <span className="bg-background px-3 text-sm text-muted-foreground">
+                     or
+                   </span>
+                 </div>
+               </div>
+               <Button
+                 type="button"
+                 variant="secondary"
+                 className="w-full h-11 gap-2"
+                 onClick={handleGuestMode}
+                 disabled={isLoading}
+               >
+                 <UserCheck className="w-4 h-4" />
+                 Continue as Guest
+               </Button>
+             </div>
+
+             {/* Footer Links */}
+             <div className="mt-6 text-center text-sm">{mode === 'login' && (
                 <>
                   <button
                     type="button"
