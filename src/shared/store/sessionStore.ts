@@ -7,6 +7,8 @@ interface SessionStore extends AuthState {
   signOut: () => void;
   setLoading: (loading: boolean) => void;
   switchToGuest: () => void;
+  switchToAuthenticated: () => void;
+  previousMode?: 'user' | 'guest';
 }
 
 export const useSessionStore = create<SessionStore>()(
@@ -18,16 +20,37 @@ export const useSessionStore = create<SessionStore>()(
       isLoading: false,
       
       signIn: (user: User) => 
-        set({ user, mode: 'user', isAuthenticated: true }, false, 'signIn'),
+        set((state) => ({ 
+          user, 
+          mode: 'user', 
+          isAuthenticated: true, 
+          previousMode: state.mode 
+        }), false, 'signIn'),
       
       signOut: () => 
-        set({ user: undefined, mode: 'guest', isAuthenticated: false }, false, 'signOut'),
+        set((state) => ({ 
+          user: undefined, 
+          mode: 'guest', 
+          isAuthenticated: false, 
+          previousMode: state.mode 
+        }), false, 'signOut'),
       
       setLoading: (isLoading: boolean) => 
         set({ isLoading }, false, 'setLoading'),
       
       switchToGuest: () => 
-        set({ mode: 'guest', isAuthenticated: false }, false, 'switchToGuest'),
+        set((state) => ({ 
+          mode: 'guest', 
+          isAuthenticated: false, 
+          previousMode: state.mode 
+        }), false, 'switchToGuest'),
+        
+      switchToAuthenticated: () => 
+        set((state) => ({ 
+          mode: 'user', 
+          isAuthenticated: true, 
+          previousMode: state.mode 
+        }), false, 'switchToAuthenticated'),
     }),
     { name: 'session-store' }
   )

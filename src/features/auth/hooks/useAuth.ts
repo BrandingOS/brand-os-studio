@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '@/shared/types/user';
@@ -16,7 +17,8 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
 });
 
 export const useAuth = () => {
-  const { user, isAuthenticated, isLoading, signIn, signOut, setLoading } = useSessionStore();
+  const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = useSessionStore();
+  const { syncToSupabase, loadFromSupabase } = useOnboardingStore();
 
   useEffect(() => {
 
@@ -29,6 +31,8 @@ export const useAuth = () => {
         if (session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
+          // Load existing data from Supabase
+          await loadFromSupabase();
         }
       } catch (error) {
         console.error('Error getting session:', error);
@@ -44,6 +48,9 @@ export const useAuth = () => {
         if (event === 'SIGNED_IN' && session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
+          
+          // Sync guest data to Supabase
+          await syncToSupabase();
         } else if (event === 'SIGNED_OUT') {
           signOut();
         }
@@ -51,7 +58,7 @@ export const useAuth = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [signIn, signOut, setLoading]);
+  }, [signIn, signOut, setLoading, syncToSupabase, loadFromSupabase]);
 
   const login = async (email: string, password: string) => {
     

@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { devtools, persist } from 'zustand/middleware';
 import type { StepDef, OnboardingState } from '../types/onboarding';
 import { demoOnboardingAnswers } from '@/data/demo';
+import { onboardingService } from '@/shared/services/onboarding.supabase';
+import { useSessionStore } from './sessionStore';
 
 const DEFAULT_STEPS: StepDef[] = [
   {
@@ -94,11 +96,14 @@ interface OnboardingStore extends OnboardingState {
   getStepStatus: (stepId: string) => 'completed' | 'skipped' | 'current' | 'pending';
   addDynamicStep: (step: StepDef, afterStepId?: string) => void;
   removeDynamicStep: (stepId: string) => void;
+  loadFromSupabase: () => Promise<void>;
+  syncToSupabase: () => Promise<void>;
 }
 
 export const useOnboardingStore = create<OnboardingStore>()(
   devtools(
-    (set, get) => ({
+    persist(
+      (set, get) => ({
       steps: DEFAULT_STEPS,
       currentStepIndex: 0,
       answers: demoOnboardingAnswers, // Pre-fill with demo data
@@ -107,10 +112,20 @@ export const useOnboardingStore = create<OnboardingStore>()(
       dynamicSteps: true,
 
       setAnswer: (stepId: string, value: any) => {
-        set((state) => ({
-          answers: { ...state.answers, [stepId]: value },
-          skippedSteps: new Set([...state.skippedSteps].filter(id => id !== stepId))
-        }), false, 'setAnswer');
+        set((state) => {
+          const newAnswers = { ...state.answers, [stepId]: value };
+          
+          // Auto-save for authenticated users
+          const { mode } = useSessionStore.getState();
+          if (mode === 'user') {
+            onboardingService.saveAnswers(newAnswers).catch(console.error);
+          }
+          
+          return {
+            answers: newAnswers,
+            skippedSteps: new Set([...state.skippedSteps].filter(id => id !== stepId))
+          };
+        }, false, 'setAnswer');
       },
 
       skipStep: (stepId: string) => {
@@ -144,12 +159,43 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
       reset: () => {
         console.log('Resetting onboarding store');
+        
+        // Clear from Supabase for authenticated users
+        const { mode } = useSessionStore.getState();
+        if (mode === 'user') {
+          onboardingService.clearAnswers().catch(console.error);
+        }
+        
         set({ 
           currentStepIndex: 0, 
           answers: {}, 
           skippedSteps: new Set(),
           isComplete: false 
         }, false, 'reset');
+      },
+
+      // Load answers from Supabase when user authenticates
+      loadFromSupabase: async () => {
+        try {
+          const answers = await onboardingService.loadAnswers();
+          if (answers) {
+            set((state) => ({ ...state, answers }));
+          }
+        } catch (error) {
+          console.error('Failed to load onboarding answers:', error);
+        }
+      },
+
+      // Sync guest data to Supabase when user authenticates
+      syncToSupabase: async () => {
+        const state = get();
+        if (Object.keys(state.answers).length > 0) {
+          try {
+            await onboardingService.saveAnswers(state.answers);
+          } catch (error) {
+            console.error('Failed to sync onboarding data:', error);
+          }
+        }
       },
 
       validateCurrentStep: () => {
@@ -212,7 +258,21 @@ export const useOnboardingStore = create<OnboardingStore>()(
           steps: state.steps.filter(step => step.id !== stepId)
         }), false, 'removeDynamicStep');
       },
-    }),
+      }),
+      {
+        name: 'onboarding-store',
+        partialize: (state) => ({ 
+          answers: state.answers,
+          currentStepIndex: state.currentStepIndex,
+          skippedSteps: Array.from(state.skippedSteps)
+        }),
+        onRehydrateStorage: () => (state) => {
+          if (state && Array.isArray(state.skippedSteps)) {
+            state.skippedSteps = new Set(state.skippedSteps);
+          }
+        }
+      }
+    ),
     { name: 'onboarding-store' }
   )
 );

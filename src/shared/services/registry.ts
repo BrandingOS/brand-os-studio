@@ -1,4 +1,7 @@
 import type { BrandsService } from './brands.service';
+import { LocalBrandsService } from '@/features/brand/services/brands.local';
+import { SupabaseBrandsService } from './brands.supabase';
+import { useSessionStore } from '@/shared/store/sessionStore';
 
 export interface Services {
   brands: BrandsService;
@@ -6,9 +9,14 @@ export interface Services {
 
 export function createServices(): Services {
   return {
-    brands: null as any, // Placeholder - will be replaced with actual implementation
+    get brands(): BrandsService {
+      const { mode } = useSessionStore.getState();
+      return mode === 'user' 
+        ? new SupabaseBrandsService() 
+        : new LocalBrandsService();
+    }
   };
 }
 
-// Global services instance - to be initialized with actual implementations
+// Global services instance
 export const services = createServices();

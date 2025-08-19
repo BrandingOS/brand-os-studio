@@ -1,6 +1,6 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useNavigate } from 'react-router-dom';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { CreateBrandInput } from '@/shared/types/brand';
 
@@ -41,7 +41,7 @@ export function useOnboardingFlow() {
 
     try {
       console.log('Calling brandsService.create with input:', brandInput);
-      const brand = await brandsService.create(brandInput);
+      const brand = await services.brands.create(brandInput);
       console.log('Brand created successfully:', brand);
       reset(); // Clear onboarding data
       navigate('/dashboard');
