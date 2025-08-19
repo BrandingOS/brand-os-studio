@@ -1,19 +1,7 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export const createAdminUser = async () => {
   try {
-    // Check if admin user already exists
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', 'admin@brandos.com')
-      .single();
-
-    if (existingUser) {
-      console.log('Admin user already exists');
-      return;
-    }
-
     // Create admin user with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: 'admin@brandos.com',

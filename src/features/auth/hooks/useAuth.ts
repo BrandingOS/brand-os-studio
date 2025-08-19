@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -19,12 +19,6 @@ export const useAuth = () => {
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading } = useSessionStore();
 
   useEffect(() => {
-    // Skip authentication setup if Supabase isn't configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured. Authentication features will be limited.');
-      setLoading(false);
-      return;
-    }
 
     // Get initial session
     const getInitialSession = async () => {
@@ -60,10 +54,6 @@ export const useAuth = () => {
   }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
-    if (!isSupabaseConfigured) {
-      toast.error('Authentication not available. Please check Supabase configuration.');
-      throw new Error('Supabase not configured');
-    }
     
     setLoading(true);
     try {
@@ -80,10 +70,6 @@ export const useAuth = () => {
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    if (!isSupabaseConfigured) {
-      toast.error('Authentication not available. Please check Supabase configuration.');
-      throw new Error('Supabase not configured');
-    }
     
     setLoading(true);
     try {
@@ -105,10 +91,6 @@ export const useAuth = () => {
   };
 
   const loginWithGoogle = async () => {
-    if (!isSupabaseConfigured) {
-      toast.error('Social login not available. Please check Supabase configuration.');
-      throw new Error('Supabase not configured');
-    }
     
     setLoading(true);
     try {
@@ -127,10 +109,6 @@ export const useAuth = () => {
   };
 
   const loginWithFacebook = async () => {
-    if (!isSupabaseConfigured) {
-      toast.error('Social login not available. Please check Supabase configuration.');
-      throw new Error('Supabase not configured');
-    }
     
     setLoading(true);
     try {
@@ -149,10 +127,6 @@ export const useAuth = () => {
   };
 
   const logout = async () => {
-    if (!isSupabaseConfigured) {
-      signOut(); // Use local signOut from store
-      return;
-    }
     
     setLoading(true);
     try {
@@ -164,10 +138,6 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    if (!isSupabaseConfigured) {
-      toast.error('Password reset not available. Please check Supabase configuration.');
-      throw new Error('Supabase not configured');
-    }
     
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`
@@ -185,7 +155,6 @@ export const useAuth = () => {
     loginWithGoogle,
     loginWithFacebook,
     logout,
-    resetPassword,
-    isSupabaseConfigured
+    resetPassword
   };
 };
