@@ -40,11 +40,14 @@ export function useOnboardingFlow() {
     console.log('Brand input:', brandInput);
 
     try {
-      console.log('Calling brandsService.create with input:', brandInput);
+      console.log('Calling services.brands.create with input:', brandInput);
       const brand = await services.brands.create(brandInput);
       console.log('Brand created successfully:', brand);
       reset(); // Clear onboarding data
-      navigate('/dashboard');
+      // Navigate to dashboard after successful creation
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 100);
     } catch (error) {
       console.error('Failed to create brand:', error);
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');

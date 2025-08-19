@@ -21,7 +21,7 @@ export const useDataSync = () => {
       if (mode === 'user' && previousMode === 'guest') {
         try {
           // Sync onboarding data (if available)
-          if (onboardingStore.syncToSupabase) {
+          if (typeof onboardingStore.syncToSupabase === 'function') {
             await onboardingStore.syncToSupabase();
           }
           
@@ -62,7 +62,7 @@ export const useDataSync = () => {
       // When switching to authenticated mode, load data from Supabase
       if (mode === 'user' && isAuthenticated) {
         try {
-          if (onboardingStore.loadFromSupabase) {
+          if (typeof onboardingStore.loadFromSupabase === 'function') {
             await onboardingStore.loadFromSupabase();
           }
           await loadAll();
