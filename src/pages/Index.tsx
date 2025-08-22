@@ -31,7 +31,7 @@ const Index = () => {
 
   const handleStartOnboarding = () => {
     if (brandName.trim()) {
-      setAnswer('brand-name', brandName.trim());
+      setAnswer('company-basics', { brandName: brandName.trim() });
     }
     navigate('/onboarding');
   };
