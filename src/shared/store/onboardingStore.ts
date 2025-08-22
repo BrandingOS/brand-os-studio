@@ -22,22 +22,20 @@ const DEFAULT_STEPS: StepDef[] = [
     title: 'Target Audience',
     description: 'Who are you building for? (Select 2-4 groups)',
     component: 'TargetAudienceStep',
-    required: true,
+    required: false,
     icon: 'Users',
     category: 'Strategy',
-    canSkip: false,
-    validation: (value: any) => !value?.length ? 'Please select at least one audience' : null,
+    canSkip: true,
   },
   {
     id: 'brand-personality',
     title: 'Brand Personality',
     description: 'How does your brand speak and feel?',
     component: 'BrandPersonalityStep',
-    required: true,
+    required: false,
     icon: 'Heart',
     category: 'Identity',
-    canSkip: false,
-    validation: (value: any) => !value?.tone ? 'Brand tone is required' : null,
+    canSkip: true,
   },
   {
     id: 'business-goals',
@@ -64,11 +62,10 @@ const DEFAULT_STEPS: StepDef[] = [
     title: 'Style & Values',
     description: 'Visual style and core values',
     component: 'StyleValuesStep',
-    required: true,
+    required: false,
     icon: 'Palette',
     category: 'Design',
-    canSkip: false,
-    validation: (value: any) => !value?.primaryColor ? 'Primary color is required' : null,
+    canSkip: true,
   },
   {
     id: 'logo-assets',
@@ -216,8 +213,20 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
 
       canSkipCurrent: () => {
-        const { steps, currentStepIndex } = get();
+        const { steps, currentStepIndex, answers } = get();
         const currentStep = steps[currentStepIndex];
+        
+        // Don't allow skipping if no brand name is entered yet
+        const brandName = answers['company-basics']?.brandName?.trim();
+        if (!brandName) {
+          return false;
+        }
+        
+        // Don't allow skipping the first step (company-basics) since brand name is required
+        if (currentStep?.id === 'company-basics') {
+          return false;
+        }
+        
         return currentStep?.canSkip || false;
       },
 

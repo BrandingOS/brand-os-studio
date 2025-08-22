@@ -204,7 +204,12 @@ useEffect(() => {
               </Button>
 
               <div className="flex gap-2 sm:gap-3">
-                <Button variant="ghost" onClick={handleSkip} className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  onClick={handleSkip} 
+                  disabled={!canSkipCurrent()}
+                  className="flex items-center gap-2"
+                >
                   <SkipForward className="h-4 w-4" /> Skip
                 </Button>
 
