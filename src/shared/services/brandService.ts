@@ -78,47 +78,133 @@ class BrandServiceGuest implements BrandService {
   }
 }
 
-// Mock implementation for authenticated users
-class BrandServiceMock implements BrandService {
-  private brands = new Map<string, Brand>();
-
+// Supabase implementation for authenticated users
+class BrandServiceSupabase implements BrandService {
   async getAll(): Promise<Brand[]> {
-    return Array.from(this.brands.values());
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase
+      .from('brands')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw new Error(error.message);
+    
+    return (data || []).map(this.mapFromDatabase);
+  }
+
+  async getAllBrands(): Promise<Brand[]> {
+    // Admin function to get all brands regardless of user
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase
+      .from('brands')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw new Error(error.message);
+    
+    return (data || []).map(this.mapFromDatabase);
   }
 
   async getById(id: string): Promise<Brand> {
-    const brand = this.brands.get(id);
-    if (!brand) throw new Error(`Brand with id ${id} not found`);
-    return brand;
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data, error } = await supabase
+      .from('brands')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error(`Brand with id ${id} not found`);
+    
+    return this.mapFromDatabase(data);
   }
 
   async create(input: CreateBrandInput): Promise<Brand> {
-    const brand: Brand = {
-      ...input,
-      id: `brand_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      assets: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      throw new Error('User must be authenticated to create a brand');
+    }
+    
+    const brandData = {
+      name: input.name,
+      primary_color: input.primaryColor,
+      secondary_color: input.secondaryColor,
+      logo_url: input.logo,
+      fonts: input.fonts,
+      tone: input.tone,
+      audience: input.audience,
+      user_id: user.id,
     };
 
-    this.brands.set(brand.id, brand);
-    return brand;
+    const { data, error } = await supabase
+      .from('brands')
+      .insert(brandData)
+      .select()
+      .single();
+    
+    if (error) throw new Error(error.message);
+    
+    return this.mapFromDatabase(data);
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<void> {
-    const brand = this.brands.get(id);
-    if (!brand) throw new Error(`Brand with id ${id} not found`);
+    const { supabase } = await import('@/integrations/supabase/client');
     
-    this.brands.set(id, { ...brand, ...patch, updatedAt: new Date() });
+    const updateData: any = {};
+    if (patch.name) updateData.name = patch.name;
+    if (patch.primaryColor) updateData.primary_color = patch.primaryColor;
+    if (patch.secondaryColor) updateData.secondary_color = patch.secondaryColor;
+    if (patch.logo) updateData.logo_url = patch.logo;
+    if (patch.fonts) updateData.fonts = patch.fonts;
+    if (patch.tone) updateData.tone = patch.tone;
+    if (patch.audience) updateData.audience = patch.audience;
+
+    const { error } = await supabase
+      .from('brands')
+      .update(updateData)
+      .eq('id', id);
+    
+    if (error) throw new Error(error.message);
   }
 
   async delete(id: string): Promise<void> {
-    this.brands.delete(id);
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { error } = await supabase
+      .from('brands')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw new Error(error.message);
+  }
+
+  private mapFromDatabase(data: any): Brand {
+    return {
+      id: data.id,
+      name: data.name,
+      primaryColor: data.primary_color,
+      secondaryColor: data.secondary_color,
+      logo: data.logo_url,
+      fonts: data.fonts || { primary: 'Inter', secondary: 'Roboto' },
+      tone: data.tone,
+      audience: data.audience,
+      assets: [],
+      createdAt: new Date(data.created_at),
+      updatedAt: new Date(data.updated_at),
+    };
   }
 }
 
 // Service factory
 export function getBrandService(): BrandService {
   const { mode } = useSessionStore.getState();
-  return mode === 'guest' ? new BrandServiceGuest() : new BrandServiceMock();
+  return mode === 'guest' ? new BrandServiceGuest() : new BrandServiceSupabase();
+}
+
+// Admin service to get all brands
+export function getAdminBrandService(): BrandServiceSupabase {
+  return new BrandServiceSupabase();
 }

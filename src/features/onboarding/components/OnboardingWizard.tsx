@@ -204,11 +204,9 @@ useEffect(() => {
               </Button>
 
               <div className="flex gap-2 sm:gap-3">
-                {canSkipCurrent() && (
-                  <Button variant="ghost" onClick={handleSkip} className="flex items-center gap-2">
-                    <SkipForward className="h-4 w-4" /> Skip
-                  </Button>
-                )}
+                <Button variant="ghost" onClick={handleSkip} className="flex items-center gap-2">
+                  <SkipForward className="h-4 w-4" /> Skip
+                </Button>
 
                 {isLastStep ? (
                   <Button onClick={handleComplete} disabled={!canProceed()} className="flex items-center gap-2">

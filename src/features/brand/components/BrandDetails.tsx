@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Settings, Download, Upload, FileText, Palette, Type } from 'lucide-react';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { BrandEditor } from './BrandEditor';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
-import { useBrandStore } from '@/shared/store/brandStore';
+import { ArrowLeft, Edit, Plus, Download, ExternalLink, Upload, Settings, FileText, Palette, Type } from 'lucide-react';
 
 interface BrandDetailsProps {
   brandId: string;
@@ -12,6 +13,7 @@ interface BrandDetailsProps {
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: Settings },
+  { id: 'info', label: 'Brand Info', icon: Edit },
   { id: 'guidelines', label: 'Guidelines', icon: FileText },
   { id: 'assets', label: 'Assets', icon: Upload },
   { id: 'export', label: 'Export', icon: Download },
@@ -53,6 +55,8 @@ export function BrandDetails({ brandId }: BrandDetailsProps) {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab brand={brand} />;
+      case 'info':
+        return <BrandEditor brand={brand} />;
       case 'guidelines':
         return <GuidelinesTab brand={brand} />;
       case 'assets':
