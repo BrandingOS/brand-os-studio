@@ -141,7 +141,7 @@
   .shadow-glow { box-shadow: var(--shadow-glow); }
 
   .section {
-    @apply py-20 md:py-28; 
+    @apply py-20 md:py-8; 
   }
 
   .container-tight { @apply max-w-6xl mx-auto px-4 sm:px-6; }
