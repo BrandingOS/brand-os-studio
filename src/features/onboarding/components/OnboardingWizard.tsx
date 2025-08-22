@@ -170,7 +170,7 @@ useEffect(() => {
         {/* MAIN (page scroll) */}
         {/* Bottom padding matches fixed footer height so content never hides behind it */}
         <main className="flex-1 overflow-auto">
-          <div className="max-w-5xl mx-auto px-4 pt-6 pb-28">
+          <div className="max-w-5xl mx-auto px-4 pt-3 pb-28">
             <Card className="p-6 sm:p-8">
               <div className="text-center mb-6 sm:mb-8">
                 {/* <div className="flex items-center justify-center mb-3">
