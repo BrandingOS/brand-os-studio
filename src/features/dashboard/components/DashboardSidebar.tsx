@@ -88,7 +88,7 @@ export function DashboardSidebar() {
   };
 
   return (
-    <Sidebar className={`border-r transition-all duration-200 ${collapsed ? 'w-16' : 'w-64'}`}>
+    <Sidebar className="border-r transition-all duration-200" collapsible="icon">
       <SidebarContent className="px-2 py-4">
         {/* Main Navigation */}
         <SidebarGroup>

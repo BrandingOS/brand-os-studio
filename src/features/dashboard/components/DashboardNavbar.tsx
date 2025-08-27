@@ -25,7 +25,7 @@ export function DashboardNavbar() {
       <div className="container-tight h-16 flex items-center justify-between">
         {/* Logo and Trigger */}
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" />
+          <SidebarTrigger />
           <Link to="/dashboard" className="flex items-center space-x-2">
             <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
               <Sparkles className="h-5 w-5 text-primary-foreground" />

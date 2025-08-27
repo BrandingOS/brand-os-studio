@@ -20,7 +20,7 @@ export function BrandNavbar({ brandName }: BrandNavbarProps) {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-tight flex h-14 items-center justify-between">
         <div className="flex items-center gap-4">
-          <SidebarTrigger className="md:hidden" />
+          <SidebarTrigger />
           <NavLink to="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm text-muted-foreground">Dashboard</span>
