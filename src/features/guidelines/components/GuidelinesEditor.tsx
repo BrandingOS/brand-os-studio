@@ -9,6 +9,7 @@ import { GuidelineCustomizer } from './GuidelineCustomizer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { demoBrandIdentity } from '@/data/demo';
+import { BrandLayout } from '@/features/brand';
 
 export const GuidelinesEditor: React.FC = () => {
   const { brandId } = useParams<{ brandId: string }>();
@@ -91,54 +92,56 @@ const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStor
   };
 
 return (
-  <div className="flex h-screen bg-background overflow-x-hidden">
-    {/* Left Panel - Collapsible Tabs */}
-    <aside className={`flex flex-col bg-muted/20 border-r border-border transition-width duration-200 ${isCollapsed ? 'w-12' : 'w-80'}`}>
-      {/* Collapse Toggle */}
-      <button
-        className="p-2 focus:outline-none"
-        onClick={() => setIsCollapsed(prev => !prev)}
-      >
-        {isCollapsed ? '›' : '‹'}
-      </button>
-      <Tabs value={activeTab} onValueChange={(val: string) => setActiveTab(val as 'navigator' | 'customize' | 'panels')} className="flex-1 flex flex-col">
-        <TabsList>
-          <TabsTrigger value="navigator" className="flex-1 text-xs">
-            Navigator
-          </TabsTrigger>
-          <TabsTrigger value="customize" className="flex-1 text-xs">
-            Customize
-          </TabsTrigger>
-          <TabsTrigger value="panels" className="flex-1 text-xs">
-            Panels
-          </TabsTrigger>
-        </TabsList>
-        <div className="flex-1 overflow-auto">
-          <TabsContent value="navigator" className="h-full">
-            <SlideNavigator 
-              slides={slides}
-              currentSlide={currentSlide}
-              onSlideSelect={setCurrentSlide}
-              brand={brand}
-            />
-          </TabsContent>
-          <TabsContent value="customize" className="h-full">
-            <GuidelineCustomizer />
-          </TabsContent>
-          <TabsContent value="panels" className="h-full">
-            {renderRightPanel()}
-          </TabsContent>
-        </div>
-      </Tabs>
-    </aside>
+  <BrandLayout>
+    <div className="flex h-screen bg-background overflow-x-hidden">
+      {/* Left Panel - Collapsible Tabs */}
+      <aside className={`flex flex-col bg-muted/20 border-r border-border transition-width duration-200 ${isCollapsed ? 'w-12' : 'w-80'}`}>
+        {/* Collapse Toggle */}
+        <button
+          className="p-2 focus:outline-none"
+          onClick={() => setIsCollapsed(prev => !prev)}
+        >
+          {isCollapsed ? '›' : '‹'}
+        </button>
+        <Tabs value={activeTab} onValueChange={(val: string) => setActiveTab(val as 'navigator' | 'customize' | 'panels')} className="flex-1 flex flex-col">
+          <TabsList>
+            <TabsTrigger value="navigator" className="flex-1 text-xs">
+              Navigator
+            </TabsTrigger>
+            <TabsTrigger value="customize" className="flex-1 text-xs">
+              Customize
+            </TabsTrigger>
+            <TabsTrigger value="panels" className="flex-1 text-xs">
+              Panels
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex-1 overflow-auto">
+            <TabsContent value="navigator" className="h-full">
+              <SlideNavigator 
+                slides={slides}
+                currentSlide={currentSlide}
+                onSlideSelect={setCurrentSlide}
+                brand={brand}
+              />
+            </TabsContent>
+            <TabsContent value="customize" className="h-full">
+              <GuidelineCustomizer />
+            </TabsContent>
+            <TabsContent value="panels" className="h-full">
+              {renderRightPanel()}
+            </TabsContent>
+          </div>
+        </Tabs>
+      </aside>
 
-    {/* Right Side - Live Preview */}
-    <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-muted/5">
-      <PreviewCanvas 
-        brand={brand}
-        currentSlide={slides[currentSlide]}
-      />
-    </main>
-  </div>
+      {/* Right Side - Live Preview */}
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col bg-muted/5">
+        <PreviewCanvas 
+          brand={brand}
+          currentSlide={slides[currentSlide]}
+        />
+      </main>
+    </div>
+  </BrandLayout>
 );
 }

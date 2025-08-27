@@ -13,6 +13,11 @@ import IndexPage from "./pages/Index";
 import OnboardingPage from "./app/onboarding/page";
 import BrandPreviewPage from "./pages/onboarding/preview";
 import DashboardRoute from "./pages/dashboard";
+import BrandsPage from "./pages/dashboard/brands";
+import ActivityPage from "./pages/dashboard/activity";
+import TemplatesPage from "./pages/dashboard/templates";
+import AdminBrandsPage from "./pages/dashboard/admin/brands";
+import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
 import BrandHomePage from "./pages/dashboard/brand/[brandId]";
 import BrandKitHubPage from "./pages/dashboard/brand/[brandId]/brandkit";
 import BrandKitModulePage from "./pages/dashboard/brand/[brandId]/brandkit/[moduleId]";
@@ -35,6 +40,31 @@ const App = () => (
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
+          <Route path="/dashboard/brands" element={
+            <ProtectedRoute>
+              <BrandsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/activity" element={
+            <ProtectedRoute>
+              <ActivityPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/templates" element={
+            <ProtectedRoute>
+              <TemplatesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/admin/brands" element={
+            <ProtectedRoute>
+              <AdminBrandsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/admin/analytics" element={
+            <ProtectedRoute>
+              <AdminAnalyticsPage />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard/brand/:brandId" element={
             <ProtectedRoute>
               <BrandHomePage />

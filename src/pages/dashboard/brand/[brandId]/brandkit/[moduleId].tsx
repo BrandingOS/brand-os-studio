@@ -1,19 +1,26 @@
 import { useParams } from 'react-router-dom';
 import { EditorShell } from '@/features/editor';
 import { Container } from '@/shared/ui/Container';
+import { BrandLayout } from '@/features/brand';
 
 export default function BrandKitModulePage() {
   const { brandId, moduleId } = useParams<{ brandId: string; moduleId: string }>();
   
   if (!brandId || !moduleId) {
     return (
-      <Container className="py-8">
-        <div className="text-center">
-          <p className="text-muted-foreground">Invalid parameters</p>
-        </div>
-      </Container>
+      <BrandLayout>
+        <Container className="py-8">
+          <div className="text-center">
+            <p className="text-muted-foreground">Invalid parameters</p>
+          </div>
+        </Container>
+      </BrandLayout>
     );
   }
   
-  return <EditorShell moduleId={moduleId} brandId={brandId} />;
+  return (
+    <BrandLayout>
+      <EditorShell moduleId={moduleId} brandId={brandId} />
+    </BrandLayout>
+  );
 }

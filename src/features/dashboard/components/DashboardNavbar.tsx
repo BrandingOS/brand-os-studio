@@ -5,6 +5,7 @@ import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { 
   Search, 
   Bell, 
@@ -22,16 +23,19 @@ export function DashboardNavbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container-tight h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/dashboard" className="flex items-center space-x-2">
-          <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div className="hidden sm:block">
-            <h1 className="text-lg font-semibold">Brand OS</h1>
-            <p className="text-xs text-muted-foreground">Studio</p>
-          </div>
-        </Link>
+        {/* Logo and Trigger */}
+        <div className="flex items-center gap-4">
+          <SidebarTrigger className="md:hidden" />
+          <Link to="/dashboard" className="flex items-center space-x-2">
+            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
+              <Sparkles className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-semibold">Brand OS</h1>
+              <p className="text-xs text-muted-foreground">Studio</p>
+            </div>
+          </Link>
+        </div>
 
         {/* Search Bar */}
         <div className="flex-1 max-w-lg mx-4 hidden md:block">

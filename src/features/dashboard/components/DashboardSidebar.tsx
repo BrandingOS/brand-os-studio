@@ -27,37 +27,22 @@ import {
 
 const mainNavItems = [
   {
-    title: "Overview",
+    title: "Home",
     url: "/dashboard",
     icon: LayoutDashboard,
-    description: "Dashboard home"
+    description: "Dashboard overview"
   },
   {
-    title: "Brands",
+    title: "My Brands",
     url: "/dashboard/brands",
     icon: Building2,
     description: "Manage your brands"
   },
   {
-    title: "Guidelines",
-    url: "/dashboard/guidelines",
-    icon: FileText,
-    description: "Brand guidelines"
-  },
-  {
-    title: "Assets",
-    url: "/dashboard/assets",
-    icon: Image,
-    description: "Brand assets library"
-  }
-];
-
-const toolsItems = [
-  {
-    title: "Color Palette",
-    url: "/dashboard/tools/colors",
-    icon: Palette,
-    description: "Color management"
+    title: "Activity",
+    url: "/dashboard/activity",
+    icon: BarChart3,
+    description: "Recent activity"
   },
   {
     title: "Templates",
@@ -138,16 +123,7 @@ export function DashboardSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {toolsItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="text-sm">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {/* Tools section removed - will be in brand workspace */}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -181,7 +157,7 @@ export function DashboardSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/dashboard/settings" className={`${getNavClass('/dashboard/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
+                  <NavLink to="/settings/account" className={`${getNavClass('/settings/account')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
                     <Settings className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="text-sm">Settings</span>}
                   </NavLink>
