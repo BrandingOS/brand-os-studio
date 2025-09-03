@@ -1,41 +1,24 @@
-import { useState, useEffect } from 'react';
-import { DesignEditor } from './DesignEditor';
-import { brandsService } from '@/features/brand/services/brands.local';
-import type { Brand } from '@/shared/types/brand';
+import { useParams } from 'react-router-dom';
+import { DesignEditor } from '@/features/editor';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { useEffect } from 'react';
 
-interface EditorShellProps {
-  moduleId?: string;
-  brandId?: string;
-}
-
-export function EditorShell({ moduleId, brandId }: EditorShellProps) {
-  const [brand, setBrand] = useState<Brand | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export default function DesignEditorPage() {
+  const { brandId } = useParams<{ brandId: string }>();
+  const { current: brand, loadById, isLoading } = useBrandStore();
 
   useEffect(() => {
     if (brandId) {
-      loadBrand();
+      loadById(brandId);
     }
-  }, [brandId]);
-
-  const loadBrand = async () => {
-    try {
-      setIsLoading(true);
-      const brandData = await brandsService.getById(brandId!);
-      setBrand(brandData);
-    } catch (error) {
-      console.error('Failed to load brand:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [brandId, loadById]);
 
   if (!brandId) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-xl font-semibold mb-2">Brand ID Required</h2>
-          <p className="text-muted-foreground">Please provide a brand ID to access the editor.</p>
+          <p className="text-muted-foreground">Please provide a brand ID to access the design editor.</p>
         </div>
       </div>
     );

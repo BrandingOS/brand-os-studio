@@ -1,0 +1,154 @@
+import { useState } from 'react';
+import { 
+  Undo2, 
+  Redo2, 
+  Save, 
+  Download, 
+  ZoomIn, 
+  ZoomOut, 
+  RotateCcw,
+  Play,
+  Settings,
+  ArrowLeft
+} from 'lucide-react';
+import { Button } from '@/shared/ui/Button';
+import { Input } from '@/shared/ui/Input';
+import { NavLink } from 'react-router-dom';
+import { toast } from 'sonner';
+
+interface EditorTopBarProps {
+  fabricCanvas: any;
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
+  brandId: string;
+}
+
+export function EditorTopBar({ fabricCanvas, zoom, onZoomChange, brandId }: EditorTopBarProps) {
+  const [fileName, setFileName] = useState('Untitled Design');
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const handleUndo = () => {
+    if (fabricCanvas && canUndo) {
+      // Implement undo functionality
+      toast.info('Undo functionality coming soon');
+    }
+  };
+
+  const handleRedo = () => {
+    if (fabricCanvas && canRedo) {
+      // Implement redo functionality
+      toast.info('Redo functionality coming soon');
+    }
+  };
+
+  const handleSave = () => {
+    if (fabricCanvas) {
+      // Save design to local storage or backend
+      const designData = JSON.stringify(fabricCanvas.toJSON());
+      localStorage.setItem(`design_${brandId}`, designData);
+      toast.success('Design saved successfully');
+    }
+  };
+
+  const handleExport = () => {
+    if (fabricCanvas) {
+      const dataURL = fabricCanvas.toDataURL({
+        format: 'png',
+        quality: 1,
+        multiplier: 2, // Higher resolution
+      });
+      
+      const link = document.createElement('a');
+      link.download = `${fileName}.png`;
+      link.href = dataURL;
+      link.click();
+      
+      toast.success('Design exported successfully');
+    }
+  };
+
+  const handlePreview = () => {
+    toast.info('Preview mode coming soon');
+  };
+
+  return (
+    <div className="h-14 border-b bg-background flex items-center justify-between px-4">
+      {/* Left Section */}
+      <div className="flex items-center gap-4">
+        <NavLink 
+          to={`/dashboard/brand/${brandId}`}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="text-sm">Back to Brand</span>
+        </NavLink>
+        
+        <div className="h-6 w-px bg-border" />
+        
+        <Input
+          value={fileName}
+          onChange={(e) => setFileName(e.target.value)}
+          className="w-64 h-8 text-sm font-medium bg-transparent border-none shadow-none px-2 focus:bg-background"
+          placeholder="Design name"
+        />
+      </div>
+
+      {/* Center Section - Actions */}
+      <div className="flex items-center gap-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleUndo}
+          disabled={!canUndo}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleRedo}
+          disabled={!canRedo}
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
+        
+        <div className="h-6 w-px bg-border mx-2" />
+        
+        <Button variant="ghost" size="sm" onClick={() => onZoomChange(Math.max(0.1, zoom - 0.1))}>
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <span className="text-sm px-2 font-mono w-16 text-center">
+          {Math.round(zoom * 100)}%
+        </span>
+        <Button variant="ghost" size="sm" onClick={() => onZoomChange(Math.min(3, zoom + 0.1))}>
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        
+        <div className="h-6 w-px bg-border mx-2" />
+        
+        <Button variant="ghost" size="sm" onClick={() => onZoomChange(1)}>
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handlePreview}>
+          <Play className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Right Section */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm">
+          <Settings className="h-4 w-4" />
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleSave}>
+          <Save className="h-4 w-4 mr-1" />
+          Save
+        </Button>
+        <Button size="sm" onClick={handleExport}>
+          <Download className="h-4 w-4 mr-1" />
+          Export
+        </Button>
+      </div>
+    </div>
+  );
+}

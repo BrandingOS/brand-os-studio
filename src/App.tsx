@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
+import { lazy, Suspense } from "react";
 
 // Initialize admin user in development
 import "@/features/auth/utils/createAdminUser";
@@ -27,6 +28,8 @@ import BrandDetailPage from "./app/brand/[id]/page";
 import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
 
+const DesignEditorPage = lazy(() => import('./pages/editor/design'));
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -35,6 +38,7 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <BrowserRouter>
+        <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
         <Routes>
           <Route path="/" element={<IndexPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
@@ -85,6 +89,11 @@ const App = () => (
               <GuidelinesEditor />
             </ProtectedRoute>
           } />
+          <Route path="/dashboard/brand/:brandId/editor" element={
+            <ProtectedRoute>
+              <DesignEditorPage />
+            </ProtectedRoute>
+          } />
           <Route path="/settings/account" element={
             <ProtectedRoute>
               <AccountSettingsPage />
@@ -94,6 +103,7 @@ const App = () => (
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
