@@ -134,7 +134,7 @@
       color: hsl(var(--primary));                 /* deep gray */
       border: 1px solid hsl(var(--primary) / 0.2);
       box-shadow: none; /* optional: reduce glow on invert */
-      transition: all 0.4s
+      transition: all 0.4s;
     }
 
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
@@ -221,5 +221,4 @@
   display: inline-block;
   padding: 0 3px;
   animation: arrowPulse 2s ease-in-out infinite;
-  
 }
