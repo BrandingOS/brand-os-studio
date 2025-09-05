@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
   const { login, register, loginWithGoogle, loginWithFacebook, resetPassword, isLoading } = useAuth();
   const { switchToGuest } = useSessionStore();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +40,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
         await login(formData.email, formData.password);
         toast.success('Welcome back!');
         onClose();
+        navigate('/dashboard');
       } else if (mode === 'register') {
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
@@ -46,6 +49,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
         await register(formData.email, formData.password, formData.name);
         toast.success('Account created! Please check your email to verify your account.');
         onClose();
+        navigate('/dashboard');
       } else if (mode === 'forgot') {
         await resetPassword(formData.email);
         toast.success('Password reset email sent!');
