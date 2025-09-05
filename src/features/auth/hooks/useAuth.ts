@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -18,12 +18,30 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
 });
 
 export const useAuth = () => {
+  const [isAdmin, setIsAdmin] = useState(false);
   const sessionStore = useSessionStore();
   const onboardingStore = useOnboardingStore();
   const navigate = useNavigate();
   
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
+
+  // Check if current user is admin
+  const checkAdminRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .single();
+      
+      setIsAdmin(!error && data?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
@@ -35,8 +53,9 @@ export const useAuth = () => {
         if (session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
-          // Load existing data from Supabase in a separate effect
+          // Check admin role and load existing data from Supabase in a separate effect
           setTimeout(() => {
+            checkAdminRole(session.user.id);
             loadFromSupabase().catch(console.error);
           }, 0);
         }
@@ -55,12 +74,14 @@ export const useAuth = () => {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
           
-          // Sync guest data to Supabase in a separate timeout
+          // Check admin role and sync guest data to Supabase in a separate timeout
           setTimeout(() => {
+            checkAdminRole(session.user.id);
             syncToSupabase().catch(console.error);
           }, 0);
         } else if (event === 'SIGNED_OUT') {
           signOut();
+          setIsAdmin(false);
         }
       }
     );
@@ -163,6 +184,7 @@ export const useAuth = () => {
     user,
     isAuthenticated,
     isLoading,
+    isAdmin,
     login,
     register,
     loginWithGoogle,
