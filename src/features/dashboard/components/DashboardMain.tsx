@@ -202,7 +202,7 @@ export function DashboardMain() {
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-sm text-muted-foreground">
                       Updated {new Date(brand.updatedAt).toLocaleDateString()}
                     </span>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">

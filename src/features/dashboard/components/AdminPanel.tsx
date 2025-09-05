@@ -24,6 +24,7 @@ export function AdminPanel() {
     try {
       const adminService = getAdminBrandService();
       const allBrands = await adminService.getAllBrands();
+      console.log('Loaded brands for admin:', allBrands.length);
       setBrands(allBrands);
     } catch (error) {
       console.error('Failed to load all brands:', error);
@@ -108,7 +109,9 @@ export function AdminPanel() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span>Created:</span>
-                      <span className="font-medium">{brand.createdAt.toLocaleDateString()}</span>
+                      <span className="font-medium">
+                        {new Date(brand.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                 </Card>
