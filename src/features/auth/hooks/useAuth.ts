@@ -26,7 +26,6 @@ export const useAuth = () => {
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
 
   useEffect(() => {
-
     // Get initial session
     const getInitialSession = async () => {
       setLoading(true);
@@ -70,7 +69,6 @@ export const useAuth = () => {
   }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
-    
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -86,7 +84,6 @@ export const useAuth = () => {
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -107,7 +104,6 @@ export const useAuth = () => {
   };
 
   const loginWithGoogle = async () => {
-    
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -125,7 +121,6 @@ export const useAuth = () => {
   };
 
   const loginWithFacebook = async () => {
-    
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -143,7 +138,6 @@ export const useAuth = () => {
   };
 
   const logout = async () => {
-    
     setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
@@ -158,7 +152,6 @@ export const useAuth = () => {
   };
 
   const resetPassword = async (email: string) => {
-    
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`
     });
