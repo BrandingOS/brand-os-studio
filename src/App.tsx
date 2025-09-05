@@ -35,11 +35,11 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <BrowserRouter>
-        <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
-        <Routes>
+      <BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+          <Routes>
           <Route path="/" element={<IndexPage />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
@@ -102,10 +102,10 @@ const App = () => (
           <Route path="/brand/:id" element={<BrandDetailPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
-        </Routes>
-        </Suspense>
-        </BrowserRouter>
-      </AuthProvider>
+          </Routes>
+          </Suspense>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
