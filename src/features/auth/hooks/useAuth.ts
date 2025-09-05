@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
@@ -19,6 +20,7 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
 export const useAuth = () => {
   const sessionStore = useSessionStore();
   const onboardingStore = useOnboardingStore();
+  const navigate = useNavigate();
   
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
@@ -146,6 +148,10 @@ export const useAuth = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      
+      // Redirect to homepage after successful logout
+      navigate('/');
+      toast.success('Successfully signed out');
     } finally {
       setLoading(false);
     }
