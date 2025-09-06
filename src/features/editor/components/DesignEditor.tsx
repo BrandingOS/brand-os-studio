@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Canvas as FabricCanvas } from 'fabric';
 import { DesignCanvas } from './DesignCanvas';
 import { ToolPanel } from './ToolPanel';
@@ -18,6 +18,21 @@ export function DesignEditor({ brand, brandId }: DesignEditorProps) {
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const canvasActionsRef = useRef<{
+    undo: () => void;
+    redo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
+  } | null>(null);
+
+  const handleCanvasActionsReady = useCallback((actions: {
+    undo: () => void;
+    redo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
+  }) => {
+    canvasActionsRef.current = actions;
+  }, []);
 
   const handleCanvasReady = useCallback((canvas: FabricCanvas) => {
     setFabricCanvas(canvas);
@@ -92,6 +107,10 @@ export function DesignEditor({ brand, brandId }: DesignEditorProps) {
         zoom={zoom}
         onZoomChange={handleZoomChange}
         brandId={brandId}
+        onUndo={() => canvasActionsRef.current?.undo()}
+        onRedo={() => canvasActionsRef.current?.redo()}
+        canUndo={canvasActionsRef.current?.canUndo || false}
+        canRedo={canvasActionsRef.current?.canRedo || false}
       />
 
       {/* Main Editor */}
@@ -110,6 +129,7 @@ export function DesignEditor({ brand, brandId }: DesignEditorProps) {
           selectedTool={selectedTool}
           onSelectionChange={handleSelectionChange}
           onCanvasReady={handleCanvasReady}
+          onActionsReady={handleCanvasActionsReady}
         />
 
         {/* Right Properties Panel */}

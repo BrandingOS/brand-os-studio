@@ -14,7 +14,19 @@ export default function BrandHomePage() {
           <h1 className="text-3xl font-bold mb-6">Brand Home</h1>
           <p className="text-muted-foreground mb-8">Brand ID: {brandId}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="card-soft p-6">
+              <h2 className="text-xl font-semibold mb-4">Editor</h2>
+              <p className="text-muted-foreground mb-4">Create and edit designs with your brand</p>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate(`/dashboard/brand/${brandId}/editor`)}
+              >
+                Open Editor
+              </Button>
+            </div>
+            
             <div className="card-soft p-6">
               <h2 className="text-xl font-semibold mb-4">Brand Kit</h2>
               <p className="text-muted-foreground mb-4">Access your complete brand toolkit</p>

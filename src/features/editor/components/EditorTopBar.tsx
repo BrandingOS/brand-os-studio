@@ -21,24 +21,37 @@ interface EditorTopBarProps {
   zoom: number;
   onZoomChange: (zoom: number) => void;
   brandId: string;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
-export function EditorTopBar({ fabricCanvas, zoom, onZoomChange, brandId }: EditorTopBarProps) {
+export function EditorTopBar({ 
+  fabricCanvas, 
+  zoom, 
+  onZoomChange, 
+  brandId,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false
+}: EditorTopBarProps) {
   const [fileName, setFileName] = useState('Untitled Design');
-  const [canUndo, setCanUndo] = useState(false);
-  const [canRedo, setCanRedo] = useState(false);
 
   const handleUndo = () => {
-    if (fabricCanvas && canUndo) {
-      // Implement undo functionality
-      toast.info('Undo functionality coming soon');
+    if (onUndo) {
+      onUndo();
+    } else {
+      toast.info('Undo functionality not available');
     }
   };
 
   const handleRedo = () => {
-    if (fabricCanvas && canRedo) {
-      // Implement redo functionality
-      toast.info('Redo functionality coming soon');
+    if (onRedo) {
+      onRedo();
+    } else {
+      toast.info('Redo functionality not available');
     }
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Canvas as FabricCanvas, Circle, Rect, Textbox, FabricImage } from 'fabric';
+import { Canvas as FabricCanvas, Circle, Rect, Textbox, FabricImage, ActiveSelection } from 'fabric';
 import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
 
@@ -8,6 +8,12 @@ interface DesignCanvasProps {
   selectedTool: string | null;
   onSelectionChange: (object: any) => void;
   onCanvasReady: (canvas: FabricCanvas) => void;
+  onActionsReady?: (actions: {
+    undo: () => void;
+    redo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
+  }) => void;
   width?: number;
   height?: number;
 }
@@ -17,12 +23,155 @@ export function DesignCanvas({
   selectedTool, 
   onSelectionChange, 
   onCanvasReady,
+  onActionsReady,
   width = 1080,
   height = 1080 
 }: DesignCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyStep, setHistoryStep] = useState(-1);
+
+  // Save canvas state for undo/redo
+  const saveState = useCallback((canvas?: FabricCanvas) => {
+    if (!canvas && !fabricCanvas) return;
+    const currentCanvas = canvas || fabricCanvas!;
+    const state = JSON.stringify(currentCanvas.toJSON());
+    const newHistory = history.slice(0, historyStep + 1);
+    newHistory.push(state);
+    setHistory(newHistory);
+    setHistoryStep(newHistory.length - 1);
+  }, [fabricCanvas, history, historyStep]);
+
+  // Undo function
+  const undo = useCallback(() => {
+    if (historyStep > 0 && fabricCanvas) {
+      const previousState = history[historyStep - 1];
+      fabricCanvas.loadFromJSON(previousState, () => {
+        fabricCanvas.renderAll();
+        setHistoryStep(historyStep - 1);
+      });
+    }
+  }, [fabricCanvas, history, historyStep]);
+
+  // Redo function
+  const redo = useCallback(() => {
+    if (historyStep < history.length - 1 && fabricCanvas) {
+      const nextState = history[historyStep + 1];
+      fabricCanvas.loadFromJSON(nextState, () => {
+        fabricCanvas.renderAll();
+        setHistoryStep(historyStep + 1);
+      });
+    }
+  }, [fabricCanvas, history, historyStep]);
+
+  // Copy selected object
+  const copy = useCallback(() => {
+    if (!fabricCanvas) return;
+    const activeObject = fabricCanvas.getActiveObject();
+    if (activeObject) {
+      const cloned = activeObject.toObject();
+      navigator.clipboard.writeText(JSON.stringify(cloned));
+      toast.success('Object copied');
+    }
+  }, [fabricCanvas]);
+
+  // Paste from clipboard
+  const paste = useCallback(async () => {
+    if (!fabricCanvas) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      const objectData = JSON.parse(text);
+      
+      // Create object from clipboard data
+      if (objectData.type === 'textbox') {
+        const textObj = new Textbox(objectData.text, {
+          ...objectData,
+          left: objectData.left + 20,
+          top: objectData.top + 20,
+        });
+        fabricCanvas.add(textObj);
+      } else if (objectData.type === 'rect') {
+        const rectObj = new Rect({
+          ...objectData,
+          left: objectData.left + 20,
+          top: objectData.top + 20,
+        });
+        fabricCanvas.add(rectObj);
+      } else if (objectData.type === 'circle') {
+        const circleObj = new Circle({
+          ...objectData,
+          left: objectData.left + 20,
+          top: objectData.top + 20,
+        });
+        fabricCanvas.add(circleObj);
+      }
+      
+      fabricCanvas.renderAll();
+      saveState();
+      toast.success('Object pasted');
+    } catch (error) {
+      toast.error('Nothing to paste');
+    }
+  }, [fabricCanvas, saveState]);
+
+  // Delete selected object
+  const deleteSelected = useCallback(() => {
+    if (!fabricCanvas) return;
+    const activeObject = fabricCanvas.getActiveObject();
+    if (activeObject) {
+      fabricCanvas.remove(activeObject);
+      fabricCanvas.renderAll();
+      saveState();
+      toast.success('Object deleted');
+    }
+  }, [fabricCanvas, saveState]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!fabricCanvas) return;
+      
+      // Prevent default browser shortcuts
+      if ((e.ctrlKey || e.metaKey)) {
+        switch (e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 'c':
+            e.preventDefault();
+            copy();
+            break;
+          case 'v':
+            e.preventDefault();
+            paste();
+            break;
+          case 'a':
+            e.preventDefault();
+            fabricCanvas.discardActiveObject();
+            const allObjects = fabricCanvas.getObjects();
+            const selection = new ActiveSelection(allObjects, {
+              canvas: fabricCanvas,
+            });
+            fabricCanvas.setActiveObject(selection);
+            fabricCanvas.renderAll();
+            break;
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteSelected();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [fabricCanvas, undo, redo, copy, paste, deleteSelected]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -46,13 +195,31 @@ export function DesignCanvas({
       onSelectionChange(null);
     });
 
+    // Track canvas changes for undo/redo
+    canvas.on('object:added', () => saveState(canvas));
+    canvas.on('object:removed', () => saveState(canvas));
+    canvas.on('object:modified', () => saveState(canvas));
+
+    // Initialize with empty state
+    saveState(canvas);
+
     setFabricCanvas(canvas);
     onCanvasReady(canvas);
+
+    // Pass actions to parent if callback provided
+    if (onActionsReady) {
+      onActionsReady({
+        undo,
+        redo,
+        canUndo: historyStep > 0,
+        canRedo: historyStep < history.length - 1,
+      });
+    }
 
     return () => {
       canvas.dispose();
     };
-  }, [width, height, onSelectionChange, onCanvasReady]);
+  }, [width, height, onSelectionChange, onCanvasReady, onActionsReady, saveState, undo, redo, historyStep, history]);
 
   const addText = useCallback(() => {
     if (!fabricCanvas) return;
@@ -194,6 +361,17 @@ export function DesignCanvas({
         >
           Fit
         </button>
+      </div>
+
+      {/* Keyboard Shortcuts Hint */}
+      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-3 text-xs text-gray-600">
+        <div className="font-medium mb-1">Shortcuts:</div>
+        <div>Ctrl+Z: Undo</div>
+        <div>Ctrl+Shift+Z: Redo</div>
+        <div>Ctrl+C: Copy</div>
+        <div>Ctrl+V: Paste</div>
+        <div>Delete: Remove</div>
+        <div>Ctrl+A: Select All</div>
       </div>
     </div>
   );

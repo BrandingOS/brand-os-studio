@@ -2,16 +2,22 @@ import { useParams } from 'react-router-dom';
 import { DesignEditor } from '@/features/editor';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect } from 'react';
+import { demoBrandIdentity } from '@/data/demo';
 
 export default function DesignEditorPage() {
   const { brandId } = useParams<{ brandId: string }>();
-  const { current: brand, loadById, isLoading } = useBrandStore();
+  const { current: brand, loadById, isLoading, setCurrent } = useBrandStore();
 
   useEffect(() => {
     if (brandId) {
-      loadById(brandId);
+      // Handle demo brand
+      if (brandId === 'demo-brand-1') {
+        setCurrent(demoBrandIdentity);
+      } else {
+        loadById(brandId);
+      }
     }
-  }, [brandId, loadById]);
+  }, [brandId, loadById, setCurrent]);
 
   if (!brandId) {
     return (

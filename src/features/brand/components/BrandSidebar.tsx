@@ -18,7 +18,8 @@ import {
   Image,
   Settings,
   Folder,
-  Briefcase
+  Briefcase,
+  PenTool
 } from 'lucide-react';
 
 const brandNavItems = [
@@ -55,6 +56,12 @@ const brandNavItems = [
 ];
 
 const toolsItems = [
+  {
+    title: "Editor",
+    url: "/dashboard/brand/:brandId/editor",
+    icon: PenTool,
+    description: "Design editor"
+  },
   {
     title: "Templates",
     url: "/dashboard/brand/:brandId/templates",
