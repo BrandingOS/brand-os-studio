@@ -9,10 +9,10 @@ export function DevModeIndicator() {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50">
-      <Badge variant="secondary" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
-        🔓 DEV MODE - Auto Login
-      </Badge>
+    <div className="fixed bottom-4 right-4 z-50">
+      <div className="h-8 w-8 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+        <span className="text-xs text-orange-600">🔓</span>
+      </div>
     </div>
   );
 }
