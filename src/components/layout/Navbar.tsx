@@ -40,9 +40,19 @@ export default function Navbar() {
               ))}
             </nav>
 
-            <div className="hidden sm:flex items-center gap-2" data-animate>
+            <div className="hidden sm:flex items-center gap-3" data-animate>
               {isAuthenticated ? (
-                <UserMenu />
+                <>
+                  <Button 
+                    variant="secondary" 
+                    shape="pill"
+                    onClick={() => window.location.href = '/dashboard'}
+                    className="font-medium"
+                  >
+                    Dashboard
+                  </Button>
+                  <UserMenu />
+                </>
               ) : (
                 <Button 
                   variant="hero" 
