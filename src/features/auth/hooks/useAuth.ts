@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
+import { useAutoLogin } from './useAutoLogin';
 import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '@/shared/types/user';
@@ -22,6 +23,7 @@ export const useAuth = () => {
   const sessionStore = useSessionStore();
   const onboardingStore = useOnboardingStore();
   const navigate = useNavigate();
+  const { isDevelopmentMode } = useAutoLogin();
   
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
@@ -44,6 +46,12 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
+    // Skip Supabase auth in development mode
+    if (isDevelopmentMode) {
+      setIsAdmin(true); // Grant admin access in dev mode
+      return;
+    }
+
     // Get initial session
     const getInitialSession = async () => {
       setLoading(true);
@@ -87,7 +95,7 @@ export const useAuth = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [signIn, signOut, setLoading]);
+  }, [signIn, signOut, setLoading, isDevelopmentMode]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
