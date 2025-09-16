@@ -22,7 +22,7 @@ const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStor
   // Load brand data
   useEffect(() => {
     if (brandId && brandId !== brand?.id) {
-      if (brandId === 'demo-brand-1') {
+      if (brandId === '550e8400-e29b-41d4-a716-446655440000') {
         useBrandStore.getState().setCurrent(demoBrandIdentity);
       } else {
         loadById(brandId);

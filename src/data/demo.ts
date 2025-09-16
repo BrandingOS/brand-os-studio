@@ -1,7 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 
 export const demoBrandIdentity: Brand = {
-  id: 'demo-brand-1',
+  id: '550e8400-e29b-41d4-a716-446655440000',
   name: 'The Main Brand',
   logo: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=200&fit=crop&crop=center',
   primaryColor: '#2563eb',
