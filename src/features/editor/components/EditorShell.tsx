@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DesignEditor } from './DesignEditor';
 import { WelcomeTutorial } from './WelcomeTutorial';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 
 interface EditorShellProps {
@@ -23,7 +23,7 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      const brandData = await brandsService.getById(brandId!);
+      const brandData = await services.brands.getById(brandId!);
       setBrand(brandData);
       
       // Show tutorial for first-time users of this brand
