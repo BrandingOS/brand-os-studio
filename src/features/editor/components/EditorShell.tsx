@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DesignEditor } from './DesignEditor';
+import { WelcomeTutorial } from './WelcomeTutorial';
 import { brandsService } from '@/features/brand/services/brands.local';
 import type { Brand } from '@/shared/types/brand';
 
@@ -11,6 +12,7 @@ interface EditorShellProps {
 export function EditorShell({ moduleId, brandId }: EditorShellProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     if (brandId) {
@@ -23,11 +25,23 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
       setIsLoading(true);
       const brandData = await brandsService.getById(brandId!);
       setBrand(brandData);
+      
+      // Show tutorial for first-time users of this brand
+      const tutorialKey = `editor-tutorial-${brandId}`;
+      const hasSeenTutorial = localStorage.getItem(tutorialKey);
+      if (!hasSeenTutorial) {
+        setShowTutorial(true);
+      }
     } catch (error) {
       console.error('Failed to load brand:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCloseTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem(`editor-tutorial-${brandId}`, 'seen');
   };
 
   if (!brandId) {
@@ -60,5 +74,15 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
     );
   }
 
-  return <DesignEditor brand={brand} brandId={brandId} />;
+  return (
+    <>
+      <DesignEditor brand={brand} brandId={brandId} />
+      {showTutorial && (
+        <WelcomeTutorial 
+          onClose={handleCloseTutorial}
+          brandName={brand.name}
+        />
+      )}
+    </>
+  );
 }

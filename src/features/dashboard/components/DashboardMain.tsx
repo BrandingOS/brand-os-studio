@@ -144,6 +144,27 @@ export function DashboardMain() {
           </Card>
         )}
 
+        {brands.length > 0 && (
+          <Card className="border-primary/20 bg-primary/5 dark:bg-primary/10">
+            <div className="p-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Quick Access</h3>
+                <p className="text-muted-foreground text-sm">
+                  Jump straight into editing your brand assets
+                </p>
+              </div>
+              <Button 
+                onClick={() => window.open(`/editor/design/${brands[0].id}`, '_blank')}
+                className="flex items-center gap-2"
+                size="lg"
+              >
+                <Palette className="h-4 w-4" />
+                Open Editor
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Brands Grid */}
         {brands.length === 0 ? (
           <Card className="border-dashed border-2">
@@ -205,10 +226,19 @@ export function DashboardMain() {
                     <span className="text-sm text-muted-foreground">
                       Updated {new Date(brand.updatedAt).toLocaleDateString()}
                     </span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Eye className="h-3 w-3" />
-                      <span>View</span>
-                      <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`/editor/design/${brand.id}`, '_blank');
+                        }}
+                        className="text-xs"
+                      >
+                        <Palette className="h-3 w-3 mr-1" />
+                        Open Editor
+                      </Button>
                     </div>
                   </div>
                 </div>

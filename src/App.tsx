@@ -89,11 +89,7 @@ const App = () => (
               <GuidelinesEditor />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:brandId/editor" element={
-            <ProtectedRoute>
-              <DesignEditorPage />
-            </ProtectedRoute>
-          } />
+          <Route path="/editor/design/:brandId" element={<DesignEditorPage />} />
           <Route path="/settings/account" element={
             <ProtectedRoute>
               <AccountSettingsPage />

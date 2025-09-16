@@ -2,7 +2,7 @@ import type { Brand } from '@/shared/types/brand';
 
 export const demoBrandIdentity: Brand = {
   id: 'demo-brand-1',
-  name: 'TechFlow Solutions',
+  name: 'The Main Brand',
   logo: 'https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=200&h=200&fit=crop&crop=center',
   primaryColor: '#2563eb',
   secondaryColor: '#f59e0b',
@@ -520,7 +520,7 @@ export const demoBrandIdentity: Brand = {
 
 export const demoOnboardingAnswers = {
   'company-basics': {
-    brandName: 'TechFlow Solutions',
+    brandName: 'The Main Brand',
     description: 'We create innovative technology solutions for modern businesses',
     industry: 'Technology',
     companySize: '11-50'

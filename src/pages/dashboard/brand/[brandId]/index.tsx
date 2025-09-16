@@ -21,7 +21,7 @@ export default function BrandHomePage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/dashboard/brand/${brandId}/editor`)}
+                onClick={() => navigate(`/editor/design/${brandId}`)}
               >
                 Open Editor
               </Button>
