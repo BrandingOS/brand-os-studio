@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DesignEditor } from './DesignEditor';
+import { OptimizedDesignEditor } from './OptimizedDesignEditor';
 import { WelcomeTutorial } from './WelcomeTutorial';
 import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
@@ -76,7 +76,7 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
 
   return (
     <>
-      <DesignEditor brand={brand} brandId={brandId} />
+      <OptimizedDesignEditor brand={brand} brandId={brandId} />
       {showTutorial && (
         <WelcomeTutorial 
           onClose={handleCloseTutorial}
