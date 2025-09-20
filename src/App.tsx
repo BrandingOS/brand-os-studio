@@ -22,7 +22,7 @@ import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
 import BrandHomePage from "./pages/dashboard/brand/[slug]";
 import BrandKitHubPage from "./pages/dashboard/brand/[slug]/brandkit";
 import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
-import { GuidelinesEditor } from "./features/guidelines/components/GuidelinesEditor";
+import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
 import AccountSettingsPage from "./pages/settings/account";
 import BrandDetailPage from "./app/brand/[slug]/page";
 import ResetPasswordPage from "./pages/auth/reset-password";
@@ -86,7 +86,7 @@ const App = () => (
           } />
           <Route path="/dashboard/brand/:slug/guidelines" element={
             <ProtectedRoute>
-              <GuidelinesEditor />
+              <GuidelinesHubPage />
             </ProtectedRoute>
           } />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
