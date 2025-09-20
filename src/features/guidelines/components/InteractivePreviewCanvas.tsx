@@ -256,7 +256,7 @@ export const InteractivePreviewCanvas: React.FC<InteractivePreviewCanvasProps> =
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <InlineEditableText
-                    value={content.bodyFont || brand.fonts?.body || 'Inter'}
+                    value={content.bodyFont || brand.fonts?.secondary || brand.fonts?.primary || 'Inter'}
                     onChange={(value) => handleTextEdit('bodyFont', value)}
                     className="text-2xl font-semibold"
                     placeholder="Body Font"

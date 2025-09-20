@@ -3,6 +3,7 @@ import { Container } from '@/shared/ui/Container';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { GuidelinesEditor } from '@/features/guidelines';
+import { InteractiveGuidelinesEditor } from '@/features/guidelines/components/InteractiveGuidelinesEditor';
 import { FileText, Edit, Download, Share2 } from 'lucide-react';
 
 const GUIDELINE_DOCS = [
