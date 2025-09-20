@@ -23,7 +23,7 @@ export default function GuidelinesHubPage() {
   const showHub = urlParams.get('hub') === 'true';
 
   if (!showHub) {
-    return <GuidelinesEditor />;
+    return <InteractiveGuidelinesEditor />;
   }
 
   return (
