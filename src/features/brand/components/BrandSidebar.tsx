@@ -25,31 +25,31 @@ import {
 const brandNavItems = [
   {
     title: "Overview",
-    url: "/dashboard/brand/:brandId",
+    url: "/dashboard/brand/:slug",
     icon: LayoutDashboard,
     description: "Brand overview"
   },
   {
     title: "Brand Info",
-    url: "/dashboard/brand/:brandId/info",
+    url: "/dashboard/brand/:slug/info",
     icon: Building2,
     description: "Brand information"
   },
   {
     title: "Guidelines",
-    url: "/dashboard/brand/:brandId/guidelines",
+    url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
     description: "Brand guidelines"
   },
   {
     title: "Assets",
-    url: "/dashboard/brand/:brandId/assets", 
+    url: "/dashboard/brand/:slug/assets", 
     icon: Image,
     description: "Brand assets"
   },
   {
     title: "Brand Kit",
-    url: "/dashboard/brand/:brandId/brandkit",
+    url: "/dashboard/brand/:slug/brandkit",
     icon: Briefcase,
     description: "Brand kit tools"
   }
@@ -58,19 +58,19 @@ const brandNavItems = [
 const toolsItems = [
   {
     title: "Editor",
-    url: "/dashboard/brand/:brandId/editor",
+    url: "/dashboard/brand/:slug/editor",
     icon: PenTool,
     description: "Design editor"
   },
   {
     title: "Templates",
-    url: "/dashboard/brand/:brandId/templates",
+    url: "/dashboard/brand/:slug/templates",
     icon: Folder,
     description: "Design templates"
   },
   {
     title: "Colors",
-    url: "/dashboard/brand/:brandId/colors",
+    url: "/dashboard/brand/:slug/colors",
     icon: Palette,
     description: "Color palette"
   }
@@ -78,17 +78,17 @@ const toolsItems = [
 
 export function BrandSidebar() {
   const { state } = useSidebar();
-  const { brandId } = useParams<{ brandId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
   const collapsed = state === 'collapsed';
 
   const buildUrl = (template: string) => {
-    return template.replace(':brandId', brandId || '');
+    return template.replace(':slug', slug || '');
   };
 
   const isActive = (urlTemplate: string) => {
     const url = buildUrl(urlTemplate);
-    if (url === `/dashboard/brand/${brandId}`) {
+    if (url === `/dashboard/brand/${slug}`) {
       return location.pathname === url;
     }
     return location.pathname.startsWith(url);
@@ -116,7 +116,7 @@ export function BrandSidebar() {
                     <NavLink 
                       to={buildUrl(item.url)} 
                       className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
-                      end={item.url === "/dashboard/brand/:brandId"}
+                      end={item.url === "/dashboard/brand/:slug"}
                     >
                       <item.icon className="h-5 w-5 shrink-0" />
                       {!collapsed && (
@@ -164,8 +164,8 @@ export function BrandSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink 
-                    to={`/dashboard/brand/${brandId}/settings`} 
-                    className={`${getNavClass('/dashboard/brand/:brandId/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                    to={`/dashboard/brand/${slug}/settings`} 
+                    className={`${getNavClass('/dashboard/brand/:slug/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
                   >
                     <Settings className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="text-sm">Settings</span>}

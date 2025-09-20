@@ -249,7 +249,7 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
         fabricCanvas={fabricCanvas}
         zoom={zoom}
         onZoomChange={handleZoomChange}
-        brandId={brandId}
+        brandSlug={brandId}
         {...actionHandlers}
       />
 

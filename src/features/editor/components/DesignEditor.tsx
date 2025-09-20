@@ -106,7 +106,7 @@ export function DesignEditor({ brand, brandId }: DesignEditorProps) {
         fabricCanvas={fabricCanvas}
         zoom={zoom}
         onZoomChange={handleZoomChange}
-        brandId={brandId}
+        brandSlug={brandId}
         onUndo={() => canvasActionsRef.current?.undo()}
         onRedo={() => canvasActionsRef.current?.redo()}
         canUndo={canvasActionsRef.current?.canUndo || false}

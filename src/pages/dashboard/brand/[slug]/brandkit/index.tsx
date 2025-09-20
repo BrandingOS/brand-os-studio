@@ -14,7 +14,7 @@ const BRAND_KIT_MODULES = [
 ];
 
 export default function BrandKitHubPage() {
-  const { brandId } = useParams<{ brandId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   return (
@@ -34,7 +34,7 @@ export default function BrandKitHubPage() {
                 <Button 
                   variant="outline" 
                   className="w-full"
-                  onClick={() => navigate(`/dashboard/brand/${brandId}/brandkit/${module.id}`)}
+                  onClick={() => navigate(`/dashboard/brand/${slug}/brandkit/${module.id}`)}
                 >
                   Open Module
                 </Button>

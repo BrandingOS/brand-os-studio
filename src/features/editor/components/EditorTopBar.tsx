@@ -20,7 +20,7 @@ interface EditorTopBarProps {
   fabricCanvas: any;
   zoom: number;
   onZoomChange: (zoom: number) => void;
-  brandId: string;
+  brandSlug: string;
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
@@ -31,7 +31,7 @@ export function EditorTopBar({
   fabricCanvas, 
   zoom, 
   onZoomChange, 
-  brandId,
+  brandSlug,
   onUndo,
   onRedo,
   canUndo = false,
@@ -59,7 +59,7 @@ export function EditorTopBar({
     if (fabricCanvas) {
       // Save design to local storage or backend
       const designData = JSON.stringify(fabricCanvas.toJSON());
-      localStorage.setItem(`design_${brandId}`, designData);
+      localStorage.setItem(`design_${brandSlug}`, designData);
       toast.success('Design saved successfully');
     }
   };
@@ -90,7 +90,7 @@ export function EditorTopBar({
       {/* Left Section */}
       <div className="flex items-center gap-4">
         <NavLink 
-          to={`/dashboard/brand/${brandId}`}
+          to={`/dashboard/brand/${brandSlug}`}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
