@@ -24,6 +24,7 @@ export type Database = {
           name: string
           primary_color: string
           secondary_color: string | null
+          slug: string
           tone: string | null
           updated_at: string
           user_id: string
@@ -37,6 +38,7 @@ export type Database = {
           name: string
           primary_color: string
           secondary_color?: string | null
+          slug: string
           tone?: string | null
           updated_at?: string
           user_id: string
@@ -50,6 +52,7 @@ export type Database = {
           name?: string
           primary_color?: string
           secondary_color?: string | null
+          slug?: string
           tone?: string | null
           updated_at?: string
           user_id?: string
@@ -136,6 +139,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_brand_slug: {
+        Args: { brand_id?: string; brand_name: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
