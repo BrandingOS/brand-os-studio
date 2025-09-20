@@ -19,12 +19,12 @@ import ActivityPage from "./pages/dashboard/activity";
 import TemplatesPage from "./pages/dashboard/templates";
 import AdminBrandsPage from "./pages/dashboard/admin/brands";
 import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
-import BrandHomePage from "./pages/dashboard/brand/[brandId]";
-import BrandKitHubPage from "./pages/dashboard/brand/[brandId]/brandkit";
-import BrandKitModulePage from "./pages/dashboard/brand/[brandId]/brandkit/[moduleId]";
+import BrandHomePage from "./pages/dashboard/brand/[slug]";
+import BrandKitHubPage from "./pages/dashboard/brand/[slug]/brandkit";
+import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
 import { GuidelinesEditor } from "./features/guidelines/components/GuidelinesEditor";
 import AccountSettingsPage from "./pages/settings/account";
-import BrandDetailPage from "./app/brand/[id]/page";
+import BrandDetailPage from "./app/brand/[slug]/page";
 import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
 
@@ -69,33 +69,33 @@ const App = () => (
               <AdminAnalyticsPage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:brandId" element={
+          <Route path="/dashboard/brand/:slug" element={
             <ProtectedRoute>
               <BrandHomePage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:brandId/brandkit" element={
+          <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
               <BrandKitHubPage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:brandId/brandkit/:moduleId" element={
+          <Route path="/dashboard/brand/:slug/brandkit/:moduleId" element={
             <ProtectedRoute>
               <BrandKitModulePage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:brandId/guidelines" element={
+          <Route path="/dashboard/brand/:slug/guidelines" element={
             <ProtectedRoute>
               <GuidelinesEditor />
             </ProtectedRoute>
           } />
-          <Route path="/editor/design/:brandId" element={<DesignEditorPage />} />
+          <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
           <Route path="/settings/account" element={
             <ProtectedRoute>
               <AccountSettingsPage />
             </ProtectedRoute>
           } />
-          <Route path="/brand/:id" element={<BrandDetailPage />} />
+          <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
           </Routes>

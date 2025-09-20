@@ -39,10 +39,11 @@ export function AdminPanel() {
         // Map database brands to Brand type
         const mappedBrands: Brand[] = (brandsData || []).map(brand => ({
           id: brand.id,
+          slug: brand.slug,
           name: brand.name,
           primaryColor: brand.primary_color,
           secondaryColor: brand.secondary_color,
-          logoUrl: brand.logo_url,
+          logo: brand.logo_url,
           tone: brand.tone,
           audience: brand.audience,
           fonts: brand.fonts as { primary: string; secondary?: string } || { primary: 'Inter' },

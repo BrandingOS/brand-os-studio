@@ -43,6 +43,11 @@ export class LocalBrandsService implements BrandsService {
     return brands.find(b => b.id === id) || null;
   }
 
+  async getBySlug(slug: string): Promise<Brand | null> {
+    const brands = this.getBrands();
+    return brands.find(b => b.slug === slug) || null;
+  }
+
   async create(input: CreateBrandInput): Promise<Brand> {
     const brands = this.getBrands();
     
@@ -54,6 +59,7 @@ export class LocalBrandsService implements BrandsService {
     const brand: Brand = {
       ...input,
       id: `brand_${Date.now()}`,
+      slug: input.slug || this.generateSlug(input.name),
       assets: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -73,6 +79,14 @@ export class LocalBrandsService implements BrandsService {
     brands[index] = updatedBrand;
     this.saveBrands(brands);
     return updatedBrand;
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_');
   }
 
   async delete(id: string): Promise<void> {

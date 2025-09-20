@@ -33,6 +33,21 @@ export class SupabaseBrandsService implements BrandsService {
     return data ? this.mapFromDatabase(data) : null;
   }
 
+  async getBySlug(slug: string): Promise<Brand | null> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('brands')
+      .select('*')
+      .eq('slug', slug)
+      .or(`user_id.eq.${user.id},id.eq.550e8400-e29b-41d4-a716-446655440000`)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ? this.mapFromDatabase(data) : null;
+  }
+
   async create(input: CreateBrandInput): Promise<Brand> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -40,6 +55,7 @@ export class SupabaseBrandsService implements BrandsService {
     const brandData = {
       user_id: user.id,
       name: input.name,
+      slug: input.slug || this.generateSlug(input.name),
       logo_url: input.logo,
       primary_color: input.primaryColor,
       secondary_color: input.secondaryColor,
@@ -96,9 +112,18 @@ export class SupabaseBrandsService implements BrandsService {
     if (error) throw error;
   }
 
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_');
+  }
+
   private mapFromDatabase(data: any): Brand {
     return {
       id: data.id,
+      slug: data.slug,
       name: data.name,
       logo: data.logo_url,
       primaryColor: data.primary_color,

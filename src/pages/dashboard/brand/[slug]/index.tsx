@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import { BrandLayout } from '@/features/brand';
 
 export default function BrandHomePage() {
-  const { brandId } = useParams<{ brandId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   return (
@@ -12,7 +12,7 @@ export default function BrandHomePage() {
       <Container className="py-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Brand Home</h1>
-          <p className="text-muted-foreground mb-8">Brand ID: {brandId}</p>
+          <p className="text-muted-foreground mb-8">Brand Slug: {slug}</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card-soft p-6">
@@ -21,7 +21,7 @@ export default function BrandHomePage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/editor/design/${brandId}`)}
+                onClick={() => navigate(`/editor/design/${slug}`)}
               >
                 Open Editor
               </Button>
@@ -33,7 +33,7 @@ export default function BrandHomePage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/dashboard/brand/${brandId}/brandkit`)}
+                onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
               >
                 Open Brand Kit
               </Button>
@@ -45,7 +45,7 @@ export default function BrandHomePage() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines`)}
+                onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
               >
                 View Guidelines
               </Button>

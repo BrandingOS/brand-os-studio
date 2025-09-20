@@ -8,7 +8,7 @@ import { Section } from '@/shared/components/Section';
 import { ArrowLeft, Edit, Plus, Download, ExternalLink, Upload, Settings, FileText, Palette, Type } from 'lucide-react';
 
 interface BrandDetailsProps {
-  brandId: string;
+  brandSlug: string;
 }
 
 const tabs = [
@@ -19,14 +19,14 @@ const tabs = [
   { id: 'export', label: 'Export', icon: Download },
 ];
 
-export function BrandDetails({ brandId }: BrandDetailsProps) {
+export function BrandDetails({ brandSlug }: BrandDetailsProps) {
   const navigate = useNavigate();
   const { current: brand, loadById, isLoading, error } = useBrandStore();
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    loadById(brandId);
-  }, [brandId, loadById]);
+    loadById(brandSlug);
+  }, [brandSlug, loadById]);
 
   if (isLoading) {
     return (

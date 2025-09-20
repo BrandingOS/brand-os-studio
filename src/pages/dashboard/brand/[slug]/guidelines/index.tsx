@@ -16,7 +16,7 @@ const GUIDELINE_DOCS = [
 ];
 
 export default function GuidelinesHubPage() {
-  const { brandId } = useParams<{ brandId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   // Default to editor unless 'hub' param is present
@@ -39,7 +39,7 @@ export default function GuidelinesHubPage() {
             <div className="flex gap-3">
               <Button 
                 variant="outline" 
-                onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines`)}
+                onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Open Editor
@@ -68,7 +68,7 @@ export default function GuidelinesHubPage() {
             </div>
             <Button 
               size="lg"
-              onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines`)}
+              onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
             >
               <Edit className="w-5 h-5 mr-2" />
               Launch Editor
@@ -117,14 +117,14 @@ export default function GuidelinesHubPage() {
                 <Button 
                   variant="outline" 
                   className="flex-1"
-                  onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines/${doc.id}`)}
+                  onClick={() => navigate(`/dashboard/brand/${slug}/guidelines/${doc.id}`)}
                 >
                   View
                 </Button>
                 <Button 
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${brandId}/guidelines?section=${doc.id}`)}
+                  onClick={() => navigate(`/dashboard/brand/${slug}/guidelines?section=${doc.id}`)}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>

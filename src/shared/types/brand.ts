@@ -1,5 +1,6 @@
 export interface Brand {
   id: string;
+  slug: string;
   name: string;
   logo?: string;
   primaryColor: string;
@@ -249,6 +250,7 @@ export interface Asset {
 
 export interface CreateBrandInput {
   name: string;
+  slug?: string; // Optional, will be auto-generated if not provided
   logo?: string;
   primaryColor: string;
   secondaryColor?: string;

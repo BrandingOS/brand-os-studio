@@ -51,6 +51,7 @@ class BrandServiceGuest implements BrandService {
     const brand: Brand = {
       ...input,
       id: `brand_${Date.now()}`,
+      slug: input.slug || this.generateSlug(input.name),
       assets: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -60,6 +61,14 @@ class BrandServiceGuest implements BrandService {
     const newBrands = [brand]; // Only keep the new brand for guest users
     this.saveBrands(newBrands);
     return brand;
+  }
+
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_');
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<void> {
@@ -130,6 +139,7 @@ class BrandServiceSupabase implements BrandService {
     
     const brandData = {
       name: input.name,
+      slug: input.slug || this.generateSlug(input.name),
       primary_color: input.primaryColor,
       secondary_color: input.secondaryColor,
       logo_url: input.logo,
@@ -181,9 +191,18 @@ class BrandServiceSupabase implements BrandService {
     if (error) throw new Error(error.message);
   }
 
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-zA-Z0-9\s]/g, '')
+      .replace(/\s+/g, '_');
+  }
+
   private mapFromDatabase(data: any): Brand {
     return {
       id: data.id,
+      slug: data.slug,
       name: data.name,
       primaryColor: data.primary_color,
       secondaryColor: data.secondary_color,

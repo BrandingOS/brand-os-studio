@@ -16,8 +16,8 @@ export function useDashboard() {
     navigate('/onboarding');
   };
 
-  const handleViewBrand = (brandId: string) => {
-    navigate(`/brand/${brandId}`);
+  const handleViewBrand = (brandSlug: string) => {
+    navigate(`/brand/${brandSlug}`);
   };
 
   const canCreateMoreBrands = mode === 'user' || brands.length === 0;
