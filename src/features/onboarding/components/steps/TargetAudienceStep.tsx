@@ -1,74 +1,97 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
-import { Button } from '@/shared/components/Button';
+import { Card } from '@/shared/components/Card';
 
 interface TargetAudienceStepProps {
-  value?: string[];
+  value?: any;
   stepId: string;
 }
 
-const audienceOptions = [
-  { value: 'young-adults', label: 'Young Adults (18-30)', desc: 'Digital natives, early career professionals' },
-  { value: 'professionals', label: 'Professionals (25-45)', desc: 'Established career, decision makers' },
-  { value: 'families', label: 'Families', desc: 'Parents with children, household decision makers' },
-  { value: 'seniors', label: 'Seniors (55+)', desc: 'Experienced, established, value-conscious' },
-  { value: 'students', label: 'Students', desc: 'Educational market, budget-conscious' },
-  { value: 'entrepreneurs', label: 'Entrepreneurs', desc: 'Business owners, risk-takers, innovators' },
-  { value: 'c-suite', label: 'C-Suite Executives', desc: 'Senior leadership, strategic decision makers' },
-  { value: 'small-business', label: 'Small Business Owners', desc: 'Independent operators, cost-conscious' },
+const ageRanges = [
+  { value: '18-25', label: '18-25' },
+  { value: '26-35', label: '26-35' },
+  { value: '36-45', label: '36-45' },
+  { value: '46-55', label: '46-55' },
+  { value: '55+', label: '55+' },
+  { value: 'all-ages', label: 'All Ages' },
 ];
 
-export function TargetAudienceStep({ value = [], stepId }: TargetAudienceStepProps) {
+const genderOptions = [
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'all', label: 'All' },
+];
+
+export function TargetAudienceStep({ value = {}, stepId }: TargetAudienceStepProps) {
   const { setAnswer } = useOnboardingStore();
 
-  const toggleAudience = (audienceValue: string) => {
-    const currentSelection = value || [];
-    const isSelected = currentSelection.includes(audienceValue);
-    
-    if (isSelected) {
-      setAnswer(stepId, currentSelection.filter(v => v !== audienceValue));
-    } else {
-      if (currentSelection.length < 4) {
-        setAnswer(stepId, [...currentSelection, audienceValue]);
-      }
-    }
+  const updateField = (field: string, newValue: any) => {
+    setAnswer(stepId, { ...value, [field]: newValue });
   };
 
   return (
     <div className="space-y-6">
-      <div className="text-center text-sm text-muted-foreground">
-        Select 2-4 groups that best represent your target audience
-      </div>
-      
-      <div className="grid gap-3 sm:grid-cols-2">
-        {audienceOptions.map((option) => {
-          const isSelected = value?.includes(option.value);
-          const selectionCount = value?.length || 0;
-          const canSelect = selectionCount < 4 || isSelected;
+      <Card className="p-6">
+        <div className="space-y-6">
+          {/* Age Range */}
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              Age Range
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {ageRanges.map((range) => (
+                <button
+                  key={range.value}
+                  type="button"
+                  className={`p-3 text-center border rounded-md transition-colors ${
+                    value.ageRange === range.value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border hover:bg-muted'
+                  }`}
+                  onClick={() => updateField('ageRange', range.value)}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          return (
-            <Button
-              key={option.value}
-              variant={isSelected ? 'default' : 'outline'}
-              className={`h-auto p-4 text-left justify-start transition-all ${
-                !canSelect ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-              onClick={() => canSelect && toggleAudience(option.value)}
-              disabled={!canSelect}
-            >
-              <div className="w-full">
-                <div className="font-medium">{option.label}</div>
-                <div className="text-sm text-muted-foreground mt-1">{option.desc}</div>
-              </div>
-            </Button>
-          );
-        })}
-      </div>
+          {/* Gender */}
+          <div>
+            <label className="block text-sm font-medium mb-3">
+              Gender
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {genderOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`p-3 text-center border rounded-md transition-colors ${
+                    value.gender === option.value
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-background border-border hover:bg-muted'
+                  }`}
+                  onClick={() => updateField('gender', option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {value && value.length > 0 && (
-        <div className="text-center text-sm text-muted-foreground">
-          {value.length}/4 groups selected
+          {/* Audience Description */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Tell us about your audience
+            </label>
+            <textarea
+              placeholder="Describe your target audience, their interests, behaviors, or any other relevant details..."
+              value={value.description || ''}
+              onChange={(e) => updateField('description', e.target.value)}
+              className="w-full h-24 px-3 py-2 border border-border rounded-md bg-background resize-none"
+            />
+          </div>
         </div>
-      )}
+      </Card>
     </div>
   );
 }
