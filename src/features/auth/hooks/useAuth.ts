@@ -46,12 +46,6 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
-    // Skip Supabase auth in development mode
-    if (isDevelopmentMode) {
-      setIsAdmin(true); // Grant admin access in dev mode
-      return;
-    }
-
     // Get initial session
     const getInitialSession = async () => {
       setLoading(true);

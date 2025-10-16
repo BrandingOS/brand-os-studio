@@ -1,35 +1,19 @@
-import { useEffect } from 'react';
-import { useSessionStore } from '@/shared/store/sessionStore';
-import type { User } from '@/shared/types/user';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Development flag - set to false to disable auto-login
-const DEV_AUTO_LOGIN = true;
-
-// Mock default user for development
-const createMockUser = (): User => ({
-  id: '12345678-1234-1234-1234-123456789012', // Fixed UUID for consistency
-  email: 'hamza2007ezzat@gmail.com',
-  name: 'Hamza Ezzat',
-  avatar: undefined,
-  plan: 'pro', // Pro plan to access all features
-  createdAt: new Date('2024-01-01'),
-  updatedAt: new Date()
-});
+const DEV_AUTO_LOGIN = false; // Disabled - use real Supabase authentication instead
 
 export const useAutoLogin = () => {
-  const { signIn, isAuthenticated } = useSessionStore();
+  const [isDevelopmentMode] = useState(DEV_AUTO_LOGIN);
 
   useEffect(() => {
-    // Only auto-login in development and if not already authenticated
-    if (DEV_AUTO_LOGIN && !isAuthenticated) {
-      const mockUser = createMockUser();
-      signIn(mockUser);
-      console.log('🔓 DEV MODE: Auto-logged in as', mockUser.email);
-    }
-  }, [signIn, isAuthenticated]);
+    // Auto-login is now disabled - users should log in with real credentials
+    // This ensures proper Supabase session and database access
+  }, []);
 
   return {
-    isDevelopmentMode: DEV_AUTO_LOGIN,
-    isAutoLogin: DEV_AUTO_LOGIN && isAuthenticated
+    isDevelopmentMode: false, // Always false now
+    isAutoLogin: false
   };
 };
