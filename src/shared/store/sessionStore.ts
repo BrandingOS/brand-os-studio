@@ -17,7 +17,7 @@ export const useSessionStore = create<SessionStore>()(
       user: undefined,
       mode: 'guest',
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true, // Start as loading during auth check
       
       signIn: (user: User) => 
         set((state) => ({ 

@@ -37,7 +37,14 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     
     try {
       if (mode === 'login') {
-        await login(formData.email, formData.password);
+        const result = await login(formData.email, formData.password);
+        console.log('[AuthModal] Login result:', result);
+        
+        if (!result?.session) {
+          toast.error('Login failed - no session created');
+          return;
+        }
+        
         toast.success('Welcome back!');
         onClose();
         navigate('/dashboard');
@@ -56,6 +63,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
         setMode('login');
       }
     } catch (error: any) {
+      console.error('[AuthModal] Error:', error);
       toast.error(error.message || 'An error occurred');
     }
   };
