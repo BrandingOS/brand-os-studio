@@ -3,13 +3,12 @@ import { devtools } from 'zustand/middleware';
 import type { User, AuthState } from '../types/user';
 
 interface SessionStore extends AuthState {
-  signIn: (user: User, isDevMode?: boolean) => void;
+  signIn: (user: User) => void;
   signOut: () => void;
   setLoading: (loading: boolean) => void;
   switchToGuest: () => void;
   switchToAuthenticated: () => void;
   previousMode?: 'user' | 'guest';
-  isDevMode: boolean;
 }
 
 export const useSessionStore = create<SessionStore>()(
@@ -19,15 +18,13 @@ export const useSessionStore = create<SessionStore>()(
       mode: 'guest',
       isAuthenticated: false,
       isLoading: false,
-      isDevMode: false,
       
-      signIn: (user: User, isDevMode: boolean = false) => 
+      signIn: (user: User) => 
         set((state) => ({ 
           user, 
           mode: 'user', 
           isAuthenticated: true, 
-          previousMode: state.mode,
-          isDevMode 
+          previousMode: state.mode 
         }), false, 'signIn'),
       
       signOut: () => 
@@ -35,8 +32,7 @@ export const useSessionStore = create<SessionStore>()(
           user: undefined, 
           mode: 'guest', 
           isAuthenticated: false, 
-          previousMode: state.mode,
-          isDevMode: false 
+          previousMode: state.mode 
         }), false, 'signOut'),
       
       setLoading: (isLoading: boolean) => 
