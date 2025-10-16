@@ -6,8 +6,9 @@ import { AuthModal } from '@/features/auth/components/AuthModal';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
+import { useToast } from '@/hooks/use-toast';
 import {
-  ArrowLeft, ArrowRight, CheckCircle,
+  ArrowLeft, ArrowRight, CheckCircle, Loader2,
   Building2, Users, Heart, Target, TrendingUp, Palette, Image, SkipForward
 } from 'lucide-react';
 
@@ -33,7 +34,9 @@ export function OnboardingWizard() {
   } = useOnboardingStore();
   const { createBrandFromAnswers } = useOnboardingFlow();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isCreatingBrand, setIsCreatingBrand] = useState(false);
 
   const currentStep = steps[currentStepIndex];
   const isLastStep = currentStepIndex === steps.length - 1;
@@ -58,7 +61,14 @@ export function OnboardingWizard() {
   const handleSkip = () => { if (canSkipCurrent()) { skipStep(currentStep.id); nextStep(); } };
   const handleComplete = async () => {
     const error = validateCurrentStep();
-    if (error) { alert(error); return; }
+    if (error) { 
+      toast({
+        title: "Validation Error",
+        description: error,
+        variant: "destructive",
+      });
+      return; 
+    }
     
     // Check if user is authenticated
     if (!isAuthenticated) {
@@ -66,10 +76,23 @@ export function OnboardingWizard() {
       return;
     }
     
-    try { await createBrandFromAnswers(); }
+    setIsCreatingBrand(true);
+    try { 
+      await createBrandFromAnswers();
+      toast({
+        title: "Success!",
+        description: "Your brand has been created successfully. Redirecting...",
+      });
+    }
     catch (error) {
       console.error('Failed to complete onboarding:', error);
-      alert(error instanceof Error ? error.message : 'Failed to create brand. Please try again.');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to create brand. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingBrand(false);
     }
   };
   // Close auth modal when user becomes authenticated
@@ -208,8 +231,17 @@ useEffect(() => {
                 </Button>
 
                 {isLastStep ? (
-                  <Button onClick={handleComplete} disabled={!canProceed()} className="flex items-center gap-2">
-                    Complete Setup <CheckCircle className="h-4 w-4" />
+                  <Button onClick={handleComplete} disabled={!canProceed() || isCreatingBrand} className="flex items-center gap-2">
+                    {isCreatingBrand ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Creating Brand...
+                      </>
+                    ) : (
+                      <>
+                        Complete Setup <CheckCircle className="h-4 w-4" />
+                      </>
+                    )}
                   </Button>
                 ) : (
                   <Button onClick={handleNext} disabled={!canProceed()} className="flex items-center gap-2">
