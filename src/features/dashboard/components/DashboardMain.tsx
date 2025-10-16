@@ -30,7 +30,8 @@ export function DashboardMain() {
     handleViewBrand,
   } = useDashboard();
 
-  if (isLoading && brands.length === 0) {
+  // Show loading state while brands are being fetched
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">

@@ -11,11 +11,16 @@ export function useDashboard() {
   useEffect(() => {
     // Only load brands after authentication state is determined
     if (mode === 'user' && !isAuthenticated) {
-      console.log('[useDashboard] Waiting for authentication...');
+      console.log('[useDashboard] ⏳ Waiting for authentication...');
       return;
     }
-    console.log('[useDashboard] Loading brands...');
-    loadAll();
+    
+    console.log('[useDashboard] 🔄 Loading brands... Mode:', mode, 'Auth:', isAuthenticated);
+    loadAll().then(() => {
+      console.log('[useDashboard] ✅ Brands loaded successfully');
+    }).catch((err) => {
+      console.error('[useDashboard] ❌ Failed to load brands:', err);
+    });
   }, [loadAll, mode, isAuthenticated]);
 
   const handleCreateBrand = () => {

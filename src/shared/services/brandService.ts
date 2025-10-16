@@ -217,26 +217,20 @@ class BrandServiceSupabase implements BrandService {
   }
 }
 
-// Service factory
-export async function getBrandService(): Promise<BrandService> {
+// Service factory - MUST be synchronous to work with Zustand store
+export function getBrandService(): BrandService {
   const { mode, isAuthenticated } = useSessionStore.getState();
   
   console.log('[getBrandService] Mode:', mode, 'Authenticated:', isAuthenticated);
   
-  // If in guest mode, use guest service
-  if (mode === 'guest') {
-    console.log('[getBrandService] Using guest service (localStorage)');
-    return new BrandServiceGuest();
-  }
-  
-  // If in user mode and authenticated, use Supabase service
+  // For authenticated users in user mode, ALWAYS use Supabase
   if (mode === 'user' && isAuthenticated) {
-    console.log('[getBrandService] Using Supabase service');
+    console.log('[getBrandService] ✅ Using BrandServiceSupabase - will load from database');
     return new BrandServiceSupabase();
   }
   
-  // Fallback to guest service (shouldn't normally reach here)
-  console.log('[getBrandService] Fallback to guest service');
+  // For guest mode or not authenticated, use local storage
+  console.log('[getBrandService] ⚠️ Using BrandServiceGuest - will load from localStorage');
   return new BrandServiceGuest();
 }
 

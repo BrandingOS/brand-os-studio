@@ -30,9 +30,8 @@ export const useBrandStore = create<BrandStore>()(
       loadById: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'loadById/start');
         try {
-          // This will be implemented by the service layer
           const { getBrandService } = await import('../services/brandService');
-          const service = await getBrandService();
+          const service = getBrandService();
           const brand = await service.getById(id);
           set({ current: brand, isLoading: false }, false, 'loadById/success');
         } catch (error) {
@@ -47,7 +46,7 @@ export const useBrandStore = create<BrandStore>()(
         set({ isLoading: true, error: undefined }, false, 'create/start');
         try {
           const { getBrandService } = await import('../services/brandService');
-          const service = await getBrandService();
+          const service = getBrandService();
           const brand = await service.create(input);
           
           set((state) => ({
@@ -70,7 +69,7 @@ export const useBrandStore = create<BrandStore>()(
         set({ isLoading: true, error: undefined }, false, 'update/start');
         try {
           const { getBrandService } = await import('../services/brandService');
-          const service = await getBrandService();
+          const service = getBrandService();
           await service.update(id, patch);
           
           set((state) => ({
@@ -94,7 +93,7 @@ export const useBrandStore = create<BrandStore>()(
         set({ isLoading: true, error: undefined }, false, 'delete/start');
         try {
           const { getBrandService } = await import('../services/brandService');
-          const service = await getBrandService();
+          const service = getBrandService();
           await service.delete(id);
           
           set((state) => ({
@@ -114,10 +113,13 @@ export const useBrandStore = create<BrandStore>()(
         set({ isLoading: true, error: undefined }, false, 'loadAll/start');
         try {
           const { getBrandService } = await import('../services/brandService');
-          const service = await getBrandService();
+          const service = getBrandService();
+          console.log('[brandStore] 🔍 Service selected, fetching brands...');
           const brands = await service.getAll();
+          console.log('[brandStore] ✅ Loaded brands:', brands.length);
           set({ list: brands, isLoading: false }, false, 'loadAll/success');
         } catch (error) {
+          console.error('[brandStore] ❌ Error loading brands:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to load brands', 
             isLoading: false 
