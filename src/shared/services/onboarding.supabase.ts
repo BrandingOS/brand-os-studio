@@ -23,6 +23,8 @@ export class SupabaseOnboardingService implements OnboardingService {
         user_id: user.id,
         answers,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       });
 
     if (error) throw error;
@@ -36,9 +38,9 @@ export class SupabaseOnboardingService implements OnboardingService {
       .from('onboarding_answers')
       .select('answers')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = not found
+    if (error) throw error;
     return (data?.answers as OnboardingAnswers) || null;
   }
 
@@ -55,6 +57,8 @@ export class SupabaseOnboardingService implements OnboardingService {
         user_id: user.id,
         completed: true,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       });
 
     if (error) throw error;
