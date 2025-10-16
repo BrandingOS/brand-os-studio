@@ -10,6 +10,7 @@ interface BrandStore {
   
   // Actions
   loadById: (id: string) => Promise<void>;
+  loadBySlug: (slug: string) => Promise<void>;
   create: (input: CreateBrandInput) => Promise<Brand>;
   update: (id: string, patch: Partial<Brand>) => Promise<void>;
   delete: (id: string) => Promise<void>;
@@ -38,6 +39,20 @@ export const useBrandStore = create<BrandStore>()(
             error: error instanceof Error ? error.message : 'Failed to load brand', 
             isLoading: false 
           }, false, 'loadById/error');
+        }
+      },
+
+      loadBySlug: async (slug: string) => {
+        set({ isLoading: true, error: undefined }, false, 'loadBySlug/start');
+        try {
+          const { services } = await import('../services/registry');
+          const brand = await services.brands.getBySlug(slug);
+          set({ current: brand, isLoading: false }, false, 'loadBySlug/success');
+        } catch (error) {
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to load brand', 
+            isLoading: false 
+          }, false, 'loadBySlug/error');
         }
       },
 

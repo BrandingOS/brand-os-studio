@@ -21,12 +21,12 @@ const tabs = [
 
 export function BrandDetails({ brandSlug }: BrandDetailsProps) {
   const navigate = useNavigate();
-  const { current: brand, loadById, isLoading, error } = useBrandStore();
+  const { current: brand, loadBySlug, isLoading, error } = useBrandStore();
   const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
-    loadById(brandSlug);
-  }, [brandSlug, loadById]);
+    loadBySlug(brandSlug);
+  }, [brandSlug, loadBySlug]);
 
   if (isLoading) {
     return (
