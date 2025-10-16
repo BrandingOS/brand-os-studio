@@ -13,23 +13,17 @@ import {
 
 import { CompanyBasicsStep } from './steps/CompanyBasicsStep';
 import { TargetAudienceStep } from './steps/TargetAudienceStep';
-import { BrandPersonalityStep } from './steps/BrandPersonalityStep';
-import { BusinessGoalsStep } from './steps/BusinessGoalsStep';
-import { MarketPositionStep } from './steps/MarketPositionStep';
 import { StyleValuesStep } from './steps/StyleValuesStep';
 import { LogoAssetsStep } from './steps/LogoAssetsStep';
 
 const stepComponents = {
   CompanyBasicsStep,
   TargetAudienceStep,
-  BrandPersonalityStep,
-  BusinessGoalsStep,
-  MarketPositionStep,
   StyleValuesStep,
   LogoAssetsStep,
 };
 
-const iconMap = { Building2, Users, Heart, Target, TrendingUp, Palette, Image };
+const iconMap = { Building2, Users, Palette, Image };
 
 export function OnboardingWizard() {
   const {

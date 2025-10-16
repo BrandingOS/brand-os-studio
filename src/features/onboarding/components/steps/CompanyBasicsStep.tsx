@@ -35,42 +35,37 @@ export function CompanyBasicsStep({ value = {}, stepId }: CompanyBasicsStepProps
               Company Description
             </label>
             <textarea
-              placeholder="Briefly describe what your company does..."
+              placeholder="Tell us whatever you want! At any way and language!"
               value={value.description || ''}
               onChange={(e) => updateField('description', e.target.value)}
               className="w-full h-24 px-3 py-2 border border-border rounded-md bg-background resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Industry
-              </label>
-              <Input
-                placeholder="e.g., Technology, Healthcare"
-                value={value.industry || ''}
-                onChange={(e) => updateField('industry', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Company Size
-              </label>
-              <select
-                value={value.companySize || ''}
-                onChange={(e) => updateField('companySize', e.target.value)}
-                className="w-full h-10 px-3 border border-border rounded-md bg-background"
-              >
-                <option value="">Select size</option>
-                <option value="solo">Solo entrepreneur</option>
-                <option value="2-10">2-10 employees</option>
-                <option value="11-50">11-50 employees</option>
-                <option value="51-200">51-200 employees</option>
-                <option value="200+">200+ employees</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Industry
+            </label>
+            <select
+              value={value.industry || ''}
+              onChange={(e) => updateField('industry', e.target.value)}
+              className="w-full h-10 px-3 border border-border rounded-md bg-background"
+            >
+              <option value="">Select your industry</option>
+              <option value="technology">Technology</option>
+              <option value="healthcare">Healthcare</option>
+              <option value="finance">Finance</option>
+              <option value="education">Education</option>
+              <option value="retail">Retail</option>
+              <option value="food-beverage">Food & Beverage</option>
+              <option value="real-estate">Real Estate</option>
+              <option value="consulting">Consulting</option>
+              <option value="marketing">Marketing</option>
+              <option value="manufacturing">Manufacturing</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="non-profit">Non-Profit</option>
+              <option value="other">Other</option>
+            </select>
           </div>
         </div>
       </Card>
