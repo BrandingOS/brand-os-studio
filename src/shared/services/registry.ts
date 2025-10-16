@@ -45,12 +45,12 @@ export function createServices(): Services {
         return new LocalBrandsService();
       }
       
-      // For authenticated users, use Supabase if we have a real session
-      if (isAuthenticated && hasSupabaseSession) {
+      // For user mode (real authentication), always use Supabase
+      if (mode === 'user' && isAuthenticated) {
         return new SupabaseBrandsService();
       }
       
-      // Fallback to local storage (dev mode auto-login)
+      // Fallback to local storage (dev mode or not authenticated)
       return new LocalBrandsService();
     }
   };

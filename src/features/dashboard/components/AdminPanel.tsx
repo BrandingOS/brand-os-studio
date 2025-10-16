@@ -29,51 +29,68 @@ export function AdminPanel() {
 
   const loadAdminData = async () => {
     setIsLoading(true);
+    console.log('[AdminPanel] Loading admin data...');
+    
     try {
+      // Check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[AdminPanel] Session check:', session ? 'Valid session' : 'No session');
+      
+      if (!session) {
+        throw new Error('No authenticated session found. Please log in with a real account.');
+      }
+
       // Load all brands (admin can see all due to RLS policy)
+      console.log('[AdminPanel] Fetching brands...');
       const { data: brandsData, error: brandsError } = await supabase
         .from('brands')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (brandsError) {
-        console.error('Error loading brands:', brandsError);
-        toast.error('Failed to load brands');
-      } else {
-        // Map database brands to Brand type
-        const mappedBrands: Brand[] = (brandsData || []).map(brand => ({
-          id: brand.id,
-          slug: brand.slug,
-          name: brand.name,
-          primaryColor: brand.primary_color,
-          secondaryColor: brand.secondary_color,
-          logo: brand.logo_url,
-          tone: brand.tone,
-          audience: brand.audience,
-          fonts: brand.fonts as { primary: string; secondary?: string } || { primary: 'Inter' },
-          assets: [], // Default empty assets
-          createdAt: new Date(brand.created_at),
-          updatedAt: new Date(brand.updated_at),
-          userId: brand.user_id
-        }));
-        setBrands(mappedBrands);
+        console.error('[AdminPanel] Brands error:', brandsError);
+        throw brandsError;
       }
+      
+      console.log('[AdminPanel] Brands loaded:', brandsData?.length || 0);
+
+      // Map database brands to Brand type
+      const mappedBrands: Brand[] = (brandsData || []).map(brand => ({
+        id: brand.id,
+        slug: brand.slug,
+        name: brand.name,
+        primaryColor: brand.primary_color,
+        secondaryColor: brand.secondary_color,
+        logo: brand.logo_url,
+        tone: brand.tone,
+        audience: brand.audience,
+        fonts: brand.fonts as { primary: string; secondary?: string } || { primary: 'Inter' },
+        assets: [], // Default empty assets
+        createdAt: new Date(brand.created_at),
+        updatedAt: new Date(brand.updated_at),
+        userId: brand.user_id
+      }));
+      setBrands(mappedBrands);
 
       // Load all user profiles (admin can see all due to RLS policy)
+      console.log('[AdminPanel] Fetching profiles...');
       const { data: usersData, error: usersError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (usersError) {
-        console.error('Error loading users:', usersError);
-        toast.error('Failed to load users');
-      } else {
-        setUsers(usersData || []);
+        console.error('[AdminPanel] Profiles error:', usersError);
+        throw usersError;
       }
-    } catch (error) {
-      console.error('Failed to load admin data:', error);
-      toast.error('Failed to load admin data');
+      
+      console.log('[AdminPanel] Profiles loaded:', usersData?.length || 0);
+      setUsers(usersData || []);
+      
+      toast.success(`Loaded ${mappedBrands.length} brands and ${usersData?.length || 0} users`);
+    } catch (error: any) {
+      console.error('[AdminPanel] Error loading admin data:', error);
+      toast.error(error.message || 'Failed to load admin data');
     } finally {
       setIsLoading(false);
     }
