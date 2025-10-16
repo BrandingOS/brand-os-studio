@@ -218,9 +218,26 @@ class BrandServiceSupabase implements BrandService {
 }
 
 // Service factory
-export function getBrandService(): BrandService {
+export async function getBrandService(): Promise<BrandService> {
   const { mode } = useSessionStore.getState();
-  return mode === 'guest' ? new BrandServiceGuest() : new BrandServiceSupabase();
+  
+  // If in guest mode, use guest service
+  if (mode === 'guest') {
+    return new BrandServiceGuest();
+  }
+  
+  // If in user mode, check if there's a real Supabase session
+  const { supabase } = await import('@/integrations/supabase/client');
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // If no real Supabase user (e.g., dev mode auto-login), use guest service
+  if (!user) {
+    console.log('No real Supabase session found, using guest service');
+    return new BrandServiceGuest();
+  }
+  
+  // Real authenticated user - use Supabase service
+  return new BrandServiceSupabase();
 }
 
 // Admin service to get all brands
