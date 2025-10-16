@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { Brand } from '@/shared/types/brand';
 import { Trash2, Users, Building, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface Profile {
   id: string;
@@ -14,10 +15,16 @@ interface Profile {
 }
 
 export function AdminPanel() {
+  const { isAdmin } = useAuth();
   const [brands, setBrands] = useState<Brand[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'brands' | 'users'>('brands');
+
+  // Don't render anything if not admin
+  if (!isAdmin) {
+    return null;
+  }
 
   useEffect(() => {
     loadAdminData();

@@ -65,7 +65,7 @@ export function DashboardMain() {
 
   return (
     <div className="space-y-8">
-      {/* Admin Panel */}
+      {/* Admin Panel - Only for admin users */}
       <AdminPanel />
       
       {/* Stats Overview */}

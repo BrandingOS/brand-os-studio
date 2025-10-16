@@ -16,8 +16,11 @@ export function useDashboard() {
     navigate('/onboarding');
   };
 
-  const handleViewBrand = (brandSlug: string) => {
-    navigate(`/brand/${brandSlug}`);
+  const handleViewBrand = (brandId: string) => {
+    const brand = brands.find(b => b.id === brandId);
+    if (brand) {
+      navigate(`/brand/${brand.slug}`);
+    }
   };
 
   const canCreateMoreBrands = mode === 'user' || brands.length === 0;

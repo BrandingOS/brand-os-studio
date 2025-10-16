@@ -50,11 +50,6 @@ export class LocalBrandsService implements BrandsService {
 
   async create(input: CreateBrandInput): Promise<Brand> {
     const brands = this.getBrands();
-    
-    // For guest users, replace existing brand
-    if (brands.length >= 1) {
-      this.saveBrands([]);
-    }
 
     const brand: Brand = {
       ...input,
@@ -65,7 +60,7 @@ export class LocalBrandsService implements BrandsService {
       updatedAt: new Date(),
     };
 
-    const newBrands = [brand];
+    const newBrands = [...brands, brand];
     this.saveBrands(newBrands);
     return brand;
   }

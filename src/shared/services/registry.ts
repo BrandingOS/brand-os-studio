@@ -8,16 +8,50 @@ export interface Services {
   brands: BrandsService;
 }
 
+// Check if we have a real Supabase session (async initialization)
+let hasSupabaseSession = false;
+let sessionCheckPromise: Promise<void> | null = null;
+
+async function initializeSessionCheck() {
+  if (sessionCheckPromise) return sessionCheckPromise;
+  
+  sessionCheckPromise = (async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      hasSupabaseSession = !!data.session?.user;
+    } catch {
+      hasSupabaseSession = false;
+    }
+  })();
+  
+  return sessionCheckPromise;
+}
+
+// Initialize on module load
+initializeSessionCheck();
+
+// Listen for auth changes to update session state
+supabase.auth.onAuthStateChange((event, session) => {
+  hasSupabaseSession = !!session?.user;
+});
+
 export function createServices(): Services {
   return {
     get brands(): BrandsService {
-      const { mode } = useSessionStore.getState();
+      const { mode, isAuthenticated } = useSessionStore.getState();
       
-      // Always use local service in guest mode or dev mode
-      // Dev mode uses auto-login which doesn't have a real Supabase session
-      return mode === 'guest' 
-        ? new LocalBrandsService()
-        : new LocalBrandsService(); // Always use local for now since dev mode doesn't have real auth
+      // Guest mode always uses local storage
+      if (mode === 'guest') {
+        return new LocalBrandsService();
+      }
+      
+      // For authenticated users, use Supabase if we have a real session
+      if (isAuthenticated && hasSupabaseSession) {
+        return new SupabaseBrandsService();
+      }
+      
+      // Fallback to local storage (dev mode auto-login)
+      return new LocalBrandsService();
     }
   };
 }
