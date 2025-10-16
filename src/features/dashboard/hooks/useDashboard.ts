@@ -6,11 +6,17 @@ import { useNavigate } from 'react-router-dom';
 export function useDashboard() {
   const navigate = useNavigate();
   const { list: brands, loadAll, isLoading, error } = useBrandStore();
-  const { mode } = useSessionStore();
+  const { mode, isAuthenticated } = useSessionStore();
 
   useEffect(() => {
+    // Only load brands after authentication state is determined
+    if (mode === 'user' && !isAuthenticated) {
+      console.log('[useDashboard] Waiting for authentication...');
+      return;
+    }
+    console.log('[useDashboard] Loading brands...');
     loadAll();
-  }, [loadAll]);
+  }, [loadAll, mode, isAuthenticated]);
 
   const handleCreateBrand = () => {
     navigate('/onboarding');

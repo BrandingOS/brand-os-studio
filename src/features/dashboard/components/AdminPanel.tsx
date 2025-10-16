@@ -32,12 +32,12 @@ export function AdminPanel() {
     console.log('[AdminPanel] Loading admin data...');
     
     try {
-      // Check if we have a valid session
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('[AdminPanel] Session check:', session ? 'Valid session' : 'No session');
+      // Check if we have a valid authenticated user (more reliable than session)
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('[AdminPanel] User check:', user ? `User: ${user.email}` : 'No user');
       
-      if (!session) {
-        throw new Error('No authenticated session found. Please log in with a real account.');
+      if (userError || !user) {
+        throw new Error('No authenticated user found. Please log in with a real account.');
       }
 
       // Load all brands (admin can see all due to RLS policy)

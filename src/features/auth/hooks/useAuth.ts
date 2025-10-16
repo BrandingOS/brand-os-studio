@@ -82,6 +82,10 @@ export const useAuth = () => {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
           
+          // Clear localStorage brands when real user logs in to prevent conflicts
+          localStorage.removeItem('brandos:brands');
+          console.log('[useAuth] Cleared localStorage brands on login');
+          
           // Check admin role and sync guest data to Supabase in a separate timeout
           setTimeout(() => {
             checkAdminRole(session.user.id);
