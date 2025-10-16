@@ -21,14 +21,11 @@ export function AdminPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'brands' | 'users'>('brands');
 
-  // Don't render anything if not admin
-  if (!isAdmin) {
-    return null;
-  }
-
   useEffect(() => {
-    loadAdminData();
-  }, []);
+    if (isAdmin) {
+      loadAdminData();
+    }
+  }, [isAdmin]);
 
   const loadAdminData = async () => {
     setIsLoading(true);
@@ -100,6 +97,11 @@ export function AdminPanel() {
       toast.error('Failed to delete brand');
     }
   };
+
+  // Don't render anything if not admin
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <div className="mb-8">
