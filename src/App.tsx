@@ -6,9 +6,6 @@ import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { lazy, Suspense } from "react";
 
-// Initialize admin user in development
-import "@/features/auth/utils/createAdminUser";
-
 // Pages
 import IndexPage from "./pages/Index";
 import OnboardingPage from "./app/onboarding/page";

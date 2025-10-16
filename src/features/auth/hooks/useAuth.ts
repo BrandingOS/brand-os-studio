@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
-import { useAutoLogin } from './useAutoLogin';
 import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '@/shared/types/user';
@@ -23,7 +22,6 @@ export const useAuth = () => {
   const sessionStore = useSessionStore();
   const onboardingStore = useOnboardingStore();
   const navigate = useNavigate();
-  const { isDevelopmentMode } = useAutoLogin();
   
   const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
@@ -55,11 +53,14 @@ export const useAuth = () => {
         if (session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
+          console.log('[useAuth] 🔐 User logged in:', session.user.email);
           // Check admin role and load existing data from Supabase in a separate effect
           setTimeout(() => {
             checkAdminRole(session.user.id);
             loadFromSupabase().catch(console.error);
           }, 0);
+        } else {
+          console.log('[useAuth] ❌ No active session');
         }
       } catch (error) {
         console.error('Error getting session:', error);
@@ -72,13 +73,15 @@ export const useAuth = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[useAuth] Auth event:', event);
         if (event === 'SIGNED_IN' && session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
           
           // Clear localStorage brands when real user logs in to prevent conflicts
           localStorage.removeItem('brandos:brands');
-          console.log('[useAuth] Cleared localStorage brands on login');
+          console.log('[useAuth] 🔐 User signed in:', session.user.email);
+          console.log('[useAuth] 🗑️ Cleared localStorage brands');
           
           // Check admin role and sync guest data to Supabase in a separate timeout
           setTimeout(() => {
@@ -86,6 +89,7 @@ export const useAuth = () => {
             syncToSupabase().catch(console.error);
           }, 0);
         } else if (event === 'SIGNED_OUT') {
+          console.log('[useAuth] 🚪 User signed out');
           signOut();
           setIsAdmin(false);
         }
@@ -93,7 +97,7 @@ export const useAuth = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [signIn, signOut, setLoading, isDevelopmentMode]);
+  }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
