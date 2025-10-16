@@ -20,11 +20,17 @@ export const DEV_USER = {
   updatedAt: new Date()
 };
 
-// Safety check - prevent dev mode in production
-const isProduction = import.meta.env.PROD;
+// Safety check - prevent dev mode in actual production (not Lovable preview)
+const isLovablePreview = window.location.hostname.includes('lovableproject.com');
+const isProduction = import.meta.env.PROD && !isLovablePreview;
+
 if (isProduction && DEV_MODE) {
   console.error('🚨 CRITICAL: Dev mode is enabled in production! This is a security risk.');
   throw new Error('Dev mode must be disabled in production builds');
+}
+
+if (isLovablePreview && DEV_MODE) {
+  console.log('ℹ️ Dev mode active in Lovable preview environment');
 }
 
 // Log dev mode status
