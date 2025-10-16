@@ -44,11 +44,17 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+    
     // Get initial session
     const getInitialSession = async () => {
+      if (!isMounted) return;
+      
       setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
         
         if (session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
@@ -56,24 +62,37 @@ export const useAuth = () => {
           console.log('[useAuth] 🔐 User logged in:', session.user.email);
           // Check admin role and load existing data from Supabase in a separate effect
           setTimeout(() => {
-            checkAdminRole(session.user.id);
-            loadFromSupabase().catch(console.error);
+            if (isMounted) {
+              checkAdminRole(session.user.id);
+              loadFromSupabase().catch(console.error);
+            }
           }, 0);
         } else {
           console.log('[useAuth] ❌ No active session');
         }
       } catch (error) {
         console.error('Error getting session:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     getInitialSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
+        if (!isMounted) return;
+        
         console.log('[useAuth] Auth event:', event);
+        
+        // Skip INITIAL_SESSION event as we handle it above
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+        
         if (event === 'SIGNED_IN' && session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
@@ -85,8 +104,10 @@ export const useAuth = () => {
           
           // Check admin role and sync guest data to Supabase in a separate timeout
           setTimeout(() => {
-            checkAdminRole(session.user.id);
-            syncToSupabase().catch(console.error);
+            if (isMounted) {
+              checkAdminRole(session.user.id);
+              syncToSupabase().catch(console.error);
+            }
           }, 0);
         } else if (event === 'SIGNED_OUT') {
           console.log('[useAuth] 🚪 User signed out');
@@ -96,7 +117,10 @@ export const useAuth = () => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
