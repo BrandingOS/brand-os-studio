@@ -246,8 +246,15 @@ export const useOnboardingStore = create<OnboardingStore>()(
           skippedSteps: Array.from(state.skippedSteps)
         }),
         onRehydrateStorage: () => (state) => {
-          if (state && Array.isArray(state.skippedSteps)) {
-            state.skippedSteps = new Set(state.skippedSteps);
+          if (state) {
+            // Convert skippedSteps array back to Set
+            if (Array.isArray(state.skippedSteps)) {
+              state.skippedSteps = new Set(state.skippedSteps);
+            }
+            // Ensure currentStepIndex is valid
+            if (state.currentStepIndex >= DEFAULT_STEPS.length) {
+              state.currentStepIndex = 0;
+            }
           }
         }
       }
