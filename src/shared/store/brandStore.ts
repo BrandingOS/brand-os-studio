@@ -30,9 +30,8 @@ export const useBrandStore = create<BrandStore>()(
       loadById: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'loadById/start');
         try {
-          const { getBrandService } = await import('../services/brandService');
-          const service = getBrandService();
-          const brand = await service.getById(id);
+          const { services } = await import('../services/registry');
+          const brand = await services.brands.getById(id);
           set({ current: brand, isLoading: false }, false, 'loadById/success');
         } catch (error) {
           set({ 
@@ -45,9 +44,8 @@ export const useBrandStore = create<BrandStore>()(
       create: async (input: CreateBrandInput) => {
         set({ isLoading: true, error: undefined }, false, 'create/start');
         try {
-          const { getBrandService } = await import('../services/brandService');
-          const service = getBrandService();
-          const brand = await service.create(input);
+          const { services } = await import('../services/registry');
+          const brand = await services.brands.create(input);
           
           set((state) => ({
             list: [...state.list, brand],
@@ -68,9 +66,8 @@ export const useBrandStore = create<BrandStore>()(
       update: async (id: string, patch: Partial<Brand>) => {
         set({ isLoading: true, error: undefined }, false, 'update/start');
         try {
-          const { getBrandService } = await import('../services/brandService');
-          const service = getBrandService();
-          await service.update(id, patch);
+          const { services } = await import('../services/registry');
+          await services.brands.update(id, patch);
           
           set((state) => ({
             list: state.list.map(brand => 
@@ -92,9 +89,8 @@ export const useBrandStore = create<BrandStore>()(
       delete: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'delete/start');
         try {
-          const { getBrandService } = await import('../services/brandService');
-          const service = getBrandService();
-          await service.delete(id);
+          const { services } = await import('../services/registry');
+          await services.brands.delete(id);
           
           set((state) => ({
             list: state.list.filter(brand => brand.id !== id),
@@ -112,10 +108,9 @@ export const useBrandStore = create<BrandStore>()(
       loadAll: async () => {
         set({ isLoading: true, error: undefined }, false, 'loadAll/start');
         try {
-          const { getBrandService } = await import('../services/brandService');
-          const service = getBrandService();
-          console.log('[brandStore] 🔍 Service selected, fetching brands...');
-          const brands = await service.getAll();
+          const { services } = await import('../services/registry');
+          console.log('[brandStore] 🔍 Using registry service...');
+          const brands = await services.brands.list();
           console.log('[brandStore] ✅ Loaded brands:', brands.length);
           set({ list: brands, isLoading: false }, false, 'loadAll/success');
         } catch (error) {
