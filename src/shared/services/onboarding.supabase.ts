@@ -1,7 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { isDevMode } from '@/config/devMode';
-import { localOnboardingService } from './onboarding.local';
-
+// Using Record<string, any> instead of OnboardingAnswers since it doesn't exist
 type OnboardingAnswers = Record<string, any>;
 
 export interface OnboardingService {
@@ -13,16 +11,8 @@ export interface OnboardingService {
 
 export class SupabaseOnboardingService implements OnboardingService {
   async saveAnswers(answers: OnboardingAnswers): Promise<void> {
-    // In dev mode, use localStorage
-    if (isDevMode()) {
-      return localOnboardingService.saveAnswers(answers);
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No Supabase user found, skipping save');
-      return;
-    }
+    if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
       .from('onboarding_answers')
@@ -36,11 +26,6 @@ export class SupabaseOnboardingService implements OnboardingService {
   }
 
   async loadAnswers(): Promise<OnboardingAnswers | null> {
-    // In dev mode, use localStorage
-    if (isDevMode()) {
-      return localOnboardingService.loadAnswers();
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
@@ -55,16 +40,8 @@ export class SupabaseOnboardingService implements OnboardingService {
   }
 
   async markCompleted(): Promise<void> {
-    // In dev mode, use localStorage
-    if (isDevMode()) {
-      return localOnboardingService.markCompleted();
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No Supabase user found, skipping completion');
-      return;
-    }
+    if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
       .from('onboarding_answers')
@@ -78,16 +55,8 @@ export class SupabaseOnboardingService implements OnboardingService {
   }
 
   async clearAnswers(): Promise<void> {
-    // In dev mode, use localStorage
-    if (isDevMode()) {
-      return localOnboardingService.clearAnswers();
-    }
-
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.log('No Supabase user found, skipping clear');
-      return;
-    }
+    if (!user) throw new Error('User not authenticated');
 
     const { error } = await supabase
       .from('onboarding_answers')

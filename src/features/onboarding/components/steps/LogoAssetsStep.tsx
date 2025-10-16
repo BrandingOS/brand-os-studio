@@ -1,8 +1,7 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
-import { Card } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Card } from '@/shared/components/Card';
+import { Upload, X, HelpCircle } from 'lucide-react';
 
 interface LogoAssetsStepProps {
   value?: any;
@@ -11,273 +10,154 @@ interface LogoAssetsStepProps {
 
 const logoTypes = [
   {
-    key: 'primary',
+    key: 'primaryLogo',
     label: 'Primary Logo',
-    description: 'Your main logo that will be used most frequently',
+    description: 'Main logo used across all brand materials',
     required: true,
-    guide: 'Upload your main brand logo. This should be your most recognizable logo version.',
-    example: '/api/placeholder/200/100',
-    isPrimary: true,
+    guide: 'Your main brand identifier - usually includes both text and symbol'
   },
   {
-    key: 'black',
-    label: 'Black Logo',
-    description: 'Dark version for light backgrounds',
+    key: 'blackLogo',
+    label: 'Black Primary Logo',
+    description: 'Black version for light backgrounds',
     required: false,
-    guide: 'A black or dark version of your logo for use on light backgrounds.',
-    example: '/api/placeholder/150/75',
-    isPrimary: false,
+    guide: 'Single-color version for monochrome applications'
   },
   {
-    key: 'white',
-    label: 'White Logo',
-    description: 'Light version for dark backgrounds',
+    key: 'whiteLogo',
+    label: 'White Primary Logo',
+    description: 'White version for dark backgrounds',
     required: false,
-    guide: 'A white or light version of your logo for use on dark backgrounds.',
-    example: '/api/placeholder/150/75',
-    isPrimary: false,
+    guide: 'For use on dark or colored backgrounds'
   },
   {
-    key: 'vertical',
+    key: 'verticalLogo',
     label: 'Vertical Logo',
-    description: 'Stacked or vertical layout version',
+    description: 'Stacked version of your logo',
     required: false,
-    guide: 'A vertical or stacked version of your logo for tall, narrow spaces.',
-    example: '/api/placeholder/100/150',
-    isPrimary: false,
+    guide: 'When horizontal space is limited (business cards, mobile apps)'
   },
   {
-    key: 'icon',
-    label: 'Logo Icon/Mark',
-    description: 'Just the symbol or icon part',
+    key: 'logomark',
+    label: 'Logomark',
+    description: 'Symbol/icon only (no text)',
     required: false,
-    guide: 'The icon or symbol part of your logo without text, for use as a favicon or app icon.',
-    example: '/api/placeholder/100/100',
-    isPrimary: false,
+    guide: 'Standalone symbol - recognizable without company name'
   },
   {
-    key: 'horizontal',
-    label: 'Horizontal Logo',
-    description: 'Wide layout version',
+    key: 'wordmark',
+    label: 'Wordmark',
+    description: 'Text/company name only',
     required: false,
-    guide: 'A horizontal version of your logo for wide spaces like headers.',
-    example: '/api/placeholder/200/75',
-    isPrimary: false,
+    guide: 'Company name in branded typography without symbol'
+  },
+  {
+    key: 'blackLogomark',
+    label: 'Black Logomark',
+    description: 'Black version of symbol only',
+    required: false,
+    guide: 'Single-color version of your symbol for various applications'
+  },
+  {
+    key: 'whiteLogomark',
+    label: 'White Logomark',
+    description: 'White version of symbol only',
+    required: false,
+    guide: 'For use on dark backgrounds or overlay applications'
   },
 ];
 
 export function LogoAssetsStep({ value = {}, stepId }: LogoAssetsStepProps) {
   const { setAnswer } = useOnboardingStore();
-  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const handleFileUpload = (logoType: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (file) {
+      // In a real app, upload to storage service
       const url = URL.createObjectURL(file);
-      setAnswer(stepId, {
-        ...value,
-        [logoType]: {
-          file,
-          url,
-          name: file.name,
-          size: file.size,
-        },
-      });
+      setAnswer(stepId, { ...value, [logoType]: url });
     }
   };
 
   const handleRemove = (logoType: string) => {
     const newValue = { ...value };
-    if (newValue[logoType]?.url) {
-      URL.revokeObjectURL(newValue[logoType].url);
-    }
     delete newValue[logoType];
     setAnswer(stepId, newValue);
   };
 
-  const handleDrop = (logoType: string, event: React.DragEvent) => {
-    event.preventDefault();
-    setDragOver(null);
-    
-    const file = event.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setAnswer(stepId, {
-        ...value,
-        [logoType]: {
-          file,
-          url,
-          name: file.name,
-          size: file.size,
-        },
-      });
-    }
-  };
-
-  const primaryLogo = logoTypes.find(type => type.isPrimary);
-  const otherLogos = logoTypes.filter(type => !type.isPrimary);
-
   return (
-    <div className="space-y-8">
-      {/* Primary Logo - Emphasized */}
-      {primaryLogo && (
-        <Card className="p-6 border-2 border-primary/20 bg-primary/5">
-          <div className="text-center mb-6">
-            <h3 className="text-lg font-semibold text-primary mb-2">{primaryLogo.label}</h3>
-            <p className="text-sm text-muted-foreground">{primaryLogo.guide}</p>
-          </div>
+    <div className="space-y-6">
+      <div className="text-center text-sm text-muted-foreground mb-6">
+        Upload your brand assets. Don't have all variations? No problem - skip what you don't have and we'll help you create them later.
+      </div>
 
-          <div className="flex flex-col lg:flex-row gap-6 items-center">
-            {/* Example */}
-            <div className="flex-shrink-0">
-              <div className="text-xs text-muted-foreground mb-2 text-center">Example:</div>
-              <div className="w-48 h-24 bg-muted rounded border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-                <img 
-                  src={primaryLogo.example}
-                  alt="Primary logo example"
-                  className="max-w-full max-h-full object-contain"
+      <div className="grid gap-6 md:grid-cols-2">
+        {logoTypes.map((logoType) => (
+          <Card key={logoType.key} className="p-4">
+            <div className="flex items-start gap-2 mb-3">
+              <div className="flex-1">
+                <h4 className="font-medium text-sm">
+                  {logoType.label}
+                  {logoType.required && <span className="text-red-500 ml-1">*</span>}
+                </h4>
+                <p className="text-xs text-muted-foreground">{logoType.description}</p>
+              </div>
+              <div className="group relative">
+                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                <div className="absolute right-0 top-6 w-48 p-2 bg-popover border border-border rounded-md shadow-lg text-xs opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                  {logoType.guide}
+                </div>
+              </div>
+            </div>
+
+            {value[logoType.key] ? (
+              <div className="relative">
+                <img
+                  src={value[logoType.key]}
+                  alt={logoType.label}
+                  className="w-full h-24 object-contain bg-muted rounded border"
                 />
-              </div>
-            </div>
-
-            {/* Upload Area */}
-            <div className="flex-1 w-full">
-              {value[primaryLogo.key] ? (
-                <div className="relative border-2 border-dashed border-primary/30 rounded-lg p-6 bg-background">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={value[primaryLogo.key].url}
-                      alt="Uploaded logo"
-                      className="w-20 h-20 object-contain border rounded"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium">{value[primaryLogo.key].name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {(value[primaryLogo.key].size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRemove(primaryLogo.key)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    dragOver === primaryLogo.key
-                      ? 'border-primary bg-primary/5'
-                      : 'border-primary/30 hover:border-primary/50'
-                  }`}
-                  onDrop={(e) => handleDrop(primaryLogo.key, e)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(primaryLogo.key);
-                  }}
-                  onDragLeave={() => setDragOver(null)}
+                <Button
+                  size="icon"
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-6 w-6"
+                  onClick={() => handleRemove(logoType.key)}
                 >
-                  <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Upload Your Primary Logo</p>
-                    <p className="text-xs text-muted-foreground">
-                      Drag & drop or click to browse
-                    </p>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    onChange={(e) => handleFileUpload(primaryLogo.key, e)}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Other Logo Assets */}
-      <Card className="p-6">
-        <h3 className="font-semibold mb-4">Additional Logo Assets</h3>
-        <p className="text-sm text-muted-foreground mb-6">
-          Upload variations of your logo for different use cases (optional)
-        </p>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          {otherLogos.map((logoType) => (
-            <div key={logoType.key} className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
-                  <div className="w-16 h-12 bg-muted rounded border flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={logoType.example}
-                      alt={`${logoType.label} example`}
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 text-center">Example</div>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-medium text-sm">{logoType.label}</h4>
-                  <p className="text-xs text-muted-foreground">{logoType.description}</p>
-                </div>
+                  <X className="h-3 w-3" />
+                </Button>
               </div>
-
-              {value[logoType.key] ? (
-                <div className="border rounded-lg p-3 bg-muted/30">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={value[logoType.key].url}
-                      alt="Uploaded logo"
-                      className="w-12 h-12 object-contain border rounded bg-background"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{value[logoType.key].name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(value[logoType.key].size / 1024).toFixed(1)} KB
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRemove(logoType.key)}
-                      className="p-1 h-8 w-8"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <div
-                    className={`border border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${
-                      dragOver === logoType.key
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onDrop={(e) => handleDrop(logoType.key, e)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOver(logoType.key);
-                    }}
-                    onDragLeave={() => setDragOver(null)}
-                  >
-                    <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-                    <p className="text-xs text-muted-foreground">Drop file or click to upload</p>
+            ) : (
+              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+                <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground mb-3">
+                  PNG, JPG, SVG up to 10MB
+                </p>
+                <Button variant="outline" size="sm" asChild>
+                  <label className="cursor-pointer">
                     <input
                       type="file"
                       accept="image/*"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       onChange={(e) => handleFileUpload(logoType.key, e)}
+                      className="hidden"
                     />
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+                    Choose File
+                  </label>
+                </Button>
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+
+      <Card className="p-4 bg-muted/50">
+        <div className="text-center">
+          <h4 className="font-medium text-sm mb-2">Need help with logo variations?</h4>
+          <p className="text-xs text-muted-foreground mb-3">
+            Our AI can help generate missing logo variations from your primary logo after setup.
+          </p>
+          <Button variant="outline" size="sm" disabled>
+            Generate Variations (Coming Soon)
+          </Button>
         </div>
       </Card>
     </div>

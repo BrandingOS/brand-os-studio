@@ -1,78 +1,32 @@
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
-import { Card } from '@/shared/components/Card';
-import { ColorPicker } from '@/components/ui/color-picker';
 import { Button } from '@/shared/components/Button';
-import { Trash2, Plus } from 'lucide-react';
+import { Card } from '@/shared/components/Card';
 
 interface StyleValuesStepProps {
   value?: any;
   stepId: string;
 }
 
-const predefinedPalettes = [
-  {
-    name: 'Ocean Blue',
-    colors: ['#0ea5e9', '#0284c7', '#0369a1', '#075985'],
-  },
-  {
-    name: 'Forest Green',
-    colors: ['#059669', '#047857', '#065f46', '#064e3b'],
-  },
-  {
-    name: 'Sunset Orange',
-    colors: ['#ea580c', '#dc2626', '#b91c1c', '#991b1b'],
-  },
-  {
-    name: 'Royal Purple',
-    colors: ['#7c3aed', '#6d28d9', '#5b21b6', '#4c1d95'],
-  },
-  {
-    name: 'Elegant Gray',
-    colors: ['#374151', '#4b5563', '#6b7280', '#9ca3af'],
-  },
-  {
-    name: 'Modern Pink',
-    colors: ['#ec4899', '#db2777', '#be185d', '#9d174d'],
-  },
+const predefinedColors = [
+  '#000000', '#1a1a1a', '#374151', '#6b7280',
+  '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
+  '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'
 ];
 
-const visualStyles = [
-  {
-    value: 'minimalist',
-    label: 'Minimalist',
-    desc: 'Clean, simple, lots of white space',
-    image: '/api/placeholder/120/80',
-  },
-  {
-    value: 'modern',
-    label: 'Modern',
-    desc: 'Contemporary, sleek, geometric',
-    image: '/api/placeholder/120/80',
-  },
-  {
-    value: 'playful',
-    label: 'Playful',
-    desc: 'Fun, colorful, energetic',
-    image: '/api/placeholder/120/80',
-  },
-  {
-    value: 'elegant',
-    label: 'Elegant',
-    desc: 'Sophisticated, refined, luxury',
-    image: '/api/placeholder/120/80',
-  },
-  {
-    value: 'bold',
-    label: 'Bold',
-    desc: 'Strong, impactful, dynamic',
-    image: '/api/placeholder/120/80',
-  },
-  {
-    value: 'organic',
-    label: 'Organic',
-    desc: 'Natural, flowing, organic shapes',
-    image: '/api/placeholder/120/80',
-  },
+const stylePreferences = [
+  { value: 'minimalist', label: 'Minimalist', desc: 'Clean, simple, lots of white space' },
+  { value: 'bold', label: 'Bold & Vibrant', desc: 'Strong colors, high contrast' },
+  { value: 'elegant', label: 'Elegant & Refined', desc: 'Sophisticated, premium feel' },
+  { value: 'modern', label: 'Modern & Tech', desc: 'Contemporary, digital-first' },
+  { value: 'classic', label: 'Classic & Traditional', desc: 'Timeless, established look' },
+  { value: 'creative', label: 'Creative & Artistic', desc: 'Unique, expressive, artistic' },
+];
+
+const coreValues = [
+  'Innovation', 'Quality', 'Sustainability', 'Transparency', 'Integrity',
+  'Community', 'Excellence', 'Simplicity', 'Inclusivity', 'Authenticity',
+  'Growth', 'Collaboration', 'Impact', 'Trust', 'Creativity', 'Heritage'
 ];
 
 export function StyleValuesStep({ value = {}, stepId }: StyleValuesStepProps) {
@@ -82,122 +36,119 @@ export function StyleValuesStep({ value = {}, stepId }: StyleValuesStepProps) {
     setAnswer(stepId, { ...value, [field]: newValue });
   };
 
-  const addCustomColor = () => {
-    const customColors = value.customColors || [];
-    if (customColors.length < 5) {
-      updateField('customColors', [...customColors, '#000000']);
+  const toggleValue = (coreValue: string) => {
+    const currentValues = value.coreValues || [];
+    const isSelected = currentValues.includes(coreValue);
+    
+    if (isSelected) {
+      updateField('coreValues', currentValues.filter((v: string) => v !== coreValue));
+    } else {
+      if (currentValues.length < 5) {
+        updateField('coreValues', [...currentValues, coreValue]);
+      }
     }
-  };
-
-  const updateCustomColor = (index: number, color: string) => {
-    const customColors = [...(value.customColors || [])];
-    customColors[index] = color;
-    updateField('customColors', customColors);
-  };
-
-  const removeCustomColor = (index: number) => {
-    const customColors = [...(value.customColors || [])];
-    customColors.splice(index, 1);
-    updateField('customColors', customColors);
   };
 
   return (
     <div className="space-y-8">
-      {/* Already Have Colors Section */}
+      {/* Primary Color */}
       <Card className="p-6">
-        <h3 className="font-semibold mb-4">Already Have Your Colors?</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Add your brand colors one by one (up to 5 colors)
-        </p>
-        
-        <div className="space-y-3">
-          {(value.customColors || []).map((color: string, index: number) => (
-            <div key={index} className="flex items-center gap-3">
-              <ColorPicker
-                value={color}
-                onChange={(newColor) => updateCustomColor(index, newColor)}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => removeCustomColor(index)}
-                className="p-2 h-8 w-8"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+        <h3 className="font-semibold mb-4">Primary Brand Color *</h3>
+        <div className="text-center mb-6">
+          <div 
+            className="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-background shadow-lg"
+            style={{ backgroundColor: value.primaryColor || '#000000' }}
+          />
+          <p className="text-sm text-muted-foreground">
+            Current Color: {value.primaryColor || '#000000'}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-8 gap-3 mb-6">
+          {predefinedColors.map((color) => (
+            <button
+              key={color}
+              className={`w-10 h-10 rounded-lg border-2 transition-all hover:scale-110 ${
+                value.primaryColor === color ? 'border-primary ring-2 ring-primary ring-offset-2' : 'border-border'
+              }`}
+              style={{ backgroundColor: color }}
+              onClick={() => updateField('primaryColor', color)}
+              aria-label={`Select color ${color}`}
+            />
           ))}
-          
-          {(!value.customColors || value.customColors.length < 5) && (
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Custom Color</label>
+          <div className="flex gap-2">
+            <input
+              type="color"
+              value={value.primaryColor || '#000000'}
+              onChange={(e) => updateField('primaryColor', e.target.value)}
+              className="w-12 h-10 rounded border border-border"
+            />
+            <input
+              type="text"
+              value={value.primaryColor || '#000000'}
+              onChange={(e) => updateField('primaryColor', e.target.value)}
+              placeholder="#000000"
+              className="flex-1 h-10 px-3 border border-border rounded-md bg-background"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Style Preference */}
+      <Card className="p-6">
+        <h3 className="font-semibold mb-4">Visual Style Preference</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {stylePreferences.map((option) => (
             <Button
-              variant="outline"
-              onClick={addCustomColor}
-              className="flex items-center gap-2"
+              key={option.value}
+              variant={value.stylePreference === option.value ? 'default' : 'outline'}
+              className="h-auto p-4 text-left justify-start"
+              onClick={() => updateField('stylePreference', option.value)}
             >
-              <Plus className="h-4 w-4" />
-              Add Color
+              <div>
+                <div className="font-medium">{option.label}</div>
+                <div className="text-sm text-muted-foreground mt-1">{option.desc}</div>
+              </div>
             </Button>
-          )}
-        </div>
-      </Card>
-
-      {/* Color Palette Options */}
-      <Card className="p-6">
-        <h3 className="font-semibold mb-4">Or Choose a Color Palette</h3>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {predefinedPalettes.map((palette) => (
-            <button
-              key={palette.name}
-              type="button"
-              className={`p-4 border rounded-lg text-left transition-colors ${
-                value.selectedPalette === palette.name
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:bg-muted'
-              }`}
-              onClick={() => updateField('selectedPalette', palette.name)}
-            >
-              <div className="font-medium mb-2">{palette.name}</div>
-              <div className="flex gap-1">
-                {palette.colors.map((color, index) => (
-                  <div
-                    key={index}
-                    className="w-6 h-6 rounded"
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </button>
           ))}
         </div>
       </Card>
 
-      {/* Visual Style Reference */}
+      {/* Core Values */}
       <Card className="p-6">
-        <h3 className="font-semibold mb-4">Visual Style Reference</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visualStyles.map((style) => (
-            <button
-              key={style.value}
-              type="button"
-              className={`p-4 border rounded-lg text-left transition-colors ${
-                value.visualStyle === style.value
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:bg-muted'
-              }`}
-              onClick={() => updateField('visualStyle', style.value)}
-            >
-              <div className="aspect-[3/2] bg-muted rounded mb-3 overflow-hidden">
-                <img 
-                  src={style.image} 
-                  alt={style.label}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="font-medium">{style.label}</div>
-              <div className="text-sm text-muted-foreground mt-1">{style.desc}</div>
-            </button>
-          ))}
+        <h3 className="font-semibold mb-2">Core Values</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Select up to 5 values that define your brand
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {coreValues.map((coreValue) => {
+            const isSelected = value.coreValues?.includes(coreValue);
+            const selectionCount = value.coreValues?.length || 0;
+            const canSelect = selectionCount < 5 || isSelected;
+
+            return (
+              <Button
+                key={coreValue}
+                variant={isSelected ? 'default' : 'outline'}
+                size="sm"
+                className={`${!canSelect ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => canSelect && toggleValue(coreValue)}
+                disabled={!canSelect}
+              >
+                {coreValue}
+              </Button>
+            );
+          })}
         </div>
+        {value.coreValues && value.coreValues.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-2">
+            {value.coreValues.length}/5 values selected
+          </p>
+        )}
       </Card>
     </div>
   );

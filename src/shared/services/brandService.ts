@@ -219,14 +219,7 @@ class BrandServiceSupabase implements BrandService {
 
 // Service factory
 export function getBrandService(): BrandService {
-  const { mode, isDevMode } = useSessionStore.getState();
-  
-  // Dev mode always uses localStorage
-  if (isDevMode) {
-    return new BrandServiceGuest();
-  }
-  
-  // Otherwise use mode to determine service
+  const { mode } = useSessionStore.getState();
   return mode === 'guest' ? new BrandServiceGuest() : new BrandServiceSupabase();
 }
 
