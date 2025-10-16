@@ -23,7 +23,8 @@ export const useSessionStore = create<SessionStore>()(
         set((state) => ({ 
           user, 
           mode: 'user', 
-          isAuthenticated: true, 
+          isAuthenticated: true,
+          isLoading: false,
           previousMode: state.mode 
         }), false, 'signIn'),
       
@@ -31,7 +32,8 @@ export const useSessionStore = create<SessionStore>()(
         set((state) => ({ 
           user: undefined, 
           mode: 'guest', 
-          isAuthenticated: false, 
+          isAuthenticated: false,
+          isLoading: false,
           previousMode: state.mode 
         }), false, 'signOut'),
       
@@ -41,7 +43,8 @@ export const useSessionStore = create<SessionStore>()(
       switchToGuest: () => 
         set((state) => ({ 
           mode: 'guest', 
-          isAuthenticated: false, 
+          isAuthenticated: false,
+          isLoading: false,
           previousMode: state.mode 
         }), false, 'switchToGuest'),
         
