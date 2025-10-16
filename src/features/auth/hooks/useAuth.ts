@@ -69,13 +69,11 @@ export const useAuth = () => {
           }, 0);
         } else {
           console.log('[useAuth] ❌ No active session');
+          signOut(); // Properly set guest mode
         }
       } catch (error) {
         console.error('Error getting session:', error);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        signOut(); // Ensure guest mode even on error
       }
     };
 
