@@ -50,7 +50,6 @@ export const useAuth = () => {
     const getInitialSession = async () => {
       if (!isMounted) return;
       
-      setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
