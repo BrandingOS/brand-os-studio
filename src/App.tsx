@@ -17,6 +17,7 @@ import TemplatesPage from "./pages/dashboard/templates";
 import AdminBrandsPage from "./pages/dashboard/admin/brands";
 import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
 import BrandHomePage from "./pages/dashboard/brand/[slug]";
+import BrandEditPage from "./pages/dashboard/brand/[slug]/edit";
 import BrandKitHubPage from "./pages/dashboard/brand/[slug]/brandkit";
 import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
 import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
@@ -69,6 +70,11 @@ const App = () => (
           <Route path="/dashboard/brand/:slug" element={
             <ProtectedRoute>
               <BrandHomePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/edit" element={
+            <ProtectedRoute>
+              <BrandEditPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/brandkit" element={
