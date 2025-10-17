@@ -66,7 +66,7 @@ export default function BrandEditPage() {
   }
 
   return (
-    <BrandLayout>
+    <BrandLayout brandName={brand?.name}>
       <div className="space-y-6">
         {/* Header with Toggle */}
         <div className="flex items-center justify-between">
@@ -111,7 +111,7 @@ export default function BrandEditPage() {
                 onLogoSystemChange={(logoSystem) => 
                   setEditedBrand({ 
                     ...editedBrand, 
-                    guidelines: { ...editedBrand.guidelines, logoSystem }
+                    guidelines: { ...(editedBrand.guidelines || {}), logoSystem }
                   })
                 }
               />
@@ -121,14 +121,20 @@ export default function BrandEditPage() {
                 onColorPaletteChange={(colorPalette) => 
                   setEditedBrand({ 
                     ...editedBrand, 
-                    guidelines: { ...editedBrand.guidelines, colorPalette }
+                    guidelines: { ...(editedBrand.guidelines || {}), colorPalette }
                   })
                 }
               />
 
               <FontSelector
                 fonts={editedBrand.fonts}
-                onFontsChange={(fonts) => setEditedBrand({ ...editedBrand, fonts: { ...editedBrand.fonts, ...fonts } })}
+                onFontsChange={(fonts) => setEditedBrand({ 
+                  ...editedBrand, 
+                  fonts: { 
+                    primary: fonts.primary || editedBrand.fonts.primary,
+                    secondary: fonts.secondary || editedBrand.fonts.secondary
+                  }
+                })}
               />
 
               <IconGallery />
