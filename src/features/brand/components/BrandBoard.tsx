@@ -20,10 +20,10 @@ export function BrandBoard({ brand, className = '' }: BrandBoardProps) {
           <div className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
             Primary Logo
           </div>
-          {logoSystem.primary?.url || brand.logo ? (
+          {logoSystem?.primary?.url ? (
             <div className="flex items-center justify-center min-h-[200px]">
               <img 
-                src={logoSystem.primary?.url || brand.logo} 
+                src={logoSystem.primary.url} 
                 alt="Primary Logo" 
                 className="max-h-[180px] max-w-full object-contain"
               />
@@ -77,7 +77,7 @@ export function BrandBoard({ brand, className = '' }: BrandBoardProps) {
             Color Palette
           </div>
           <div className="grid grid-cols-5 gap-4">
-            {colorPalette.primary ? (
+            {colorPalette?.primary ? (
               <>
                 <div className="space-y-2">
                   <div 
@@ -89,7 +89,7 @@ export function BrandBoard({ brand, className = '' }: BrandBoardProps) {
                     <div className="text-xs text-muted-foreground">{colorPalette.primary.hex}</div>
                   </div>
                 </div>
-                {colorPalette.secondary && (
+                {colorPalette?.secondary && (
                   <div className="space-y-2">
                     <div 
                       className="aspect-square rounded-lg border-2 border-border"
@@ -101,7 +101,7 @@ export function BrandBoard({ brand, className = '' }: BrandBoardProps) {
                     </div>
                   </div>
                 )}
-                {colorPalette.accent && (
+                {colorPalette?.accent && (
                   <div className="space-y-2">
                     <div 
                       className="aspect-square rounded-lg border-2 border-border"
