@@ -3,6 +3,12 @@ import { Card } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { useState } from 'react';
+import logoPrimaryExample from '@/assets/onboarding/logo-primary-example.png';
+import logoBlackExample from '@/assets/onboarding/logo-black-example.png';
+import logoWhiteExample from '@/assets/onboarding/logo-white-example.png';
+import logoVerticalExample from '@/assets/onboarding/logo-vertical-example.png';
+import logoIconExample from '@/assets/onboarding/logo-icon-example.png';
+import logoHorizontalExample from '@/assets/onboarding/logo-horizontal-example.png';
 
 interface LogoAssetsStepProps {
   value?: any;
@@ -16,7 +22,7 @@ const logoTypes = [
     description: 'Your main logo that will be used most frequently',
     required: true,
     guide: 'Upload your main brand logo. This should be your most recognizable logo version.',
-    example: '/api/placeholder/200/100',
+    example: logoPrimaryExample,
     isPrimary: true,
   },
   {
@@ -25,7 +31,7 @@ const logoTypes = [
     description: 'Dark version for light backgrounds',
     required: false,
     guide: 'A black or dark version of your logo for use on light backgrounds.',
-    example: '/api/placeholder/150/75',
+    example: logoBlackExample,
     isPrimary: false,
   },
   {
@@ -34,7 +40,7 @@ const logoTypes = [
     description: 'Light version for dark backgrounds',
     required: false,
     guide: 'A white or light version of your logo for use on dark backgrounds.',
-    example: '/api/placeholder/150/75',
+    example: logoWhiteExample,
     isPrimary: false,
   },
   {
@@ -43,7 +49,7 @@ const logoTypes = [
     description: 'Stacked or vertical layout version',
     required: false,
     guide: 'A vertical or stacked version of your logo for tall, narrow spaces.',
-    example: '/api/placeholder/100/150',
+    example: logoVerticalExample,
     isPrimary: false,
   },
   {
@@ -52,7 +58,7 @@ const logoTypes = [
     description: 'Just the symbol or icon part',
     required: false,
     guide: 'The icon or symbol part of your logo without text, for use as a favicon or app icon.',
-    example: '/api/placeholder/100/100',
+    example: logoIconExample,
     isPrimary: false,
   },
   {
@@ -61,7 +67,7 @@ const logoTypes = [
     description: 'Wide layout version',
     required: false,
     guide: 'A horizontal version of your logo for wide spaces like headers.',
-    example: '/api/placeholder/200/75',
+    example: logoHorizontalExample,
     isPrimary: false,
   },
 ];

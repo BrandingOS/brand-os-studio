@@ -3,6 +3,12 @@ import { Card } from '@/shared/components/Card';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { Button } from '@/shared/components/Button';
 import { Trash2, Plus } from 'lucide-react';
+import styleMinimalist from '@/assets/onboarding/style-minimalist.png';
+import styleModern from '@/assets/onboarding/style-modern.png';
+import stylePlayful from '@/assets/onboarding/style-playful.png';
+import styleElegant from '@/assets/onboarding/style-elegant.png';
+import styleBold from '@/assets/onboarding/style-bold.png';
+import styleOrganic from '@/assets/onboarding/style-organic.png';
 
 interface StyleValuesStepProps {
   value?: any;
@@ -41,37 +47,37 @@ const visualStyles = [
     value: 'minimalist',
     label: 'Minimalist',
     desc: 'Clean, simple, lots of white space',
-    image: '/api/placeholder/120/80',
+    image: styleMinimalist,
   },
   {
     value: 'modern',
     label: 'Modern',
     desc: 'Contemporary, sleek, geometric',
-    image: '/api/placeholder/120/80',
+    image: styleModern,
   },
   {
     value: 'playful',
     label: 'Playful',
     desc: 'Fun, colorful, energetic',
-    image: '/api/placeholder/120/80',
+    image: stylePlayful,
   },
   {
     value: 'elegant',
     label: 'Elegant',
     desc: 'Sophisticated, refined, luxury',
-    image: '/api/placeholder/120/80',
+    image: styleElegant,
   },
   {
     value: 'bold',
     label: 'Bold',
     desc: 'Strong, impactful, dynamic',
-    image: '/api/placeholder/120/80',
+    image: styleBold,
   },
   {
     value: 'organic',
     label: 'Organic',
     desc: 'Natural, flowing, organic shapes',
-    image: '/api/placeholder/120/80',
+    image: styleOrganic,
   },
 ];
 
