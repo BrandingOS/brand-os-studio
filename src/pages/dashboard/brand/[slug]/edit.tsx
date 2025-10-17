@@ -127,12 +127,12 @@ export default function BrandEditPage() {
               />
 
               <FontSelector
-                fonts={editedBrand.fonts}
+                fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
                 onFontsChange={(fonts) => setEditedBrand({ 
                   ...editedBrand, 
                   fonts: { 
-                    primary: fonts.primary || editedBrand.fonts.primary,
-                    secondary: fonts.secondary || editedBrand.fonts.secondary
+                    primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
+                    secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter'
                   }
                 })}
               />
