@@ -19,7 +19,8 @@ import {
   Settings,
   Folder,
   Briefcase,
-  PenTool
+  PenTool,
+  Edit
 } from 'lucide-react';
 
 const brandNavItems = [
@@ -28,6 +29,12 @@ const brandNavItems = [
     url: "/dashboard/brand/:slug",
     icon: LayoutDashboard,
     description: "Brand overview"
+  },
+  {
+    title: "Edit Brand",
+    url: "/dashboard/brand/:slug/edit",
+    icon: Edit,
+    description: "Edit brand identity"
   },
   {
     title: "Brand Info",

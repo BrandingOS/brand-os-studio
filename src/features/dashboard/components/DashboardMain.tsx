@@ -16,7 +16,8 @@ import {
   Target,
   Zap,
   Eye,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit
 } from 'lucide-react';
 
 export function DashboardMain() {
@@ -229,6 +230,18 @@ export function DashboardMain() {
                     </span>
                     <div className="flex items-center gap-2">
                       <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/dashboard/brand/${brand.slug}/edit`;
+                        }}
+                        className="text-xs"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={(e) => {
@@ -238,7 +251,7 @@ export function DashboardMain() {
                         className="text-xs"
                       >
                         <Palette className="h-3 w-3 mr-1" />
-                        Open Editor
+                        Editor
                       </Button>
                     </div>
                   </div>
