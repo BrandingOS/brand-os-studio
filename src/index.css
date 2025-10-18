@@ -105,6 +105,27 @@
   * { @apply border-border; }
   html { scroll-behavior: smooth; }
   body { @apply bg-background text-foreground; font-feature-settings: "ss01" on, "liga" on; }
+  
+  /* Brand Editor Specific Styles */
+  .brand-editor-bg {
+    @apply bg-[#FAFAFA];
+  }
+  
+  .brand-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-200/60 transition-all duration-200 hover:shadow-md;
+  }
+  
+  .brand-section-title {
+    @apply text-sm font-medium text-gray-600 mb-4;
+  }
+  
+  .brand-color-swatch {
+    @apply rounded-xl transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer;
+  }
+  
+  .brand-upload-zone {
+    @apply rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/50 hover:border-primary hover:bg-gray-50 transition-all duration-200;
+  }
 }
 
 /* Utilities and design primitives */

@@ -67,88 +67,106 @@ export default function BrandEditPage() {
 
   return (
     <BrandLayout brandName={brand?.name}>
-      <div className="space-y-6">
-        {/* Header with Toggle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Brand Editor</h1>
-            <p className="text-muted-foreground mt-1">
-              Edit your brand identity and see live preview
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={handleSave} variant="default">
-              <Save className="h-4 w-4 mr-2" />
-              Save Changes
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setPreviewMode(!previewMode)}
-            >
-              {previewMode ? (
-                <>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Mode
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview Mode
-                </>
-              )}
-            </Button>
+      <div className="min-h-screen brand-editor-bg">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+          <div className="max-w-[1400px] mx-auto px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-gray-900">Brand Editor</h1>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Edit your brand identity and see live preview
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleSave} variant="default" size="lg" className="shadow-sm">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setPreviewMode(!previewMode)}
+                  className="shadow-sm"
+                >
+                  {previewMode ? (
+                    <>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Mode
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview Mode
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Split View Layout */}
-        <div className={`grid gap-8 transition-all duration-300 ${previewMode ? 'grid-cols-1' : 'lg:grid-cols-[400px_1fr]'}`}>
-          {/* Left Panel - Editor */}
-          {!previewMode && (
-            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] pr-4">
-              <LogoUploader
-                brandId={editedBrand.id}
-                logoSystem={editedBrand.guidelines?.logoSystem || {}}
-                onLogoSystemChange={(logoSystem) => 
-                  setEditedBrand({ 
-                    ...editedBrand, 
-                    guidelines: { ...(editedBrand.guidelines || {}), logoSystem }
-                  })
-                }
-              />
-
-              <ColorPaletteEditor
-                colorPalette={editedBrand.guidelines?.colorPalette || {}}
-                onColorPaletteChange={(colorPalette) => 
-                  setEditedBrand({ 
-                    ...editedBrand, 
-                    guidelines: { ...(editedBrand.guidelines || {}), colorPalette }
-                  })
-                }
-              />
-
-              <FontSelector
-                fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
-                onFontsChange={(fonts) => setEditedBrand({ 
-                  ...editedBrand, 
-                  fonts: { 
-                    primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
-                    secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter'
+        {/* Main Content */}
+        <div className="max-w-[1400px] mx-auto px-8 py-8">
+          <div className={`grid gap-6 transition-all duration-300 ${previewMode ? 'grid-cols-1' : 'lg:grid-cols-[65%_35%]'}`}>
+            {/* Left Panel - Editor Grid */}
+            {!previewMode && (
+              <div className="space-y-6">
+                {/* Logos Section */}
+                <LogoUploader
+                  brandId={editedBrand.id}
+                  logoSystem={editedBrand.guidelines?.logoSystem || {}}
+                  onLogoSystemChange={(logoSystem) => 
+                    setEditedBrand({ 
+                      ...editedBrand, 
+                      guidelines: { ...(editedBrand.guidelines || {}), logoSystem }
+                    })
                   }
-                })}
-              />
+                />
 
-              <IconGallery />
-            </div>
-          )}
+                {/* Colors & Typography Grid */}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  <ColorPaletteEditor
+                    colorPalette={editedBrand.guidelines?.colorPalette || {}}
+                    onColorPaletteChange={(colorPalette) => 
+                      setEditedBrand({ 
+                        ...editedBrand, 
+                        guidelines: { ...(editedBrand.guidelines || {}), colorPalette }
+                      })
+                    }
+                  />
 
-          {/* Right Panel - Preview */}
-          <div className={`overflow-y-auto max-h-[calc(100vh-12rem)] ${previewMode ? 'mx-auto max-w-4xl w-full' : ''}`}>
-            <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 pb-4 mb-4 border-b">
-              <div className="text-sm font-medium text-muted-foreground">
-                Live Preview
+                  <FontSelector
+                    fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
+                    onFontsChange={(fonts) => setEditedBrand({ 
+                      ...editedBrand, 
+                      fonts: { 
+                        primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
+                        secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter'
+                      }
+                    })}
+                  />
+                </div>
+
+                {/* Iconography Section */}
+                <IconGallery />
+              </div>
+            )}
+
+            {/* Right Panel - Sticky Preview */}
+            <div className={`${previewMode ? 'mx-auto max-w-5xl w-full' : ''}`}>
+              <div className={`${!previewMode ? 'sticky top-24' : ''}`}>
+                <div className="brand-card p-6">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-600">Live Preview</h3>
+                    <div className="text-xs text-gray-400">Updates in real-time</div>
+                  </div>
+                  <div className="overflow-y-auto max-h-[calc(100vh-16rem)]">
+                    <BrandBoard brand={editedBrand} />
+                  </div>
+                </div>
               </div>
             </div>
-            <BrandBoard brand={editedBrand} />
           </div>
         </div>
       </div>
