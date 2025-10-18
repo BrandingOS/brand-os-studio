@@ -32,10 +32,10 @@ export function IconGallery({ icons = [], onIconsChange }: IconGalleryProps) {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {icons.map((icon, index) => (
-            <div key={index} className="aspect-square bg-muted rounded-lg p-4 flex items-center justify-center">
-              <img src={icon} alt={`Icon ${index + 1}`} className="max-w-full max-h-full" />
+            <div key={index} className="flex-shrink-0 w-[120px] aspect-square bg-muted rounded-lg p-4 flex items-center justify-center snap-start border-2 border-border">
+              <img src={icon} alt={`Icon ${index + 1}`} className="max-w-full max-h-full object-contain" />
             </div>
           ))}
         </div>

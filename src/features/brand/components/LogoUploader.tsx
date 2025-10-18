@@ -80,9 +80,9 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
         {LOGO_TYPES.map((type) => (
-          <div key={type.key} className="space-y-2">
+          <div key={type.key} className="flex-shrink-0 w-[180px] space-y-2 snap-start">
             <label className="text-xs font-medium text-muted-foreground">
               {type.label}
             </label>
