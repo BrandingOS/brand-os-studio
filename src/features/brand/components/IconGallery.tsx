@@ -9,9 +9,9 @@ interface IconGalleryProps {
 
 export function IconGallery({ icons = [], onIconsChange }: IconGalleryProps) {
   return (
-    <Card className="p-6 bg-card">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Iconography</h3>
+    <Card className="p-8 bg-card">
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="text-xl font-semibold">Iconography</h3>
         <Button variant="ghost" size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Add Icon
@@ -34,7 +34,7 @@ export function IconGallery({ icons = [], onIconsChange }: IconGalleryProps) {
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           {icons.map((icon, index) => (
-            <div key={index} className="flex-shrink-0 w-[120px] aspect-square bg-muted rounded-lg p-4 flex items-center justify-center snap-start border-2 border-border">
+            <div key={index} className="flex-shrink-0 w-[120px] aspect-square bg-muted rounded-xl p-3 flex items-center justify-center snap-start border-2 border-border hover:border-primary transition-colors">
               <img src={icon} alt={`Icon ${index + 1}`} className="max-w-full max-h-full object-contain" />
             </div>
           ))}

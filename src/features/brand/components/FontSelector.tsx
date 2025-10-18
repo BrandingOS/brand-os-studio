@@ -53,12 +53,12 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
   };
 
   return (
-    <Card className="p-6 bg-card">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Typography</h3>
+    <Card className="p-8 bg-card">
+      <div className="flex items-center justify-between mb-8">
+        <h3 className="text-xl font-semibold">Typography</h3>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Font Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -70,11 +70,11 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
           />
         </div>
 
-        <div className="flex gap-6 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <div className="space-y-5">
           {/* Primary Font */}
-          <div className="flex-shrink-0 w-[280px] space-y-3 snap-start">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Primary</label>
+              <label className="text-sm font-semibold">Heading</label>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
@@ -86,7 +86,7 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
               </div>
             </div>
             <Select value={primaryFont} onValueChange={handlePrimaryChange}>
-              <SelectTrigger>
+              <SelectTrigger className="h-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -98,7 +98,7 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
               </SelectContent>
             </Select>
             <div 
-              className="text-3xl font-bold p-4 bg-muted rounded-lg"
+              className="text-4xl font-bold p-6 bg-muted/50 rounded-xl border border-border"
               style={{ fontFamily: primaryFont }}
             >
               {primaryFont}
@@ -106,9 +106,9 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
           </div>
 
           {/* Secondary Font */}
-          <div className="flex-shrink-0 w-[280px] space-y-3 snap-start">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Secondary</label>
+              <label className="text-sm font-semibold">Body</label>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
@@ -120,7 +120,7 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
               </div>
             </div>
             <Select value={secondaryFont} onValueChange={handleSecondaryChange}>
-              <SelectTrigger>
+              <SelectTrigger className="h-auto">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -132,7 +132,7 @@ export function FontSelector({ fonts, onFontsChange }: FontSelectorProps) {
               </SelectContent>
             </Select>
             <div 
-              className="text-base p-4 bg-muted rounded-lg"
+              className="text-lg p-6 bg-muted/50 rounded-xl border border-border"
               style={{ fontFamily: secondaryFont }}
             >
               {secondaryFont}

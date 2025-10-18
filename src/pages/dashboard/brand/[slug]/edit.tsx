@@ -101,10 +101,10 @@ export default function BrandEditPage() {
         </div>
 
         {/* Split View Layout */}
-        <div className={`grid gap-6 transition-all duration-300 ${previewMode ? 'grid-cols-1' : 'lg:grid-cols-2'}`}>
+        <div className={`grid gap-8 transition-all duration-300 ${previewMode ? 'grid-cols-1' : 'lg:grid-cols-[400px_1fr]'}`}>
           {/* Left Panel - Editor */}
           {!previewMode && (
-            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] pr-2">
+            <div className="space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] pr-4">
               <LogoUploader
                 brandId={editedBrand.id}
                 logoSystem={editedBrand.guidelines?.logoSystem || {}}
