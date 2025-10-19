@@ -219,6 +219,39 @@
   .marquee { overflow: hidden; }
   .marquee-inner { display: flex; gap: 3.5rem; white-space: nowrap; will-change: transform; animation: marquee 28s linear infinite; }
   .marquee-item { font-size: 0.875rem; letter-spacing: 0.04em; color: hsl(var(--muted-foreground)); }
+
+  /* AppShellCanvaLayout Utilities */
+  .chrome-bg {
+    background: color-mix(in oklab, hsl(var(--brand-50, 224 100% 97%)) 6%, white);
+    background: var(--chrome-bg-fallback, #F6F7F9);
+  }
+
+  .canvas-card {
+    background: #fff;
+    border: 1px solid var(--canvas-border);
+    border-radius: var(--canvas-radius);
+    padding: 24px;
+  }
+
+  @media (min-width: 1024px) {
+    .canvas-card {
+      padding: 32px;
+    }
+  }
+
+  .sidebar-item-active {
+    border-left: 2px solid hsl(var(--primary));
+    background: color-mix(in oklab, hsl(var(--primary)) 12%, transparent);
+    color: hsl(var(--primary));
+  }
+
+  .sidebar-item-hover {
+    transition: background-color 150ms ease-out;
+  }
+
+  .sidebar-item-hover:hover {
+    background: color-mix(in oklab, hsl(var(--primary)) 8%, transparent);
+  }
 }
 
 @keyframes marquee {

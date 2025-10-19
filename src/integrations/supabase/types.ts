@@ -59,6 +59,141 @@ export type Database = {
         }
         Relationships: []
       }
+      guideline_presentations: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          description: string | null
+          export_settings: Json | null
+          id: string
+          is_published: boolean | null
+          layout_type: string | null
+          published_at: string | null
+          slide_order: string[] | null
+          slides: Json | null
+          theme_settings: Json | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          description?: string | null
+          export_settings?: Json | null
+          id?: string
+          is_published?: boolean | null
+          layout_type?: string | null
+          published_at?: string | null
+          slide_order?: string[] | null
+          slides?: Json | null
+          theme_settings?: Json | null
+          title?: string
+          updated_at?: string | null
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          description?: string | null
+          export_settings?: Json | null
+          id?: string
+          is_published?: boolean | null
+          layout_type?: string | null
+          published_at?: string | null
+          slide_order?: string[] | null
+          slides?: Json | null
+          theme_settings?: Json | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_brand"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guideline_presentations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guideline_slides: {
+        Row: {
+          background_color: string | null
+          content: Json | null
+          created_at: string | null
+          custom_styles: Json | null
+          id: string
+          is_enabled: boolean | null
+          is_locked: boolean | null
+          order_index: number
+          presentation_id: string
+          slide_type: string
+          subtitle: string | null
+          text_color: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          background_color?: string | null
+          content?: Json | null
+          created_at?: string | null
+          custom_styles?: Json | null
+          id?: string
+          is_enabled?: boolean | null
+          is_locked?: boolean | null
+          order_index?: number
+          presentation_id: string
+          slide_type: string
+          subtitle?: string | null
+          text_color?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          background_color?: string | null
+          content?: Json | null
+          created_at?: string | null
+          custom_styles?: Json | null
+          id?: string
+          is_enabled?: boolean | null
+          is_locked?: boolean | null
+          order_index?: number
+          presentation_id?: string
+          slide_type?: string
+          subtitle?: string | null
+          text_color?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_presentation"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "guideline_presentations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guideline_slides_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "guideline_presentations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_answers: {
         Row: {
           answers: Json

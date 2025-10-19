@@ -4,4 +4,8 @@ export { BrandEditor } from './components/BrandEditor';
 export { BrandNavbar } from './components/BrandNavbar';
 export { BrandSidebar } from './components/BrandSidebar';
 export { BrandLayout } from './components/BrandLayout';
+export { AppShellCanvaLayout } from './components/AppShellCanvaLayout';
+export { CanvaSidebar } from './components/CanvaSidebar';
+export { CanvaTopBar } from './components/CanvaTopBar';
+export { CanvasCard } from './components/CanvasCard';
 export { useBrandPreview } from './hooks/useBrandPreview';

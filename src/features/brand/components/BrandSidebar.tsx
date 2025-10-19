@@ -20,7 +20,8 @@ import {
   Folder,
   Briefcase,
   PenTool,
-  Edit
+  Edit,
+  Presentation
 } from 'lucide-react';
 
 const brandNavItems = [
@@ -47,6 +48,12 @@ const brandNavItems = [
     url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
     description: "Brand guidelines"
+  },
+  {
+    title: "Canvas Editor",
+    url: "/dashboard/brand/:slug/guidelines/canvas",
+    icon: Presentation,
+    description: "Canvas-style guidelines editor"
   },
   {
     title: "Assets",
