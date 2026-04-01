@@ -1,6 +1,9 @@
 import { ComponentType } from 'react';
 import { ColorPaletteTool } from './tools/ColorPaletteTool';
 import { LogoTool } from './tools/LogoTool';
+import { BusinessCardTool } from './tools/BusinessCardTool';
+import { LetterheadTool } from './tools/LetterheadTool';
+import { SocialMediaTool } from './tools/SocialMediaTool';
 
 export interface EditorTool {
   id: string;
@@ -40,6 +43,24 @@ export const editorRegistry: {
       name: 'Logo Management',
       icon: 'Image',
       component: LogoTool,
+    },
+    'business-cards': {
+      id: 'business-cards',
+      name: 'Business Cards',
+      icon: 'CreditCard',
+      component: BusinessCardTool,
+    },
+    'letterhead': {
+      id: 'letterhead',
+      name: 'Letterhead',
+      icon: 'FileText',
+      component: LetterheadTool,
+    },
+    'social-media': {
+      id: 'social-media',
+      name: 'Social Media Kit',
+      icon: 'Share2',
+      component: SocialMediaTool,
     },
   },
   modules: {},

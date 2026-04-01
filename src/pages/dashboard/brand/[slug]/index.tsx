@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container } from '@/shared/ui/Container';
 import { Button } from '@/shared/ui/Button';
 import { BrandLayout } from '@/features/brand';
+import { TeamPanel } from '@/features/collaboration';
 
 export default function BrandHomePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -75,6 +76,11 @@ export default function BrandHomePage() {
                 View Guidelines
               </Button>
             </div>
+          </div>
+
+          {/* Team Collaboration */}
+          <div className="mt-8">
+            <TeamPanel brandId={slug ?? ''} brandName={`Brand ${slug}`} />
           </div>
         </div>
       </Container>

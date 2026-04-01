@@ -38,19 +38,22 @@ supabase.auth.onAuthStateChange((event, session) => {
 export function createServices(): Services {
   return {
     get brands(): BrandsService {
+      // Dev mode: always use localStorage (no Supabase connection)
+      if (import.meta.env.DEV) return new LocalBrandsService();
+
       const { mode, isAuthenticated } = useSessionStore.getState();
-      
+
       // Guest mode always uses local storage
       if (mode === 'guest') {
         return new LocalBrandsService();
       }
-      
+
       // For user mode (real authentication), always use Supabase
       if (mode === 'user' && isAuthenticated) {
         return new SupabaseBrandsService();
       }
-      
-      // Fallback to local storage (dev mode or not authenticated)
+
+      // Fallback to local storage
       return new LocalBrandsService();
     }
   };

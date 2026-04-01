@@ -49,12 +49,26 @@ export const useAuth = () => {
     // Get initial session
     const getInitialSession = async () => {
       if (!isMounted) return;
-      
+
+      // Dev mode: auto-login with mock user (no Supabase needed)
+      if (import.meta.env.DEV) {
+        signIn({
+          id: 'dev-user-1',
+          email: 'dev@brandos.com',
+          name: 'Dev User',
+          plan: 'free',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (!isMounted) return;
-        
+
         if (session?.user) {
           const mappedUser = mapSupabaseUser(session.user);
           signIn(mappedUser);
