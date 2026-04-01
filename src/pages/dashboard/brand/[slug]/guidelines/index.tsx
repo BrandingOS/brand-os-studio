@@ -6,8 +6,9 @@ import { Button } from '@/shared/ui/Button';
 import { GuidelinesEditor } from '@/features/guidelines';
 import { InteractiveGuidelinesEditor } from '@/features/guidelines/components/InteractiveGuidelinesEditor';
 import { BrandGuidelinePage } from '@/features/guidelines/components/BrandGuidelinePage';
+import { GuidelineWithEditor } from '@/features/guidelines/components/GuidelineWithEditor';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
-import { FileText, Edit, Download, Share2, ArrowLeft, BookOpen } from 'lucide-react';
+import { FileText, Edit, Download, Share2, ArrowLeft, BookOpen, PanelRightOpen } from 'lucide-react';
 
 const GUIDELINE_DOCS = [
   { id: 'brand-strategy', name: 'Brand Strategy', description: 'Core brand positioning and values' },
@@ -22,7 +23,7 @@ export default function GuidelinesHubPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
-  const [viewMode, setViewMode] = useState<'guidelines' | 'editor'>('guidelines');
+  const [viewMode, setViewMode] = useState<'guidelines' | 'editor' | 'split'>('split');
 
   // Default to editor unless 'hub' param is present
   const urlParams = new URLSearchParams(window.location.search);
@@ -66,6 +67,17 @@ export default function GuidelinesHubPage() {
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-2">
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
               <button
+                onClick={() => setViewMode('split')}
+                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  viewMode === 'split'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <PanelRightOpen className="w-4 h-4" />
+                Edit & Preview
+              </button>
+              <button
                 onClick={() => setViewMode('guidelines')}
                 className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
                   viewMode === 'guidelines'
@@ -74,7 +86,7 @@ export default function GuidelinesHubPage() {
                 }`}
               >
                 <BookOpen className="w-4 h-4" />
-                Guidelines
+                Preview
               </button>
               <button
                 onClick={() => setViewMode('editor')}
@@ -85,14 +97,16 @@ export default function GuidelinesHubPage() {
                 }`}
               >
                 <Edit className="w-4 h-4" />
-                Editor
+                Slide Editor
               </button>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        {viewMode === 'guidelines' && brand ? (
+        {viewMode === 'split' && brand ? (
+          <GuidelineWithEditor brand={brand} />
+        ) : viewMode === 'guidelines' && brand ? (
           <BrandGuidelinePage brand={brand} />
         ) : (
           <InteractiveGuidelinesEditor />
