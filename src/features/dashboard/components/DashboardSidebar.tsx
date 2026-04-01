@@ -1,5 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { NewBadge } from '@/components/ui/new-badge';
+import { useFeatureIndicatorStore } from '@/shared/store/featureIndicatorStore';
 import {
   Sidebar,
   SidebarContent,
@@ -30,25 +32,26 @@ const mainNavItems = [
     title: "Home",
     url: "/dashboard",
     icon: LayoutDashboard,
-    description: "Dashboard overview"
+    description: "Dashboard overview",
   },
   {
     title: "My Brands",
     url: "/dashboard/brands",
     icon: Building2,
-    description: "Manage your brands"
+    description: "Manage your brands",
   },
   {
     title: "Activity",
     url: "/dashboard/activity",
     icon: BarChart3,
-    description: "Recent activity"
+    description: "Recent activity",
   },
   {
     title: "Templates",
     url: "/dashboard/templates",
     icon: Folder,
-    description: "Design templates"
+    description: "Design templates",
+    featureId: "guidelines-templates",
   }
 ];
 
@@ -71,6 +74,7 @@ export function DashboardSidebar() {
   const { state } = useSidebar();
   const { user, isAdmin } = useAuth();
   const location = useLocation();
+  const markSeen = useFeatureIndicatorStore((s) => s.markSeen);
   const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => {
@@ -99,8 +103,15 @@ export function DashboardSidebar() {
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="h-12">
-                    <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
-                      <item.icon className="h-5 w-5 shrink-0" />
+                    <NavLink
+                      to={item.url}
+                      onClick={() => item.featureId && markSeen(item.featureId)}
+                      className={`${getNavClass(item.url)} relative flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                    >
+                      <div className="relative">
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {item.featureId && <NewBadge featureId={item.featureId} />}
+                      </div>
                       {!collapsed && (
                         <div className="flex flex-col">
                           <span className="text-sm">{item.title}</span>
