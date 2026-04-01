@@ -14,6 +14,9 @@ export interface Brand {
   strategy?: string;
   guidelines?: BrandGuidelines;
   assets: Asset[];
+  isPublic?: boolean;
+  publicUrl?: string;
+  customDomain?: string;
   createdAt: Date;
   updatedAt: Date;
 }

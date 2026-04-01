@@ -25,7 +25,9 @@ import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleI
 import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
 import CanvasGuidelinesPage from "./pages/dashboard/brand/[slug]/guidelines/canvas";
 import AccountSettingsPage from "./pages/settings/account";
+import PlansPage from "./pages/settings/plans";
 import BrandDetailPage from "./app/brand/[slug]/page";
+import BrandShowcasePage from "./pages/brand/[slug]/showcase";
 import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
 
@@ -108,7 +110,13 @@ const App = () => (
               <AccountSettingsPage />
             </ProtectedRoute>
           } />
+          <Route path="/settings/plans" element={
+            <ProtectedRoute>
+              <PlansPage />
+            </ProtectedRoute>
+          } />
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
+          <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
           </Routes>

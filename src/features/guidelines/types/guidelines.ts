@@ -3,7 +3,7 @@ export interface GuidelineTemplate {
   name: string;
   description: string;
   preview: string;
-  category: 'minimal' | 'corporate' | 'creative' | 'modern';
+  category: 'minimal' | 'corporate' | 'creative' | 'modern' | 'Creative' | 'Professional';
 }
 
 export interface GuidelineSettings {

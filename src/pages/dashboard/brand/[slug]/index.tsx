@@ -1,12 +1,27 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Container } from '@/shared/ui/Container';
 import { Button } from '@/shared/ui/Button';
 import { BrandLayout } from '@/features/brand';
 import { TeamPanel } from '@/features/collaboration';
+import { SharePanel } from '@/features/brand/components/SharePanel';
+import { brandsService } from '@/features/brand/services/brands.local';
+import type { Brand } from '@/shared/types/brand';
 
 export default function BrandHomePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [brand, setBrand] = useState<Brand | null>(null);
+
+  useEffect(() => {
+    if (!slug) return;
+    brandsService.getBySlug(slug).then(setBrand);
+  }, [slug]);
+
+  const handleBrandUpdate = (patch: Partial<Brand>) => {
+    if (!brand) return;
+    brandsService.update(brand.id, patch).then(setBrand);
+  };
 
   return (
     <BrandLayout>
@@ -78,9 +93,16 @@ export default function BrandHomePage() {
             </div>
           </div>
 
+          {/* Share & Visibility */}
+          {brand && (
+            <div className="mt-8">
+              <SharePanel brand={brand} onUpdate={handleBrandUpdate} />
+            </div>
+          )}
+
           {/* Team Collaboration */}
           <div className="mt-8">
-            <TeamPanel brandId={slug ?? ''} brandName={`Brand ${slug}`} />
+            <TeamPanel brandId={slug ?? ''} brandName={brand?.name ?? `Brand ${slug}`} />
           </div>
         </div>
       </Container>
