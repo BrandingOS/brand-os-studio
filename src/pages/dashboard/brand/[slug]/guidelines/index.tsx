@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container } from '@/shared/ui/Container';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { GuidelinesEditor } from '@/features/guidelines';
 import { InteractiveGuidelinesEditor } from '@/features/guidelines/components/InteractiveGuidelinesEditor';
+import { BrandGuidelinePage } from '@/features/guidelines/components/BrandGuidelinePage';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
-import { FileText, Edit, Download, Share2, ArrowLeft } from 'lucide-react';
+import { FileText, Edit, Download, Share2, ArrowLeft, BookOpen } from 'lucide-react';
 
 const GUIDELINE_DOCS = [
   { id: 'brand-strategy', name: 'Brand Strategy', description: 'Core brand positioning and values' },
@@ -20,6 +22,7 @@ export default function GuidelinesHubPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
+  const [viewMode, setViewMode] = useState<'guidelines' | 'editor'>('guidelines');
 
   // Default to editor unless 'hub' param is present
   const urlParams = new URLSearchParams(window.location.search);
@@ -56,7 +59,46 @@ export default function GuidelinesHubPage() {
   }
 
   if (!showHub) {
-    return <InteractiveGuidelinesEditor />;
+    return (
+      <div className="min-h-screen">
+        {/* View toggle */}
+        <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+              <button
+                onClick={() => setViewMode('guidelines')}
+                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  viewMode === 'guidelines'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                Guidelines
+              </button>
+              <button
+                onClick={() => setViewMode('editor')}
+                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-all duration-200 ${
+                  viewMode === 'editor'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Edit className="w-4 h-4" />
+                Editor
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        {viewMode === 'guidelines' && brand ? (
+          <BrandGuidelinePage brand={brand} />
+        ) : (
+          <InteractiveGuidelinesEditor />
+        )}
+      </div>
+    );
   }
 
   return (
