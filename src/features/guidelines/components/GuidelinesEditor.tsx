@@ -12,8 +12,8 @@ import { demoBrandIdentity } from '@/data/demo';
 import { BrandLayout } from '@/features/brand';
 
 export const GuidelinesEditor: React.FC = () => {
-  const { brandId } = useParams<{ brandId: string }>();
-const { current: brand, isLoading, loadById } = useBrandStore();
+  const { slug } = useParams<{ slug: string }>();
+const { current: brand, isLoading, loadBySlug } = useBrandStore();
 const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStore();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -21,14 +21,14 @@ const { activePanel, setCurrentSlide, slides, currentSlide } = useGuidelinesStor
 
   // Load brand data
   useEffect(() => {
-    if (brandId && brandId !== brand?.id) {
-      if (brandId === '550e8400-e29b-41d4-a716-446655440000') {
+    if (slug && slug !== brand?.slug) {
+      if (slug === '550e8400-e29b-41d4-a716-446655440000') {
         useBrandStore.getState().setCurrent(demoBrandIdentity);
       } else {
-        loadById(brandId);
+        loadBySlug(slug);
       }
     }
-  }, [brandId, brand?.id, loadById]);
+  }, [slug, brand?.slug, loadBySlug]);
 
   // Initialize slides when brand is loaded
   useEffect(() => {

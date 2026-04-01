@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { BrandEditor } from './BrandEditor';
+import { exportAsPDF, exportAsZIP } from '@/shared/services/exportService';
 import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
-import { ArrowLeft, Edit, Plus, Download, ExternalLink, Upload, Settings, FileText, Palette, Type } from 'lucide-react';
+import { ArrowLeft, Edit, Plus, Download, ExternalLink, Upload, Settings, FileText, Palette, Type, Loader2 } from 'lucide-react';
 
 interface BrandDetailsProps {
   brandSlug: string;
@@ -275,6 +277,26 @@ function AssetsTab({ brand }: { brand: any }) {
 }
 
 function ExportTab({ brand }: { brand: any }) {
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+
+  const handleExport = async (format: string) => {
+    setIsExporting(format);
+    try {
+      if (format === 'PDF') {
+        await exportAsPDF(brand, [], {});
+        toast.success('Brand Guidelines PDF exported successfully');
+      } else {
+        await exportAsZIP(brand, [], {});
+        toast.success(`${format === 'ZIP' ? 'Assets Package' : 'Web Brand Kit'} exported successfully`);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
   const exportOptions = [
     {
       title: 'Brand Guidelines PDF',
@@ -300,14 +322,25 @@ function ExportTab({ brand }: { brand: any }) {
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {exportOptions.map((option) => {
         const Icon = option.icon;
+        const exporting = isExporting === option.format;
         return (
           <Card key={option.title} className="text-center">
             <Icon className="h-12 w-12 text-primary mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">{option.title}</h3>
             <p className="text-sm text-muted-foreground mb-4">{option.description}</p>
-            <Button className="w-full" disabled>
-              Export {option.format}
-              <span className="ml-2 text-xs">(Coming Soon)</span>
+            <Button
+              className="w-full"
+              disabled={!!isExporting}
+              onClick={() => handleExport(option.format)}
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>Export {option.format}</>
+              )}
             </Button>
           </Card>
         );

@@ -4,7 +4,8 @@ import { Card } from '@/shared/ui/Card';
 import { Button } from '@/shared/ui/Button';
 import { GuidelinesEditor } from '@/features/guidelines';
 import { InteractiveGuidelinesEditor } from '@/features/guidelines/components/InteractiveGuidelinesEditor';
-import { FileText, Edit, Download, Share2 } from 'lucide-react';
+import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { FileText, Edit, Download, Share2, ArrowLeft } from 'lucide-react';
 
 const GUIDELINE_DOCS = [
   { id: 'brand-strategy', name: 'Brand Strategy', description: 'Core brand positioning and values' },
@@ -18,10 +19,41 @@ const GUIDELINE_DOCS = [
 export default function GuidelinesHubPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { brand, isLoading, error } = useBrandBySlug(slug);
 
   // Default to editor unless 'hub' param is present
   const urlParams = new URLSearchParams(window.location.search);
   const showHub = urlParams.get('hub') === 'true';
+
+  if (isLoading) {
+    return (
+      <Container className="py-8">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading guidelines...</p>
+          </div>
+        </div>
+      </Container>
+    );
+  }
+
+  if (error || !brand) {
+    return (
+      <Container className="py-8">
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Brand Not Found</h3>
+            <p className="text-muted-foreground mb-4">{error || 'The requested brand could not be found.'}</p>
+            <Button onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </Container>
+    );
+  }
 
   if (!showHub) {
     return <InteractiveGuidelinesEditor />;

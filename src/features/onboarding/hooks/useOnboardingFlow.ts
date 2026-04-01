@@ -88,7 +88,7 @@ export function useOnboardingFlow() {
       
       // Navigate to dashboard after successful creation
       setTimeout(() => {
-        navigate('/dashboard');
+        navigate(`/dashboard/brand/${brand.slug}`);
       }, 100);
     } catch (error) {
       console.error('Failed to create brand:', error);
