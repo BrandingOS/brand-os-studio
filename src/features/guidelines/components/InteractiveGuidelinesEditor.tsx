@@ -13,6 +13,7 @@ import { Loader2, Download, Eye, Settings, Wand2, Plus } from 'lucide-react';
 import { demoBrandIdentity } from '@/data/demo';
 import { BrandLayout } from '@/features/brand';
 import { toast } from 'sonner';
+import { exportAsPDF, exportAsZIP } from '@/shared/services/exportService';
 
 export const InteractiveGuidelinesEditor: React.FC = () => {
   const { brandId } = useParams<{ brandId: string }>();
@@ -151,9 +152,38 @@ export const InteractiveGuidelinesEditor: React.FC = () => {
     }
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
   const handleExport = async (format: 'pdf' | 'web' | 'pptx') => {
-    toast.success(`Exporting guidelines as ${format.toUpperCase()}...`);
-    // TODO: Implement actual export functionality
+    if (!brand || isExporting) return;
+
+    const { settings } = useGuidelinesStore.getState();
+    const enabledSlides = slides.filter((s) => s.enabled);
+
+    if (enabledSlides.length === 0) {
+      toast.error('No slides are enabled for export.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      if (format === 'pdf') {
+        toast.loading('Generating PDF...', { id: 'export' });
+        await exportAsPDF(brand, enabledSlides, settings);
+        toast.success('PDF downloaded successfully!', { id: 'export' });
+      } else if (format === 'web') {
+        toast.loading('Generating brand kit ZIP...', { id: 'export' });
+        await exportAsZIP(brand, enabledSlides, settings);
+        toast.success('Brand kit ZIP downloaded successfully!', { id: 'export' });
+      } else {
+        toast.info(`Export as ${format.toUpperCase()} is not yet supported.`);
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Export failed. Please try again.', { id: 'export' });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -207,26 +237,29 @@ export const InteractiveGuidelinesEditor: React.FC = () => {
           <div className="p-6 space-y-4">
             <h3 className="text-lg font-semibold mb-4">Export Guidelines</h3>
             <div className="space-y-3">
-              <Button 
-                onClick={() => handleExport('pdf')} 
+              <Button
+                onClick={() => handleExport('pdf')}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={isExporting}
               >
-                <Download className="w-4 h-4 mr-2" />
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
                 Export as PDF
               </Button>
-              <Button 
-                onClick={() => handleExport('web')} 
+              <Button
+                onClick={() => handleExport('web')}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={isExporting}
               >
-                <Eye className="w-4 h-4 mr-2" />
-                Generate Web Version
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                Download Brand Kit (ZIP)
               </Button>
-              <Button 
-                onClick={() => handleExport('pptx')} 
+              <Button
+                onClick={() => handleExport('pptx')}
                 className="w-full justify-start"
                 variant="outline"
+                disabled={isExporting}
               >
                 <Download className="w-4 h-4 mr-2" />
                 Export as PowerPoint

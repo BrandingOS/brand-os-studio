@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import type { Brand } from '@/shared/types/brand';
 import type { GuidelineSlide } from '../types/guidelines';
-import { Wand2, Loader2, RefreshCw, Lightbulb, MessageSquare, Palette, Type } from 'lucide-react';
+import { Wand2, Loader2, RefreshCw, Lightbulb, MessageSquare, Palette, Type, Zap, CircleDashed } from 'lucide-react';
 import { toast } from 'sonner';
+import { aiService } from '@/shared/services/aiService';
 
 interface AIContentGeneratorProps {
   brand: Brand;
@@ -63,6 +64,7 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedOptions, setGeneratedOptions] = useState<string[]>([]);
+  const [lastGenerationWasAI, setLastGenerationWasAI] = useState<boolean | null>(null);
 
   const availableTools = AI_TOOLS.filter(tool => 
     !currentSlide || tool.slideTypes.includes(currentSlide.type)
@@ -76,12 +78,25 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
 
     setIsGenerating(true);
     try {
-      // Simulate AI generation - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockOptions = generateMockContent(selectedTool, prompt, brand);
-      setGeneratedOptions(mockOptions);
-      toast.success('Content generated successfully!');
+      const result = await aiService.generateContent({
+        tool: selectedTool,
+        prompt: prompt.trim(),
+        brand: {
+          name: brand.name,
+          tone: brand.tone,
+          audience: brand.audience,
+          primaryColor: brand.primaryColor,
+          fonts: brand.fonts,
+        },
+      });
+
+      setGeneratedOptions(result.options);
+      setLastGenerationWasAI(result.isAI);
+      toast.success(
+        result.isAI
+          ? 'Content generated with AI!'
+          : 'Sample content generated (set VITE_ANTHROPIC_API_KEY for AI)'
+      );
     } catch (error) {
       toast.error('Failed to generate content');
     } finally {
@@ -94,51 +109,23 @@ export const AIContentGenerator: React.FC<AIContentGeneratorProps> = ({
     toast.success('Content applied to guideline');
   };
 
-  const generateMockContent = (tool: string, prompt: string, brand: Brand): string[] => {
-    switch (tool) {
-      case 'slogan':
-        return [
-          `${brand.name}: Where Innovation Meets Excellence`,
-          `${brand.name} - Crafting Tomorrow's Solutions Today`,
-          `Experience the ${brand.name} Difference`,
-          `${brand.name}: Redefining Possibilities`,
-          `Beyond Expectations, Beyond ${brand.name}`
-        ];
-      case 'mission':
-        return [
-          `To empower businesses and individuals through innovative solutions that drive meaningful change and create lasting value in our communities.`,
-          `We exist to transform challenges into opportunities, delivering exceptional experiences that inspire growth and foster connection.`,
-          `Our mission is to lead with purpose, creating products and services that enhance lives and build a more sustainable future.`
-        ];
-      case 'voice':
-        return [
-          'Professional yet approachable, confident but not arrogant. We speak with clarity and warmth.',
-          'Innovative and forward-thinking, with a human touch. Our voice is inspiring and trustworthy.',
-          'Friendly, knowledgeable, and empowering. We communicate with enthusiasm and authenticity.'
-        ];
-      case 'color-analysis':
-        return [
-          `${brand.primaryColor || '#000000'} conveys trust and professionalism, perfect for building confidence.`,
-          `The color palette creates a sense of innovation and reliability, ideal for modern brands.`,
-          `These colors evoke feelings of growth, stability, and forward-thinking leadership.`
-        ];
-      case 'typography':
-        return [
-          `${brand.fonts?.primary || 'Inter'} pairs beautifully with modern serif fonts for elegant contrast.`,
-          `Consider pairing with Source Sans Pro for optimal readability and professional appeal.`,
-          `This font family works excellently with geometric sans-serifs for a contemporary look.`
-        ];
-      default:
-        return ['Generated content will appear here'];
-    }
-  };
-
   const selectedToolData = AI_TOOLS.find(tool => tool.id === selectedTool);
 
   return (
     <div className="p-6 space-y-6 h-full overflow-y-auto">
       <div>
-        <h3 className="text-lg font-semibold mb-2">AI Content Generator</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold mb-2">AI Content Generator</h3>
+          {lastGenerationWasAI !== null && (
+            <Badge variant={lastGenerationWasAI ? 'default' : 'secondary'} className="flex items-center gap-1 text-xs">
+              {lastGenerationWasAI ? (
+                <><Zap className="w-3 h-3" /> AI</>
+              ) : (
+                <><CircleDashed className="w-3 h-3" /> Mock</>
+              )}
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           Use AI to generate and refine your brand content
         </p>
