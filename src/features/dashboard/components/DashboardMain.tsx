@@ -156,7 +156,7 @@ export function DashboardMain() {
                 </p>
               </div>
               <Button 
-                onClick={() => window.open(`/editor/design/${brands[0].id}`, '_blank')}
+                onClick={() => window.location.href = `/editor/design/${brands[0].id}`}
                 className="flex items-center gap-2"
                 size="lg"
               >
@@ -246,7 +246,7 @@ export function DashboardMain() {
                         size="sm" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.open(`/editor/design/${brand.id}`, '_blank');
+                          window.location.href = `/editor/design/${brand.id}`;
                         }}
                         className="text-xs"
                       >

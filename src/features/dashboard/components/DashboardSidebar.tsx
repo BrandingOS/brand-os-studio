@@ -85,9 +85,9 @@ export function DashboardSidebar() {
   };
 
   const getNavClass = (path: string) => {
-    return isActive(path) 
-      ? "bg-primary/10 text-primary font-medium border-r-2 border-primary" 
-      : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
+    return isActive(path)
+      ? "bg-primary/10 text-primary dark:text-foreground font-medium border-r-2 border-primary"
+      : "hover:bg-muted/50 text-muted-foreground dark:text-muted-foreground hover:text-foreground";
   };
 
   return (

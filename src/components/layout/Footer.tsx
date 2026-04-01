@@ -59,7 +59,7 @@ export default function Footer() {
                   <li>
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
+                      href="/dashboard"
                     >
                       Overview
                     </a>
@@ -67,7 +67,7 @@ export default function Footer() {
                   <li>
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
+                      href="/dashboard"
                     >
                       Guidelines
                     </a>
@@ -75,7 +75,7 @@ export default function Footer() {
                   <li>
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
+                      href="/dashboard"
                     >
                       Design Studio
                     </a>
@@ -90,6 +90,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       Blog
                     </a>
@@ -98,6 +100,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       Help Center
                     </a>
@@ -106,6 +110,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       API
                     </a>
@@ -120,6 +126,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       About
                     </a>
@@ -128,6 +136,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       Careers
                     </a>
@@ -136,6 +146,8 @@ export default function Footer() {
                     <a
                       className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
                       href="#"
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       Contact
                     </a>
