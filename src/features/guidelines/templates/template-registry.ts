@@ -1,5 +1,8 @@
 import type { GuidelineTemplate } from '../types/guidelines';
 import { MinimalTemplate } from './MinimalTemplate';
+import { CorporateTemplate } from './CorporateTemplate';
+import { CreativeTemplate } from './CreativeTemplate';
+import { ModernTemplate } from './ModernTemplate';
 
 export const GUIDELINE_TEMPLATES: GuidelineTemplate[] = [
   {
@@ -41,11 +44,11 @@ export const getTemplateComponent = (templateId: string) => {
     case 'minimal':
       return MinimalTemplate;
     case 'corporate':
+      return CorporateTemplate;
     case 'creative':
+      return CreativeTemplate;
     case 'modern':
-      // For now, return MinimalTemplate for all templates
-      // TODO: Implement other templates
-      return MinimalTemplate;
+      return ModernTemplate;
     default:
       return MinimalTemplate;
   }

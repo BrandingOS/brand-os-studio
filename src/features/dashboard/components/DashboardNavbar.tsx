@@ -6,19 +6,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { 
-  Search, 
-  Bell, 
-  Settings, 
-  HelpCircle, 
+import {
+  Search,
+  Bell,
+  Settings,
+  HelpCircle,
   Sparkles,
-  Command
+  Command,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 export function DashboardNavbar() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const isAdmin = user?.email === 'hamza2007ezzat@gmail.com';
+  const { theme, setTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -67,6 +70,11 @@ export function DashboardNavbar() {
           {/* Mobile Search */}
           <Button variant="ghost" size="sm" className="md:hidden">
             <Search className="h-4 w-4" />
+          </Button>
+
+          {/* Dark Mode Toggle */}
+          <Button variant="ghost" size="sm" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
 
           {/* Notifications */}

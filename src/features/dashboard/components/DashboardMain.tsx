@@ -94,7 +94,7 @@ export function DashboardMain() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Guidelines</p>
-              <p className="text-2xl font-bold">{brands.length * 2}</p>
+              <p className="text-2xl font-bold">{brands.length}</p>
             </div>
             <FileText className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -103,7 +103,7 @@ export function DashboardMain() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Assets</p>
-              <p className="text-2xl font-bold">{brands.length * 12}</p>
+              <p className="text-2xl font-bold">{brands.reduce((sum, b) => sum + (b.assets?.length || 0), 0)}</p>
             </div>
             <Palette className="h-8 w-8 text-muted-foreground" />
           </div>

@@ -69,9 +69,8 @@ const adminItems = [
 
 export function DashboardSidebar() {
   const { state } = useSidebar();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const location = useLocation();
-  const isAdmin = user?.email === 'hamza2007ezzat@gmail.com';
   const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => {

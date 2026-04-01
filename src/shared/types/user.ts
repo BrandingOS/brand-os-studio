@@ -3,6 +3,7 @@ export interface User {
   email: string;
   name: string;
   avatar?: string;
+  role?: 'admin' | 'user';
   plan: 'free' | 'pro' | 'enterprise';
   createdAt: Date;
   updatedAt: Date;

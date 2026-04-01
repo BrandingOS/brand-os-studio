@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { StepDef, OnboardingState } from '../types/onboarding';
-import { demoOnboardingAnswers } from '@/data/demo';
 import { onboardingService } from '@/shared/services/onboarding.supabase';
 import { useSessionStore } from './sessionStore';
 
@@ -73,7 +72,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       (set, get) => ({
       steps: DEFAULT_STEPS,
       currentStepIndex: 0,
-      answers: demoOnboardingAnswers, // Pre-fill with demo data
+      answers: {},
       skippedSteps: new Set(),
       isComplete: false,
       dynamicSteps: true,

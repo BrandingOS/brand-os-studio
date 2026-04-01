@@ -4,6 +4,8 @@ import { LogoTool } from './tools/LogoTool';
 import { BusinessCardTool } from './tools/BusinessCardTool';
 import { LetterheadTool } from './tools/LetterheadTool';
 import { SocialMediaTool } from './tools/SocialMediaTool';
+import { FontTool } from './tools/FontTool';
+import { BrandInfoTool } from './tools/BrandInfoTool';
 
 export interface EditorTool {
   id: string;
@@ -61,6 +63,18 @@ export const editorRegistry: {
       name: 'Social Media Kit',
       icon: 'Share2',
       component: SocialMediaTool,
+    },
+    'fonts': {
+      id: 'fonts',
+      name: 'Typography',
+      icon: 'Type',
+      component: FontTool,
+    },
+    'brand-info': {
+      id: 'brand-info',
+      name: 'Brand Strategy',
+      icon: 'FileText',
+      component: BrandInfoTool,
     },
   },
   modules: {},
