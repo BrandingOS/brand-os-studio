@@ -3,7 +3,7 @@ import { Palette, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 
 interface ColorPaletteToolProps {
@@ -15,6 +15,8 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [newColor, setNewColor] = useState('#000000');
 
+  const isValidHex = (color: string) => /^#([0-9A-Fa-f]{3}){1,2}$/.test(color);
+
   useEffect(() => {
     loadBrand();
   }, [brandId]);
@@ -22,7 +24,7 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      const brandData = await brandsService.getById(brandId);
+      const brandData = await services.brands.getById(brandId);
       setBrand(brandData);
     } catch (error) {
       console.error('Failed to load brand:', error);
@@ -32,10 +34,10 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   };
 
   const updatePrimaryColor = async (color: string) => {
-    if (!brand) return;
-    
+    if (!brand || !isValidHex(color)) return;
+
     try {
-      const updatedBrand = await brandsService.update(brandId, {
+      const updatedBrand = await services.brands.update(brandId, {
         primaryColor: color
       });
       setBrand(updatedBrand);
@@ -45,10 +47,10 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   };
 
   const updateSecondaryColor = async (color: string) => {
-    if (!brand) return;
-    
+    if (!brand || !isValidHex(color)) return;
+
     try {
-      const updatedBrand = await brandsService.update(brandId, {
+      const updatedBrand = await services.brands.update(brandId, {
         secondaryColor: color
       });
       setBrand(updatedBrand);

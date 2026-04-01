@@ -200,6 +200,9 @@ class BrandServiceSupabase implements BrandService {
 
 // Service factory
 export function getBrandService(): BrandService {
+  // In dev mode, always use local service (no Supabase connection)
+  if (import.meta.env.DEV) return new BrandServiceGuest();
+
   const { mode } = useSessionStore.getState();
   return mode === 'guest' ? new BrandServiceGuest() : new BrandServiceSupabase();
 }

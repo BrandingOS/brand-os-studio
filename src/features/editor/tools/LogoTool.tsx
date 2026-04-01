@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Image, Upload, Trash2, Download } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 
 interface LogoToolProps {
@@ -21,7 +21,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      const brandData = await brandsService.getById(brandId);
+      const brandData = await services.brands.getById(brandId);
       setBrand(brandData);
     } catch (error) {
       console.error('Failed to load brand:', error);
@@ -30,16 +30,27 @@ export function LogoTool({ brandId }: LogoToolProps) {
     }
   };
 
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleFileUpload = async (file: File) => {
     if (!brand) return;
 
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      alert('Invalid file type. Please upload a PNG, JPG, SVG, or WebP image.');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert('File too large. Maximum size is 5MB.');
+      return;
+    }
+
     try {
-      // In a real app, you'd upload to a file service
-      // For demo, we'll use a data URL
       const reader = new FileReader();
       reader.onload = async (e) => {
         const dataUrl = e.target?.result as string;
-        const updatedBrand = await brandsService.update(brandId, {
+        const updatedBrand = await services.brands.update(brandId, {
           logo: dataUrl
         });
         setBrand(updatedBrand);
@@ -83,7 +94,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
     if (!brand) return;
     
     try {
-      const updatedBrand = await brandsService.update(brandId, {
+      const updatedBrand = await services.brands.update(brandId, {
         logo: undefined
       });
       setBrand(updatedBrand);
@@ -170,7 +181,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
           <input
             id="logo-upload"
             type="file"
-            accept="image/*"
+            accept=".png,.jpg,.jpeg,.svg,.webp"
             onChange={handleInputChange}
             className="hidden"
           />

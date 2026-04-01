@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BrandOS - Project Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e0e0e0; line-height: 1.5; }
+
+  .header { background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 40px; text-align: center; border-bottom: 2px solid #0f3460; }
+  .header h1 { font-size: 2.4rem; color: #fff; margin-bottom: 4px; }
+  .header .tag { color: #a78bfa; font-size: 1.1rem; font-weight: 300; }
+  .header .date { color: #888; font-size: 0.85rem; margin-top: 8px; }
+
+  .nav { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; padding: 16px 20px; background: #111; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 10; }
+  .nav a { color: #aaa; text-decoration: none; padding: 6px 14px; border-radius: 6px; font-size: 0.82rem; transition: all 0.2s; }
+  .nav a:hover { background: #1a1a2e; color: #a78bfa; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+
+  .section-title { font-size: 1.3rem; color: #a78bfa; margin: 40px 0 20px; padding-bottom: 8px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px; }
+  .section-title:first-of-type { margin-top: 0; }
+
+  /* Score Cards */
+  .scores { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .score-card { background: #141420; border: 1px solid #222; border-radius: 12px; padding: 20px; text-align: center; }
+  .score-card .value { font-size: 2.2rem; font-weight: 700; margin: 8px 0 4px; }
+  .score-card .label { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .score-card.red .value { color: #ef4444; }
+  .score-card.yellow .value { color: #f59e0b; }
+  .score-card.green .value { color: #22c55e; }
+  .score-card.purple .value { color: #a78bfa; }
+  .score-card.blue .value { color: #3b82f6; }
+
+  /* Feature Matrix */
+  .feature-grid { display: grid; gap: 10px; }
+  .feature-row { display: grid; grid-template-columns: 200px 100px 1fr 100px; align-items: center; background: #141420; border: 1px solid #1e1e30; border-radius: 8px; padding: 12px 16px; font-size: 0.88rem; }
+  .feature-row.header { background: #1a1a2e; color: #a78bfa; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 1px; }
+  .status { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; display: inline-block; text-align: center; }
+  .status.done { background: #052e16; color: #22c55e; }
+  .status.partial { background: #1c1917; color: #f59e0b; }
+  .status.missing { background: #1c0a0a; color: #ef4444; }
+  .status.stub { background: #1a1a2e; color: #6366f1; }
+  .bar-bg { background: #1e1e30; border-radius: 6px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width 1s ease; }
+  .bar-fill.green { background: linear-gradient(90deg, #22c55e, #16a34a); }
+  .bar-fill.yellow { background: linear-gradient(90deg, #f59e0b, #d97706); }
+  .bar-fill.red { background: linear-gradient(90deg, #ef4444, #dc2626); }
+  .pct { font-size: 0.78rem; color: #888; text-align: right; }
+
+  /* Security */
+  .security-list { display: grid; gap: 8px; }
+  .sec-item { display: grid; grid-template-columns: 36px 90px 1fr auto; align-items: center; gap: 12px; background: #141420; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; border-left: 3px solid transparent; }
+  .sec-item.critical { border-left-color: #ef4444; }
+  .sec-item.high { border-left-color: #f59e0b; }
+  .sec-item.medium { border-left-color: #3b82f6; }
+  .sec-item .num { color: #555; font-weight: 700; font-size: 0.8rem; }
+  .sev { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+  .sev.critical { background: #450a0a; color: #ef4444; }
+  .sev.high { background: #451a03; color: #f59e0b; }
+  .sev.medium { background: #0c1a3d; color: #3b82f6; }
+  .sec-file { color: #666; font-size: 0.75rem; font-family: monospace; }
+
+  /* Architecture Diagram */
+  .arch-diagram { background: #141420; border: 1px solid #222; border-radius: 12px; padding: 30px; text-align: center; overflow-x: auto; }
+  .arch-row { display: flex; justify-content: center; gap: 12px; margin: 8px 0; flex-wrap: wrap; }
+  .arch-box { padding: 10px 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 500; min-width: 120px; }
+  .arch-box.frontend { background: #1e1b4b; color: #a78bfa; border: 1px solid #3730a3; }
+  .arch-box.state { background: #1a2e05; color: #84cc16; border: 1px solid #365314; }
+  .arch-box.service { background: #1c1917; color: #f59e0b; border: 1px solid #451a03; }
+  .arch-box.backend { background: #0c1a3d; color: #60a5fa; border: 1px solid #1e3a5f; }
+  .arch-box.external { background: #1a0a2e; color: #c084fc; border: 1px solid #3b0764; }
+  .arch-box.new { position: relative; }
+  .arch-box.new::after { content: 'NEW'; position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-size: 0.55rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; }
+  .arch-arrow { color: #333; font-size: 1.2rem; margin: 4px 0; }
+  .arch-label { color: #555; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; margin: 16px 0 6px; }
+
+  /* Roadmap */
+  .roadmap { position: relative; padding-left: 30px; }
+  .roadmap::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #222; }
+  .sprint { position: relative; margin-bottom: 20px; background: #141420; border: 1px solid #1e1e30; border-radius: 10px; padding: 16px 20px; }
+  .sprint::before { content: ''; position: absolute; left: -26px; top: 20px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #a78bfa; background: #0a0a0f; }
+  .sprint.mvp { border-color: #22c55e; }
+  .sprint.mvp::before { border-color: #22c55e; background: #22c55e; }
+  .sprint .s-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .sprint .s-name { font-weight: 700; color: #fff; font-size: 0.95rem; }
+  .sprint .s-time { color: #666; font-size: 0.78rem; }
+  .sprint .s-epic { color: #a78bfa; font-size: 0.8rem; margin-bottom: 4px; }
+  .sprint .s-items { color: #999; font-size: 0.82rem; }
+  .mvp-marker { background: #052e16; border: 1px solid #22c55e; color: #22c55e; border-radius: 10px; padding: 14px 20px; margin: 20px 0 20px; text-align: center; font-weight: 700; font-size: 1rem; }
+
+  /* Competitors */
+  .comp-grid { display: grid; gap: 12px; }
+  .comp-row { display: grid; grid-template-columns: 140px 80px 1fr; align-items: center; background: #141420; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; gap: 12px; }
+  .comp-row.header { background: #1a1a2e; color: #a78bfa; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  .threat { padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; text-align: center; }
+  .threat.high { background: #450a0a; color: #ef4444; }
+  .threat.medium { background: #451a03; color: #f59e0b; }
+  .threat.low { background: #0c1a3d; color: #60a5fa; }
+  .comp-why { color: #999; }
+
+  /* Positioning */
+  .pos-chart { background: #141420; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+  .pos-chart pre { color: #888; font-size: 0.78rem; line-height: 1.6; text-align: center; }
+  .pos-chart .highlight { color: #a78bfa; font-weight: 700; }
+
+  /* Pricing */
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .plan-card { background: #141420; border: 1px solid #222; border-radius: 12px; padding: 24px; text-align: center; }
+  .plan-card.featured { border-color: #a78bfa; }
+  .plan-card .plan-name { font-size: 1.1rem; font-weight: 700; color: #fff; }
+  .plan-card .plan-price { font-size: 2rem; font-weight: 700; color: #a78bfa; margin: 8px 0; }
+  .plan-card .plan-price span { font-size: 0.85rem; color: #666; font-weight: 400; }
+  .plan-card ul { list-style: none; text-align: left; margin-top: 16px; }
+  .plan-card li { padding: 4px 0; font-size: 0.82rem; color: #aaa; }
+  .plan-card li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+  .plan-card li.yes::before { background: #22c55e; }
+  .plan-card li.no::before { background: #ef4444; }
+  .plan-card li.limited::before { background: #f59e0b; }
+
+  /* Epics Summary */
+  .epics-grid { display: grid; gap: 10px; }
+  .epic-row { display: grid; grid-template-columns: 60px 1fr 60px 70px 100px; align-items: center; background: #141420; border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; gap: 10px; }
+  .epic-row.header { background: #1a1a2e; color: #a78bfa; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  .epic-id { color: #a78bfa; font-weight: 700; font-family: monospace; }
+  .priority { padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-align: center; }
+  .priority.p0 { background: #450a0a; color: #ef4444; }
+  .priority.p1 { background: #451a03; color: #f59e0b; }
+  .priority.p2 { background: #0c1a3d; color: #60a5fa; }
+  .est { color: #888; font-size: 0.78rem; text-align: right; }
+
+  /* Data model */
+  .db-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .db-table { background: #141420; border: 1px solid #222; border-radius: 8px; padding: 14px; }
+  .db-table.exists { border-color: #22c55e; }
+  .db-table.missing { border-color: #ef4444; border-style: dashed; }
+  .db-table .db-name { font-weight: 700; font-family: monospace; font-size: 0.85rem; margin-bottom: 4px; }
+  .db-table.exists .db-name { color: #22c55e; }
+  .db-table.missing .db-name { color: #ef4444; }
+  .db-table .db-desc { color: #888; font-size: 0.75rem; }
+  .db-table .db-badge { font-size: 0.6rem; padding: 1px 6px; border-radius: 3px; font-weight: 600; float: right; }
+  .db-table.exists .db-badge { background: #052e16; color: #22c55e; }
+  .db-table.missing .db-badge { background: #1c0a0a; color: #ef4444; }
+
+  /* Footer */
+  .footer { text-align: center; padding: 40px; color: #444; font-size: 0.75rem; border-top: 1px solid #1a1a1a; margin-top: 60px; }
+
+  @media (max-width: 768px) {
+    .feature-row { grid-template-columns: 1fr; gap: 6px; }
+    .feature-row.header { display: none; }
+    .comp-row { grid-template-columns: 1fr; gap: 4px; }
+    .epic-row { grid-template-columns: 1fr; gap: 4px; }
+    .sec-item { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>BrandOS</h1>
+  <div class="tag">The Operating System for Modern Brands</div>
+  <div class="date">Project Dashboard - March 31, 2026</div>
+</div>
+
+<nav class="nav">
+  <a href="#health">Health</a>
+  <a href="#features">Features</a>
+  <a href="#security">Security</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#data">Data Model</a>
+  <a href="#competitors">Competitors</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#epics">Epics</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<div class="container">
+
+  <!-- HEALTH SCORES -->
+  <h2 class="section-title" id="health">Project Health</h2>
+  <div class="scores">
+    <div class="score-card red">
+      <div class="label">BRD Completion</div>
+      <div class="value">25%</div>
+    </div>
+    <div class="score-card red">
+      <div class="label">Security Score</div>
+      <div class="value">3/10</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="label">Code Quality</div>
+      <div class="value">5/10</div>
+    </div>
+    <div class="score-card red">
+      <div class="label">Accessibility</div>
+      <div class="value">3/10</div>
+    </div>
+    <div class="score-card green">
+      <div class="label">UI/UX Polish</div>
+      <div class="value">7/10</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="label">Docs Coverage</div>
+      <div class="value">45%</div>
+    </div>
+    <div class="score-card red">
+      <div class="label">Test Coverage</div>
+      <div class="value">0%</div>
+    </div>
+    <div class="score-card purple">
+      <div class="label">Est. to MVP</div>
+      <div class="value">~8w</div>
+    </div>
+  </div>
+
+  <!-- FEATURE STATUS -->
+  <h2 class="section-title" id="features">Feature Status (BRD vs Built)</h2>
+  <div class="feature-grid">
+    <div class="feature-row header">
+      <div>Feature</div><div>Status</div><div>Progress</div><div></div>
+    </div>
+    <div class="feature-row"><div>Landing Page</div><div><span class="status done">Done</span></div><div><div class="bar-bg"><div class="bar-fill green" style="width:100%"></div></div></div><div class="pct">100%</div></div>
+    <div class="feature-row"><div>Auth System</div><div><span class="status done">Done</span></div><div><div class="bar-bg"><div class="bar-fill green" style="width:85%"></div></div></div><div class="pct">85%</div></div>
+    <div class="feature-row"><div>Onboarding Wizard</div><div><span class="status done">Done</span></div><div><div class="bar-bg"><div class="bar-fill green" style="width:100%"></div></div></div><div class="pct">100%</div></div>
+    <div class="feature-row"><div>Dashboard</div><div><span class="status partial">Partial</span></div><div><div class="bar-bg"><div class="bar-fill yellow" style="width:40%"></div></div></div><div class="pct">40%</div></div>
+    <div class="feature-row"><div>Brand Kit Editor</div><div><span class="status partial">Partial</span></div><div><div class="bar-bg"><div class="bar-fill yellow" style="width:30%"></div></div></div><div class="pct">30%</div></div>
+    <div class="feature-row"><div>Guidelines Editor</div><div><span class="status partial">Partial</span></div><div><div class="bar-bg"><div class="bar-fill yellow" style="width:35%"></div></div></div><div class="pct">35%</div></div>
+    <div class="feature-row"><div>Theme System</div><div><span class="status stub">Stub</span></div><div><div class="bar-bg"><div class="bar-fill yellow" style="width:10%"></div></div></div><div class="pct">10%</div></div>
+    <div class="feature-row"><div>WCAG Color Engine</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+    <div class="feature-row"><div>AI Assistance</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+    <div class="feature-row"><div>PDF/ZIP Exports</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+    <div class="feature-row"><div>Brand Applications</div><div><span class="status stub">Stub</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:5%"></div></div></div><div class="pct">5%</div></div>
+    <div class="feature-row"><div>Collaboration/Roles</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+    <div class="feature-row"><div>Public Showcase</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+    <div class="feature-row"><div>Plans & Billing</div><div><span class="status stub">Stub</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:5%"></div></div></div><div class="pct">5%</div></div>
+    <div class="feature-row"><div>Custom Domains</div><div><span class="status missing">Missing</span></div><div><div class="bar-bg"><div class="bar-fill red" style="width:0%"></div></div></div><div class="pct">0%</div></div>
+  </div>
+
+  <!-- SECURITY -->
+  <h2 class="section-title" id="security">Security Issues (Fix Before Launch)</h2>
+  <div class="security-list">
+    <div class="sec-item critical"><div class="num">S1</div><div><span class="sev critical">Critical</span></div><div>.env committed to git, not in .gitignore</div><div class="sec-file">.env</div></div>
+    <div class="sec-item critical"><div class="num">S2</div><div><span class="sev critical">Critical</span></div><div>Hardcoded admin auto-creation (admin123 password) on every app start</div><div class="sec-file">createAdminUser.ts</div></div>
+    <div class="sec-item critical"><div class="num">S3</div><div><span class="sev critical">Critical</span></div><div>Supabase URL + key hardcoded in source code</div><div class="sec-file">supabase/client.ts</div></div>
+    <div class="sec-item high"><div class="num">S4</div><div><span class="sev high">High</span></div><div>Admin gated by hardcoded personal email</div><div class="sec-file">3 files</div></div>
+    <div class="sec-item high"><div class="num">S5</div><div><span class="sev high">High</span></div><div>No input sanitization (colors, names, SVG uploads)</div><div class="sec-file">Multiple</div></div>
+    <div class="sec-item medium"><div class="num">S6</div><div><span class="sev medium">Medium</span></div><div>No file type/size validation on uploads</div><div class="sec-file">Logo components</div></div>
+    <div class="sec-item medium"><div class="num">S7</div><div><span class="sev medium">Medium</span></div><div>No CSRF protection on auth forms</div><div class="sec-file">Auth components</div></div>
+    <div class="sec-item medium"><div class="num">S8</div><div><span class="sev medium">Medium</span></div><div>Logo blob URLs cause memory leaks, lost on refresh</div><div class="sec-file">Logo tool</div></div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <h2 class="section-title" id="architecture">Architecture (Current + Target)</h2>
+  <div class="arch-diagram">
+    <div class="arch-label">Frontend (React 18 + Vite + TypeScript)</div>
+    <div class="arch-row">
+      <div class="arch-box frontend">Landing Page</div>
+      <div class="arch-box frontend">Onboarding</div>
+      <div class="arch-box frontend">Dashboard</div>
+      <div class="arch-box frontend">Brand Editor</div>
+      <div class="arch-box frontend">Guidelines Editor</div>
+    </div>
+    <div class="arch-arrow">|</div>
+    <div class="arch-label">State (Zustand + React Query)</div>
+    <div class="arch-row">
+      <div class="arch-box state">sessionStore</div>
+      <div class="arch-box state">brandStore</div>
+      <div class="arch-box state">onboardingStore</div>
+      <div class="arch-box state">guidelinesStore</div>
+    </div>
+    <div class="arch-arrow">|</div>
+    <div class="arch-label">Service Layer (NEEDS CONSOLIDATION - currently 3 competing)</div>
+    <div class="arch-row">
+      <div class="arch-box service">brandService.ts (factory)</div>
+      <div class="arch-box service new">aiService.ts</div>
+      <div class="arch-box service new">exportService.ts</div>
+      <div class="arch-box service new">billingService.ts</div>
+    </div>
+    <div class="arch-arrow">|</div>
+    <div class="arch-label">Backend & External</div>
+    <div class="arch-row">
+      <div class="arch-box backend">Supabase Auth</div>
+      <div class="arch-box backend">Supabase DB (2/11 tables)</div>
+      <div class="arch-box backend">Supabase Storage</div>
+      <div class="arch-box external new">Claude API (AI)</div>
+      <div class="arch-box external new">Stripe (Billing)</div>
+    </div>
+  </div>
+
+  <!-- DATA MODEL -->
+  <h2 class="section-title" id="data">Database Tables (2 exist, 9 missing)</h2>
+  <div class="db-grid">
+    <div class="db-table exists"><div class="db-badge">EXISTS</div><div class="db-name">brands</div><div class="db-desc">Name, colors, fonts, tone, audience</div></div>
+    <div class="db-table exists"><div class="db-badge">EXISTS</div><div class="db-name">onboarding_answers</div><div class="db-desc">JSONB blob per user</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">brand_assets</div><div class="db-desc">Logos, fonts, palettes, tone</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">guideline_sections</div><div class="db-desc">Per-section content, styled</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">brand_permissions</div><div class="db-desc">Roles per user per brand</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">exports</div><div class="db-desc">Export logs (PDF, ZIP)</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">plans</div><div class="db-desc">Pricing tiers & feature flags</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">public_links</div><div class="db-desc">URLs for public showcases</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">custom_domains</div><div class="db-desc">Agency-branded domains</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">ai_prompts</div><div class="db-desc">AI templates & suggestions</div></div>
+    <div class="db-table missing"><div class="db-badge">MISSING</div><div class="db-name">mockups</div><div class="db-desc">Branded mockups with logo</div></div>
+  </div>
+
+  <!-- COMPETITORS -->
+  <h2 class="section-title" id="competitors">Competitive Landscape</h2>
+  <div class="comp-grid">
+    <div class="comp-row header"><div>Competitor</div><div>Threat</div><div>Key Insight</div></div>
+    <div class="comp-row"><div>Canva Brand Kit</div><div><span class="threat high">HIGH</span></div><div class="comp-why">250M+ templates, massive reach, Free/$15/mo. But no brand creation system or lifecycle.</div></div>
+    <div class="comp-row"><div>Figma</div><div><span class="threat medium">MEDIUM</span></div><div class="comp-why">Adding AI brand features. Industry standard but requires expertise. No guided creation.</div></div>
+    <div class="comp-row"><div>Looka / Brandmark</div><div><span class="threat medium">MEDIUM</span></div><div class="comp-why">Quick AI logos at $20-$129/yr. Shallow depth - logo-first, no living brand system.</div></div>
+    <div class="comp-row"><div>Frontify</div><div><span class="threat low">LOW</span></div><div class="comp-why">Enterprise brand management. Great for "maintain" but no "create". Custom pricing ($$$).</div></div>
+    <div class="comp-row"><div>Bynder</div><div><span class="threat low">LOW</span></div><div class="comp-why">Enterprise DAM at $450+/mo with 145+ integrations. Pure storage, no creation.</div></div>
+    <div class="comp-row"><div>brand.ai</div><div><span class="threat low">LOW</span></div><div class="comp-why">Fortune 500 compliance auditing. Completely different market segment.</div></div>
+  </div>
+
+  <div style="margin-top: 20px;">
+    <div class="pos-chart">
+      <div style="color:#a78bfa; font-weight:600; margin-bottom:12px; font-size:0.9rem;">BrandOS Positioning: Only platform covering full lifecycle at accessible pricing</div>
+      <pre>
+            CREATION CAPABILITY HIGH
+                     |
+          <span class="highlight">BrandOS*</span>    |
+          (target)    |
+  Looka *             |
+  Brandmark *         |
+                     |
+LOW ─────────────────┼──────────────────── HIGH
+MGMT                 |                    MGMT
+                     |
+        Canva *      |        * Frontify
+                     |        * Bynder
+        Figma *      |
+                     |
+            CREATION CAPABILITY LOW
+      </pre>
+    </div>
+  </div>
+
+  <!-- PRICING -->
+  <h2 class="section-title" id="pricing">Pricing Model (Canonical)</h2>
+  <div class="pricing-grid">
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">$0</div>
+      <ul>
+        <li class="yes">1 brand</li>
+        <li class="yes">Owner role only</li>
+        <li class="limited">Limited AI (3/day)</li>
+        <li class="limited">PDF export only</li>
+        <li class="no">No public showcase</li>
+        <li class="no">No custom domain</li>
+      </ul>
+    </div>
+    <div class="plan-card featured">
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">$19<span>/mo</span></div>
+      <ul>
+        <li class="yes">Up to 5 brands</li>
+        <li class="yes">Owner + Editor roles</li>
+        <li class="yes">Full AI access</li>
+        <li class="yes">PDF + ZIP exports</li>
+        <li class="yes">Public showcase</li>
+        <li class="no">No custom domain</li>
+      </ul>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Agency</div>
+      <div class="plan-price">$49<span>/mo</span></div>
+      <ul>
+        <li class="yes">Unlimited brands</li>
+        <li class="yes">Full team (4 roles)</li>
+        <li class="yes">Full + Priority AI</li>
+        <li class="yes">All export formats</li>
+        <li class="yes">Public showcase</li>
+        <li class="yes">Custom domains</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- EPICS SUMMARY -->
+  <h2 class="section-title" id="epics">Epics Overview (9 Epics, 50+ Stories)</h2>
+  <div class="epics-grid">
+    <div class="epic-row header"><div>Epic</div><div>Name</div><div>Priority</div><div>Stories</div><div>Estimate</div></div>
+    <div class="epic-row"><div class="epic-id">E0</div><div>Foundation & Security</div><div><span class="priority p0">P0</span></div><div>12</div><div class="est">6-8 days</div></div>
+    <div class="epic-row"><div class="epic-id">E1</div><div>Core Platform Stabilization</div><div><span class="priority p0">P0</span></div><div>8</div><div class="est">12-15 days</div></div>
+    <div class="epic-row"><div class="epic-id">E2</div><div>AI Integration</div><div><span class="priority p0">P0</span></div><div>7</div><div class="est">15-20 days</div></div>
+    <div class="epic-row"><div class="epic-id">E3</div><div>Export Engine</div><div><span class="priority p0">P0</span></div><div>5</div><div class="est">12-15 days</div></div>
+    <div class="epic-row"><div class="epic-id">E4</div><div>WCAG Color Engine</div><div><span class="priority p1">P1</span></div><div>4</div><div class="est">8-10 days</div></div>
+    <div class="epic-row"><div class="epic-id">E5</div><div>Collaboration & Permissions</div><div><span class="priority p1">P1</span></div><div>7</div><div class="est">15-18 days</div></div>
+    <div class="epic-row"><div class="epic-id">E6</div><div>Brand Applications</div><div><span class="priority p1">P1</span></div><div>4</div><div class="est">15-20 days</div></div>
+    <div class="epic-row"><div class="epic-id">E7</div><div>Public Showcase & Domains</div><div><span class="priority p2">P2</span></div><div>3</div><div class="est">10-12 days</div></div>
+    <div class="epic-row"><div class="epic-id">E8</div><div>Plans & Billing</div><div><span class="priority p1">P1</span></div><div>5</div><div class="est">12-15 days</div></div>
+    <div class="epic-row"><div class="epic-id">E9</div><div>Templates & Content</div><div><span class="priority p2">P2</span></div><div>4</div><div class="est">15-20 days</div></div>
+  </div>
+
+  <!-- ROADMAP -->
+  <h2 class="section-title" id="roadmap">Sprint Roadmap</h2>
+  <div class="roadmap">
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 1</div><div class="s-time">Weeks 1-2</div></div>
+      <div class="s-epic">Epic 0 - Security & Foundation</div>
+      <div class="s-items">.env fixed, credentials removed, service layer consolidated, dead routes fixed, duplicates removed</div>
+    </div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 2</div><div class="s-time">Weeks 3-4</div></div>
+      <div class="s-epic">Epic 1 (Part 1) - Data Stabilization</div>
+      <div class="s-items">Full Supabase migration, cloud logo storage, brand info editor</div>
+    </div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 3</div><div class="s-time">Weeks 5-6</div></div>
+      <div class="s-epic">Epic 1 (Part 2) + Epic 4 - Polish + WCAG</div>
+      <div class="s-items">Font editor, template fixes, WCAG contrast engine, real dashboard stats</div>
+    </div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 4</div><div class="s-time">Weeks 7-8</div></div>
+      <div class="s-epic">Epic 2 - AI Integration</div>
+      <div class="s-items">AI service layer, vision/mission/tone/color AI suggestions per section</div>
+    </div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 5</div><div class="s-time">Weeks 9-10</div></div>
+      <div class="s-epic">Epic 3 - Export Engine</div>
+      <div class="s-items">PDF guideline export, ZIP asset bundle, export history tracking</div>
+    </div>
+    <div class="mvp-marker">MVP LAUNCH - Start Beta with Designer/Agency Network</div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprint 6</div><div class="s-time">Weeks 11-12</div></div>
+      <div class="s-epic">Epic 5 + Epic 8 - Collaboration + Billing</div>
+      <div class="s-items">Team invites, role-based access, Stripe checkout, plan gating</div>
+    </div>
+    <div class="sprint">
+      <div class="s-head"><div class="s-name">Sprints 7-12</div><div class="s-time">Months 4-6</div></div>
+      <div class="s-epic">Epics 6, 7, 9 - Growth Features</div>
+      <div class="s-items">Brand applications, public showcase, custom domains, templates library</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  BrandOS Project Dashboard - Generated 2026-03-31 - Source: BRANDOS-PROJECT-MASTER.md
+</div>
+
+</body>
+</html>

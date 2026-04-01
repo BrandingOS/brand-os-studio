@@ -1,5 +1,4 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   Sidebar,
   SidebarContent,
@@ -18,11 +17,7 @@ import {
   Palette,
   Image,
   Settings,
-  Users,
-  BarChart3,
-  Folder,
-  Star,
-  Archive
+  Folder
 } from 'lucide-react';
 
 const mainNavItems = [
@@ -30,63 +25,52 @@ const mainNavItems = [
     title: "Overview",
     url: "/dashboard",
     icon: LayoutDashboard,
-    description: "Dashboard home"
+    description: "Dashboard home",
+    enabled: true,
   },
   {
     title: "Brands",
-    url: "/dashboard/brands",
+    url: "/dashboard",
     icon: Building2,
-    description: "Manage your brands"
+    description: "Manage your brands",
+    enabled: true,
   },
   {
     title: "Guidelines",
-    url: "/dashboard/guidelines",
+    url: "#",
     icon: FileText,
-    description: "Brand guidelines"
+    description: "Coming soon",
+    enabled: false,
   },
   {
     title: "Assets",
-    url: "/dashboard/assets",
+    url: "#",
     icon: Image,
-    description: "Brand assets library"
+    description: "Coming soon",
+    enabled: false,
   }
 ];
 
 const toolsItems = [
   {
     title: "Color Palette",
-    url: "/dashboard/tools/colors",
+    url: "#",
     icon: Palette,
-    description: "Color management"
+    description: "Coming soon",
+    enabled: false,
   },
   {
     title: "Templates",
-    url: "/dashboard/templates",
+    url: "#",
     icon: Folder,
-    description: "Design templates"
-  }
-];
-
-const adminItems = [
-  {
-    title: "All Brands",
-    url: "/dashboard/admin/brands",
-    icon: Users,
-    description: "Manage all user brands"
-  },
-  {
-    title: "Analytics",
-    url: "/dashboard/admin/analytics",
-    icon: BarChart3,
-    description: "System analytics"
+    description: "Coming soon",
+    enabled: false,
   }
 ];
 
 export function DashboardSidebar() {
   const { state } = useSidebar();
-  const { user } = useAuth();
   const location = useLocation();
-  const isAdmin = user?.email === 'hamza2007ezzat@gmail.com';
   const collapsed = state === 'collapsed';
 
   const isActive = (path: string) => {
@@ -115,15 +99,27 @@ export function DashboardSidebar() {
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="h-12">
-                    <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && (
-                        <div className="flex flex-col">
-                          <span className="text-sm">{item.title}</span>
-                          <span className="text-xs text-muted-foreground">{item.description}</span>
-                        </div>
-                      )}
-                    </NavLink>
+                    {item.enabled ? (
+                      <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!collapsed && (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{item.title}</span>
+                            <span className="text-xs text-muted-foreground">{item.description}</span>
+                          </div>
+                        )}
+                      </NavLink>
+                    ) : (
+                      <span className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40 cursor-not-allowed">
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!collapsed && (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{item.title}</span>
+                            <span className="text-xs text-muted-foreground">{item.description}</span>
+                          </div>
+                        )}
+                      </span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -141,10 +137,17 @@ export function DashboardSidebar() {
               {toolsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="text-sm">{item.title}</span>}
-                    </NavLink>
+                    {item.enabled ? (
+                      <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      </NavLink>
+                    ) : (
+                      <span className="flex items-center gap-3 px-3 py-2 rounded-lg opacity-40 cursor-not-allowed">
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      </span>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -152,36 +155,13 @@ export function DashboardSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin Section */}
-        {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
-              Administration
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && <span className="text-sm">{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
         {/* Settings at Bottom */}
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/dashboard/settings" className={`${getNavClass('/dashboard/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
+                  <NavLink to="/settings/account" className={`${getNavClass('/settings/account')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}>
                     <Settings className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="text-sm">Settings</span>}
                   </NavLink>

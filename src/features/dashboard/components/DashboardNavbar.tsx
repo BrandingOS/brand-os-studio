@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Bell, 
-  Settings, 
-  HelpCircle, 
+import {
+  Search,
+  Bell,
+  Settings,
+  HelpCircle,
   Sparkles,
-  Command
+  Command,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export function DashboardNavbar() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const isAdmin = user?.email === 'hamza2007ezzat@gmail.com';
+  const { theme, setTheme } = useTheme();
+  const isAdmin = user?.role === 'admin';
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -63,6 +67,15 @@ export function DashboardNavbar() {
           {/* Mobile Search */}
           <Button variant="ghost" size="sm" className="md:hidden">
             <Search className="h-4 w-4" />
+          </Button>
+
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
 
           {/* Notifications */}

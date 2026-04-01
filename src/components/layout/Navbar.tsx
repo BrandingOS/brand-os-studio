@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Building2 } from "lucide-react";
 import { AuthModal } from '@/features/auth/components/AuthModal';
-import { UserMenu } from '@/features/auth/components/UserMenu';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const navItems = [
@@ -14,6 +14,7 @@ const navItems = [
 export default function Navbar() {
   const { isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -42,11 +43,18 @@ export default function Navbar() {
 
             <div className="hidden sm:flex items-center gap-2" data-animate>
               {isAuthenticated ? (
-                <UserMenu />
+                <Button
+                  variant="hero"
+                  shape="pill"
+                  className="cta-glow"
+                  onClick={() => navigate('/dashboard')}
+                >
+                  Dashboard
+                </Button>
               ) : (
-                <Button 
-                  variant="hero" 
-                  shape="pill" 
+                <Button
+                  variant="hero"
+                  shape="pill"
                   className="cta-glow"
                   onClick={() => setShowAuthModal(true)}
                 >

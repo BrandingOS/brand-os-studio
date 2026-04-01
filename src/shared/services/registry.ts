@@ -10,9 +10,12 @@ export interface Services {
 export function createServices(): Services {
   return {
     get brands(): BrandsService {
+      // In dev mode, always use local service (no Supabase connection)
+      if (import.meta.env.DEV) return new LocalBrandsService();
+
       const { mode } = useSessionStore.getState();
-      return mode === 'user' 
-        ? new SupabaseBrandsService() 
+      return mode === 'user'
+        ? new SupabaseBrandsService()
         : new LocalBrandsService();
     }
   };

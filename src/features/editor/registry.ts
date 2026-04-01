@@ -1,6 +1,8 @@
 import { ComponentType } from 'react';
 import { ColorPaletteTool } from './tools/ColorPaletteTool';
 import { LogoTool } from './tools/LogoTool';
+import { FontTool } from './tools/FontTool';
+import { BrandInfoTool } from './tools/BrandInfoTool';
 
 export interface EditorTool {
   id: string;
@@ -40,6 +42,18 @@ export const editorRegistry: {
       name: 'Logo Management',
       icon: 'Image',
       component: LogoTool,
+    },
+    'fonts': {
+      id: 'fonts',
+      name: 'Typography',
+      icon: 'Type',
+      component: FontTool,
+    },
+    'brand-info': {
+      id: 'brand-info',
+      name: 'Brand Strategy',
+      icon: 'FileText',
+      component: BrandInfoTool,
     },
   },
   modules: {},

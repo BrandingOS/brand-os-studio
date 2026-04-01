@@ -11,7 +11,7 @@ export function AdminPanel() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
-  const isAdmin = user?.email === 'hamza2007ezzat@gmail.com';
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     if (isAdmin) {
