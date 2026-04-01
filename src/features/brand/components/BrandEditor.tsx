@@ -203,8 +203,8 @@ export function BrandEditor({ brand }: BrandEditorProps) {
 
         <div className="pt-4 border-t">
           <div className="text-sm text-muted-foreground">
-            <div>Created: {brand.createdAt.toLocaleDateString()}</div>
-            <div>Last Updated: {brand.updatedAt.toLocaleDateString()}</div>
+            <div>Created: {new Date(brand.createdAt).toLocaleDateString()}</div>
+            <div>Last Updated: {new Date(brand.updatedAt).toLocaleDateString()}</div>
           </div>
         </div>
       </div>

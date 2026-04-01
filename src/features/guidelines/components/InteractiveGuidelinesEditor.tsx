@@ -16,8 +16,8 @@ import { toast } from 'sonner';
 import { exportAsPDF, exportAsZIP } from '@/shared/services/exportService';
 
 export const InteractiveGuidelinesEditor: React.FC = () => {
-  const { brandId } = useParams<{ brandId: string }>();
-  const { current: brand, isLoading, loadById, update } = useBrandStore();
+  const { slug } = useParams<{ slug: string }>();
+  const { current: brand, isLoading, loadBySlug, update } = useBrandStore();
   const { 
     activePanel, 
     setCurrentSlide, 
@@ -34,14 +34,14 @@ export const InteractiveGuidelinesEditor: React.FC = () => {
 
   // Load brand data
   useEffect(() => {
-    if (brandId && brandId !== brand?.id) {
-      if (brandId === '550e8400-e29b-41d4-a716-446655440000') {
+    if (slug && slug !== brand?.slug) {
+      if (slug === '550e8400-e29b-41d4-a716-446655440000') {
         useBrandStore.getState().setCurrent(demoBrandIdentity);
       } else {
-        loadById(brandId);
+        loadBySlug(slug);
       }
     }
-  }, [brandId, brand?.id, loadById]);
+  }, [slug, brand?.slug, loadBySlug]);
 
   // Initialize slides when brand is loaded
   useEffect(() => {

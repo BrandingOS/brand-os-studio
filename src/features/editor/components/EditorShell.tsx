@@ -2,32 +2,41 @@ import { useState, useEffect } from 'react';
 import { OptimizedDesignEditor } from './OptimizedDesignEditor';
 import { WelcomeTutorial } from './WelcomeTutorial';
 import { services } from '@/shared/services/registry';
+import { isUuid } from '@/shared/utils/slug';
 import type { Brand } from '@/shared/types/brand';
 
 interface EditorShellProps {
   moduleId?: string;
   brandId?: string;
+  brandSlug?: string;
 }
 
-export function EditorShell({ moduleId, brandId }: EditorShellProps) {
+export function EditorShell({ moduleId, brandId, brandSlug }: EditorShellProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
 
+  const identifier = brandSlug || brandId;
+
   useEffect(() => {
-    if (brandId) {
+    if (identifier) {
       loadBrand();
     }
-  }, [brandId]);
+  }, [identifier]);
 
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      const brandData = await services.brands.getById(brandId!);
+      let brandData: Brand | null = null;
+      if (brandId && isUuid(brandId)) {
+        brandData = await services.brands.getById(brandId);
+      } else if (identifier) {
+        brandData = await services.brands.getBySlug(identifier);
+      }
       setBrand(brandData);
-      
+
       // Show tutorial for first-time users of this brand
-      const tutorialKey = `editor-tutorial-${brandId}`;
+      const tutorialKey = `editor-tutorial-${identifier}`;
       const hasSeenTutorial = localStorage.getItem(tutorialKey);
       if (!hasSeenTutorial) {
         setShowTutorial(true);
@@ -41,10 +50,10 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
 
   const handleCloseTutorial = () => {
     setShowTutorial(false);
-    localStorage.setItem(`editor-tutorial-${brandId}`, 'seen');
+    localStorage.setItem(`editor-tutorial-${identifier}`, 'seen');
   };
 
-  if (!brandId) {
+  if (!identifier) {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
@@ -76,7 +85,7 @@ export function EditorShell({ moduleId, brandId }: EditorShellProps) {
 
   return (
     <>
-      <OptimizedDesignEditor brand={brand} brandId={brandId} />
+      <OptimizedDesignEditor brand={brand} brandId={brand.id || identifier!} />
       {showTutorial && (
         <WelcomeTutorial 
           onClose={handleCloseTutorial}

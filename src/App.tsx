@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Pages
 import IndexPage from "./pages/Index";
@@ -39,6 +40,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <Toaster />
+          <ErrorBoundary>
           <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
           <Routes>
           <Route path="/" element={<IndexPage />} />
@@ -111,6 +113,7 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
