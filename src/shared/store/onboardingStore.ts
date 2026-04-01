@@ -230,21 +230,22 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
 
       getCompletionPercentage: () => {
-        const { steps, answers, skippedSteps } = get();
-        const completedSteps = steps.filter(step => 
-          answers[step.id] !== undefined || skippedSteps.has(step.id)
+        const { steps, currentStepIndex, answers, skippedSteps } = get();
+        const completedOrVisited = steps.filter((step, index) =>
+          index < currentStepIndex || answers[step.id] !== undefined || skippedSteps.has(step.id)
         );
-        return Math.round((completedSteps.length / steps.length) * 100);
+        return Math.round((completedOrVisited.length / steps.length) * 100);
       },
 
       getStepStatus: (stepId: string) => {
         const { steps, currentStepIndex, answers, skippedSteps } = get();
         const stepIndex = steps.findIndex(step => step.id === stepId);
-        const currentStep = steps[currentStepIndex];
-        
+
         if (stepIndex === currentStepIndex) return 'current';
         if (skippedSteps.has(stepId)) return 'skipped';
         if (answers[stepId] !== undefined) return 'completed';
+        // Past steps with no answers were implicitly skipped
+        if (stepIndex < currentStepIndex) return 'skipped';
         return 'pending';
       },
 

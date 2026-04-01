@@ -189,9 +189,14 @@ export function DashboardMain() {
             {brands.map((brand) => (
               <Card
                 key={brand.id}
-                className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 border-0 shadow-sm"
+                className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 border-0 shadow-sm overflow-hidden"
                 onClick={() => handleViewBrand(brand.id)}
               >
+                {/* Color strip at top */}
+                <div
+                  className="h-2 rounded-t-lg"
+                  style={{ backgroundColor: brand.primaryColor }}
+                />
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -212,7 +217,7 @@ export function DashboardMain() {
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </div>
-                  
+
                   <div className="space-y-3 mb-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Palette className="h-4 w-4" />
@@ -222,6 +227,21 @@ export function DashboardMain() {
                       <Users className="h-4 w-4" />
                       <span>{brand.audience}</span>
                     </div>
+                    {/* Color swatches */}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-5 h-5 rounded-full border border-border shadow-sm"
+                        style={{ backgroundColor: brand.primaryColor }}
+                        title={`Primary: ${brand.primaryColor}`}
+                      />
+                      {brand.secondaryColor && (
+                        <div
+                          className="w-5 h-5 rounded-full border border-border shadow-sm"
+                          style={{ backgroundColor: brand.secondaryColor }}
+                          title={`Secondary: ${brand.secondaryColor}`}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t">
@@ -229,9 +249,9 @@ export function DashboardMain() {
                       Updated {new Date(brand.updatedAt).toLocaleDateString()}
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           window.location.href = `/dashboard/brand/${brand.slug}/edit`;
@@ -241,9 +261,9 @@ export function DashboardMain() {
                         <Edit className="h-3 w-3 mr-1" />
                         Edit
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           window.location.href = `/editor/design/${brand.id}`;

@@ -39,8 +39,8 @@ export default function BrandHomePage() {
                 </svg>
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">Canvas Guidelines Editor</h2>
-                <p className="text-muted-foreground mb-4">Create stunning brand guidelines with our modern Canva-style editor. Build, customize, and export professional presentations.</p>
+                <h2 className="text-2xl font-bold mb-2">Guidelines</h2>
+                <p className="text-muted-foreground mb-4">Create stunning brand guidelines with our modern slide-based editor. Build, customize, and export professional presentations.</p>
                 <Button 
                   onClick={() => navigate(`/dashboard/brand/${slug}/guidelines/canvas`)}
                   size="lg"
@@ -49,7 +49,7 @@ export default function BrandHomePage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                  Open Canvas Editor
+                  Open Guidelines
                 </Button>
               </div>
             </div>
@@ -57,14 +57,14 @@ export default function BrandHomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="card-soft p-6">
-              <h2 className="text-xl font-semibold mb-4">Design Editor</h2>
-              <p className="text-muted-foreground mb-4">Create and edit designs with your brand</p>
-              <Button 
-                variant="outline" 
+              <h2 className="text-xl font-semibold mb-4">Brand Editor</h2>
+              <p className="text-muted-foreground mb-4">Edit your brand identity and assets</p>
+              <Button
+                variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/editor/design/${slug}`)}
+                onClick={() => navigate(`/dashboard/brand/${slug}/edit`)}
               >
-                Open Editor
+                Open Brand Editor
               </Button>
             </div>
             
@@ -81,14 +81,14 @@ export default function BrandHomePage() {
             </div>
             
             <div className="card-soft p-6">
-              <h2 className="text-xl font-semibold mb-4">Classic Guidelines</h2>
-              <p className="text-muted-foreground mb-4">View traditional guidelines format</p>
-              <Button 
-                variant="outline" 
+              <h2 className="text-xl font-semibold mb-4">Slide Editor</h2>
+              <p className="text-muted-foreground mb-4">Build guidelines as a slide presentation</p>
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
               >
-                View Guidelines
+                Open Slide Editor
               </Button>
             </div>
           </div>

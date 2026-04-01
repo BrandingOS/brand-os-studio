@@ -27,7 +27,40 @@ export default function BrandEditPage() {
 
   useEffect(() => {
     if (brand) {
-      setEditedBrand(brand);
+      // Seed colorPalette from top-level brand colors when guidelines.colorPalette is missing
+      const colorPalette = brand.guidelines?.colorPalette;
+      const hasPaletteColors = colorPalette?.primary?.hex || colorPalette?.secondary?.hex;
+      if (!hasPaletteColors && (brand.primaryColor || brand.secondaryColor)) {
+        setEditedBrand({
+          ...brand,
+          guidelines: {
+            ...(brand.guidelines || {}),
+            colorPalette: {
+              ...(colorPalette || {}),
+              primary: {
+                hex: brand.primaryColor || '#000000',
+                name: 'Primary',
+                rgb: '',
+                cmyk: '',
+                usage: 'Primary brand color',
+                ...(colorPalette?.primary || {}),
+                ...(!colorPalette?.primary?.hex ? { hex: brand.primaryColor || '#000000' } : {}),
+              },
+              secondary: {
+                hex: brand.secondaryColor || '#666666',
+                name: 'Secondary',
+                rgb: '',
+                cmyk: '',
+                usage: 'Secondary brand color',
+                ...(colorPalette?.secondary || {}),
+                ...(!colorPalette?.secondary?.hex ? { hex: brand.secondaryColor || '#666666' } : {}),
+              },
+            },
+          },
+        });
+      } else {
+        setEditedBrand(brand);
+      }
     }
   }, [brand]);
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import {
   Keyboard,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -45,7 +46,24 @@ export function DashboardNavbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const { theme, setTheme } = useTheme();
   const searchRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = searchQuery.trim();
+      if (query) {
+        navigate(`/dashboard/brands?search=${encodeURIComponent(query)}`);
+        setSearchQuery('');
+        searchRef.current?.blur();
+      } else {
+        toast('Search coming soon', {
+          description: 'Full-text search across brands, assets, and guidelines is on the way.',
+        });
+      }
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -92,6 +110,7 @@ export function DashboardNavbar() {
               placeholder="Search brands, assets, or guidelines..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               className="pl-10 bg-muted/50 border-0 focus:bg-background"
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

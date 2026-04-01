@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect } from 'react';
-import { Presentation, Edit, Folder, Loader2 } from 'lucide-react';
+import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
@@ -50,51 +50,65 @@ export default function BrandsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4">
             {brands.map((brand) => (
-              <Card key={brand.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-xl">{brand.name}</CardTitle>
-                      <CardDescription className="mt-1">
+              <Card key={brand.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+                <div className="flex flex-row">
+                  {/* Color strip on the left */}
+                  <div
+                    className="w-2 shrink-0"
+                    style={{ backgroundColor: brand.primaryColor }}
+                  />
+
+                  {/* Brand info in the middle */}
+                  <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
+                    {brand.logo ? (
+                      <img
+                        src={brand.logo}
+                        alt={brand.name}
+                        className="w-10 h-10 object-contain rounded shrink-0"
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded shrink-0 border border-border"
+                        style={{ backgroundColor: brand.primaryColor }}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-lg truncate">{brand.name}</CardTitle>
+                      <CardDescription className="mt-0.5 truncate">
                         {brand.tone || 'Brand toolkit'}
                       </CardDescription>
                     </div>
-                    {brand.logo && (
-                      <img 
-                        src={brand.logo} 
-                        alt={brand.name}
-                        className="w-12 h-12 object-contain rounded"
-                      />
-                    )}
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button
-                    className="w-full gap-2"
-                    onClick={() => navigate(`/dashboard/brand/${brand.slug}/guidelines/canvas`)}
-                  >
-                    <Presentation className="w-4 h-4" />
-                    Canvas Editor
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={() => navigate(`/dashboard/brand/${brand.slug}/edit`)}
-                  >
-                    <Edit className="w-4 h-4" />
-                    Edit Brand
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={() => navigate(`/dashboard/brand/${brand.slug}/brandkit`)}
-                  >
-                    <Folder className="w-4 h-4" />
-                    Brand Kit
-                  </Button>
-                </CardContent>
+
+                  {/* Actions on the right */}
+                  <div className="flex items-center gap-2 pr-4 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Edit Brand"
+                      onClick={() => navigate(`/dashboard/brand/${brand.slug}/edit`)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Brand Kit"
+                      onClick={() => navigate(`/dashboard/brand/${brand.slug}/brandkit`)}
+                    >
+                      <Folder className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      className="gap-2"
+                      onClick={() => navigate(`/dashboard/brand/${brand.slug}`)}
+                    >
+                      Open
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
               </Card>
             ))}
           </div>

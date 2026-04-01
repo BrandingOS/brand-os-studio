@@ -87,34 +87,13 @@ export default function Footer() {
                 <h4 className="mb-3 text-sm font-medium text-white">Resources</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Blog
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">Blog</span>
                   </li>
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Help Center
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">Help Center</span>
                   </li>
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      API
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">API</span>
                   </li>
                 </ul>
               </div>
@@ -123,34 +102,13 @@ export default function Footer() {
                 <h4 className="mb-3 text-sm font-medium text-white">Company</h4>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      About
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">About</span>
                   </li>
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Careers
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">Careers</span>
                   </li>
                   <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Contact
-                    </a>
+                    <span className="text-muted-foreground/50 cursor-default">Contact</span>
                   </li>
                 </ul>
               </div>

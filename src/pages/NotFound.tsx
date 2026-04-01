@@ -1,8 +1,10 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.error(
@@ -12,13 +14,21 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
+    <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
+      <div className="text-center max-w-md px-6">
+        <h1 className="text-8xl font-bold tracking-tight text-muted-foreground/30">404</h1>
+        <h2 className="mt-4 text-2xl font-semibold">Page not found</h2>
+        <p className="mt-2 text-muted-foreground">
+          The page <code className="px-1.5 py-0.5 rounded bg-muted text-sm">{location.pathname}</code> doesn't exist or has been moved.
+        </p>
+        <div className="mt-8 flex items-center justify-center gap-3">
+          <Button variant="default" onClick={() => navigate("/dashboard")}>
+            Go to Dashboard
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Go to Home
+          </Button>
+        </div>
       </div>
     </div>
   );

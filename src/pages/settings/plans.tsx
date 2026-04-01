@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { Check, Crown, Briefcase, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 
 const PLANS = [
   {
@@ -87,6 +88,7 @@ export default function PlansPage() {
   };
 
   return (
+    <DashboardLayout>
     <Container className="py-8">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-10">
@@ -159,5 +161,6 @@ export default function PlansPage() {
         </p>
       </div>
     </Container>
+    </DashboardLayout>
   );
 }

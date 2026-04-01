@@ -29,64 +29,74 @@ const brandNavItems = [
     title: "Overview",
     url: "/dashboard/brand/:slug",
     icon: LayoutDashboard,
-    description: "Brand overview"
+    description: "Brand overview",
+    disabled: false,
   },
   {
     title: "Edit Brand",
     url: "/dashboard/brand/:slug/edit",
     icon: Edit,
-    description: "Edit brand identity"
+    description: "Edit brand identity",
+    disabled: false,
   },
   {
-    title: "Brand Info",
+    title: "Brand Info (Soon)",
     url: "/dashboard/brand/:slug/info",
     icon: Building2,
-    description: "Brand information"
+    description: "Brand information",
+    disabled: true,
   },
   {
     title: "Guidelines",
     url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
-    description: "Brand guidelines"
+    description: "Brand guidelines",
+    disabled: false,
   },
   {
     title: "Canvas Editor",
     url: "/dashboard/brand/:slug/guidelines/canvas",
     icon: Presentation,
-    description: "Canvas-style guidelines editor"
+    description: "Canvas-style guidelines editor",
+    disabled: false,
   },
   {
-    title: "Assets",
-    url: "/dashboard/brand/:slug/assets", 
+    title: "Assets (Soon)",
+    url: "/dashboard/brand/:slug/assets",
     icon: Image,
-    description: "Brand assets"
+    description: "Brand assets",
+    disabled: true,
   },
   {
     title: "Brand Kit",
     url: "/dashboard/brand/:slug/brandkit",
     icon: Briefcase,
-    description: "Brand kit tools"
+    description: "Brand kit tools",
+    disabled: false,
   }
 ];
 
 const toolsItems = [
   {
-    title: "Editor",
+    title: "Editor (Soon)",
     url: "/dashboard/brand/:slug/editor",
     icon: PenTool,
-    description: "Design editor"
+    description: "Design editor",
+    disabled: true,
   },
   {
-    title: "Templates",
+    title: "Templates (Soon)",
     url: "/dashboard/brand/:slug/templates",
     icon: Folder,
-    description: "Design templates"
+    description: "Design templates",
+    disabled: true,
   },
   {
-    title: "Colors",
+    title: "Colors (Soon)",
     url: "/dashboard/brand/:slug/colors",
     icon: Palette,
-    description: "Color palette"
+    description: "Color palette",
+    disabled: true,
   }
 ];
 
@@ -127,19 +137,31 @@ export function BrandSidebar() {
               {brandNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="h-12">
-                    <NavLink 
-                      to={buildUrl(item.url)} 
-                      className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
-                      end={item.url === "/dashboard/brand/:slug"}
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && (
-                        <div className="flex flex-col">
-                          <span className="text-sm">{item.title}</span>
-                          <span className="text-xs text-muted-foreground">{item.description}</span>
-                        </div>
-                      )}
-                    </NavLink>
+                    {item.disabled ? (
+                      <span className="opacity-40 cursor-not-allowed pointer-events-none flex items-center gap-3 px-3 py-2 rounded-lg">
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!collapsed && (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{item.title}</span>
+                            <span className="text-xs text-muted-foreground">{item.description}</span>
+                          </div>
+                        )}
+                      </span>
+                    ) : (
+                      <NavLink
+                        to={buildUrl(item.url)}
+                        className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                        end={item.url === "/dashboard/brand/:slug"}
+                      >
+                        <item.icon className="h-5 w-5 shrink-0" />
+                        {!collapsed && (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{item.title}</span>
+                            <span className="text-xs text-muted-foreground">{item.description}</span>
+                          </div>
+                        )}
+                      </NavLink>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -157,13 +179,20 @@ export function BrandSidebar() {
               {toolsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={buildUrl(item.url)} 
-                      className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span className="text-sm">{item.title}</span>}
-                    </NavLink>
+                    {item.disabled ? (
+                      <span className="opacity-40 cursor-not-allowed pointer-events-none flex items-center gap-3 px-3 py-2 rounded-lg">
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      </span>
+                    ) : (
+                      <NavLink
+                        to={buildUrl(item.url)}
+                        className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                      </NavLink>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -177,13 +206,10 @@ export function BrandSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink 
-                    to={`/dashboard/brand/${slug}/settings`} 
-                    className={`${getNavClass('/dashboard/brand/:slug/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
-                  >
+                  <span className="opacity-40 cursor-not-allowed pointer-events-none flex items-center gap-3 px-3 py-2 rounded-lg">
                     <Settings className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="text-sm">Settings</span>}
-                  </NavLink>
+                    {!collapsed && <span className="text-sm">Settings (Soon)</span>}
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

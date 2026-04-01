@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { Link } from 'react-router-dom';
 import { User, Mail, Shield, AlertTriangle } from 'lucide-react';
+import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 
 export default function AccountSettingsPage() {
   const { user } = useSessionStore();
@@ -20,6 +21,7 @@ export default function AccountSettingsPage() {
     .slice(0, 2);
 
   return (
+    <DashboardLayout>
     <Container className="py-8">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
@@ -88,5 +90,6 @@ export default function AccountSettingsPage() {
         </Card>
       </div>
     </Container>
+    </DashboardLayout>
   );
 }
