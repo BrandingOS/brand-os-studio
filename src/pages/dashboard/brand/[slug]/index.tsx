@@ -11,11 +11,11 @@ import {
 } from 'lucide-react';
 
 const quickActions = [
+  { label: 'Brand Guides', icon: BookOpen, path: 'brand-guides', gradient: 'from-rose-500 to-pink-600' },
   { label: 'Brand Kit', icon: Briefcase, path: 'brandkit', gradient: 'from-violet-500 to-purple-600' },
-  { label: 'Guidelines', icon: FileText, path: 'guidelines/canvas', gradient: 'from-pink-500 to-rose-600' },
+  { label: 'Guidelines Editor', icon: FileText, path: 'guidelines/canvas', gradient: 'from-pink-500 to-rose-600' },
   { label: 'Edit Brand', icon: Edit, path: 'edit', gradient: 'from-blue-500 to-blue-600' },
   { label: 'Logo Files', icon: Image, path: 'brandkit/logo-files', gradient: 'from-cyan-500 to-blue-500' },
-  { label: 'Brand Guides', icon: BookOpen, path: 'brandkit/brand-guides', gradient: 'from-pink-500 to-rose-500' },
   { label: 'Business Cards', icon: CreditCard, path: 'brandkit/business-cards', gradient: 'from-indigo-500 to-blue-600' },
   { label: 'Instagram', icon: Square, path: 'brandkit/instagram-posts', gradient: 'from-teal-400 to-cyan-500' },
   { label: 'QR Code', icon: QrCode, path: 'brandkit/qr-code', gradient: 'from-blue-400 to-blue-600' },

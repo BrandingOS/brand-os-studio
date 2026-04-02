@@ -51,7 +51,13 @@ const brandNavItems = [
     disabled: false,
   },
   {
-    title: "Guidelines",
+    title: "Brand Guides",
+    url: "/dashboard/brand/:slug/brand-guides",
+    icon: BookOpen,
+    disabled: false,
+  },
+  {
+    title: "Guidelines Editor",
     url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
     disabled: false,
@@ -72,7 +78,6 @@ const brandKitItems = [
   { title: "Color System", url: "/dashboard/brand/:slug/brandkit/color-system", icon: Palette, disabled: false },
   { title: "Brand Voice", url: "/dashboard/brand/:slug/brandkit/brand-voice", icon: MessageCircle, disabled: false },
   { title: "Logo Files", url: "/dashboard/brand/:slug/brandkit/logo-files", icon: Image, disabled: false },
-  { title: "Brand Guides", url: "/dashboard/brand/:slug/brandkit/brand-guides", icon: BookOpen, disabled: false },
   { title: "Profile Icons", url: "/dashboard/brand/:slug/brandkit/profile-icons", icon: CircleUser, disabled: false },
   { title: "Mockup Designs", url: "/dashboard/brand/:slug/brandkit/mockups", icon: Monitor, disabled: false },
   { title: "Business Cards", url: "/dashboard/brand/:slug/brandkit/business-cards", icon: CreditCard, disabled: false },

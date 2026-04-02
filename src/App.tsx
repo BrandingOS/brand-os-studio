@@ -22,6 +22,7 @@ import BrandHomePage from "./pages/dashboard/brand/[slug]";
 import BrandEditPage from "./pages/dashboard/brand/[slug]/edit";
 import BrandKitHubPage from "./pages/dashboard/brand/[slug]/brandkit";
 import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
+import BrandGuidesPage from "./pages/dashboard/brand/[slug]/brand-guides";
 import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
 import CanvasGuidelinesPage from "./pages/dashboard/brand/[slug]/guidelines/canvas";
 import AccountSettingsPage from "./pages/settings/account";
@@ -92,6 +93,11 @@ const App = () => (
           <Route path="/dashboard/brand/:slug/brandkit/:moduleId" element={
             <ProtectedRoute>
               <BrandKitModulePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/brand-guides" element={
+            <ProtectedRoute>
+              <BrandGuidesPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/guidelines" element={

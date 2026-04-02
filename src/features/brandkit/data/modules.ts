@@ -71,17 +71,7 @@ export const BRAND_KIT_MODULES: BrandKitModuleConfig[] = [
     hasTabs: false,
     orientation: 'mixed',
   },
-  {
-    id: 'brand-guides',
-    name: 'Brand Guides',
-    description: 'Brand guideline templates',
-    icon: 'BookOpen',
-    gradient: 'from-pink-500 to-rose-600',
-    categories: ['All', 'Minimalist', 'Maximalist', 'Bold', 'Natural', 'Modern'],
-    hasTabs: true,
-    tabLabels: { templates: 'Templates', saved: 'Saved' },
-    orientation: 'landscape',
-  },
+  // brand-guides moved to top-level navigation — no longer a Brand Kit module
   {
     id: 'profile-icons',
     name: 'Profile Icons',
