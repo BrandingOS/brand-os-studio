@@ -171,19 +171,29 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
 
   const handleDownloadVideo = useCallback(async (animation: AnimationConfig, alpha: boolean) => {
     setRecordingId(animation.id);
+    const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+    const suffix = alpha ? 'alpha' : 'video';
     try {
-      const blob = await recordAnimationVideo(animation, brand, alpha);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
-      const suffix = alpha ? 'alpha' : 'video';
-      a.href = url;
-      a.download = `${slug}-${animation.id}-${suffix}.webm`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast.success(`Downloaded "${animation.name}" as ${alpha ? 'alpha' : 'normal'} video`);
+      const webmBlob = await recordAnimationVideo(animation, brand, alpha);
+
+      // Convert WebM → MP4 using FFmpeg.wasm
+      try {
+        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+        const { fetchFile } = await import('@ffmpeg/util');
+        const ffmpeg = new FFmpeg();
+        await ffmpeg.load();
+        await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+        await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', 'output.mp4']);
+        const mp4Data = await ffmpeg.readFile('output.mp4');
+        const mp4Blob = new Blob([mp4Data], { type: 'video/mp4' });
+        downloadBlob(mp4Blob, `${slug}-${animation.id}-${suffix}.mp4`);
+        toast.success(`Downloaded "${animation.name}" as MP4`);
+      } catch (ffmpegErr) {
+        // FFmpeg failed — fall back to WebM download
+        console.warn('FFmpeg conversion failed, downloading WebM:', ffmpegErr);
+        downloadBlob(webmBlob, `${slug}-${animation.id}-${suffix}.webm`);
+        toast.success(`Downloaded "${animation.name}" as WebM`);
+      }
     } catch (err) {
       console.error('Recording failed:', err);
       toast.error('Video recording failed');
@@ -191,6 +201,17 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
       setRecordingId(null);
     }
   }, [brand]);
+
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="space-y-6">
