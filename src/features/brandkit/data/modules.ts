@@ -12,6 +12,16 @@ export const BRAND_KIT_MODULES: BrandKitModuleConfig[] = [
     orientation: 'mixed',
   },
   {
+    id: 'assets',
+    name: 'Brand Assets',
+    description: 'Upload, link & embed files',
+    icon: 'FolderOpen',
+    gradient: 'from-emerald-500 to-teal-600',
+    categories: [],
+    hasTabs: false,
+    orientation: 'mixed',
+  },
+  {
     id: 'brand-strategy',
     name: 'Brand Strategy',
     description: 'Mission, vision & values',

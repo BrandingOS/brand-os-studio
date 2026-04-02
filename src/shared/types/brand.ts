@@ -238,8 +238,11 @@ export interface Typography {
 export interface Asset {
   id: string;
   name: string;
-  type: 'image' | 'font' | 'logo' | 'document' | 'icon' | 'template';
-  category: 'logo' | 'color' | 'typography' | 'icon' | 'stationery' | 'social' | 'application';
+  type: 'image' | 'font' | 'logo' | 'document' | 'icon' | 'template' | 'video' | 'reference';
+  category: 'logo' | 'color' | 'typography' | 'icon' | 'stationery' | 'social' | 'application' | 'photo' | 'reference' | 'mockup';
+  /** How the asset is stored */
+  source: 'upload' | 'url' | 'embed';
+  /** For upload: data URL or public path. For url/embed: the remote URL */
   url: string;
   size: number;
   tags: string[];
@@ -247,6 +250,10 @@ export interface Asset {
     dimensions?: { width: number; height: number };
     format?: string;
     colorMode?: string;
+    /** Original filename for uploads */
+    originalName?: string;
+    /** For embed sources — keeps the link live/updated */
+    embedUrl?: string;
   };
   createdAt: Date;
 }
