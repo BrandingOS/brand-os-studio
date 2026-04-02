@@ -18,6 +18,10 @@ import {
   PatternSystemPage, StationeryMockupPage, DigitalProductPage,
   TouchpointMapPage, MotionPrinciplesPage,
 } from './FancyPages';
+import {
+  BrandUniversePage, TypographySpecimenPage, VoiceDNAPage,
+  IconGridPage, BrandManifestoPage, PhotographyMoodPage, ColophonPage,
+} from './FancyPages2';
 import { toast } from 'sonner';
 
 interface TemplateDocumentProps {
@@ -361,6 +365,50 @@ function buildSlides(brand: Brand): SlideEntry[] {
       id: 'digital', name: 'Digital Product',
       render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
         <DigitalProductPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+
+    // ─── PART 2 PREMIUM PAGES ──────────────────────────────────
+    {
+      id: 'manifesto', name: 'Brand Manifesto',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <BrandManifestoPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'universe', name: 'Brand Universe',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <BrandUniversePage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'type-specimen', name: 'Type Specimen',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <TypographySpecimenPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'voice-dna', name: 'Voice DNA',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <VoiceDNAPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'icon-grid', name: 'Icon System',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <IconGridPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'photo-mood', name: 'Visual Direction',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <PhotographyMoodPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'colophon', name: 'Colophon',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <ColophonPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
       ),
     },
 
