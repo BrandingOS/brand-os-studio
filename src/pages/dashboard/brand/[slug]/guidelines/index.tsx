@@ -65,6 +65,14 @@ export default function GuidelinesHubPage() {
         {/* View toggle */}
         <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-gray-200">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-2">
+            <button
+              onClick={() => navigate(`/dashboard/brand/${slug}`)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors mr-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+            <div className="w-px h-6 bg-border mr-2" />
             <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
               <button
                 onClick={() => setViewMode('split')}

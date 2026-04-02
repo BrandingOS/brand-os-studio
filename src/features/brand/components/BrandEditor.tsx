@@ -4,7 +4,8 @@ import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
-import { Edit2, Save, X, Palette, Type, MessageCircle, Users, Check } from 'lucide-react';
+import { Edit2, Save, X, Palette, Type, MessageCircle, Users, Check, Upload, Image } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BrandEditorProps {
   brand: Brand;
@@ -135,6 +136,62 @@ export function BrandEditor({ brand }: BrandEditorProps) {
             ) : (
               <div className="p-3 bg-muted rounded-md">{brand.tone || 'Not specified'}</div>
             )}
+          </div>
+        </div>
+
+        {/* Logo Upload */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Image className="h-4 w-4" />
+            Brand Logo
+          </label>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-xl border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
+              {brand.logo ? (
+                <img src={brand.logo} alt={brand.name} className="w-full h-full object-contain p-2" />
+              ) : (
+                <span className="text-2xl font-bold text-muted-foreground">{brand.name?.charAt(0)}</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors cursor-pointer">
+                <Upload className="h-3.5 w-3.5" />
+                {brand.logo ? 'Replace Logo' : 'Upload Logo'}
+                <input
+                  type="file"
+                  accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      const url = reader.result as string;
+                      try {
+                        await update(brand.id, { logo: url });
+                        toast.success('Logo uploaded');
+                      } catch {
+                        toast.error('Failed to upload logo');
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              {brand.logo && (
+                <button
+                  onClick={async () => {
+                    await update(brand.id, { logo: undefined });
+                    toast.success('Logo removed');
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Remove
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
