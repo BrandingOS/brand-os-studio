@@ -205,18 +205,19 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
         {filteredAnimations.map((animation) => {
           const busy = exportingId === animation.id;
           return (
-            <div key={animation.id} className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md hover:border-primary/20">
-              <div className="aspect-square flex items-center justify-center bg-muted/30">
+            <div
+              key={animation.id}
+              className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md hover:border-primary/20"
+              onMouseEnter={() => { setPlayingId(null); setTimeout(() => setPlayingId(animation.id), 30); }}
+              onMouseLeave={() => setPlayingId(null)}
+            >
+              <div className="aspect-square flex items-center justify-center bg-muted/30 cursor-default">
                 <AnimationPreview animation={animation} brand={brand} isPlaying={playingId === animation.id} />
               </div>
               <div className="p-3">
                 <p className="text-sm font-medium mb-0.5">{animation.name}</p>
                 <p className="text-xs text-muted-foreground capitalize mb-3">{animation.type}</p>
                 <div className="space-y-1.5">
-                  <button onClick={() => handlePlay(animation.id)} className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-muted text-xs font-medium hover:bg-muted/80 transition-colors">
-                    {playingId === animation.id ? <RotateCw className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                    {playingId === animation.id ? 'Replay' : 'Play'}
-                  </button>
                   <button onClick={() => handleDownload(animation)} disabled={busy}
                     className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
                     {busy ? (
