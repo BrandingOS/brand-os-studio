@@ -15,7 +15,7 @@ export function AppShellCanvaLayout({ children, brandName, brandSlug }: AppShell
         <CanvaSidebar brandSlug={brandSlug} />
         
         <section className="flex-1 min-w-0 pl-4 md:pl-6">
-          <CanvaTopBar brandName={brandName} />
+          <CanvaTopBar brandName={brandName} brandSlug={brandSlug} />
           
           <main className="mt-3">
             {children}

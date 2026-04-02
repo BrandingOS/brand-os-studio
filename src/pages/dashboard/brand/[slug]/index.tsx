@@ -123,6 +123,44 @@ export default function BrandHomePage() {
           </div>
         </div>
 
+        {/* Brand Identity Summary */}
+        {brand.guidelines?.strategy && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {brand.guidelines.strategy.mission && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Mission</h3>
+                <p className="text-sm text-foreground leading-relaxed">{brand.guidelines.strategy.mission}</p>
+              </div>
+            )}
+            {brand.guidelines.strategy.positioning && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Positioning</h3>
+                <p className="text-sm text-foreground leading-relaxed">{brand.guidelines.strategy.positioning}</p>
+              </div>
+            )}
+            {brand.guidelines.strategy.values && brand.guidelines.strategy.values.length > 0 && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Values</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {brand.guidelines.strategy.values.map((v) => (
+                    <span key={v} className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">{v}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {brand.guidelines.voiceAndTone?.toneAttributes && (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Voice & Tone</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {brand.guidelines.voiceAndTone.toneAttributes.map((t) => (
+                    <span key={t} className="px-2.5 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Share & Team */}
         <div className="space-y-6">
           <SharePanel brand={brand} onUpdate={handleBrandUpdate} />

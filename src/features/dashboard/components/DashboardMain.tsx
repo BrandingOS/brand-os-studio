@@ -202,10 +202,15 @@ export function DashboardMain() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-xl border-2 border-white shadow-sm"
-                        style={{ backgroundColor: brand.primaryColor }}
-                      />
+                      {brand.logo ? (
+                        <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center p-1.5 shadow-sm">
+                          <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-xl border-2 border-white shadow-sm flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>
+                          {brand.name?.charAt(0)}
+                        </div>
+                      )}
                       <div>
                         <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
                           {brand.name}
