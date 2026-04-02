@@ -221,9 +221,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
       {canvasEditorTemplate && (
         <CanvasEditor
           brand={brand}
-          width={canvasEditorTemplate.orientation === 'portrait' ? 1080 : canvasEditorTemplate.orientation === 'square' ? 1080 : 1920}
-          height={canvasEditorTemplate.orientation === 'portrait' ? 1920 : canvasEditorTemplate.orientation === 'square' ? 1080 : 1080}
-          templateName={canvasEditorTemplate.name}
+          template={canvasEditorTemplate}
           onClose={() => setCanvasEditorTemplate(null)}
         />
       )}
