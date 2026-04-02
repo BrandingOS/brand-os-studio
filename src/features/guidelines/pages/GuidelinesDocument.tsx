@@ -9,10 +9,16 @@ import type { Brand } from '@/shared/types/brand';
 import { CoverPage } from './CoverPage';
 import { TableOfContentsPage } from './TableOfContentsPage';
 import { BrandIntroPage } from './BrandIntroPage';
+import { BrandPersonalityPage } from './BrandPersonalityPage';
 import { LogoSystemPage, LogoClearSpacePage } from './LogoSystemPage';
+import { LogoMisusePage } from './LogoMisusePage';
 import { ColorSystemPage, ColorNeutralsPage } from './ColorSystemPage';
+import { ColorUsagePage } from './ColorUsagePage';
 import { TypographyPage, TypeScalePage } from './TypographyPage';
 import { VoiceTonePage, DosDontsPage } from './VoiceTonePage';
+import { MessagingPage, PhotographyPage } from './MessagingPage';
+import { IconographyPage } from './IconographyPage';
+import { GridLayoutPage } from './GridLayoutPage';
 import { BusinessCardPage, SocialMediaPage, ClosingPage } from './ApplicationsPage';
 import type { GuidelinePageProps } from './PageShell';
 import { toast } from 'sonner';
@@ -29,16 +35,23 @@ type PageEntry = {
 
 const ALL_PAGES: PageEntry[] = [
   { id: 'cover', name: 'Cover', component: CoverPage },
-  { id: 'toc', name: 'Table of Contents', component: TableOfContentsPage },
+  { id: 'toc', name: 'Contents', component: TableOfContentsPage },
   { id: 'intro', name: 'Brand Introduction', component: BrandIntroPage },
+  { id: 'personality', name: 'Brand Personality', component: BrandPersonalityPage },
   { id: 'logo-system', name: 'Logo System', component: LogoSystemPage },
   { id: 'logo-clearspace', name: 'Clear Space & Size', component: LogoClearSpacePage },
+  { id: 'logo-misuse', name: 'Logo Misuse', component: LogoMisusePage },
   { id: 'colors', name: 'Color System', component: ColorSystemPage },
   { id: 'neutrals', name: 'Neutral Palette', component: ColorNeutralsPage },
+  { id: 'color-usage', name: 'Color Accessibility', component: ColorUsagePage },
   { id: 'typography', name: 'Primary Typeface', component: TypographyPage },
   { id: 'type-scale', name: 'Type Scale', component: TypeScalePage },
   { id: 'voice', name: 'Voice & Tone', component: VoiceTonePage },
   { id: 'dos-donts', name: "Do's & Don'ts", component: DosDontsPage },
+  { id: 'messaging', name: 'Messaging Examples', component: MessagingPage },
+  { id: 'photography', name: 'Photography', component: PhotographyPage },
+  { id: 'iconography', name: 'Iconography', component: IconographyPage },
+  { id: 'grid-layout', name: 'Grid & Layout', component: GridLayoutPage },
   { id: 'business-card', name: 'Business Cards', component: BusinessCardPage },
   { id: 'social', name: 'Social Media', component: SocialMediaPage },
   { id: 'closing', name: 'Closing', component: ClosingPage },
