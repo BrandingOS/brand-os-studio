@@ -13,6 +13,7 @@ import { SlideNav } from './SlideNav';
 import { ThemeDrawer } from './ThemeDrawer';
 import { BackgroundPopover } from './BackgroundPopover';
 import { InsertMenu } from './InsertMenu';
+import { RemixPanel } from './RemixPanel';
 import { ExportModal } from './ExportModal';
 import { toast } from 'sonner';
 
@@ -33,7 +34,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [currentSlide, setCurrentSlide] = useState(0);
   const [layoutId, setLayoutId] = useState('hyperhyve');
   const [presentMode, setPresentMode] = useState(false);
-  const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export'>('none');
+  const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +50,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
     }
   }, [totalPages]);
 
-  const togglePanel = useCallback((panel: 'insert' | 'theme' | 'background' | 'export') => {
+  const togglePanel = useCallback((panel: 'insert' | 'theme' | 'background' | 'export' | 'remix') => {
     setActivePanel(prev => prev === panel ? 'none' : panel);
   }, []);
 
@@ -202,6 +203,11 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         {/* Insert Menu */}
         {activePanel === 'insert' && (
           <InsertMenu onClose={() => setActivePanel('none')} />
+        )}
+
+        {/* Remix Panel */}
+        {activePanel === 'remix' && (
+          <RemixPanel onClose={() => setActivePanel('none')} />
         )}
       </div>
 

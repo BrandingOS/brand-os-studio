@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { Layers, Search, Copy, Plus, BookOpen } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from '../pages/templates/layout-config';
 import type { SlideData } from './EditorWorkspace';
@@ -12,40 +12,54 @@ interface SlideNavProps {
   layout: TemplateLayout;
 }
 
-export function SlideNav({ slides, currentSlide, onSelect }: SlideNavProps) {
-  const [expanded, setExpanded] = useState(false);
+const ADD_PAGE_CATEGORIES = [
+  'COVER', 'TABLE OF CONTENT', 'BRAND STRATEGY', 'LOGO & WORDMARK',
+  'COLOR SYSTEM', 'TYPOGRAPHY', 'BRAND IN USE', 'ICONOGRAPHY',
+  'SOCIAL MEDIA', 'STATIONERY', 'BRAND APPLICATIONS', 'COMPOSITION',
+  'DATA VISUALIZATION', 'GALLERY',
+];
 
-  if (!expanded) {
-    return (
-      <div className="absolute left-2 top-1/2 -translate-y-1/2 z-20">
-        <button onClick={() => setExpanded(true)} className="flex flex-col items-center gap-[3px] py-4 px-1.5 rounded-xl hover:bg-white/5 transition-colors group">
-          {slides.map((_, i) => (
-            <div key={i} className={`rounded-full transition-all duration-200 ${i === currentSlide ? 'w-1.5 h-3.5 bg-white/70' : 'w-1 h-1 bg-white/15 group-hover:bg-white/25'}`} />
-          ))}
-        </button>
-      </div>
-    );
-  }
+export function SlideNav({ slides, currentSlide, onSelect }: SlideNavProps) {
+  const [panel, setPanel] = useState<'none' | 'slides' | 'add'>('none');
+  const togglePanel = (p: 'slides' | 'add') => setPanel(prev => prev === p ? 'none' : p);
 
   return (
-    <div className="absolute left-0 top-0 bottom-0 z-20 w-48 bg-[#1e1e1e] border-r border-white/[0.06] flex flex-col animate-in slide-in-from-left duration-200">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.06]">
-        <span className="text-[10px] text-white/30 uppercase tracking-wider font-semibold">Slides</span>
-        <button onClick={() => setExpanded(false)} className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white transition-colors">
-          <ChevronLeft className="h-3 w-3" />
-        </button>
+    <>
+      <div className="absolute left-0 top-0 bottom-0 z-20 w-10 flex flex-col items-center py-3 gap-1">
+        <button onClick={() => togglePanel('slides')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${panel === 'slides' ? 'bg-white/15 text-white' : 'text-white/25 hover:text-white/50 hover:bg-white/5'}`}><BookOpen className="h-4 w-4" /></button>
+        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/5 transition-colors"><Layers className="h-4 w-4" /></button>
+        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/5 transition-colors"><Search className="h-4 w-4" /></button>
+        <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/25 hover:text-white/50 hover:bg-white/5 transition-colors"><Copy className="h-4 w-4" /></button>
+        <button onClick={() => togglePanel('add')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${panel === 'add' ? 'bg-white/15 text-white' : 'text-white/25 hover:text-white/50 hover:bg-white/5'}`}><Plus className="h-4 w-4" /></button>
       </div>
-      <div className="flex-1 overflow-y-auto py-1.5 px-1.5 space-y-0.5">
-        {slides.map((slide, i) => (
-          <button key={slide.id} onClick={() => { onSelect(i); setExpanded(false); }}
-            className={`w-full text-left rounded-lg px-2.5 py-1.5 transition-all ${i === currentSlide ? 'bg-white/10 text-white' : 'text-white/35 hover:text-white/60 hover:bg-white/5'}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-mono text-white/20 w-4 shrink-0 text-right">{i + 1}</span>
-              <span className="text-[11px] truncate">{slide.name}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
+
+      {panel === 'slides' && (
+        <div className="absolute left-10 top-0 bottom-0 z-20 w-52 bg-[#1e1e1e] border-r border-white/[0.06] flex flex-col animate-in slide-in-from-left duration-200">
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-1.5">
+            {slides.map((slide, i) => (
+              <button key={slide.id} onClick={() => { onSelect(i); setPanel('none'); }}
+                className={`w-full rounded-lg overflow-hidden transition-all ${i === currentSlide ? 'ring-2 ring-white/30' : 'hover:ring-1 hover:ring-white/10'}`}>
+                <div className="aspect-video bg-[#2a2a2a] flex items-center justify-center relative">
+                  <span className="text-[8px] text-white/20 absolute top-1 left-1.5 font-mono">{i + 1}</span>
+                  <span className="text-[9px] text-white/30 font-medium truncate px-2">{slide.name}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {panel === 'add' && (
+        <div className="absolute left-10 top-0 bottom-0 z-20 w-52 bg-[#1e1e1e] border-r border-white/[0.06] flex flex-col animate-in slide-in-from-left duration-200">
+          <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+            {ADD_PAGE_CATEGORIES.map(cat => (
+              <button key={cat} className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-wider text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors">
+                <span>{cat}</span><span className="text-white/15 text-[10px]">›</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
