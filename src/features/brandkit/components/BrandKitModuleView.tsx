@@ -10,6 +10,7 @@ import { ColorSystemModule } from './colors/ColorSystemModule';
 import { BrandVoiceModule } from './BrandVoiceModule';
 import { BrandStrategyModule } from './BrandStrategyModule';
 import { TypographyModule } from './TypographyModule';
+import { GuidelinesDocument } from '../../guidelines/pages/GuidelinesDocument';
 import { getModuleConfig } from '../data/modules';
 import type { Brand } from '@/shared/types/brand';
 
@@ -48,6 +49,8 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
         return <BrandVoiceModule brand={brand} />;
       case 'brand-strategy':
         return <BrandStrategyModule brand={brand} />;
+      case 'brand-guides':
+        return <GuidelinesDocument brand={brand} />;
       case 'typography':
         return <TypographyModule brand={brand} />;
       case 'logo-files':
@@ -76,7 +79,7 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
       </button>
 
       {/* Module Header (for template-based modules) */}
-      {!['settings', 'logo-files', 'qr-code', 'animations', 'design-tool', 'color-system', 'brand-voice', 'brand-strategy', 'typography'].includes(moduleId) && (
+      {!['settings', 'logo-files', 'qr-code', 'animations', 'design-tool', 'color-system', 'brand-voice', 'brand-strategy', 'typography', 'brand-guides'].includes(moduleId) && (
         <div>
           <h2 className="text-2xl font-bold mb-1">{moduleConfig.name}</h2>
           <p className="text-muted-foreground">{moduleConfig.description}</p>
