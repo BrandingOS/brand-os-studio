@@ -4,7 +4,7 @@ interface RemixPanelProps {
 
 export function RemixPanel({ onClose }: RemixPanelProps) {
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 w-96 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="w-96 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       <div className="px-4 pt-3 pb-2 flex items-center justify-between">
         <p className="text-[11px] text-white/30">Text only layouts</p>
       </div>

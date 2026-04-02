@@ -35,7 +35,7 @@ export function BackgroundPopover({ brand, currentBg, onChangeBg }: BackgroundPo
   ];
 
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 w-80 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="w-80 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {/* Tabs */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex gap-3">

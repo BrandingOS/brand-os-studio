@@ -18,7 +18,7 @@ export function InsertMenu({ onClose }: InsertMenuProps) {
   ];
 
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 w-56 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] py-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="w-56 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] py-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
       <div className="px-3 py-1">
         <p className="text-[10px] text-white/20 uppercase tracking-wider font-semibold">Insert widget</p>
       </div>

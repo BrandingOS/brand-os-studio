@@ -188,34 +188,34 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           <div className="mt-4 text-white/15 text-xs">{slide?.name}</div>
         </div>
 
-        {/* Theme Drawer */}
-        {activePanel === 'theme' && (
-          <ThemeDrawer layoutId={layoutId} onChangeLayout={setLayoutId} onClose={() => setActivePanel('none')} />
-        )}
-
-        {/* Background Popover */}
-        {activePanel === 'background' && (
-          <BackgroundPopover
-            brand={brand}
-            currentBg={bgOverride}
-            onChangeBg={(c) => slide && setPerSlideBg(p => ({ ...p, [slide.id]: c }))}
-            onClose={() => setActivePanel('none')}
-          />
-        )}
-
-        {/* Insert Menu */}
-        {activePanel === 'insert' && (
-          <InsertMenu onClose={() => setActivePanel('none')} />
-        )}
-
-        {/* Remix Panel */}
-        {activePanel === 'remix' && (
-          <RemixPanel onClose={() => setActivePanel('none')} />
-        )}
       </div>
 
-      {/* Bottom Bar */}
-      <EditorBottomBar activePanel={activePanel} onTogglePanel={togglePanel} />
+      {/* Panels — positioned above the bottom bar, outside scroll area */}
+      <div className="relative shrink-0">
+        {activePanel === 'theme' && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+            <ThemeDrawer layoutId={layoutId} onChangeLayout={setLayoutId} onClose={() => setActivePanel('none')} />
+          </div>
+        )}
+        {activePanel === 'background' && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+            <BackgroundPopover brand={brand} currentBg={bgOverride} onChangeBg={(c) => slide && setPerSlideBg(p => ({ ...p, [slide.id]: c }))} onClose={() => setActivePanel('none')} />
+          </div>
+        )}
+        {activePanel === 'insert' && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+            <InsertMenu onClose={() => setActivePanel('none')} />
+          </div>
+        )}
+        {activePanel === 'remix' && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+            <RemixPanel onClose={() => setActivePanel('none')} />
+          </div>
+        )}
+
+        {/* Bottom Bar */}
+        <EditorBottomBar activePanel={activePanel} onTogglePanel={togglePanel} />
+      </div>
 
       {/* Export Modal */}
       {activePanel === 'export' && (

@@ -18,7 +18,7 @@ export function ThemeDrawer({ layoutId, onChangeLayout, onClose }: ThemeDrawerPr
   const [scope, setScope] = useState<'chapter' | 'document'>('chapter');
 
   return (
-    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 w-72 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="w-72 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {/* Scope tabs */}
       <div className="flex border-b border-white/[0.06]">
         <button onClick={() => setScope('chapter')} className={`flex-1 px-4 py-2.5 text-[12px] font-medium transition-colors ${scope === 'chapter' ? 'text-white bg-white/5' : 'text-white/30 hover:text-white/50'}`}>
