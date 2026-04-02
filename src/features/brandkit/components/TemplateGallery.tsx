@@ -1,22 +1,55 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Search, Check } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard } from './TemplateCard';
+import { TemplatePreviewModal } from './TemplatePreviewModal';
 import { getTemplatesForModule, filterTemplatesByCategory } from '../data/templates';
+import { BusinessCardRenderer } from './renderers/BusinessCardRenderer';
+import { SocialMediaRenderer } from './renderers/SocialMediaRenderer';
+import { ProfileIconRenderer } from './renderers/ProfileIconRenderer';
+import { PresentationRenderer } from './renderers/PresentationRenderer';
+import { InvoiceRenderer } from './renderers/InvoiceRenderer';
+import { BrandGuideRenderer } from './renderers/BrandGuideRenderer';
+import { MockupRenderer } from './renderers/MockupRenderer';
 import type { BrandKitModuleConfig, BrandKitTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
-import { toast } from 'sonner';
 
 interface TemplateGalleryProps {
   moduleConfig: BrandKitModuleConfig;
   brand: Brand;
 }
 
+function getTemplateIndex(template: BrandKitTemplate): number {
+  const match = template.id.match(/(\d+)$/);
+  return match ? parseInt(match[1], 10) - 1 : 0;
+}
+
+function renderTemplatePreviewContent(template: BrandKitTemplate, brand: Brand) {
+  const idx = getTemplateIndex(template);
+  switch (template.type) {
+    case 'business-cards': return <BusinessCardRenderer brand={brand} templateIndex={idx} />;
+    case 'instagram-posts': return <SocialMediaRenderer brand={brand} templateIndex={idx} format="square" />;
+    case 'instagram-stories': return <SocialMediaRenderer brand={brand} templateIndex={idx} format="story" />;
+    case 'facebook-covers': return <SocialMediaRenderer brand={brand} templateIndex={idx} format="cover" />;
+    case 'profile-icons': return <ProfileIconRenderer brand={brand} templateIndex={idx} />;
+    case 'presentations': return <PresentationRenderer brand={brand} templateIndex={idx} />;
+    case 'invoices': return <InvoiceRenderer brand={brand} templateIndex={idx} />;
+    case 'brand-guides': return <BrandGuideRenderer brand={brand} templateIndex={idx} />;
+    case 'mockups': return <MockupRenderer brand={brand} templateIndex={idx} />;
+    default: return <BrandGuideRenderer brand={brand} templateIndex={idx} />;
+  }
+}
+
 export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
   const [activeTab, setActiveTab] = useState<'templates' | 'saved' | 'extra'>('templates');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
+  const [previewTemplate, setPreviewTemplate] = useState<BrandKitTemplate | null>(null);
 
   const allTemplates = useMemo(() => getTemplatesForModule(moduleConfig.id), [moduleConfig.id]);
 
@@ -33,15 +66,19 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
     return result;
   }, [allTemplates, activeCategory, searchQuery]);
 
-  const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
-
   const handleUseTemplate = useCallback((template: BrandKitTemplate) => {
+    // For brand-guides, navigate directly to the guidelines editor
+    if (template.type === 'brand-guides') {
+      navigate(`/dashboard/brand/${slug}/guidelines`);
+      return;
+    }
+    // For everything else, open the preview modal with download/save actions
+    setPreviewTemplate(template);
+  }, [navigate, slug]);
+
+  const handleSaveTemplate = useCallback((template: BrandKitTemplate) => {
     setSavedTemplates(prev => new Set(prev).add(template.id));
-    toast.success(`Template "${template.name}" saved for ${brand.name}`, {
-      description: 'Design added to your saved collection.',
-      icon: <Check className="h-4 w-4 text-green-500" />,
-    });
-  }, [brand.name]);
+  }, []);
 
   const gridCols = moduleConfig.orientation === 'portrait'
     ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
@@ -72,9 +109,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
             onClick={() => setActiveTab('templates')}
             className={cn(
               'px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px',
-              activeTab === 'templates'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+              activeTab === 'templates' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             {tabs.templates}
@@ -83,21 +118,17 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
             onClick={() => setActiveTab('saved')}
             className={cn(
               'px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px',
-              activeTab === 'saved'
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
+              activeTab === 'saved' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >
-            {tabs.saved}
+            {tabs.saved} {savedTemplates.size > 0 && `(${savedTemplates.size})`}
           </button>
           {tabs.extra && (
             <button
               onClick={() => setActiveTab('extra')}
               className={cn(
                 'px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px',
-                activeTab === 'extra'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                activeTab === 'extra' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
               )}
             >
               {tabs.extra}
@@ -121,12 +152,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
           {filteredTemplates.length > 0 ? (
             <div className={cn('grid gap-4', gridCols)}>
               {filteredTemplates.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  brand={brand}
-                  onUse={handleUseTemplate}
-                />
+                <TemplateCard key={template.id} template={template} brand={brand} onUse={handleUseTemplate} />
               ))}
             </div>
           ) : (
@@ -154,7 +180,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
                 </svg>
               </div>
               <p className="text-muted-foreground font-medium">No saved designs yet</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">Click "Use Template" to save designs here.</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">Click "Use Template" to preview and save designs.</p>
             </div>
           )}
         </>
@@ -187,6 +213,18 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
             Save Contact Info
           </button>
         </div>
+      )}
+
+      {/* Template Preview Modal */}
+      {previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          brand={brand}
+          onClose={() => setPreviewTemplate(null)}
+          onSave={handleSaveTemplate}
+          onNavigate={previewTemplate.type === 'brand-guides' ? () => navigate(`/dashboard/brand/${slug}/guidelines`) : undefined}
+          renderPreview={renderTemplatePreviewContent(previewTemplate, brand)}
+        />
       )}
     </div>
   );
