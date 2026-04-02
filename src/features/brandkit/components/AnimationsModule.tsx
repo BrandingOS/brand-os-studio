@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Download, Play, RotateCw, Film } from 'lucide-react';
+import { Play, RotateCw, Film } from 'lucide-react';
 import { CategoryFilter } from './CategoryFilter';
 import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
@@ -7,9 +7,7 @@ import type { Brand } from '@/shared/types/brand';
 import type { AnimationConfig } from '../types';
 import { toast } from 'sonner';
 
-interface AnimationsModuleProps {
-  brand: Brand;
-}
+interface AnimationsModuleProps { brand: Brand; }
 
 function AnimationPreview({ animation, brand, isPlaying }: { animation: AnimationConfig; brand: Brand; isPlaying: boolean }) {
   const cssMap: Record<string, React.CSSProperties> = {
@@ -36,10 +34,7 @@ function AnimationPreview({ animation, brand, isPlaying }: { animation: Animatio
   );
 }
 
-// ─── Animation math ────────────────────────────────────────────
-
 type AnimFn = (t: number) => { x: number; y: number; scale: number; opacity: number; rotation: number };
-
 const animFns: Record<string, AnimFn> = {
   slideInFromLeft: (t) => ({ x: -(1 - t), y: 0, scale: 1, opacity: t, rotation: 0 }),
   fadeIn: (t) => ({ x: 0, y: 0, scale: 1, opacity: t, rotation: 0 }),
@@ -66,141 +61,109 @@ function renderFrame(ctx: CanvasRenderingContext2D, size: number, t: number, fn:
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.scale(scale, scale);
   if (logoImg) {
-    const w = size * 0.5;
-    const h = (logoImg.height / logoImg.width) * w;
+    const w = size * 0.5, h = (logoImg.height / logoImg.width) * w;
     ctx.drawImage(logoImg, -w / 2, -h / 2, w, h);
   } else {
     ctx.fillStyle = brand.primaryColor;
     ctx.font = `bold ${size * 0.2}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(brand.name.charAt(0), 0, 0);
   }
   ctx.restore();
 }
 
-// ─── MP4 export using VideoEncoder + mp4-muxer ─────────────────
-
-async function exportMP4(
-  animation: AnimationConfig,
-  brand: Brand,
-  logoImg: HTMLImageElement | null,
-  onProgress: (pct: number) => void,
-): Promise<Blob> {
-  const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
-
-  const size = 512;
-  const fps = 30;
+async function createVideo(
+  animation: AnimationConfig, brand: Brand,
+  logoImg: HTMLImageElement | null, onProgress: (p: number) => void,
+): Promise<{ blob: Blob; ext: string }> {
+  const size = 512, fps = 30;
   const durationSec = parseFloat(animation.duration);
   const isLooping = animation.type === 'looping';
-  const holdSec = 2;
-  const totalSec = isLooping ? durationSec * 3 : durationSec + holdSec;
+  const totalSec = isLooping ? durationSec * 3 : durationSec + 2;
   const totalFrames = Math.round(totalSec * fps);
   const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
-
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
+  canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: {
-      codec: 'V_VP9',
-      width: size,
-      height: size,
-    },
-    fastStart: 'in-memory',
-  });
+  // Try MP4 via VideoEncoder + mp4-muxer
+  try {
+    if (typeof globalThis.VideoEncoder === 'function') {
+      const { Muxer, ArrayBufferTarget } = await import('mp4-muxer');
 
-  const encoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => console.error('Encoder error:', e),
-  });
+      // Try codecs in order: H264 (best QuickTime compat) → VP9
+      const codecs = [
+        { mux: 'avc', enc: 'avc1.42001f' },
+        { mux: 'V_VP9', enc: 'vp09.00.10.08' },
+      ];
 
-  encoder.configure({
-    codec: 'vp09.00.10.08',
-    width: size,
-    height: size,
-    bitrate: 4_000_000,
-    framerate: fps,
-  });
+      for (const { mux, enc } of codecs) {
+        try {
+          const support = await VideoEncoder.isConfigSupported({
+            codec: enc, width: size, height: size, bitrate: 4_000_000, framerate: fps,
+          });
+          if (!support.supported) continue;
 
-  for (let i = 0; i < totalFrames; i++) {
-    const elapsed = i / fps;
-    const t = isLooping
-      ? (elapsed / durationSec) % 1
-      : Math.min(elapsed / durationSec, 1);
+          const target = new ArrayBufferTarget();
+          const muxer = new Muxer({
+            target, video: { codec: mux as any, width: size, height: size }, fastStart: 'in-memory',
+          });
+          const encoder = new VideoEncoder({
+            output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+            error: () => {},
+          });
+          encoder.configure({ codec: enc, width: size, height: size, bitrate: 4_000_000, framerate: fps });
 
-    renderFrame(ctx, size, t, fn, logoImg, brand);
+          for (let i = 0; i < totalFrames; i++) {
+            const t = isLooping ? ((i / fps) / durationSec) % 1 : Math.min((i / fps) / durationSec, 1);
+            renderFrame(ctx, size, t, fn, logoImg, brand);
+            const vf = new VideoFrame(canvas, { timestamp: (i / fps) * 1e6, duration: (1 / fps) * 1e6 });
+            encoder.encode(vf, { keyFrame: i % 60 === 0 });
+            vf.close();
+            onProgress(Math.round((i / totalFrames) * 90));
+          }
 
-    const frame = new VideoFrame(canvas, {
-      timestamp: (i / fps) * 1_000_000, // microseconds
-      duration: (1 / fps) * 1_000_000,
-    });
-    encoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
-    frame.close();
-
-    onProgress(Math.round((i / totalFrames) * 90));
-  }
-
-  await encoder.flush();
-  encoder.close();
-  muxer.finalize();
-
-  onProgress(100);
-  return new Blob([target.buffer], { type: 'video/mp4' });
-}
-
-// ─── Fallback: WebM via MediaRecorder ──────────────────────────
-
-async function exportWebM(
-  animation: AnimationConfig,
-  brand: Brand,
-  logoImg: HTMLImageElement | null,
-): Promise<Blob> {
-  const size = 512;
-  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
-  const durationMs = parseFloat(animation.duration) * 1000;
-  const isLooping = animation.type === 'looping';
-  const totalMs = isLooping ? durationMs * 3 : durationMs + 2000;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-
-  return new Promise((resolve, reject) => {
-    const stream = canvas.captureStream(30);
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-    const chunks: Blob[] = [];
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
-    recorder.onerror = () => reject(new Error('Recording failed'));
-    recorder.start();
-
-    const start = performance.now();
-    function draw() {
-      const elapsed = performance.now() - start;
-      if (elapsed >= totalMs) { recorder.stop(); return; }
-      const t = isLooping ? (elapsed / durationMs) % 1 : Math.min(elapsed / durationMs, 1);
-      renderFrame(ctx, size, t, fn, logoImg, brand);
-      requestAnimationFrame(draw);
+          await encoder.flush();
+          encoder.close();
+          muxer.finalize();
+          onProgress(100);
+          return { blob: new Blob([target.buffer], { type: 'video/mp4' }), ext: 'mp4' };
+        } catch { continue; }
+      }
     }
-    requestAnimationFrame(draw);
-    setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 15000);
-  });
-}
+  } catch {}
 
-// ─── Component ─────────────────────────────────────────────────
+  // Fallback: WebM via MediaRecorder (real-time)
+  onProgress(0);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    const stream = canvas.captureStream(fps);
+    const rec = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: Blob[] = [];
+    rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    rec.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+    rec.onerror = () => reject();
+    rec.start();
+    const totalMs = totalSec * 1000;
+    const start = performance.now();
+    (function draw() {
+      const elapsed = performance.now() - start;
+      if (elapsed >= totalMs) { rec.stop(); return; }
+      const t = isLooping ? ((elapsed / 1000) / durationSec) % 1 : Math.min((elapsed / 1000) / durationSec, 1);
+      renderFrame(ctx, size, t, fn, logoImg, brand);
+      onProgress(Math.round((elapsed / totalMs) * 100));
+      requestAnimationFrame(draw);
+    })();
+    setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, 15000);
+  });
+  onProgress(100);
+  return { blob, ext: 'webm' };
+}
 
 export function AnimationsModule({ brand }: AnimationsModuleProps) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-
   const categories = ['All', 'Looping', 'Intro', 'Outro'];
 
   const filteredAnimations = useMemo(() => {
@@ -208,52 +171,27 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
     return ANIMATIONS.filter(a => a.type === activeCategory.toLowerCase());
   }, [activeCategory]);
 
-  const handlePlay = (id: string) => {
-    setPlayingId(null);
-    setTimeout(() => setPlayingId(id), 50);
-  };
+  const handlePlay = (id: string) => { setPlayingId(null); setTimeout(() => setPlayingId(id), 50); };
 
-  const handleDownloadVideo = useCallback(async (animation: AnimationConfig) => {
-    setExportingId(animation.id);
-    setProgress(0);
-    setPlayingId(animation.id);
-
+  const handleDownload = useCallback(async (animation: AnimationConfig) => {
+    setExportingId(animation.id); setProgress(0); setPlayingId(animation.id);
     let logoImg: HTMLImageElement | null = null;
     if (brand.logo) {
-      logoImg = await new Promise<HTMLImageElement>((res, rej) => {
-        const img = new Image(); img.crossOrigin = 'anonymous';
-        img.onload = () => res(img); img.onerror = rej; img.src = brand.logo!;
+      logoImg = await new Promise<HTMLImageElement>((r, j) => {
+        const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => r(i); i.onerror = j; i.src = brand.logo!;
       }).catch(() => null);
     }
-
     const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
-
     try {
-      // Try modern VideoEncoder API first (produces real MP4)
-      if (typeof VideoEncoder !== 'undefined') {
-        const blob = await exportMP4(animation, brand, logoImg, setProgress);
-        downloadBlob(blob, `${slug}-${animation.id}.mp4`);
-        toast.success('Video downloaded (.mp4)');
-      } else {
-        // Fallback to WebM
-        const blob = await exportWebM(animation, brand, logoImg);
-        downloadBlob(blob, `${slug}-${animation.id}.webm`);
-        toast.success('Video downloaded (.webm)');
-      }
-    } catch (err) {
-      console.error('Export error:', err);
-      // Last resort fallback
-      try {
-        const blob = await exportWebM(animation, brand, logoImg);
-        downloadBlob(blob, `${slug}-${animation.id}.webm`);
-        toast.success('Video downloaded (.webm)');
-      } catch {
-        toast.error('Video export failed');
-      }
-    } finally {
-      setExportingId(null);
-      setProgress(0);
-    }
+      const { blob, ext } = await createVideo(animation, brand, logoImg, setProgress);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `${slug}-${animation.id}.${ext}`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded .${ext} video`);
+    } catch { toast.error('Export failed'); }
+    finally { setExportingId(null); setProgress(0); }
   }, [brand]);
 
   return (
@@ -262,9 +200,7 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
         <h2 className="text-2xl font-bold mb-1">Logo Animations</h2>
         <p className="text-muted-foreground">Preview and download animated logo videos.</p>
       </div>
-
       <CategoryFilter categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
-
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {filteredAnimations.map((animation) => {
           const busy = exportingId === animation.id;
@@ -281,21 +217,12 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                     {playingId === animation.id ? <RotateCw className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                     {playingId === animation.id ? 'Replay' : 'Play'}
                   </button>
-                  <button
-                    onClick={() => handleDownloadVideo(animation)}
-                    disabled={busy}
-                    className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
+                  <button onClick={() => handleDownload(animation)} disabled={busy}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
                     {busy ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        {progress > 0 ? `${progress}%` : 'Preparing...'}
-                      </>
+                      <><div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />{progress > 0 ? `${progress}%` : '...'}</>
                     ) : (
-                      <>
-                        <Film className="h-3.5 w-3.5" />
-                        Download Video
-                      </>
+                      <><Film className="h-3.5 w-3.5" />Download Video</>
                     )}
                   </button>
                 </div>
@@ -304,30 +231,18 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
           );
         })}
       </div>
-
       <style>{`
-        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes scaleUp { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes bounceIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
-        @keyframes slideLoop { 0%, 100% { transform: translateX(-15px); } 50% { transform: translateX(15px); } }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-        @keyframes scaleDown { from { transform: scale(1); opacity: 1; } to { transform: scale(0.3); opacity: 0; } }
-        @keyframes zoomOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0); opacity: 0; } }
+        @keyframes slideInLeft{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes scaleUp{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+        @keyframes bounceIn{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+        @keyframes slideLoop{0%,100%{transform:translateX(-15px)}50%{transform:translateX(15px)}}
+        @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+        @keyframes slideOutRight{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+        @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+        @keyframes scaleDown{from{transform:scale(1);opacity:1}to{transform:scale(.3);opacity:0}}
+        @keyframes zoomOut{from{transform:scale(1);opacity:1}to{transform:scale(0);opacity:0}}
       `}</style>
     </div>
   );
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
