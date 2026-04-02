@@ -22,6 +22,7 @@ import {
   BrandUniversePage, TypographySpecimenPage, VoiceDNAPage,
   IconGridPage, BrandManifestoPage, PhotographyMoodPage, ColophonPage,
 } from './FancyPages2';
+import { CustomizePanel, DEFAULT_CUSTOMIZATION, type GuidelineCustomization } from './CustomizePanel';
 import { toast } from 'sonner';
 
 interface TemplateDocumentProps {
@@ -429,9 +430,22 @@ export function TemplateDocument({ brand }: TemplateDocumentProps) {
   const [presentationMode, setPresentationMode] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [customization, setCustomization] = useState<GuidelineCustomization>(DEFAULT_CUSTOMIZATION);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const layout = getLayoutById(activeLayoutId);
-  const slides = buildSlides(brand);
+  // Apply customization: override layout padding, filter hidden slides
+  const customizedLayout = {
+    ...layout,
+    chrome: {
+      ...layout.chrome,
+      pagePadding: customization.pagePadding,
+    },
+    showPageNumbers: customization.showPageNumbers,
+    showBrandMark: customization.showBrandMark,
+  };
+  const allSlides = buildSlides(brand);
+  const slides = allSlides.filter(s => !customization.hiddenSlides.has(s.id));
   const totalPages = slides.length;
 
   const handleExportPDF = async () => {
@@ -461,7 +475,7 @@ export function TemplateDocument({ brand }: TemplateDocumentProps) {
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-5xl">
-            {slides[currentSlide].render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
+            {slides[currentSlide].render({ brand, layout: customizedLayout, pageNumber: currentSlide + 1, totalPages })}
           </div>
         </div>
         <div className="h-14 bg-black/80 flex items-center justify-between px-6">
@@ -485,6 +499,14 @@ export function TemplateDocument({ brand }: TemplateDocumentProps) {
           <p className="text-muted-foreground">{totalPages} slides · {layout.name} template</p>
         </div>
         <div className="flex items-center gap-2">
+          <CustomizePanel
+            customization={customization}
+            onChange={setCustomization}
+            slides={allSlides}
+            layout={layout}
+            isOpen={customizeOpen}
+            onToggle={() => setCustomizeOpen(!customizeOpen)}
+          />
           <button onClick={() => { setCurrentSlide(0); setPresentationMode(true); }} className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors">
             <Maximize2 className="h-3.5 w-3.5" /> Present
           </button>
@@ -526,7 +548,7 @@ export function TemplateDocument({ brand }: TemplateDocumentProps) {
       <div className="space-y-4">
         {slides.map((slide, i) => (
           <div key={slide.id} data-tpl-page data-tpl-id={slide.id} className="rounded-xl overflow-hidden shadow-lg border border-border">
-            {slide.render({ brand, layout, pageNumber: i + 1, totalPages })}
+            {slide.render({ brand, layout: customizedLayout, pageNumber: i + 1, totalPages })}
           </div>
         ))}
       </div>
