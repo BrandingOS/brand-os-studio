@@ -1,13 +1,14 @@
 ---
 name: Push and notify after finishing work
-description: Always push to main on GitHub and send a push notification after completing any task
+description: Always push to main on GitHub after completing work. Only send macOS notification when ALL work is fully complete, not after each milestone.
 type: feedback
 ---
 
 After finishing any work:
-1. Push to GitHub on the main branch
-2. Send a push notification to the user that the work is done
+1. Push to GitHub on the main branch after each milestone
+2. Do NOT send macOS push notifications (osascript) during work — they block the terminal
+3. Only send ONE notification when the entire task is 100% complete and all pushes are done
 
-**Why:** User may be offline/asleep. They want completed work on the remote repo immediately and a notification so they know to check.
+**Why:** osascript display notification commands block the terminal and prevent the user from using it. Push frequently to GitHub but notify only once at the very end.
 
-**How to apply:** After any implementation task is complete and verified (build passes, no errors), run `git add`, `git commit`, `git push origin main`, then use the RemoteTrigger or notification mechanism to alert the user. Never ask for confirmation before pushing or notifying.
+**How to apply:** Use `git commit && git push` freely. Only use `osascript -e 'display notification...'` as the absolute last action when everything is finished.
