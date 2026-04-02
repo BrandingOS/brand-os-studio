@@ -1,40 +1,42 @@
-import { useParams } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand';
-import { TemplateDocument } from '@/features/guidelines/pages/templates/TemplateDocument';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { EditorWorkspace } from '@/features/guidelines/editor';
+import { buildEditorSlides } from '@/features/guidelines/editor/buildSlides';
 
 export default function BrandGuidesPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
 
   if (isLoading) {
     return (
-      <BrandLayout brandName="Loading...">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        </div>
-      </BrandLayout>
+      <div className="fixed inset-0 bg-[#1a1a1a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/30" />
+      </div>
     );
   }
 
   if (error || !brand) {
     return (
-      <BrandLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-2">Brand Not Found</h3>
-            <p className="text-muted-foreground">{error || 'Could not load brand.'}</p>
-          </div>
+      <div className="fixed inset-0 bg-[#1a1a1a] flex items-center justify-center">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-white mb-2">Brand Not Found</h3>
+          <p className="text-white/50">{error || 'Could not load brand.'}</p>
+          <button onClick={() => navigate(`/dashboard/brand/${slug}`)} className="mt-4 text-sm text-white/40 hover:text-white">
+            Go back
+          </button>
         </div>
-      </BrandLayout>
+      </div>
     );
   }
 
+  const slides = buildEditorSlides(brand);
+
   return (
-    <BrandLayout brandName={brand.name}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <TemplateDocument brand={brand} />
-      </div>
-    </BrandLayout>
+    <EditorWorkspace
+      brand={brand}
+      slides={slides}
+      onClose={() => navigate(`/dashboard/brand/${slug}`)}
+    />
   );
 }
