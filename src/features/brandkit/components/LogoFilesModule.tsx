@@ -43,45 +43,61 @@ async function downloadLogoVariant(variant: LogoVariant, brand: Brand, format: s
     return;
   }
 
-  // PNG export via canvas
+  // First load the image to get its actual dimensions
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = reject;
+    img.src = variant.logoSrc;
+  });
+
+  // Calculate canvas size based on actual logo aspect ratio
+  const logoRatio = img.width / img.height;
+  const padding = 0.25; // 25% padding on each side
+  let canvasW: number, canvasH: number;
+
+  if (logoRatio > 2) {
+    // Wide wordmark (e.g. RAQM 4:1)
+    canvasW = size;
+    canvasH = Math.round(size / logoRatio * (1 + padding * 2));
+  } else if (logoRatio > 1) {
+    // Slightly wide logo
+    canvasW = size;
+    canvasH = Math.round(size / logoRatio * (1 + padding));
+  } else {
+    // Square or tall logo (e.g. SKAM ~1:1)
+    canvasH = size;
+    canvasW = Math.round(size * logoRatio * (1 + padding));
+    if (canvasW < size * 0.6) canvasW = size; // min width
+  }
+
   const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = Math.round(size * 0.3); // Logo aspect ratio ~3.3:1
+  canvas.width = canvasW;
+  canvas.height = canvasH;
   const ctx = canvas.getContext('2d');
   if (!ctx) { toast.error('Canvas not supported'); return; }
 
   // Draw background
   if (variant.bgColor !== 'transparent') {
     ctx.fillStyle = variant.bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvasW, canvasH);
   }
 
-  // Draw logo
-  if (variant.logoSrc) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => {
-        const padding = canvas.width * 0.15;
-        const maxW = canvas.width - padding * 2;
-        const maxH = canvas.height - padding * 0.6;
-        const scale = Math.min(maxW / img.width, maxH / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const x = (canvas.width - w) / 2;
-        const y = (canvas.height - h) / 2;
+  // Draw logo centered with proper padding
+  const maxLogoW = canvasW * (1 - padding * 2);
+  const maxLogoH = canvasH * (1 - padding * 2);
+  const scale = Math.min(maxLogoW / img.width, maxLogoH / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  const x = (canvasW - w) / 2;
+  const y = (canvasH - h) / 2;
 
-        if (variant.logoFilter) {
-          ctx.filter = variant.logoFilter;
-        }
-        ctx.drawImage(img, x, y, w, h);
-        ctx.filter = 'none';
-        resolve();
-      };
-      img.onerror = reject;
-      img.src = variant.logoSrc;
-    });
+  if (variant.logoFilter) {
+    ctx.filter = variant.logoFilter;
   }
+  ctx.drawImage(img, x, y, w, h);
+  ctx.filter = 'none';
 
   const filename = `${slug}-${variant.id}-${size}w.png`;
   downloadCanvasAsFile(canvas, filename);
