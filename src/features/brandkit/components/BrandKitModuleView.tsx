@@ -6,6 +6,7 @@ import { SettingsModule } from './SettingsModule';
 import { QRCodeModule } from './QRCodeModule';
 import { AnimationsModule } from './AnimationsModule';
 import { DesignToolModule } from './DesignToolModule';
+import { ColorSystemModule } from './colors/ColorSystemModule';
 import { getModuleConfig } from '../data/modules';
 import type { Brand } from '@/shared/types/brand';
 
@@ -38,6 +39,8 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
     switch (moduleId) {
       case 'settings':
         return <SettingsModule brand={brand} onUpdate={onBrandUpdate} />;
+      case 'color-system':
+        return <ColorSystemModule brand={brand} onUpdate={onBrandUpdate} />;
       case 'logo-files':
         return <LogoFilesModule brand={brand} />;
       case 'qr-code':
@@ -64,7 +67,7 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
       </button>
 
       {/* Module Header (for template-based modules) */}
-      {!['settings', 'logo-files', 'qr-code', 'animations', 'design-tool'].includes(moduleId) && (
+      {!['settings', 'logo-files', 'qr-code', 'animations', 'design-tool', 'color-system'].includes(moduleId) && (
         <div>
           <h2 className="text-2xl font-bold mb-1">{moduleConfig.name}</h2>
           <p className="text-muted-foreground">{moduleConfig.description}</p>

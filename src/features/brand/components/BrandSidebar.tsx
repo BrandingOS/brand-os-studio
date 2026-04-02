@@ -28,6 +28,7 @@ import {
   Play,
   QrCode,
   PenTool,
+  Palette,
   Lock,
   Download,
 } from 'lucide-react';
@@ -61,6 +62,7 @@ const brandNavItems = [
 
 const brandKitItems = [
   { title: "Settings", url: "/dashboard/brand/:slug/brandkit/settings", icon: Settings, disabled: false },
+  { title: "Color System", url: "/dashboard/brand/:slug/brandkit/color-system", icon: Palette, disabled: false },
   { title: "Logo Files", url: "/dashboard/brand/:slug/brandkit/logo-files", icon: Image, disabled: false },
   { title: "Brand Guides", url: "/dashboard/brand/:slug/brandkit/brand-guides", icon: BookOpen, disabled: false },
   { title: "Profile Icons", url: "/dashboard/brand/:slug/brandkit/profile-icons", icon: CircleUser, disabled: false },

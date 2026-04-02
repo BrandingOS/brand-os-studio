@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Settings, Image, BookOpen, CircleUser, Monitor, CreditCard,
   RectangleHorizontal, Square, Smartphone, Presentation, Play,
-  QrCode, FileText, PenTool
+  QrCode, FileText, PenTool, Palette
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import { BRAND_KIT_MODULES } from '../data/modules';
@@ -15,7 +15,7 @@ interface BrandKitHubProps {
 const iconMap: Record<string, React.ElementType> = {
   Settings, Image, BookOpen, CircleUser, Monitor, CreditCard,
   RectangleHorizontal, Square, Smartphone, Presentation, Play,
-  QrCode, FileText, PenTool,
+  QrCode, FileText, PenTool, Palette,
 };
 
 export function BrandKitHub({ brand, slug }: BrandKitHubProps) {

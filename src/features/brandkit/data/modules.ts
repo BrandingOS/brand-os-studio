@@ -12,6 +12,16 @@ export const BRAND_KIT_MODULES: BrandKitModuleConfig[] = [
     orientation: 'mixed',
   },
   {
+    id: 'color-system',
+    name: 'Color System',
+    description: 'Palette, contrast & harmonies',
+    icon: 'Palette',
+    gradient: 'from-rose-500 to-pink-600',
+    categories: [],
+    hasTabs: false,
+    orientation: 'mixed',
+  },
+  {
     id: 'logo-files',
     name: 'Logo Files',
     description: 'Download logo variants',
