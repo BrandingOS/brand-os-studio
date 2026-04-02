@@ -142,15 +142,40 @@ export function EditableSlide({ children }: EditableSlideProps) {
         <FloatingToolbar
           blockType={selected.type}
           style={{
-            fontWeight: selected.element.style.fontWeight || undefined,
+            fontWeight: selected.element.style.fontWeight || window.getComputedStyle(selected.element).fontWeight || undefined,
             color: selected.element.style.color || undefined,
             textAlign: (selected.element.style.textAlign as 'left' | 'center' | 'right') || undefined,
           }}
-          onChangeType={() => {}}
-          onChangeStyle={(key, value) => {
-            if (selected.element) {
-              (selected.element.style as any)[key] = value;
+          onChangeType={(newType) => {
+            if (!selected.element) return;
+            // Apply type change visually
+            if (newType === 'heading') {
+              selected.element.style.fontSize = '2em';
+              selected.element.style.fontWeight = '700';
+            } else if (newType === 'text') {
+              selected.element.style.fontSize = '';
+              selected.element.style.fontWeight = '400';
             }
+            setSelected({ ...selected, type: newType });
+          }}
+          onChangeStyle={(key, value) => {
+            if (!selected.element) return;
+            (selected.element.style as any)[key] = value;
+            // Force re-render to update toolbar state
+            const rect = selected.element.getBoundingClientRect();
+            setSelected({ ...selected, rect });
+          }}
+          onDelete={() => {
+            if (!selected.element) return;
+            selected.element.style.display = 'none';
+            clearSelection();
+          }}
+          onDuplicate={() => {
+            if (!selected.element) return;
+            const clone = selected.element.cloneNode(true) as HTMLElement;
+            clone.style.outline = '';
+            clone.style.outlineOffset = '';
+            selected.element.parentElement?.insertBefore(clone, selected.element.nextSibling);
           }}
           position={{
             top: selected.rect.top,

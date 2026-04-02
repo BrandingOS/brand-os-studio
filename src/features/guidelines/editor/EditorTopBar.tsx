@@ -1,5 +1,6 @@
 import { ArrowLeft, Share2, Download, Maximize2, MoreHorizontal } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
+import { toast } from 'sonner';
 
 interface EditorTopBarProps {
   brand: Brand;
@@ -33,7 +34,7 @@ export function EditorTopBar({ brand, currentSlide, totalPages, slideName, onPre
 
       {/* Right: actions */}
       <div className="flex items-center gap-1">
-        <button className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+        <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied to clipboard'); }} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
           Share
         </button>
         <button onClick={onExport} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
