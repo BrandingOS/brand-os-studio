@@ -1,6 +1,6 @@
-import { Download } from 'lucide-react';
-import { LOGO_VARIANTS } from '../data/templates';
-import { BrandLogo } from './renderers/BrandLogo';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { Download, Check, AlertTriangle, Info, ChevronDown } from 'lucide-react';
+import { generateLogoVariants, type LogoVariant } from '../engine/brandRules';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 
@@ -8,64 +8,257 @@ interface LogoFilesModuleProps {
   brand: Brand;
 }
 
+type CategoryFilter = 'all' | 'primary' | 'inverse' | 'monochrome' | 'accent';
+
+function downloadCanvasAsFile(canvas: HTMLCanvasElement, filename: string) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+async function downloadLogoVariant(variant: LogoVariant, brand: Brand, format: string, size: number) {
+  const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+
+  if (format === 'SVG' && variant.logoSrc && !variant.logoSrc.startsWith('data:')) {
+    // Direct SVG download
+    try {
+      const resp = await fetch(variant.logoSrc);
+      const svgText = await resp.text();
+      const blob = new Blob([svgText], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${slug}-${variant.id}.svg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${variant.name} (SVG)`);
+    } catch {
+      toast.error('SVG download failed');
+    }
+    return;
+  }
+
+  // PNG export via canvas
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = Math.round(size * 0.3); // Logo aspect ratio ~3.3:1
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { toast.error('Canvas not supported'); return; }
+
+  // Draw background
+  if (variant.bgColor !== 'transparent') {
+    ctx.fillStyle = variant.bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Draw logo
+  if (variant.logoSrc) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        const padding = canvas.width * 0.15;
+        const maxW = canvas.width - padding * 2;
+        const maxH = canvas.height - padding * 0.6;
+        const scale = Math.min(maxW / img.width, maxH / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const x = (canvas.width - w) / 2;
+        const y = (canvas.height - h) / 2;
+
+        if (variant.logoFilter) {
+          ctx.filter = variant.logoFilter;
+        }
+        ctx.drawImage(img, x, y, w, h);
+        ctx.filter = 'none';
+        resolve();
+      };
+      img.onerror = reject;
+      img.src = variant.logoSrc;
+    });
+  }
+
+  const filename = `${slug}-${variant.id}-${size}w.png`;
+  downloadCanvasAsFile(canvas, filename);
+  toast.success(`Downloaded ${variant.name} (${size}px PNG)`);
+}
+
+function ContrastBadge({ score }: { score: number }) {
+  if (score === 0) return <span className="text-[10px] text-muted-foreground">N/A</span>;
+  const color = score >= 4.5 ? 'text-green-600' : score >= 3 ? 'text-yellow-600' : 'text-red-500';
+  const icon = score >= 4.5 ? <Check className="h-3 w-3" /> : score >= 3 ? <Info className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />;
+  return (
+    <span className={`flex items-center gap-0.5 text-[10px] font-medium ${color}`}>
+      {icon} {score.toFixed(1)}:1
+    </span>
+  );
+}
+
 export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
-  const handleDownload = (variantName: string) => {
-    toast.success(`Downloading ${variantName} logo for ${brand.name}`);
-  };
+  const [category, setCategory] = useState<CategoryFilter>('all');
+  const [previewBg, setPreviewBg] = useState<string | null>(null);
+  const [downloadSize, setDownloadSize] = useState(1200);
+
+  const allVariants = useMemo(() => generateLogoVariants(brand), [brand]);
+
+  const filteredVariants = useMemo(() => {
+    if (category === 'all') return allVariants;
+    return allVariants.filter(v => v.category === category);
+  }, [allVariants, category]);
+
+  const categories: { key: CategoryFilter; label: string }[] = [
+    { key: 'all', label: 'All Variants' },
+    { key: 'primary', label: 'Primary' },
+    { key: 'inverse', label: 'Inverse' },
+    { key: 'monochrome', label: 'Monochrome' },
+    { key: 'accent', label: 'Accent' },
+  ];
+
+  if (!brand.logo) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-1">Logo Files</h2>
+          <p className="text-muted-foreground">Upload a logo in Brand Settings to generate variants.</p>
+        </div>
+        <div className="flex items-center justify-center py-20 border-2 border-dashed border-border rounded-xl">
+          <div className="text-center">
+            <AlertTriangle className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No logo available</p>
+            <p className="text-sm text-muted-foreground/60 mt-1">Add a logo in Settings to generate download-ready variants.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-1">Logo Files</h2>
-        <p className="text-muted-foreground">Download your logo in different variants and formats.</p>
+        <p className="text-muted-foreground">
+          {allVariants.length} brand-safe variants of your logo — validated for contrast and usage.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {LOGO_VARIANTS.map((variant) => {
-          const bgColor = variant.bgColor === 'brand-primary' ? brand.primaryColor : variant.bgColor;
-          const logoColor = variant.invertLogo ? '#ffffff'
-            : variant.logoFilter ? (variant.bgColor === '#ffffff' ? '#000000' : '#ffffff')
-            : brand.primaryColor;
-
-          return (
-            <div
-              key={variant.id}
-              className="rounded-xl border border-border overflow-hidden bg-card transition-all hover:shadow-lg hover:border-primary/20"
+      {/* Controls Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Category Filter */}
+        <div className="flex gap-1.5">
+          {categories.map(c => (
+            <button
+              key={c.key}
+              onClick={() => setCategory(c.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                category === c.key
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
+              }`}
             >
-              <div
-                className="aspect-[4/3] flex items-center justify-center p-8"
-                style={{ backgroundColor: bgColor }}
-              >
-                {brand.logo ? (
-                  <img
-                    src={brand.logo}
-                    alt={`${brand.name} - ${variant.name}`}
-                    className="max-w-[60%] max-h-[60%] object-contain"
-                    style={{ filter: variant.logoFilter || 'none' }}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <BrandLogo brand={brand} variant="monogram" size="lg" color={logoColor} />
-                    <BrandLogo brand={brand} size="lg" color={logoColor} />
-                  </div>
-                )}
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {/* Download Size */}
+          <select
+            value={downloadSize}
+            onChange={e => setDownloadSize(Number(e.target.value))}
+            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background"
+          >
+            <option value={400}>400px (Small)</option>
+            <option value={800}>800px (Medium)</option>
+            <option value={1200}>1200px (Large)</option>
+            <option value={2400}>2400px (XL)</option>
+            <option value={4000}>4000px (Print)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Variants Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {filteredVariants.map(variant => (
+          <div
+            key={variant.id}
+            className={`rounded-xl border overflow-hidden bg-card transition-all hover:shadow-lg ${
+              !variant.isValid ? 'border-yellow-300 dark:border-yellow-700' : 'border-border hover:border-primary/30'
+            }`}
+          >
+            {/* Preview */}
+            <div
+              className="aspect-[16/9] flex items-center justify-center p-6 relative"
+              style={{
+                backgroundColor: previewBg || variant.bgColor,
+                backgroundImage: variant.bgColor === 'transparent' ? 'repeating-conic-gradient(#e5e5e5 0% 25%, transparent 0% 50%) 0 0 / 16px 16px' : undefined,
+              }}
+            >
+              <img
+                src={variant.logoSrc}
+                alt={variant.name}
+                className="max-w-[65%] max-h-[60%] object-contain"
+                style={{ filter: variant.logoFilter || 'none' }}
+              />
+              {/* Contrast Badge */}
+              <div className="absolute top-2 right-2">
+                <ContrastBadge score={variant.contrastScore} />
               </div>
-              <div className="p-4 flex items-center justify-between">
+              {/* Warnings */}
+              {variant.warnings.length > 0 && (
+                <div className="absolute top-2 left-2">
+                  <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+                </div>
+              )}
+            </div>
+
+            {/* Info + Actions */}
+            <div className="p-3.5 space-y-2">
+              <div className="flex items-start justify-between">
                 <div>
                   <p className="font-medium text-sm">{variant.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{variant.description}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{variant.recommendedUse}</p>
                 </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                  variant.category === 'primary' ? 'bg-primary/10 text-primary' :
+                  variant.category === 'inverse' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' :
+                  variant.category === 'monochrome' ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' :
+                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                }`}>
+                  {variant.category}
+                </span>
+              </div>
+
+              {variant.warnings.length > 0 && (
+                <p className="text-[10px] text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 rounded px-2 py-1">
+                  {variant.warnings[0]}
+                </p>
+              )}
+
+              {/* Download Buttons */}
+              <div className="flex gap-1.5 pt-1">
+                {variant.downloadFormats.includes('SVG') && (
+                  <button
+                    onClick={() => downloadLogoVariant(variant, brand, 'SVG', downloadSize)}
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <Download className="h-3 w-3" /> SVG
+                  </button>
+                )}
                 <button
-                  onClick={() => handleDownload(variant.name)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  onClick={() => downloadLogoVariant(variant, brand, 'PNG', downloadSize)}
+                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  Download
+                  <Download className="h-3 w-3" /> PNG
                 </button>
               </div>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

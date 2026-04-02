@@ -51,7 +51,32 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
   const displayColor = bwMode ? '#000000' : qrColor;
 
   const handleDownload = () => {
-    toast.success('QR Code downloaded');
+    const svgEl = document.querySelector('[data-qr-preview] svg') as SVGElement | null;
+    if (!svgEl) { toast.error('QR preview not found'); return; }
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      if (fillBackground) {
+        ctx.fillStyle = `${displayColor}10`;
+        ctx.fillRect(0, 0, 1024, 1024);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 1024, 1024);
+      }
+      ctx.drawImage(img, 0, 0, 1024, 1024);
+      const link = document.createElement('a');
+      link.download = `${brand.slug || brand.name.toLowerCase()}-qrcode.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('QR Code downloaded');
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   return (
@@ -127,7 +152,7 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
           <div className={`w-full max-w-sm aspect-square rounded-2xl border border-border p-6 flex items-center justify-center ${fillBackground ? '' : 'bg-white'}`}
             style={fillBackground ? { backgroundColor: `${displayColor}10` } : undefined}
           >
-            <div className="w-full h-full relative">
+            <div className="w-full h-full relative" data-qr-preview>
               <svg viewBox="0 0 250 250" className="w-full h-full">
                 {qrMatrix.map((row, rowIdx) =>
                   row.map((cell, colIdx) =>

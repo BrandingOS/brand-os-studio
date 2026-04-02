@@ -71,8 +71,26 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
     setTimeout(() => setPlayingId(id), 50);
   };
 
-  const handleDownload = (name: string) => {
-    toast.success(`Downloading "${name}" animation`);
+  const handleDownload = (animation: AnimationConfig) => {
+    // Generate CSS animation as downloadable file
+    const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+    const css = `/* ${animation.name} Animation for ${brand.name} */
+@keyframes ${animation.cssAnimation} {
+  /* Duration: ${animation.duration} | Type: ${animation.type} */
+}
+.${slug}-logo-${animation.id} {
+  animation: ${animation.cssAnimation} ${animation.duration} ease-in-out ${animation.type === 'looping' ? 'infinite' : 'forwards'};
+}`;
+    const blob = new Blob([css], { type: 'text/css' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug}-animation-${animation.id}.css`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded "${animation.name}" animation (CSS)`);
   };
 
   return (
@@ -113,7 +131,7 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                   {playingId === animation.id ? 'Replay' : 'Play'}
                 </button>
                 <button
-                  onClick={() => handleDownload(animation.name)}
+                  onClick={() => handleDownload(animation)}
                   className="flex items-center justify-center px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
                 >
                   <Download className="h-3 w-3" />

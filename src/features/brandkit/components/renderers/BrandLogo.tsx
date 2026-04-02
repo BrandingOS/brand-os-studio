@@ -1,4 +1,5 @@
 import type { Brand } from '@/shared/types/brand';
+import { getSafeLogoForBackground, isLightColor } from '../../engine/brandRules';
 
 interface BrandLogoProps {
   brand: Brand;
@@ -6,6 +7,7 @@ interface BrandLogoProps {
   color?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
+  bgColor?: string; // Optional: auto-selects safe logo variant
 }
 
 const sizeMap = {
@@ -15,29 +17,46 @@ const sizeMap = {
   lg: { full: 'h-8', mono: 'w-8 h-8 text-[12px]', text: 'text-[18px]' },
 };
 
-export function BrandLogo({ brand, variant = 'full', color, size = 'md', className = '' }: BrandLogoProps) {
+export function BrandLogo({ brand, variant = 'full', color, size = 'md', className = '', bgColor }: BrandLogoProps) {
   const c = color || brand.primaryColor;
   const s = sizeMap[size];
 
   if (variant === 'monogram') {
+    if (brand.logo) {
+      // Use actual logo as monogram instead of letter
+      const monoFilter = bgColor && !isLightColor(bgColor) ? 'brightness(0) invert(1)' : undefined;
+      return (
+        <div className={`rounded flex items-center justify-center ${s.mono} ${className}`} style={{ backgroundColor: c }}>
+          <img src={brand.logo} alt="" className="w-[65%] h-[65%] object-contain" style={{ filter: monoFilter || 'brightness(0) invert(1)' }} />
+        </div>
+      );
+    }
     return (
-      <div
-        className={`rounded flex items-center justify-center font-bold ${s.mono} ${className}`}
-        style={{ backgroundColor: c, color: '#fff' }}
-      >
+      <div className={`rounded flex items-center justify-center font-bold ${s.mono} ${className}`} style={{ backgroundColor: c, color: '#fff' }}>
         {brand.name.charAt(0)}
       </div>
     );
   }
 
-  // If the brand has a logo URL (SVG data URL or image), render it
+  // Full logo rendering
   if (brand.logo) {
+    // Determine the correct filter based on color prop or background
+    let filter: string | undefined;
+    if (color === '#ffffff') {
+      filter = 'brightness(0) invert(1)';
+    } else if (color === '#000000' || color === '#0A0A0F') {
+      filter = 'grayscale(1) brightness(0)';
+    } else if (bgColor) {
+      const safe = getSafeLogoForBackground(brand, bgColor);
+      filter = safe.filter;
+    }
+
     return (
       <img
         src={brand.logo}
         alt={brand.name}
         className={`${s.full} object-contain ${className}`}
-        style={color ? { filter: color === '#ffffff' ? 'brightness(0) invert(1)' : undefined } : undefined}
+        style={{ filter }}
       />
     );
   }

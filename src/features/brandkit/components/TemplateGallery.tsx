@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Search, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard } from './TemplateCard';
@@ -33,11 +33,15 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
     return result;
   }, [allTemplates, activeCategory, searchQuery]);
 
-  const handleUseTemplate = (template: BrandKitTemplate) => {
-    toast.success(`Template "${template.name}" applied to ${brand.name}`, {
-      description: 'Your design has been saved.',
+  const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
+
+  const handleUseTemplate = useCallback((template: BrandKitTemplate) => {
+    setSavedTemplates(prev => new Set(prev).add(template.id));
+    toast.success(`Template "${template.name}" saved for ${brand.name}`, {
+      description: 'Design added to your saved collection.',
+      icon: <Check className="h-4 w-4 text-green-500" />,
     });
-  };
+  }, [brand.name]);
 
   const gridCols = moduleConfig.orientation === 'portrait'
     ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
@@ -135,15 +139,25 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
 
       {/* Saved Designs */}
       {activeTab === 'saved' && (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
-          </div>
-          <p className="text-muted-foreground font-medium">No saved designs yet</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">Use a template to create your first design.</p>
-        </div>
+        <>
+          {savedTemplates.size > 0 ? (
+            <div className={cn('grid gap-4', gridCols)}>
+              {allTemplates.filter(t => savedTemplates.has(t.id)).map((template) => (
+                <TemplateCard key={template.id} template={template} brand={brand} onUse={handleUseTemplate} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+              </div>
+              <p className="text-muted-foreground font-medium">No saved designs yet</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">Click "Use Template" to save designs here.</p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Extra Tab (e.g., Edit Info for Business Cards) */}
