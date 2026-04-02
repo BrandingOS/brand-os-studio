@@ -12,7 +12,12 @@ import {
   CoverHyperHyve, CoverIdentity, CoverNoteform, CoverSignal,
   SectionDivider, ContentPage, ContentPageDark, ClosingTemplatePage,
 } from './TemplatePages';
-import { contrastRatio } from '@/features/brandkit/engine/brandRules';
+import {
+  BrandPurposePage, LogoConstructionPage, ColorRatioPage,
+  GradientSystemPage, DarkModePage, BrandArchetypePage,
+  PatternSystemPage, StationeryMockupPage, DigitalProductPage,
+  TouchpointMapPage, MotionPrinciplesPage,
+} from './FancyPages';
 import { toast } from 'sonner';
 
 interface TemplateDocumentProps {
@@ -288,6 +293,74 @@ function buildSlides(brand: Brand): SlideEntry[] {
             </div>
           </div>
         </ContentPageDark>
+      ),
+    },
+
+    // ─── PREMIUM PAGES ───────────────────────────────────────────
+    {
+      id: 'purpose', name: 'Brand Purpose',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <BrandPurposePage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'archetype', name: 'Brand Archetype',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <BrandArchetypePage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'logo-grid', name: 'Logo Construction',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <LogoConstructionPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'color-ratio', name: 'Color Ratio',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <ColorRatioPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'gradients', name: 'Gradient System',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <GradientSystemPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'dark-mode', name: 'Dark Mode',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <DarkModePage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'patterns', name: 'Pattern System',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <PatternSystemPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'motion', name: 'Motion Principles',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <MotionPrinciplesPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'touchpoints', name: 'Touchpoints',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <TouchpointMapPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'stationery', name: 'Stationery',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <StationeryMockupPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
+      ),
+    },
+    {
+      id: 'digital', name: 'Digital Product',
+      render: ({ brand: b, layout: l, pageNumber: pn, totalPages: tp }) => (
+        <DigitalProductPage brand={b} layout={l} pageNumber={pn} totalPages={tp} />
       ),
     },
 
