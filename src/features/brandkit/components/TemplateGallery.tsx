@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard, renderTemplateDesign } from './TemplateCard';
 import { TemplatePreviewModal, type TemplateOverrides } from './TemplatePreviewModal';
+import { CanvasEditor } from './editor/CanvasEditor';
 import { getTemplatesForModule, filterTemplatesByCategory } from '../data/templates';
 import type { BrandKitModuleConfig, BrandKitTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
@@ -50,6 +51,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
   const [editTemplate, setEditTemplate] = useState<BrandKitTemplate | null>(null);
+  const [canvasEditorTemplate, setCanvasEditorTemplate] = useState<BrandKitTemplate | null>(null);
 
   const allTemplates = useMemo(() => getTemplatesForModule(moduleConfig.id), [moduleConfig.id]);
 
@@ -201,13 +203,28 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
       )}
 
       {/* Edit/Preview Modal */}
-      {editTemplate && (
+      {editTemplate && !canvasEditorTemplate && (
         <TemplatePreviewModal
           template={editTemplate}
           brand={brand}
           onClose={() => setEditTemplate(null)}
           onSave={handleSaveTemplate}
+          onOpenEditor={() => {
+            setCanvasEditorTemplate(editTemplate);
+            setEditTemplate(null);
+          }}
           renderPreview={renderPreviewWithOverrides(editTemplate)}
+        />
+      )}
+
+      {/* Canvas Editor (Canva-style) */}
+      {canvasEditorTemplate && (
+        <CanvasEditor
+          brand={brand}
+          width={canvasEditorTemplate.orientation === 'portrait' ? 1080 : canvasEditorTemplate.orientation === 'square' ? 1080 : 1920}
+          height={canvasEditorTemplate.orientation === 'portrait' ? 1920 : canvasEditorTemplate.orientation === 'square' ? 1080 : 1080}
+          templateName={canvasEditorTemplate.name}
+          onClose={() => setCanvasEditorTemplate(null)}
         />
       )}
     </div>

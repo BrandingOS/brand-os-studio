@@ -9,6 +9,7 @@ interface TemplatePreviewModalProps {
   brand: Brand;
   onClose: () => void;
   onSave: (template: BrandKitTemplate) => void;
+  onOpenEditor?: () => void;
   renderPreview: (overrides: TemplateOverrides) => React.ReactNode;
 }
 
@@ -124,7 +125,7 @@ function getDefaultOverrides(templateType: string, brand: Brand): TemplateOverri
   }
 }
 
-export function TemplatePreviewModal({ template, brand, onClose, onSave, renderPreview }: TemplatePreviewModalProps) {
+export function TemplatePreviewModal({ template, brand, onClose, onSave, onOpenEditor, renderPreview }: TemplatePreviewModalProps) {
   const [downloading, setDownloading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const defaultOverrides = useMemo(() => getDefaultOverrides(template.type, brand), [template.type, brand]);
@@ -281,6 +282,12 @@ export function TemplatePreviewModal({ template, brand, onClose, onSave, renderP
             <Bookmark className="h-4 w-4" />
             Save
           </button>
+          {onOpenEditor && (
+            <button onClick={onOpenEditor} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1e1e2e] text-white rounded-xl font-medium text-sm hover:bg-[#2a2a3e] transition-colors">
+              <Edit3 className="h-4 w-4" />
+              Open in Editor
+            </button>
+          )}
           <span className="ml-auto text-xs text-muted-foreground">{typeLabel} — {template.orientation}</span>
         </div>
       </div>
