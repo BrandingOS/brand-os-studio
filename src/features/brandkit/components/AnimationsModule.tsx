@@ -71,13 +71,31 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
     setTimeout(() => setPlayingId(id), 50);
   };
 
+  const keyframeMap: Record<string, string> = {
+    slideInFromLeft: `from { transform: translateX(-100%); opacity: 0; }\n  to { transform: translateX(0); opacity: 1; }`,
+    fadeIn: `from { opacity: 0; }\n  to { opacity: 1; }`,
+    scaleUp: `from { transform: scale(0.3); opacity: 0; }\n  to { transform: scale(1); opacity: 1; }`,
+    bounceIn: `0% { transform: scale(0); opacity: 0; }\n  60% { transform: scale(1.15); opacity: 1; }\n  100% { transform: scale(1); }`,
+    slideLoop: `0%, 100% { transform: translateX(-15px); }\n  50% { transform: translateX(15px); }`,
+    pulse: `0%, 100% { transform: scale(1); }\n  50% { transform: scale(1.08); }`,
+    rotate360: `from { transform: rotate(0deg); }\n  to { transform: rotate(360deg); }`,
+    float: `0%, 100% { transform: translateY(0); }\n  50% { transform: translateY(-10px); }`,
+    slideOutRight: `from { transform: translateX(0); opacity: 1; }\n  to { transform: translateX(100%); opacity: 0; }`,
+    fadeOut: `from { opacity: 1; }\n  to { opacity: 0; }`,
+    scaleDown: `from { transform: scale(1); opacity: 1; }\n  to { transform: scale(0.3); opacity: 0; }`,
+    zoomOut: `from { transform: scale(1); opacity: 1; }\n  to { transform: scale(0); opacity: 0; }`,
+  };
+
   const handleDownload = (animation: AnimationConfig) => {
-    // Generate CSS animation as downloadable file
     const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+    const keyframes = keyframeMap[animation.cssAnimation] || '/* no keyframes */';
     const css = `/* ${animation.name} Animation for ${brand.name} */
+/* Type: ${animation.type} | Duration: ${animation.duration} */
+
 @keyframes ${animation.cssAnimation} {
-  /* Duration: ${animation.duration} | Type: ${animation.type} */
+  ${keyframes}
 }
+
 .${slug}-logo-${animation.id} {
   animation: ${animation.cssAnimation} ${animation.duration} ease-in-out ${animation.type === 'looping' ? 'infinite' : 'forwards'};
 }`;

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Save, Plus, X, Edit3, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Save, Plus, X, Edit3, RefreshCw, Upload } from 'lucide-react';
 import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
@@ -83,14 +83,36 @@ export function SettingsModule({ brand, onUpdate }: SettingsModuleProps) {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
-              <Edit3 className="h-3.5 w-3.5" />
-              Edit Logo
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
-              <RefreshCw className="h-3.5 w-3.5" />
-              Swap Logo
-            </button>
+            <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors cursor-pointer">
+              <Upload className="h-3.5 w-3.5" />
+              {brand.logo ? 'Replace Logo' : 'Upload Logo'}
+              <input
+                type="file"
+                accept="image/svg+xml,image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const url = reader.result as string;
+                    onUpdate?.({ logo: url });
+                    toast.success('Logo updated');
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {brand.logo && (
+              <button
+                onClick={() => { onUpdate?.({ logo: undefined }); toast.success('Logo removed'); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+                Remove Logo
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -106,10 +128,7 @@ export function SettingsModule({ brand, onUpdate }: SettingsModuleProps) {
               <BrandLogo brand={brand} variant="monogram" size="lg" />
             )}
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
-            <Edit3 className="h-3.5 w-3.5" />
-            Edit Icon
-          </button>
+          <span className="text-xs text-muted-foreground">Uses logo as icon</span>
         </div>
       </section>
 

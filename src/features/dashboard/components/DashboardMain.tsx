@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useDashboard } from '../hooks/useDashboard';
 import { AdminPanel } from './AdminPanel';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export function DashboardMain() {
+  const navigate = useNavigate();
   const {
     brands,
     isLoading,
@@ -156,7 +158,7 @@ export function DashboardMain() {
                 </p>
               </div>
               <Button 
-                onClick={() => window.location.href = `/editor/design/${brands[0].id}`}
+                onClick={() => navigate(`/dashboard/brand/${brands[0].slug}/brandkit`)}
                 className="flex items-center gap-2"
                 size="lg"
               >
@@ -254,7 +256,7 @@ export function DashboardMain() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.location.href = `/dashboard/brand/${brand.slug}/edit`;
+                          navigate(`/dashboard/brand/${brand.slug}/edit`);
                         }}
                         className="text-xs"
                       >
@@ -266,7 +268,7 @@ export function DashboardMain() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          window.location.href = `/editor/design/${brand.id}`;
+                          navigate(`/dashboard/brand/${brand.slug}/brandkit`);
                         }}
                         className="text-xs"
                       >

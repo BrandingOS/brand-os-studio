@@ -30,7 +30,7 @@ export function useDashboard() {
   const handleViewBrand = (brandId: string) => {
     const brand = brands.find(b => b.id === brandId);
     if (brand) {
-      navigate(`/brand/${brand.slug}`);
+      navigate(`/dashboard/brand/${brand.slug}`);
     }
   };
 
