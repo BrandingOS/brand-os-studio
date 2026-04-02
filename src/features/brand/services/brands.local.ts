@@ -1,5 +1,6 @@
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
 import { demoBrandIdentity } from '@/data/demo';
+import { raqmBrand } from '@/data/brands/raqm';
 
 export interface BrandsService {
   list(): Promise<Brand[]>;
@@ -10,12 +11,13 @@ export interface BrandsService {
 }
 
 /**
- * The Meridian seed brand is always available as proper in-app data.
- * It is NOT stored in localStorage — it's merged at read time from
- * the app's seed data module so it always exists regardless of
- * browser storage state.
+ * Seed brands are always available as proper in-app data.
+ * They are NOT stored in localStorage — they're merged at read time
+ * from the app's seed data modules so they always exist regardless
+ * of browser storage state.
  */
-const SEED_BRAND_ID = demoBrandIdentity.id;
+const SEED_BRANDS: Brand[] = [raqmBrand, demoBrandIdentity];
+const SEED_BRAND_IDS = new Set(SEED_BRANDS.map(b => b.id));
 
 export class LocalBrandsService implements BrandsService {
   private readonly storageKey = 'brandos:brands';
@@ -31,18 +33,10 @@ export class LocalBrandsService implements BrandsService {
 
   private getAllBrands(): Brand[] {
     const userBrands = this.getUserBrands();
-    // Always include the seed brand, merged with user brands
-    const hasSeedBrand = userBrands.some(b => b.id === SEED_BRAND_ID);
-    if (hasSeedBrand) {
-      return userBrands;
-    }
-    return [demoBrandIdentity, ...userBrands];
-  }
-
-  private saveUserBrands(brands: Brand[]): void {
-    // Only persist user-created brands (not the seed brand) to localStorage
-    const userOnly = brands.filter(b => b.id !== SEED_BRAND_ID);
-    localStorage.setItem(this.storageKey, JSON.stringify(userOnly));
+    // Merge: seed brands that aren't overridden in localStorage + user brands
+    const userBrandIds = new Set(userBrands.map(b => b.id));
+    const missingSeeds = SEED_BRANDS.filter(sb => !userBrandIds.has(sb.id));
+    return [...missingSeeds, ...userBrands];
   }
 
   async list(): Promise<Brand[]> {
@@ -50,22 +44,17 @@ export class LocalBrandsService implements BrandsService {
   }
 
   async getById(id: string): Promise<Brand | null> {
-    // Check seed brand first
-    if (id === SEED_BRAND_ID) return demoBrandIdentity;
     const brands = this.getAllBrands();
     return brands.find(b => b.id === id) || null;
   }
 
   async getBySlug(slug: string): Promise<Brand | null> {
-    // Check seed brand first
-    if (slug === demoBrandIdentity.slug) return demoBrandIdentity;
     const brands = this.getAllBrands();
     return brands.find(b => b.slug === slug) || null;
   }
 
   async create(input: CreateBrandInput): Promise<Brand> {
     const userBrands = this.getUserBrands();
-
     const brand: Brand = {
       ...input,
       id: `brand_${Date.now()}`,
@@ -74,46 +63,38 @@ export class LocalBrandsService implements BrandsService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-
-    const newBrands = [...userBrands, brand];
-    localStorage.setItem(this.storageKey, JSON.stringify(newBrands));
+    localStorage.setItem(this.storageKey, JSON.stringify([...userBrands, brand]));
     return brand;
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<Brand> {
-    const brands = this.getAllBrands();
-    const index = brands.findIndex(b => b.id === id);
+    const allBrands = this.getAllBrands();
+    const index = allBrands.findIndex(b => b.id === id);
     if (index === -1) throw new Error(`Brand with id ${id} not found`);
+    const updatedBrand = { ...allBrands[index], ...patch, updatedAt: new Date() };
 
-    const updatedBrand = { ...brands[index], ...patch, updatedAt: new Date() };
-
-    if (id === SEED_BRAND_ID) {
-      // If updating the seed brand, persist it to localStorage so edits are saved
-      const userBrands = this.getUserBrands();
-      localStorage.setItem(this.storageKey, JSON.stringify([updatedBrand, ...userBrands]));
+    // For seed brands being edited for the first time, persist the modified
+    // version to localStorage so user edits survive refreshes.
+    const userBrands = this.getUserBrands();
+    const userIdx = userBrands.findIndex(b => b.id === id);
+    if (userIdx >= 0) {
+      userBrands[userIdx] = updatedBrand;
     } else {
-      const allBrands = this.getAllBrands();
-      allBrands[index] = updatedBrand;
-      this.saveUserBrands(allBrands);
+      userBrands.push(updatedBrand);
     }
+    localStorage.setItem(this.storageKey, JSON.stringify(userBrands));
     return updatedBrand;
   }
 
   private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .replace(/\s+/g, '_');
+    return name.toLowerCase().trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
   }
 
   async delete(id: string): Promise<void> {
-    if (id === SEED_BRAND_ID) return; // Cannot delete the seed brand
+    if (SEED_BRAND_IDS.has(id)) return; // Cannot delete seed brands
     const userBrands = this.getUserBrands();
-    const filtered = userBrands.filter(b => b.id !== id);
-    localStorage.setItem(this.storageKey, JSON.stringify(filtered));
+    localStorage.setItem(this.storageKey, JSON.stringify(userBrands.filter(b => b.id !== id)));
   }
 }
 
-// Export singleton instance
 export const brandsService = new LocalBrandsService();
