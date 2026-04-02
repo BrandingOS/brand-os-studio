@@ -15,6 +15,7 @@ import { BackgroundPopover } from './BackgroundPopover';
 import { InsertMenu } from './InsertMenu';
 import { RemixPanel } from './RemixPanel';
 import { ExportModal } from './ExportModal';
+import { EditableSlide } from './blocks/EditableSlide';
 import { toast } from 'sonner';
 
 interface EditorWorkspaceProps {
@@ -170,14 +171,16 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             <ChevronRight className="h-4 w-4 text-white/60" />
           </button>
 
-          {/* The Slide */}
+          {/* The Slide — wrapped in EditableSlide for inline editing */}
           <div className="w-full max-w-[min(90%,1100px)] px-12">
             <div
               data-slide-canvas
               className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08] transition-all duration-300"
               style={bgOverride ? { backgroundColor: bgOverride } : undefined}
             >
-              {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
+              <EditableSlide>
+                {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
+              </EditableSlide>
             </div>
           </div>
 
