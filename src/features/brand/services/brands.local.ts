@@ -1,6 +1,7 @@
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
 import { demoBrandIdentity } from '@/data/demo';
 import { raqmBrand } from '@/data/brands/raqm';
+import { skamBrand } from '@/data/brands/skam';
 
 export interface BrandsService {
   list(): Promise<Brand[]>;
@@ -16,7 +17,7 @@ export interface BrandsService {
  * from the app's seed data modules so they always exist regardless
  * of browser storage state.
  */
-const SEED_BRANDS: Brand[] = [raqmBrand, demoBrandIdentity];
+const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, demoBrandIdentity];
 const SEED_BRAND_IDS = new Set(SEED_BRANDS.map(b => b.id));
 
 export class LocalBrandsService implements BrandsService {
