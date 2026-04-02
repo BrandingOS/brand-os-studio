@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Download, Play, RotateCw, Film, Layers } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Download, Play, RotateCw, Image as ImageIcon } from 'lucide-react';
 import { CategoryFilter } from './CategoryFilter';
 import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
@@ -11,7 +11,7 @@ interface AnimationsModuleProps {
   brand: Brand;
 }
 
-// ─── Animation CSS map ─────────────────────────────────────────
+// ─── Animation Preview (CSS-based for display) ────────────────
 
 function AnimationPreview({ animation, brand, isPlaying }: { animation: AnimationConfig; brand: Brand; isPlaying: boolean }) {
   const cssMap: Record<string, React.CSSProperties> = {
@@ -39,115 +39,169 @@ function AnimationPreview({ animation, brand, isPlaying }: { animation: Animatio
   );
 }
 
-// ─── Video Recording via Canvas + MediaRecorder ────────────────
+// ─── GIF Export (frame-by-frame canvas rendering) ──────────────
 
-async function recordAnimationVideo(
+type AnimFn = (t: number) => { x: number; y: number; scale: number; opacity: number; rotation: number };
+
+const animFns: Record<string, AnimFn> = {
+  slideInFromLeft: (t) => ({ x: -1 * (1 - t), y: 0, scale: 1, opacity: t, rotation: 0 }),
+  fadeIn: (t) => ({ x: 0, y: 0, scale: 1, opacity: t, rotation: 0 }),
+  scaleUp: (t) => ({ x: 0, y: 0, scale: 0.3 + 0.7 * t, opacity: t, rotation: 0 }),
+  bounceIn: (t) => {
+    const s = t < 0.6 ? (t / 0.6) * 1.15 : 1.15 - ((t - 0.6) / 0.4) * 0.15;
+    return { x: 0, y: 0, scale: Math.max(0, s), opacity: Math.min(1, t * 2), rotation: 0 };
+  },
+  slideLoop: (t) => ({ x: Math.sin(t * Math.PI * 2) * 0.12, y: 0, scale: 1, opacity: 1, rotation: 0 }),
+  pulse: (t) => ({ x: 0, y: 0, scale: 1 + 0.08 * Math.sin(t * Math.PI * 2), opacity: 1, rotation: 0 }),
+  rotate360: (t) => ({ x: 0, y: 0, scale: 1, opacity: 1, rotation: t * 360 }),
+  float: (t) => ({ x: 0, y: Math.sin(t * Math.PI * 2) * -0.04, scale: 1, opacity: 1, rotation: 0 }),
+  slideOutRight: (t) => ({ x: t, y: 0, scale: 1, opacity: 1 - t, rotation: 0 }),
+  fadeOut: (t) => ({ x: 0, y: 0, scale: 1, opacity: 1 - t, rotation: 0 }),
+  scaleDown: (t) => ({ x: 0, y: 0, scale: 1 - 0.7 * t, opacity: 1 - t, rotation: 0 }),
+  zoomOut: (t) => ({ x: 0, y: 0, scale: 1 - t, opacity: 1 - t, rotation: 0 }),
+};
+
+async function loadLogoImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function renderFrame(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  t: number,
+  animFn: AnimFn,
+  logoImg: HTMLImageElement | null,
+  brand: Brand,
+  alpha: boolean,
+) {
+  ctx.clearRect(0, 0, size, size);
+  if (!alpha) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+  }
+
+  const { x, y, scale, opacity, rotation } = animFn(t);
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+  ctx.translate(size / 2 + x * size, size / 2 + y * size);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.scale(scale, scale);
+
+  if (logoImg) {
+    const logoW = size * 0.5;
+    const logoH = (logoImg.height / logoImg.width) * logoW;
+    ctx.drawImage(logoImg, -logoW / 2, -logoH / 2, logoW, logoH);
+  } else {
+    ctx.fillStyle = brand.primaryColor;
+    ctx.font = `bold ${size * 0.25}px ${brand.fonts?.primary || 'Inter'}, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(brand.name.charAt(0), 0, 0);
+  }
+  ctx.restore();
+}
+
+async function exportAsGif(
   animation: AnimationConfig,
   brand: Brand,
   alpha: boolean,
+  onProgress: (pct: number) => void,
 ): Promise<Blob> {
-  const size = 512;
-  const fps = 30;
-  const durationMs = parseFloat(animation.duration) * 1000;
+  const GIF = (await import('gif.js')).default;
+  const size = 480;
+  const fps = 20;
+  const durationSec = parseFloat(animation.duration);
   const isLooping = animation.type === 'looping';
-  const totalMs = isLooping ? Math.max(durationMs * 2, 3000) : durationMs + 500;
-  const totalFrames = Math.ceil((totalMs / 1000) * fps);
+  const totalSec = isLooping ? durationSec * 2 : durationSec + 0.3;
+  const totalFrames = Math.ceil(totalSec * fps);
+  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
+
+  let logoImg: HTMLImageElement | null = null;
+  if (brand.logo) {
+    try { logoImg = await loadLogoImage(brand.logo); } catch {}
+  }
 
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  // Load logo image
-  let logoImg: HTMLImageElement | null = null;
-  if (brand.logo) {
-    logoImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = brand.logo!;
-    }).catch(() => null);
-  }
-
-  // Animation functions — return transform for a given progress (0-1)
-  type AnimFn = (t: number) => { x: number; y: number; scale: number; opacity: number; rotation: number };
-
-  const animFns: Record<string, AnimFn> = {
-    slideInFromLeft: (t) => ({ x: -size * (1 - t), y: 0, scale: 1, opacity: t, rotation: 0 }),
-    fadeIn: (t) => ({ x: 0, y: 0, scale: 1, opacity: t, rotation: 0 }),
-    scaleUp: (t) => ({ x: 0, y: 0, scale: 0.3 + 0.7 * t, opacity: t, rotation: 0 }),
-    bounceIn: (t) => {
-      const s = t < 0.6 ? (t / 0.6) * 1.15 : 1.15 - (t - 0.6) / 0.4 * 0.15;
-      return { x: 0, y: 0, scale: Math.max(0, s), opacity: Math.min(1, t * 2), rotation: 0 };
-    },
-    slideLoop: (t) => ({ x: Math.sin(t * Math.PI * 2) * 30, y: 0, scale: 1, opacity: 1, rotation: 0 }),
-    pulse: (t) => ({ x: 0, y: 0, scale: 1 + 0.08 * Math.sin(t * Math.PI * 2), opacity: 1, rotation: 0 }),
-    rotate360: (t) => ({ x: 0, y: 0, scale: 1, opacity: 1, rotation: t * 360 }),
-    float: (t) => ({ x: 0, y: Math.sin(t * Math.PI * 2) * -10, scale: 1, opacity: 1, rotation: 0 }),
-    slideOutRight: (t) => ({ x: size * t, y: 0, scale: 1, opacity: 1 - t, rotation: 0 }),
-    fadeOut: (t) => ({ x: 0, y: 0, scale: 1, opacity: 1 - t, rotation: 0 }),
-    scaleDown: (t) => ({ x: 0, y: 0, scale: 1 - 0.7 * t, opacity: 1 - t, rotation: 0 }),
-    zoomOut: (t) => ({ x: 0, y: 0, scale: 1 - t, opacity: 1 - t, rotation: 0 }),
-  };
-
-  const animFn = animFns[animation.cssAnimation] || animFns.fadeIn;
-
-  // Record using MediaRecorder
-  const stream = canvas.captureStream(fps);
-  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-    ? 'video/webm;codecs=vp9'
-    : 'video/webm';
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 });
-  const chunks: Blob[] = [];
-  recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-  const recordingDone = new Promise<Blob>((resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
+  const gif = new GIF({
+    workers: 2,
+    quality: 10,
+    width: size,
+    height: size,
+    workerScript: undefined, // Uses inline worker
+    transparent: alpha ? 0x00000000 : undefined,
   });
 
-  recorder.start();
-
-  // Render frames
-  for (let frame = 0; frame < totalFrames; frame++) {
-    const rawT = frame / totalFrames;
-    const t = isLooping ? rawT % 1 : Math.min(rawT * (totalMs / durationMs), 1);
-    const { x, y, scale, opacity, rotation } = animFn(t);
-
-    ctx.clearRect(0, 0, size, size);
-
-    if (!alpha) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, size, size);
-    }
-
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
-    ctx.translate(size / 2 + x, size / 2 + y);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.scale(scale, scale);
-
-    if (logoImg) {
-      const logoW = size * 0.5;
-      const logoH = (logoImg.height / logoImg.width) * logoW;
-      ctx.drawImage(logoImg, -logoW / 2, -logoH / 2, logoW, logoH);
-    } else {
-      // Fallback: draw brand initial
-      ctx.fillStyle = brand.primaryColor;
-      ctx.font = `bold ${size * 0.25}px ${brand.fonts?.primary || 'Inter'}, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(brand.name.charAt(0), 0, 0);
-    }
-
-    ctx.restore();
-
-    // Wait for next frame
-    await new Promise(r => setTimeout(r, 1000 / fps));
+  for (let i = 0; i < totalFrames; i++) {
+    const rawT = i / totalFrames;
+    const t = isLooping ? rawT % 1 : Math.min(rawT / (durationSec / totalSec), 1);
+    renderFrame(ctx, size, t, fn, logoImg, brand, alpha);
+    gif.addFrame(ctx, { copy: true, delay: 1000 / fps });
+    onProgress(Math.round((i / totalFrames) * 80));
   }
 
-  recorder.stop();
-  return recordingDone;
+  return new Promise((resolve, reject) => {
+    gif.on('finished', (blob: Blob) => {
+      onProgress(100);
+      resolve(blob);
+    });
+    gif.on('error', reject);
+    gif.render();
+  });
+}
+
+async function exportAsPngSequence(
+  animation: AnimationConfig,
+  brand: Brand,
+  alpha: boolean,
+  onProgress: (pct: number) => void,
+): Promise<Blob> {
+  const JSZip = (await import('jszip')).default;
+  const size = 1024;
+  const fps = 24;
+  const durationSec = parseFloat(animation.duration);
+  const isLooping = animation.type === 'looping';
+  const totalSec = isLooping ? durationSec * 2 : durationSec + 0.3;
+  const totalFrames = Math.ceil(totalSec * fps);
+  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
+
+  let logoImg: HTMLImageElement | null = null;
+  if (brand.logo) {
+    try { logoImg = await loadLogoImage(brand.logo); } catch {}
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const zip = new JSZip();
+  const folder = zip.folder('frames')!;
+
+  for (let i = 0; i < totalFrames; i++) {
+    const rawT = i / totalFrames;
+    const t = isLooping ? rawT % 1 : Math.min(rawT / (durationSec / totalSec), 1);
+    renderFrame(ctx, size, t, fn, logoImg, brand, alpha);
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64 = dataUrl.split(',')[1];
+    folder.file(`frame_${String(i).padStart(4, '0')}.png`, base64, { base64: true });
+    onProgress(Math.round((i / totalFrames) * 90));
+  }
+
+  onProgress(95);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  onProgress(100);
+  return blob;
 }
 
 // ─── Main Component ────────────────────────────────────────────
@@ -155,7 +209,8 @@ async function recordAnimationVideo(
 export function AnimationsModule({ brand }: AnimationsModuleProps) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [recordingId, setRecordingId] = useState<string | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState(0);
 
   const categories = ['All', 'Looping', 'Intro', 'Outro'];
 
@@ -169,79 +224,60 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
     setTimeout(() => setPlayingId(id), 50);
   };
 
-  const handleDownloadVideo = useCallback(async (animation: AnimationConfig, alpha: boolean) => {
-    setRecordingId(animation.id);
-    const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
-    const suffix = alpha ? 'alpha' : 'video';
+  const handleExportGif = useCallback(async (animation: AnimationConfig, alpha: boolean) => {
+    setExportingId(animation.id);
+    setExportProgress(0);
     try {
-      const webmBlob = await recordAnimationVideo(animation, brand, alpha);
-
-      // Convert WebM → MP4 using FFmpeg.wasm
-      try {
-        const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-        const { fetchFile } = await import('@ffmpeg/util');
-        const ffmpeg = new FFmpeg();
-        await ffmpeg.load();
-        await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-        await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', 'output.mp4']);
-        const mp4Data = await ffmpeg.readFile('output.mp4');
-        const mp4Blob = new Blob([mp4Data], { type: 'video/mp4' });
-        downloadBlob(mp4Blob, `${slug}-${animation.id}-${suffix}.mp4`);
-        toast.success(`Downloaded "${animation.name}" as MP4`);
-      } catch (ffmpegErr) {
-        // FFmpeg failed — fall back to WebM download
-        console.warn('FFmpeg conversion failed, downloading WebM:', ffmpegErr);
-        downloadBlob(webmBlob, `${slug}-${animation.id}-${suffix}.webm`);
-        toast.success(`Downloaded "${animation.name}" as WebM`);
-      }
+      const blob = await exportAsGif(animation, brand, alpha, setExportProgress);
+      downloadBlob(blob, `${brand.slug || brand.name.toLowerCase()}-${animation.id}${alpha ? '-alpha' : ''}.gif`);
+      toast.success(`Exported "${animation.name}" as GIF`);
     } catch (err) {
-      console.error('Recording failed:', err);
-      toast.error('Video recording failed');
+      console.error(err);
+      toast.error('GIF export failed');
     } finally {
-      setRecordingId(null);
+      setExportingId(null);
+      setExportProgress(0);
     }
   }, [brand]);
 
-  function downloadBlob(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
+  const handleExportFrames = useCallback(async (animation: AnimationConfig, alpha: boolean) => {
+    setExportingId(animation.id);
+    setExportProgress(0);
+    try {
+      const blob = await exportAsPngSequence(animation, brand, alpha, setExportProgress);
+      downloadBlob(blob, `${brand.slug || brand.name.toLowerCase()}-${animation.id}-frames${alpha ? '-alpha' : ''}.zip`);
+      toast.success(`Exported "${animation.name}" as PNG sequence (ZIP)`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Frame export failed');
+    } finally {
+      setExportingId(null);
+      setExportProgress(0);
+    }
+  }, [brand]);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-1">Logo Animations</h2>
-        <p className="text-muted-foreground">Preview and download animated versions of your logo as video.</p>
+        <p className="text-muted-foreground">Preview and export animated versions of your logo.</p>
       </div>
 
-      <CategoryFilter
-        categories={categories}
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
-      />
+      <CategoryFilter categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {filteredAnimations.map((animation) => {
-          const isRecording = recordingId === animation.id;
+          const isExporting = exportingId === animation.id;
           return (
-            <div
-              key={animation.id}
-              className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md hover:border-primary/20"
-            >
+            <div key={animation.id} className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:shadow-md hover:border-primary/20">
               <div className="aspect-square flex items-center justify-center bg-muted/30 relative">
                 <AnimationPreview animation={animation} brand={brand} isPlaying={playingId === animation.id} />
-                {isRecording && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <div className="flex items-center gap-2 text-white text-xs font-medium">
-                      <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                      Recording...
+                {isExporting && (
+                  <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center gap-2">
+                    <div className="w-3/4 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${exportProgress}%` }} />
                     </div>
+                    <span className="text-xs text-muted-foreground">{exportProgress}%</span>
                   </div>
                 )}
               </div>
@@ -249,7 +285,6 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                 <p className="text-sm font-medium mb-0.5">{animation.name}</p>
                 <p className="text-xs text-muted-foreground capitalize mb-3">{animation.type}</p>
                 <div className="space-y-1.5">
-                  {/* Play button */}
                   <button
                     onClick={() => handlePlay(animation.id)}
                     className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-muted text-xs font-medium hover:bg-muted/80 transition-colors"
@@ -257,25 +292,22 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                     {playingId === animation.id ? <RotateCw className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                     {playingId === animation.id ? 'Replay' : 'Play'}
                   </button>
-                  {/* Download buttons */}
                   <div className="flex gap-1.5">
                     <button
-                      onClick={() => handleDownloadVideo(animation, false)}
-                      disabled={isRecording}
+                      onClick={() => handleExportGif(animation, false)}
+                      disabled={isExporting}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                      title="Download as video with white background"
+                      title="Animated GIF with background"
                     >
-                      <Film className="h-3 w-3" />
-                      Video
+                      <Download className="h-3 w-3" /> GIF
                     </button>
                     <button
-                      onClick={() => handleDownloadVideo(animation, true)}
-                      disabled={isRecording}
+                      onClick={() => handleExportFrames(animation, false)}
+                      disabled={isExporting}
                       className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                      title="Download as video with transparent background (alpha)"
+                      title="PNG frame sequence (ZIP) — import into video editor"
                     >
-                      <Layers className="h-3 w-3" />
-                      Alpha
+                      <ImageIcon className="h-3 w-3" /> Frames
                     </button>
                   </div>
                 </div>
@@ -285,50 +317,29 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
         })}
       </div>
 
-      {/* Animation keyframes */}
       <style>{`
-        @keyframes slideInLeft {
-          from { transform: translateX(-100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes scaleUp {
-          from { transform: scale(0.3); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        @keyframes bounceIn {
-          0% { transform: scale(0); opacity: 0; }
-          60% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(1); }
-        }
-        @keyframes slideLoop {
-          0%, 100% { transform: translateX(-15px); }
-          50% { transform: translateX(15px); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes slideOutRight {
-          from { transform: translateX(0); opacity: 1; }
-          to { transform: translateX(100%); opacity: 0; }
-        }
-        @keyframes fadeOut {
-          from { opacity: 1; }
-          to { opacity: 0; }
-        }
-        @keyframes scaleDown {
-          from { transform: scale(1); opacity: 1; }
-          to { transform: scale(0.3); opacity: 0; }
-        }
-        @keyframes zoomOut {
-          from { transform: scale(1); opacity: 1; }
-          to { transform: scale(0); opacity: 0; }
-        }
+        @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleUp { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes bounceIn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+        @keyframes slideLoop { 0%, 100% { transform: translateX(-15px); } 50% { transform: translateX(15px); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes scaleDown { from { transform: scale(1); opacity: 1; } to { transform: scale(0.3); opacity: 0; } }
+        @keyframes zoomOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0); opacity: 0; } }
       `}</style>
     </div>
   );
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
