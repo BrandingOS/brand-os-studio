@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { Download, Play, RotateCw } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { Download, Play, RotateCw, Film } from 'lucide-react';
 import { CategoryFilter } from './CategoryFilter';
 import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
@@ -36,16 +36,16 @@ function AnimationPreview({ animation, brand, isPlaying }: { animation: Animatio
   );
 }
 
-// ─── Frame rendering ───────────────────────────────────────────
+// ─── Animation math ────────────────────────────────────────────
 
 type AnimFn = (t: number) => { x: number; y: number; scale: number; opacity: number; rotation: number };
 
 const animFns: Record<string, AnimFn> = {
-  slideInFromLeft: (t) => ({ x: -1 * (1 - t), y: 0, scale: 1, opacity: t, rotation: 0 }),
+  slideInFromLeft: (t) => ({ x: -(1 - t), y: 0, scale: 1, opacity: t, rotation: 0 }),
   fadeIn: (t) => ({ x: 0, y: 0, scale: 1, opacity: t, rotation: 0 }),
   scaleUp: (t) => ({ x: 0, y: 0, scale: 0.3 + 0.7 * t, opacity: t, rotation: 0 }),
   bounceIn: (t) => ({ x: 0, y: 0, scale: t < 0.6 ? (t / 0.6) * 1.15 : 1.15 - ((t - 0.6) / 0.4) * 0.15, opacity: Math.min(1, t * 2), rotation: 0 }),
-  slideLoop: (t) => ({ x: Math.sin(t * Math.PI * 2) * 0.12, y: 0, scale: 1, opacity: 1, rotation: 0 }),
+  slideLoop: (t) => ({ x: Math.sin(t * Math.PI * 2) * 0.1, y: 0, scale: 1, opacity: 1, rotation: 0 }),
   pulse: (t) => ({ x: 0, y: 0, scale: 1 + 0.08 * Math.sin(t * Math.PI * 2), opacity: 1, rotation: 0 }),
   rotate360: (t) => ({ x: 0, y: 0, scale: 1, opacity: 1, rotation: t * 360 }),
   float: (t) => ({ x: 0, y: Math.sin(t * Math.PI * 2) * -0.04, scale: 1, opacity: 1, rotation: 0 }),
@@ -55,82 +55,83 @@ const animFns: Record<string, AnimFn> = {
   zoomOut: (t) => ({ x: 0, y: 0, scale: 1 - t, opacity: 1 - t, rotation: 0 }),
 };
 
-function renderFrame(ctx: CanvasRenderingContext2D, size: number, t: number, fn: AnimFn, logoImg: HTMLImageElement | null, brand: Brand, whiteBg: boolean) {
-  ctx.clearRect(0, 0, size, size);
-  if (whiteBg) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size); }
-  const { x, y, scale, opacity, rotation } = fn(t);
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
-  ctx.translate(size / 2 + x * size, size / 2 + y * size);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.scale(scale, scale);
-  if (logoImg) {
-    const w = size * 0.5;
-    const h = (logoImg.height / logoImg.width) * w;
-    ctx.drawImage(logoImg, -w / 2, -h / 2, w, h);
-  } else {
-    ctx.fillStyle = brand.primaryColor;
-    ctx.font = `bold ${size * 0.25}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(brand.name.charAt(0), 0, 0);
-  }
-  ctx.restore();
-}
+// ─── Real-time video recording ─────────────────────────────────
 
-async function exportFramesAsZip(animation: AnimationConfig, brand: Brand, transparent: boolean): Promise<Blob> {
-  const JSZip = (await import('jszip')).default;
-  const size = 1024;
-  const totalFrames = 30;
-  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
-  const isLooping = animation.type === 'looping';
+function recordVideo(
+  animation: AnimationConfig,
+  brand: Brand,
+  logoImg: HTMLImageElement | null,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
 
-  let logoImg: HTMLImageElement | null = null;
-  if (brand.logo) {
-    logoImg = await new Promise<HTMLImageElement>((res, rej) => {
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = () => res(img); img.onerror = rej; img.src = brand.logo!;
-    }).catch(() => null);
-  }
+    const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
+    const durationMs = parseFloat(animation.duration) * 1000;
+    const isLooping = animation.type === 'looping';
+    const totalMs = isLooping ? durationMs * 2 : durationMs + 200;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = size; canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  const zip = new JSZip();
+    // Start MediaRecorder
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 4_000_000 });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/mp4' }));
+    recorder.onerror = () => reject(new Error('Recording failed'));
+    recorder.start();
 
-  for (let i = 0; i < totalFrames; i++) {
-    const t = isLooping ? (i / totalFrames) % 1 : i / (totalFrames - 1);
-    renderFrame(ctx, size, t, fn, logoImg, brand, !transparent);
-    const blob = await new Promise<Blob>((res) => canvas.toBlob(b => res(b!), 'image/png'));
-    zip.file(`frame_${String(i).padStart(3, '0')}.png`, blob);
-  }
+    const startTime = performance.now();
 
-  return zip.generateAsync({ type: 'blob' });
-}
+    // Real-time render loop using requestAnimationFrame
+    function draw() {
+      const elapsed = performance.now() - startTime;
+      if (elapsed >= totalMs) {
+        recorder.stop();
+        return;
+      }
 
-async function exportSingleFrame(animation: AnimationConfig, brand: Brand, t: number): Promise<void> {
-  const size = 1024;
-  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
+      const rawT = elapsed / totalMs;
+      const t = isLooping ? (elapsed / durationMs) % 1 : Math.min(elapsed / durationMs, 1);
+      const { x, y, scale, opacity, rotation } = fn(t);
 
-  let logoImg: HTMLImageElement | null = null;
-  if (brand.logo) {
-    logoImg = await new Promise<HTMLImageElement>((res, rej) => {
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = () => res(img); img.onerror = rej; img.src = brand.logo!;
-    }).catch(() => null);
-  }
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
 
-  const canvas = document.createElement('canvas');
-  canvas.width = size; canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  renderFrame(ctx, size, t, fn, logoImg, brand, false);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+      ctx.translate(size / 2 + x * size, size / 2 + y * size);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.scale(scale, scale);
 
-  const link = document.createElement('a');
-  link.download = `${brand.slug || brand.name.toLowerCase()}-${animation.id}-still.png`;
-  link.href = canvas.toDataURL('image/png');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+      if (logoImg) {
+        const w = size * 0.5;
+        const h = (logoImg.height / logoImg.width) * w;
+        ctx.drawImage(logoImg, -w / 2, -h / 2, w, h);
+      } else {
+        ctx.fillStyle = brand.primaryColor;
+        ctx.font = `bold ${size * 0.2}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(brand.name.charAt(0), 0, 0);
+      }
+
+      ctx.restore();
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+
+    // Safety timeout — never hang more than 10 seconds
+    setTimeout(() => {
+      if (recorder.state === 'recording') {
+        recorder.stop();
+      }
+    }, 10000);
+  });
 }
 
 // ─── Component ─────────────────────────────────────────────────
@@ -152,39 +153,47 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
     setTimeout(() => setPlayingId(id), 50);
   };
 
-  const handleDownloadFrames = useCallback(async (animation: AnimationConfig, transparent: boolean) => {
+  const handleDownloadVideo = useCallback(async (animation: AnimationConfig) => {
     setExportingId(animation.id);
+    // Also play the animation visually while recording
+    setPlayingId(animation.id);
+
     try {
-      const blob = await exportFramesAsZip(animation, brand, transparent);
+      // Load logo
+      let logoImg: HTMLImageElement | null = null;
+      if (brand.logo) {
+        logoImg = await new Promise<HTMLImageElement>((res, rej) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => res(img);
+          img.onerror = rej;
+          img.src = brand.logo!;
+        }).catch(() => null);
+      }
+
+      const blob = await recordVideo(animation, brand, logoImg);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${brand.slug || brand.name.toLowerCase()}-${animation.id}${transparent ? '-alpha' : ''}-frames.zip`;
+      a.download = `${brand.slug || brand.name.toLowerCase()}-${animation.id}.mp4`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success(`Downloaded 30 frames as ZIP`);
+      toast.success(`Video downloaded`);
     } catch (err) {
       console.error(err);
-      toast.error('Export failed');
+      toast.error('Video export failed');
     } finally {
       setExportingId(null);
     }
-  }, [brand]);
-
-  const handleDownloadStill = useCallback(async (animation: AnimationConfig) => {
-    try {
-      await exportSingleFrame(animation, brand, 1);
-      toast.success('Downloaded animation still (PNG)');
-    } catch { toast.error('Export failed'); }
   }, [brand]);
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-1">Logo Animations</h2>
-        <p className="text-muted-foreground">Preview and export animated versions of your logo.</p>
+        <p className="text-muted-foreground">Preview and download animated logo videos.</p>
       </div>
 
       <CategoryFilter categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
@@ -205,21 +214,23 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                     {playingId === animation.id ? <RotateCw className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                     {playingId === animation.id ? 'Replay' : 'Play'}
                   </button>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={() => handleDownloadStill(animation)}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      <Download className="h-3 w-3" /> PNG
-                    </button>
-                    <button
-                      onClick={() => handleDownloadFrames(animation, false)}
-                      disabled={busy}
-                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                    >
-                      <Download className="h-3 w-3" /> {busy ? '...' : 'Frames'}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleDownloadVideo(animation)}
+                    disabled={busy}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Rendering...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="h-3.5 w-3.5" />
+                        Download Video
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
