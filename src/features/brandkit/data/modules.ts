@@ -32,6 +32,16 @@ export const BRAND_KIT_MODULES: BrandKitModuleConfig[] = [
     orientation: 'square',
   },
   {
+    id: 'brand-voice',
+    name: 'Brand Voice',
+    description: 'Tone, messaging & writing rules',
+    icon: 'MessageCircle',
+    gradient: 'from-amber-500 to-orange-500',
+    categories: [],
+    hasTabs: false,
+    orientation: 'mixed',
+  },
+  {
     id: 'brand-guides',
     name: 'Brand Guides',
     description: 'Brand guideline templates',
