@@ -10,7 +10,7 @@ import { ColorSystemModule } from './colors/ColorSystemModule';
 import { BrandVoiceModule } from './BrandVoiceModule';
 import { BrandStrategyModule } from './BrandStrategyModule';
 import { TypographyModule } from './TypographyModule';
-import { GuidelinesDocument } from '../../guidelines/pages/GuidelinesDocument';
+import { TemplateDocument } from '../../guidelines/pages/templates/TemplateDocument';
 import { getModuleConfig } from '../data/modules';
 import type { Brand } from '@/shared/types/brand';
 
@@ -50,7 +50,7 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
       case 'brand-strategy':
         return <BrandStrategyModule brand={brand} />;
       case 'brand-guides':
-        return <GuidelinesDocument brand={brand} />;
+        return <TemplateDocument brand={brand} />;
       case 'typography':
         return <TypographyModule brand={brand} />;
       case 'logo-files':
