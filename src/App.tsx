@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Pages
 import IndexPage from "./pages/Index";
-import OnboardingPage from "./app/onboarding/page";
+import OnboardingPage from "./pages/onboarding";
 import BrandPreviewPage from "./pages/onboarding/preview";
 import DashboardRoute from "./pages/dashboard";
 import BrandsPage from "./pages/dashboard/brands";
@@ -26,7 +26,7 @@ import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
 import CanvasGuidelinesPage from "./pages/dashboard/brand/[slug]/guidelines/canvas";
 import AccountSettingsPage from "./pages/settings/account";
 import PlansPage from "./pages/settings/plans";
-import BrandDetailPage from "./app/brand/[slug]/page";
+import BrandDetailPage from "./pages/brand/[slug]";
 import BrandShowcasePage from "./pages/brand/[slug]/showcase";
 import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";

@@ -1,14 +1,23 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { container } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 import type { Brand, CreateBrandInput } from '../types/brand';
+
+/**
+ * Helper to get the brands service from the DI container.
+ * This is the ONLY place the store touches the service layer.
+ */
+function getBrandsService(): IBrandsService {
+  return container.get<IBrandsService>(SERVICE_KEYS.BRANDS);
+}
 
 interface BrandStore {
   list: Brand[];
   current?: Brand;
   isLoading: boolean;
   error?: string;
-  
-  // Actions
+
   loadById: (id: string) => Promise<void>;
   loadBySlug: (slug: string) => Promise<void>;
   create: (input: CreateBrandInput) => Promise<Brand>;
@@ -22,7 +31,7 @@ interface BrandStore {
 
 export const useBrandStore = create<BrandStore>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       list: [],
       current: undefined,
       isLoading: false,
@@ -31,49 +40,35 @@ export const useBrandStore = create<BrandStore>()(
       loadById: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'loadById/start');
         try {
-          const { services } = await import('../services/registry');
-          const brand = await services.brands.getById(id);
-          set({ current: brand, isLoading: false }, false, 'loadById/success');
+          const brand = await getBrandsService().getById(id);
+          set({ current: brand ?? undefined, isLoading: false }, false, 'loadById/success');
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to load brand', 
-            isLoading: false 
-          }, false, 'loadById/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to load brand', isLoading: false }, false, 'loadById/error');
         }
       },
 
       loadBySlug: async (slug: string) => {
         set({ isLoading: true, error: undefined }, false, 'loadBySlug/start');
         try {
-          const { services } = await import('../services/registry');
-          const brand = await services.brands.getBySlug(slug);
-          set({ current: brand, isLoading: false }, false, 'loadBySlug/success');
+          const brand = await getBrandsService().getBySlug(slug);
+          set({ current: brand ?? undefined, isLoading: false }, false, 'loadBySlug/success');
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to load brand', 
-            isLoading: false 
-          }, false, 'loadBySlug/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to load brand', isLoading: false }, false, 'loadBySlug/error');
         }
       },
 
       create: async (input: CreateBrandInput) => {
         set({ isLoading: true, error: undefined }, false, 'create/start');
         try {
-          const { services } = await import('../services/registry');
-          const brand = await services.brands.create(input);
-          
+          const brand = await getBrandsService().create(input);
           set((state) => ({
             list: [...state.list, brand],
             current: brand,
-            isLoading: false
+            isLoading: false,
           }), false, 'create/success');
-          
           return brand;
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to create brand', 
-            isLoading: false 
-          }, false, 'create/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to create brand', isLoading: false }, false, 'create/error');
           throw error;
         }
       },
@@ -81,73 +76,48 @@ export const useBrandStore = create<BrandStore>()(
       update: async (id: string, patch: Partial<Brand>) => {
         set({ isLoading: true, error: undefined }, false, 'update/start');
         try {
-          const { services } = await import('../services/registry');
-          await services.brands.update(id, patch);
-          
+          await getBrandsService().update(id, patch);
           set((state) => ({
-            list: state.list.map(brand => 
+            list: state.list.map(brand =>
               brand.id === id ? { ...brand, ...patch, updatedAt: new Date() } : brand
             ),
-            current: state.current?.id === id 
-              ? { ...state.current, ...patch, updatedAt: new Date() } 
+            current: state.current?.id === id
+              ? { ...state.current, ...patch, updatedAt: new Date() }
               : state.current,
-            isLoading: false
+            isLoading: false,
           }), false, 'update/success');
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to update brand', 
-            isLoading: false 
-          }, false, 'update/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to update brand', isLoading: false }, false, 'update/error');
         }
       },
 
       delete: async (id: string) => {
         set({ isLoading: true, error: undefined }, false, 'delete/start');
         try {
-          const { services } = await import('../services/registry');
-          await services.brands.delete(id);
-          
+          await getBrandsService().delete(id);
           set((state) => ({
             list: state.list.filter(brand => brand.id !== id),
             current: state.current?.id === id ? undefined : state.current,
-            isLoading: false
+            isLoading: false,
           }), false, 'delete/success');
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to delete brand', 
-            isLoading: false 
-          }, false, 'delete/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to delete brand', isLoading: false }, false, 'delete/error');
         }
       },
 
       loadAll: async () => {
         set({ isLoading: true, error: undefined }, false, 'loadAll/start');
         try {
-          const { services } = await import('../services/registry');
-          console.log('[brandStore] 🔍 Using registry service...');
-          const brands = await services.brands.list();
-          console.log('[brandStore] ✅ Loaded brands:', brands.length);
+          const brands = await getBrandsService().list();
           set({ list: brands, isLoading: false }, false, 'loadAll/success');
         } catch (error) {
-          console.error('[brandStore] ❌ Error loading brands:', error);
-          set({ 
-            error: error instanceof Error ? error.message : 'Failed to load brands', 
-            isLoading: false 
-          }, false, 'loadAll/error');
+          set({ error: error instanceof Error ? error.message : 'Failed to load brands', isLoading: false }, false, 'loadAll/error');
         }
       },
 
-      setCurrent: (brand: Brand | undefined) => {
-        set({ current: brand }, false, 'setCurrent');
-      },
-
-      setError: (error: string | undefined) => {
-        set({ error }, false, 'setError');
-      },
-
-      setLoading: (isLoading: boolean) => {
-        set({ isLoading }, false, 'setLoading');
-      },
+      setCurrent: (brand) => set({ current: brand }, false, 'setCurrent'),
+      setError: (error) => set({ error }, false, 'setError'),
+      setLoading: (isLoading) => set({ isLoading }, false, 'setLoading'),
     }),
     { name: 'brand-store' }
   )

@@ -3,11 +3,14 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { LocalBrandsService } from '@/features/brand/services/brands.local';
-import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
+import { container } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 
 /**
- * Hook to handle data synchronization between guest and authenticated modes
+ * useDataSync — orchestrates data synchronization between auth modes.
+ *
+ * Uses the DI container to access services instead of directly
+ * instantiating LocalBrandsService / SupabaseBrandsService.
  */
 export const useDataSync = () => {
   const { isAuthenticated } = useAuth();
@@ -17,49 +20,19 @@ export const useDataSync = () => {
 
   useEffect(() => {
     const handleModeChange = async () => {
-      // When switching from guest to authenticated
+      // When switching from guest to authenticated user
       if (mode === 'user' && previousMode === 'guest') {
         try {
-          // Sync onboarding data (if available)
           if (typeof onboardingStore.syncToSupabase === 'function') {
             await onboardingStore.syncToSupabase();
           }
-          
-          // Sync brand data
-          const localService = new LocalBrandsService();
-          const supabaseService = new SupabaseBrandsService();
-          
-          const localBrands = await localService.list();
-          
-          // Create brands in Supabase
-          for (const brand of localBrands) {
-            try {
-              await supabaseService.create({
-                name: brand.name,
-                logo: brand.logo,
-                primaryColor: brand.primaryColor,
-                secondaryColor: brand.secondaryColor,
-                fonts: brand.fonts,
-                tone: brand.tone,
-                audience: brand.audience,
-              });
-            } catch (error) {
-              console.error('Failed to sync brand:', error);
-            }
-          }
-          
-          // Clear local storage after successful sync
-          await localService.delete(localBrands[0]?.id);
-          
-          // Reload brands from Supabase
           await loadAll();
-          
         } catch (error) {
-          console.error('Failed to sync data to Supabase:', error);
+          console.error('[useDataSync] Failed to sync data:', error);
         }
       }
-      
-      // When switching to authenticated mode, load data from Supabase
+
+      // When authenticated, load data
       if (mode === 'user' && isAuthenticated) {
         try {
           if (typeof onboardingStore.loadFromSupabase === 'function') {
@@ -67,7 +40,7 @@ export const useDataSync = () => {
           }
           await loadAll();
         } catch (error) {
-          console.error('Failed to load data from Supabase:', error);
+          console.error('[useDataSync] Failed to load data:', error);
         }
       }
     };
