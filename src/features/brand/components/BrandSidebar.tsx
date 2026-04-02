@@ -30,6 +30,8 @@ import {
   PenTool,
   Palette,
   MessageCircle,
+  Target,
+  Type,
   Lock,
   Download,
 } from 'lucide-react';
@@ -63,6 +65,8 @@ const brandNavItems = [
 
 const brandKitItems = [
   { title: "Settings", url: "/dashboard/brand/:slug/brandkit/settings", icon: Settings, disabled: false },
+  { title: "Brand Strategy", url: "/dashboard/brand/:slug/brandkit/brand-strategy", icon: Target, disabled: false },
+  { title: "Typography", url: "/dashboard/brand/:slug/brandkit/typography", icon: Type, disabled: false },
   { title: "Color System", url: "/dashboard/brand/:slug/brandkit/color-system", icon: Palette, disabled: false },
   { title: "Brand Voice", url: "/dashboard/brand/:slug/brandkit/brand-voice", icon: MessageCircle, disabled: false },
   { title: "Logo Files", url: "/dashboard/brand/:slug/brandkit/logo-files", icon: Image, disabled: false },
