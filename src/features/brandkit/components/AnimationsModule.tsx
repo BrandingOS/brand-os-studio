@@ -72,7 +72,8 @@ function recordVideo(
     const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
     const durationMs = parseFloat(animation.duration) * 1000;
     const isLooping = animation.type === 'looping';
-    const totalMs = isLooping ? durationMs * 2 : durationMs + 200;
+    const holdMs = 2000; // Hold final frame for 2 seconds after animation
+    const totalMs = isLooping ? durationMs * 3 : durationMs + holdMs;
 
     // Start MediaRecorder
     const stream = canvas.captureStream(30);
