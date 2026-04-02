@@ -1,10 +1,10 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function LogoSystemPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function LogoSystemPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>02 — Logo System</SectionLabel>
-      <PageTitle>Logo<br />System</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>02 — Logo System</SectionLabel>
+      <PageTitle theme={theme}>Logo<br />System</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-4 mt-4">
         {/* Primary on white */}
@@ -44,12 +44,12 @@ export function LogoSystemPage({ brand, pageNumber, totalPages }: GuidelinePageP
   );
 }
 
-export function LogoClearSpacePage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function LogoClearSpacePage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const logo = brand.guidelines?.logoSystem;
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>02 — Logo System</SectionLabel>
-      <PageTitle>Clear Space<br />& Minimum Size</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>02 — Logo System</SectionLabel>
+      <PageTitle theme={theme}>Clear Space<br />& Minimum Size</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-8 mt-4">
         {/* Clear space */}

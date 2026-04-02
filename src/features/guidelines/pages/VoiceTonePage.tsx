@@ -1,11 +1,11 @@
 import { PageShell, SectionLabel, PageTitle, Divider, type GuidelinePageProps } from './PageShell';
 
-export function VoiceTonePage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function VoiceTonePage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const voice = brand.guidelines?.voiceAndTone;
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>05 — Voice & Tone</SectionLabel>
-      <PageTitle>Brand<br />Tone & Voice</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>05 — Voice & Tone</SectionLabel>
+      <PageTitle theme={theme}>Brand<br />Tone & Voice</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-8 mt-4">
         <div>
@@ -37,15 +37,15 @@ export function VoiceTonePage({ brand, pageNumber, totalPages }: GuidelinePagePr
   );
 }
 
-export function DosDontsPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function DosDontsPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const voice = brand.guidelines?.voiceAndTone;
   const dos = voice?.doAndDonts?.do || ['Be clear and direct', 'Use active voice', 'Lead with the benefit'];
   const donts = voice?.doAndDonts?.dont || ['Use jargon', 'Exaggerate claims', 'Sound robotic'];
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>05 — Voice & Tone</SectionLabel>
-      <PageTitle>Do's &<br />Don'ts</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>05 — Voice & Tone</SectionLabel>
+      <PageTitle theme={theme}>Do's &<br />Don'ts</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-6 mt-4">
         {/* Do's */}

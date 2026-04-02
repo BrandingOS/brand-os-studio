@@ -1,13 +1,13 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function IconographyPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function IconographyPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   const iconStyle = brand.guidelines?.iconography;
 
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>06 — Imagery & Icons</SectionLabel>
-      <PageTitle>Iconography</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>06 — Imagery & Icons</SectionLabel>
+      <PageTitle theme={theme}>Iconography</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-8 mt-4">
         <div className="space-y-4">

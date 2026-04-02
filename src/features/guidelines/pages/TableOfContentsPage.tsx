@@ -11,11 +11,11 @@ const sections = [
   { num: '08', title: 'Do\'s & Don\'ts', desc: 'Usage guidelines & common mistakes' },
 ];
 
-export function TableOfContentsPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function TableOfContentsPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
       <SectionLabel>Contents</SectionLabel>
-      <PageTitle>Table of<br />Contents</PageTitle>
+      <PageTitle theme={theme}>Table of<br />Contents</PageTitle>
 
       <div className="flex-1 mt-6">
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">

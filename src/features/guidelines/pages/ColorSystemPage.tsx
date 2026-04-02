@@ -1,6 +1,6 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function ColorSystemPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function ColorSystemPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const palette = brand.guidelines?.colorPalette;
   const colors = [
     { hex: palette?.primary?.hex || brand.primaryColor, name: palette?.primary?.name || 'Primary', role: 'Primary' },
@@ -9,9 +9,9 @@ export function ColorSystemPage({ brand, pageNumber, totalPages }: GuidelinePage
   ];
 
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>03 — Color System</SectionLabel>
-      <PageTitle>Color<br />System</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>03 — Color System</SectionLabel>
+      <PageTitle theme={theme}>Color<br />System</PageTitle>
 
       <div className="flex-1 flex gap-3 mt-4">
         {colors.map((c, i) => (
@@ -29,16 +29,16 @@ export function ColorSystemPage({ brand, pageNumber, totalPages }: GuidelinePage
   );
 }
 
-export function ColorNeutralsPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function ColorNeutralsPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const neutrals = brand.guidelines?.colorPalette?.neutral || [
     { hex: '#F8FAFC', name: 'Light' }, { hex: '#E2E8F0', name: 'Border' },
     { hex: '#94A3B8', name: 'Muted' }, { hex: '#475569', name: 'Body' }, { hex: '#0F172A', name: 'Dark' },
   ];
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>03 — Color System</SectionLabel>
-      <PageTitle>Neutral<br />Palette</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>03 — Color System</SectionLabel>
+      <PageTitle theme={theme}>Neutral<br />Palette</PageTitle>
 
       <div className="flex-1 flex gap-2 mt-4">
         {neutrals.map((n, i) => (

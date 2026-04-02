@@ -1,7 +1,7 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 import { contrastRatio } from '@/features/brandkit/engine/brandRules';
 
-export function ColorUsagePage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function ColorUsagePage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   const s = brand.secondaryColor || '#00D4AA';
   const combos = [
@@ -14,9 +14,9 @@ export function ColorUsagePage({ brand, pageNumber, totalPages }: GuidelinePageP
   ];
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>03 — Color System</SectionLabel>
-      <PageTitle>Color Usage<br />& Accessibility</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>03 — Color System</SectionLabel>
+      <PageTitle theme={theme}>Color Usage<br />& Accessibility</PageTitle>
 
       <div className="flex-1 mt-4">
         <p className="text-[10px] opacity-50 mb-4 max-w-[50%]">

@@ -1,8 +1,8 @@
 import { PageShell, type GuidelinePageProps } from './PageShell';
 
-export function CoverPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function CoverPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
       <div className="flex-1 flex flex-col justify-between">
         {/* Logo */}
         <div>

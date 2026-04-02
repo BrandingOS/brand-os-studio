@@ -1,6 +1,6 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function BrandPersonalityPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function BrandPersonalityPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const personality = brand.guidelines?.strategy?.personality || ['Professional', 'Innovative', 'Trustworthy', 'Clear'];
   const p = brand.primaryColor;
 
@@ -13,9 +13,9 @@ export function BrandPersonalityPage({ brand, pageNumber, totalPages }: Guidelin
   ];
 
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>01 — Brand Foundation</SectionLabel>
-      <PageTitle>Brand<br />Personality</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>01 — Brand Foundation</SectionLabel>
+      <PageTitle theme={theme}>Brand<br />Personality</PageTitle>
 
       <div className="flex-1 mt-4 space-y-5">
         {spectrums.map((s, i) => (

@@ -21,6 +21,7 @@ import { IconographyPage } from './IconographyPage';
 import { GridLayoutPage } from './GridLayoutPage';
 import { BusinessCardPage, SocialMediaPage, ClosingPage } from './ApplicationsPage';
 import type { GuidelinePageProps } from './PageShell';
+import { GUIDELINE_THEMES, getThemeById, type GuidelineTheme } from './themes';
 import { toast } from 'sonner';
 
 interface GuidelinesDocumentProps {
@@ -61,6 +62,8 @@ export function GuidelinesDocument({ brand }: GuidelinesDocumentProps) {
   const [presentationMode, setPresentationMode] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [activeThemeId, setActiveThemeId] = useState('minimal');
+  const theme = getThemeById(activeThemeId);
   const totalPages = ALL_PAGES.length;
 
   const handleExportPDF = async () => {
@@ -101,7 +104,7 @@ export function GuidelinesDocument({ brand }: GuidelinesDocumentProps) {
       <div className="fixed inset-0 z-50 bg-black flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-5xl">
-            <Page brand={brand} pageNumber={currentSlide + 1} totalPages={totalPages} />
+            <Page brand={brand} pageNumber={currentSlide + 1} totalPages={totalPages} theme={theme} />
           </div>
         </div>
         <div className="h-14 bg-black/80 flex items-center justify-between px-6">
@@ -150,9 +153,27 @@ export function GuidelinesDocument({ brand }: GuidelinesDocumentProps) {
         </div>
       </div>
 
+      {/* Theme Selector */}
+      <div className="flex gap-2 items-center">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Theme:</span>
+        {GUIDELINE_THEMES.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveThemeId(t.id)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              activeThemeId === t.id
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'border border-border hover:bg-muted'
+            }`}
+          >
+            {t.name}
+          </button>
+        ))}
+      </div>
+
       {/* Page Grid Navigator */}
       <div className="flex gap-1.5 overflow-x-auto pb-2">
-        {ALL_PAGES.map((page, i) => (
+        {ALL_PAGES.map((page) => (
           <button
             key={page.id}
             onClick={() => {
@@ -171,7 +192,7 @@ export function GuidelinesDocument({ brand }: GuidelinesDocumentProps) {
           const Page = page.component;
           return (
             <div key={page.id} data-guideline-page data-page-id={page.id} className="rounded-xl overflow-hidden shadow-lg border border-border">
-              <Page brand={brand} pageNumber={i + 1} totalPages={totalPages} />
+              <Page brand={brand} pageNumber={i + 1} totalPages={totalPages} theme={theme} />
             </div>
           );
         })}

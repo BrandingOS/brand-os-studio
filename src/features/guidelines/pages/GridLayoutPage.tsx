@@ -1,10 +1,10 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function GridLayoutPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function GridLayoutPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>06 — Graphic Elements</SectionLabel>
-      <PageTitle>Grid &<br />Layout System</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>06 — Graphic Elements</SectionLabel>
+      <PageTitle theme={theme}>Grid &<br />Layout System</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-6 mt-4">
         {/* 12-column grid demo */}

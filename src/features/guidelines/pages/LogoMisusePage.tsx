@@ -1,6 +1,6 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function LogoMisusePage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function LogoMisusePage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   const misuses = [
     { label: 'Don\'t stretch or distort', style: { transform: 'scaleX(1.5)' } },
@@ -12,9 +12,9 @@ export function LogoMisusePage({ brand, pageNumber, totalPages }: GuidelinePageP
   ];
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>02 — Logo System</SectionLabel>
-      <PageTitle>Incorrect<br />Usage</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>02 — Logo System</SectionLabel>
+      <PageTitle theme={theme}>Incorrect<br />Usage</PageTitle>
 
       <div className="flex-1 grid grid-cols-3 gap-3 mt-4">
         {misuses.map((m, i) => (

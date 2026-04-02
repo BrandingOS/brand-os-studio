@@ -1,11 +1,11 @@
 import { PageShell, SectionLabel, PageTitle, Divider, type GuidelinePageProps } from './PageShell';
 
-export function BrandIntroPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function BrandIntroPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const strategy = brand.guidelines?.strategy;
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>01 — Brand Introduction</SectionLabel>
-      <PageTitle>Brand<br />Introduction</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>01 — Brand Introduction</SectionLabel>
+      <PageTitle theme={theme}>Brand<br />Introduction</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-8 mt-4">
         <div className="space-y-4">

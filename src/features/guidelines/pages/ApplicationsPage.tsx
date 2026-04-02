@@ -1,11 +1,11 @@
 import { PageShell, SectionLabel, PageTitle, type GuidelinePageProps } from './PageShell';
 
-export function BusinessCardPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function BusinessCardPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>07 — Applications</SectionLabel>
-      <PageTitle>Business<br />Cards</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>07 — Applications</SectionLabel>
+      <PageTitle theme={theme}>Business<br />Cards</PageTitle>
 
       <div className="flex-1 flex items-center justify-center gap-6 mt-2">
         {/* Front */}
@@ -38,12 +38,12 @@ export function BusinessCardPage({ brand, pageNumber, totalPages }: GuidelinePag
   );
 }
 
-export function SocialMediaPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function SocialMediaPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>07 — Applications</SectionLabel>
-      <PageTitle>Social<br />Media</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>07 — Applications</SectionLabel>
+      <PageTitle theme={theme}>Social<br />Media</PageTitle>
 
       <div className="flex-1 grid grid-cols-3 gap-3 mt-4">
         {/* Profile */}
@@ -78,9 +78,9 @@ export function SocialMediaPage({ brand, pageNumber, totalPages }: GuidelinePage
   );
 }
 
-export function ClosingPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function ClosingPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   return (
-    <PageShell brand={brand} brandColor pageNumber={pageNumber} totalPages={totalPages}>
+    <PageShell brand={brand} brandColor pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
       <div className="flex-1 flex flex-col items-center justify-center text-center">
         {brand.logo ? (
           <img src={brand.logo} alt="" className="h-12 object-contain mb-4" style={{ filter: 'brightness(0) invert(1)' }} />

@@ -1,14 +1,14 @@
 import { PageShell, SectionLabel, PageTitle, Divider, type GuidelinePageProps } from './PageShell';
 
-export function TypographyPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function TypographyPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const typo = brand.guidelines?.typography;
   const primary = typo?.primary?.family || brand.fonts.primary;
   const secondary = typo?.secondary?.family || brand.fonts.secondary;
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>04 — Typography</SectionLabel>
-      <PageTitle>Primary<br />Typeface</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>04 — Typography</SectionLabel>
+      <PageTitle theme={theme}>Primary<br />Typeface</PageTitle>
 
       <div className="flex-1 flex flex-col justify-center mt-2">
         <div className="mb-6">
@@ -45,7 +45,7 @@ export function TypographyPage({ brand, pageNumber, totalPages }: GuidelinePageP
   );
 }
 
-export function TypeScalePage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function TypeScalePage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const primary = brand.fonts.primary;
   const secondary = brand.fonts.secondary || primary;
   const scale = [
@@ -60,9 +60,9 @@ export function TypeScalePage({ brand, pageNumber, totalPages }: GuidelinePagePr
   ];
 
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={brand.primaryColor}>04 — Typography</SectionLabel>
-      <PageTitle>Type<br />Scale</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={brand.primaryColor} theme={theme}>04 — Typography</SectionLabel>
+      <PageTitle theme={theme}>Type<br />Scale</PageTitle>
 
       <div className="flex-1 flex flex-col justify-center space-y-1 mt-2">
         {scale.map(s => (

@@ -1,14 +1,14 @@
 import { PageShell, SectionLabel, PageTitle, Divider, type GuidelinePageProps } from './PageShell';
 
-export function MessagingPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function MessagingPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const voice = brand.guidelines?.voiceAndTone;
   const examples = voice?.examples || [];
   const p = brand.primaryColor;
 
   return (
-    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>05 — Voice & Tone</SectionLabel>
-      <PageTitle>Messaging<br />Examples</PageTitle>
+    <PageShell brand={brand} pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>05 — Voice & Tone</SectionLabel>
+      <PageTitle theme={theme}>Messaging<br />Examples</PageTitle>
 
       <div className="flex-1 mt-4 space-y-3">
         {examples.length > 0 ? examples.slice(0, 3).map((ex, i) => (
@@ -50,12 +50,12 @@ export function MessagingPage({ brand, pageNumber, totalPages }: GuidelinePagePr
   );
 }
 
-export function PhotographyPage({ brand, pageNumber, totalPages }: GuidelinePageProps) {
+export function PhotographyPage({ brand, pageNumber, totalPages, theme }: GuidelinePageProps) {
   const p = brand.primaryColor;
   return (
-    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages}>
-      <SectionLabel color={p}>06 — Imagery</SectionLabel>
-      <PageTitle>Photography<br />Direction</PageTitle>
+    <PageShell brand={brand} dark pageNumber={pageNumber} totalPages={totalPages} theme={theme}>
+      <SectionLabel color={p} theme={theme}>06 — Imagery</SectionLabel>
+      <PageTitle theme={theme}>Photography<br />Direction</PageTitle>
 
       <div className="flex-1 grid grid-cols-2 gap-6 mt-4">
         <div className="space-y-4">
