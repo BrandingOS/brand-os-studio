@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Download, Settings2, Play, RotateCw } from 'lucide-react';
+import { Download, Play, RotateCw } from 'lucide-react';
 import { CategoryFilter } from './CategoryFilter';
+import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
 import type { Brand } from '@/shared/types/brand';
 import type { AnimationConfig } from '../types';
@@ -46,16 +47,10 @@ function AnimationPreview({ animation, brand, isPlaying }: { animation: Animatio
       className="flex items-center justify-center"
       style={cssMap[animation.cssAnimation] || {}}
     >
-      {brand.logo ? (
-        <img src={brand.logo} alt={brand.name} className="w-16 h-16 object-contain" />
-      ) : (
-        <div
-          className="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-bold text-white"
-          style={{ backgroundColor: brand.primaryColor }}
-        >
-          {brand.name.charAt(0)}
-        </div>
-      )}
+      <div className="flex flex-col items-center gap-1">
+        <BrandLogo brand={brand} variant="monogram" size="lg" />
+        <BrandLogo brand={brand} size="sm" />
+      </div>
     </div>
   );
 }

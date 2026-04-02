@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, Plus, X, Edit3, RefreshCw } from 'lucide-react';
+import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 
@@ -75,8 +76,9 @@ export function SettingsModule({ brand, onUpdate }: SettingsModuleProps) {
             {brand.logo ? (
               <img src={brand.logo} alt={brand.name} className="w-full h-full object-contain p-2" />
             ) : (
-              <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>
-                {brand.name.charAt(0)}
+              <div className="flex flex-col items-center gap-1">
+                <BrandLogo brand={brand} variant="monogram" size="lg" />
+                <BrandLogo brand={brand} size="sm" />
               </div>
             )}
           </div>
@@ -101,9 +103,7 @@ export function SettingsModule({ brand, onUpdate }: SettingsModuleProps) {
             {brand.logo ? (
               <img src={brand.logo} alt="" className="w-full h-full object-contain p-1.5" />
             ) : (
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>
-                {brand.name.charAt(0)}
-              </div>
+              <BrandLogo brand={brand} variant="monogram" size="lg" />
             )}
           </div>
           <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">

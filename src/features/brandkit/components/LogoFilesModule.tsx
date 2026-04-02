@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react';
 import { LOGO_VARIANTS } from '../data/templates';
+import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 
@@ -22,7 +23,9 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {LOGO_VARIANTS.map((variant) => {
           const bgColor = variant.bgColor === 'brand-primary' ? brand.primaryColor : variant.bgColor;
-          const showWhiteLogo = variant.invertLogo;
+          const logoColor = variant.invertLogo ? '#ffffff'
+            : variant.logoFilter ? (variant.bgColor === '#ffffff' ? '#000000' : '#ffffff')
+            : brand.primaryColor;
 
           return (
             <div
@@ -30,7 +33,7 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
               className="rounded-xl border border-border overflow-hidden bg-card transition-all hover:shadow-lg hover:border-primary/20"
             >
               <div
-                className="aspect-[4/3] flex items-center justify-center p-8 relative"
+                className="aspect-[4/3] flex items-center justify-center p-8"
                 style={{ backgroundColor: bgColor }}
               >
                 {brand.logo ? (
@@ -41,14 +44,9 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
                     style={{ filter: variant.logoFilter || 'none' }}
                   />
                 ) : (
-                  <div
-                    className="text-4xl font-bold tracking-tight"
-                    style={{
-                      color: showWhiteLogo ? '#ffffff' : brand.primaryColor,
-                      filter: variant.logoFilter || 'none',
-                    }}
-                  >
-                    {brand.name}
+                  <div className="flex flex-col items-center gap-3">
+                    <BrandLogo brand={brand} variant="monogram" size="lg" color={logoColor} />
+                    <BrandLogo brand={brand} size="lg" color={logoColor} />
                   </div>
                 )}
               </div>

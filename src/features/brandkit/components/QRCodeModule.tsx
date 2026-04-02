@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Download, QrCode } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 
@@ -146,11 +147,7 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
               </svg>
               {/* Logo overlay in center */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                {brand.logo ? (
-                  <img src={brand.logo} alt="" className="w-8 h-8 object-contain" />
-                ) : (
-                  <QrCode className="w-6 h-6 text-muted-foreground" />
-                )}
+                <BrandLogo brand={brand} variant="monogram" size="md" />
               </div>
             </div>
           </div>
