@@ -1,27 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card } from '@/shared/components/Card';
 import { Button } from '@/shared/components/Button';
 import { Input } from '@/shared/components/Input';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
-import { Edit2, Save, X, Palette, Type, MessageCircle, Users, Check, Upload, Image } from 'lucide-react';
+import { Edit2, Save, X, Palette, Type, MessageCircle, Users, Check, Upload, Image, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BrandEditorProps {
   brand: Brand;
+  onBrandUpdated?: (brand: Brand) => void;
 }
 
-export function BrandEditor({ brand }: BrandEditorProps) {
+interface ColorEntry {
+  hex: string;
+  label: string;
+}
+
+export function BrandEditor({ brand, onBrandUpdated }: BrandEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: brand.name,
     primaryColor: brand.primaryColor,
     secondaryColor: brand.secondaryColor || '',
     tone: brand.tone || '',
-    audience: brand.audience || ''
+    audience: brand.audience || '',
   });
+  const [logoPreview, setLogoPreview] = useState<string | undefined>(brand.logo);
+  const [pendingLogoFile, setPendingLogoFile] = useState<string | null>(null);
+  const [extraColors, setExtraColors] = useState<ColorEntry[]>(() => {
+    const colors: ColorEntry[] = [];
+    if (brand.guidelines?.colorPalette?.accent) {
+      colors.push({ hex: brand.guidelines.colorPalette.accent.hex, label: 'Accent' });
+    }
+    return colors;
+  });
+
   const { update, isLoading } = useBrandStore();
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showSaved, setShowSaved] = useState(false);
 
   useEffect(() => {
@@ -31,22 +46,36 @@ export function BrandEditor({ brand }: BrandEditorProps) {
     }
   }, [showSaved]);
 
-  const formatSavedTime = () => {
-    if (!lastSaved) return '';
-    const diffMs = Date.now() - lastSaved.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 1) return 'Saved just now';
-    return `Saved ${diffMin} min ago`;
-  };
+  // Sync brand prop changes
+  useEffect(() => {
+    setLogoPreview(brand.logo);
+    setEditData({
+      name: brand.name,
+      primaryColor: brand.primaryColor,
+      secondaryColor: brand.secondaryColor || '',
+      tone: brand.tone || '',
+      audience: brand.audience || '',
+    });
+  }, [brand]);
 
   const handleSave = async () => {
     try {
-      await update(brand.id, editData);
+      const patch: Partial<Brand> = { ...editData };
+      if (pendingLogoFile !== null) {
+        patch.logo = pendingLogoFile || undefined;
+      }
+      await update(brand.id, patch);
+      setPendingLogoFile(null);
       setIsEditing(false);
-      setLastSaved(new Date());
       setShowSaved(true);
+      toast.success('Brand updated');
+      // Reload the brand to reflect changes
+      const { services } = await import('@/shared/services/registry');
+      const updated = await services.brands.getById(brand.id);
+      if (updated && onBrandUpdated) onBrandUpdated(updated);
     } catch (error) {
       console.error('Failed to update brand:', error);
+      toast.error('Failed to save');
     }
   };
 
@@ -56,9 +85,71 @@ export function BrandEditor({ brand }: BrandEditorProps) {
       primaryColor: brand.primaryColor,
       secondaryColor: brand.secondaryColor || '',
       tone: brand.tone || '',
-      audience: brand.audience || ''
+      audience: brand.audience || '',
     });
+    setLogoPreview(brand.logo);
+    setPendingLogoFile(null);
     setIsEditing(false);
+  };
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large — max 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setLogoPreview(dataUrl);
+      setPendingLogoFile(dataUrl);
+      if (!isEditing) {
+        // Auto-save if not in edit mode
+        update(brand.id, { logo: dataUrl }).then(() => {
+          toast.success('Logo uploaded');
+          import('@/shared/services/registry').then(({ services }) => {
+            services.brands.getById(brand.id).then(updated => {
+              if (updated && onBrandUpdated) onBrandUpdated(updated);
+            });
+          });
+        }).catch(() => toast.error('Upload failed'));
+      } else {
+        toast.success('Logo selected — click Save to apply');
+      }
+    };
+    reader.onerror = () => toast.error('Failed to read file');
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [brand.id, isEditing, update, onBrandUpdated]);
+
+  const handleRemoveLogo = useCallback(async () => {
+    setLogoPreview(undefined);
+    if (!isEditing) {
+      await update(brand.id, { logo: undefined });
+      toast.success('Logo removed');
+      const { services } = await import('@/shared/services/registry');
+      const updated = await services.brands.getById(brand.id);
+      if (updated && onBrandUpdated) onBrandUpdated(updated);
+    } else {
+      setPendingLogoFile('');
+      toast.success('Logo will be removed on save');
+    }
+  }, [brand.id, isEditing, update, onBrandUpdated]);
+
+  const addColor = () => {
+    setExtraColors(prev => [...prev, { hex: '#6366f1', label: `Color ${prev.length + 1}` }]);
+  };
+
+  const removeColor = (index: number) => {
+    setExtraColors(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateColor = (index: number, hex: string) => {
+    setExtraColors(prev => prev.map((c, i) => i === index ? { ...c, hex } : c));
   };
 
   return (
@@ -68,71 +159,41 @@ export function BrandEditor({ brand }: BrandEditorProps) {
           <h2 className="text-xl font-semibold">Brand Information</h2>
           {showSaved && (
             <span className="flex items-center gap-1 text-xs text-green-600 animate-in fade-in duration-200">
-              <Check className="h-3 w-3" />
-              {formatSavedTime()}
+              <Check className="h-3 w-3" /> Saved
             </span>
           )}
         </div>
         {!isEditing ? (
-          <Button
-            variant="outline"
-            onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2"
-          >
-            <Edit2 className="h-4 w-4" />
-            Edit
+          <Button variant="outline" onClick={() => setIsEditing(true)} className="flex items-center gap-2">
+            <Edit2 className="h-4 w-4" /> Edit
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Cancel
+            <Button variant="outline" onClick={handleCancel} className="flex items-center gap-2">
+              <X className="h-4 w-4" /> Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save
+            <Button onClick={handleSave} disabled={isLoading} className="flex items-center gap-2">
+              <Save className="h-4 w-4" /> Save
             </Button>
           </div>
         )}
       </div>
 
       <div className="space-y-6">
+        {/* Name + Tone */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Type className="h-4 w-4" />
-              Brand Name
-            </label>
+            <label className="text-sm font-medium flex items-center gap-2"><Type className="h-4 w-4" /> Brand Name</label>
             {isEditing ? (
-              <Input
-                value={editData.name}
-                onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter brand name"
-              />
+              <Input value={editData.name} onChange={e => setEditData(prev => ({ ...prev, name: e.target.value }))} placeholder="Enter brand name" />
             ) : (
               <div className="p-3 bg-muted rounded-md">{brand.name}</div>
             )}
           </div>
-
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Brand Tone
-            </label>
+            <label className="text-sm font-medium flex items-center gap-2"><MessageCircle className="h-4 w-4" /> Brand Tone</label>
             {isEditing ? (
-              <Input
-                value={editData.tone}
-                onChange={(e) => setEditData(prev => ({ ...prev, tone: e.target.value }))}
-                placeholder="e.g., Professional, Friendly, Bold"
-              />
+              <Input value={editData.tone} onChange={e => setEditData(prev => ({ ...prev, tone: e.target.value }))} placeholder="e.g., Professional, Friendly, Bold" />
             ) : (
               <div className="p-3 bg-muted rounded-md">{brand.tone || 'Not specified'}</div>
             )}
@@ -141,150 +202,122 @@ export function BrandEditor({ brand }: BrandEditorProps) {
 
         {/* Logo Upload */}
         <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Image className="h-4 w-4" />
-            Brand Logo
-          </label>
+          <label className="text-sm font-medium flex items-center gap-2"><Image className="h-4 w-4" /> Brand Logo</label>
           <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-xl border border-border bg-muted/30 flex items-center justify-center overflow-hidden">
-              {brand.logo ? (
-                <img src={brand.logo} alt={brand.name} className="w-full h-full object-contain p-2" />
+            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/20 flex items-center justify-center overflow-hidden relative group">
+              {logoPreview ? (
+                <>
+                  <img src={logoPreview} alt={brand.name} className="w-full h-full object-contain p-2" />
+                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                    <Upload className="h-5 w-5 text-white" />
+                    <input type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" onChange={handleFileSelect} />
+                  </label>
+                </>
               ) : (
-                <span className="text-2xl font-bold text-muted-foreground">{brand.name?.charAt(0)}</span>
+                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-muted/40 transition-colors">
+                  <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                  <span className="text-[10px] text-muted-foreground">Upload</span>
+                  <input type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" onChange={handleFileSelect} />
+                </label>
               )}
             </div>
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors cursor-pointer">
                 <Upload className="h-3.5 w-3.5" />
-                {brand.logo ? 'Replace Logo' : 'Upload Logo'}
-                <input
-                  type="file"
-                  accept="image/svg+xml,image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = async () => {
-                      const url = reader.result as string;
-                      try {
-                        await update(brand.id, { logo: url });
-                        toast.success('Logo uploaded');
-                      } catch {
-                        toast.error('Failed to upload logo');
-                      }
-                    };
-                    reader.readAsDataURL(file);
-                    e.target.value = '';
-                  }}
-                />
+                {logoPreview ? 'Replace' : 'Upload Logo'}
+                <input type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" onChange={handleFileSelect} />
               </label>
-              {brand.logo && (
-                <button
-                  onClick={async () => {
-                    await update(brand.id, { logo: undefined });
-                    toast.success('Logo removed');
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Remove
+              {logoPreview && (
+                <button onClick={handleRemoveLogo} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
                 </button>
               )}
+              <p className="text-[10px] text-muted-foreground">SVG, PNG, JPG, WebP — max 5MB</p>
             </div>
           </div>
         </div>
 
+        {/* Target Audience */}
         <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Target Audience
-          </label>
+          <label className="text-sm font-medium flex items-center gap-2"><Users className="h-4 w-4" /> Target Audience</label>
           {isEditing ? (
-            <Input
-              value={editData.audience}
-              onChange={(e) => setEditData(prev => ({ ...prev, audience: e.target.value }))}
-              placeholder="Describe your target audience"
-            />
+            <Input value={editData.audience} onChange={e => setEditData(prev => ({ ...prev, audience: e.target.value }))} placeholder="Describe your target audience" />
           ) : (
             <div className="p-3 bg-muted rounded-md">{brand.audience || 'Not specified'}</div>
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Primary Color
-            </label>
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <input
-                    type="color"
-                    value={editData.primaryColor}
-                    onChange={(e) => setEditData(prev => ({ ...prev, primaryColor: e.target.value }))}
-                    className="w-12 h-10 rounded border cursor-pointer"
-                  />
-                  <Input
-                    value={editData.primaryColor}
-                    onChange={(e) => setEditData(prev => ({ ...prev, primaryColor: e.target.value }))}
-                    placeholder="#000000"
-                    className="flex-1"
-                  />
-                </>
-              ) : (
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-md w-full">
-                  <div 
-                    className="w-8 h-8 rounded border" 
-                    style={{ backgroundColor: brand.primaryColor }}
-                  />
-                  <span>{brand.primaryColor}</span>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Colors Section */}
+        <div className="space-y-3">
+          <label className="text-sm font-medium flex items-center gap-2"><Palette className="h-4 w-4" /> Brand Colors</label>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Secondary Color
-            </label>
-            <div className="flex gap-2">
-              {isEditing ? (
-                <>
-                  <input
-                    type="color"
-                    value={editData.secondaryColor}
-                    onChange={(e) => setEditData(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                    className="w-12 h-10 rounded border cursor-pointer"
-                  />
-                  <Input
-                    value={editData.secondaryColor}
-                    onChange={(e) => setEditData(prev => ({ ...prev, secondaryColor: e.target.value }))}
-                    placeholder="#000000"
-                    className="flex-1"
-                  />
-                </>
-              ) : (
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-md w-full">
-                  {brand.secondaryColor ? (
-                    <>
-                      <div 
-                        className="w-8 h-8 rounded border" 
-                        style={{ backgroundColor: brand.secondaryColor }}
-                      />
-                      <span>{brand.secondaryColor}</span>
-                    </>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Primary */}
+            <div className="rounded-xl border border-border p-3">
+              <div className="flex items-center gap-3">
+                {isEditing ? (
+                  <input type="color" value={editData.primaryColor} onChange={e => setEditData(prev => ({ ...prev, primaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border cursor-pointer p-0.5" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg border" style={{ backgroundColor: brand.primaryColor }} />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Primary</p>
+                  {isEditing ? (
+                    <Input value={editData.primaryColor} onChange={e => setEditData(prev => ({ ...prev, primaryColor: e.target.value }))} className="h-7 text-xs mt-0.5" />
                   ) : (
-                    <span className="text-muted-foreground">Not specified</span>
+                    <p className="text-sm font-mono">{brand.primaryColor}</p>
                   )}
                 </div>
-              )}
+              </div>
             </div>
+
+            {/* Secondary */}
+            <div className="rounded-xl border border-border p-3">
+              <div className="flex items-center gap-3">
+                {isEditing ? (
+                  <input type="color" value={editData.secondaryColor || '#cccccc'} onChange={e => setEditData(prev => ({ ...prev, secondaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border cursor-pointer p-0.5" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg border" style={{ backgroundColor: brand.secondaryColor || '#e5e5e5' }} />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Secondary</p>
+                  {isEditing ? (
+                    <Input value={editData.secondaryColor} onChange={e => setEditData(prev => ({ ...prev, secondaryColor: e.target.value }))} placeholder="#000000" className="h-7 text-xs mt-0.5" />
+                  ) : (
+                    <p className="text-sm font-mono">{brand.secondaryColor || 'Not set'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Extra Colors */}
+            {extraColors.map((color, i) => (
+              <div key={i} className="rounded-xl border border-border p-3">
+                <div className="flex items-center gap-3">
+                  <input type="color" value={color.hex} onChange={e => updateColor(i, e.target.value)} className="w-10 h-10 rounded-lg border cursor-pointer p-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{color.label}</p>
+                    <p className="text-sm font-mono">{color.hex}</p>
+                  </div>
+                  <button onClick={() => removeColor(i)} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Add Color Button */}
+            <button
+              onClick={addColor}
+              className="rounded-xl border-2 border-dashed border-border p-3 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors min-h-[68px]"
+            >
+              <Plus className="h-4 w-4" />
+              Add Color
+            </button>
           </div>
         </div>
 
+        {/* Timestamps */}
         <div className="pt-4 border-t">
           <div className="text-sm text-muted-foreground">
             <div>Created: {new Date(brand.createdAt).toLocaleDateString()}</div>
