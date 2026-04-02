@@ -1,0 +1,1 @@
+- [Push and notify after finish](feedback_push_after_finish.md) — Always push to main + send notification after completing work

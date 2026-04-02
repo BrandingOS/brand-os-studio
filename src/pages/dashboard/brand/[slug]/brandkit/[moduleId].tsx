@@ -3,7 +3,7 @@ import { BrandLayout } from '@/features/brand';
 import { BrandKitModuleView } from '@/features/brandkit';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { ArrowLeft } from 'lucide-react';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 
 export default function BrandKitModulePage() {
@@ -13,12 +13,12 @@ export default function BrandKitModulePage() {
 
   const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
-    await brandsService.update(brand.id, patch);
+    await services.brands.update(brand.id, patch);
   };
 
   if (isLoading) {
     return (
-      <BrandLayout>
+      <BrandLayout brandName={brand?.name}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-4" />
@@ -31,7 +31,7 @@ export default function BrandKitModulePage() {
 
   if (error || !brand || !moduleId) {
     return (
-      <BrandLayout>
+      <BrandLayout brandName={brand?.name}>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Module Not Found</h3>
@@ -50,7 +50,7 @@ export default function BrandKitModulePage() {
   }
 
   return (
-    <BrandLayout>
+    <BrandLayout brandName={brand?.name}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <BrandKitModuleView
           moduleId={moduleId}

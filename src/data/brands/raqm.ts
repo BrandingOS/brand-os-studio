@@ -1,37 +1,14 @@
 import type { Brand } from '@/shared/types/brand';
 
 /**
- * RAQM SVG Logo System
- * Reconstructed from the provided JPG logo into clean SVG paths.
- * The logo features bold geometric letterforms with angular cuts:
- * - R: Rectangular counter with geometric leg
- * - A: Angular negative-space triangle
- * - Q: Square form with distinctive diagonal notch
- * - M: Diagonal strokes creating the M form
+ * RAQM Logo System
+ * Uses the original production SVG from the designer — NOT auto-traced or reconstructed.
+ * The SVG lives in /public/brands/raqm/ and is served as a static asset.
+ * Brand color: #7231FF (Raqm Violet)
  */
-export const RAQM_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" fill="currentColor">
-  <!-- R -->
-  <path d="M0 0h55v100h-20V60h-15l20 40h-22L0 60V0zm20 17v26h22c8 0 13-4 13-13s-5-13-13-13H20z"/>
-  <!-- A -->
-  <path d="M70 0h50l25 100h-20l-5-20H70l-5 20H45L70 0zm2 63h36L90 15 72 63z"/>
-  <!-- Q -->
-  <path d="M155 0h50v70l20 30h-22l-10-16H155V0zm20 17v50h28V17h-28z"/>
-  <!-- M -->
-  <path d="M240 0h20l25 55 25-55h20v100h-18V35l-22 48h-10L258 35v65h-18V0z"/>
-</svg>`;
-
-/** Inline SVG data URL for use in img tags */
-export const RAQM_LOGO_URL = `data:image/svg+xml,${encodeURIComponent(
-  RAQM_LOGO_SVG.replace('currentColor', '#7B2FF2')
-)}`;
-
-export const RAQM_LOGO_WHITE_URL = `data:image/svg+xml,${encodeURIComponent(
-  RAQM_LOGO_SVG.replace('currentColor', '#ffffff')
-)}`;
-
-export const RAQM_LOGO_BLACK_URL = `data:image/svg+xml,${encodeURIComponent(
-  RAQM_LOGO_SVG.replace('currentColor', '#0A0A0F')
-)}`;
+export const RAQM_LOGO_URL = '/brands/raqm/logo.svg';
+export const RAQM_LOGO_WHITE_URL = '/brands/raqm/logo-white.svg';
+export const RAQM_LOGO_BLACK_URL = '/brands/raqm/logo-black.svg';
 
 /**
  * Raqm — Performance Revenue Infrastructure
@@ -42,7 +19,7 @@ export const raqmBrand: Brand = {
   slug: 'raqm',
   name: 'Raqm',
   logo: RAQM_LOGO_URL,
-  primaryColor: '#7B2FF2',
+  primaryColor: '#7231FF',
   secondaryColor: '#00D4AA',
   fonts: {
     primary: 'Inter',
@@ -62,8 +39,8 @@ export const raqmBrand: Brand = {
     },
     logoSystem: {
       primary: {
-        url: RAQM_LOGO_URL,
-        description: 'The RAQM wordmark features bold geometric letterforms with angular cuts and rectangular counters. Each letter is constructed on a strict grid system — the R has a rectangular counter, the A features angular negative space, the Q has a distinctive diagonal notch, and the M uses precise diagonal strokes. The geometry reflects precision, structure, and mathematical confidence.',
+        url: '/brands/raqm/logo.svg',
+        description: 'The RAQM wordmark features bold geometric letterforms with angular cuts and rectangular counters. Each letter is constructed on a strict grid system — the R has a rectangular counter with a geometric leg, the A features angular negative space, the Q has a distinctive diagonal notch, and the M uses precise diagonal strokes. The geometry reflects precision, structure, and mathematical confidence.',
         usage: 'Primary brand identifier for all major touchpoints — website headers, proposals, contracts, presentations, and official communications. Always use the SVG source file.',
       },
       secondary: {
@@ -113,7 +90,7 @@ export const raqmBrand: Brand = {
     },
     colorPalette: {
       primary: {
-        hex: '#7B2FF2',
+        hex: '#7231FF',
         rgb: 'rgb(123, 47, 242)',
         cmyk: 'C:49 M:81 Y:0 K:5',
         pantone: 'Pantone 2665 C',
@@ -196,7 +173,7 @@ export const raqmBrand: Brand = {
           usage: 'Negative ROI, budget overrun, tracking failures, critical financial errors.',
         },
         info: {
-          hex: '#7B2FF2',
+          hex: '#7231FF',
           rgb: 'rgb(123, 47, 242)',
           cmyk: 'C:49 M:81 Y:0 K:5',
           name: 'Insight Violet',

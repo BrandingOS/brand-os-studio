@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { BrandLayout } from '@/features/brand';
 import { TeamPanel } from '@/features/collaboration';
 import { SharePanel } from '@/features/brand/components/SharePanel';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 import {
   Briefcase, FileText, Edit, Presentation, Image, BookOpen,
@@ -26,33 +26,56 @@ const quickActions = [
 export default function BrandHomePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [brand, setBrand] = useState<Brand | null>(null);
+  const { brand, isLoading, error } = useBrandBySlug(slug);
 
-  useEffect(() => {
-    if (!slug) return;
-    brandsService.getBySlug(slug).then(setBrand);
-  }, [slug]);
-
-  const handleBrandUpdate = (patch: Partial<Brand>) => {
+  const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
-    brandsService.update(brand.id, patch).then(setBrand);
+    await services.brands.update(brand.id, patch);
   };
 
+  if (isLoading) {
+    return (
+      <BrandLayout brandName="Loading...">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+        </div>
+      </BrandLayout>
+    );
+  }
+
+  if (error || !brand) {
+    return (
+      <BrandLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-2">Brand Not Found</h3>
+            <p className="text-muted-foreground mb-4">{error || 'Could not load brand.'}</p>
+            <button onClick={() => navigate('/dashboard/brands')} className="text-sm text-primary hover:underline">
+              Back to My Brands
+            </button>
+          </div>
+        </div>
+      </BrandLayout>
+    );
+  }
+
   return (
-    <BrandLayout>
+    <BrandLayout brandName={brand.name}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {/* Brand Header */}
         <div className="mb-8 flex items-center gap-4">
-          {brand?.logo ? (
-            <img src={brand.logo} alt={brand?.name} className="w-14 h-14 rounded-xl object-contain bg-muted/30 p-1.5" />
+          {brand.logo ? (
+            <div className="w-14 h-14 rounded-xl bg-muted/30 flex items-center justify-center p-2 overflow-hidden">
+              <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
+            </div>
           ) : (
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white" style={{ backgroundColor: brand?.primaryColor || '#2563eb' }}>
-              {brand?.name?.charAt(0) || 'B'}
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>
+              {brand.name.charAt(0)}
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-bold">{brand?.name || 'Brand'}</h1>
-            <p className="text-sm text-muted-foreground">{brand?.tone || 'Configure your brand identity'}</p>
+            <h1 className="text-2xl font-bold">{brand.name}</h1>
+            <p className="text-sm text-muted-foreground">{brand.tone || 'Configure your brand identity'}</p>
           </div>
         </div>
 
@@ -76,39 +99,35 @@ export default function BrandHomePage() {
         </div>
 
         {/* Brand Stats */}
-        {brand && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Brand Colors</p>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: brand.primaryColor }} />
-                {brand.secondaryColor && (
-                  <div className="w-6 h-6 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: brand.secondaryColor }} />
-                )}
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Primary Font</p>
-              <p className="text-sm font-semibold truncate">{brand.fonts.primary}</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Assets</p>
-              <p className="text-sm font-semibold">{brand.assets?.length || 0} files</p>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground mb-1">Visibility</p>
-              <p className="text-sm font-semibold">{brand.isPublic ? 'Public' : 'Private'}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-1">Brand Colors</p>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: brand.primaryColor }} />
+              {brand.secondaryColor && (
+                <div className="w-6 h-6 rounded-full border-2 border-background shadow-sm" style={{ backgroundColor: brand.secondaryColor }} />
+              )}
             </div>
           </div>
-        )}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-1">Primary Font</p>
+            <p className="text-sm font-semibold truncate">{brand.fonts.primary}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-1">Assets</p>
+            <p className="text-sm font-semibold">{brand.assets?.length || 0} files</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground mb-1">Visibility</p>
+            <p className="text-sm font-semibold">{brand.isPublic ? 'Public' : 'Private'}</p>
+          </div>
+        </div>
 
         {/* Share & Team */}
-        {brand && (
-          <div className="space-y-6">
-            <SharePanel brand={brand} onUpdate={handleBrandUpdate} />
-            <TeamPanel brandId={slug ?? ''} brandName={brand?.name ?? `Brand ${slug}`} />
-          </div>
-        )}
+        <div className="space-y-6">
+          <SharePanel brand={brand} onUpdate={handleBrandUpdate} />
+          <TeamPanel brandId={slug ?? ''} brandName={brand.name} />
+        </div>
       </div>
     </BrandLayout>
   );
