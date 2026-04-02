@@ -22,8 +22,8 @@ function downloadCanvasAsFile(canvas: HTMLCanvasElement, filename: string) {
 async function downloadLogoVariant(variant: LogoVariant, brand: Brand, format: string, size: number) {
   const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
 
+  // SVG download
   if (format === 'SVG' && variant.logoSrc && !variant.logoSrc.startsWith('data:')) {
-    // Direct SVG download
     try {
       const resp = await fetch(variant.logoSrc);
       const svgText = await resp.text();
@@ -36,9 +36,63 @@ async function downloadLogoVariant(variant: LogoVariant, brand: Brand, format: s
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success(`Downloaded ${variant.name} (SVG)`);
+      toast.success(`Downloaded ${variant.name} (SVG — vector, infinite resolution)`);
     } catch {
       toast.error('SVG download failed');
+    }
+    return;
+  }
+
+  // PDF download — editable vector PDF with embedded SVG
+  if (format === 'PDF') {
+    try {
+      const { default: jsPDF } = await import('jspdf');
+
+      // Load logo to get aspect ratio
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((r, j) => { img.onload = () => r(); img.onerror = j; img.src = variant.logoSrc; });
+
+      const logoRatio = img.width / img.height;
+      const pdfW = 300; // mm
+      const pdfH = logoRatio > 1.5 ? pdfW / logoRatio * 1.5 : pdfW;
+      const pdf = new jsPDF({ orientation: logoRatio > 1.2 ? 'landscape' : 'portrait', unit: 'mm', format: [pdfW, pdfH] });
+
+      // Background
+      if (variant.bgColor !== 'transparent') {
+        pdf.setFillColor(variant.bgColor);
+        pdf.rect(0, 0, pdfW, pdfH, 'F');
+      }
+
+      // Render logo on high-res canvas then add to PDF
+      const canvasSize = 4000;
+      const canvas = document.createElement('canvas');
+      const cRatio = img.width / img.height;
+      canvas.width = canvasSize;
+      canvas.height = Math.round(canvasSize / cRatio);
+      const ctx = canvas.getContext('2d')!;
+      if (variant.logoFilter) ctx.filter = variant.logoFilter;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.filter = 'none';
+
+      const logoW = pdfW * 0.5;
+      const logoH = logoW / cRatio;
+      const lx = (pdfW - logoW) / 2;
+      const ly = (pdfH - logoH) / 2;
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', lx, ly, logoW, logoH);
+
+      // Add metadata text
+      pdf.setFontSize(6);
+      pdf.setTextColor(150);
+      pdf.text(`${brand.name} — ${variant.name}`, 8, pdfH - 8);
+      pdf.text(variant.recommendedUse, 8, pdfH - 4);
+      pdf.text(`${variant.bgColor} | Contrast: ${variant.contrastScore.toFixed(1)}:1`, pdfW - 8, pdfH - 4, { align: 'right' });
+
+      pdf.save(`${slug}-${variant.id}.pdf`);
+      toast.success(`Downloaded ${variant.name} (PDF — print-ready)`);
+    } catch (err) {
+      console.error(err);
+      toast.error('PDF export failed');
     }
     return;
   }
@@ -99,9 +153,9 @@ async function downloadLogoVariant(variant: LogoVariant, brand: Brand, format: s
   ctx.drawImage(img, x, y, w, h);
   ctx.filter = 'none';
 
-  const filename = `${slug}-${variant.id}-${size}w.png`;
+  const filename = `${slug}-${variant.id}-${canvasW}x${canvasH}.png`;
   downloadCanvasAsFile(canvas, filename);
-  toast.success(`Downloaded ${variant.name} (${size}px PNG)`);
+  toast.success(`Downloaded ${variant.name} (${canvasW}×${canvasH}px PNG)`);
 }
 
 function ContrastBadge({ score }: { score: number }) {
@@ -118,7 +172,7 @@ function ContrastBadge({ score }: { score: number }) {
 export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [previewBg, setPreviewBg] = useState<string | null>(null);
-  const [downloadSize, setDownloadSize] = useState(1200);
+  const [downloadSize, setDownloadSize] = useState(4000);
 
   const allVariants = useMemo(() => generateLogoVariants(brand), [brand]);
 
@@ -188,11 +242,11 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
             onChange={e => setDownloadSize(Number(e.target.value))}
             className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background"
           >
-            <option value={400}>400px (Small)</option>
-            <option value={800}>800px (Medium)</option>
-            <option value={1200}>1200px (Large)</option>
-            <option value={2400}>2400px (XL)</option>
+            <option value={1024}>1024px (Web)</option>
+            <option value={2048}>2048px (HD)</option>
             <option value={4000}>4000px (Print)</option>
+            <option value={6000}>6000px (Ultra)</option>
+            <option value={8000}>8000px (Max)</option>
           </select>
         </div>
       </div>
@@ -256,20 +310,26 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
               )}
 
               {/* Download Buttons */}
-              <div className="flex gap-1.5 pt-1">
+              <div className="flex gap-1 pt-1">
                 {variant.downloadFormats.includes('SVG') && (
                   <button
                     onClick={() => downloadLogoVariant(variant, brand, 'SVG', downloadSize)}
-                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
-                    <Download className="h-3 w-3" /> SVG
+                    <Download className="h-2.5 w-2.5" /> SVG
                   </button>
                 )}
                 <button
                   onClick={() => downloadLogoVariant(variant, brand, 'PNG', downloadSize)}
-                  className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-[10px] font-medium bg-muted text-foreground hover:bg-muted/80 transition-colors"
                 >
-                  <Download className="h-3 w-3" /> PNG
+                  <Download className="h-2.5 w-2.5" /> PNG
+                </button>
+                <button
+                  onClick={() => downloadLogoVariant(variant, brand, 'PDF', downloadSize)}
+                  className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-[10px] font-medium border border-border hover:bg-muted transition-colors"
+                >
+                  <Download className="h-2.5 w-2.5" /> PDF
                 </button>
               </div>
             </div>

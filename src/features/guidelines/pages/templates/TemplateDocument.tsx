@@ -456,7 +456,7 @@ export function TemplateDocument({ brand }: TemplateDocumentProps) {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
       const pages = document.querySelectorAll('[data-tpl-page]');
       for (let i = 0; i < pages.length; i++) {
-        const canvas = await html2canvas(pages[i] as HTMLElement, { scale: 2, backgroundColor: null, useCORS: true, logging: false });
+        const canvas = await html2canvas(pages[i] as HTMLElement, { scale: 3, backgroundColor: null, useCORS: true, logging: false });
         if (i > 0) pdf.addPage([1920, 1080], 'landscape');
         pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 1920, 1080);
       }
