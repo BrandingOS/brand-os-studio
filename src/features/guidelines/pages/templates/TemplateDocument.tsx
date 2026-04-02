@@ -113,16 +113,16 @@ function buildSlides(brand: Brand): SlideEntry[] {
         <ContentPage brand={b} layout={l} pageNumber={pn} totalPages={tp} sectionName="Logo System" title="Logo">
           <div className="grid grid-cols-2 gap-4 h-full">
             <div className="rounded-lg border border-gray-200 flex items-center justify-center p-8 bg-white">
-              {b.logo ? <img src={b.logo} alt="" className="max-h-16 object-contain" /> : <span className="text-3xl font-bold" style={{ color: p }}>{b.name}</span>}
+              {b.logo ? <img src={b.logo} alt="" className="max-h-10 max-w-[50%] object-contain" /> : <span className="text-3xl font-bold" style={{ color: p }}>{b.name}</span>}
             </div>
             <div className="rounded-lg flex items-center justify-center p-8" style={{ backgroundColor: p }}>
-              {b.logo ? <img src={b.logo} alt="" className="max-h-16 object-contain" style={{ filter: 'brightness(0) invert(1)' }} /> : <span className="text-3xl font-bold text-white">{b.name}</span>}
+              {b.logo ? <img src={b.logo} alt="" className="max-h-10 max-w-[50%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} /> : <span className="text-3xl font-bold text-white">{b.name}</span>}
             </div>
             <div className="rounded-lg flex items-center justify-center p-8 bg-[#0a0a0f]">
-              {b.logo ? <img src={b.logo} alt="" className="max-h-16 object-contain" style={{ filter: 'brightness(0) invert(1)' }} /> : <span className="text-3xl font-bold text-white">{b.name}</span>}
+              {b.logo ? <img src={b.logo} alt="" className="max-h-10 max-w-[50%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} /> : <span className="text-3xl font-bold text-white">{b.name}</span>}
             </div>
             <div className="rounded-lg border border-gray-200 flex items-center justify-center p-8 bg-gray-50">
-              {b.logo ? <img src={b.logo} alt="" className="max-h-16 object-contain" style={{ filter: 'grayscale(1) brightness(0)' }} /> : <span className="text-3xl font-bold text-black">{b.name}</span>}
+              {b.logo ? <img src={b.logo} alt="" className="max-h-10 max-w-[50%] object-contain" style={{ filter: 'grayscale(1) brightness(0)' }} /> : <span className="text-3xl font-bold text-black">{b.name}</span>}
             </div>
           </div>
         </ContentPage>

@@ -41,19 +41,19 @@ export function LogoConstructionPage({ brand, layout, pageNumber, totalPages }: 
     <PageFrame brand={brand} layout={layout} sectionName="Logo System" pageNumber={pageNumber} totalPages={totalPages}>
       <h3 className="text-[clamp(14px,2vw,24px)] font-bold mb-4">Logo Construction</h3>
       <div className="flex-1 flex items-center justify-center">
-        <div className="relative w-[60%] aspect-[3/1]">
+        <div className="relative w-[50%] aspect-square max-h-[70%]">
           {/* Grid lines */}
-          <div className="absolute inset-0 grid grid-cols-12 grid-rows-4">
-            {Array.from({ length: 48 }).map((_, i) => (
-              <div key={i} className="border border-dashed" style={{ borderColor: `${p}15` }} />
+          <div className="absolute inset-0 grid grid-cols-8 grid-rows-8">
+            {Array.from({ length: 64 }).map((_, i) => (
+              <div key={i} className="border border-dashed" style={{ borderColor: `${p}12` }} />
             ))}
           </div>
-          {/* Logo centered */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          {/* Logo centered — constrained to 40% of the grid */}
+          <div className="absolute inset-0 flex items-center justify-center p-[20%]">
             {brand.logo ? (
-              <img src={brand.logo} alt="" className="max-h-[60%] max-w-[80%] object-contain" />
+              <img src={brand.logo} alt="" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-[clamp(24px,4vw,48px)] font-bold" style={{ color: p }}>{brand.name}</span>
+              <span className="text-[clamp(18px,3vw,36px)] font-bold" style={{ color: p }}>{brand.name}</span>
             )}
           </div>
           {/* Measurement annotations */}
