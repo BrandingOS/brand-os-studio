@@ -240,25 +240,37 @@ export function EditableSlide({ children }: EditableSlideProps) {
   }, [clearSelection]);
 
   // Escape and Delete key handling
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (!selectedRef.current) return;
+      // Skip if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.key === 'Escape') {
-        clearSelection();
+        if (selectedRef.current) {
+          clearSelection();
+        }
+        return;
       }
 
-      // Delete/Backspace removes element (only when not editing text)
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !editing) {
+      // Delete/Backspace removes selected element (only when not editing text inline)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRef.current && !editingRef.current) {
         e.preventDefault();
-        selectedRef.current.element.remove();
+        const el = selectedRef.current.element;
+        if (el && el.isConnected) {
+          removeSelectionStyles(el);
+          if (containerRef.current) removeResizeHandles(containerRef.current);
+          el.remove();
+        }
         setSelected(null);
         setEditing(false);
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [clearSelection, editing]);
+  }, [clearSelection]);
 
   // Update toolbar position on scroll/resize
   useEffect(() => {
@@ -392,9 +404,13 @@ export function EditableSlide({ children }: EditableSlideProps) {
             setSelected({ ...selected, rect });
           }}
           onDelete={() => {
-            if (!selected.element) return;
-            selected.element.remove();
+            const el = selectedRef.current?.element || selected?.element;
+            if (!el) return;
+            removeSelectionStyles(el);
+            if (containerRef.current) removeResizeHandles(containerRef.current);
+            el.remove();
             setSelected(null);
+            setEditing(false);
             setEditing(false);
           }}
           onDuplicate={() => {

@@ -1,145 +1,120 @@
 /**
- * useHistory — undo/redo system for the slide editor.
- *
- * Captures the innerHTML of the slide before each edit,
- * stores in a stack, and restores on undo/redo.
+ * useHistory — undo/redo for slide editor.
+ * Only captures meaningful content changes (not selection styles).
  */
 import { useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
-interface HistoryState {
-  slideId: string;
+interface Snapshot {
   html: string;
 }
 
-const MAX_HISTORY = 50;
+const MAX_HISTORY = 30;
 
 export function useHistory() {
-  const undoStack = useRef<HistoryState[]>([]);
-  const redoStack = useRef<HistoryState[]>([]);
-  const lastSavedRef = useRef<string>('');
+  const undoStack = useRef<Snapshot[]>([]);
+  const redoStack = useRef<Snapshot[]>([]);
+  const lastHtml = useRef('');
+  const paused = useRef(false);
 
-  /** Capture current state before making a change */
-  const pushState = useCallback(() => {
+  /** Get clean HTML (strip selection styles before saving) */
+  const getCleanHtml = useCallback(() => {
     const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement;
-    if (!canvas) return;
-
-    const html = canvas.innerHTML;
-    // Don't push if nothing changed
-    if (html === lastSavedRef.current) return;
-
-    undoStack.current.push({
-      slideId: canvas.getAttribute('data-slide-canvas') || '',
-      html,
+    if (!canvas) return '';
+    // Clone and strip selection artifacts
+    const clone = canvas.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[style*="outline: 2px solid"]').forEach(el => {
+      (el as HTMLElement).style.outline = '';
+      (el as HTMLElement).style.outlineOffset = '';
+      (el as HTMLElement).style.boxShadow = '';
+      (el as HTMLElement).style.borderRadius = '';
     });
-
-    // Limit stack size
-    if (undoStack.current.length > MAX_HISTORY) {
-      undoStack.current.shift();
-    }
-
-    // Clear redo stack on new action
-    redoStack.current = [];
-    lastSavedRef.current = html;
+    clone.querySelectorAll('.resize-handle').forEach(el => el.remove());
+    return clone.innerHTML;
   }, []);
 
-  /** Undo last change */
+  /** Save current state (call before making changes) */
+  const saveState = useCallback(() => {
+    if (paused.current) return;
+    const html = getCleanHtml();
+    if (!html || html === lastHtml.current) return;
+    undoStack.current.push({ html: lastHtml.current });
+    if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
+    redoStack.current = [];
+    lastHtml.current = html;
+  }, [getCleanHtml]);
+
+  /** Undo */
   const undo = useCallback(() => {
     const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement;
-    if (!canvas || undoStack.current.length === 0) {
-      toast.error('Nothing to undo');
-      return;
-    }
+    if (!canvas || undoStack.current.length === 0) return;
 
-    // Save current state to redo
-    redoStack.current.push({
-      slideId: '',
-      html: canvas.innerHTML,
-    });
+    const current = getCleanHtml();
+    redoStack.current.push({ html: current });
 
-    // Restore previous state
     const prev = undoStack.current.pop()!;
+    paused.current = true;
     canvas.innerHTML = prev.html;
-    lastSavedRef.current = prev.html;
-    toast.success('Undone');
-  }, []);
+    lastHtml.current = prev.html;
+    paused.current = false;
 
-  /** Redo last undone change */
+    toast.success('Undone', { duration: 1500 });
+  }, [getCleanHtml]);
+
+  /** Redo */
   const redo = useCallback(() => {
     const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement;
-    if (!canvas || redoStack.current.length === 0) {
-      toast.error('Nothing to redo');
-      return;
-    }
+    if (!canvas || redoStack.current.length === 0) return;
 
-    // Save current state to undo
-    undoStack.current.push({
-      slideId: '',
-      html: canvas.innerHTML,
-    });
+    const current = getCleanHtml();
+    undoStack.current.push({ html: current });
 
-    // Restore redo state
     const next = redoStack.current.pop()!;
+    paused.current = true;
     canvas.innerHTML = next.html;
-    lastSavedRef.current = next.html;
-    toast.success('Redone');
-  }, []);
+    lastHtml.current = next.html;
+    paused.current = false;
 
-  /** Auto-capture state on mutations (MutationObserver) */
+    toast.success('Redone', { duration: 1500 });
+  }, [getCleanHtml]);
+
+  /** Initialize: capture first state when slide loads */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      lastHtml.current = getCleanHtml();
+      undoStack.current = [];
+      redoStack.current = [];
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [getCleanHtml]);
+
+  /** Auto-save on content mutations (debounced) */
   useEffect(() => {
     const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement;
     if (!canvas) return;
 
     let timeout: ReturnType<typeof setTimeout>;
     const observer = new MutationObserver(() => {
-      // Debounce — capture state 500ms after last mutation
+      if (paused.current) return;
       clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        const html = canvas.innerHTML;
-        if (html !== lastSavedRef.current) {
-          undoStack.current.push({ slideId: '', html: lastSavedRef.current });
-          if (undoStack.current.length > MAX_HISTORY) undoStack.current.shift();
-          redoStack.current = [];
-          lastSavedRef.current = html;
-        }
-      }, 500);
+      timeout = setTimeout(saveState, 800);
     });
 
-    // Capture initial state
-    lastSavedRef.current = canvas.innerHTML;
+    observer.observe(canvas, { childList: true, subtree: true, characterData: true });
+    return () => { observer.disconnect(); clearTimeout(timeout); };
+  }, [saveState]);
 
-    observer.observe(canvas, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-    });
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(timeout);
-    };
-  }, []);
-
-  /** Keyboard shortcut handler */
+  /** Keyboard shortcuts */
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        redo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        redo();
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [undo, redo]);
 
-  return { undo, redo, pushState, canUndo: undoStack.current.length > 0, canRedo: redoStack.current.length > 0 };
+  return { undo, redo, saveState };
 }

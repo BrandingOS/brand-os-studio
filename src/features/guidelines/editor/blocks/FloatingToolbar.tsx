@@ -103,7 +103,7 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
     <div
       ref={toolbarRef}
       className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in duration-100"
-      style={{ top: Math.max(8, position.top - 52), left: Math.min(window.innerWidth - 400, Math.max(8, position.left + position.width / 2 - 200)) }}
+      style={{ top: Math.max(8, position.top - 56), left: Math.min(window.innerWidth - 500, Math.max(8, position.left + position.width / 2 - 250)) }}
       onMouseDown={e => e.stopPropagation()}
     >
       {/* Hidden file input for image replace */}
