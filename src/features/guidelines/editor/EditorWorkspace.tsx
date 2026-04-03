@@ -274,87 +274,63 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         onClose={onClose}
       />
 
+      {/* Slide/Scroll toggle — centered under header, same position in both modes */}
+      <div className="flex justify-center py-1.5 shrink-0">
+        <div className="inline-flex items-center gap-0.5 bg-[#1e1e1e] rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+          <button onClick={() => setCanvasMode('freeform')} className={`px-3 py-1 rounded-md text-[10px] font-medium transition-colors ${canvasMode === 'freeform' ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}>Slide</button>
+          <button onClick={() => setCanvasMode('scroll')} className={`px-3 py-1 rounded-md text-[10px] font-medium transition-colors ${canvasMode === 'scroll' ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}>Scroll</button>
+        </div>
+      </div>
+
       {/* Main Area */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Slide Navigator */}
-        <SlideNav
-          slides={slides}
-          currentSlide={currentSlide}
-          onSelect={goTo}
-          brand={brand}
-          layout={layout}
-        />
+        <SlideNav slides={slides} currentSlide={currentSlide} onSelect={goTo} brand={brand} layout={layout} />
 
-        {/* Canvas Area */}
         {canvasMode === 'freeform' ? (
-          /* ─── FREEFORM CANVAS: single slide, zoom, pan ─── */
-          <div ref={canvasRef} className="flex-1 flex flex-col items-center justify-center overflow-auto relative">
-            <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0}
-              className="absolute left-14 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
-              <ChevronLeft className="h-4 w-4 text-white/60" />
-            </button>
-            <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide >= totalPages - 1}
-              className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
-              <ChevronRight className="h-4 w-4 text-white/60" />
-            </button>
-
-            {/* Zoom controls */}
-            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-[#222] rounded-xl px-1 py-0.5 border border-white/[0.06]">
-              <button onClick={zoomOut} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">−</button>
-              <button onClick={zoomReset} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-[11px] font-mono min-w-[45px]">
+          /* ─── SLIDE VIEW: fullscreen single slide with animation ─── */
+          <div ref={canvasRef} className="flex-1 flex items-center justify-center overflow-hidden relative p-3">
+            {/* Zoom controls — bottom right */}
+            <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/90 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+              <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
+              <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">
                 {Math.round(zoom * 100)}%
               </button>
-              <button onClick={zoomIn} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">+</button>
-              <div className="w-px h-4 bg-white/10 mx-0.5" />
-              <button onClick={zoomFit} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px]">Fit</button>
+              <button onClick={zoomIn} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">+</button>
             </div>
 
-            {/* Canvas mode toggle */}
-            <div className="absolute bottom-4 left-14 z-10 flex items-center gap-0.5 bg-[#222] rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
-              <button onClick={() => setCanvasMode('freeform')} className="px-2 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Slide</button>
-              <button onClick={() => setCanvasMode('scroll')} className="px-2 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Scroll</button>
-            </div>
-
-            <div className="origin-center" style={{
-              transform: `scale(${zoom})`,
-              transition: 'transform 0.2s ease-out',
-            }}>
-              <div className="w-[1200px]">
-                <div data-slide-canvas className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
+            {/* The Slide — fills available space */}
+            <div
+              key={currentSlide}
+              className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.98] duration-300"
+              style={{ transform: `scale(${zoom})` }}
+            >
+              <div className="w-full max-w-full" style={{ maxHeight: '100%', aspectRatio: '16/9' }}>
+                <div data-slide-canvas className="w-full h-full rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.06]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
                   <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
                 </div>
               </div>
             </div>
-            <div className="mt-3 text-white/15 text-xs">{slide?.name}</div>
           </div>
         ) : (
-          /* ─── SCROLL CANVAS: all slides vertically like a PDF ─── */
+          /* ─── SCROLL VIEW: vertical snap scroll through slides ─── */
           <div
-            className="flex-1 relative"
-            style={{ overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}
+            className="flex-1 relative snap-y snap-mandatory"
+            style={{ overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth' }}
           >
-            {/* Canvas mode toggle */}
-            <div className="sticky top-3 z-10 flex justify-center pointer-events-none">
-              <div className="inline-flex items-center gap-0.5 bg-[#1e1e1e]/95 backdrop-blur-sm rounded-lg px-0.5 py-0.5 border border-white/[0.06] pointer-events-auto">
-                <button onClick={() => setCanvasMode('freeform')} className="px-3 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Slide</button>
-                <button onClick={() => setCanvasMode('scroll')} className="px-3 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Scroll</button>
-              </div>
-            </div>
-
-            <div className="max-w-[1100px] mx-auto px-4 pb-16 pt-2 space-y-5">
-              {slides.map((s, i) => {
-                const slideBg = perSlideBg[s.id];
-                return (
-                  <div key={s.id} className="relative group">
-                    {/* Slide number */}
-                    <div className="absolute -left-6 top-3 text-[9px] font-mono text-white/8 group-hover:text-white/20 transition-colors">
-                      {String(i + 1).padStart(2, '0')}
-                    </div>
-                    {/* Slide — full width */}
+            {slides.map((s, i) => {
+              const slideBg = perSlideBg[s.id];
+              return (
+                <div
+                  key={s.id}
+                  className="snap-center flex items-center justify-center p-4"
+                  style={{ minHeight: '100%' }}
+                >
+                  <div className="w-full max-w-[1100px] mx-auto">
                     <div
                       data-slide-canvas={i === currentSlide ? '' : undefined}
-                      className={`rounded-lg overflow-hidden shadow-lg ring-1 transition-all cursor-pointer ${
-                        i === currentSlide ? 'ring-white/20 shadow-xl' : 'ring-white/[0.04] hover:ring-white/12'
+                      className={`rounded-lg overflow-hidden shadow-xl ring-1 transition-all ${
+                        i === currentSlide ? 'ring-white/15' : 'ring-white/[0.04]'
                       }`}
                       style={slideBg ? { backgroundColor: slideBg } : undefined}
                       onClick={() => setCurrentSlide(i)}
@@ -363,17 +339,12 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
                         {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
                       </EditableSlide>
                     </div>
-                    {/* Slide name */}
-                    <div className="text-center mt-1.5 text-[9px] text-white/8 group-hover:text-white/15 transition-colors">
-                      {s.name}
-                    </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         )}
-
       </div>
 
       {/* Panels — positioned above the bottom bar, outside scroll area */}

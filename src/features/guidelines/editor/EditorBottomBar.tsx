@@ -14,7 +14,7 @@ export function EditorBottomBar({ activePanel, onTogglePanel }: EditorBottomBarP
   ];
 
   return (
-    <div className="h-12 bg-[#141414] border-t border-white/[0.04] flex items-center justify-center shrink-0 z-10 relative">
+    <div className="h-14 bg-[#141414] border-t border-white/[0.04] flex items-center justify-center shrink-0 z-10 relative pb-1">
       <div className="flex items-center bg-[#222] rounded-xl px-1 py-0.5 gap-0.5">
         {items.map(item => (
           <button
