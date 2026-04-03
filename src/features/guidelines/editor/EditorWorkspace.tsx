@@ -16,6 +16,7 @@ import { InsertMenu } from './InsertMenu';
 import { RemixPanel } from './RemixPanel';
 import { ExportModal } from './ExportModal';
 import { EditableSlide } from './blocks/EditableSlide';
+import { useHistory } from './useHistory';
 import { toast } from 'sonner';
 
 interface EditorWorkspaceProps {
@@ -42,6 +43,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const { undo, redo } = useHistory();
   const scrollCooldown = useRef(false);
   const [slideOffset, setSlideOffset] = useState(0); // -1 to 1, for smooth transition
   const scrollAccum = useRef(0);
