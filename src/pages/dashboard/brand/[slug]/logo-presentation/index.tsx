@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { LogoPresentationViewer } from '@/features/logo-presentation/components/LogoPresentationViewer';
+import { LogoPresentationViewerSimple } from '@/features/logo-presentation/components/LogoPresentationViewerSimple';
 import { LogoPresentationSetup } from '@/features/logo-presentation/components/LogoPresentationSetup';
 import type { LogoPresentationData } from '@/features/logo-presentation/types';
 
@@ -36,6 +37,16 @@ export default function LogoPresentationPage() {
       <LogoPresentationSetup
         brand={brand}
         onStart={(data) => setPresentationData(data)}
+      />
+    );
+  }
+
+  // Route to correct template
+  if (presentationData.template === 'simple') {
+    return (
+      <LogoPresentationViewerSimple
+        data={presentationData}
+        onClose={() => setPresentationData(null)}
       />
     );
   }

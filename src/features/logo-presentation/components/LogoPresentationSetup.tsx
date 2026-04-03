@@ -5,7 +5,7 @@
  */
 import { useState, useRef } from 'react';
 import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye } from 'lucide-react';
-import type { LogoPresentationData, LogoConcept } from '../types';
+import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
 import { toast } from 'sonner';
@@ -137,12 +137,19 @@ function createVectorConcepts(): LogoConcept[] {
       name: 'The Arrow',
       rationale: 'A geometric arrow integrated with the letter V — representing direction and magnitude. The horizontal strike-through evokes a trajectory line, while the downward V-form doubles as the mathematical vector symbol. This is the most literal interpretation of the brand concept.',
       logoUrl: '/brands/vector/logo-1.svg',
+      iconUrl: '/brands/vector/icon-1.svg',
       direction: 'Geometric & Directional',
       whyItWorks: [
         'The arrow instantly communicates direction — the core brand metaphor',
         'The horizontal line creates a sense of trajectory and forward momentum',
         'Clean, angular construction reads as technical and precise',
         'Scales perfectly from favicon to billboard — every detail is intentional',
+      ],
+      symbolBreakdown: [
+        { label: 'Trajectory Line', description: 'Forward momentum and directed path' },
+        { label: 'V Letterform', description: 'Brand initial as structural element' },
+        { label: 'Arrow Point', description: 'Precision, decisiveness, clear direction' },
+        { label: 'Angular Counter', description: 'Negative space creates mathematical balance' },
       ],
       colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
     },
@@ -151,12 +158,19 @@ function createVectorConcepts(): LogoConcept[] {
       name: 'The Signal',
       rationale: 'Two sharp triangles forming the V — the larger triangle carries momentum while the smaller detached triangle signals precision and separation. The ECTOR wordmark uses a bold, uppercase treatment that feels like a control panel readout.',
       logoUrl: '/brands/vector/logo-2.svg',
+      iconUrl: '/brands/vector/icon-2.svg',
       direction: 'Bold & Structural',
       whyItWorks: [
         'The dual-triangle form creates visual tension — large and small, direction and precision',
         'Bold uppercase wordmark reads like a system interface — structured and authoritative',
         'The negative space between triangles suggests decision points — accept or reject',
         'Highly compact — works as a strong horizontal lockup for dashboards',
+      ],
+      symbolBreakdown: [
+        { label: 'Primary Triangle', description: 'Direction and momentum — the main vector' },
+        { label: 'Secondary Triangle', description: 'Precision signal — detached for clarity' },
+        { label: 'Negative Gap', description: 'Decision point — the space between chaos and control' },
+        { label: 'Angular Base', description: 'Grounded stability — the foundation of structure' },
       ],
       colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
     },
@@ -165,12 +179,19 @@ function createVectorConcepts(): LogoConcept[] {
       name: 'The Trajectory',
       rationale: 'An asymmetric angular mark that suggests a plotted course — one element grounded, the other reaching upward at a precise angle. The lowercase \'ector\' wordmark softens the technical feel without losing precision.',
       logoUrl: '/brands/vector/logo-3.svg',
+      iconUrl: '/brands/vector/icon-3.svg',
       direction: 'Dynamic & Angular',
       whyItWorks: [
         'The asymmetric construction creates energy — this is not static, it is moving',
         'The upward trajectory angle maps directly to career progression',
         'Lowercase wordmark balances the angular icon — approachable yet technical',
         'The split-form icon works as two distinct elements or one unified mark',
+      ],
+      symbolBreakdown: [
+        { label: 'Grounded Element', description: 'Stability — the starting point of every vector' },
+        { label: 'Upward Trajectory', description: 'Direction and growth — career path ascending' },
+        { label: 'Precise Angle', description: 'Calculated, not random — structured evaluation' },
+        { label: 'Split Form', description: 'Two elements unified — AI + human guidance' },
       ],
       colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
     },
@@ -179,12 +200,19 @@ function createVectorConcepts(): LogoConcept[] {
       name: 'The Control',
       rationale: 'A variant of the angular mark with a more grounded, contained geometry. The left element feels like a cockpit indicator while the right element reaches toward a target. This is the "flight deck" interpretation of the brand personality.',
       logoUrl: '/brands/vector/logo-4.svg',
+      iconUrl: '/brands/vector/icon-4.svg',
       direction: 'Contained & Systematic',
       whyItWorks: [
         'The contained left element grounds the mark — stability and control',
         'The reaching right element creates directionality without chaos',
         'Evokes the "high-performance flight deck" described in the brand personality',
         'The geometric precision signals a system, not a tool — exactly the brand distinction',
+      ],
+      symbolBreakdown: [
+        { label: 'Cockpit Indicator', description: 'Control center — calm stability in the noise' },
+        { label: 'Target Reach', description: 'Directed output — every action has a destination' },
+        { label: 'Contained Form', description: 'System boundary — structured, not scattered' },
+        { label: 'Geometric Precision', description: 'Engineered, not decorated — a system mark' },
       ],
       colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
     },
@@ -205,6 +233,7 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
     (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', ')
   );
   const [clientName, setClientName] = useState('');
+  const [template, setTemplate] = useState<PresentationTemplate>(isVector ? 'simple' : 'premium');
 
   const updateConcept = (index: number, c: LogoConcept) => {
     setConcepts(prev => prev.map((p, i) => i === index ? c : p));
@@ -243,6 +272,10 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
       primaryColor: brand.primaryColor,
       clientName: clientName || undefined,
       concepts: filledConcepts,
+      template,
+      designGoals: brand.guidelines?.strategy?.values || ['Modern and distinctive', 'Clean and scalable', 'Unique but timeless'],
+      keywords: brand.guidelines?.strategy?.personality || ['geometric', 'minimal', 'innovative'],
+      version: 'v1',
     };
 
     onStart(data);
@@ -327,6 +360,33 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
                     className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white/80 placeholder:text-white/15 focus:outline-none focus:border-white/20" />
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Template Selection */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wider">Template Style</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setTemplate('premium')}
+                className={`rounded-xl border p-4 text-left transition-all ${template === 'premium' ? 'border-white/20 bg-white/[0.06]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-5 rounded bg-[#0A0A0F] flex items-center justify-center"><span className="text-[6px] text-white/60 font-bold">FULL</span></div>
+                  <span className="text-sm font-semibold text-white/80">Premium</span>
+                </div>
+                <p className="text-[10px] text-white/30">Full-bleed cinematic slides. Bold colors, dramatic reveals, immersive storytelling.</p>
+              </button>
+              <button
+                onClick={() => setTemplate('simple')}
+                className={`rounded-xl border p-4 text-left transition-all ${template === 'simple' ? 'border-white/20 bg-white/[0.06]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/10'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-5 rounded bg-[#0A0A0F] flex items-center justify-center p-0.5"><div className="w-full h-full rounded-sm bg-[#F0F4F8]" /></div>
+                  <span className="text-sm font-semibold text-white/80">Simple</span>
+                </div>
+                <p className="text-[10px] text-white/30">Rounded cards on dark canvas. Minimal, calm, premium. Logo is the hero.</p>
+              </button>
             </div>
           </div>
 
