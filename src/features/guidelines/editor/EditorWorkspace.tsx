@@ -43,6 +43,8 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const scrollCooldown = useRef(false);
+  const [slideOffset, setSlideOffset] = useState(0); // -1 to 1, for smooth transition
+  const scrollAccum = useRef(0);
 
   const layout = getLayoutById(layoutId);
   const totalPages = slides.length;
@@ -171,19 +173,39 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           return next;
         });
       } else {
-        // Scroll down = next slide, scroll up = prev slide
-        if (Math.abs(e.deltaY) > 20 && !scrollCooldown.current) {
+        // Smooth magnetic scroll between slides
+        scrollAccum.current += e.deltaY;
+        const threshold = 120; // pixels of scroll before committing to next slide
+
+        // Live drag: show partial offset as user scrolls
+        const dragAmount = Math.max(-1, Math.min(1, scrollAccum.current / threshold));
+        setSlideOffset(dragAmount);
+
+        // When threshold crossed, snap to next/prev slide
+        if (Math.abs(scrollAccum.current) > threshold && !scrollCooldown.current) {
           scrollCooldown.current = true;
-          const dir = e.deltaY > 0 ? 1 : -1;
+          const dir = scrollAccum.current > 0 ? 1 : -1;
+          scrollAccum.current = 0;
+
           setCurrentSlide(prev => {
             const next = prev + dir;
             if (next >= 0 && next < slides.length) return next;
             return prev;
           });
           setActivePanel('none');
-          setPan({ x: 0, y: 0 });
-          setTimeout(() => { scrollCooldown.current = false; }, 400);
+
+          // Animate snap: offset overshoots then returns to 0
+          setSlideOffset(dir * 0.3);
+          setTimeout(() => setSlideOffset(0), 150);
+          setTimeout(() => { scrollCooldown.current = false; }, 500);
         }
+
+        // Reset accumulator if user stops scrolling (decay)
+        clearTimeout((scrollAccum as any)._resetTimer);
+        (scrollAccum as any)._resetTimer = setTimeout(() => {
+          scrollAccum.current = 0;
+          setSlideOffset(0);
+        }, 200);
       }
     };
 
@@ -317,7 +339,11 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
               <button onClick={() => setCanvasMode('scroll')} className="px-2 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Scroll</button>
             </div>
 
-            <div className="origin-center" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: 'transform 0.05s ease-out' }}>
+            <div className="origin-center" style={{
+              transform: `translateY(${slideOffset * -60}px) scale(${zoom})`,
+              transition: slideOffset === 0 ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'transform 0.05s ease-out',
+              opacity: 1 - Math.abs(slideOffset) * 0.15,
+            }}>
               <div className="w-[1200px]">
                 <div data-slide-canvas className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
                   <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
