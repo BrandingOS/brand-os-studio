@@ -7,6 +7,7 @@ import { useState, useRef } from 'react';
 import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye } from 'lucide-react';
 import type { LogoPresentationData, LogoConcept } from '../types';
 import type { Brand } from '@/shared/types/brand';
+import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
 import { toast } from 'sonner';
 
 interface LogoPresentationSetupProps {
@@ -198,6 +199,48 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
       {/* Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+
+          {/* AI Assistant */}
+          <AIAssistantBox
+            config={{
+              title: 'AI Auto-Fill',
+              description: 'Paste a brief, upload logos & documents — AI fills everything for you',
+              hints: ['Upload logos (SVG/PNG)', 'Paste brand brief', 'Add color codes (#hex)', 'Upload brand document', 'Describe the brand'],
+              acceptedFiles: 'image/svg+xml,image/png,image/jpeg,.pdf,.doc,.docx,.txt',
+              fields: [
+                { key: 'brief', label: 'Brand Brief', type: 'textarea' },
+                { key: 'personality', label: 'Brand Personality', type: 'text' },
+                { key: 'clientName', label: 'Client Name', type: 'text' },
+                { key: 'conceptAName', label: 'Concept A Name', type: 'text' },
+                { key: 'conceptARationale', label: 'Concept A Rationale', type: 'textarea' },
+                { key: 'conceptALogo', label: 'Concept A Logo', type: 'image' },
+                { key: 'conceptBName', label: 'Concept B Name', type: 'text' },
+                { key: 'conceptBRationale', label: 'Concept B Rationale', type: 'textarea' },
+                { key: 'conceptBLogo', label: 'Concept B Logo', type: 'image' },
+                { key: 'conceptCName', label: 'Concept C Name', type: 'text' },
+                { key: 'conceptCRationale', label: 'Concept C Rationale', type: 'textarea' },
+                { key: 'conceptCLogo', label: 'Concept C Logo', type: 'image' },
+              ],
+            }}
+            onExtracted={(fields) => {
+              // Apply extracted data to form fields
+              fields.forEach(f => {
+                if (f.key === 'brief') setBrief(f.value);
+                if (f.key === 'personality') setPersonality(f.value);
+                if (f.key === 'clientName') setClientName(f.value);
+                if (f.key === 'conceptAName' && concepts[0]) updateConcept(0, { ...concepts[0], name: f.value });
+                if (f.key === 'conceptARationale' && concepts[0]) updateConcept(0, { ...concepts[0], rationale: f.value });
+                if (f.key === 'conceptALogo' && concepts[0]) updateConcept(0, { ...concepts[0], logoUrl: f.value });
+                if (f.key === 'conceptBName' && concepts[1]) updateConcept(1, { ...concepts[1], name: f.value });
+                if (f.key === 'conceptBRationale' && concepts[1]) updateConcept(1, { ...concepts[1], rationale: f.value });
+                if (f.key === 'conceptBLogo' && concepts[1]) updateConcept(1, { ...concepts[1], logoUrl: f.value });
+                if (f.key === 'conceptCName' && concepts[2]) updateConcept(2, { ...concepts[2], name: f.value });
+                if (f.key === 'conceptCRationale' && concepts[2]) updateConcept(2, { ...concepts[2], rationale: f.value });
+                if (f.key === 'conceptCLogo' && concepts[2]) updateConcept(2, { ...concepts[2], logoUrl: f.value });
+              });
+            }}
+            brandColor={brand.primaryColor}
+          />
 
           {/* Brand Context */}
           <div className="space-y-4">
