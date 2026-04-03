@@ -289,9 +289,9 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
 
         {canvasMode === 'freeform' ? (
           /* ─── SLIDE VIEW: fullscreen single slide with animation ─── */
-          <div ref={canvasRef} className="flex-1 flex items-center justify-center overflow-hidden relative p-3">
+          <div ref={canvasRef} className="flex-1 flex items-center justify-center overflow-hidden relative" style={{ padding: '24px 48px 16px 56px' }}>
             {/* Zoom controls — bottom right */}
-            <div className="absolute bottom-3 right-3 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/90 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+            <div className="absolute bottom-5 right-12 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/80 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
               <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
               <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">
                 {Math.round(zoom * 100)}%
@@ -299,15 +299,19 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
               <button onClick={zoomIn} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">+</button>
             </div>
 
-            {/* The Slide — fills available space */}
+            {/* The Slide — fills available space with comfortable padding */}
             <div
               key={currentSlide}
-              className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.98] duration-300"
-              style={{ transform: `scale(${zoom})` }}
+              className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.97] duration-300"
             >
-              <div className="w-full max-w-full" style={{ maxHeight: '100%', aspectRatio: '16/9' }}>
-                <div data-slide-canvas className="w-full h-full rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.06]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
-                  <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
+              <div
+                className="w-full h-full flex items-center justify-center"
+                style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}
+              >
+                <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '16/9' }}>
+                  <div data-slide-canvas className="w-full h-full rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
+                    <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
+                  </div>
                 </div>
               </div>
             </div>
