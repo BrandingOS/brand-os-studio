@@ -42,6 +42,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollCooldown = useRef(false);
 
   const layout = getLayoutById(layoutId);
   const totalPages = slides.length;
@@ -170,14 +171,19 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           return next;
         });
       } else {
-        // Only allow vertical pan (no horizontal — prevents browser back/forward)
-        if (Math.abs(e.deltaY) > 2) {
-          setPan(prev => ({
-            x: prev.x,
-            y: Math.max(-200, Math.min(200, prev.y - e.deltaY)),
-          }));
+        // Scroll down = next slide, scroll up = prev slide
+        if (Math.abs(e.deltaY) > 20 && !scrollCooldown.current) {
+          scrollCooldown.current = true;
+          const dir = e.deltaY > 0 ? 1 : -1;
+          setCurrentSlide(prev => {
+            const next = prev + dir;
+            if (next >= 0 && next < slides.length) return next;
+            return prev;
+          });
+          setActivePanel('none');
+          setPan({ x: 0, y: 0 });
+          setTimeout(() => { scrollCooldown.current = false; }, 400);
         }
-        // Horizontal scroll completely blocked — no pan, no browser nav
       }
     };
 
