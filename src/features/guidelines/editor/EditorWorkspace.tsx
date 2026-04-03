@@ -380,7 +380,16 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         )}
         {activePanel === 'insert' && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
-            <InsertMenu onClose={() => setActivePanel('none')} />
+            <InsertMenu
+              onClose={() => setActivePanel('none')}
+              brand={brand}
+              onAddAsset={(name, url) => {
+                const newAsset = { id: `asset_${Date.now()}`, name, type: 'image' as const, category: 'photo' as const, source: 'upload' as const, url, size: 0, tags: ['guideline'], createdAt: new Date() };
+                import('@/shared/store/brandStore').then(({ useBrandStore }) => {
+                  useBrandStore.getState().update(brand.id, { assets: [...(brand.assets || []), newAsset] });
+                });
+              }}
+            />
           </div>
         )}
         {activePanel === 'remix' && (
