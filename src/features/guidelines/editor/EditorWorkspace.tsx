@@ -37,7 +37,9 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
+  const [zoom, setZoom] = useState(0.85);
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   const layout = getLayoutById(layoutId);
   const totalPages = slides.length;
@@ -65,6 +67,10 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         if (presentMode) setPresentMode(false);
         else if (activePanel !== 'none') setActivePanel('none');
       }
+      // Zoom shortcuts
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(prev => Math.min(2, prev + 0.1)); }
+      if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); setZoom(prev => Math.max(0.3, prev - 0.1)); }
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoom(0.85); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -72,6 +78,28 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
 
   // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
+
+  // Canvas zoom via scroll wheel (Ctrl/Cmd + scroll or pinch)
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      // Only zoom if Ctrl/Cmd is held or if it's a pinch gesture (ctrlKey is true for pinch on trackpad)
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY > 0 ? -0.05 : 0.05;
+        setZoom(prev => Math.min(2, Math.max(0.3, prev + delta)));
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const zoomIn = () => setZoom(prev => Math.min(2, prev + 0.1));
+  const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
+  const zoomReset = () => setZoom(0.85);
+  const zoomFit = () => setZoom(0.7);
 
   const handleExportPDF = useCallback(async () => {
     toast.loading('Exporting PDF...');
@@ -154,38 +182,48 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         />
 
         {/* Canvas Area */}
-        <div className="flex-1 flex flex-col items-center justify-center overflow-auto relative">
+        <div ref={canvasRef} className="flex-1 flex flex-col items-center justify-center overflow-auto relative">
           {/* Slide navigation arrows */}
-          <button
-            onClick={() => goTo(currentSlide - 1)}
-            disabled={currentSlide === 0}
-            className="absolute left-6 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all"
-          >
+          <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0}
+            className="absolute left-14 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
             <ChevronLeft className="h-4 w-4 text-white/60" />
           </button>
-          <button
-            onClick={() => goTo(currentSlide + 1)}
-            disabled={currentSlide >= totalPages - 1}
-            className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all"
-          >
+          <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide >= totalPages - 1}
+            className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
             <ChevronRight className="h-4 w-4 text-white/60" />
           </button>
 
-          {/* The Slide — wrapped in EditableSlide for inline editing */}
-          <div className="w-full max-w-[min(90%,1100px)] px-12">
-            <div
-              data-slide-canvas
-              className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08] transition-all duration-300"
-              style={bgOverride ? { backgroundColor: bgOverride } : undefined}
-            >
-              <EditableSlide>
-                {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
-              </EditableSlide>
+          {/* Zoom controls — bottom right of canvas */}
+          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-[#222] rounded-xl px-1 py-0.5 border border-white/[0.06]">
+            <button onClick={zoomOut} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">−</button>
+            <button onClick={zoomReset} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-[11px] font-mono min-w-[45px]">
+              {Math.round(zoom * 100)}%
+            </button>
+            <button onClick={zoomIn} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">+</button>
+            <div className="w-px h-4 bg-white/10 mx-0.5" />
+            <button onClick={zoomFit} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px]">Fit</button>
+          </div>
+
+          {/* The Slide — zoom applied via CSS transform */}
+          <div
+            className="transition-transform duration-150 origin-center"
+            style={{ transform: `scale(${zoom})` }}
+          >
+            <div className="w-[1200px]">
+              <div
+                data-slide-canvas
+                className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]"
+                style={bgOverride ? { backgroundColor: bgOverride } : undefined}
+              >
+                <EditableSlide>
+                  {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
+                </EditableSlide>
+              </div>
             </div>
           </div>
 
-          {/* Slide name label */}
-          <div className="mt-4 text-white/15 text-xs">{slide?.name}</div>
+          {/* Slide name */}
+          <div className="mt-3 text-white/15 text-xs">{slide?.name}</div>
         </div>
 
       </div>
