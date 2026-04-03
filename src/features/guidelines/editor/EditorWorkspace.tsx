@@ -369,22 +369,22 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       {/* Panels — positioned above the bottom bar, outside scroll area */}
       <div className="relative shrink-0">
         {activePanel === 'theme' && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
             <ThemeDrawer layoutId={layoutId} onChangeLayout={setLayoutId} onClose={() => setActivePanel('none')} />
           </div>
         )}
         {activePanel === 'background' && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
             <BackgroundPopover brand={brand} currentBg={bgOverride} onChangeBg={(c) => slide && setPerSlideBg(p => ({ ...p, [slide.id]: c }))} onClose={() => setActivePanel('none')} />
           </div>
         )}
         {activePanel === 'insert' && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
             <InsertMenu onClose={() => setActivePanel('none')} />
           </div>
         )}
         {activePanel === 'remix' && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
             <RemixPanel onClose={() => setActivePanel('none')} />
           </div>
         )}

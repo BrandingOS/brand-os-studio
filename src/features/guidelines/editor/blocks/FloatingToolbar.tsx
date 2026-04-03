@@ -2,20 +2,21 @@
  * FloatingToolbar — appears above a selected block.
  * Every button is functional.
  */
-import { useState } from 'react';
-import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, ArrowUp, ArrowDown } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import type { BlockType } from './BlockTypes';
 import { TURN_INTO_OPTIONS } from './BlockTypes';
 import { toast } from 'sonner';
 
 interface FloatingToolbarProps {
   blockType: BlockType;
-  style: { fontWeight?: string; textAlign?: string; color?: string };
+  style: { fontWeight?: string; fontStyle?: string; textAlign?: string; color?: string; fontSize?: string; objectFit?: string };
   onChangeType: (type: BlockType) => void;
   onChangeStyle: (key: string, value: string) => void;
   position: { top: number; left: number; width: number };
   onDelete?: () => void;
   onDuplicate?: () => void;
+  onReplace?: () => void;
 }
 
 const FONT_WEIGHTS = [
@@ -36,20 +37,54 @@ const FONT_SIZES = [
 
 const COLORS = ['#ffffff', '#000000', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6B7280'];
 
-export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle, position, onDelete, onDuplicate }: FloatingToolbarProps) {
+const ALIGN_ICONS: Record<string, typeof AlignLeft> = {
+  left: AlignLeft,
+  center: AlignCenter,
+  right: AlignRight,
+};
+
+export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle, position, onDelete, onDuplicate, onReplace }: FloatingToolbarProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isText = blockType === 'text' || blockType === 'heading';
   const isImage = blockType === 'image' || blockType === 'logo';
 
   const toggleDropdown = (id: string) => setOpenDropdown(prev => prev === id ? null : id);
 
   const currentWeightLabel = FONT_WEIGHTS.find(w => w.value === style.fontWeight)?.label || 'Medium';
+  const currentFontSize = style.fontSize ? parseInt(style.fontSize) + 'px' : 'Aa';
+
+  const currentAlign = style.textAlign || 'left';
+  const AlignIcon = ALIGN_ICONS[currentAlign] || AlignLeft;
+
+  const isBold = style.fontWeight === '700' || style.fontWeight === 'bold';
+  const isItalic = style.fontStyle === 'italic';
+
+  const handleReplace = () => {
+    if (onReplace) {
+      onReplace();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    onChangeStyle('__replaceImageSrc', url);
+    toast.success('Image replaced');
+  };
 
   return (
     <div
       className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in duration-100"
       style={{ top: Math.max(8, position.top - 52), left: Math.min(window.innerWidth - 400, Math.max(8, position.left + position.width / 2 - 200)) }}
+      onMouseDown={e => e.stopPropagation()}
     >
+      {/* Hidden file input for image replace */}
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelected} />
+
       {/* Block type / Turn Into */}
       <div className="relative">
         <button onClick={() => toggleDropdown('turnInto')} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
@@ -94,13 +129,13 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
           {/* Font size dropdown */}
           <div className="relative">
             <button onClick={() => toggleDropdown('fontSize')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-              Aa <ChevronDown className="h-3 w-3 text-white/20" />
+              {currentFontSize} <ChevronDown className="h-3 w-3 text-white/20" />
             </button>
             {openDropdown === 'fontSize' && (
               <div className="absolute top-full left-0 mt-1 w-28 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50 max-h-48 overflow-auto">
                 {FONT_SIZES.map(s => (
                   <button key={s.value} onClick={() => { onChangeStyle('fontSize', s.value); setOpenDropdown(null); }}
-                    className="w-full px-3 py-1 text-left text-[12px] text-white/50 hover:text-white hover:bg-white/5 transition-colors">{s.label}px</button>
+                    className={`w-full px-3 py-1 text-left text-[12px] transition-colors ${style.fontSize === s.value ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>{s.label}px</button>
                 ))}
               </div>
             )}
@@ -116,12 +151,22 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
             </button>
             {openDropdown === 'color' && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[#2a2a2a] rounded-xl border border-white/[0.08] p-2 shadow-2xl z-50">
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 mb-2">
                   {COLORS.map(c => (
                     <button key={c} onClick={() => { onChangeStyle('color', c); setOpenDropdown(null); }}
                       className={`w-6 h-6 rounded-full border-2 transition-all ${style.color === c ? 'border-white scale-110' : 'border-white/10 hover:border-white/30'}`}
                       style={{ backgroundColor: c }} />
                   ))}
+                </div>
+                {/* Custom color input */}
+                <div className="flex items-center gap-1.5 pt-1 border-t border-white/[0.06]">
+                  <input
+                    type="color"
+                    value={style.color || '#ffffff'}
+                    onChange={e => { onChangeStyle('color', e.target.value); }}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-0"
+                  />
+                  <span className="text-[10px] text-white/30">Custom</span>
                 </div>
               </div>
             )}
@@ -130,38 +175,53 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
           {/* Alignment */}
           <div className="relative">
             <button onClick={() => toggleDropdown('align')} className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg text-[12px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-              {style.textAlign === 'center' ? '≡' : style.textAlign === 'right' ? '≡' : '≡'} <ChevronDown className="h-3 w-3 text-white/20" />
+              <AlignIcon className="h-3.5 w-3.5" /> <ChevronDown className="h-3 w-3 text-white/20" />
             </button>
             {openDropdown === 'align' && (
               <div className="absolute top-full left-0 mt-1 w-28 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50">
-                {['left', 'center', 'right'].map(a => (
-                  <button key={a} onClick={() => { onChangeStyle('textAlign', a); setOpenDropdown(null); }}
-                    className={`w-full px-3 py-1.5 text-left text-[12px] capitalize transition-colors ${style.textAlign === a ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
-                    {a}
-                  </button>
-                ))}
+                {(['left', 'center', 'right'] as const).map(a => {
+                  const Icon = ALIGN_ICONS[a];
+                  return (
+                    <button key={a} onClick={() => { onChangeStyle('textAlign', a); setOpenDropdown(null); }}
+                      className={`w-full px-3 py-1.5 text-left text-[12px] capitalize transition-colors flex items-center gap-2 ${style.textAlign === a ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                      {a}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
 
           <div className="w-px h-4 bg-white/10 mx-0.5" />
 
-          {/* Bold / Italic */}
-          <button onClick={() => onChangeStyle('fontWeight', style.fontWeight === '700' ? '400' : '700')}
-            className={`px-1.5 py-1 rounded-lg text-[13px] font-bold transition-colors ${style.fontWeight === '700' ? 'text-white bg-white/15' : 'text-white/40 hover:text-white hover:bg-white/10'}`}>B</button>
-          <button onClick={() => onChangeStyle('fontStyle', 'italic')}
-            className="px-1.5 py-1 rounded-lg text-[13px] italic text-white/40 hover:text-white hover:bg-white/10 transition-colors">I</button>
+          {/* Bold toggle */}
+          <button onClick={() => onChangeStyle('fontWeight', isBold ? '400' : '700')}
+            className={`px-1.5 py-1 rounded-lg text-[13px] font-bold transition-colors ${isBold ? 'text-white bg-white/15' : 'text-white/40 hover:text-white hover:bg-white/10'}`}>B</button>
+          {/* Italic toggle */}
+          <button onClick={() => onChangeStyle('fontStyle', isItalic ? 'normal' : 'italic')}
+            className={`px-1.5 py-1 rounded-lg text-[13px] italic transition-colors ${isItalic ? 'text-white bg-white/15' : 'text-white/40 hover:text-white hover:bg-white/10'}`}>I</button>
         </>
       )}
 
       {isImage && (
         <>
           <div className="w-px h-4 bg-white/10 mx-0.5" />
-          <button onClick={() => toast.success('Replace image — upload a new file')} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">Replace</button>
-          <button onClick={() => toast.success('Crop mode')} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">Crop</button>
-          <button onClick={() => onChangeStyle('objectFit', 'contain')} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">Fit</button>
+          <button onClick={handleReplace} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">Replace</button>
+          <button onClick={() => {
+            const currentFit = style.objectFit || 'cover';
+            const nextFit = currentFit === 'cover' ? 'contain' : currentFit === 'contain' ? 'fill' : 'cover';
+            onChangeStyle('objectFit', nextFit);
+            toast.success(`Object fit: ${nextFit}`);
+          }} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+            {style.objectFit === 'contain' ? 'Contain' : style.objectFit === 'fill' ? 'Fill' : 'Cover'}
+          </button>
           <div className="w-px h-4 bg-white/10 mx-0.5" />
-          <button className="px-1.5 py-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors"><Maximize2 className="h-3.5 w-3.5" /></button>
+          <button onClick={() => {
+            onChangeStyle('width', '100%');
+            onChangeStyle('height', '100%');
+            toast.success('Expanded to full size');
+          }} className="px-1.5 py-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors"><Maximize2 className="h-3.5 w-3.5" /></button>
         </>
       )}
 

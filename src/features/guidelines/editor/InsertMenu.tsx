@@ -11,8 +11,33 @@ export function InsertMenu({ onClose }: InsertMenuProps) {
     const canvas = document.querySelector('[data-slide-canvas]');
     if (!canvas) { toast.error('No slide selected'); return; }
 
-    const slideContent = canvas.querySelector('.relative') || canvas.firstElementChild;
-    if (!slideContent) return;
+    // Find the deepest content container inside the slide
+    // Walk into the EditableSlide wrapper > the rendered slide content
+    let slideContent: Element | null = canvas;
+    // The EditableSlide wraps children in a div.relative > div
+    // We want to insert into the actual slide content area
+    const editableInner = canvas.querySelector('.relative > div');
+    if (editableInner) {
+      // Find the main content area (usually the first child that has children)
+      const firstChild = editableInner.firstElementChild;
+      if (firstChild) {
+        slideContent = firstChild;
+      }
+    }
+    // Fallback: find any container with multiple children
+    if (slideContent === canvas) {
+      const candidates = canvas.querySelectorAll('div');
+      for (const c of candidates) {
+        if (c.children.length >= 2 && c.textContent && c.textContent.trim().length > 10) {
+          slideContent = c;
+          break;
+        }
+      }
+    }
+
+    if (!slideContent) {
+      slideContent = canvas;
+    }
 
     let newEl: HTMLElement;
 
@@ -20,37 +45,75 @@ export function InsertMenu({ onClose }: InsertMenuProps) {
       case 'paragraph':
         newEl = document.createElement('p');
         newEl.textContent = 'New paragraph text. Double-click to edit.';
-        newEl.style.cssText = 'font-size: 14px; color: inherit; padding: 8px; margin: 8px; cursor: text; opacity: 0.7;';
-        newEl.contentEditable = 'false';
+        newEl.style.cssText = 'font-size: 14px; color: inherit; padding: 8px; margin: 8px; cursor: text; opacity: 0.7; position: relative;';
         break;
       case 'heading':
         newEl = document.createElement('h2');
         newEl.textContent = 'New Heading';
-        newEl.style.cssText = 'font-size: 28px; font-weight: 700; color: inherit; padding: 8px; margin: 8px; cursor: text;';
-        newEl.contentEditable = 'false';
+        newEl.style.cssText = 'font-size: 28px; font-weight: 700; color: inherit; padding: 8px; margin: 8px; cursor: text; position: relative;';
         break;
       case 'quote':
         newEl = document.createElement('blockquote');
         newEl.textContent = '"Your quote goes here"';
-        newEl.style.cssText = 'font-size: 18px; font-style: italic; color: inherit; padding: 16px; margin: 8px; border-left: 3px solid currentColor; opacity: 0.7;';
+        newEl.style.cssText = 'font-size: 18px; font-style: italic; color: inherit; padding: 16px; margin: 8px; border-left: 3px solid currentColor; opacity: 0.7; position: relative;';
         break;
       case 'sticky':
         newEl = document.createElement('div');
-        newEl.textContent = 'Sticky note';
-        newEl.style.cssText = 'background: #FEF3C7; color: #92400E; padding: 12px; margin: 8px; border-radius: 4px; font-size: 13px; width: fit-content;';
+        newEl.textContent = 'Sticky note — double-click to edit';
+        newEl.style.cssText = 'background: #FEF3C7; color: #92400E; padding: 12px; margin: 8px; border-radius: 4px; font-size: 13px; width: fit-content; position: relative; cursor: text;';
         break;
-      case 'image':
+      case 'image': {
         newEl = document.createElement('div');
-        newEl.style.cssText = 'background: rgba(128,128,128,0.15); padding: 24px; margin: 8px; border-radius: 8px; text-align: center; color: inherit; opacity: 0.5; font-size: 12px; border: 1px dashed rgba(128,128,128,0.3);';
+        newEl.style.cssText = 'background: rgba(128,128,128,0.15); padding: 24px; margin: 8px; border-radius: 8px; text-align: center; color: inherit; opacity: 0.5; font-size: 12px; border: 1px dashed rgba(128,128,128,0.3); cursor: pointer; position: relative;';
         newEl.textContent = 'Click to add image';
+        // Make it functional: clicking opens file picker
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        input.addEventListener('change', () => {
+          const file = input.files?.[0];
+          if (!file) return;
+          const url = URL.createObjectURL(file);
+          const img = document.createElement('img');
+          img.src = url;
+          img.style.cssText = 'max-width: 100%; border-radius: 8px; margin: 8px; position: relative;';
+          newEl.replaceWith(img);
+        });
+        newEl.appendChild(input);
+        newEl.addEventListener('click', () => input.click());
+        break;
+      }
+      case 'card':
+        newEl = document.createElement('div');
+        newEl.innerHTML = '<h3 style="font-size: 16px; font-weight: 600; margin-bottom: 4px;">Card Title</h3><p style="font-size: 13px; opacity: 0.6;">Card description text. Double-click to edit.</p>';
+        newEl.style.cssText = 'background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 16px; margin: 8px; color: inherit; cursor: text; position: relative;';
+        break;
+      case 'mockup':
+        newEl = document.createElement('div');
+        newEl.innerHTML = '<div style="width: 120px; height: 200px; background: #222; border-radius: 16px; border: 2px solid #444; margin: auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666;">Screen</div>';
+        newEl.style.cssText = 'text-align: center; padding: 16px; margin: 8px; position: relative;';
         break;
       default:
         newEl = document.createElement('div');
         newEl.textContent = `New ${type} block`;
-        newEl.style.cssText = 'padding: 8px; margin: 8px; color: inherit; opacity: 0.5; font-size: 13px;';
+        newEl.style.cssText = 'padding: 8px; margin: 8px; color: inherit; opacity: 0.5; font-size: 13px; position: relative;';
     }
 
     slideContent.appendChild(newEl);
+
+    // Scroll the new element into view
+    newEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Flash highlight to show where it was added
+    newEl.style.transition = 'outline 0.3s ease';
+    newEl.style.outline = '2px solid rgba(59, 130, 246, 0.5)';
+    newEl.style.outlineOffset = '2px';
+    setTimeout(() => {
+      newEl.style.outline = '';
+      newEl.style.outlineOffset = '';
+    }, 1500);
+
     toast.success(`Added ${type}`);
     onClose();
   };
