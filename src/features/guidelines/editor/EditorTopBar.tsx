@@ -14,18 +14,19 @@ interface EditorTopBarProps {
 
 export function EditorTopBar({ brand, currentSlide, totalPages, slideName, onPresent, onExport, onClose }: EditorTopBarProps) {
   return (
-    <div className="h-12 bg-[#1a1a1a] border-b border-white/[0.06] flex items-center justify-between px-4 shrink-0 z-10">
+    <div className="h-11 bg-[#141414] border-b border-white/[0.04] flex items-center justify-between px-3 shrink-0 z-10">
       {/* Left: breadcrumb */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {onClose && (
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </button>
         )}
-        <div className="flex items-center gap-2 bg-white/[0.06] rounded-lg px-3 py-1.5">
-          <span className="text-white/80 text-sm font-medium">{brand.name}</span>
-          <span className="text-white/20">/</span>
-          <span className="text-white/50 text-sm">Chapter {currentSlide + 1} of {totalPages}</span>
+        <div className="flex items-center gap-2 bg-white/[0.05] rounded-lg px-3 py-1.5">
+          {brand.logo && <img src={brand.logo} alt="" className="h-3.5 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />}
+          <span className="text-white/70 text-[13px] font-medium">{brand.name}</span>
+          <span className="text-white/15 text-[13px]">/</span>
+          <span className="text-white/40 text-[13px]">Chapter {currentSlide + 1} of {totalPages}</span>
         </div>
       </div>
 
