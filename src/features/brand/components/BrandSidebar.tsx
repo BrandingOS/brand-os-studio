@@ -57,6 +57,12 @@ const brandNavItems = [
     disabled: false,
   },
   {
+    title: "Logo Presentation",
+    url: "/dashboard/brand/:slug/logo-presentation",
+    icon: Presentation,
+    disabled: false,
+  },
+  {
     title: "Guidelines Editor",
     url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
