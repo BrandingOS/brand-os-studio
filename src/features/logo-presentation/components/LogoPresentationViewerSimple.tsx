@@ -445,41 +445,14 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
         </div>
       </div>
 
-      {/* Main area */}
-      <div className="flex-1 flex min-h-0">
-        {/* Slide thumbnails */}
-        <div className="w-48 border-r border-white/[0.04] overflow-y-auto py-3 px-2 space-y-2 shrink-0">
+      {/* Scroll view — all slides stacked vertically */}
+      <div className="flex-1 overflow-y-auto bg-[#0D0D0D]" style={{ scrollBehavior: 'smooth' }}>
+        <div className="max-w-[960px] mx-auto py-10 px-6 space-y-6">
           {slides.map((slide, i) => (
-            <button
-              key={slide.id}
-              onClick={() => setCurrentSlide(i)}
-              className={`w-full rounded-lg overflow-hidden transition-all ${
-                i === currentSlide ? 'ring-2 ring-blue-500/60 shadow-lg' : 'ring-1 ring-white/[0.06] hover:ring-white/15'
-              }`}
-            >
-              <div className="aspect-video relative overflow-hidden bg-[#0A0A0F]">
-                <div className="absolute inset-0 pointer-events-none origin-top-left" style={{ width: '1200px', transform: 'scale(0.148)', transformOrigin: 'top left' }}>
-                  {slide.render()}
-                </div>
-                <div className="absolute top-1 left-1.5 text-[7px] font-mono text-white/40 bg-black/40 px-1 rounded">
-                  {i + 1}
-                </div>
-              </div>
-            </button>
+            <div key={slide.id} className="rounded-xl overflow-hidden shadow-2xl shadow-black/40">
+              {slide.render()}
+            </div>
           ))}
-        </div>
-
-        {/* Main slide view */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D0D] min-h-0 overflow-hidden">
-          <div className="w-full max-w-[900px] shrink-0">
-            {slides[currentSlide]?.render()}
-          </div>
-          {/* Nav bar */}
-          <div className="flex items-center gap-4 mt-4 shrink-0">
-            <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0} className="p-2 rounded-lg text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
-            <span className="text-xs text-white/25 font-mono min-w-[60px] text-center">{currentSlide + 1} / {totalSlides}</span>
-            <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide === totalSlides - 1} className="p-2 rounded-lg text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors"><ChevronRight className="h-5 w-5" /></button>
-          </div>
         </div>
       </div>
     </div>
