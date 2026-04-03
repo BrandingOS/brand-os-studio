@@ -445,14 +445,43 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
         </div>
       </div>
 
-      {/* Scroll view — all slides stacked vertically */}
-      <div className="flex-1 overflow-y-auto bg-[#0D0D0D]" style={{ scrollBehavior: 'smooth' }}>
-        <div className="max-w-[960px] mx-auto py-10 px-6 space-y-6">
+      {/* Main area */}
+      <div className="flex-1 flex min-h-0">
+        {/* Slide thumbnails */}
+        <div className="w-48 border-r border-white/[0.04] overflow-y-auto py-3 px-2 space-y-2 shrink-0">
           {slides.map((slide, i) => (
-            <div key={slide.id} className="rounded-xl overflow-hidden shadow-2xl shadow-black/40">
-              {slide.render()}
-            </div>
+            <button
+              key={slide.id}
+              onClick={() => {
+                const el = document.getElementById(`slide-${slide.id}`);
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setCurrentSlide(i);
+              }}
+              className={`w-full rounded-lg overflow-hidden transition-all ${
+                i === currentSlide ? 'ring-2 ring-blue-500/60 shadow-lg' : 'ring-1 ring-white/[0.06] hover:ring-white/15'
+              }`}
+            >
+              <div className="aspect-video relative overflow-hidden bg-[#0A0A0F]">
+                <div className="absolute inset-0 pointer-events-none origin-top-left" style={{ width: '1200px', transform: 'scale(0.148)', transformOrigin: 'top left' }}>
+                  {slide.render()}
+                </div>
+                <div className="absolute top-1 left-1.5 text-[7px] font-mono text-white/40 bg-black/40 px-1 rounded">
+                  {i + 1}
+                </div>
+              </div>
+            </button>
           ))}
+        </div>
+
+        {/* Scroll view — all slides stacked vertically */}
+        <div className="flex-1 overflow-y-auto bg-[#0D0D0D]" style={{ scrollBehavior: 'smooth' }}>
+          <div className="max-w-[960px] mx-auto py-10 px-6 space-y-6">
+            {slides.map((slide, i) => (
+              <div key={slide.id} id={`slide-${slide.id}`} className="rounded-xl overflow-hidden shadow-2xl shadow-black/40">
+                {slide.render()}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
