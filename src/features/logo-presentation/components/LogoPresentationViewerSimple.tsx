@@ -446,7 +446,7 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
       </div>
 
       {/* Main area */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex min-h-0">
         {/* Slide thumbnails */}
         <div className="w-48 border-r border-white/[0.04] overflow-y-auto py-3 px-2 space-y-2 shrink-0">
           {slides.map((slide, i) => (
@@ -470,12 +470,12 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
         </div>
 
         {/* Main slide view */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D0D]">
-          <div className="w-full max-w-[900px] shadow-2xl shadow-black/50 rounded-lg overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D0D] min-h-0 overflow-hidden">
+          <div className="w-full max-w-[900px] shrink-0">
             {slides[currentSlide]?.render()}
           </div>
           {/* Nav bar */}
-          <div className="flex items-center gap-4 mt-4">
+          <div className="flex items-center gap-4 mt-4 shrink-0">
             <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0} className="p-2 rounded-lg text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors"><ChevronLeft className="h-5 w-5" /></button>
             <span className="text-xs text-white/25 font-mono min-w-[60px] text-center">{currentSlide + 1} / {totalSlides}</span>
             <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide === totalSlides - 1} className="p-2 rounded-lg text-white/20 hover:text-white/60 disabled:opacity-20 transition-colors"><ChevronRight className="h-5 w-5" /></button>
