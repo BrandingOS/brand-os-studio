@@ -81,6 +81,33 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
 
+  // Block browser back/forward swipe gesture on macOS
+  useEffect(() => {
+    // CSS: prevent overscroll navigation
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overscrollBehaviorX = 'none';
+    document.body.style.overscrollBehaviorX = 'none';
+
+    // Push a dummy history state so back gesture doesn't leave the page
+    const dummyState = { editorOpen: true };
+    window.history.pushState(dummyState, '');
+
+    const handlePopState = (e: PopStateEvent) => {
+      // Re-push state to prevent leaving the editor
+      window.history.pushState(dummyState, '');
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      document.documentElement.style.overscrollBehavior = '';
+      document.body.style.overscrollBehavior = '';
+      document.documentElement.style.overscrollBehaviorX = '';
+      document.body.style.overscrollBehaviorX = '';
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   // Canvas zoom + pan via scroll/trackpad
   // Prevents browser back/forward swipe gestures
   useEffect(() => {
