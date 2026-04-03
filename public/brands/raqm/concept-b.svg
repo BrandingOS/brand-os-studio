@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Concept B: "The Signal" — An ascending pulse that evokes real-time revenue
+       growth, combining a rising arrow with a signal wave to convey momentum. -->
+  <defs>
+    <linearGradient id="signalGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4A10CC"/>
+      <stop offset="100%" stop-color="#7231FF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rising signal wave / growth curve -->
+  <path d="M 30,150 Q 55,150 65,130 Q 75,110 85,110 Q 95,110 100,90 Q 105,70 115,70 Q 125,70 130,50 L 140,30"
+        fill="none" stroke="url(#signalGrad)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Arrow head at peak -->
+  <polygon points="140,30 128,42 136,34 132,48" fill="#7231FF"/>
+  <polygon points="140,30 148,46 140,38 136,34 128,42" fill="#7231FF"/>
+  <!-- Clean arrowhead -->
+  <path d="M 134,48 L 140,28 L 150,44" fill="none" stroke="#7231FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Signal pulse rings radiating from the curve -->
+  <circle cx="85" cy="110" r="8" fill="none" stroke="#7231FF" stroke-width="1.5" opacity="0.3"/>
+  <circle cx="85" cy="110" r="16" fill="none" stroke="#7231FF" stroke-width="1" opacity="0.15"/>
+
+  <circle cx="115" cy="70" r="8" fill="none" stroke="#7231FF" stroke-width="1.5" opacity="0.3"/>
+  <circle cx="115" cy="70" r="16" fill="none" stroke="#7231FF" stroke-width="1" opacity="0.15"/>
+
+  <!-- Base platform line -->
+  <line x1="24" y1="168" x2="176" y2="168" stroke="#7231FF" stroke-width="3" stroke-linecap="round" opacity="0.25"/>
+
+  <!-- Dot accent at origin -->
+  <circle cx="30" cy="150" r="5" fill="#7231FF"/>
+</svg>

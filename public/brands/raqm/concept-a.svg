@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Concept A: "The Prism" — A faceted prism form splitting into data planes,
+       representing how Raqm refracts raw commerce data into actionable revenue insight. -->
+  <defs>
+    <linearGradient id="prismFace1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7231FF"/>
+      <stop offset="100%" stop-color="#5A1EE0"/>
+    </linearGradient>
+    <linearGradient id="prismFace2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B4FFF"/>
+      <stop offset="100%" stop-color="#7231FF"/>
+    </linearGradient>
+    <linearGradient id="prismFace3" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7231FF"/>
+      <stop offset="100%" stop-color="#4A10CC"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main prism: three-faced angular form -->
+  <!-- Left face -->
+  <polygon points="100,28 40,100 100,120" fill="url(#prismFace1)"/>
+  <!-- Right face -->
+  <polygon points="100,28 160,100 100,120" fill="url(#prismFace2)"/>
+  <!-- Bottom face -->
+  <polygon points="40,100 100,120 160,100 100,172" fill="url(#prismFace3)"/>
+
+  <!-- Refracted data lines emerging from right -->
+  <line x1="142" y1="72" x2="176" y2="56" stroke="#7231FF" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="150" y1="86" x2="180" y2="80" stroke="#7231FF" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="154" y1="100" x2="182" y2="104" stroke="#7231FF" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- Incoming beam from left -->
+  <line x1="18" y1="80" x2="52" y2="88" stroke="#7231FF" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+</svg>
