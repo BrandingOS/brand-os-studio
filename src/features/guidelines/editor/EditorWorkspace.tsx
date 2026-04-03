@@ -105,29 +105,44 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
     return () => window.removeEventListener('resize', handleResize);
   }, [calculateFitZoom]);
 
-  // Block browser back/forward swipe gesture on macOS
+  // Block ALL browser swipe navigation (back AND forward) on macOS
   useEffect(() => {
-    // CSS: prevent overscroll navigation
-    document.documentElement.style.overscrollBehavior = 'none';
-    document.body.style.overscrollBehavior = 'none';
-    document.documentElement.style.overscrollBehaviorX = 'none';
-    document.body.style.overscrollBehaviorX = 'none';
+    // CSS: prevent overscroll navigation in both directions
+    const styles = [
+      ['overscrollBehavior', 'none'],
+      ['overscrollBehaviorX', 'none'],
+      ['overscrollBehaviorY', 'none'],
+      ['touchAction', 'pan-y pinch-zoom'],
+    ] as const;
+    for (const [prop, val] of styles) {
+      (document.documentElement.style as any)[prop] = val;
+      (document.body.style as any)[prop] = val;
+    }
 
-    // Push a dummy history state so back gesture doesn't leave the page
+    // Block horizontal wheel events on the entire window to prevent forward/back
+    const blockHorizontalScroll = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 5) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', blockHorizontalScroll, { passive: false });
+
+    // History state trap — catches both back AND forward
     const dummyState = { editorOpen: true };
     window.history.pushState(dummyState, '');
+    window.history.pushState(dummyState, ''); // Push twice so forward is also trapped
 
-    const handlePopState = (e: PopStateEvent) => {
-      // Re-push state to prevent leaving the editor
+    const handlePopState = () => {
       window.history.pushState(dummyState, '');
     };
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      document.documentElement.style.overscrollBehavior = '';
-      document.body.style.overscrollBehavior = '';
-      document.documentElement.style.overscrollBehaviorX = '';
-      document.body.style.overscrollBehaviorX = '';
+      for (const [prop] of styles) {
+        (document.documentElement.style as any)[prop] = '';
+        (document.body.style as any)[prop] = '';
+      }
+      window.removeEventListener('wheel', blockHorizontalScroll);
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
