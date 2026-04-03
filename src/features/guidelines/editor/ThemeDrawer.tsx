@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TEMPLATE_LAYOUTS } from '../pages/templates/layout-config';
+import { toast } from 'sonner';
 
 interface ThemeDrawerProps {
   layoutId: string;
@@ -8,14 +8,20 @@ interface ThemeDrawerProps {
 }
 
 const THEME_PRESETS = [
-  { id: 'hyperhyve', name: 'Chronicle' },
-  { id: 'identity', name: 'Minimal' },
-  { id: 'noteform', name: 'New classic' },
-  { id: 'signal', name: 'Retro tech' },
+  { id: 'hyperhyve', name: 'Chronicle', description: 'Modern editorial feel' },
+  { id: 'identity', name: 'Minimal', description: 'Clean and focused' },
+  { id: 'noteform', name: 'New classic', description: 'Timeless elegance' },
+  { id: 'signal', name: 'Retro tech', description: 'Bold technical aesthetic' },
 ];
 
 export function ThemeDrawer({ layoutId, onChangeLayout, onClose }: ThemeDrawerProps) {
   const [scope, setScope] = useState<'chapter' | 'document'>('chapter');
+
+  const handleChangeLayout = (id: string) => {
+    onChangeLayout(id);
+    const preset = THEME_PRESETS.find(t => t.id === id);
+    toast.success(`Theme changed to ${preset?.name || id}${scope === 'document' ? ' (all slides)' : ''}`);
+  };
 
   return (
     <div className="w-72 bg-[#222] rounded-2xl shadow-2xl border border-white/[0.06] overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
@@ -36,12 +42,13 @@ export function ThemeDrawer({ layoutId, onChangeLayout, onClose }: ThemeDrawerPr
           {THEME_PRESETS.map(t => (
             <button
               key={t.id}
-              onClick={() => onChangeLayout(t.id)}
-              className={`w-full px-3 py-2.5 rounded-lg text-left text-[13px] transition-colors ${
+              onClick={() => handleChangeLayout(t.id)}
+              className={`w-full px-3 py-2.5 rounded-lg text-left transition-colors ${
                 layoutId === t.id ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
               }`}
             >
-              {t.name}
+              <div className="text-[13px]">{t.name}</div>
+              <div className="text-[10px] text-white/25 mt-0.5">{t.description}</div>
             </button>
           ))}
         </div>
@@ -49,7 +56,10 @@ export function ThemeDrawer({ layoutId, onChangeLayout, onClose }: ThemeDrawerPr
 
       {/* Create theme */}
       <div className="px-3 pb-3 pt-1 border-t border-white/[0.06]">
-        <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] text-white/30 hover:text-white/50 hover:bg-white/5 transition-colors">
+        <button
+          onClick={() => toast('Custom themes coming in Pro', { icon: '✦' })}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[12px] text-white/30 hover:text-white/50 hover:bg-white/5 transition-colors"
+        >
           <span>✦ Create theme</span>
           <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-white/40">Pro</span>
         </button>
