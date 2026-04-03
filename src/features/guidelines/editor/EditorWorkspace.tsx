@@ -353,30 +353,43 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             <div className="mt-3 text-white/15 text-xs">{slide?.name}</div>
           </div>
         ) : (
-          /* ─── SCROLL CANVAS: all slides vertically, no zoom/pan ─── */
-          <div className="flex-1 overflow-y-auto relative">
+          /* ─── SCROLL CANVAS: all slides vertically like a PDF ─── */
+          <div className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth">
             {/* Canvas mode toggle */}
-            <div className="sticky top-4 left-14 z-10 inline-flex items-center gap-0.5 bg-[#222] rounded-lg px-0.5 py-0.5 border border-white/[0.06] ml-14">
-              <button onClick={() => setCanvasMode('freeform')} className="px-2 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Slide</button>
-              <button onClick={() => setCanvasMode('scroll')} className="px-2 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Scroll</button>
+            <div className="sticky top-3 z-10 flex justify-center">
+              <div className="inline-flex items-center gap-0.5 bg-[#222]/90 backdrop-blur-sm rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+                <button onClick={() => setCanvasMode('freeform')} className="px-3 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Slide</button>
+                <button onClick={() => setCanvasMode('scroll')} className="px-3 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Scroll</button>
+              </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-8 py-6 space-y-6">
+            <div className="max-w-5xl mx-auto px-6 pb-12 pt-4 space-y-4">
               {slides.map((s, i) => {
                 const slideBg = perSlideBg[s.id];
                 return (
-                  <div
-                    key={s.id}
-                    data-slide-canvas={i === currentSlide ? '' : undefined}
-                    className={`rounded-xl overflow-hidden shadow-xl ring-1 transition-all cursor-pointer ${
-                      i === currentSlide ? 'ring-white/20' : 'ring-white/[0.06] hover:ring-white/15'
-                    }`}
-                    style={slideBg ? { backgroundColor: slideBg } : undefined}
-                    onClick={() => setCurrentSlide(i)}
-                  >
-                    <EditableSlide>
-                      {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
-                    </EditableSlide>
+                  <div key={s.id} className="relative group">
+                    {/* Slide number */}
+                    <div className="absolute -left-8 top-4 text-[10px] font-mono text-white/10 group-hover:text-white/25 transition-colors">
+                      {String(i + 1).padStart(2, '0')}
+                    </div>
+                    {/* Slide */}
+                    <div
+                      data-slide-canvas={i === currentSlide ? '' : undefined}
+                      data-slide-scroll-id={s.id}
+                      className={`rounded-xl overflow-hidden shadow-lg ring-1 transition-all cursor-pointer ${
+                        i === currentSlide ? 'ring-white/25 shadow-xl' : 'ring-white/[0.05] hover:ring-white/15'
+                      }`}
+                      style={slideBg ? { backgroundColor: slideBg } : undefined}
+                      onClick={() => setCurrentSlide(i)}
+                    >
+                      <EditableSlide>
+                        {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
+                      </EditableSlide>
+                    </div>
+                    {/* Slide name */}
+                    <div className="text-center mt-2 text-[10px] text-white/10 group-hover:text-white/20 transition-colors">
+                      {s.name}
+                    </div>
                   </div>
                 );
               })}
