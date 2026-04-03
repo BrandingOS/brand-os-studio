@@ -170,12 +170,14 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           return next;
         });
       } else {
-        // Pan (normal scroll/swipe) — clamped so slide stays visible
-        const maxPan = 300;
-        setPan(prev => ({
-          x: Math.max(-maxPan, Math.min(maxPan, prev.x - e.deltaX)),
-          y: Math.max(-maxPan, Math.min(maxPan, prev.y - e.deltaY)),
-        }));
+        // Only allow vertical pan (no horizontal — prevents browser back/forward)
+        if (Math.abs(e.deltaY) > 2) {
+          setPan(prev => ({
+            x: prev.x,
+            y: Math.max(-200, Math.min(200, prev.y - e.deltaY)),
+          }));
+        }
+        // Horizontal scroll completely blocked — no pan, no browser nav
       }
     };
 
