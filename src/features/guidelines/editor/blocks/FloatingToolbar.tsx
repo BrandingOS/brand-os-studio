@@ -2,7 +2,7 @@
  * FloatingToolbar — appears above a selected block.
  * Every button is functional.
  */
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import type { BlockType } from './BlockTypes';
 import { TURN_INTO_OPTIONS } from './BlockTypes';
@@ -46,10 +46,33 @@ const ALIGN_ICONS: Record<string, typeof AlignLeft> = {
 export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle, position, onDelete, onDuplicate, onReplace }: FloatingToolbarProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const isText = blockType === 'text' || blockType === 'heading';
   const isImage = blockType === 'image' || blockType === 'logo';
 
   const toggleDropdown = (id: string) => setOpenDropdown(prev => prev === id ? null : id);
+
+  // Close dropdown when clicking outside toolbar
+  useEffect(() => {
+    if (!openDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenDropdown(null);
+    };
+    // Delay to avoid closing immediately from the click that opened it
+    setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+    }, 10);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openDropdown]);
 
   const currentWeightLabel = FONT_WEIGHTS.find(w => w.value === style.fontWeight)?.label || 'Medium';
   const currentFontSize = style.fontSize ? parseInt(style.fontSize) + 'px' : 'Aa';
@@ -78,6 +101,7 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
   return (
     <div
+      ref={toolbarRef}
       className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in duration-100"
       style={{ top: Math.max(8, position.top - 52), left: Math.min(window.innerWidth - 400, Math.max(8, position.left + position.width / 2 - 200)) }}
       onMouseDown={e => e.stopPropagation()}
