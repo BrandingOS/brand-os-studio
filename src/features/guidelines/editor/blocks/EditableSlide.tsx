@@ -39,16 +39,26 @@ function detectBlockType(el: HTMLElement): BlockType {
 function removeSelectionStyles(el: HTMLElement) {
   el.style.outline = '';
   el.style.outlineOffset = '';
+  el.style.borderRadius = '';
+  el.style.boxShadow = '';
+  el.style.backgroundColor = el.dataset.originalBg || '';
+  delete el.dataset.originalBg;
   if (el.contentEditable === 'true') {
     el.contentEditable = 'false';
     el.blur();
   }
 }
 
-/** Apply selection styles to an element */
+/** Apply visible selection highlight to an element */
 function applySelectionStyles(el: HTMLElement) {
-  el.style.outline = '2px solid rgba(255,255,255,0.35)';
-  el.style.outlineOffset = '4px';
+  // Save original bg
+  if (!el.dataset.originalBg) {
+    el.dataset.originalBg = el.style.backgroundColor || '';
+  }
+  el.style.outline = '2px solid #3B82F6';
+  el.style.outlineOffset = '3px';
+  el.style.borderRadius = '6px';
+  el.style.boxShadow = '0 0 0 6px rgba(59, 130, 246, 0.12)';
 }
 
 export function EditableSlide({ children }: EditableSlideProps) {
