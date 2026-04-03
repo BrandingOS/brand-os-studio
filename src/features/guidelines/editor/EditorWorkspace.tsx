@@ -37,7 +37,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
-  const [zoom, setZoom] = useState(0.85);
+  const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -72,7 +72,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       // Zoom shortcuts
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(prev => Math.min(2, prev + 0.1)); }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); setZoom(prev => Math.max(0.3, prev - 0.1)); }
-      if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoom(0.85); }
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -80,6 +80,29 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
 
   // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
+
+  // Auto-fit: calculate zoom so slide fills the canvas with a small gap
+  const calculateFitZoom = useCallback(() => {
+    const el = canvasRef.current;
+    if (!el) return 1;
+    const padding = 60; // px gap on each side
+    const availW = el.clientWidth - padding * 2 - 50; // 50 for left nav icons
+    const availH = el.clientHeight - padding * 2;
+    const slideW = 1200; // fixed slide width
+    const slideH = slideW * (9 / 16); // 16:9 aspect
+    const fitZoom = Math.min(availW / slideW, availH / slideH);
+    return Math.min(fitZoom, 1.2); // cap at 120%
+  }, []);
+
+  // Set initial zoom to fit on mount and resize
+  useEffect(() => {
+    const fit = calculateFitZoom();
+    setZoom(fit);
+
+    const handleResize = () => setZoom(calculateFitZoom());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [calculateFitZoom]);
 
   // Block browser back/forward swipe gesture on macOS
   useEffect(() => {
@@ -149,8 +172,8 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
 
   const zoomIn = () => setZoom(prev => Math.min(2, prev + 0.1));
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
-  const zoomReset = () => { setZoom(0.85); setPan({ x: 0, y: 0 }); };
-  const zoomFit = () => { setZoom(0.7); setPan({ x: 0, y: 0 }); };
+  const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
+  const zoomFit = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
   const handleExportPDF = useCallback(async () => {
     toast.loading('Exporting PDF...');
