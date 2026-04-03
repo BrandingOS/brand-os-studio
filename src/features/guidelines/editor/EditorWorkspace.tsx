@@ -82,27 +82,24 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
 
-  // Auto-fit: calculate zoom so slide fills the canvas with a small gap
+  // Auto-fit: calculate zoom so slide fills canvas with edge gap
   const calculateFitZoom = useCallback(() => {
-    const el = canvasRef.current;
-    if (!el) return 1;
-    const padding = 60; // px gap on each side
-    const availW = el.clientWidth - padding * 2 - 50; // 50 for left nav icons
-    const availH = el.clientHeight - padding * 2;
-    const slideW = 1200; // fixed slide width
-    const slideH = slideW * (9 / 16); // 16:9 aspect
-    const fitZoom = Math.min(availW / slideW, availH / slideH);
-    return Math.min(fitZoom, 1.2); // cap at 120%
+    // Use window dimensions minus top bar (48px) and bottom bar (48px)
+    const viewW = window.innerWidth - 60 - 80; // 60 for left nav, 80 for right padding
+    const viewH = window.innerHeight - 48 - 48 - 80; // top bar, bottom bar, 80 for gap
+    const slideW = 1200;
+    const slideH = 675; // 16:9
+    const fitZoom = Math.min(viewW / slideW, viewH / slideH);
+    return Math.max(0.4, Math.min(fitZoom, 1)); // clamp 40%-100%
   }, []);
 
   // Set initial zoom to fit on mount and resize
   useEffect(() => {
-    const fit = calculateFitZoom();
-    setZoom(fit);
-
+    // Delay slightly to ensure layout is ready
+    const timer = setTimeout(() => setZoom(calculateFitZoom()), 50);
     const handleResize = () => setZoom(calculateFitZoom());
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => { clearTimeout(timer); window.removeEventListener('resize', handleResize); };
   }, [calculateFitZoom]);
 
   // Block ALL browser swipe navigation (back AND forward) on macOS
@@ -173,10 +170,11 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           return next;
         });
       } else {
-        // Pan (normal scroll/swipe)
+        // Pan (normal scroll/swipe) — clamped so slide stays visible
+        const maxPan = 300;
         setPan(prev => ({
-          x: prev.x - e.deltaX,
-          y: prev.y - e.deltaY,
+          x: Math.max(-maxPan, Math.min(maxPan, prev.x - e.deltaX)),
+          y: Math.max(-maxPan, Math.min(maxPan, prev.y - e.deltaY)),
         }));
       }
     };
