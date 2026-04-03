@@ -38,6 +38,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
   const [zoom, setZoom] = useState(0.85);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +51,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
     if (idx >= 0 && idx < totalPages) {
       setCurrentSlide(idx);
       setActivePanel('none');
+      setPan({ x: 0, y: 0 });
     }
   }, [totalPages]);
 
@@ -79,27 +81,49 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
 
-  // Canvas zoom via scroll wheel (Ctrl/Cmd + scroll or pinch)
+  // Canvas zoom + pan via scroll/trackpad
+  // Prevents browser back/forward swipe gestures
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
+
     const handleWheel = (e: WheelEvent) => {
-      // Only zoom if Ctrl/Cmd is held or if it's a pinch gesture (ctrlKey is true for pinch on trackpad)
+      // Always prevent default to stop browser navigation
+      e.preventDefault();
+      e.stopPropagation();
+
       if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        e.stopPropagation();
+        // Zoom (Ctrl+scroll or pinch)
         const delta = e.deltaY > 0 ? -0.05 : 0.05;
         setZoom(prev => Math.min(2, Math.max(0.3, prev + delta)));
+      } else {
+        // Pan (normal scroll/swipe)
+        setPan(prev => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY,
+        }));
       }
     };
+
+    // Prevent overscroll/back-forward navigation
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+      }
+    };
+
     el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => el.removeEventListener('wheel', handleWheel);
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+      el.removeEventListener('touchmove', handleTouchMove);
+    };
   }, []);
 
   const zoomIn = () => setZoom(prev => Math.min(2, prev + 0.1));
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
-  const zoomReset = () => setZoom(0.85);
-  const zoomFit = () => setZoom(0.7);
+  const zoomReset = () => { setZoom(0.85); setPan({ x: 0, y: 0 }); };
+  const zoomFit = () => { setZoom(0.7); setPan({ x: 0, y: 0 }); };
 
   const handleExportPDF = useCallback(async () => {
     toast.loading('Exporting PDF...');
@@ -204,10 +228,10 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             <button onClick={zoomFit} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px]">Fit</button>
           </div>
 
-          {/* The Slide — zoom applied via CSS transform */}
+          {/* The Slide — zoom + pan via CSS transform */}
           <div
-            className="transition-transform duration-150 origin-center"
-            style={{ transform: `scale(${zoom})` }}
+            className="origin-center"
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: 'transform 0.05s ease-out' }}
           >
             <div className="w-[1200px]">
               <div
