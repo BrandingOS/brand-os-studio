@@ -105,51 +105,27 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
     return () => { clearTimeout(timer); window.removeEventListener('resize', handleResize); };
   }, [calculateFitZoom]);
 
-  // Block ALL browser swipe navigation (back AND forward) on macOS
+  // Block browser swipe navigation
   useEffect(() => {
-    // CSS: prevent overscroll navigation in both directions
-    const styles = [
-      ['overscrollBehavior', 'none'],
-      ['overscrollBehaviorX', 'none'],
-      ['overscrollBehaviorY', 'none'],
-      ['touchAction', 'pan-y pinch-zoom'],
-    ] as const;
-    for (const [prop, val] of styles) {
-      (document.documentElement.style as any)[prop] = val;
-      (document.body.style as any)[prop] = val;
-    }
+    document.documentElement.style.overscrollBehaviorX = 'none';
+    document.body.style.overscrollBehaviorX = 'none';
 
-    // Block horizontal wheel events on the entire window to prevent forward/back
-    const blockHorizontalScroll = (e: WheelEvent) => {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 5) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('wheel', blockHorizontalScroll, { passive: false });
-
-    // History state trap — catches both back AND forward
     const dummyState = { editorOpen: true };
     window.history.pushState(dummyState, '');
-    window.history.pushState(dummyState, ''); // Push twice so forward is also trapped
-
-    const handlePopState = () => {
-      window.history.pushState(dummyState, '');
-    };
+    window.history.pushState(dummyState, '');
+    const handlePopState = () => window.history.pushState(dummyState, '');
     window.addEventListener('popstate', handlePopState);
 
     return () => {
-      for (const [prop] of styles) {
-        (document.documentElement.style as any)[prop] = '';
-        (document.body.style as any)[prop] = '';
-      }
-      window.removeEventListener('wheel', blockHorizontalScroll);
+      document.documentElement.style.overscrollBehaviorX = '';
+      document.body.style.overscrollBehaviorX = '';
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
-  // Canvas zoom + pan via scroll/trackpad
-  // Prevents browser back/forward swipe gestures
+  // Canvas zoom + slide navigation (freeform mode only)
   useEffect(() => {
+    if (canvasMode !== 'freeform') return;
     const el = canvasRef.current;
     if (!el) return;
 
@@ -222,7 +198,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       el.removeEventListener('wheel', handleWheel);
       el.removeEventListener('touchmove', handleTouchMove);
     };
-  }, []);
+  }, [canvasMode, calculateFitZoom, slides.length]);
 
   const zoomIn = () => setZoom(prev => Math.min(2, prev + 0.1));
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
@@ -340,9 +316,8 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             </div>
 
             <div className="origin-center" style={{
-              transform: `translateY(${slideOffset * -60}px) scale(${zoom})`,
-              transition: slideOffset === 0 ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'transform 0.05s ease-out',
-              opacity: 1 - Math.abs(slideOffset) * 0.15,
+              transform: `scale(${zoom})`,
+              transition: 'transform 0.2s ease-out',
             }}>
               <div className="w-[1200px]">
                 <div data-slide-canvas className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
@@ -354,30 +329,32 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           </div>
         ) : (
           /* ─── SCROLL CANVAS: all slides vertically like a PDF ─── */
-          <div className="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth">
+          <div
+            className="flex-1 relative"
+            style={{ overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}
+          >
             {/* Canvas mode toggle */}
-            <div className="sticky top-3 z-10 flex justify-center">
-              <div className="inline-flex items-center gap-0.5 bg-[#222]/90 backdrop-blur-sm rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+            <div className="sticky top-3 z-10 flex justify-center pointer-events-none">
+              <div className="inline-flex items-center gap-0.5 bg-[#1e1e1e]/95 backdrop-blur-sm rounded-lg px-0.5 py-0.5 border border-white/[0.06] pointer-events-auto">
                 <button onClick={() => setCanvasMode('freeform')} className="px-3 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Slide</button>
                 <button onClick={() => setCanvasMode('scroll')} className="px-3 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Scroll</button>
               </div>
             </div>
 
-            <div className="max-w-5xl mx-auto px-6 pb-12 pt-4 space-y-4">
+            <div className="max-w-[1100px] mx-auto px-4 pb-16 pt-2 space-y-5">
               {slides.map((s, i) => {
                 const slideBg = perSlideBg[s.id];
                 return (
                   <div key={s.id} className="relative group">
                     {/* Slide number */}
-                    <div className="absolute -left-8 top-4 text-[10px] font-mono text-white/10 group-hover:text-white/25 transition-colors">
+                    <div className="absolute -left-6 top-3 text-[9px] font-mono text-white/8 group-hover:text-white/20 transition-colors">
                       {String(i + 1).padStart(2, '0')}
                     </div>
-                    {/* Slide */}
+                    {/* Slide — full width */}
                     <div
                       data-slide-canvas={i === currentSlide ? '' : undefined}
-                      data-slide-scroll-id={s.id}
-                      className={`rounded-xl overflow-hidden shadow-lg ring-1 transition-all cursor-pointer ${
-                        i === currentSlide ? 'ring-white/25 shadow-xl' : 'ring-white/[0.05] hover:ring-white/15'
+                      className={`rounded-lg overflow-hidden shadow-lg ring-1 transition-all cursor-pointer ${
+                        i === currentSlide ? 'ring-white/20 shadow-xl' : 'ring-white/[0.04] hover:ring-white/12'
                       }`}
                       style={slideBg ? { backgroundColor: slideBg } : undefined}
                       onClick={() => setCurrentSlide(i)}
@@ -387,7 +364,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
                       </EditableSlide>
                     </div>
                     {/* Slide name */}
-                    <div className="text-center mt-2 text-[10px] text-white/10 group-hover:text-white/20 transition-colors">
+                    <div className="text-center mt-1.5 text-[9px] text-white/8 group-hover:text-white/15 transition-colors">
                       {s.name}
                     </div>
                   </div>
