@@ -37,6 +37,7 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
+  const [canvasMode, setCanvasMode] = useState<'freeform' | 'scroll'>('freeform');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,9 +144,19 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       e.stopPropagation();
 
       if (e.ctrlKey || e.metaKey) {
-        // Zoom (Ctrl+scroll or pinch)
+        // Zoom with snap-to-fit magnet
         const delta = e.deltaY > 0 ? -0.05 : 0.05;
-        setZoom(prev => Math.min(2, Math.max(0.3, prev + delta)));
+        setZoom(prev => {
+          const next = Math.min(2, Math.max(0.3, prev + delta));
+          // Magnet: snap to fit-zoom when within 5% of it
+          const fitZoom = calculateFitZoom();
+          if (Math.abs(next - fitZoom) < 0.05) return fitZoom;
+          // Also snap to 100%
+          if (Math.abs(next - 1) < 0.04) return 1;
+          // Also snap to 50%
+          if (Math.abs(next - 0.5) < 0.04) return 0.5;
+          return next;
+        });
       } else {
         // Pan (normal scroll/swipe)
         setPan(prev => ({
@@ -256,49 +267,75 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
         />
 
         {/* Canvas Area */}
-        <div ref={canvasRef} className="flex-1 flex flex-col items-center justify-center overflow-auto relative">
-          {/* Slide navigation arrows */}
-          <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0}
-            className="absolute left-14 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
-            <ChevronLeft className="h-4 w-4 text-white/60" />
-          </button>
-          <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide >= totalPages - 1}
-            className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
-            <ChevronRight className="h-4 w-4 text-white/60" />
-          </button>
-
-          {/* Zoom controls — bottom right of canvas */}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-[#222] rounded-xl px-1 py-0.5 border border-white/[0.06]">
-            <button onClick={zoomOut} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">−</button>
-            <button onClick={zoomReset} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-[11px] font-mono min-w-[45px]">
-              {Math.round(zoom * 100)}%
+        {canvasMode === 'freeform' ? (
+          /* ─── FREEFORM CANVAS: single slide, zoom, pan ─── */
+          <div ref={canvasRef} className="flex-1 flex flex-col items-center justify-center overflow-auto relative">
+            <button onClick={() => goTo(currentSlide - 1)} disabled={currentSlide === 0}
+              className="absolute left-14 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
+              <ChevronLeft className="h-4 w-4 text-white/60" />
             </button>
-            <button onClick={zoomIn} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">+</button>
-            <div className="w-px h-4 bg-white/10 mx-0.5" />
-            <button onClick={zoomFit} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px]">Fit</button>
-          </div>
+            <button onClick={() => goTo(currentSlide + 1)} disabled={currentSlide >= totalPages - 1}
+              className="absolute right-6 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/5 hover:bg-white/15 disabled:opacity-0 flex items-center justify-center transition-all">
+              <ChevronRight className="h-4 w-4 text-white/60" />
+            </button>
 
-          {/* The Slide — zoom + pan via CSS transform */}
-          <div
-            className="origin-center"
-            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: 'transform 0.05s ease-out' }}
-          >
-            <div className="w-[1200px]">
-              <div
-                data-slide-canvas
-                className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]"
-                style={bgOverride ? { backgroundColor: bgOverride } : undefined}
-              >
-                <EditableSlide>
-                  {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
-                </EditableSlide>
+            {/* Zoom controls */}
+            <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-[#222] rounded-xl px-1 py-0.5 border border-white/[0.06]">
+              <button onClick={zoomOut} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">−</button>
+              <button onClick={zoomReset} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-[11px] font-mono min-w-[45px]">
+                {Math.round(zoom * 100)}%
+              </button>
+              <button onClick={zoomIn} className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors text-sm">+</button>
+              <div className="w-px h-4 bg-white/10 mx-0.5" />
+              <button onClick={zoomFit} className="px-2 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px]">Fit</button>
+            </div>
+
+            {/* Canvas mode toggle */}
+            <div className="absolute bottom-4 left-14 z-10 flex items-center gap-0.5 bg-[#222] rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+              <button onClick={() => setCanvasMode('freeform')} className="px-2 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Slide</button>
+              <button onClick={() => setCanvasMode('scroll')} className="px-2 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Scroll</button>
+            </div>
+
+            <div className="origin-center" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transition: 'transform 0.05s ease-out' }}>
+              <div className="w-[1200px]">
+                <div data-slide-canvas className="rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
+                  <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
+                </div>
               </div>
             </div>
+            <div className="mt-3 text-white/15 text-xs">{slide?.name}</div>
           </div>
+        ) : (
+          /* ─── SCROLL CANVAS: all slides vertically, no zoom/pan ─── */
+          <div className="flex-1 overflow-y-auto relative">
+            {/* Canvas mode toggle */}
+            <div className="sticky top-4 left-14 z-10 inline-flex items-center gap-0.5 bg-[#222] rounded-lg px-0.5 py-0.5 border border-white/[0.06] ml-14">
+              <button onClick={() => setCanvasMode('freeform')} className="px-2 py-1 rounded-md text-[10px] font-medium text-white/30 hover:text-white/60 transition-colors">Slide</button>
+              <button onClick={() => setCanvasMode('scroll')} className="px-2 py-1 rounded-md text-[10px] font-medium bg-white/15 text-white">Scroll</button>
+            </div>
 
-          {/* Slide name */}
-          <div className="mt-3 text-white/15 text-xs">{slide?.name}</div>
-        </div>
+            <div className="max-w-5xl mx-auto px-8 py-6 space-y-6">
+              {slides.map((s, i) => {
+                const slideBg = perSlideBg[s.id];
+                return (
+                  <div
+                    key={s.id}
+                    data-slide-canvas={i === currentSlide ? '' : undefined}
+                    className={`rounded-xl overflow-hidden shadow-xl ring-1 transition-all cursor-pointer ${
+                      i === currentSlide ? 'ring-white/20' : 'ring-white/[0.06] hover:ring-white/15'
+                    }`}
+                    style={slideBg ? { backgroundColor: slideBg } : undefined}
+                    onClick={() => setCurrentSlide(i)}
+                  >
+                    <EditableSlide>
+                      {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
+                    </EditableSlide>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
       </div>
 
