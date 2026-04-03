@@ -51,7 +51,6 @@ function removeSelectionStyles(el: HTMLElement) {
 
 /** Apply visible selection highlight to an element */
 function applySelectionStyles(el: HTMLElement) {
-  // Save original bg
   if (!el.dataset.originalBg) {
     el.dataset.originalBg = el.style.backgroundColor || '';
   }
@@ -59,6 +58,74 @@ function applySelectionStyles(el: HTMLElement) {
   el.style.outlineOffset = '3px';
   el.style.borderRadius = '6px';
   el.style.boxShadow = '0 0 0 6px rgba(59, 130, 246, 0.12)';
+  el.style.cursor = 'move';
+  // Make draggable
+  if (!el.dataset.draggable) {
+    el.dataset.draggable = 'true';
+    if (!el.style.position || el.style.position === 'static') {
+      el.style.position = 'relative';
+    }
+  }
+}
+
+/** Add resize handles overlay for images */
+function addResizeHandles(el: HTMLElement, container: HTMLElement) {
+  // Remove existing handles
+  container.querySelectorAll('.resize-handle').forEach(h => h.remove());
+
+  if (el.tagName !== 'IMG') return;
+
+  const rect = el.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  const positions = [
+    { cursor: 'nw-resize', top: rect.top - containerRect.top - 4, left: rect.left - containerRect.left - 4 },
+    { cursor: 'ne-resize', top: rect.top - containerRect.top - 4, left: rect.right - containerRect.left - 4 },
+    { cursor: 'sw-resize', top: rect.bottom - containerRect.top - 4, left: rect.left - containerRect.left - 4 },
+    { cursor: 'se-resize', top: rect.bottom - containerRect.top - 4, left: rect.right - containerRect.left - 4 },
+  ];
+
+  positions.forEach(pos => {
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    handle.style.cssText = `position:absolute;width:8px;height:8px;background:#3B82F6;border:1px solid white;border-radius:2px;cursor:${pos.cursor};z-index:50;top:${pos.top}px;left:${pos.left}px;`;
+
+    handle.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = el.offsetWidth;
+      const startH = el.offsetHeight;
+
+      const onMove = (moveE: MouseEvent) => {
+        const dx = moveE.clientX - startX;
+        const dy = moveE.clientY - startY;
+        if (pos.cursor.includes('e')) {
+          el.style.width = Math.max(20, startW + dx) + 'px';
+        }
+        if (pos.cursor.includes('s')) {
+          el.style.height = Math.max(20, startH + dy) + 'px';
+        }
+        if (pos.cursor === 'nw-resize') {
+          el.style.width = Math.max(20, startW - dx) + 'px';
+          el.style.height = Math.max(20, startH - dy) + 'px';
+        }
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+
+    container.appendChild(handle);
+  });
+}
+
+function removeResizeHandles(container: HTMLElement) {
+  container.querySelectorAll('.resize-handle').forEach(h => h.remove());
 }
 
 export function EditableSlide({ children }: EditableSlideProps) {
@@ -108,6 +175,12 @@ export function EditableSlide({ children }: EditableSlideProps) {
     const type = detectBlockType(el);
 
     applySelectionStyles(el);
+    if (containerRef.current) {
+      removeResizeHandles(containerRef.current);
+      if (type === 'image' || type === 'logo') {
+        addResizeHandles(el, containerRef.current);
+      }
+    }
     setSelected({ element: el, type, rect });
     setEditing(false);
   }, [findMeaningfulElement]);
@@ -140,6 +213,9 @@ export function EditableSlide({ children }: EditableSlideProps) {
   const clearSelection = useCallback(() => {
     if (selectedRef.current?.element) {
       removeSelectionStyles(selectedRef.current.element);
+    }
+    if (containerRef.current) {
+      removeResizeHandles(containerRef.current);
     }
     setSelected(null);
     setEditing(false);
@@ -219,7 +295,45 @@ export function EditableSlide({ children }: EditableSlideProps) {
 
   return (
     <div ref={containerRef} className="relative w-full h-full" onClick={handleContainerClick}>
-      <div onClick={handleClick} onDoubleClick={handleDoubleClick} className="w-full h-full">
+      <div
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
+        onMouseDown={(e) => {
+          if (!selected || editing) return;
+          const el = selected.element;
+          if (!el.dataset.draggable) return;
+          // Don't drag if clicking on toolbar or resize handle
+          if ((e.target as HTMLElement).closest('.resize-handle')) return;
+
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const startLeft = parseInt(el.style.left || '0') || 0;
+          const startTop = parseInt(el.style.top || '0') || 0;
+          let moved = false;
+
+          const onMove = (moveE: MouseEvent) => {
+            const dx = moveE.clientX - startX;
+            const dy = moveE.clientY - startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+            if (!moved) return;
+            el.style.position = 'relative';
+            el.style.left = (startLeft + dx) + 'px';
+            el.style.top = (startTop + dy) + 'px';
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            if (moved) {
+              // Update toolbar position
+              const rect = el.getBoundingClientRect();
+              setSelected(prev => prev ? { ...prev, rect } : null);
+            }
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        }}
+        className="w-full h-full"
+      >
         {children}
       </div>
 
