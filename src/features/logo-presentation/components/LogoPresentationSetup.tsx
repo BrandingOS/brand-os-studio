@@ -139,6 +139,8 @@ function createVectorConcepts(): LogoConcept[] {
       logoUrl: '/brands/vector/logo-1.svg',
       iconUrl: '/brands/vector/icon-1.svg',
       direction: 'Geometric & Directional',
+      color: '#1B2A4A',
+      colorAccent: '#3B82F6',
       whyItWorks: [
         'The arrow instantly communicates direction — the core brand metaphor',
         'The horizontal line creates a sense of trajectory and forward momentum',
@@ -160,6 +162,8 @@ function createVectorConcepts(): LogoConcept[] {
       logoUrl: '/brands/vector/logo-2.svg',
       iconUrl: '/brands/vector/icon-2.svg',
       direction: 'Bold & Structural',
+      color: '#064E3B',
+      colorAccent: '#10B981',
       whyItWorks: [
         'The dual-triangle form creates visual tension — large and small, direction and precision',
         'Bold uppercase wordmark reads like a system interface — structured and authoritative',
@@ -181,6 +185,8 @@ function createVectorConcepts(): LogoConcept[] {
       logoUrl: '/brands/vector/logo-3.svg',
       iconUrl: '/brands/vector/icon-3.svg',
       direction: 'Dynamic & Angular',
+      color: '#7C3AED',
+      colorAccent: '#A78BFA',
       whyItWorks: [
         'The asymmetric construction creates energy — this is not static, it is moving',
         'The upward trajectory angle maps directly to career progression',
@@ -202,6 +208,8 @@ function createVectorConcepts(): LogoConcept[] {
       logoUrl: '/brands/vector/logo-4.svg',
       iconUrl: '/brands/vector/icon-4.svg',
       direction: 'Contained & Systematic',
+      color: '#0F172A',
+      colorAccent: '#F59E0B',
       whyItWorks: [
         'The contained left element grounds the mark — stability and control',
         'The reaching right element creates directionality without chaos',

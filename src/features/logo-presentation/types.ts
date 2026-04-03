@@ -10,6 +10,8 @@ export interface LogoConcept {
     label: string;
     description: string;
   }[];
+  color?: string;         // Per-concept brand color (hex)
+  colorAccent?: string;   // Per-concept accent color (hex)
   colorVariants: {
     onWhite: string;      // filter for white bg
     onDark: string;       // filter for dark bg

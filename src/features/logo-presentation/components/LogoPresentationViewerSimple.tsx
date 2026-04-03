@@ -148,24 +148,32 @@ function SectionDividerSlide({ title }: { title: string }) {
 }
 
 function ConceptTitleSlide({ concept, index, data }: { concept: LogoConcept; index: number; data: LogoPresentationData }) {
+  const cc = concept.color || data.primaryColor;
   return (
     <CardFrame>
       <MetaBar conceptNum={index + 1} version={data.version} />
       <div className="flex flex-col justify-end h-full p-10 pb-16">
+        <p className="text-[11px] uppercase tracking-[0.3em] mb-3 font-medium" style={{ color: cc }}>{concept.name}</p>
         <h2 className="text-[clamp(40px,6vw,80px)] font-black text-[#0A0A0F]/90 tracking-tight leading-[0.95]">
           Concept {index + 1}
         </h2>
+        <p className="text-[clamp(11px,1vw,14px)] text-[#0A0A0F]/30 mt-3">{concept.direction}</p>
       </div>
+      {/* Color accent bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-1" style={{ backgroundColor: cc }} />
     </CardFrame>
   );
 }
 
 function HeroDarkSlide({ concept, index, data }: { concept: LogoConcept; index: number; data: LogoPresentationData }) {
+  const cc = concept.color || data.primaryColor;
   return (
     <CardFrame bg={CARD_DARK}>
       <MetaBarDark conceptNum={index + 1} version={data.version} />
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full relative">
         <img src={concept.logoUrl} alt={concept.name} className="max-w-[45%] max-h-[35%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+        {/* Subtle glow behind logo */}
+        <div className="absolute w-[30%] h-[30%] rounded-full blur-3xl opacity-10" style={{ backgroundColor: concept.colorAccent || cc }} />
       </div>
     </CardFrame>
   );
@@ -184,6 +192,8 @@ function HeroLightSlide({ concept, index, data }: { concept: LogoConcept; index:
 }
 
 function VariationsSlide({ concept, color }: { concept: LogoConcept; color: string }) {
+  const cc = concept.color || color;
+  const accent = concept.colorAccent || cc;
   return (
     <div className="w-full aspect-video flex items-center justify-center" style={{ backgroundColor: BG }}>
       <div className="w-[calc(100%-96px)] h-[calc(100%-64px)] grid grid-cols-2 grid-rows-2 gap-3">
@@ -194,12 +204,12 @@ function VariationsSlide({ concept, color }: { concept: LogoConcept; color: stri
             <img src={concept.logoUrl} alt="" className="max-w-[65%] max-h-[50%] object-contain" />
           </div>
         </div>
-        {/* Top right — brand color */}
-        <div className="flex items-center justify-center p-6" style={{ backgroundColor: color, borderRadius: CARD_RADIUS }}>
+        {/* Top right — concept color */}
+        <div className="flex items-center justify-center p-6" style={{ backgroundColor: accent, borderRadius: CARD_RADIUS }}>
           <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
-        {/* Bottom right — dark */}
-        <div className="flex items-center justify-center p-6" style={{ backgroundColor: CARD_DARK, borderRadius: CARD_RADIUS }}>
+        {/* Bottom right — concept dark */}
+        <div className="flex items-center justify-center p-6" style={{ backgroundColor: cc, borderRadius: CARD_RADIUS }}>
           <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
       </div>
@@ -208,6 +218,8 @@ function VariationsSlide({ concept, color }: { concept: LogoConcept; color: stri
 }
 
 function SymbolBreakdownSlide({ concept, index, data }: { concept: LogoConcept; index: number; data: LogoPresentationData }) {
+  const cc = concept.color || data.primaryColor;
+  const accent = concept.colorAccent || cc;
   const items = concept.symbolBreakdown || concept.whyItWorks.map((w, i) => ({ label: `Element ${i + 1}`, description: w }));
   const positions = [
     { x: '12%', y: '20%' },
@@ -226,8 +238,8 @@ function SymbolBreakdownSlide({ concept, index, data }: { concept: LogoConcept; 
         {/* Annotation points */}
         {items.slice(0, 4).map((item, i) => (
           <div key={i} className="absolute flex flex-col items-center gap-1.5" style={{ left: positions[i].x, top: positions[i].y }}>
-            <div className="w-10 h-10 rounded-full border border-[#0A0A0F]/10 flex items-center justify-center bg-white/60">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.primaryColor + '60' }} />
+            <div className="w-10 h-10 rounded-full border flex items-center justify-center bg-white/60" style={{ borderColor: accent + '30' }}>
+              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accent }} />
             </div>
             <p className="text-[9px] font-semibold text-[#0A0A0F]/60 text-center max-w-[120px]">{item.label}</p>
             <p className="text-[7px] text-[#0A0A0F]/30 text-center max-w-[120px]">{item.description}</p>
@@ -235,11 +247,11 @@ function SymbolBreakdownSlide({ concept, index, data }: { concept: LogoConcept; 
         ))}
 
         {/* Connection lines — subtle */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.08 }}>
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.1 }}>
           {items.slice(0, 4).map((_, i) => (
             <line key={i} x1="50%" y1="50%"
               x2={positions[i].x} y2={positions[i].y}
-              stroke="#0A0A0F" strokeWidth="1" strokeDasharray="4 4" />
+              stroke={accent} strokeWidth="1" strokeDasharray="4 4" />
           ))}
         </svg>
       </div>
@@ -248,6 +260,8 @@ function SymbolBreakdownSlide({ concept, index, data }: { concept: LogoConcept; 
 }
 
 function RationaleSlide({ concept, index, data }: { concept: LogoConcept; index: number; data: LogoPresentationData }) {
+  const cc = concept.color || data.primaryColor;
+  const accent = concept.colorAccent || cc;
   return (
     <CardFrame>
       <MetaBar conceptNum={index + 1} version={data.version} />
@@ -260,7 +274,7 @@ function RationaleSlide({ concept, index, data }: { concept: LogoConcept; index:
         <div className="grid grid-cols-3 gap-0 h-[42%]">
           {/* Left: Text explanation */}
           <div className="p-5 border-r border-black/[0.05]">
-            <p className="text-[10px] font-semibold text-[#0A0A0F]/70 mb-2">{concept.name}</p>
+            <p className="text-[10px] font-semibold mb-2" style={{ color: cc }}>{concept.name}</p>
             <p className="text-[9px] text-[#0A0A0F]/40 leading-relaxed">{concept.rationale}</p>
           </div>
           {/* Center: Icon breakdown */}
@@ -271,7 +285,7 @@ function RationaleSlide({ concept, index, data }: { concept: LogoConcept; index:
           <div className="p-5 flex flex-col justify-center">
             {concept.whyItWorks.slice(0, 3).map((point, i) => (
               <p key={i} className="text-[8px] text-[#0A0A0F]/35 mb-1.5 flex items-start gap-1.5">
-                <span className="text-[7px] mt-0.5 shrink-0" style={{ color: data.primaryColor }}>{i + 1}.</span>
+                <span className="text-[7px] mt-0.5 shrink-0 font-bold" style={{ color: accent }}>{i + 1}.</span>
                 {point}
               </p>
             ))}
@@ -317,8 +331,9 @@ function ConstructionSlide({ concept, index, data }: { concept: LogoConcept; ind
 }
 
 function BrandColorHeroSlide({ concept, index, data }: { concept: LogoConcept; index: number; data: LogoPresentationData }) {
+  const accent = concept.colorAccent || concept.color || data.primaryColor;
   return (
-    <CardFrame bg={data.primaryColor}>
+    <CardFrame bg={accent}>
       <MetaBarDark conceptNum={index + 1} version={data.version} />
       <div className="flex items-center justify-center h-full">
         <img src={concept.logoUrl} alt={concept.name} className="max-w-[45%] max-h-[35%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
