@@ -1,0 +1,441 @@
+import type { Brand } from '@/shared/types/brand';
+
+/**
+ * VECTOR Logo System
+ * 4 logo concepts with matching icons — arrow/V geometric marks.
+ * SVGs from /Brands/Vector/Logo-Options/, served from /public/brands/vector/
+ * Brand color: #0A3D62 (Logic Blue)
+ */
+export const VECTOR_LOGO_URL = '/brands/vector/logo-1.svg';
+export const VECTOR_ICON_URL = '/brands/vector/icon-1.svg';
+
+/**
+ * VECTOR — Directional Job-Search System
+ * AI-powered job evaluation platform that transforms chaotic job hunting
+ * into structured, precision-driven decision-making using Job Scans and Vectors.
+ */
+export const vectorBrand: Brand = {
+  id: 'vector-brand-001',
+  slug: 'vector',
+  name: 'VECTOR',
+  logo: VECTOR_LOGO_URL,
+  primaryColor: '#0A3D62',
+  secondaryColor: '#00B894',
+  fonts: {
+    primary: 'Inter',
+    secondary: 'Space Grotesk',
+  },
+  tone: 'Structured, Logical, Transparent & Surgical',
+  audience: 'Job seekers who are overwhelmed by volume-based applications and want a precision, data-driven approach to job hunting — professionals seeking clarity, direction, and transparent AI-powered evaluation.',
+  strategy: 'VECTOR is a directional job-search system that transforms chaotic job hunting into a structured evaluation process using AI scoring and optional human support. It is a decision framework — not a job board, recruiter, or simple automation tool.',
+  guidelines: {
+    strategy: {
+      mission: 'To provide job seekers clarity and direction by replacing unguided applications with a logical, transparent evaluation process — using Job Vectors, Job Scans, clear accept/reject logic, and optional, targeted human support.',
+      vision: 'To define a new trajectory of job-seeking that moves the industry from volume-based "spray and pray" to high-relevance precision.',
+      values: ['Precision', 'Transparency', 'Structure', 'Direction', 'Control'],
+      positioning: 'VECTOR sits at the intersection of AI-driven data analysis and human expert guidance. It emphasizes Precision over Volume, and Transparent Logic over Black-box matching.',
+      personality: ['Structured', 'Logical', 'Transparent', 'Surgical', 'Calm', 'In-Control'],
+      targetAudience: 'Job seekers tired of spray-and-pray. Professionals who want a system for control — not just another career site. People who value transparent logic over black-box matching.',
+    },
+    logoSystem: {
+      primary: {
+        url: '/brands/vector/logo-1.svg',
+        description: 'The VECTOR wordmark pairs a geometric arrow-V icon with clean sans-serif letterforms. The arrow represents direction + magnitude — the mathematical vector — symbolizing the shift from chaos to structure.',
+        usage: 'Primary brand identifier for all major touchpoints — product UI, website, pitch materials, reports.',
+      },
+      secondary: {
+        url: '/brands/vector/logo-2.svg',
+        description: 'Alternative VECTOR wordmark with triangular V icon — two sharp triangles forming the V shape. More compact and bold.',
+        usage: 'Co-branding, secondary placements, and compact horizontal contexts.',
+      },
+      wordmark: {
+        url: '/brands/vector/logo-3.svg',
+        description: 'VECTOR ector variant with angular geometric mark. Dynamic asymmetric construction.',
+        usage: 'Product UI header, sidebar navigation, and mobile contexts.',
+      },
+      iconmark: {
+        url: '/brands/vector/icon-1.svg',
+        description: 'The V-arrow icon — a bold geometric arrow with an integrated V letterform. Works independently at any size.',
+        usage: 'App icons, favicons, social media avatars, and compact brand placements.',
+      },
+      blackVersion: {
+        url: '/brands/vector/logo-1.svg',
+        description: 'Single-color black version for high-contrast applications.',
+        usage: 'Print on light backgrounds, monochrome contexts.',
+      },
+      whiteVersion: {
+        url: '/brands/vector/logo-1.svg',
+        description: 'Reversed white version for dark backgrounds.',
+        usage: 'Dark UI surfaces, video, event backdrops.',
+      },
+      clearSpace: '1× the icon height on all sides minimum',
+      minSize: '80px width for digital, 25mm for print',
+      usage: [
+        {
+          do: 'Always maintain defined clear space around the logo',
+          dont: 'Crowd the logo with text or interface elements',
+          example: 'In the dashboard header, the icon sits with generous spacing',
+        },
+        {
+          do: 'Use only approved color variants on correct backgrounds',
+          dont: 'Apply gradients, shadows, or unapproved color treatments',
+          example: 'White logo on dark surfaces, dark logo on light surfaces',
+        },
+      ],
+    },
+    colorPalette: {
+      primary: {
+        hex: '#0A3D62',
+        rgb: 'rgb(10, 61, 98)',
+        cmyk: 'C:90 M:38 Y:0 K:62',
+        pantone: 'Pantone 302 C',
+        name: 'Logic Blue',
+        usage: 'Primary brand color — headlines, primary UI elements, key brand moments. Deep, professional, and authoritative.',
+      },
+      secondary: {
+        hex: '#00B894',
+        rgb: 'rgb(0, 184, 148)',
+        cmyk: 'C:100 M:0 Y:20 K:28',
+        pantone: 'Pantone 339 C',
+        name: 'Signal Teal',
+        usage: 'High-visibility accent for match scores, success states, and key interactive elements. Bright and precise.',
+      },
+      accent: {
+        hex: '#E17055',
+        rgb: 'rgb(225, 112, 85)',
+        cmyk: 'C:0 M:50 Y:62 K:12',
+        pantone: 'Pantone 1665 C',
+        name: 'Reject Signal',
+        usage: 'Warning states, reject scores, misalignment indicators. Used sparingly for critical decisions.',
+      },
+      neutral: [
+        {
+          hex: '#F8F9FA',
+          rgb: 'rgb(248, 249, 250)',
+          cmyk: 'C:1 M:0 Y:0 K:2',
+          name: 'Surface',
+          usage: 'Page backgrounds, card surfaces.',
+        },
+        {
+          hex: '#DFE6E9',
+          rgb: 'rgb(223, 230, 233)',
+          cmyk: 'C:4 M:1 Y:0 K:9',
+          name: 'Border',
+          usage: 'Dividers, borders, table lines.',
+        },
+        {
+          hex: '#636E72',
+          rgb: 'rgb(99, 110, 114)',
+          cmyk: 'C:13 M:4 Y:0 K:55',
+          name: 'Muted',
+          usage: 'Secondary text, metadata, timestamps.',
+        },
+        {
+          hex: '#2D3436',
+          rgb: 'rgb(45, 52, 54)',
+          cmyk: 'C:17 M:4 Y:0 K:79',
+          name: 'Body',
+          usage: 'Body text, descriptions, data labels.',
+        },
+        {
+          hex: '#0A0A0F',
+          rgb: 'rgb(10, 10, 15)',
+          cmyk: 'C:33 M:33 Y:0 K:94',
+          name: 'Midnight',
+          usage: 'Headlines, dark surfaces, hero backgrounds.',
+        },
+      ],
+      semantic: {
+        success: {
+          hex: '#00B894',
+          rgb: 'rgb(0, 184, 148)',
+          cmyk: 'C:100 M:0 Y:20 K:28',
+          name: 'Match Green',
+          usage: 'High match scores, accepted applications, positive signals.',
+        },
+        warning: {
+          hex: '#FDCB6E',
+          rgb: 'rgb(253, 203, 110)',
+          cmyk: 'C:0 M:20 Y:57 K:1',
+          name: 'Caution Amber',
+          usage: 'Partial matches, review needed, threshold alerts.',
+        },
+        error: {
+          hex: '#E17055',
+          rgb: 'rgb(225, 112, 85)',
+          cmyk: 'C:0 M:50 Y:62 K:12',
+          name: 'Reject Signal',
+          usage: 'Misalignment, rejected applications, critical issues.',
+        },
+        info: {
+          hex: '#0A3D62',
+          rgb: 'rgb(10, 61, 98)',
+          cmyk: 'C:90 M:38 Y:0 K:62',
+          name: 'Info Blue',
+          usage: 'System information, neutral status, analytical data.',
+        },
+      },
+    },
+    typography: {
+      primary: {
+        family: 'Inter',
+        weights: [400, 500, 600, 700],
+        fallbacks: ['system-ui', '-apple-system', 'sans-serif'],
+        url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+        usage: 'Primary typeface for all UI text, body content, data tables, Job Scans, and dashboard interfaces. Optimized for dense information environments.',
+      },
+      secondary: {
+        family: 'Space Grotesk',
+        weights: [500, 600, 700],
+        fallbacks: ['system-ui', '-apple-system', 'sans-serif'],
+        url: 'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap',
+        usage: 'Display typeface for headlines, hero sections, and brand-forward communications. Technical, clean, modern.',
+      },
+      scale: {
+        h1: '3rem/1.1',
+        h2: '2.25rem/1.15',
+        h3: '1.75rem/1.25',
+        h4: '1.5rem/1.3',
+        h5: '1.25rem/1.4',
+        h6: '1.125rem/1.4',
+        body: '1rem/1.6',
+        bodyLarge: '1.125rem/1.6',
+        bodySmall: '0.875rem/1.5',
+        caption: '0.75rem/1.4',
+        overline: '0.6875rem/1.2',
+      },
+      hierarchy: {
+        headings: [
+          { element: 'H1', fontSize: '3rem', lineHeight: '1.1', fontWeight: 700, usage: 'Hero headlines, landing pages. Space Grotesk Bold.' },
+          { element: 'H2', fontSize: '2.25rem', lineHeight: '1.15', fontWeight: 600, usage: 'Section headers. Space Grotesk SemiBold.' },
+          { element: 'H3', fontSize: '1.75rem', lineHeight: '1.25', fontWeight: 600, usage: 'Card titles, subsections. Inter SemiBold.' },
+        ],
+        body: [
+          { element: 'Body Large', fontSize: '1.125rem', lineHeight: '1.6', fontWeight: 400, usage: 'Lead paragraphs, descriptions.' },
+          { element: 'Body', fontSize: '1rem', lineHeight: '1.6', fontWeight: 400, usage: 'Standard text, dashboard labels.' },
+          { element: 'Body Small', fontSize: '0.875rem', lineHeight: '1.5', fontWeight: 400, usage: 'Table cells, metadata, scores.' },
+        ],
+        ui: [
+          { element: 'Button', fontSize: '0.875rem', lineHeight: '1.0', fontWeight: 600, usage: 'CTAs, action buttons.' },
+          { element: 'Label', fontSize: '0.75rem', lineHeight: '1.4', fontWeight: 500, usage: 'Form labels, score labels.' },
+          { element: 'Overline', fontSize: '0.6875rem', lineHeight: '1.2', fontWeight: 600, usage: 'Section labels, tags. Uppercase.' },
+        ],
+      },
+    },
+    voiceAndTone: {
+      brandVoice: 'VECTOR speaks like a mission control officer — calm, precise, and structured. We don\'t hype or promise; we analyze, evaluate, and direct. Every statement has a clear trajectory.',
+      toneAttributes: ['Structured', 'Logical', 'Transparent', 'Calm', 'Surgical', 'Directional'],
+      communicationStyle: 'Precision over fluff. Clear accept/reject logic. Data-driven guidance, not motivational noise. We are a system for control, not another career site with inspirational quotes.',
+      doAndDonts: {
+        do: [
+          'Lead with the evaluation — "Your match score: 87%. Here\'s why."',
+          'Be transparent about logic — show the scoring criteria openly',
+          'Use directional language — "aligned", "trajectory", "precision"',
+          'Frame everything through the lens of direction, not hope',
+        ],
+        dont: [
+          'Use motivational language — "chase your dreams", "you can do it"',
+          'Promise outcomes — we provide direction, not guarantees',
+          'Sound like a recruiter — we are infrastructure, not a middleman',
+          'Use vague language — every claim must have supporting logic',
+        ],
+      },
+      examples: [
+        {
+          context: 'Job Scan result',
+          good: 'Match: 82%. Strong alignment on 4/5 criteria. Misalignment: seniority level. Recommendation: Apply with adjusted positioning.',
+          bad: 'Great news! This job looks like a perfect fit for you! Go for it!',
+        },
+        {
+          context: 'Product description',
+          good: 'VECTOR generates Job Scans with transparent scoring logic. You see every criterion, every weight, every decision point.',
+          bad: 'We use cutting-edge AI to help you land your dream job faster than ever!',
+        },
+      ],
+    },
+    iconography: {
+      style: 'Sharp, geometric outline icons with 1.5px stroke — technical and precise',
+      weight: '1.5px stroke',
+      cornerRadius: '0px — sharp corners matching the brand\'s angular precision',
+      examples: [
+        {
+          category: 'Navigation',
+          icons: [
+            { name: 'Compass', url: '', usage: 'Direction, guidance, navigation' },
+            { name: 'Target', url: '', usage: 'Precision, match accuracy' },
+            { name: 'Crosshair', url: '', usage: 'Focus, targeting, scan' },
+          ],
+        },
+        {
+          category: 'Data',
+          icons: [
+            { name: 'BarChart3', url: '', usage: 'Scoring, analytics, metrics' },
+            { name: 'GitBranch', url: '', usage: 'Decision paths, vectors' },
+            { name: 'Radar', url: '', usage: 'Job scanning, detection' },
+          ],
+        },
+      ],
+      usage: 'Lucide React icons, sharp variant. 1.5px stroke, 24px default. Never fill. Angular precision only.',
+    },
+    socialMedia: {
+      platforms: [
+        {
+          name: 'LinkedIn',
+          profileImage: { width: 400, height: 400 },
+          coverImage: { width: 1584, height: 396 },
+          postImage: { width: 1200, height: 627 },
+          guidelines: 'Job search insights, transparent scoring breakdowns, system thinking about career decisions.',
+        },
+        {
+          name: 'Twitter / X',
+          profileImage: { width: 400, height: 400 },
+          coverImage: { width: 1500, height: 500 },
+          postImage: { width: 1200, height: 675 },
+          guidelines: 'Sharp career truths, scoring logic breakdowns, precision vs. volume framing.',
+        },
+      ],
+      guidelines: 'All content reinforces: VECTOR is a system for control, not another career site. Use Logic Blue sparingly. Prefer dark surfaces with white text and Signal Teal for positive scores.',
+    },
+    stationery: {
+      businessCard: {
+        description: 'Premium card with VECTOR icon + wordmark on dark surface.',
+        specifications: '3.5" x 2", 450gsm, soft-touch matte.',
+        template: '',
+        guidelines: 'Front: Dark (#0A0A0F), icon top-left, name Inter Medium. Back: Logic Blue full bleed with white icon.',
+      },
+      letterhead: {
+        description: 'Minimal letterhead with icon and wordmark header.',
+        specifications: 'A4, 120gsm premium uncoated.',
+        template: '',
+        guidelines: 'Icon + wordmark top-left. Thin accent line in Signal Teal below.',
+      },
+      envelope: {
+        description: 'Branded envelope with corner icon.',
+        specifications: 'C5 envelope, offset printed.',
+        template: '',
+        guidelines: 'V icon top-left corner. Minimal return address.',
+      },
+      presentation: {
+        description: 'Pitch deck template with data-focused layouts.',
+        specifications: '16:9 (1920x1080px).',
+        template: '',
+        guidelines: 'Title slides: Space Grotesk on dark. Data slides: white with structured grid.',
+      },
+    },
+    applications: {
+      digital: [
+        {
+          name: 'Job Scan Dashboard',
+          description: 'The core VECTOR interface — showing job match scores, criteria breakdown, and accept/reject recommendations.',
+          image: '',
+          specifications: 'Responsive (1440px primary)',
+          guidelines: 'Dark header with brand icon. Card-based scoring. Signal Teal for high matches, Reject Signal for misalignment.',
+        },
+      ],
+      print: [],
+      packaging: [],
+      environmental: [],
+    },
+  },
+  assets: [
+    {
+      id: 'vector-logo-1',
+      name: 'VECTOR Logo Concept 1 — Arrow V',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/logo-1.svg',
+      size: 2829,
+      source: 'url' as const,
+      tags: ['logo', 'concept-1', 'arrow', 'svg'],
+      metadata: { dimensions: { width: 217, height: 50 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-logo-2',
+      name: 'VECTOR Logo Concept 2 — Triangle V',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/logo-2.svg',
+      size: 1414,
+      source: 'url' as const,
+      tags: ['logo', 'concept-2', 'triangle', 'svg'],
+      metadata: { dimensions: { width: 217, height: 37 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-logo-3',
+      name: 'VECTOR Logo Concept 3 — Angular Mark',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/logo-3.svg',
+      size: 1607,
+      source: 'url' as const,
+      tags: ['logo', 'concept-3', 'angular', 'svg'],
+      metadata: { dimensions: { width: 214, height: 54 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-logo-4',
+      name: 'VECTOR Logo Concept 4 — Directional Mark',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/logo-4.svg',
+      size: 1925,
+      source: 'url' as const,
+      tags: ['logo', 'concept-4', 'directional', 'svg'],
+      metadata: { dimensions: { width: 214, height: 54 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-icon-1',
+      name: 'VECTOR Icon 1 — Arrow V',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/icon-1.svg',
+      size: 797,
+      source: 'url' as const,
+      tags: ['icon', 'concept-1', 'arrow', 'svg'],
+      metadata: { dimensions: { width: 48, height: 49 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-icon-2',
+      name: 'VECTOR Icon 2 — Triangle V',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/icon-2.svg',
+      size: 377,
+      source: 'url' as const,
+      tags: ['icon', 'concept-2', 'triangle', 'svg'],
+      metadata: { dimensions: { width: 42, height: 37 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-icon-3',
+      name: 'VECTOR Icon 3 — Angular',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/icon-3.svg',
+      size: 432,
+      source: 'url' as const,
+      tags: ['icon', 'concept-3', 'angular', 'svg'],
+      metadata: { dimensions: { width: 50, height: 54 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+    {
+      id: 'vector-icon-4',
+      name: 'VECTOR Icon 4 — Directional',
+      type: 'logo',
+      category: 'logo',
+      url: '/brands/vector/icon-4.svg',
+      size: 655,
+      source: 'url' as const,
+      tags: ['icon', 'concept-4', 'directional', 'svg'],
+      metadata: { dimensions: { width: 46, height: 54 }, format: 'SVG', colorMode: 'RGB' },
+      createdAt: new Date('2026-04-03'),
+    },
+  ],
+  isPublic: false,
+  createdAt: new Date('2026-04-03'),
+  updatedAt: new Date('2026-04-03'),
+};

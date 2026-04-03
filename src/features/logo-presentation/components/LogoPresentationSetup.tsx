@@ -130,12 +130,76 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
   );
 }
 
+function createVectorConcepts(): LogoConcept[] {
+  return [
+    {
+      id: `concept-vector-1`,
+      name: 'The Arrow',
+      rationale: 'A geometric arrow integrated with the letter V — representing direction and magnitude. The horizontal strike-through evokes a trajectory line, while the downward V-form doubles as the mathematical vector symbol. This is the most literal interpretation of the brand concept.',
+      logoUrl: '/brands/vector/logo-1.svg',
+      direction: 'Geometric & Directional',
+      whyItWorks: [
+        'The arrow instantly communicates direction — the core brand metaphor',
+        'The horizontal line creates a sense of trajectory and forward momentum',
+        'Clean, angular construction reads as technical and precise',
+        'Scales perfectly from favicon to billboard — every detail is intentional',
+      ],
+      colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
+    },
+    {
+      id: `concept-vector-2`,
+      name: 'The Signal',
+      rationale: 'Two sharp triangles forming the V — the larger triangle carries momentum while the smaller detached triangle signals precision and separation. The ECTOR wordmark uses a bold, uppercase treatment that feels like a control panel readout.',
+      logoUrl: '/brands/vector/logo-2.svg',
+      direction: 'Bold & Structural',
+      whyItWorks: [
+        'The dual-triangle form creates visual tension — large and small, direction and precision',
+        'Bold uppercase wordmark reads like a system interface — structured and authoritative',
+        'The negative space between triangles suggests decision points — accept or reject',
+        'Highly compact — works as a strong horizontal lockup for dashboards',
+      ],
+      colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
+    },
+    {
+      id: `concept-vector-3`,
+      name: 'The Trajectory',
+      rationale: 'An asymmetric angular mark that suggests a plotted course — one element grounded, the other reaching upward at a precise angle. The lowercase \'ector\' wordmark softens the technical feel without losing precision.',
+      logoUrl: '/brands/vector/logo-3.svg',
+      direction: 'Dynamic & Angular',
+      whyItWorks: [
+        'The asymmetric construction creates energy — this is not static, it is moving',
+        'The upward trajectory angle maps directly to career progression',
+        'Lowercase wordmark balances the angular icon — approachable yet technical',
+        'The split-form icon works as two distinct elements or one unified mark',
+      ],
+      colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
+    },
+    {
+      id: `concept-vector-4`,
+      name: 'The Control',
+      rationale: 'A variant of the angular mark with a more grounded, contained geometry. The left element feels like a cockpit indicator while the right element reaches toward a target. This is the "flight deck" interpretation of the brand personality.',
+      logoUrl: '/brands/vector/logo-4.svg',
+      direction: 'Contained & Systematic',
+      whyItWorks: [
+        'The contained left element grounds the mark — stability and control',
+        'The reaching right element creates directionality without chaos',
+        'Evokes the "high-performance flight deck" described in the brand personality',
+        'The geometric precision signals a system, not a tool — exactly the brand distinction',
+      ],
+      colorVariants: { onWhite: 'none', onDark: 'brightness(0) invert(1)', onBrand: 'brightness(0) invert(1)', mono: 'grayscale(1) brightness(0)' },
+    },
+  ];
+}
+
 export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupProps) {
-  const [concepts, setConcepts] = useState<LogoConcept[]>([
-    createEmptyConcept(0),
-    createEmptyConcept(1),
-    createEmptyConcept(2),
-  ]);
+  const isVector = brand.slug === 'vector';
+  const [concepts, setConcepts] = useState<LogoConcept[]>(
+    isVector ? createVectorConcepts() : [
+      createEmptyConcept(0),
+      createEmptyConcept(1),
+      createEmptyConcept(2),
+    ]
+  );
   const [brief, setBrief] = useState(brand.guidelines?.strategy?.positioning || brand.strategy || '');
   const [personality, setPersonality] = useState(
     (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', ')
