@@ -317,31 +317,46 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             </div>
           </div>
         ) : (
-          /* ─── SCROLL VIEW: vertical snap scroll through slides ─── */
+          /* ─── SCROLL VIEW: vertical snap scroll, zoomable ─── */
           <div
+            ref={canvasRef}
             className="flex-1 relative snap-y snap-mandatory"
             style={{ overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth' }}
           >
+            {/* Zoom controls — bottom right, floating */}
+            <div className="sticky top-[calc(100%-40px)] float-right mr-6 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/80 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+              <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
+              <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">
+                {Math.round(zoom * 100)}%
+              </button>
+              <button onClick={zoomIn} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">+</button>
+            </div>
+
             {slides.map((s, i) => {
               const slideBg = perSlideBg[s.id];
               return (
                 <div
                   key={s.id}
-                  className="snap-center flex items-center justify-center p-4"
-                  style={{ minHeight: '100%' }}
+                  className="snap-center flex items-center justify-center"
+                  style={{ minHeight: '100%', padding: '24px 48px 16px 56px' }}
                 >
-                  <div className="w-full max-w-[1100px] mx-auto">
-                    <div
-                      data-slide-canvas={i === currentSlide ? '' : undefined}
-                      className={`rounded-lg overflow-hidden shadow-xl ring-1 transition-all ${
-                        i === currentSlide ? 'ring-white/15' : 'ring-white/[0.04]'
-                      }`}
-                      style={slideBg ? { backgroundColor: slideBg } : undefined}
-                      onClick={() => setCurrentSlide(i)}
-                    >
-                      <EditableSlide>
-                        {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
-                      </EditableSlide>
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}
+                  >
+                    <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '16/9' }}>
+                      <div
+                        data-slide-canvas={i === currentSlide ? '' : undefined}
+                        className={`w-full h-full rounded-xl overflow-hidden shadow-xl ring-1 transition-all ${
+                          i === currentSlide ? 'ring-white/15' : 'ring-white/[0.04]'
+                        }`}
+                        style={slideBg ? { backgroundColor: slideBg } : undefined}
+                        onClick={() => setCurrentSlide(i)}
+                      >
+                        <EditableSlide>
+                          {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
+                        </EditableSlide>
+                      </div>
                     </div>
                   </div>
                 </div>
