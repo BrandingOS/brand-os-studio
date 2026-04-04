@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Play, RotateCw, Film } from 'lucide-react';
+import { Play, RotateCw, Film, Share2 } from 'lucide-react';
 import { CategoryFilter } from './CategoryFilter';
 import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
 import type { Brand } from '@/shared/types/brand';
 import type { AnimationConfig } from '../types';
 import { toast } from 'sonner';
+import { ExportDialog } from '@/shared/components/ExportDialog';
+import type { ExportFormat, FrameGenerator } from '@/shared/services/export/types';
 
 interface AnimationsModuleProps { brand: Brand; }
 
@@ -202,12 +204,42 @@ function getLogoSrcForAnimation(brand: Brand, assetOption: LogoAssetOption): str
   }
 }
 
+function buildFrameGenerator(
+  animation: AnimationConfig,
+  brand: Brand,
+  logoImg: HTMLImageElement | null,
+): FrameGenerator {
+  const fn = animFns[animation.cssAnimation] || animFns.fadeIn;
+  const durationSec = parseFloat(animation.duration);
+  const isLooping = animation.type === 'looping';
+  const totalSec = isLooping ? durationSec * 3 : durationSec + 2;
+  const fps = 30;
+  const totalFrames = Math.round(totalSec * fps);
+  const size = 512; // base size, will be scaled by converter
+
+  return {
+    totalFrames,
+    fps,
+    width: size,
+    height: size,
+    renderFrame: (ctx, frameIndex) => {
+      const t = isLooping
+        ? ((frameIndex / fps) / durationSec) % 1
+        : Math.min((frameIndex / fps) / durationSec, 1);
+      renderFrame(ctx, size, t, fn, logoImg, brand);
+    },
+  };
+}
+
 export function AnimationsModule({ brand }: AnimationsModuleProps) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [logoAsset, setLogoAsset] = useState<LogoAssetOption>('auto');
+  const [showExport, setShowExport] = useState(false);
+  const [exportAnimation, setExportAnimation] = useState<AnimationConfig | null>(null);
+  const [exportLogoImg, setExportLogoImg] = useState<HTMLImageElement | null>(null);
   const categories = ['All', 'Looping', 'Intro', 'Outro'];
 
   const filteredAnimations = useMemo(() => {
@@ -237,7 +269,22 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
       toast.success(`Downloaded .${ext} video`);
     } catch { toast.error('Export failed'); }
     finally { setExportingId(null); setProgress(0); }
-  }, [brand]);
+  }, [brand, logoAsset]);
+
+  const handleExportOpen = useCallback(async (animation: AnimationConfig) => {
+    let logoImg: HTMLImageElement | null = null;
+    const logoSrc = getLogoSrcForAnimation(brand, logoAsset);
+    if (logoSrc) {
+      logoImg = await new Promise<HTMLImageElement>((r, j) => {
+        const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => r(i); i.onerror = j; i.src = logoSrc;
+      }).catch(() => null);
+    }
+    setExportLogoImg(logoImg);
+    setExportAnimation(animation);
+    setShowExport(true);
+  }, [brand, logoAsset]);
+
+  const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <div className="space-y-6">
@@ -272,12 +319,27 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
                       <><Film className="h-3.5 w-3.5" />Download Video</>
                     )}
                   </button>
+                  <button onClick={() => handleExportOpen(animation)} disabled={busy}
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted/50 transition-colors disabled:opacity-50">
+                    <Share2 className="h-3.5 w-3.5" />Export...
+                  </button>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+      {exportAnimation && (
+        <ExportDialog
+          open={showExport}
+          onClose={() => { setShowExport(false); setExportAnimation(null); setExportLogoImg(null); }}
+          source={{ type: 'canvas-frames' }}
+          availableFormats={['mp4', 'gif', 'png']}
+          defaultFilename={`${slug}-${exportAnimation.id}`}
+          frameGenerator={() => buildFrameGenerator(exportAnimation, brand, exportLogoImg)}
+          title={`Export "${exportAnimation.name}"`}
+        />
+      )}
       <style>{`
         @keyframes slideInLeft{from{transform:translateX(-100%);opacity:0}to{transform:translateX(0);opacity:1}}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
