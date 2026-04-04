@@ -5,6 +5,11 @@ import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import { ExportDialog } from '@/shared/components/ExportDialog';
 import type { ExportFormat } from '@/shared/services/export/types';
+import {
+  buildBusinessCardPDF, buildInvoicePDF, buildSocialPostPDF, buildPresentationPDF,
+  buildBusinessCardSVG, buildInvoiceSVG, buildSocialPostSVG, buildPresentationSlideSVG,
+  buildPresentationPPTX,
+} from '@/shared/services/export/builders';
 
 interface TemplatePreviewModalProps {
   template: BrandKitTemplate;
@@ -321,6 +326,83 @@ export function TemplatePreviewModal({ template, brand, onClose, onSave, onOpenE
         availableFormats={getAvailableFormats(template.type)}
         defaultFilename={`${brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-')}-${template.name.toLowerCase().replace(/\s+/g, '-')}`}
         title={`Export ${template.name}`}
+        // Vector PDF builder — real text/shapes, not raster
+        editablePdfBuilder={
+          template.type === 'business-cards'
+            ? buildBusinessCardPDF(brand, {
+                name: overrides.title || 'Jane Smith',
+                title: overrides.subtitle || 'Vice President',
+                email: overrides.email || `jane@${brand.name.toLowerCase()}.com`,
+                phone: overrides.phone || '+1 234 56789',
+                website: overrides.website || `${brand.name.toLowerCase()}.com`,
+              })
+            : template.type === 'invoices'
+            ? buildInvoicePDF(brand, {
+                invoiceNumber: overrides.subtitle || 'INV-0042',
+                date: 'Apr 4, 2026',
+                clientName: overrides.title || 'Acme Corp',
+                items: [
+                  { description: 'Strategy Consultation', amount: '$2,400' },
+                  { description: 'Brand Identity Package', amount: '$4,800' },
+                  { description: 'Digital Assets', amount: '$1,200' },
+                ],
+                total: '$8,400.00',
+                paymentTerms: 'Payment due within 30 days',
+              })
+            : template.type === 'presentations'
+            ? buildPresentationPDF(brand, [
+                { title: overrides.slideTitle || 'Presentation', subtitle: overrides.slideSubtitle || brand.name, type: 'cover' },
+                { title: 'Overview', body: 'Content goes here' },
+                { title: 'Thank You', subtitle: brand.name, type: 'closing' },
+              ])
+            : undefined
+        }
+        // Vector SVG builder — real <text>/<rect> elements
+        svgBuilder={
+          template.type === 'business-cards'
+            ? () => buildBusinessCardSVG(brand, {
+                name: overrides.title || 'Jane Smith',
+                title: overrides.subtitle || 'Vice President',
+                email: overrides.email || `jane@${brand.name.toLowerCase()}.com`,
+                phone: overrides.phone || '+1 234 56789',
+                website: overrides.website || `${brand.name.toLowerCase()}.com`,
+              })
+            : template.type === 'invoices'
+            ? () => buildInvoiceSVG(brand, {
+                invoiceNumber: overrides.subtitle || 'INV-0042',
+                date: 'Apr 4, 2026',
+                clientName: overrides.title || 'Acme Corp',
+                items: [
+                  { description: 'Strategy Consultation', amount: '$2,400' },
+                  { description: 'Brand Identity Package', amount: '$4,800' },
+                  { description: 'Digital Assets', amount: '$1,200' },
+                ],
+                total: '$8,400.00',
+                paymentTerms: 'Payment due within 30 days',
+              })
+            : template.type === 'instagram-posts' || template.type === 'facebook-covers'
+            ? () => buildSocialPostSVG(brand, {
+                headline: overrides.headline || 'Your message here',
+                body: overrides.body,
+                cta: overrides.cta,
+              })
+            : template.type === 'presentations'
+            ? () => buildPresentationSlideSVG(brand, {
+                title: overrides.slideTitle || 'Presentation',
+                subtitle: overrides.slideSubtitle,
+              }, true)
+            : undefined
+        }
+        // Vector PPTX builder — real editable text/shapes
+        pptxBuilder={
+          template.type === 'presentations'
+            ? (filename, onProgress) => buildPresentationPPTX(brand, [
+                { title: overrides.slideTitle || 'Presentation', subtitle: overrides.slideSubtitle || brand.name, type: 'cover' },
+                { title: 'Overview', body: 'Content goes here', type: 'content' },
+                { title: 'Thank You', subtitle: brand.name, type: 'closing' },
+              ], filename, onProgress)
+            : undefined
+        }
       />
     </div>
   );

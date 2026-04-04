@@ -36,8 +36,12 @@ interface ExportDialogProps {
   defaultFilename: string;
   /** For multi-page exports: selector or elements */
   pages?: HTMLElement[] | (() => HTMLElement[]);
-  /** For editable PDF: builder function */
+  /** For editable PDF: builder function that draws real text/shapes */
   editablePdfBuilder?: (doc: jsPDF) => Promise<void>;
+  /** For vector SVG: builder function that returns SVG XML string */
+  svgBuilder?: () => string;
+  /** For vector PPTX: builder that returns ExportResult directly */
+  pptxBuilder?: (filename: string, onProgress?: (pct: number) => void) => Promise<any>;
   /** For video/GIF: frame generator or factory */
   frameGenerator?: FrameGenerator | (() => FrameGenerator);
   /** Title override */
@@ -87,6 +91,8 @@ export function ExportDialog({
   defaultFilename,
   pages,
   editablePdfBuilder,
+  svgBuilder,
+  pptxBuilder,
   frameGenerator,
   title = 'Export',
 }: ExportDialogProps) {
@@ -127,10 +133,20 @@ export function ExportDialog({
         exportSource.type = 'html-element';
       }
 
-      // For editable PDF
+      // For editable PDF — uses real text/shapes via jsPDF API
       if (selectedFormat === 'pdf-editable' && editablePdfBuilder) {
         exportSource.pdfBuilder = editablePdfBuilder;
         exportSource.type = 'jspdf-programmatic';
+      }
+
+      // For vector SVG — uses real <text>/<rect> SVG elements
+      if (selectedFormat === 'svg' && svgBuilder) {
+        exportSource.svgBuilder = svgBuilder;
+      }
+
+      // For vector PPTX — uses real editable text/shapes
+      if (selectedFormat === 'pptx' && pptxBuilder) {
+        exportSource.pptxBuilder = pptxBuilder;
       }
 
       // For video/GIF

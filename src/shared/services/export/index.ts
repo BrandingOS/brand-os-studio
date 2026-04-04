@@ -15,3 +15,11 @@ export {
 
 // Re-export PDF primitives for feature-specific builders
 export { pdfPrimitives, hexToRgb } from './converters/pdf';
+
+// Vector builders for real text/shape export
+export {
+  buildBusinessCardPDF, buildInvoicePDF, buildSocialPostPDF, buildPresentationPDF,
+  buildBusinessCardSVG, buildInvoiceSVG, buildSocialPostSVG, buildPresentationSlideSVG,
+  buildPresentationPPTX,
+} from './builders';
+export type { CardData, InvoiceData, PresentationSlide } from './builders';

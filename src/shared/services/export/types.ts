@@ -30,6 +30,10 @@ export interface ExportSource {
   frameGenerator?: FrameGenerator;
   /** Programmatic PDF builder function */
   pdfBuilder?: (doc: jsPDF) => Promise<void>;
+  /** Programmatic SVG builder — returns SVG XML string */
+  svgBuilder?: () => string;
+  /** Programmatic PPTX builder — returns ExportResult directly */
+  pptxBuilder?: (filename: string, onProgress?: (pct: number) => void) => Promise<import('./types').ExportResult>;
 }
 
 // ─── Export Options ──────────────────────────────────────────────────

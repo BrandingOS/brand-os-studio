@@ -59,6 +59,16 @@ async function exportRaster(
 async function exportSVG(
   source: ExportSource, options: ExportOptions, onProgress?: (pct: number) => void,
 ): Promise<ExportResult> {
+  // Prefer programmatic SVG builder for true vector output
+  if (source.svgBuilder) {
+    onProgress?.(30);
+    const svgString = source.svgBuilder();
+    onProgress?.(80);
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    onProgress?.(100);
+    return { blob, filename: `${options.filename}.svg`, mimeType: 'image/svg+xml' };
+  }
+
   const { fabricToSVG, htmlToSVG } = await import('./converters/svg');
 
   if (source.type === 'fabric-canvas' && source.fabricCanvas) {
@@ -96,6 +106,11 @@ async function exportPDFEditable(
 async function exportPPTX(
   source: ExportSource, options: ExportOptions, onProgress?: (pct: number) => void,
 ): Promise<ExportResult> {
+  // Prefer programmatic PPTX builder for real editable slides
+  if (source.pptxBuilder) {
+    return source.pptxBuilder(options.filename, onProgress);
+  }
+
   const { htmlToPPTX } = await import('./converters/pptx');
   const elements = resolveElements(source);
   return htmlToPPTX(elements, options, onProgress);
