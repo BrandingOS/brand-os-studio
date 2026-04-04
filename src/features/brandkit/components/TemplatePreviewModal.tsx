@@ -3,6 +3,8 @@ import { X, Download, Bookmark, Edit3, RotateCcw, Palette, Type, Image as ImageI
 import type { BrandKitTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
+import { ExportDialog } from '@/shared/components/ExportDialog';
+import type { ExportFormat } from '@/shared/services/export/types';
 
 interface TemplatePreviewModalProps {
   template: BrandKitTemplate;
@@ -95,6 +97,18 @@ function getEditorFields(templateType: string): EditorField[] {
   }
 }
 
+function getAvailableFormats(templateType: string): ExportFormat[] {
+  const base: ExportFormat[] = ['png', 'jpg', 'pdf-flat'];
+  switch (templateType) {
+    case 'business-cards': return [...base, 'svg', 'pdf-editable'];
+    case 'invoices': return [...base, 'pdf-editable'];
+    case 'presentations': return [...base, 'pptx'];
+    case 'brand-guides': return [...base, 'svg', 'pptx'];
+    case 'profile-icons': return ['png', 'jpg', 'svg'];
+    default: return base; // social media, mockups, etc.
+  }
+}
+
 function getDefaultOverrides(templateType: string, brand: Brand): TemplateOverrides {
   const base = {
     name: brand.name,
@@ -128,6 +142,7 @@ function getDefaultOverrides(templateType: string, brand: Brand): TemplateOverri
 export function TemplatePreviewModal({ template, brand, onClose, onSave, onOpenEditor, renderPreview }: TemplatePreviewModalProps) {
   const [downloading, setDownloading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const defaultOverrides = useMemo(() => getDefaultOverrides(template.type, brand), [template.type, brand]);
   const [overrides, setOverrides] = useState<TemplateOverrides>(defaultOverrides);
   const editorFields = useMemo(() => getEditorFields(template.type), [template.type]);
@@ -278,6 +293,10 @@ export function TemplatePreviewModal({ template, brand, onClose, onSave, onOpenE
             <Download className="h-4 w-4" />
             {downloading ? 'Exporting...' : 'Download PNG'}
           </button>
+          <button onClick={() => setShowExport(true)} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-xl font-medium text-sm hover:bg-muted transition-colors">
+            <Download className="h-4 w-4" />
+            Export As...
+          </button>
           <button onClick={() => { onSave(template); toast.success('Saved to collection'); }} className="flex items-center justify-center gap-2 px-4 py-2.5 border border-border rounded-xl font-medium text-sm hover:bg-muted transition-colors">
             <Bookmark className="h-4 w-4" />
             Save
@@ -291,6 +310,18 @@ export function TemplatePreviewModal({ template, brand, onClose, onSave, onOpenE
           <span className="ml-auto text-xs text-muted-foreground">{typeLabel} — {template.orientation}</span>
         </div>
       </div>
+
+      <ExportDialog
+        open={showExport}
+        onClose={() => setShowExport(false)}
+        source={{
+          type: 'html-element',
+          element: previewRef.current?.querySelector('[data-export-target]') as HTMLElement,
+        }}
+        availableFormats={getAvailableFormats(template.type)}
+        defaultFilename={`${brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-')}-${template.name.toLowerCase().replace(/\s+/g, '-')}`}
+        title={`Export ${template.name}`}
+      />
     </div>
   );
 }
