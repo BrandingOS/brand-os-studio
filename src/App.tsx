@@ -32,6 +32,7 @@ import BrandDetailPage from "./pages/brand/[slug]";
 import BrandShowcasePage from "./pages/brand/[slug]/showcase";
 import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
+import LogoMakerPage from "./pages/dashboard/logo-maker";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 
@@ -59,6 +60,11 @@ const App = () => (
           <Route path="/dashboard/activity" element={
             <ProtectedRoute>
               <ActivityPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/logo-maker" element={
+            <ProtectedRoute>
+              <LogoMakerPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/templates" element={
