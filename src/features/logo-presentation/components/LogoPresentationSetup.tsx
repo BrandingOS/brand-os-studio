@@ -37,12 +37,22 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
   brandColor: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const iconFileRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => onChange({ ...concept, logoUrl: reader.result as string });
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange({ ...concept, iconUrl: reader.result as string });
     reader.readAsDataURL(file);
     e.target.value = '';
   };
@@ -56,9 +66,9 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
   return (
     <div className="rounded-2xl border border-white/[0.06] bg-[#1a1a1a] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]" style={{ backgroundColor: `${brandColor}10` }}>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]" style={{ backgroundColor: `${concept.color || brandColor}10` }}>
         <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: brandColor }}>
+          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: concept.color || brandColor }}>
             {String.fromCharCode(65 + index)}
           </span>
           <span className="text-sm font-semibold text-white/80">Concept {String.fromCharCode(65 + index)}</span>
@@ -110,6 +120,104 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
           <label className="text-[10px] uppercase tracking-wider text-white/30 font-semibold mb-1.5 block">Rationale (1-2 sentences)</label>
           <textarea value={concept.rationale} onChange={e => onChange({ ...concept, rationale: e.target.value })} placeholder="What's the thinking behind this concept?"
             rows={2} className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-lg text-sm text-white/80 placeholder:text-white/15 focus:outline-none focus:border-white/20 resize-none" />
+        </div>
+
+        {/* Icon / Symbol Upload */}
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-white/30 font-semibold mb-2 block">Icon / Symbol (Optional)</label>
+          <input ref={iconFileRef} type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" onChange={handleIconUpload} />
+          {concept.iconUrl ? (
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center p-1.5">
+                <img src={concept.iconUrl} alt="" className="max-w-full max-h-full object-contain" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => iconFileRef.current?.click()} className="text-xs text-white/40 hover:text-white transition-colors">Replace</button>
+                <button onClick={() => onChange({ ...concept, iconUrl: '' })} className="text-xs text-red-400/60 hover:text-red-400 transition-colors">Remove</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => iconFileRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 border-dashed border-white/10 hover:border-white/25 text-white/30 hover:text-white/60 transition-colors">
+              <Upload className="h-4 w-4" />
+              <span className="text-xs">Upload Icon (for symbol breakdown slides)</span>
+            </button>
+          )}
+        </div>
+
+        {/* Concept Colors */}
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-white/30 font-semibold mb-2 block">Concept Colors</label>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Primary Color */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] text-white/25">Primary Color</span>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={concept.color || brandColor}
+                    onChange={e => onChange({ ...concept, color: e.target.value })}
+                    className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-none"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={concept.color || brandColor}
+                  onChange={e => onChange({ ...concept, color: e.target.value })}
+                  placeholder="#1B4F72"
+                  className="flex-1 px-2 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-xs text-white/60 font-mono placeholder:text-white/15 focus:outline-none focus:border-white/20 uppercase"
+                />
+              </div>
+            </div>
+            {/* Accent Color */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] text-white/25">Accent Color</span>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={concept.colorAccent || brandColor}
+                    onChange={e => onChange({ ...concept, colorAccent: e.target.value })}
+                    className="w-8 h-8 rounded-lg border border-white/10 cursor-pointer bg-transparent [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded-md [&::-webkit-color-swatch]:border-none"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={concept.colorAccent || brandColor}
+                  onChange={e => onChange({ ...concept, colorAccent: e.target.value })}
+                  placeholder="#3B82F6"
+                  className="flex-1 px-2 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-xs text-white/60 font-mono placeholder:text-white/15 focus:outline-none focus:border-white/20 uppercase"
+                />
+              </div>
+            </div>
+          </div>
+          {/* Color Presets */}
+          <div className="mt-2">
+            <span className="text-[10px] text-white/20 mb-1 block">Quick Presets</span>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { c: '#1B4F72', a: '#3B82F6', label: 'Blue' },
+                { c: '#064E3B', a: '#10B981', label: 'Green' },
+                { c: '#7C3AED', a: '#A78BFA', label: 'Purple' },
+                { c: '#DC2626', a: '#F87171', label: 'Red' },
+                { c: '#D97706', a: '#FBBF24', label: 'Amber' },
+                { c: '#0F172A', a: '#38BDF8', label: 'Navy' },
+                { c: '#831843', a: '#F472B6', label: 'Rose' },
+                { c: '#1E293B', a: '#00D2A0', label: 'Slate' },
+              ].map(preset => (
+                <button
+                  key={preset.label}
+                  onClick={() => onChange({ ...concept, color: preset.c, colorAccent: preset.a })}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full border border-white/[0.06] hover:border-white/20 transition-colors group"
+                  title={preset.label}
+                >
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.c }} />
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: preset.a }} />
+                  <span className="text-[9px] text-white/25 group-hover:text-white/50">{preset.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Why It Works */}
