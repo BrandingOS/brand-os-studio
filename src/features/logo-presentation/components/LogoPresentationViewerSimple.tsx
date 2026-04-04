@@ -395,277 +395,288 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function downloadText(content: string, filename: string, mime = 'image/svg+xml') {
-  downloadBlob(new Blob([content], { type: mime }), filename);
-}
-
 async function fetchSvgText(url: string): Promise<string> {
   const res = await fetch(url);
   return res.text();
 }
 
-/** Strip the XML declaration and extract inner SVG content for embedding */
-function extractSvgInner(svgText: string): { inner: string; viewBox: string; width: number; height: number } {
-  const vbMatch = svgText.match(/viewBox="([^"]+)"/);
-  const viewBox = vbMatch ? vbMatch[1] : '0 0 100 100';
-  const parts = viewBox.split(/\s+/).map(Number);
-  const width = parts[2] || 100;
-  const height = parts[3] || 100;
-  // Get everything between <svg ...> and </svg>
-  const innerMatch = svgText.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
-  const inner = innerMatch ? innerMatch[1] : '';
-  return { inner, viewBox, width, height };
-}
-
-function hexToRgbFloat(hex: string): { r: number; g: number; b: number } {
+function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
-  return {
-    r: parseInt(h.substring(0, 2), 16) / 255,
-    g: parseInt(h.substring(2, 4), 16) / 255,
-    b: parseInt(h.substring(4, 6), 16) / 255,
-  };
+  return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
 }
 
-/** Build a real vector SVG slide with the logo embedded as vector paths */
-function buildLogoSlideSvg(
-  logoSvgText: string,
-  bg: string,
-  logoFilter: string,
-  label: string,
-  conceptName: string,
-  conceptNum: number,
-  brandName: string,
-): string {
+/** Render an SVG string to a canvas and return as data URL */
+async function svgToDataUrl(svgText: string, width: number, height: number): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width * 2;
+      canvas.height = height * 2;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(2, 2);
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(''); };
+    img.src = url;
+  });
+}
+
+/** Build editable PDF with real text, shapes, and high-res logo renders */
+async function exportEditablePDF(data: LogoPresentationData) {
+  const { jsPDF } = await import('jspdf');
   const W = 1920, H = 1080;
-  const { inner, viewBox, width: svgW, height: svgH } = extractSvgInner(logoSvgText);
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [W, H] });
 
-  // Scale logo to fit ~40% of slide width, centered
-  const maxW = W * 0.4;
-  const maxH = H * 0.35;
-  const scale = Math.min(maxW / svgW, maxH / svgH);
-  const lw = svgW * scale;
-  const lh = svgH * scale;
-  const lx = (W - lw) / 2;
-  const ly = (H - lh) / 2;
-
-  const isDark = bg === '#0A0A0F' || bg === '#1A1E24' || luminance(bg) < 0.15;
-  const textColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
-  const logoColor = logoFilter.includes('invert') ? '#ffffff' : undefined;
-
-  let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-  <!-- ${brandName} — ${conceptName} — ${label} -->
-  <rect width="${W}" height="${H}" fill="${bg}"/>
-  <!-- Top bar -->
-  <text x="80" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="${textColor}">Logo Concept</text>
-  <text x="210" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="${textColor}">${String(conceptNum).padStart(2, '0')}</text>
-  <text x="${W - 80}" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="${textColor}" text-anchor="end">${new Date().getFullYear()}</text>
-  <!-- Logo (vector paths) -->
-  <g transform="translate(${lx}, ${ly}) scale(${scale})"${logoColor ? ` fill="${logoColor}"` : ''}>
-    ${inner}
-  </g>
-  <!-- Label -->
-  <text x="${W / 2}" y="${H - 50}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" fill="${textColor}" text-anchor="middle">${label}</text>
-</svg>`;
-  return svg;
-}
-
-function luminance(hex: string): number {
-  const { r, g, b } = hexToRgbFloat(hex);
-  return 0.299 * r + 0.587 * g + 0.114 * b;
-}
-
-/** Build a variations slide with 3 cards — all vector */
-function buildVariationsSlideSvg(logoSvgText: string, concept: LogoConcept, brandColor: string): string {
-  const W = 1920, H = 1080;
-  const { inner, viewBox, width: svgW, height: svgH } = extractSvgInner(logoSvgText);
-  const cc = concept.color || brandColor;
-  const accent = concept.colorAccent || cc;
-
-  const pad = 48;
-  const gap = 16;
-  const cardW = (W - pad * 2 - gap) / 2;
-  const cardH = H - pad * 2;
-  const smallH = (cardH - gap) / 2;
-
-  // Scale for large card
-  const s1 = Math.min(cardW * 0.5 / svgW, cardH * 0.4 / svgH);
-  // Scale for small cards
-  const s2 = Math.min(cardW * 0.5 / svgW, smallH * 0.4 / svgH);
-
-  let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-  <rect width="${W}" height="${H}" fill="#0A0A0F"/>
-  <!-- Large left card (light) -->
-  <rect x="${pad}" y="${pad}" width="${cardW}" height="${cardH}" rx="24" fill="#F0F4F8"/>
-  <text x="${pad + 20}" y="${pad + 24}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="11" fill="rgba(0,0,0,0.2)">Logo Variations</text>
-  <g transform="translate(${pad + (cardW - svgW * s1) / 2}, ${pad + (cardH - svgH * s1) / 2}) scale(${s1})">
-    ${inner}
-  </g>
-  <!-- Top right card (accent) -->
-  <rect x="${pad + cardW + gap}" y="${pad}" width="${cardW}" height="${smallH}" rx="24" fill="${accent}"/>
-  <g transform="translate(${pad + cardW + gap + (cardW - svgW * s2) / 2}, ${pad + (smallH - svgH * s2) / 2}) scale(${s2})" fill="#ffffff">
-    ${inner}
-  </g>
-  <!-- Bottom right card (dark) -->
-  <rect x="${pad + cardW + gap}" y="${pad + smallH + gap}" width="${cardW}" height="${smallH}" rx="24" fill="${cc}"/>
-  <g transform="translate(${pad + cardW + gap + (cardW - svgW * s2) / 2}, ${pad + smallH + gap + (smallH - svgH * s2) / 2}) scale(${s2})" fill="#ffffff">
-    ${inner}
-  </g>
-</svg>`;
-  return svg;
-}
-
-/** Build color palette SVG */
-function buildColorPaletteSvg(data: LogoPresentationData): string {
-  const W = 1920, H = 200 + data.concepts.length * 140;
-  let svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
-  <rect width="${W}" height="${H}" fill="#ffffff"/>
-  <text x="80" y="80" font-family="Inter,Helvetica,Arial,sans-serif" font-size="36" font-weight="700" fill="#0A0A0F">${data.brandName}</text>
-  <text x="80" y="115" font-family="Inter,Helvetica,Arial,sans-serif" font-size="16" fill="#999">Color Palette Reference</text>`;
-
-  data.concepts.forEach((c, i) => {
-    const y = 170 + i * 140;
-    const cc = c.color || data.primaryColor;
-    const accent = c.colorAccent || cc;
-    svg += `
-  <text x="80" y="${y}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="18" font-weight="600" fill="#333">Concept ${i + 1} — ${c.name}</text>
-  <rect x="80" y="${y + 16}" width="140" height="80" rx="12" fill="${cc}"/>
-  <text x="80" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">Primary ${cc}</text>
-  <rect x="240" y="${y + 16}" width="140" height="80" rx="12" fill="${accent}"/>
-  <text x="240" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">Accent ${accent}</text>
-  <rect x="400" y="${y + 16}" width="140" height="80" rx="12" fill="#fff" stroke="#e5e5e5" stroke-width="1"/>
-  <text x="400" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">#FFFFFF</text>
-  <rect x="560" y="${y + 16}" width="140" height="80" rx="12" fill="#0A0A0F"/>
-  <text x="560" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">#0A0A0F</text>`;
-  });
-
-  svg += '\n</svg>';
-  return svg;
-}
-
-/** Adobe Swatch Exchange (.ase) binary */
-function generateASE(data: LogoPresentationData): Uint8Array {
-  const colors: { name: string; r: number; g: number; b: number }[] = [];
-  data.concepts.forEach(c => {
-    colors.push({ name: `${c.name} Primary`, ...hexToRgbFloat(c.color || data.primaryColor) });
-    colors.push({ name: `${c.name} Accent`, ...hexToRgbFloat(c.colorAccent || c.color || data.primaryColor) });
-  });
-  colors.push({ name: 'White', r: 1, g: 1, b: 1 });
-  colors.push({ name: 'Midnight', ...hexToRgbFloat('#0A0A0F') });
-
-  const buf: number[] = [0x41, 0x53, 0x45, 0x46, 0x00, 0x01, 0x00, 0x00];
-  const n = colors.length;
-  buf.push((n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff);
-
-  colors.forEach(color => {
-    buf.push(0x00, 0x01);
-    const nameLen = color.name.length + 1;
-    const blockLen = 2 + nameLen * 2 + 4 + 12 + 2;
-    buf.push((blockLen >> 24) & 0xff, (blockLen >> 16) & 0xff, (blockLen >> 8) & 0xff, blockLen & 0xff);
-    buf.push((nameLen >> 8) & 0xff, nameLen & 0xff);
-    for (let i = 0; i < color.name.length; i++) buf.push(0x00, color.name.charCodeAt(i));
-    buf.push(0x00, 0x00);
-    buf.push(0x52, 0x47, 0x42, 0x20);
-    for (const v of [color.r, color.g, color.b]) {
-      const dv = new DataView(new ArrayBuffer(4));
-      dv.setFloat32(0, v);
-      for (let i = 0; i < 4; i++) buf.push(dv.getUint8(i));
-    }
-    buf.push(0x00, 0x00);
-  });
-  return new Uint8Array(buf);
-}
-
-/** Full Illustrator package — real vector SVG slides + ASE + color palette */
-async function exportForIllustrator(data: LogoPresentationData) {
-  const JSZip = (await import('jszip')).default;
-  const zip = new JSZip();
-  const root = zip.folder(`${data.brandName}-Illustrator`)!;
-
-  // Fetch all logo & icon SVGs
-  const logoTexts: Map<string, string> = new Map();
+  // Pre-render all logos as images
+  const logoImages: Map<string, string> = new Map();
   for (const c of data.concepts) {
     for (const url of [c.logoUrl, c.iconUrl]) {
-      if (url && url.startsWith('/') && !logoTexts.has(url)) {
-        try { logoTexts.set(url, await fetchSvgText(url)); } catch { /* skip */ }
+      if (url && url.startsWith('/') && !logoImages.has(url)) {
+        try {
+          const svgText = await fetchSvgText(url);
+          const dataUrl = await svgToDataUrl(svgText, 600, 300);
+          if (dataUrl) logoImages.set(url, dataUrl);
+        } catch { /* skip */ }
       }
     }
   }
 
-  // 1. Raw SVG files
-  const rawFolder = root.folder('SVG-Source')!;
-  for (const c of data.concepts) {
-    const name = c.name.replace(/\s+/g, '-');
-    if (logoTexts.has(c.logoUrl)) rawFolder.file(`${name}_Logo.svg`, logoTexts.get(c.logoUrl)!);
-    if (c.iconUrl && logoTexts.has(c.iconUrl)) rawFolder.file(`${name}_Icon.svg`, logoTexts.get(c.iconUrl!)!);
+  // Helper: draw rounded rect
+  const roundRect = (x: number, y: number, w: number, h: number, r: number, color: string) => {
+    const [cr, cg, cb] = hexToRgb(color);
+    pdf.setFillColor(cr, cg, cb);
+    pdf.roundedRect(x, y, w, h, r, r, 'F');
+  };
+
+  // Helper: add logo image centered in area
+  const drawLogo = (url: string, cx: number, cy: number, maxW: number, maxH: number) => {
+    const imgData = logoImages.get(url);
+    if (!imgData) return;
+    // Maintain aspect ratio — use maxW × maxH as bounding box
+    const lw = maxW;
+    const lh = maxH;
+    pdf.addImage(imgData, 'PNG', cx - lw / 2, cy - lh / 2, lw, lh);
+  };
+
+  // ── PAGE 1: COVER ──
+  roundRect(0, 0, W, H, 0, '#0C1929');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(64);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text(data.brandName, 96, 160);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(22);
+  pdf.setTextColor(255, 255, 255, 0.4);
+  pdf.text('Logo design options', 96, 200);
+  pdf.setFontSize(11);
+  pdf.setTextColor(255, 255, 255, 0.2);
+  pdf.text(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }), W - 96, H - 60, { align: 'right' });
+
+  // ── PAGE 2: BRAND OVERVIEW ──
+  pdf.addPage([W, H], 'landscape');
+  roundRect(0, 0, W, H, 0, '#0A0A0F');
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(40);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('BRAND OVERVIEW', 96, 120);
+  pdf.setFontSize(15);
+  pdf.setTextColor(200, 200, 200);
+  const briefLines = pdf.splitTextToSize(data.brandBrief, W * 0.6);
+  pdf.text(briefLines, 96, 180);
+  pdf.setFontSize(40);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('VISUAL STRATEGY', 96, 500);
+  if (data.designGoals) {
+    pdf.setFontSize(13);
+    pdf.setTextColor(180, 180, 180);
+    pdf.text('Design Goals:', 96, 550);
+    pdf.setTextColor(150, 150, 150);
+    data.designGoals.forEach((g, i) => pdf.text(g, 96, 575 + i * 22));
+  }
+  if (data.keywords) {
+    pdf.setFontSize(13);
+    pdf.setTextColor(120, 120, 120);
+    pdf.text(`Keywords: ${data.keywords.join(', ')}`, 96, 700);
   }
 
-  // 2. Vector slide SVGs — real artboards with embedded vector logos
-  const slidesFolder = root.folder('Slides-SVG')!;
-  let slideNum = 1;
+  // ── PAGE 3: SECTION DIVIDER ──
+  pdf.addPage([W, H], 'landscape');
+  roundRect(0, 0, W, H, 0, '#0A0A0F');
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(56);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('LOGO DESIGN', 96, H / 2);
+  pdf.setFontSize(14);
+  pdf.setTextColor(100, 100, 100);
+  pdf.text('OPTIONS', 96, H / 2 + 35);
+
+  // ── PER CONCEPT ──
   for (let i = 0; i < data.concepts.length; i++) {
     const c = data.concepts[i];
-    const logoSvg = logoTexts.get(c.logoUrl);
-    if (!logoSvg) continue;
-
     const cc = c.color || data.primaryColor;
     const accent = c.colorAccent || cc;
+    const [pr, pg, pb] = hexToRgb(cc);
+    const [ar, ag, ab] = hexToRgb(accent);
 
-    // Hero on dark
-    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Dark.svg`,
-      buildLogoSlideSvg(logoSvg, '#1A1E24', 'invert', `${c.name} — Dark Background`, c.name, i + 1, data.brandName));
+    // Concept title page (light card on dark)
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    roundRect(48, 32, W - 96, H - 64, 24, '#F0F4F8');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0, 0.3);
+    pdf.text(`Logo Concept    ${String(i + 1).padStart(2, '0')}    v1`, 130, 78);
+    pdf.text(String(new Date().getFullYear()), W - 130, 78, { align: 'right' });
+    pdf.setFontSize(11);
+    pdf.setTextColor(pr, pg, pb);
+    pdf.text(c.name.toUpperCase(), 130, H - 200);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(72);
+    pdf.setTextColor(10, 10, 15);
+    pdf.text(`Concept ${i + 1}`, 130, H - 130);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(14);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(c.direction, 130, H - 100);
+    // Accent bar
+    pdf.setFillColor(pr, pg, pb);
+    pdf.rect(48, H - 33, W - 96, 4, 'F');
 
-    // Hero on light
-    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Light.svg`,
-      buildLogoSlideSvg(logoSvg, '#F0F4F8', 'none', `${c.name} — Light Background`, c.name, i + 1, data.brandName));
+    // Hero dark
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    roundRect(48, 32, W - 96, H - 64, 24, '#1A1E24');
+    pdf.setFontSize(11);
+    pdf.setTextColor(255, 255, 255, 0.25);
+    pdf.text(`Logo Concept    ${String(i + 1).padStart(2, '0')}    v1`, 130, 78);
+    drawLogo(c.logoUrl, W / 2, H / 2, 500, 200);
 
-    // Hero on brand color
-    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_BrandColor.svg`,
-      buildLogoSlideSvg(logoSvg, accent, 'invert', `${c.name} — Brand Color`, c.name, i + 1, data.brandName));
+    // Hero light
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    roundRect(48, 32, W - 96, H - 64, 24, '#F0F4F8');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0, 0.3);
+    pdf.text(`Logo Concept    ${String(i + 1).padStart(2, '0')}    v1`, 130, 78);
+    drawLogo(c.logoUrl, W / 2, H / 2, 450, 180);
+    pdf.setFontSize(13);
+    pdf.setTextColor(0, 0, 0, 0.25);
+    pdf.text('The Logo is about:', W / 2, H - 80, { align: 'center' });
 
-    // Variations
-    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Variations.svg`,
-      buildVariationsSlideSvg(logoSvg, c, data.primaryColor));
+    // Variations page
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    const cw = (W - 112) / 2;
+    const ch = H - 96;
+    const sh = (ch - 16) / 2;
+    // Large left (light)
+    roundRect(48, 48, cw, ch, 24, '#F0F4F8');
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0, 0.2);
+    pdf.text('Logo Variations', 72, 76);
+    drawLogo(c.logoUrl, 48 + cw / 2, 48 + ch / 2, 380, 160);
+    // Top right (accent)
+    roundRect(48 + cw + 16, 48, cw, sh, 24, accent);
+    drawLogo(c.logoUrl, 48 + cw + 16 + cw / 2, 48 + sh / 2, 320, 130);
+    // Bottom right (dark)
+    roundRect(48 + cw + 16, 48 + sh + 16, cw, sh, 24, cc);
+    drawLogo(c.logoUrl, 48 + cw + 16 + cw / 2, 48 + sh + 16 + sh / 2, 320, 130);
+
+    // Rationale page
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    roundRect(48, 32, W - 96, H - 64, 24, '#F0F4F8');
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0, 0.3);
+    pdf.text(`Logo Concept    ${String(i + 1).padStart(2, '0')}    v1`, 130, 78);
+    // Logo top half
+    drawLogo(c.logoUrl, W / 2, H * 0.32, 380, 150);
+    // Divider line
+    pdf.setDrawColor(0, 0, 0, 0.05);
+    pdf.line(100, H * 0.52, W - 100, H * 0.52);
+    // Rationale text
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.setTextColor(pr, pg, pb);
+    pdf.text(c.name, 130, H * 0.58);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.setTextColor(80, 80, 80);
+    const rationaleLines = pdf.splitTextToSize(c.rationale, W * 0.35);
+    pdf.text(rationaleLines, 130, H * 0.62);
+    // Why it works
+    pdf.setFontSize(10);
+    c.whyItWorks.slice(0, 4).forEach((point, pi) => {
+      pdf.setTextColor(ar, ag, ab);
+      pdf.text(`${pi + 1}.`, W * 0.58, H * 0.58 + pi * 30);
+      pdf.setTextColor(100, 100, 100);
+      const ptLines = pdf.splitTextToSize(point, W * 0.3);
+      pdf.text(ptLines, W * 0.60, H * 0.58 + pi * 30);
+    });
+
+    // Brand color hero
+    pdf.addPage([W, H], 'landscape');
+    roundRect(0, 0, W, H, 0, '#0A0A0F');
+    roundRect(48, 32, W - 96, H - 64, 24, accent);
+    pdf.setFontSize(11);
+    pdf.setTextColor(255, 255, 255, 0.3);
+    pdf.text(`Logo Concept    ${String(i + 1).padStart(2, '0')}    v1`, 130, 78);
+    drawLogo(c.logoUrl, W / 2, H / 2, 500, 200);
   }
 
-  // 3. Color palette SVG
-  root.file('Color-Palette.svg', buildColorPaletteSvg(data));
+  // ── ALL OPTIONS DIVIDER ──
+  pdf.addPage([W, H], 'landscape');
+  roundRect(0, 0, W, H, 0, '#0A0A0F');
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(56);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('ALL OPTIONS', 96, H / 2);
 
-  // 4. ASE swatches
-  root.file(`${data.brandName}-Swatches.ase`, generateASE(data));
+  // ── ALL OPTIONS COMPARISON ──
+  pdf.addPage([W, H], 'landscape');
+  roundRect(0, 0, W, H, 0, '#FFFFFF');
+  pdf.setFontSize(12);
+  pdf.setTextColor(0, 0, 0, 0.3);
+  pdf.text('All Logos', 80, 60);
+  const colW = (W - 160) / data.concepts.length;
+  data.concepts.forEach((c, ci) => {
+    const cx = 80 + ci * colW + colW / 2;
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0, 0.2);
+    pdf.text(`option-${ci + 1}`, 80 + ci * colW, 120);
+    drawLogo(c.logoUrl, cx, H / 2, 300, 120);
+    // Divider line between columns
+    if (ci < data.concepts.length - 1) {
+      pdf.setDrawColor(0, 0, 0, 0.04);
+      pdf.line(80 + (ci + 1) * colW, 100, 80 + (ci + 1) * colW, H - 100);
+    }
+  });
 
-  // 5. README
-  root.file('README.txt', [
-    `${data.brandName} — Illustrator Package`,
-    `Generated: ${new Date().toLocaleDateString()}`,
-    '',
-    'EVERYTHING IS VECTOR — open any SVG in Illustrator.',
-    '',
-    '/SVG-Source/      Raw logo & icon SVGs (editable paths)',
-    '/Slides-SVG/      Presentation slides as vector SVGs (1920×1080 artboards)',
-    'Color-Palette.svg Visual color reference',
-    `${data.brandName}-Swatches.ase  Import into Illustrator: Window > Swatches > Other Library`,
-    '',
-    ...data.concepts.map((c, i) => `Concept ${i + 1}: ${c.name} — ${c.color || data.primaryColor} / ${c.colorAccent || ''}`),
-  ].join('\n'));
+  // ── THANK YOU ──
+  pdf.addPage([W, H], 'landscape');
+  roundRect(0, 0, W, H, 0, '#0A0A0F');
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(64);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('Thank You', W / 2, H / 2, { align: 'center' });
 
-  downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Illustrator.zip`);
+  pdf.save(`${data.brandName}-Logo-Presentation.pdf`);
 }
 
-async function exportFullPDF(data: LogoPresentationData) {
-  const html2canvas = (await import('html2canvas')).default;
-  const { jsPDF } = await import('jspdf');
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
-
-  const slideElements = document.querySelectorAll('[data-slide-export]');
-  for (let i = 0; i < slideElements.length; i++) {
-    if (i > 0) pdf.addPage([1920, 1080], 'landscape');
-    const canvas = await html2canvas(slideElements[i] as HTMLElement, { scale: 2, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 1920, 1080);
+/** Download all SVG files as ZIP */
+async function exportLogoSVGs(data: LogoPresentationData) {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  for (const c of data.concepts) {
+    const name = c.name.replace(/\s+/g, '-');
+    if (c.logoUrl.startsWith('/')) zip.file(`${name}_Logo.svg`, await fetchSvgText(c.logoUrl));
+    if (c.iconUrl?.startsWith('/')) zip.file(`${name}_Icon.svg`, await fetchSvgText(c.iconUrl));
   }
-  pdf.save(`${data.brandName}-Logo-Presentation.pdf`);
+  downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Logos-SVG.zip`);
 }
 
 export function LogoPresentationViewerSimple({ data, onClose }: Props) {
@@ -708,45 +719,12 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
   const handleExport = useCallback(async (type: string) => {
     setExporting(type);
     try {
-      switch (type) {
-        case 'illustrator': {
-          await exportForIllustrator(data);
-          toast.success('Illustrator vector package downloaded');
-          break;
-        }
-        case 'pdf': {
-          await exportFullPDF(data);
-          toast.success('PDF downloaded');
-          break;
-        }
-        case 'logos': {
-          const JSZip = (await import('jszip')).default;
-          const zip = new JSZip();
-          for (const c of data.concepts) {
-            const name = c.name.replace(/\s+/g, '-');
-            if (c.logoUrl.startsWith('/')) zip.file(`${name}_Logo.svg`, await fetchSvgText(c.logoUrl));
-            if (c.iconUrl?.startsWith('/')) zip.file(`${name}_Icon.svg`, await fetchSvgText(c.iconUrl));
-          }
-          downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Logos-SVG.zip`);
-          toast.success('Logo SVGs downloaded');
-          break;
-        }
-        case 'png': {
-          const els = document.querySelectorAll('[data-slide-export]');
-          if (els.length > 0) {
-            const JSZip = (await import('jszip')).default;
-            const html2canvas = (await import('html2canvas')).default;
-            const zip = new JSZip();
-            for (let i = 0; i < els.length; i++) {
-              const canvas = await html2canvas(els[i] as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
-              const blob = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/png'));
-              zip.file(`Slide-${String(i + 1).padStart(2, '0')}.png`, blob);
-            }
-            downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Slides-PNG.zip`);
-            toast.success('All slides downloaded as PNG');
-          }
-          break;
-        }
+      if (type === 'pdf') {
+        await exportEditablePDF(data);
+        toast.success('Editable PDF downloaded — text & shapes are selectable');
+      } else if (type === 'logos') {
+        await exportLogoSVGs(data);
+        toast.success('Logo SVGs downloaded');
       }
     } catch (err) {
       toast.error('Export failed — try again');
@@ -842,34 +820,18 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
           <div className="w-72 border-l border-white/[0.04] bg-[#141414] shrink-0 overflow-y-auto p-4 space-y-3 animate-in slide-in-from-right duration-200">
             <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">Export</h3>
 
-            {/* Illustrator Package — primary */}
-            <button
-              onClick={() => handleExport('illustrator')}
-              disabled={!!exporting}
-              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.08] hover:border-white/15 bg-white/[0.03] hover:bg-white/[0.05] transition-all text-left group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-[#FF9A00]/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Pen className="h-4 w-4 text-[#FF9A00]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white/80 group-hover:text-white">Illustrator Package</p>
-                <p className="text-[9px] text-white/25 mt-0.5">SVG logos + .ase swatches + color palette + hi-res PNGs</p>
-              </div>
-              {exporting === 'illustrator' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
-            </button>
-
-            {/* PDF */}
+            {/* Editable PDF */}
             <button
               onClick={() => handleExport('pdf')}
               disabled={!!exporting}
-              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.08] hover:border-white/15 bg-white/[0.03] hover:bg-white/[0.05] transition-all text-left group"
             >
               <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
                 <FileText className="h-4 w-4 text-red-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Full PDF</p>
-                <p className="text-[9px] text-white/20 mt-0.5">All slides as presentation PDF</p>
+                <p className="text-sm font-semibold text-white/80 group-hover:text-white">Editable PDF</p>
+                <p className="text-[9px] text-white/25 mt-0.5">Real text & shapes — editable in Illustrator, Acrobat, Figma</p>
               </div>
               {exporting === 'pdf' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
             </button>
@@ -878,42 +840,33 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
             <button
               onClick={() => handleExport('logos')}
               disabled={!!exporting}
-              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.08] hover:border-white/15 bg-white/[0.03] hover:bg-white/[0.05] transition-all text-left group"
             >
               <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                <Package className="h-4 w-4 text-blue-400" />
+                <Pen className="h-4 w-4 text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Logo SVGs</p>
-                <p className="text-[9px] text-white/20 mt-0.5">All logos & icons as editable SVG</p>
+                <p className="text-sm font-semibold text-white/80 group-hover:text-white">Logo SVGs</p>
+                <p className="text-[9px] text-white/25 mt-0.5">All logos & icons as editable vector SVG — open in Illustrator</p>
               </div>
               {exporting === 'logos' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
             </button>
 
-            {/* Slide PNGs */}
-            <button
-              onClick={() => handleExport('png')}
-              disabled={!!exporting}
-              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                <FileImage className="h-4 w-4 text-green-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Slide PNGs</p>
-                <p className="text-[9px] text-white/20 mt-0.5">All slides as 3× resolution PNG</p>
-              </div>
-              {exporting === 'png' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
-            </button>
-
-            {/* Package contents info */}
+            {/* What you get */}
             <div className="mt-4 pt-4 border-t border-white/[0.04]">
-              <p className="text-[9px] text-white/15 uppercase tracking-wider font-semibold mb-2">Illustrator Package Contains</p>
+              <p className="text-[9px] text-white/15 uppercase tracking-wider font-semibold mb-2">Editable PDF includes</p>
               <ul className="text-[9px] text-white/20 space-y-1">
-                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />{data.concepts.length * 2} SVG files (logos + icons)</li>
-                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />.ase Adobe Swatch Exchange file</li>
-                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />Color palette reference SVG</li>
-                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />{slides.length} slide renders (3× PNG)</li>
+                <li>Cover + Brand Overview + Visual Strategy</li>
+                <li>Per concept: title, dark hero, light hero, variations, rationale, brand color</li>
+                <li>All Options comparison + Thank You</li>
+                <li>All text is selectable & editable</li>
+                <li>Shapes are vector — edit in Illustrator</li>
+              </ul>
+              <p className="text-[9px] text-white/15 uppercase tracking-wider font-semibold mb-2 mt-4">Logo SVGs include</p>
+              <ul className="text-[9px] text-white/20 space-y-1">
+                <li>{data.concepts.length} logo SVGs (full wordmark)</li>
+                <li>{data.concepts.filter(c => c.iconUrl).length} icon SVGs (symbol only)</li>
+                <li>100% editable vector paths</li>
               </ul>
             </div>
           </div>
