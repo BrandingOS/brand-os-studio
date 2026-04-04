@@ -384,45 +384,6 @@ function ThankYouSlide({ data }: { data: LogoPresentationData }) {
 
 // ─── EXPORT HELPERS ─────────────────────────────────────────
 
-async function fetchSvgText(url: string): Promise<string> {
-  const res = await fetch(url);
-  return res.text();
-}
-
-function generateColorSwatchesSvg(data: LogoPresentationData): string {
-  const swatches: { name: string; color: string; accent: string }[] = data.concepts.map(c => ({
-    name: c.name,
-    color: c.color || data.primaryColor,
-    accent: c.colorAccent || c.color || data.primaryColor,
-  }));
-  const w = 800;
-  const h = 200 + swatches.length * 120;
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
-  svg += `<rect width="${w}" height="${h}" fill="#fff"/>`;
-  svg += `<text x="40" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="28" font-weight="700" fill="#0A0A0F">${data.brandName} — Color Palette</text>`;
-  svg += `<text x="40" y="90" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="#999">Logo Presentation Color Reference</text>`;
-
-  swatches.forEach((s, i) => {
-    const y = 140 + i * 120;
-    svg += `<text x="40" y="${y}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" font-weight="600" fill="#333">${s.name}</text>`;
-    // Primary swatch
-    svg += `<rect x="40" y="${y + 12}" width="100" height="60" rx="8" fill="${s.color}"/>`;
-    svg += `<text x="40" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">${s.color}</text>`;
-    // Accent swatch
-    svg += `<rect x="160" y="${y + 12}" width="100" height="60" rx="8" fill="${s.accent}"/>`;
-    svg += `<text x="160" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">${s.accent}</text>`;
-    // White swatch
-    svg += `<rect x="280" y="${y + 12}" width="100" height="60" rx="8" fill="#fff" stroke="#eee" stroke-width="1"/>`;
-    svg += `<text x="280" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">#FFFFFF</text>`;
-    // Dark swatch
-    svg += `<rect x="400" y="${y + 12}" width="100" height="60" rx="8" fill="#0A0A0F"/>`;
-    svg += `<text x="400" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">#0A0A0F</text>`;
-  });
-
-  svg += '</svg>';
-  return svg;
-}
-
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -434,139 +395,26 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-async function exportForIllustrator(data: LogoPresentationData) {
-  const JSZip = (await import('jszip')).default;
-  const zip = new JSZip();
-  const folder = zip.folder(`${data.brandName}-Illustrator-Package`)!;
-
-  // 1. Logos folder — all SVGs
-  const logosFolder = folder.folder('Logos')!;
-  for (let i = 0; i < data.concepts.length; i++) {
-    const c = data.concepts[i];
-    if (c.logoUrl.startsWith('/')) {
-      try {
-        const svgText = await fetchSvgText(c.logoUrl);
-        logosFolder.file(`Concept-${i + 1}_${c.name.replace(/\s+/g, '-')}_Logo.svg`, svgText);
-      } catch { /* skip if fetch fails */ }
-    }
-    if (c.iconUrl?.startsWith('/')) {
-      try {
-        const svgText = await fetchSvgText(c.iconUrl);
-        logosFolder.file(`Concept-${i + 1}_${c.name.replace(/\s+/g, '-')}_Icon.svg`, svgText);
-      } catch { /* skip */ }
-    }
-  }
-
-  // 2. Color swatches SVG
-  const swatchSvg = generateColorSwatchesSvg(data);
-  folder.file('Color-Palette.svg', swatchSvg);
-
-  // 3. Color swatches ASE (Adobe Swatch Exchange)
-  const aseData = generateASE(data);
-  folder.file(`${data.brandName}-Swatches.ase`, aseData);
-
-  // 4. Slide renders as high-res PNGs
-  const slidesFolder = folder.folder('Slides-PNG')!;
-  const slideElements = document.querySelectorAll('[data-slide-export]');
-  if (slideElements.length > 0) {
-    const html2canvas = (await import('html2canvas')).default;
-    for (let i = 0; i < slideElements.length; i++) {
-      try {
-        const canvas = await html2canvas(slideElements[i] as HTMLElement, {
-          scale: 3,
-          useCORS: true,
-          backgroundColor: '#0A0A0F',
-          logging: false,
-        });
-        const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
-        slidesFolder.file(`Slide-${String(i + 1).padStart(2, '0')}.png`, blob);
-      } catch { /* skip failed slides */ }
-    }
-  }
-
-  // 5. README
-  folder.file('README.txt', [
-    `${data.brandName} — Logo Presentation Package`,
-    `Generated: ${new Date().toLocaleDateString()}`,
-    '',
-    'CONTENTS:',
-    '─────────',
-    '/Logos/          — All logo & icon SVGs (editable in Illustrator)',
-    'Color-Palette.svg — Visual color reference (open in Illustrator)',
-    `${data.brandName}-Swatches.ase — Adobe Swatch Exchange (import into Illustrator swatches)`,
-    '/Slides-PNG/     — High-res slide renders (3× resolution)',
-    '',
-    'HOW TO USE:',
-    '───────────',
-    '1. Open any SVG in Illustrator — fully editable vector paths',
-    '2. Import .ase file: Window > Swatches > Swatch Libraries > Other Library',
-    '3. Use PNG slides as reference for layout reconstruction',
-    '',
-    'CONCEPTS:',
-    '─────────',
-    ...data.concepts.map((c, i) =>
-      `${i + 1}. ${c.name} (${c.direction}) — ${c.color || data.primaryColor} / ${c.colorAccent || ''}`
-    ),
-  ].join('\n'));
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  downloadBlob(blob, `${data.brandName}-Illustrator-Package.zip`);
+function downloadText(content: string, filename: string, mime = 'image/svg+xml') {
+  downloadBlob(new Blob([content], { type: mime }), filename);
 }
 
-// Adobe Swatch Exchange (.ase) binary format
-function generateASE(data: LogoPresentationData): Uint8Array {
-  const colors: { name: string; r: number; g: number; b: number }[] = [];
+async function fetchSvgText(url: string): Promise<string> {
+  const res = await fetch(url);
+  return res.text();
+}
 
-  data.concepts.forEach(c => {
-    const primary = c.color || data.primaryColor;
-    const accent = c.colorAccent || primary;
-    colors.push({ name: `${c.name} Primary`, ...hexToRgbFloat(primary) });
-    colors.push({ name: `${c.name} Accent`, ...hexToRgbFloat(accent) });
-  });
-  colors.push({ name: 'White', r: 1, g: 1, b: 1 });
-  colors.push({ name: 'Midnight', ...hexToRgbFloat('#0A0A0F') });
-
-  // ASE binary format
-  const buffers: number[] = [];
-  // Header: "ASEF"
-  buffers.push(0x41, 0x53, 0x45, 0x46);
-  // Version: 1.0
-  buffers.push(0x00, 0x01, 0x00, 0x00);
-  // Number of blocks
-  const blockCount = colors.length;
-  buffers.push((blockCount >> 24) & 0xff, (blockCount >> 16) & 0xff, (blockCount >> 8) & 0xff, blockCount & 0xff);
-
-  colors.forEach(color => {
-    // Block type: 0x0001 = color entry
-    buffers.push(0x00, 0x01);
-    // Block length (calculated)
-    const nameUtf16 = [];
-    for (let i = 0; i < color.name.length; i++) {
-      nameUtf16.push(0x00, color.name.charCodeAt(i));
-    }
-    nameUtf16.push(0x00, 0x00); // null terminator
-    const nameLen = color.name.length + 1;
-    // block length = 2 (name length) + nameLen*2 (UTF16) + 4 (color model) + 12 (RGB floats) + 2 (color type)
-    const blockLen = 2 + nameLen * 2 + 4 + 12 + 2;
-    buffers.push((blockLen >> 24) & 0xff, (blockLen >> 16) & 0xff, (blockLen >> 8) & 0xff, blockLen & 0xff);
-    // Name length (UTF16 chars including null)
-    buffers.push((nameLen >> 8) & 0xff, nameLen & 0xff);
-    // Name in UTF16-BE
-    buffers.push(...nameUtf16);
-    // Color model: "RGB "
-    buffers.push(0x52, 0x47, 0x42, 0x20);
-    // RGB float values
-    const rv = new DataView(new ArrayBuffer(4)); rv.setFloat32(0, color.r);
-    const gv = new DataView(new ArrayBuffer(4)); gv.setFloat32(0, color.g);
-    const bv = new DataView(new ArrayBuffer(4)); bv.setFloat32(0, color.b);
-    for (let i = 0; i < 4; i++) buffers.push(rv.getUint8(i));
-    for (let i = 0; i < 4; i++) buffers.push(gv.getUint8(i));
-    for (let i = 0; i < 4; i++) buffers.push(bv.getUint8(i));
-    // Color type: 0 = global
-    buffers.push(0x00, 0x00);
-  });
-
-  return new Uint8Array(buffers);
+/** Strip the XML declaration and extract inner SVG content for embedding */
+function extractSvgInner(svgText: string): { inner: string; viewBox: string; width: number; height: number } {
+  const vbMatch = svgText.match(/viewBox="([^"]+)"/);
+  const viewBox = vbMatch ? vbMatch[1] : '0 0 100 100';
+  const parts = viewBox.split(/\s+/).map(Number);
+  const width = parts[2] || 100;
+  const height = parts[3] || 100;
+  // Get everything between <svg ...> and </svg>
+  const innerMatch = svgText.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+  const inner = innerMatch ? innerMatch[1] : '';
+  return { inner, viewBox, width, height };
 }
 
 function hexToRgbFloat(hex: string): { r: number; g: number; b: number } {
@@ -578,10 +426,232 @@ function hexToRgbFloat(hex: string): { r: number; g: number; b: number } {
   };
 }
 
-async function exportSlidePNG(slideEl: HTMLElement, filename: string) {
-  const html2canvas = (await import('html2canvas')).default;
-  const canvas = await html2canvas(slideEl, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
-  canvas.toBlob(blob => { if (blob) downloadBlob(blob, filename); }, 'image/png');
+/** Build a real vector SVG slide with the logo embedded as vector paths */
+function buildLogoSlideSvg(
+  logoSvgText: string,
+  bg: string,
+  logoFilter: string,
+  label: string,
+  conceptName: string,
+  conceptNum: number,
+  brandName: string,
+): string {
+  const W = 1920, H = 1080;
+  const { inner, viewBox, width: svgW, height: svgH } = extractSvgInner(logoSvgText);
+
+  // Scale logo to fit ~40% of slide width, centered
+  const maxW = W * 0.4;
+  const maxH = H * 0.35;
+  const scale = Math.min(maxW / svgW, maxH / svgH);
+  const lw = svgW * scale;
+  const lh = svgH * scale;
+  const lx = (W - lw) / 2;
+  const ly = (H - lh) / 2;
+
+  const isDark = bg === '#0A0A0F' || bg === '#1A1E24' || luminance(bg) < 0.15;
+  const textColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
+  const logoColor = logoFilter.includes('invert') ? '#ffffff' : undefined;
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+  <!-- ${brandName} — ${conceptName} — ${label} -->
+  <rect width="${W}" height="${H}" fill="${bg}"/>
+  <!-- Top bar -->
+  <text x="80" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="${textColor}">Logo Concept</text>
+  <text x="210" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" font-weight="600" fill="${textColor}">${String(conceptNum).padStart(2, '0')}</text>
+  <text x="${W - 80}" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="${textColor}" text-anchor="end">${new Date().getFullYear()}</text>
+  <!-- Logo (vector paths) -->
+  <g transform="translate(${lx}, ${ly}) scale(${scale})"${logoColor ? ` fill="${logoColor}"` : ''}>
+    ${inner}
+  </g>
+  <!-- Label -->
+  <text x="${W / 2}" y="${H - 50}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" fill="${textColor}" text-anchor="middle">${label}</text>
+</svg>`;
+  return svg;
+}
+
+function luminance(hex: string): number {
+  const { r, g, b } = hexToRgbFloat(hex);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+
+/** Build a variations slide with 3 cards — all vector */
+function buildVariationsSlideSvg(logoSvgText: string, concept: LogoConcept, brandColor: string): string {
+  const W = 1920, H = 1080;
+  const { inner, viewBox, width: svgW, height: svgH } = extractSvgInner(logoSvgText);
+  const cc = concept.color || brandColor;
+  const accent = concept.colorAccent || cc;
+
+  const pad = 48;
+  const gap = 16;
+  const cardW = (W - pad * 2 - gap) / 2;
+  const cardH = H - pad * 2;
+  const smallH = (cardH - gap) / 2;
+
+  // Scale for large card
+  const s1 = Math.min(cardW * 0.5 / svgW, cardH * 0.4 / svgH);
+  // Scale for small cards
+  const s2 = Math.min(cardW * 0.5 / svgW, smallH * 0.4 / svgH);
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+  <rect width="${W}" height="${H}" fill="#0A0A0F"/>
+  <!-- Large left card (light) -->
+  <rect x="${pad}" y="${pad}" width="${cardW}" height="${cardH}" rx="24" fill="#F0F4F8"/>
+  <text x="${pad + 20}" y="${pad + 24}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="11" fill="rgba(0,0,0,0.2)">Logo Variations</text>
+  <g transform="translate(${pad + (cardW - svgW * s1) / 2}, ${pad + (cardH - svgH * s1) / 2}) scale(${s1})">
+    ${inner}
+  </g>
+  <!-- Top right card (accent) -->
+  <rect x="${pad + cardW + gap}" y="${pad}" width="${cardW}" height="${smallH}" rx="24" fill="${accent}"/>
+  <g transform="translate(${pad + cardW + gap + (cardW - svgW * s2) / 2}, ${pad + (smallH - svgH * s2) / 2}) scale(${s2})" fill="#ffffff">
+    ${inner}
+  </g>
+  <!-- Bottom right card (dark) -->
+  <rect x="${pad + cardW + gap}" y="${pad + smallH + gap}" width="${cardW}" height="${smallH}" rx="24" fill="${cc}"/>
+  <g transform="translate(${pad + cardW + gap + (cardW - svgW * s2) / 2}, ${pad + smallH + gap + (smallH - svgH * s2) / 2}) scale(${s2})" fill="#ffffff">
+    ${inner}
+  </g>
+</svg>`;
+  return svg;
+}
+
+/** Build color palette SVG */
+function buildColorPaletteSvg(data: LogoPresentationData): string {
+  const W = 1920, H = 200 + data.concepts.length * 140;
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+  <rect width="${W}" height="${H}" fill="#ffffff"/>
+  <text x="80" y="80" font-family="Inter,Helvetica,Arial,sans-serif" font-size="36" font-weight="700" fill="#0A0A0F">${data.brandName}</text>
+  <text x="80" y="115" font-family="Inter,Helvetica,Arial,sans-serif" font-size="16" fill="#999">Color Palette Reference</text>`;
+
+  data.concepts.forEach((c, i) => {
+    const y = 170 + i * 140;
+    const cc = c.color || data.primaryColor;
+    const accent = c.colorAccent || cc;
+    svg += `
+  <text x="80" y="${y}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="18" font-weight="600" fill="#333">Concept ${i + 1} — ${c.name}</text>
+  <rect x="80" y="${y + 16}" width="140" height="80" rx="12" fill="${cc}"/>
+  <text x="80" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">Primary ${cc}</text>
+  <rect x="240" y="${y + 16}" width="140" height="80" rx="12" fill="${accent}"/>
+  <text x="240" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">Accent ${accent}</text>
+  <rect x="400" y="${y + 16}" width="140" height="80" rx="12" fill="#fff" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="400" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">#FFFFFF</text>
+  <rect x="560" y="${y + 16}" width="140" height="80" rx="12" fill="#0A0A0F"/>
+  <text x="560" y="${y + 114}" font-family="Inter,monospace" font-size="12" fill="#666">#0A0A0F</text>`;
+  });
+
+  svg += '\n</svg>';
+  return svg;
+}
+
+/** Adobe Swatch Exchange (.ase) binary */
+function generateASE(data: LogoPresentationData): Uint8Array {
+  const colors: { name: string; r: number; g: number; b: number }[] = [];
+  data.concepts.forEach(c => {
+    colors.push({ name: `${c.name} Primary`, ...hexToRgbFloat(c.color || data.primaryColor) });
+    colors.push({ name: `${c.name} Accent`, ...hexToRgbFloat(c.colorAccent || c.color || data.primaryColor) });
+  });
+  colors.push({ name: 'White', r: 1, g: 1, b: 1 });
+  colors.push({ name: 'Midnight', ...hexToRgbFloat('#0A0A0F') });
+
+  const buf: number[] = [0x41, 0x53, 0x45, 0x46, 0x00, 0x01, 0x00, 0x00];
+  const n = colors.length;
+  buf.push((n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff);
+
+  colors.forEach(color => {
+    buf.push(0x00, 0x01);
+    const nameLen = color.name.length + 1;
+    const blockLen = 2 + nameLen * 2 + 4 + 12 + 2;
+    buf.push((blockLen >> 24) & 0xff, (blockLen >> 16) & 0xff, (blockLen >> 8) & 0xff, blockLen & 0xff);
+    buf.push((nameLen >> 8) & 0xff, nameLen & 0xff);
+    for (let i = 0; i < color.name.length; i++) buf.push(0x00, color.name.charCodeAt(i));
+    buf.push(0x00, 0x00);
+    buf.push(0x52, 0x47, 0x42, 0x20);
+    for (const v of [color.r, color.g, color.b]) {
+      const dv = new DataView(new ArrayBuffer(4));
+      dv.setFloat32(0, v);
+      for (let i = 0; i < 4; i++) buf.push(dv.getUint8(i));
+    }
+    buf.push(0x00, 0x00);
+  });
+  return new Uint8Array(buf);
+}
+
+/** Full Illustrator package — real vector SVG slides + ASE + color palette */
+async function exportForIllustrator(data: LogoPresentationData) {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  const root = zip.folder(`${data.brandName}-Illustrator`)!;
+
+  // Fetch all logo & icon SVGs
+  const logoTexts: Map<string, string> = new Map();
+  for (const c of data.concepts) {
+    for (const url of [c.logoUrl, c.iconUrl]) {
+      if (url && url.startsWith('/') && !logoTexts.has(url)) {
+        try { logoTexts.set(url, await fetchSvgText(url)); } catch { /* skip */ }
+      }
+    }
+  }
+
+  // 1. Raw SVG files
+  const rawFolder = root.folder('SVG-Source')!;
+  for (const c of data.concepts) {
+    const name = c.name.replace(/\s+/g, '-');
+    if (logoTexts.has(c.logoUrl)) rawFolder.file(`${name}_Logo.svg`, logoTexts.get(c.logoUrl)!);
+    if (c.iconUrl && logoTexts.has(c.iconUrl)) rawFolder.file(`${name}_Icon.svg`, logoTexts.get(c.iconUrl!)!);
+  }
+
+  // 2. Vector slide SVGs — real artboards with embedded vector logos
+  const slidesFolder = root.folder('Slides-SVG')!;
+  let slideNum = 1;
+  for (let i = 0; i < data.concepts.length; i++) {
+    const c = data.concepts[i];
+    const logoSvg = logoTexts.get(c.logoUrl);
+    if (!logoSvg) continue;
+
+    const cc = c.color || data.primaryColor;
+    const accent = c.colorAccent || cc;
+
+    // Hero on dark
+    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Dark.svg`,
+      buildLogoSlideSvg(logoSvg, '#1A1E24', 'invert', `${c.name} — Dark Background`, c.name, i + 1, data.brandName));
+
+    // Hero on light
+    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Light.svg`,
+      buildLogoSlideSvg(logoSvg, '#F0F4F8', 'none', `${c.name} — Light Background`, c.name, i + 1, data.brandName));
+
+    // Hero on brand color
+    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_BrandColor.svg`,
+      buildLogoSlideSvg(logoSvg, accent, 'invert', `${c.name} — Brand Color`, c.name, i + 1, data.brandName));
+
+    // Variations
+    slidesFolder.file(`${String(slideNum++).padStart(2, '0')}_Concept-${i + 1}_Variations.svg`,
+      buildVariationsSlideSvg(logoSvg, c, data.primaryColor));
+  }
+
+  // 3. Color palette SVG
+  root.file('Color-Palette.svg', buildColorPaletteSvg(data));
+
+  // 4. ASE swatches
+  root.file(`${data.brandName}-Swatches.ase`, generateASE(data));
+
+  // 5. README
+  root.file('README.txt', [
+    `${data.brandName} — Illustrator Package`,
+    `Generated: ${new Date().toLocaleDateString()}`,
+    '',
+    'EVERYTHING IS VECTOR — open any SVG in Illustrator.',
+    '',
+    '/SVG-Source/      Raw logo & icon SVGs (editable paths)',
+    '/Slides-SVG/      Presentation slides as vector SVGs (1920×1080 artboards)',
+    'Color-Palette.svg Visual color reference',
+    `${data.brandName}-Swatches.ase  Import into Illustrator: Window > Swatches > Other Library`,
+    '',
+    ...data.concepts.map((c, i) => `Concept ${i + 1}: ${c.name} — ${c.color || data.primaryColor} / ${c.colorAccent || ''}`),
+  ].join('\n'));
+
+  downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Illustrator.zip`);
 }
 
 async function exportFullPDF(data: LogoPresentationData) {
@@ -593,10 +663,8 @@ async function exportFullPDF(data: LogoPresentationData) {
   for (let i = 0; i < slideElements.length; i++) {
     if (i > 0) pdf.addPage([1920, 1080], 'landscape');
     const canvas = await html2canvas(slideElements[i] as HTMLElement, { scale: 2, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    pdf.addImage(imgData, 'JPEG', 0, 0, 1920, 1080);
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 1920, 1080);
   }
-
   pdf.save(`${data.brandName}-Logo-Presentation.pdf`);
 }
 
@@ -643,7 +711,7 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
       switch (type) {
         case 'illustrator': {
           await exportForIllustrator(data);
-          toast.success('Illustrator package downloaded');
+          toast.success('Illustrator vector package downloaded');
           break;
         }
         case 'pdf': {
@@ -654,35 +722,27 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
         case 'logos': {
           const JSZip = (await import('jszip')).default;
           const zip = new JSZip();
-          for (let i = 0; i < data.concepts.length; i++) {
-            const c = data.concepts[i];
-            if (c.logoUrl.startsWith('/')) {
-              const svg = await fetchSvgText(c.logoUrl);
-              zip.file(`${c.name.replace(/\s+/g, '-')}_Logo.svg`, svg);
-            }
-            if (c.iconUrl?.startsWith('/')) {
-              const svg = await fetchSvgText(c.iconUrl);
-              zip.file(`${c.name.replace(/\s+/g, '-')}_Icon.svg`, svg);
-            }
+          for (const c of data.concepts) {
+            const name = c.name.replace(/\s+/g, '-');
+            if (c.logoUrl.startsWith('/')) zip.file(`${name}_Logo.svg`, await fetchSvgText(c.logoUrl));
+            if (c.iconUrl?.startsWith('/')) zip.file(`${name}_Icon.svg`, await fetchSvgText(c.iconUrl));
           }
-          const blob = await zip.generateAsync({ type: 'blob' });
-          downloadBlob(blob, `${data.brandName}-Logos-SVG.zip`);
+          downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Logos-SVG.zip`);
           toast.success('Logo SVGs downloaded');
           break;
         }
         case 'png': {
-          const el = document.querySelectorAll('[data-slide-export]');
-          if (el.length > 0) {
+          const els = document.querySelectorAll('[data-slide-export]');
+          if (els.length > 0) {
             const JSZip = (await import('jszip')).default;
             const html2canvas = (await import('html2canvas')).default;
             const zip = new JSZip();
-            for (let i = 0; i < el.length; i++) {
-              const canvas = await html2canvas(el[i] as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
+            for (let i = 0; i < els.length; i++) {
+              const canvas = await html2canvas(els[i] as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
               const blob = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/png'));
               zip.file(`Slide-${String(i + 1).padStart(2, '0')}.png`, blob);
             }
-            const blob = await zip.generateAsync({ type: 'blob' });
-            downloadBlob(blob, `${data.brandName}-Slides-PNG.zip`);
+            downloadBlob(await zip.generateAsync({ type: 'blob' }), `${data.brandName}-Slides-PNG.zip`);
             toast.success('All slides downloaded as PNG');
           }
           break;
