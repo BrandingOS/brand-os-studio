@@ -41,10 +41,10 @@ const mainNavItems = [
     description: "Manage your brands",
   },
   {
-    title: "Activity",
-    url: "/dashboard/activity",
-    icon: BarChart3,
-    description: "Recent activity",
+    title: "Logo Maker",
+    url: "/dashboard/logo-maker",
+    icon: Star,
+    description: "Create a new logo",
   },
   {
     title: "Templates",
@@ -52,7 +52,13 @@ const mainNavItems = [
     icon: Folder,
     description: "Design templates",
     featureId: "guidelines-templates",
-  }
+  },
+  {
+    title: "Activity",
+    url: "/dashboard/activity",
+    icon: BarChart3,
+    description: "Recent activity",
+  },
 ];
 
 const adminItems = [

@@ -35,6 +35,7 @@ import {
   FolderOpen,
   Lock,
   Download,
+  Share2,
 } from 'lucide-react';
 
 const brandNavItems = [
@@ -48,6 +49,18 @@ const brandNavItems = [
     title: "Edit Brand",
     url: "/dashboard/brand/:slug/edit",
     icon: Edit,
+    disabled: false,
+  },
+  {
+    title: "Brand Kit",
+    url: "/dashboard/brand/:slug/brandkit",
+    icon: Briefcase,
+    disabled: false,
+  },
+  {
+    title: "Social Media",
+    url: "/dashboard/brand/:slug/social-media",
+    icon: Share2,
     disabled: false,
   },
   {
@@ -66,12 +79,6 @@ const brandNavItems = [
     title: "Guidelines Editor",
     url: "/dashboard/brand/:slug/guidelines",
     icon: FileText,
-    disabled: false,
-  },
-  {
-    title: "Brand Kit",
-    url: "/dashboard/brand/:slug/brandkit",
-    icon: Briefcase,
     disabled: false,
   },
 ];

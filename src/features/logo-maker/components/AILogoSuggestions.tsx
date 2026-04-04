@@ -92,7 +92,7 @@ function generateSuggestions(description: string, brandName: string): LogoSugges
         brandName: brandName || 'Brand',
         showGradient: Math.random() > 0.5,
         gradientAngle: pickRandom([90, 135, 180, 45]),
-        textTransform: pickRandom(['none', 'uppercase'] as const[]),
+        textTransform: pickRandom(['none', 'uppercase'] as const),
         letterSpacing: layout === 'badge' ? 2 : pickRandom([0, 1, 2, 4]),
         fontSize: pickRandom([28, 32, 36]),
         iconSize: pickRandom([40, 48, 56]),

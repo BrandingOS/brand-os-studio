@@ -159,11 +159,55 @@ async function createVideo(
   return { blob, ext: 'webm' };
 }
 
+type LogoAssetOption = 'auto' | 'full' | 'icon' | 'wordmark' | 'alternate';
+
+function LogoAssetSelector({ brand, value, onChange }: { brand: Brand; value: LogoAssetOption; onChange: (v: LogoAssetOption) => void }) {
+  const options: { value: LogoAssetOption; label: string; available: boolean }[] = [
+    { value: 'auto', label: 'Auto (Best fit)', available: true },
+    { value: 'full', label: 'Full Logo', available: !!(brand.logoAssets?.full || brand.logo) },
+    { value: 'icon', label: 'Icon Only', available: !!(brand.logoAssets?.icon) },
+    { value: 'wordmark', label: 'Wordmark Only', available: !!(brand.logoAssets?.wordmark) },
+    { value: 'alternate', label: 'Alternate', available: !!(brand.logoAssets?.alternate) },
+  ];
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs text-muted-foreground font-medium">Animate:</span>
+      {options.filter(o => o.available).map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+            value === opt.value
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'bg-background text-muted-foreground border-border hover:border-primary/40'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function getLogoSrcForAnimation(brand: Brand, assetOption: LogoAssetOption): string | undefined {
+  const assets = brand.logoAssets;
+  switch (assetOption) {
+    case 'full': return assets?.full || brand.logo;
+    case 'icon': return assets?.icon || brand.logo;
+    case 'wordmark': return assets?.wordmark || brand.logo;
+    case 'alternate': return assets?.alternate || brand.logo;
+    case 'auto':
+    default: return brand.logo;
+  }
+}
+
 export function AnimationsModule({ brand }: AnimationsModuleProps) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [logoAsset, setLogoAsset] = useState<LogoAssetOption>('auto');
   const categories = ['All', 'Looping', 'Intro', 'Outro'];
 
   const filteredAnimations = useMemo(() => {
@@ -176,9 +220,10 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
   const handleDownload = useCallback(async (animation: AnimationConfig) => {
     setExportingId(animation.id); setProgress(0); setPlayingId(animation.id);
     let logoImg: HTMLImageElement | null = null;
-    if (brand.logo) {
+    const logoSrc = getLogoSrcForAnimation(brand, logoAsset);
+    if (logoSrc) {
       logoImg = await new Promise<HTMLImageElement>((r, j) => {
-        const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => r(i); i.onerror = j; i.src = brand.logo!;
+        const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => r(i); i.onerror = j; i.src = logoSrc;
       }).catch(() => null);
     }
     const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
@@ -200,6 +245,7 @@ export function AnimationsModule({ brand }: AnimationsModuleProps) {
         <h2 className="text-2xl font-bold mb-1">Logo Animations</h2>
         <p className="text-muted-foreground">Preview and download animated logo videos.</p>
       </div>
+      <LogoAssetSelector brand={brand} value={logoAsset} onChange={setLogoAsset} />
       <CategoryFilter categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {filteredAnimations.map((animation) => {

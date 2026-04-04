@@ -3,6 +3,8 @@ export interface Brand {
   slug: string;
   name: string;
   logo?: string;
+  /** Multi-asset logo system — different logo variants for different contexts */
+  logoAssets?: BrandLogoAssets;
   primaryColor: string;
   secondaryColor?: string;
   fonts: {
@@ -19,6 +21,22 @@ export interface Brand {
   customDomain?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Logo assets for different use cases */
+export interface BrandLogoAssets {
+  /** Full logo (icon + wordmark combined) */
+  full?: string;
+  /** Icon/symbol only (for favicons, app icons, small spaces) */
+  icon?: string;
+  /** Text/wordmark only */
+  wordmark?: string;
+  /** Alternate version (horizontal, stacked, etc.) */
+  alternate?: string;
+  /** Monochrome/dark version */
+  dark?: string;
+  /** Light/white version for dark backgrounds */
+  light?: string;
 }
 
 export interface BrandGuidelines {

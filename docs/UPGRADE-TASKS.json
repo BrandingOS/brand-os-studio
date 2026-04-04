@@ -1,0 +1,458 @@
+{
+  "project": "BrandOS Studio — Premium Platform Upgrade",
+  "version": "2.0",
+  "created": "2026-04-04",
+  "totalTasks": 42,
+  "phases": [
+    {
+      "id": "P1",
+      "name": "Foundation",
+      "description": "Design system, layout system, architecture"
+    },
+    {
+      "id": "P2",
+      "name": "Core Features",
+      "description": "Onboarding, editor, logo maker"
+    },
+    {
+      "id": "P3",
+      "name": "Extended Features",
+      "description": "Social media, templates, AI flows"
+    },
+    {
+      "id": "P4",
+      "name": "Polish",
+      "description": "Consistency, review, documentation"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "phase": "P1",
+      "title": "Design System — Tokens & Variables",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Create centralized design tokens: typography scale (12px-64px), spacing (4px base), color semantic tokens, elevation/shadow scale, border-radius scale, z-index scale",
+      "files": ["src/shared/design-system/tokens.ts", "src/index.css", "tailwind.config.ts"],
+      "dependencies": [],
+      "notes": "Foundation for everything else"
+    },
+    {
+      "id": "T02",
+      "phase": "P1",
+      "title": "Design System — Typography Components",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Build Heading, Text, Label, Caption components with consistent scale. Display (Plus Jakarta Sans) for headings, Inter for body.",
+      "files": ["src/shared/design-system/Typography.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T03",
+      "phase": "P1",
+      "title": "Design System — Layout Primitives",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Build Stack, Cluster, Grid, Container, Divider, Spacer components for consistent spacing",
+      "files": ["src/shared/design-system/Layout.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T04",
+      "phase": "P1",
+      "title": "Design System — Card System",
+      "status": "pending",
+      "priority": "high",
+      "description": "Unified card variants: default, elevated, outlined, interactive, feature. Consistent padding, radius, shadows.",
+      "files": ["src/shared/design-system/Card.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T05",
+      "phase": "P1",
+      "title": "Design System — Button Hierarchy",
+      "status": "pending",
+      "priority": "high",
+      "description": "Primary, secondary, ghost, outline, destructive, link buttons. Icon buttons. Size scale: sm/md/lg. Loading states.",
+      "files": ["src/shared/design-system/Button.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T06",
+      "phase": "P1",
+      "title": "Design System — Input System",
+      "status": "pending",
+      "priority": "high",
+      "description": "Text input, textarea, select, checkbox, radio, switch, slider — all with consistent styling, labels, error states, help text.",
+      "files": ["src/shared/design-system/Input.tsx", "src/shared/design-system/FormField.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T07",
+      "phase": "P1",
+      "title": "Design System — Navigation Components",
+      "status": "pending",
+      "priority": "high",
+      "description": "TopBar, Sidebar, Breadcrumbs, Tabs, StepIndicator — unified navigation patterns",
+      "files": ["src/shared/design-system/Navigation.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T08",
+      "phase": "P1",
+      "title": "Design System — Feedback & Overlays",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Modal, Drawer, Sheet, Toast, EmptyState, Skeleton, Spinner — consistent overlay behavior",
+      "files": ["src/shared/design-system/Feedback.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T09",
+      "phase": "P1",
+      "title": "Design System — Section Headers & Page Headers",
+      "status": "pending",
+      "priority": "high",
+      "description": "PageHeader (title + description + actions), SectionHeader (title + optional action), consistent across all page types",
+      "files": ["src/shared/design-system/Headers.tsx"],
+      "dependencies": ["T01", "T02"]
+    },
+    {
+      "id": "T10",
+      "phase": "P1",
+      "title": "Unified Layout — AppShell",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Create AppShell component that provides consistent structure for all page types. Supports: sidebar+content, full-width, canvas mode.",
+      "files": ["src/shared/layouts/AppShell.tsx"],
+      "dependencies": ["T01", "T07"],
+      "routes": "All routes"
+    },
+    {
+      "id": "T11",
+      "phase": "P1",
+      "title": "Unified Layout — Dashboard Shell",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Standardize dashboard layout with consistent sidebar, topbar, content area. Replace current DashboardLayout.",
+      "files": ["src/shared/layouts/DashboardShell.tsx"],
+      "dependencies": ["T10"],
+      "routes": ["/dashboard/*"]
+    },
+    {
+      "id": "T12",
+      "phase": "P1",
+      "title": "Unified Layout — Editor Shell",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Create EditorShell supporting fixed-canvas, multi-slide, and freeform modes. Consistent toolbar, panels, status bar.",
+      "files": ["src/shared/layouts/EditorShell.tsx"],
+      "dependencies": ["T10"],
+      "routes": ["/editor/*", "/dashboard/brand/:slug/guidelines/canvas"]
+    },
+    {
+      "id": "T13",
+      "phase": "P1",
+      "title": "Unified Layout — Onboarding Shell",
+      "status": "pending",
+      "priority": "high",
+      "description": "Clean, focused onboarding layout. Minimal chrome, progress indicator, centered content.",
+      "files": ["src/shared/layouts/OnboardingShell.tsx"],
+      "dependencies": ["T10"],
+      "routes": ["/onboarding"]
+    },
+    {
+      "id": "T14",
+      "phase": "P1",
+      "title": "Unified Layout — Settings Shell",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Settings layout with sidebar navigation for account, plans, team, integrations.",
+      "files": ["src/shared/layouts/SettingsShell.tsx"],
+      "dependencies": ["T10"],
+      "routes": ["/settings/*"]
+    },
+    {
+      "id": "T15",
+      "phase": "P1",
+      "title": "Platform Module Registry",
+      "status": "pending",
+      "priority": "high",
+      "description": "Create module registry system for feature modules. Each module has: id, name, icon, routes, enabled flag, standalone flag.",
+      "files": ["src/core/modules/registry.ts", "src/core/modules/types.ts"],
+      "dependencies": []
+    },
+    {
+      "id": "T16",
+      "phase": "P2",
+      "title": "Onboarding — Dual Flow Architecture",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Split onboarding: 'Start Fresh' (new business) vs 'Import Brand' (existing business with assets). Different step sets for each.",
+      "files": ["src/features/onboarding/components/OnboardingWizard.tsx", "src/shared/store/onboardingStore.ts"],
+      "dependencies": ["T13"],
+      "routes": ["/onboarding"]
+    },
+    {
+      "id": "T17",
+      "phase": "P2",
+      "title": "Onboarding — AI Natural Language Input",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Add AI assist at each onboarding step. User writes freely, AI converts to structured answers. Show interpreted answers for confirmation.",
+      "files": ["src/features/onboarding/components/AIOnboardingAssist.tsx"],
+      "dependencies": ["T16"]
+    },
+    {
+      "id": "T18",
+      "phase": "P2",
+      "title": "Onboarding — Streamlined Steps",
+      "status": "pending",
+      "priority": "high",
+      "description": "Redesign step content: remove redundancy, add brand strategy questions, improve visual selection UIs.",
+      "files": ["src/features/onboarding/components/steps/*"],
+      "dependencies": ["T16"]
+    },
+    {
+      "id": "T19",
+      "phase": "P2",
+      "title": "Unified Editor — Core Architecture",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Build unified editor with 3 view modes: fixed (single design), slides (multi-page scroll), freeform (infinite canvas). Shared toolbar system.",
+      "files": ["src/features/editor/core/EditorCore.tsx", "src/features/editor/core/EditorContext.tsx"],
+      "dependencies": ["T12"]
+    },
+    {
+      "id": "T20",
+      "phase": "P2",
+      "title": "Unified Editor — Toolbar System",
+      "status": "pending",
+      "priority": "high",
+      "description": "Consistent toolbar: top bar (file ops, view mode, zoom), left panel (tools/layers), right panel (properties), bottom bar (status).",
+      "files": ["src/features/editor/core/Toolbar.tsx", "src/features/editor/core/ToolPanel.tsx"],
+      "dependencies": ["T19"]
+    },
+    {
+      "id": "T21",
+      "phase": "P2",
+      "title": "Unified Editor — Properties Panel",
+      "status": "pending",
+      "priority": "high",
+      "description": "Universal properties panel that adapts to selected element type. Text, shape, image, logo properties.",
+      "files": ["src/features/editor/core/PropertiesPanel.tsx"],
+      "dependencies": ["T19"]
+    },
+    {
+      "id": "T22",
+      "phase": "P2",
+      "title": "Logo Maker — Core Feature",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Build logo maker: icon library (1000+ icons), text input, font selection, layout options (icon+text, text-only, icon-only), color from brand palette.",
+      "files": ["src/features/logo-maker/components/*", "src/features/logo-maker/data/*"],
+      "dependencies": ["T15"],
+      "routes": ["/dashboard/logo-maker", "/logo-maker"]
+    },
+    {
+      "id": "T23",
+      "phase": "P2",
+      "title": "Logo Maker — AI Suggestions",
+      "status": "pending",
+      "priority": "high",
+      "description": "AI-powered logo suggestions based on brand name, industry, and personality. Generate multiple concepts.",
+      "files": ["src/features/logo-maker/components/AILogoSuggestions.tsx"],
+      "dependencies": ["T22"]
+    },
+    {
+      "id": "T24",
+      "phase": "P2",
+      "title": "Logo Maker — Export & Save",
+      "status": "pending",
+      "priority": "high",
+      "description": "Export logos in SVG, PNG (multiple sizes), with transparent backgrounds. Save to brand assets.",
+      "files": ["src/features/logo-maker/utils/export.ts"],
+      "dependencies": ["T22"]
+    },
+    {
+      "id": "T25",
+      "phase": "P2",
+      "title": "Logo Customization — Multi-Asset Support",
+      "status": "pending",
+      "priority": "high",
+      "description": "Fix logo animation and usage to support: full logo, icon-only, wordmark-only, alternate versions. Don't force wrong asset.",
+      "files": ["src/features/brandkit/components/AnimationsModule.tsx", "src/features/brandkit/components/renderers/BrandLogo.tsx"],
+      "dependencies": []
+    },
+    {
+      "id": "T26",
+      "phase": "P3",
+      "title": "Social Media — Template Library",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Build large template library: Instagram posts/stories/reels, Facebook posts/covers, Twitter/X posts, LinkedIn posts/covers, TikTok. 50+ templates.",
+      "files": ["src/features/social-media/data/templates.ts", "src/features/social-media/components/*"],
+      "dependencies": ["T15", "T19"],
+      "routes": ["/dashboard/brand/:slug/social-media"]
+    },
+    {
+      "id": "T27",
+      "phase": "P3",
+      "title": "Social Media — Template Editor Integration",
+      "status": "pending",
+      "priority": "high",
+      "description": "Connect social media templates to unified editor. Brand-aware: auto-apply logo, colors, fonts.",
+      "files": ["src/features/social-media/components/SocialMediaEditor.tsx"],
+      "dependencies": ["T26", "T19"]
+    },
+    {
+      "id": "T28",
+      "phase": "P3",
+      "title": "Social Media — AI Design Generation",
+      "status": "pending",
+      "priority": "high",
+      "description": "AI-generated social media designs from text prompts. Generate visual ideas, then edit in editor.",
+      "files": ["src/features/social-media/components/AIDesignGenerator.tsx"],
+      "dependencies": ["T27"]
+    },
+    {
+      "id": "T29",
+      "phase": "P3",
+      "title": "Template System — Unified Template Engine",
+      "status": "pending",
+      "priority": "high",
+      "description": "Centralize all template logic. Templates are brand-aware, category-organized, searchable, previewable.",
+      "files": ["src/shared/templates/engine.ts", "src/shared/templates/types.ts"],
+      "dependencies": ["T15"]
+    },
+    {
+      "id": "T30",
+      "phase": "P1",
+      "title": "Apply Design System to Dashboard",
+      "status": "pending",
+      "priority": "high",
+      "description": "Migrate dashboard pages to use new design system components and layout shells.",
+      "files": ["src/pages/dashboard/*", "src/features/dashboard/components/*"],
+      "dependencies": ["T11"],
+      "routes": ["/dashboard", "/dashboard/brands", "/dashboard/activity", "/dashboard/templates"]
+    },
+    {
+      "id": "T31",
+      "phase": "P1",
+      "title": "Apply Design System to Brand Pages",
+      "status": "pending",
+      "priority": "high",
+      "description": "Migrate brand detail, edit, brandkit pages to new design system.",
+      "files": ["src/pages/dashboard/brand/*"],
+      "dependencies": ["T11"],
+      "routes": ["/dashboard/brand/:slug/*"]
+    },
+    {
+      "id": "T32",
+      "phase": "P1",
+      "title": "Apply Design System to Settings Pages",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Migrate settings pages to new layout and design system.",
+      "files": ["src/pages/settings/*"],
+      "dependencies": ["T14"],
+      "routes": ["/settings/*"]
+    },
+    {
+      "id": "T33",
+      "phase": "P1",
+      "title": "Apply Design System to Landing Page",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Update landing/index page with design system consistency.",
+      "files": ["src/pages/Index.tsx"],
+      "dependencies": ["T01"],
+      "routes": ["/"]
+    },
+    {
+      "id": "T34",
+      "phase": "P4",
+      "title": "Navigation — Unified Global Nav",
+      "status": "pending",
+      "priority": "high",
+      "description": "Single navigation system that adapts to context: dashboard nav, brand nav, editor nav, settings nav. Consistent breadcrumbs.",
+      "files": ["src/shared/layouts/GlobalNav.tsx"],
+      "dependencies": ["T10", "T07"]
+    },
+    {
+      "id": "T35",
+      "phase": "P4",
+      "title": "Empty States — All Pages",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Design and implement consistent empty states for all list/gallery pages.",
+      "files": ["src/shared/design-system/EmptyState.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T36",
+      "phase": "P4",
+      "title": "Loading States — Consistent Skeletons",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Consistent loading skeletons for cards, lists, editors, pages.",
+      "files": ["src/shared/design-system/Skeleton.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T37",
+      "phase": "P4",
+      "title": "Preview System — Unified Preview Logic",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Consistent preview components for templates, designs, brand assets with zoom, fullscreen, share.",
+      "files": ["src/shared/design-system/Preview.tsx"],
+      "dependencies": ["T01"]
+    },
+    {
+      "id": "T38",
+      "phase": "P4",
+      "title": "Platform Consistency Review",
+      "status": "pending",
+      "priority": "high",
+      "description": "Review all pages for visual consistency, spacing, typography, color usage. Fix fragmentation.",
+      "dependencies": ["T30", "T31", "T32", "T33"]
+    },
+    {
+      "id": "T39",
+      "phase": "P4",
+      "title": "Responsive Design Pass",
+      "status": "pending",
+      "priority": "medium",
+      "description": "Ensure all pages work well on mobile, tablet, and desktop.",
+      "dependencies": ["T38"]
+    },
+    {
+      "id": "T40",
+      "phase": "P4",
+      "title": "Documentation — Design System Guide",
+      "status": "pending",
+      "priority": "high",
+      "description": "Document design system: tokens, components, usage patterns, layout rules.",
+      "files": ["docs/DESIGN-SYSTEM.md"]
+    },
+    {
+      "id": "T41",
+      "phase": "P4",
+      "title": "Documentation — Architecture Guide Update",
+      "status": "pending",
+      "priority": "high",
+      "description": "Update CLAUDE.md and architecture docs with new module structure.",
+      "files": ["CLAUDE.md", "docs/ARCHITECTURE.md"]
+    },
+    {
+      "id": "T42",
+      "phase": "P4",
+      "title": "Screenshots & Final Documentation",
+      "status": "pending",
+      "priority": "critical",
+      "description": "Take screenshots of all major pages/features. Create comprehensive final documentation with links and results.",
+      "files": ["docs/UPGRADE-RESULTS.md"]
+    }
+  ]
+}
