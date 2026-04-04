@@ -10,8 +10,8 @@
  * - Brand color hero slide
  * - Final comparison: all options side by side
  */
-import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, FileImage, FileText, Loader2, Package, Pen } from 'lucide-react';
 import type { LogoPresentationData, LogoConcept } from '../types';
 import { toast } from 'sonner';
 
@@ -382,9 +382,229 @@ function ThankYouSlide({ data }: { data: LogoPresentationData }) {
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────
 
+// ─── EXPORT HELPERS ─────────────────────────────────────────
+
+async function fetchSvgText(url: string): Promise<string> {
+  const res = await fetch(url);
+  return res.text();
+}
+
+function generateColorSwatchesSvg(data: LogoPresentationData): string {
+  const swatches: { name: string; color: string; accent: string }[] = data.concepts.map(c => ({
+    name: c.name,
+    color: c.color || data.primaryColor,
+    accent: c.colorAccent || c.color || data.primaryColor,
+  }));
+  const w = 800;
+  const h = 200 + swatches.length * 120;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`;
+  svg += `<rect width="${w}" height="${h}" fill="#fff"/>`;
+  svg += `<text x="40" y="60" font-family="Inter,Helvetica,Arial,sans-serif" font-size="28" font-weight="700" fill="#0A0A0F">${data.brandName} — Color Palette</text>`;
+  svg += `<text x="40" y="90" font-family="Inter,Helvetica,Arial,sans-serif" font-size="13" fill="#999">Logo Presentation Color Reference</text>`;
+
+  swatches.forEach((s, i) => {
+    const y = 140 + i * 120;
+    svg += `<text x="40" y="${y}" font-family="Inter,Helvetica,Arial,sans-serif" font-size="14" font-weight="600" fill="#333">${s.name}</text>`;
+    // Primary swatch
+    svg += `<rect x="40" y="${y + 12}" width="100" height="60" rx="8" fill="${s.color}"/>`;
+    svg += `<text x="40" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">${s.color}</text>`;
+    // Accent swatch
+    svg += `<rect x="160" y="${y + 12}" width="100" height="60" rx="8" fill="${s.accent}"/>`;
+    svg += `<text x="160" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">${s.accent}</text>`;
+    // White swatch
+    svg += `<rect x="280" y="${y + 12}" width="100" height="60" rx="8" fill="#fff" stroke="#eee" stroke-width="1"/>`;
+    svg += `<text x="280" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">#FFFFFF</text>`;
+    // Dark swatch
+    svg += `<rect x="400" y="${y + 12}" width="100" height="60" rx="8" fill="#0A0A0F"/>`;
+    svg += `<text x="400" y="${y + 88}" font-family="Inter,monospace" font-size="10" fill="#666">#0A0A0F</text>`;
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function exportForIllustrator(data: LogoPresentationData) {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  const folder = zip.folder(`${data.brandName}-Illustrator-Package`)!;
+
+  // 1. Logos folder — all SVGs
+  const logosFolder = folder.folder('Logos')!;
+  for (let i = 0; i < data.concepts.length; i++) {
+    const c = data.concepts[i];
+    if (c.logoUrl.startsWith('/')) {
+      try {
+        const svgText = await fetchSvgText(c.logoUrl);
+        logosFolder.file(`Concept-${i + 1}_${c.name.replace(/\s+/g, '-')}_Logo.svg`, svgText);
+      } catch { /* skip if fetch fails */ }
+    }
+    if (c.iconUrl?.startsWith('/')) {
+      try {
+        const svgText = await fetchSvgText(c.iconUrl);
+        logosFolder.file(`Concept-${i + 1}_${c.name.replace(/\s+/g, '-')}_Icon.svg`, svgText);
+      } catch { /* skip */ }
+    }
+  }
+
+  // 2. Color swatches SVG
+  const swatchSvg = generateColorSwatchesSvg(data);
+  folder.file('Color-Palette.svg', swatchSvg);
+
+  // 3. Color swatches ASE (Adobe Swatch Exchange)
+  const aseData = generateASE(data);
+  folder.file(`${data.brandName}-Swatches.ase`, aseData);
+
+  // 4. Slide renders as high-res PNGs
+  const slidesFolder = folder.folder('Slides-PNG')!;
+  const slideElements = document.querySelectorAll('[data-slide-export]');
+  if (slideElements.length > 0) {
+    const html2canvas = (await import('html2canvas')).default;
+    for (let i = 0; i < slideElements.length; i++) {
+      try {
+        const canvas = await html2canvas(slideElements[i] as HTMLElement, {
+          scale: 3,
+          useCORS: true,
+          backgroundColor: '#0A0A0F',
+          logging: false,
+        });
+        const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/png'));
+        slidesFolder.file(`Slide-${String(i + 1).padStart(2, '0')}.png`, blob);
+      } catch { /* skip failed slides */ }
+    }
+  }
+
+  // 5. README
+  folder.file('README.txt', [
+    `${data.brandName} — Logo Presentation Package`,
+    `Generated: ${new Date().toLocaleDateString()}`,
+    '',
+    'CONTENTS:',
+    '─────────',
+    '/Logos/          — All logo & icon SVGs (editable in Illustrator)',
+    'Color-Palette.svg — Visual color reference (open in Illustrator)',
+    `${data.brandName}-Swatches.ase — Adobe Swatch Exchange (import into Illustrator swatches)`,
+    '/Slides-PNG/     — High-res slide renders (3× resolution)',
+    '',
+    'HOW TO USE:',
+    '───────────',
+    '1. Open any SVG in Illustrator — fully editable vector paths',
+    '2. Import .ase file: Window > Swatches > Swatch Libraries > Other Library',
+    '3. Use PNG slides as reference for layout reconstruction',
+    '',
+    'CONCEPTS:',
+    '─────────',
+    ...data.concepts.map((c, i) =>
+      `${i + 1}. ${c.name} (${c.direction}) — ${c.color || data.primaryColor} / ${c.colorAccent || ''}`
+    ),
+  ].join('\n'));
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(blob, `${data.brandName}-Illustrator-Package.zip`);
+}
+
+// Adobe Swatch Exchange (.ase) binary format
+function generateASE(data: LogoPresentationData): Uint8Array {
+  const colors: { name: string; r: number; g: number; b: number }[] = [];
+
+  data.concepts.forEach(c => {
+    const primary = c.color || data.primaryColor;
+    const accent = c.colorAccent || primary;
+    colors.push({ name: `${c.name} Primary`, ...hexToRgbFloat(primary) });
+    colors.push({ name: `${c.name} Accent`, ...hexToRgbFloat(accent) });
+  });
+  colors.push({ name: 'White', r: 1, g: 1, b: 1 });
+  colors.push({ name: 'Midnight', ...hexToRgbFloat('#0A0A0F') });
+
+  // ASE binary format
+  const buffers: number[] = [];
+  // Header: "ASEF"
+  buffers.push(0x41, 0x53, 0x45, 0x46);
+  // Version: 1.0
+  buffers.push(0x00, 0x01, 0x00, 0x00);
+  // Number of blocks
+  const blockCount = colors.length;
+  buffers.push((blockCount >> 24) & 0xff, (blockCount >> 16) & 0xff, (blockCount >> 8) & 0xff, blockCount & 0xff);
+
+  colors.forEach(color => {
+    // Block type: 0x0001 = color entry
+    buffers.push(0x00, 0x01);
+    // Block length (calculated)
+    const nameUtf16 = [];
+    for (let i = 0; i < color.name.length; i++) {
+      nameUtf16.push(0x00, color.name.charCodeAt(i));
+    }
+    nameUtf16.push(0x00, 0x00); // null terminator
+    const nameLen = color.name.length + 1;
+    // block length = 2 (name length) + nameLen*2 (UTF16) + 4 (color model) + 12 (RGB floats) + 2 (color type)
+    const blockLen = 2 + nameLen * 2 + 4 + 12 + 2;
+    buffers.push((blockLen >> 24) & 0xff, (blockLen >> 16) & 0xff, (blockLen >> 8) & 0xff, blockLen & 0xff);
+    // Name length (UTF16 chars including null)
+    buffers.push((nameLen >> 8) & 0xff, nameLen & 0xff);
+    // Name in UTF16-BE
+    buffers.push(...nameUtf16);
+    // Color model: "RGB "
+    buffers.push(0x52, 0x47, 0x42, 0x20);
+    // RGB float values
+    const rv = new DataView(new ArrayBuffer(4)); rv.setFloat32(0, color.r);
+    const gv = new DataView(new ArrayBuffer(4)); gv.setFloat32(0, color.g);
+    const bv = new DataView(new ArrayBuffer(4)); bv.setFloat32(0, color.b);
+    for (let i = 0; i < 4; i++) buffers.push(rv.getUint8(i));
+    for (let i = 0; i < 4; i++) buffers.push(gv.getUint8(i));
+    for (let i = 0; i < 4; i++) buffers.push(bv.getUint8(i));
+    // Color type: 0 = global
+    buffers.push(0x00, 0x00);
+  });
+
+  return new Uint8Array(buffers);
+}
+
+function hexToRgbFloat(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.substring(0, 2), 16) / 255,
+    g: parseInt(h.substring(2, 4), 16) / 255,
+    b: parseInt(h.substring(4, 6), 16) / 255,
+  };
+}
+
+async function exportSlidePNG(slideEl: HTMLElement, filename: string) {
+  const html2canvas = (await import('html2canvas')).default;
+  const canvas = await html2canvas(slideEl, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
+  canvas.toBlob(blob => { if (blob) downloadBlob(blob, filename); }, 'image/png');
+}
+
+async function exportFullPDF(data: LogoPresentationData) {
+  const html2canvas = (await import('html2canvas')).default;
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+
+  const slideElements = document.querySelectorAll('[data-slide-export]');
+  for (let i = 0; i < slideElements.length; i++) {
+    if (i > 0) pdf.addPage([1920, 1080], 'landscape');
+    const canvas = await html2canvas(slideElements[i] as HTMLElement, { scale: 2, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    pdf.addImage(imgData, 'JPEG', 0, 0, 1920, 1080);
+  }
+
+  pdf.save(`${data.brandName}-Logo-Presentation.pdf`);
+}
+
 export function LogoPresentationViewerSimple({ data, onClose }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [presentMode, setPresentMode] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const slides = useMemo<Slide[]>(() => {
     const s: Slide[] = [];
@@ -417,10 +637,68 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
   const totalSlides = slides.length;
   const goTo = (idx: number) => { if (idx >= 0 && idx < totalSlides) setCurrentSlide(idx); };
 
+  const handleExport = useCallback(async (type: string) => {
+    setExporting(type);
+    try {
+      switch (type) {
+        case 'illustrator': {
+          await exportForIllustrator(data);
+          toast.success('Illustrator package downloaded');
+          break;
+        }
+        case 'pdf': {
+          await exportFullPDF(data);
+          toast.success('PDF downloaded');
+          break;
+        }
+        case 'logos': {
+          const JSZip = (await import('jszip')).default;
+          const zip = new JSZip();
+          for (let i = 0; i < data.concepts.length; i++) {
+            const c = data.concepts[i];
+            if (c.logoUrl.startsWith('/')) {
+              const svg = await fetchSvgText(c.logoUrl);
+              zip.file(`${c.name.replace(/\s+/g, '-')}_Logo.svg`, svg);
+            }
+            if (c.iconUrl?.startsWith('/')) {
+              const svg = await fetchSvgText(c.iconUrl);
+              zip.file(`${c.name.replace(/\s+/g, '-')}_Icon.svg`, svg);
+            }
+          }
+          const blob = await zip.generateAsync({ type: 'blob' });
+          downloadBlob(blob, `${data.brandName}-Logos-SVG.zip`);
+          toast.success('Logo SVGs downloaded');
+          break;
+        }
+        case 'png': {
+          const el = document.querySelectorAll('[data-slide-export]');
+          if (el.length > 0) {
+            const JSZip = (await import('jszip')).default;
+            const html2canvas = (await import('html2canvas')).default;
+            const zip = new JSZip();
+            for (let i = 0; i < el.length; i++) {
+              const canvas = await html2canvas(el[i] as HTMLElement, { scale: 3, useCORS: true, backgroundColor: '#0A0A0F', logging: false });
+              const blob = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), 'image/png'));
+              zip.file(`Slide-${String(i + 1).padStart(2, '0')}.png`, blob);
+            }
+            const blob = await zip.generateAsync({ type: 'blob' });
+            downloadBlob(blob, `${data.brandName}-Slides-PNG.zip`);
+            toast.success('All slides downloaded as PNG');
+          }
+          break;
+        }
+      }
+    } catch (err) {
+      toast.error('Export failed — try again');
+      console.error(err);
+    }
+    setExporting(null);
+  }, [data]);
+
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(currentSlide + 1);
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(currentSlide - 1);
-    if (e.key === 'Escape') { if (presentMode) setPresentMode(false); else onClose?.(); }
+    if (e.key === 'Escape') { if (presentMode) setPresentMode(false); else if (showExport) setShowExport(false); else onClose?.(); }
   };
 
   // Presentation mode
@@ -454,7 +732,7 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
           <button onClick={() => setPresentMode(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/70 border border-white/[0.06] hover:border-white/15 transition-colors">
             <Maximize2 className="h-3 w-3" /> Present
           </button>
-          <button onClick={() => toast.success('PDF export coming soon')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/70 border border-white/[0.06] hover:border-white/15 transition-colors">
+          <button onClick={() => setShowExport(!showExport)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${showExport ? 'text-white/80 bg-white/10 border-white/15' : 'text-white/40 hover:text-white/70 border-white/[0.06] hover:border-white/15'}`}>
             <Download className="h-3 w-3" /> Export
           </button>
         </div>
@@ -492,12 +770,94 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
         <div className="flex-1 overflow-y-auto bg-[#0D0D0D]" style={{ scrollBehavior: 'smooth' }}>
           <div className="max-w-[960px] mx-auto py-10 px-6 space-y-6">
             {slides.map((slide, i) => (
-              <div key={slide.id} id={`slide-${slide.id}`} className="rounded-xl overflow-hidden shadow-2xl shadow-black/40">
+              <div key={slide.id} id={`slide-${slide.id}`} data-slide-export className="rounded-xl overflow-hidden shadow-2xl shadow-black/40">
                 {slide.render()}
               </div>
             ))}
           </div>
         </div>
+
+        {/* Export panel — right sidebar */}
+        {showExport && (
+          <div className="w-72 border-l border-white/[0.04] bg-[#141414] shrink-0 overflow-y-auto p-4 space-y-3 animate-in slide-in-from-right duration-200">
+            <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-4">Export</h3>
+
+            {/* Illustrator Package — primary */}
+            <button
+              onClick={() => handleExport('illustrator')}
+              disabled={!!exporting}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.08] hover:border-white/15 bg-white/[0.03] hover:bg-white/[0.05] transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-[#FF9A00]/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Pen className="h-4 w-4 text-[#FF9A00]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white/80 group-hover:text-white">Illustrator Package</p>
+                <p className="text-[9px] text-white/25 mt-0.5">SVG logos + .ase swatches + color palette + hi-res PNGs</p>
+              </div>
+              {exporting === 'illustrator' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
+            </button>
+
+            {/* PDF */}
+            <button
+              onClick={() => handleExport('pdf')}
+              disabled={!!exporting}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                <FileText className="h-4 w-4 text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Full PDF</p>
+                <p className="text-[9px] text-white/20 mt-0.5">All slides as presentation PDF</p>
+              </div>
+              {exporting === 'pdf' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
+            </button>
+
+            {/* Logo SVGs */}
+            <button
+              onClick={() => handleExport('logos')}
+              disabled={!!exporting}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Package className="h-4 w-4 text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Logo SVGs</p>
+                <p className="text-[9px] text-white/20 mt-0.5">All logos & icons as editable SVG</p>
+              </div>
+              {exporting === 'logos' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
+            </button>
+
+            {/* Slide PNGs */}
+            <button
+              onClick={() => handleExport('png')}
+              disabled={!!exporting}
+              className="w-full flex items-start gap-3 p-3 rounded-xl border border-white/[0.06] hover:border-white/12 bg-white/[0.02] hover:bg-white/[0.04] transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                <FileImage className="h-4 w-4 text-green-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/70 group-hover:text-white/90">Slide PNGs</p>
+                <p className="text-[9px] text-white/20 mt-0.5">All slides as 3× resolution PNG</p>
+              </div>
+              {exporting === 'png' && <Loader2 className="h-4 w-4 text-white/30 animate-spin shrink-0 mt-1" />}
+            </button>
+
+            {/* Package contents info */}
+            <div className="mt-4 pt-4 border-t border-white/[0.04]">
+              <p className="text-[9px] text-white/15 uppercase tracking-wider font-semibold mb-2">Illustrator Package Contains</p>
+              <ul className="text-[9px] text-white/20 space-y-1">
+                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />{data.concepts.length * 2} SVG files (logos + icons)</li>
+                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />.ase Adobe Swatch Exchange file</li>
+                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />Color palette reference SVG</li>
+                <li className="flex items-center gap-1.5"><span className="w-1 h-1 rounded-full bg-[#FF9A00]/40" />{slides.length} slide renders (3× PNG)</li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
