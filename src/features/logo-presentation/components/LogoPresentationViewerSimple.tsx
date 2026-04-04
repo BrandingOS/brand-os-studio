@@ -34,15 +34,6 @@ const CARD_MARGIN = '48px';
 
 // ─── SHARED COMPONENTS ─────────────────────────────────────
 
-/** Logo image that never stretches — always contained within a fixed box */
-function Logo({ src, w = '45%', h = '35%', filter, className = '' }: { src: string; w?: string; h?: string; filter?: string; className?: string }) {
-  return (
-    <div className={`flex items-center justify-center ${className}`} style={{ width: w, height: h }}>
-      <img src={src} alt="" className="w-full h-full object-contain" style={filter ? { filter } : undefined} />
-    </div>
-  );
-}
-
 function CardFrame({ bg = CARD_LIGHT, children }: { bg?: string; children: React.ReactNode }) {
   return (
     <div className="w-full aspect-video flex items-center justify-center" style={{ backgroundColor: BG }}>
@@ -180,7 +171,7 @@ function HeroDarkSlide({ concept, index, data }: { concept: LogoConcept; index: 
     <CardFrame bg={CARD_DARK}>
       <MetaBarDark conceptNum={index + 1} version={data.version} />
       <div className="flex items-center justify-center h-full relative">
-        <Logo src={concept.logoUrl} w="45%" h="35%" filter="brightness(0) invert(1)" />
+        <img src={concept.logoUrl} alt={concept.name} className="max-w-[45%] max-h-[35%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         {/* Subtle glow behind logo */}
         <div className="absolute w-[30%] h-[30%] rounded-full blur-3xl opacity-10" style={{ backgroundColor: concept.colorAccent || cc }} />
       </div>
@@ -193,7 +184,7 @@ function HeroLightSlide({ concept, index, data }: { concept: LogoConcept; index:
     <CardFrame>
       <MetaBar conceptNum={index + 1} version={data.version} />
       <div className="flex flex-col items-center justify-center h-full">
-        <Logo src={concept.logoUrl} w="40%" h="30%" />
+        <img src={concept.logoUrl} alt={concept.name} className="max-w-[40%] max-h-[30%] object-contain" />
         <p className="absolute bottom-10 text-[12px] text-[#0A0A0F]/30 font-medium">The Logo is about:</p>
       </div>
     </CardFrame>
@@ -210,16 +201,16 @@ function VariationsSlide({ concept, color }: { concept: LogoConcept; color: stri
         <div className="row-span-2 flex items-center justify-center p-8" style={{ backgroundColor: CARD_LIGHT, borderRadius: CARD_RADIUS }}>
           <div className="relative w-full h-full flex items-center justify-center">
             <p className="absolute top-2 left-2 text-[9px] text-black/20">Logo Variations</p>
-            <Logo src={concept.logoUrl} w="65%" h="50%" />
+            <img src={concept.logoUrl} alt="" className="max-w-[65%] max-h-[50%] object-contain" />
           </div>
         </div>
         {/* Top right — concept color */}
         <div className="flex items-center justify-center p-6" style={{ backgroundColor: accent, borderRadius: CARD_RADIUS }}>
-          <Logo src={concept.logoUrl} w="60%" h="45%" filter="brightness(0) invert(1)" />
+          <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
         {/* Bottom right — concept dark */}
         <div className="flex items-center justify-center p-6" style={{ backgroundColor: cc, borderRadius: CARD_RADIUS }}>
-          <Logo src={concept.logoUrl} w="60%" h="45%" filter="brightness(0) invert(1)" />
+          <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
       </div>
     </div>
@@ -242,7 +233,7 @@ function SymbolBreakdownSlide({ concept, index, data }: { concept: LogoConcept; 
       <MetaBar conceptNum={index + 1} version={data.version} />
       <div className="relative flex items-center justify-center h-full">
         {/* Center icon */}
-        <Logo src={concept.iconUrl || concept.logoUrl} w="18%" h="30%" className="relative z-10" />
+        <img src={concept.iconUrl || concept.logoUrl} alt="" className="max-w-[18%] max-h-[30%] object-contain relative z-10" />
 
         {/* Annotation points */}
         {items.slice(0, 4).map((item, i) => (
@@ -277,7 +268,7 @@ function RationaleSlide({ concept, index, data }: { concept: LogoConcept; index:
       <div className="flex flex-col h-full">
         {/* Top: Logo large */}
         <div className="flex-1 flex items-center justify-center border-b border-black/[0.05]">
-          <Logo src={concept.logoUrl} w="35%" h="45%" />
+          <img src={concept.logoUrl} alt="" className="max-w-[35%] max-h-[45%] object-contain" />
         </div>
         {/* Bottom: Rationale grid */}
         <div className="grid grid-cols-3 gap-0 h-[42%]">
@@ -288,7 +279,7 @@ function RationaleSlide({ concept, index, data }: { concept: LogoConcept; index:
           </div>
           {/* Center: Icon breakdown */}
           <div className="p-5 border-r border-black/[0.05] flex items-center justify-center">
-            <Logo src={concept.iconUrl || concept.logoUrl} w="50%" h="60%" className="opacity-60" />
+            <img src={concept.iconUrl || concept.logoUrl} alt="" className="max-w-[50%] max-h-[60%] object-contain opacity-60" />
           </div>
           {/* Right: Key points */}
           <div className="p-5 flex flex-col justify-center">
@@ -329,10 +320,10 @@ function ConstructionSlide({ concept, index, data }: { concept: LogoConcept; ind
           <line x1="0" y1="50%" x2="100%" y2="100%" stroke="#0A0A0F" strokeWidth="0.5" />
         </svg>
         {/* Icon centered */}
-        <Logo src={concept.iconUrl || concept.logoUrl} w="15%" h="25%" className="relative z-10 opacity-70" />
+        <img src={concept.iconUrl || concept.logoUrl} alt="" className="max-w-[15%] max-h-[25%] object-contain relative z-10 opacity-70" />
         {/* Small logo in circle bottom-left */}
         <div className="absolute bottom-6 left-6 w-10 h-10 rounded-full bg-[#0A0A0F] flex items-center justify-center">
-          <img src={concept.iconUrl || concept.logoUrl} alt="" style={{ width: 20, height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+          <img src={concept.iconUrl || concept.logoUrl} alt="" className="w-5 h-5 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
       </div>
     </CardFrame>
@@ -345,7 +336,7 @@ function BrandColorHeroSlide({ concept, index, data }: { concept: LogoConcept; i
     <CardFrame bg={accent}>
       <MetaBarDark conceptNum={index + 1} version={data.version} />
       <div className="flex items-center justify-center h-full">
-        <Logo src={concept.logoUrl} w="45%" h="35%" filter="brightness(0) invert(1)" />
+        <img src={concept.logoUrl} alt={concept.name} className="max-w-[45%] max-h-[35%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
       </div>
     </CardFrame>
   );
@@ -360,7 +351,7 @@ function AllOptionsSlide({ data }: { data: LogoPresentationData }) {
           {data.concepts.map((c, i) => (
             <div key={c.id} className="flex flex-col items-center justify-center border-r border-black/[0.04] last:border-r-0 px-6">
               <p className="text-[9px] text-black/25 mb-6 self-start">option-{i + 1}</p>
-              <Logo src={c.logoUrl} w="75%" h="35%" />
+              <img src={c.logoUrl} alt={c.name} className="max-w-[75%] max-h-[35%] object-contain" />
             </div>
           ))}
         </div>

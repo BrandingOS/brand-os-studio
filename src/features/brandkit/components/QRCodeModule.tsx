@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Download } from 'lucide-react';
+import { Download, FileDown } from 'lucide-react';
 import QRCode from 'qrcode';
 import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
+import { downloadResult } from '@/shared/services/export';
 
 interface QRCodeModuleProps {
   brand: Brand;
@@ -93,6 +94,53 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
     }
   };
 
+  const handleDownloadJPG = () => {
+    if (!qrDataUrl) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024; canvas.height = 1024;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1024, 1024);
+      ctx.drawImage(img, 0, 0, 1024, 1024);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          downloadResult({
+            blob,
+            filename: `${brand.slug || brand.name.toLowerCase()}-qrcode.jpg`,
+            mimeType: 'image/jpeg',
+          });
+          toast.success('QR Code downloaded (1024×1024 JPG)');
+        }
+      }, 'image/jpeg', 0.92);
+    };
+    img.src = qrDataUrl;
+  };
+
+  const handleDownloadSVG = async () => {
+    if (!qrData) return;
+    try {
+      const svgString = await QRCode.toString(qrData, {
+        type: 'svg',
+        width: 1024,
+        margin: 2,
+        color: { dark: displayColor, light: fillBackground ? `${displayColor}10` : '#FFFFFF' },
+        errorCorrectionLevel: 'H',
+      });
+      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      downloadResult({
+        blob,
+        filename: `${brand.slug || brand.name.toLowerCase()}-qrcode.svg`,
+        mimeType: 'image/svg+xml',
+      });
+      toast.success('QR Code downloaded (vector SVG)');
+    } catch {
+      toast.error('SVG export failed');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -167,14 +215,32 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
             )}
           </div>
 
-          <button
-            onClick={handleDownload}
-            disabled={!qrDataUrl}
-            className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="h-4 w-4" />
-            Download QR Code
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleDownload}
+              disabled={!qrDataUrl}
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" />
+              PNG
+            </button>
+            <button
+              onClick={handleDownloadJPG}
+              disabled={!qrDataUrl}
+              className="flex items-center gap-2 px-5 py-2.5 border border-border rounded-xl font-medium text-sm hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" />
+              JPG
+            </button>
+            <button
+              onClick={handleDownloadSVG}
+              disabled={!qrDataUrl}
+              className="flex items-center gap-2 px-5 py-2.5 border border-border rounded-xl font-medium text-sm hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FileDown className="h-4 w-4" />
+              SVG
+            </button>
+          </div>
         </div>
       </div>
     </div>

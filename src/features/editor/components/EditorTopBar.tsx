@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { 
-  Undo2, 
-  Redo2, 
-  Save, 
-  Download, 
-  ZoomIn, 
-  ZoomOut, 
+import {
+  Undo2,
+  Redo2,
+  Save,
+  Download,
+  ZoomIn,
+  ZoomOut,
   RotateCcw,
   Play,
   Settings,
@@ -15,6 +15,8 @@ import { Button } from '@/shared/ui/Button';
 import { Input } from '@/shared/ui/Input';
 import { NavLink } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ExportDialog } from '@/shared/components/ExportDialog';
+import type { ExportFormat } from '@/shared/services/export/types';
 
 interface EditorTopBarProps {
   fabricCanvas: any;
@@ -38,6 +40,7 @@ export function EditorTopBar({
   canRedo = false
 }: EditorTopBarProps) {
   const [fileName, setFileName] = useState('Untitled Design');
+  const [showExport, setShowExport] = useState(false);
 
   const handleUndo = () => {
     if (onUndo) {
@@ -66,18 +69,7 @@ export function EditorTopBar({
 
   const handleExport = () => {
     if (fabricCanvas) {
-      const dataURL = fabricCanvas.toDataURL({
-        format: 'png',
-        quality: 1,
-        multiplier: 2, // Higher resolution
-      });
-      
-      const link = document.createElement('a');
-      link.download = `${fileName}.png`;
-      link.href = dataURL;
-      link.click();
-      
-      toast.success('Design exported successfully');
+      setShowExport(true);
     }
   };
 
@@ -162,6 +154,21 @@ export function EditorTopBar({
           Export
         </Button>
       </div>
+
+      {/* Export Dialog with true vector SVG support */}
+      {fabricCanvas && (
+        <ExportDialog
+          open={showExport}
+          onClose={() => setShowExport(false)}
+          source={{
+            type: 'fabric-canvas',
+            fabricCanvas,
+          }}
+          availableFormats={['png', 'jpg', 'svg', 'pdf-flat']}
+          defaultFilename={fileName.toLowerCase().replace(/\s+/g, '-') || 'design'}
+          title="Export Design"
+        />
+      )}
     </div>
   );
 }

@@ -13,8 +13,12 @@ import type { SocialPlatform, SocialTemplate, TemplateCategory } from '../types'
 import {
   Search, Instagram, Facebook, Twitter, Linkedin, Youtube,
   Sparkles, Layout, Crown, ArrowRight, Grid3X3, Layers,
-  PenTool, Wand2, Image as ImageIcon,
+  PenTool, Wand2, Image as ImageIcon, Download,
 } from 'lucide-react';
+import { ExportDialog } from '@/shared/components/ExportDialog';
+import type { ExportFormat } from '@/shared/services/export/types';
+import { exportAndDownload } from '@/shared/services/export';
+import { toast } from 'sonner';
 
 const platformConfig: Record<SocialPlatform, { label: string; icon: typeof Instagram; color: string }> = {
   instagram: { label: 'Instagram', icon: Instagram, color: '#E4405F' },
@@ -30,7 +34,7 @@ interface SocialMediaDesignerProps {
   brand: Brand;
 }
 
-function TemplateCard({ template, brand, onClick }: { template: SocialTemplate; brand: Brand; onClick: () => void }) {
+function TemplateCard({ template, brand, onClick, onExport }: { template: SocialTemplate; brand: Brand; onClick: () => void; onExport?: (e: React.MouseEvent) => void }) {
   const bgStyle = useMemo(() => {
     const bg = template.layout.background;
     switch (bg.type) {
@@ -50,10 +54,11 @@ function TemplateCard({ template, brand, onClick }: { template: SocialTemplate; 
   return (
     <div
       onClick={onClick}
+      data-template-card
       className="group cursor-pointer rounded-xl border border-border overflow-hidden hover:shadow-lg hover:border-primary/20 transition-all duration-300"
     >
       {/* Preview */}
-      <div className="aspect-square relative overflow-hidden" style={bgStyle}>
+      <div className="aspect-square relative overflow-hidden" data-template-preview style={bgStyle}>
         <div className="absolute inset-0 p-4 flex flex-col justify-center">
           {template.layout.elements.slice(0, 3).map((el, i) => {
             if (el.type === 'text') {
@@ -114,13 +119,24 @@ function TemplateCard({ template, brand, onClick }: { template: SocialTemplate; 
             </DSBadge>
           )}
         </div>
-        <div className="flex items-center gap-1 mt-1">
-          {template.platforms.slice(0, 3).map((p) => {
-            const config = platformConfig[p];
-            return <config.icon key={p} className="h-3 w-3 text-muted-foreground" />;
-          })}
-          {template.platforms.length > 3 && (
-            <span className="text-xs text-muted-foreground">+{template.platforms.length - 3}</span>
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1">
+            {template.platforms.slice(0, 3).map((p) => {
+              const config = platformConfig[p];
+              return <config.icon key={p} className="h-3 w-3 text-muted-foreground" />;
+            })}
+            {template.platforms.length > 3 && (
+              <span className="text-xs text-muted-foreground">+{template.platforms.length - 3}</span>
+            )}
+          </div>
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
+              title="Export"
+            >
+              <Download className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
           )}
         </div>
       </div>
@@ -153,10 +169,29 @@ export function SocialMediaDesigner({ brand }: SocialMediaDesignerProps) {
     return templates;
   }, [activePlatform, activeCategory, searchQuery]);
 
+  const [exportElement, setExportElement] = useState<HTMLElement | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportTemplateName, setExportTemplateName] = useState('');
+
   const handleTemplateClick = (template: SocialTemplate) => {
     // TODO: Open template in editor
     console.log('Open template:', template.id);
   };
+
+  const handleExportTemplate = (e: React.MouseEvent, template: SocialTemplate) => {
+    e.stopPropagation();
+    const card = (e.currentTarget as HTMLElement).closest('[data-template-card]');
+    const preview = card?.querySelector('[data-template-preview]') as HTMLElement | null;
+    if (preview) {
+      setExportElement(preview);
+      setExportTemplateName(template.name.toLowerCase().replace(/\s+/g, '-'));
+      setShowExportDialog(true);
+    } else {
+      toast.error('Preview not found');
+    }
+  };
+
+  const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
 
   return (
     <Stack gap={6}>
@@ -264,6 +299,7 @@ export function SocialMediaDesigner({ brand }: SocialMediaDesignerProps) {
                   template={template}
                   brand={brand}
                   onClick={() => handleTemplateClick(template)}
+                  onExport={(e) => handleExportTemplate(e, template)}
                 />
               ))}
             </div>
@@ -308,6 +344,18 @@ export function SocialMediaDesigner({ brand }: SocialMediaDesignerProps) {
       ) : (
         /* AI Generate View */
         <AIDesignGenerator brand={brand} />
+      )}
+
+      {/* Export Dialog */}
+      {exportElement && (
+        <ExportDialog
+          open={showExportDialog}
+          onClose={() => { setShowExportDialog(false); setExportElement(null); }}
+          source={{ type: 'html-element', element: exportElement }}
+          availableFormats={['png', 'jpg', 'pdf-flat']}
+          defaultFilename={`${slug}-${exportTemplateName}`}
+          title="Export Design"
+        />
       )}
     </Stack>
   );
