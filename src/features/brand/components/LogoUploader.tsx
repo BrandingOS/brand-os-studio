@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Plus } from 'lucide-react';
-import { storageService } from '@/shared/services/storage.supabase';
-import { useToast } from '@/hooks/use-toast';
+import { compressLogo, validateUploadFile } from '@/shared/utils/imageUpload';
+import { toast } from 'sonner';
 
 interface LogoUploaderProps {
   brandId: string;
@@ -23,51 +22,44 @@ const LOGO_TYPES = [
 
 export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUploaderProps) {
   const [uploading, setUploading] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const handleFileUpload = async (logoType: string, file: File) => {
+    const validation = validateUploadFile(file, { maxSizeMB: 10, acceptedTypes: ['image/'] });
+    if (!validation.valid) {
+      toast.error(validation.error);
+      return;
+    }
+
     try {
       setUploading(logoType);
-      const url = await storageService.uploadLogo(brandId, logoType as any, file);
-      
+      toast.loading('Compressing image...');
+      const dataUrl = await compressLogo(file);
+      toast.dismiss();
+
       onLogoSystemChange({
         ...logoSystem,
         [logoType]: {
-          url,
+          url: dataUrl,
           description: `${logoType} logo`,
-          usage: 'General use'
-        }
+          usage: 'General use',
+        },
       });
 
-      toast({
-        title: 'Logo uploaded',
-        description: `${logoType} logo has been uploaded successfully.`
-      });
+      toast.success(`${LOGO_TYPES.find(t => t.key === logoType)?.label || logoType} uploaded`);
     } catch (error) {
+      toast.dismiss();
       console.error('Upload error:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload logo. Please try again.',
-        variant: 'destructive'
-      });
+      toast.error(error instanceof Error ? error.message : 'Failed to upload logo');
     } finally {
       setUploading(null);
     }
   };
 
-  const handleRemoveLogo = async (logoType: string) => {
-    try {
-      const updatedLogos = { ...logoSystem };
-      delete updatedLogos[logoType];
-      onLogoSystemChange(updatedLogos);
-
-      toast({
-        title: 'Logo removed',
-        description: `${logoType} logo has been removed.`
-      });
-    } catch (error) {
-      console.error('Remove error:', error);
-    }
+  const handleRemoveLogo = (logoType: string) => {
+    const updatedLogos = { ...logoSystem };
+    delete updatedLogos[logoType];
+    onLogoSystemChange(updatedLogos);
+    toast.success(`${LOGO_TYPES.find(t => t.key === logoType)?.label || logoType} removed`);
   };
 
   return (
@@ -89,8 +81,8 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
             {logoSystem[type.key]?.url ? (
               <div className="relative group">
                 <div className="aspect-square bg-gray-50 rounded-xl p-4 flex items-center justify-center border border-gray-200 hover:border-primary transition-all duration-200">
-                  <img 
-                    src={logoSystem[type.key].url} 
+                  <img
+                    src={logoSystem[type.key].url}
                     alt={type.label}
                     className="max-w-full max-h-full object-contain"
                   />
@@ -113,12 +105,13 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) handleFileUpload(type.key, file);
+                    e.target.value = '';
                   }}
                   disabled={uploading === type.key}
                 />
                 <div className="aspect-square brand-upload-zone flex flex-col items-center justify-center gap-2">
                   {uploading === type.key ? (
-                    <div className="text-xs text-gray-500">Uploading...</div>
+                    <div className="text-xs text-gray-500">Compressing...</div>
                   ) : (
                     <>
                       <Upload className="h-5 w-5 text-gray-400" />

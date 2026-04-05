@@ -149,35 +149,41 @@ export default function BrandEditPage() {
                 <LogoUploader
                   brandId={editedBrand.id}
                   logoSystem={editedBrand.guidelines?.logoSystem || {}}
-                  onLogoSystemChange={(logoSystem) => 
-                    setEditedBrand({ 
-                      ...editedBrand, 
+                  onLogoSystemChange={(logoSystem) => {
+                    const updated = {
+                      ...editedBrand,
                       guidelines: { ...(editedBrand.guidelines || {}), logoSystem }
-                    })
-                  }
+                    };
+                    setEditedBrand(updated);
+                    // Auto-save logo changes immediately
+                    update(editedBrand.id, { guidelines: updated.guidelines });
+                  }}
                 />
 
                 {/* Colors & Typography Grid */}
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   <ColorPaletteEditor
                     colorPalette={editedBrand.guidelines?.colorPalette || {}}
-                    onColorPaletteChange={(colorPalette) => 
-                      setEditedBrand({ 
-                        ...editedBrand, 
+                    onColorPaletteChange={(colorPalette) => {
+                      const updated = {
+                        ...editedBrand,
                         guidelines: { ...(editedBrand.guidelines || {}), colorPalette }
-                      })
-                    }
+                      };
+                      setEditedBrand(updated);
+                      update(editedBrand.id, { guidelines: updated.guidelines });
+                    }}
                   />
 
                   <FontSelector
                     fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
-                    onFontsChange={(fonts) => setEditedBrand({ 
-                      ...editedBrand, 
-                      fonts: { 
+                    onFontsChange={(fonts) => {
+                      const updatedFonts = {
                         primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
-                        secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter'
-                      }
-                    })}
+                        secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter',
+                      };
+                      setEditedBrand({ ...editedBrand, fonts: updatedFonts });
+                      update(editedBrand.id, { fonts: updatedFonts });
+                    }}
                   />
                 </div>
 
