@@ -1,39 +1,18 @@
-export interface GuidelineTemplate {
-  id: string;
-  name: string;
-  description: string;
+import type { PresentationSettings, PresentationTemplate, SizeFormat } from '@/shared/presentation/types';
+import { SIZE_PRESETS as SHARED_SIZE_PRESETS, DEFAULT_PRESENTATION_SETTINGS } from '@/shared/presentation/types';
+
+export interface GuidelineTemplate extends PresentationTemplate {
   preview: string;
   category: 'minimal' | 'corporate' | 'creative' | 'modern' | 'Creative' | 'Professional';
 }
 
-export interface GuidelineSettings {
-  template: string;
-  size: {
-    format: '16:9' | '9:16' | 'A4' | 'Letter' | 'Square' | 'Custom';
-    width: number;
-    height: number;
-  };
-  language: {
-    direction: 'ltr' | 'rtl';
-    primary: string;
-  };
-  spacing: {
-    padding: number;
-    margins: number;
-    cornerRadius: number;
-  };
-  header: {
-    enabled: boolean;
-    showDate: boolean;
-    showProjectName: boolean;
-    customText?: string;
-  };
-  footer: {
-    enabled: boolean;
-    showPageNumbers: boolean;
-    customText?: string;
-  };
-}
+/**
+ * GuidelineSettings is now an alias for the shared PresentationSettings.
+ * All presentation types in BrandOS share the same settings structure.
+ */
+export type GuidelineSettings = PresentationSettings;
+
+export type { SizeFormat };
 
 export interface GuidelineSlide {
   id: string;
@@ -52,37 +31,9 @@ export interface GuidelinePanel {
 }
 
 export const DEFAULT_GUIDELINE_SETTINGS: GuidelineSettings = {
+  ...DEFAULT_PRESENTATION_SETTINGS,
   template: 'minimal',
-  size: {
-    format: '16:9',
-    width: 1920,
-    height: 1080,
-  },
-  language: {
-    direction: 'ltr',
-    primary: 'English',
-  },
-  spacing: {
-    padding: 60,
-    margins: 40,
-    cornerRadius: 8,
-  },
-  header: {
-    enabled: true,
-    showDate: true,
-    showProjectName: true,
-  },
-  footer: {
-    enabled: true,
-    showPageNumbers: true,
-  },
 };
 
-export const SIZE_PRESETS = {
-  '16:9': { width: 1920, height: 1080 },
-  '9:16': { width: 1080, height: 1920 },
-  'A4': { width: 2480, height: 3508 },
-  'Letter': { width: 2550, height: 3300 },
-  'Square': { width: 1080, height: 1080 },
-  'Custom': { width: 1920, height: 1080 },
-};
+/** Re-export shared SIZE_PRESETS for backward compatibility */
+export const SIZE_PRESETS = SHARED_SIZE_PRESETS;

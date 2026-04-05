@@ -11,8 +11,11 @@
  * - Final comparison: all options side by side
  */
 import { useState, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, FileImage, FileText, Loader2, Package, Pen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, FileImage, FileText, Loader2, Package, Pen, Settings } from 'lucide-react';
 import type { LogoPresentationData, LogoConcept } from '../types';
+import type { PresentationSettings } from '@/shared/presentation';
+import { PresentationCustomizer } from '@/shared/presentation';
+import { useLogoPresentationStore, LOGO_PRESENTATION_TEMPLATES } from '../store';
 import { toast } from 'sonner';
 
 interface Props {
@@ -693,7 +696,20 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [presentMode, setPresentMode] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
+
+  const {
+    settings,
+    setTemplate,
+    setSizeFormat,
+    setCustomSize,
+    setLanguageDirection,
+    updateSpacing,
+    updateHeader,
+    updateFooter,
+    resetSettings,
+  } = useLogoPresentationStore();
 
   const slides = useMemo<Slide[]>(() => {
     const s: Slide[] = [];
@@ -777,10 +793,16 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
           <span className="text-[9px] text-white/20 bg-white/[0.04] px-2 py-0.5 rounded-full">Simple</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowCustomizer(!showCustomizer); if (!showCustomizer) setShowExport(false); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${showCustomizer ? 'text-white/80 bg-white/10 border-white/15' : 'text-white/40 hover:text-white/70 border-white/[0.06] hover:border-white/15'}`}
+          >
+            <Settings className="h-3 w-3" /> Customize
+          </button>
           <button onClick={() => setPresentMode(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/70 border border-white/[0.06] hover:border-white/15 transition-colors">
             <Maximize2 className="h-3 w-3" /> Present
           </button>
-          <button onClick={() => setShowExport(!showExport)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${showExport ? 'text-white/80 bg-white/10 border-white/15' : 'text-white/40 hover:text-white/70 border-white/[0.06] hover:border-white/15'}`}>
+          <button onClick={() => { setShowExport(!showExport); if (!showExport) setShowCustomizer(false); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors border ${showExport ? 'text-white/80 bg-white/10 border-white/15' : 'text-white/40 hover:text-white/70 border-white/[0.06] hover:border-white/15'}`}>
             <Download className="h-3 w-3" /> Export
           </button>
         </div>
@@ -824,6 +846,25 @@ export function LogoPresentationViewerSimple({ data, onClose }: Props) {
             ))}
           </div>
         </div>
+
+        {/* Customizer panel — right sidebar */}
+        {showCustomizer && (
+          <div className="w-72 border-l border-white/[0.04] bg-[#141414] shrink-0 animate-in slide-in-from-right duration-200">
+            <PresentationCustomizer
+              settings={settings}
+              templates={LOGO_PRESENTATION_TEMPLATES}
+              onSetTemplate={setTemplate}
+              onSetSizeFormat={setSizeFormat}
+              onSetCustomSize={setCustomSize}
+              onSetLanguageDirection={setLanguageDirection}
+              onUpdateSpacing={updateSpacing}
+              onUpdateHeader={updateHeader}
+              onUpdateFooter={updateFooter}
+              onReset={resetSettings}
+              title="Logo Presentation"
+            />
+          </div>
+        )}
 
         {/* Export panel — right sidebar */}
         {showExport && (

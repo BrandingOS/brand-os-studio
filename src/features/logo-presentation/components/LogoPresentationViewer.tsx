@@ -4,8 +4,11 @@
  * Uses the guideline editor workspace for presentation/editing.
  */
 import { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, Settings } from 'lucide-react';
 import type { LogoPresentationData, LogoConcept } from '../types';
+import type { PresentationSettings } from '@/shared/presentation';
+import { PresentationCustomizer } from '@/shared/presentation';
+import { useLogoPresentationStore, LOGO_PRESENTATION_TEMPLATES } from '../store';
 import { toast } from 'sonner';
 
 interface LogoPresentationViewerProps {
@@ -234,9 +237,56 @@ function ThankYouSlide({ data }: { data: LogoPresentationData }) {
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────
 
+// ─── Slide Header/Footer overlays ────────────────────────────
+function SlideHeader({ settings, brandName, slideIndex }: { settings: PresentationSettings; brandName: string; slideIndex: number }) {
+  if (!settings.header.enabled) return null;
+  return (
+    <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-[3%] py-[1.5%] pointer-events-none">
+      {settings.header.showProjectName && (
+        <span className="text-[clamp(7px,0.6vw,10px)] text-white/20 font-medium tracking-wider uppercase">{brandName}</span>
+      )}
+      <div className="flex items-center gap-3">
+        {settings.header.customText && (
+          <span className="text-[clamp(7px,0.6vw,10px)] text-white/20">{settings.header.customText}</span>
+        )}
+        {settings.header.showDate && (
+          <span className="text-[clamp(7px,0.6vw,10px)] text-white/15">{new Date().toLocaleDateString()}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SlideFooter({ settings, slideIndex, totalSlides }: { settings: PresentationSettings; slideIndex: number; totalSlides: number }) {
+  if (!settings.footer.enabled) return null;
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between px-[3%] py-[1.5%] pointer-events-none">
+      {settings.footer.customText && (
+        <span className="text-[clamp(7px,0.6vw,10px)] text-white/15">{settings.footer.customText}</span>
+      )}
+      {settings.footer.showPageNumbers && (
+        <span className="text-[clamp(7px,0.6vw,10px)] text-white/15 ml-auto">{slideIndex + 1} / {totalSlides}</span>
+      )}
+    </div>
+  );
+}
+
 export function LogoPresentationViewer({ data, onClose }: LogoPresentationViewerProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [presentMode, setPresentMode] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+
+  const {
+    settings,
+    setTemplate,
+    setSizeFormat,
+    setCustomSize,
+    setLanguageDirection,
+    updateSpacing,
+    updateHeader,
+    updateFooter,
+    resetSettings,
+  } = useLogoPresentationStore();
 
   const slides = useMemo<Slide[]>(() => {
     const s: Slide[] = [];
@@ -293,6 +343,9 @@ export function LogoPresentationViewer({ data, onClose }: LogoPresentationViewer
     );
   }
 
+  // Compute aspect ratio from settings
+  const aspectRatio = `${settings.size.width}/${settings.size.height}`;
+
   // Editor/viewer mode
   return (
     <div className="fixed inset-0 z-40 bg-[#141414] flex flex-col outline-none" tabIndex={0} onKeyDown={handleKey} autoFocus>
@@ -307,20 +360,52 @@ export function LogoPresentationViewer({ data, onClose }: LogoPresentationViewer
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowCustomizer(!showCustomizer)}
+            className={`px-3 py-1.5 text-sm rounded-lg flex items-center gap-1.5 transition-colors ${
+              showCustomizer ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            Customize
+          </button>
           <button onClick={() => setPresentMode(true)} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg">Present</button>
           <button className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg">Export</button>
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ padding: '24px 48px 16px 48px' }}>
-        <div key={currentSlide} className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.97] duration-300">
-          <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '16/9' }}>
-            <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/[0.08]">
-              {slides[currentSlide]?.render()}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Canvas */}
+        <div className="flex-1 flex items-center justify-center overflow-hidden" style={{ padding: '24px 48px 16px 48px' }}>
+          <div key={currentSlide} className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.97] duration-300">
+            <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio }}>
+              <div className="relative w-full h-full overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={{ borderRadius: `${settings.spacing.cornerRadius}px` }}>
+                <SlideHeader settings={settings} brandName={data.brandName} slideIndex={currentSlide} />
+                {slides[currentSlide]?.render()}
+                <SlideFooter settings={settings} slideIndex={currentSlide} totalSlides={totalSlides} />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Customizer sidebar */}
+        {showCustomizer && (
+          <div className="w-72 border-l border-white/[0.06] bg-[#141414] shrink-0">
+            <PresentationCustomizer
+              settings={settings}
+              templates={LOGO_PRESENTATION_TEMPLATES}
+              onSetTemplate={setTemplate}
+              onSetSizeFormat={setSizeFormat}
+              onSetCustomSize={setCustomSize}
+              onSetLanguageDirection={setLanguageDirection}
+              onUpdateSpacing={updateSpacing}
+              onUpdateHeader={updateHeader}
+              onUpdateFooter={updateFooter}
+              onReset={resetSettings}
+              title="Logo Presentation"
+            />
+          </div>
+        )}
       </div>
 
       {/* Slide dots + nav */}
