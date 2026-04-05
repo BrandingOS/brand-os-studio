@@ -3,7 +3,7 @@ import { BrandLayout } from '@/features/brand';
 import { TeamPanel } from '@/features/collaboration';
 import { SharePanel } from '@/features/brand/components/SharePanel';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
-import { services } from '@/shared/services/registry';
+import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
 import {
   Briefcase, FileText, Edit, Presentation, Image, BookOpen,
@@ -27,10 +27,11 @@ export default function BrandHomePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
+  const updateBrand = useBrandStore((s) => s.update);
 
   const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
-    await services.brands.update(brand.id, patch);
+    await updateBrand(brand.id, patch);
   };
 
   if (isLoading) {

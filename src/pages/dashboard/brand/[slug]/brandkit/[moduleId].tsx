@@ -2,18 +2,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { BrandLayout } from '@/features/brand';
 import { BrandKitModuleView } from '@/features/brandkit';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { ArrowLeft } from 'lucide-react';
-import { services } from '@/shared/services/registry';
 import type { Brand } from '@/shared/types/brand';
 
 export default function BrandKitModulePage() {
   const { slug, moduleId } = useParams<{ slug: string; moduleId: string }>();
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
+  const updateBrand = useBrandStore((s) => s.update);
 
   const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
-    await services.brands.update(brand.id, patch);
+    await updateBrand(brand.id, patch);
   };
 
   if (isLoading) {
