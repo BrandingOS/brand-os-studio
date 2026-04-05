@@ -5,6 +5,7 @@
  */
 import { useState, useRef } from 'react';
 import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye } from 'lucide-react';
+import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
@@ -39,6 +40,7 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
   const logotypeFileRef = useRef<HTMLInputElement>(null);
+  const [showPaletteGen, setShowPaletteGen] = useState(false);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -223,9 +225,18 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
               </div>
             </div>
           </div>
-          {/* Color Presets */}
+          {/* Color Presets + Palette Generator */}
           <div className="mt-2">
-            <span className="text-[10px] text-white/20 mb-1 block">Quick Presets</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-white/20">Quick Presets</span>
+              <button
+                onClick={() => setShowPaletteGen(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-white/35 hover:text-white/60 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] transition-all"
+              >
+                <Palette className="w-3 h-3" />
+                Browse 64 Palettes
+              </button>
+            </div>
             <div className="flex gap-1.5 flex-wrap">
               {[
                 { c: '#1B4F72', a: '#3B82F6', label: 'Blue' },
@@ -250,6 +261,18 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
               ))}
             </div>
           </div>
+
+          {/* Palette Generator Modal */}
+          {showPaletteGen && (
+            <PaletteGenerator
+              currentPrimary={concept.color || brandColor}
+              currentAccent={concept.colorAccent || brandColor}
+              onSelect={(primary, accent) => {
+                onChange({ ...concept, color: primary, colorAccent: accent });
+              }}
+              onClose={() => setShowPaletteGen(false)}
+            />
+          )}
         </div>
 
         {/* Why It Works */}
