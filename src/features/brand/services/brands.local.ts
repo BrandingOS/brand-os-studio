@@ -3,6 +3,7 @@ import { demoBrandIdentity } from '@/data/demo';
 import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
+import { safeLocalStorageSet } from '@/shared/utils/imageUpload';
 
 export interface BrandsService {
   list(): Promise<Brand[]>;
@@ -65,7 +66,8 @@ export class LocalBrandsService implements BrandsService {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    localStorage.setItem(this.storageKey, JSON.stringify([...userBrands, brand]));
+    const result = safeLocalStorageSet(this.storageKey, JSON.stringify([...userBrands, brand]));
+    if (!result.success) throw new Error(result.error);
     return brand;
   }
 
@@ -84,7 +86,8 @@ export class LocalBrandsService implements BrandsService {
     } else {
       userBrands.push(updatedBrand);
     }
-    localStorage.setItem(this.storageKey, JSON.stringify(userBrands));
+    const result = safeLocalStorageSet(this.storageKey, JSON.stringify(userBrands));
+    if (!result.success) throw new Error(result.error);
     return updatedBrand;
   }
 
@@ -95,7 +98,7 @@ export class LocalBrandsService implements BrandsService {
   async delete(id: string): Promise<void> {
     if (SEED_BRAND_IDS.has(id)) return; // Cannot delete seed brands
     const userBrands = this.getUserBrands();
-    localStorage.setItem(this.storageKey, JSON.stringify(userBrands.filter(b => b.id !== id)));
+    safeLocalStorageSet(this.storageKey, JSON.stringify(userBrands.filter(b => b.id !== id)));
   }
 }
 

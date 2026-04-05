@@ -6,6 +6,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import type { Brand } from '@/shared/types/brand';
 import { Edit2, Save, X, Palette, Type, MessageCircle, Users, Check, Upload, Image, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { compressLogo, validateUploadFile } from '@/shared/utils/imageUpload';
 
 interface BrandEditorProps {
   brand: Brand;
@@ -92,38 +93,46 @@ export function BrandEditor({ brand, onBrandUpdated }: BrandEditorProps) {
     setIsEditing(false);
   };
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
     // Validate file
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large — max 5MB');
+    const validation = validateUploadFile(file, { maxSizeMB: 10, acceptedTypes: ['image/'] });
+    if (!validation.valid) {
+      toast.error(validation.error);
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
+    try {
+      toast.loading('Compressing image...');
+      const dataUrl = await compressLogo(file);
+      toast.dismiss();
+
       setLogoPreview(dataUrl);
       setPendingLogoFile(dataUrl);
+
       if (!isEditing) {
-        // Auto-save if not in edit mode
-        update(brand.id, { logo: dataUrl }).then(() => {
+        try {
+          await update(brand.id, { logo: dataUrl });
           toast.success('Logo uploaded');
           import('@/shared/services/registry').then(({ services }) => {
             services.brands.getById(brand.id).then(updated => {
               if (updated && onBrandUpdated) onBrandUpdated(updated);
             });
           });
-        }).catch(() => toast.error('Upload failed'));
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Upload failed';
+          toast.error(msg);
+        }
       } else {
         toast.success('Logo selected — click Save to apply');
       }
-    };
-    reader.onerror = () => toast.error('Failed to read file');
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    } catch (err) {
+      toast.dismiss();
+      toast.error(err instanceof Error ? err.message : 'Failed to process image');
+    }
   }, [brand.id, isEditing, update, onBrandUpdated]);
 
   const handleRemoveLogo = useCallback(async () => {

@@ -46,14 +46,31 @@ export function AssetManagerModule({ brand, onUpdate }: AssetManagerModuleProps)
     return true;
   });
 
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast.error('Max 10MB'); return; }
+    e.target.value = '';
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
+    const { validateUploadFile, compressAsset } = await import('@/shared/utils/imageUpload');
+    const validation = validateUploadFile(file, { maxSizeMB: 10 });
+    if (!validation.valid) { toast.error(validation.error); return; }
+
+    try {
+      toast.loading('Processing file...');
+      let dataUrl: string;
+      if (file.type.startsWith('image/')) {
+        dataUrl = await compressAsset(file);
+      } else {
+        // Non-image files: read as data URL directly (documents, etc.)
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(file);
+        });
+      }
+      toast.dismiss();
+
       const asset: Asset = {
         id: `asset_${Date.now()}`,
         name: file.name.replace(/\.[^.]+$/, ''),
@@ -69,9 +86,11 @@ export function AssetManagerModule({ brand, onUpdate }: AssetManagerModuleProps)
       onUpdate?.({ assets: [...assets, asset] });
       toast.success(`Uploaded "${asset.name}"`);
       setAddMode(null);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    } catch (err) {
+      toast.dismiss();
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      toast.error(msg);
+    }
   }, [assets, onUpdate]);
 
   const handleAddUrl = useCallback(() => {
