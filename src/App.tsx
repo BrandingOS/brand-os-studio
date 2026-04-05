@@ -36,6 +36,7 @@ import NotFound from "./pages/NotFound";
 import LogoMakerPage from "./pages/dashboard/logo-maker";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
+const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
           <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
           <Routes>
           <Route path="/" element={<IndexPage />} />
+          <Route path="/v2" element={<DashboardV2Page />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
