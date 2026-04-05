@@ -3,6 +3,7 @@ import { Type, Check } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { services } from '@/shared/services/registry';
+import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import type { Brand } from '@/shared/types/brand';
 
 interface FontToolProps {
@@ -77,15 +78,16 @@ export function FontTool({ brandId }: FontToolProps) {
     }
   };
 
+  const { updateBrand } = useBrandUpdate();
+
   const saveFonts = async () => {
     if (!brand) return;
 
     try {
       setIsSaving(true);
-      const updatedBrand = await services.brands.update(brandId, {
-        fonts: { primary: primaryFont, secondary: secondaryFont },
-      });
-      setBrand(updatedBrand);
+      const patch = { fonts: { primary: primaryFont, secondary: secondaryFont } };
+      await updateBrand(brandId, patch, 'Fonts updated');
+      setBrand({ ...brand, ...patch });
     } catch (error) {
       console.error('Failed to update fonts:', error);
     } finally {

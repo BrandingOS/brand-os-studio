@@ -3,7 +3,8 @@ import { Palette, Check, AlertTriangle, Lightbulb } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
+import { services } from '@/shared/services/registry';
 import { analyzeContrast, contrastMatrix, suggestAccessibleColor, type ContrastResult } from '@/shared/utils/color-utils';
 import type { Brand } from '@/shared/types/brand';
 
@@ -32,13 +33,14 @@ function ContrastBadge({ result }: { result: ContrastResult }) {
 export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { updateBrandSilent } = useBrandUpdate();
 
   useEffect(() => { loadBrand(); }, [brandId]);
 
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      setBrand(await brandsService.getById(brandId));
+      setBrand(await services.brands.getById(brandId));
     } catch (error) {
       console.error('Failed to load brand:', error);
     } finally {
@@ -48,14 +50,18 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
 
   const updatePrimaryColor = async (color: string) => {
     if (!brand) return;
-    try { setBrand(await brandsService.update(brandId, { primaryColor: color })); }
-    catch (error) { console.error('Failed to update primary color:', error); }
+    try {
+      await updateBrandSilent(brandId, { primaryColor: color });
+      setBrand({ ...brand, primaryColor: color });
+    } catch (error) { console.error('Failed to update primary color:', error); }
   };
 
   const updateSecondaryColor = async (color: string) => {
     if (!brand) return;
-    try { setBrand(await brandsService.update(brandId, { secondaryColor: color })); }
-    catch (error) { console.error('Failed to update secondary color:', error); }
+    try {
+      await updateBrandSilent(brandId, { secondaryColor: color });
+      setBrand({ ...brand, secondaryColor: color });
+    } catch (error) { console.error('Failed to update secondary color:', error); }
   };
 
   // WCAG contrast analysis

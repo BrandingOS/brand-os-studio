@@ -70,13 +70,10 @@ export function BrandEditor({ brand, onBrandUpdated }: BrandEditorProps) {
       setIsEditing(false);
       setShowSaved(true);
       toast.success('Brand updated');
-      // Reload the brand to reflect changes
-      const { services } = await import('@/shared/services/registry');
-      const updated = await services.brands.getById(brand.id);
-      if (updated && onBrandUpdated) onBrandUpdated(updated);
+      // Store is already updated — useBrandBySlug will propagate automatically
     } catch (error) {
       console.error('Failed to update brand:', error);
-      toast.error('Failed to save');
+      toast.error(error instanceof Error ? error.message : 'Failed to save');
     }
   };
 
@@ -117,14 +114,9 @@ export function BrandEditor({ brand, onBrandUpdated }: BrandEditorProps) {
         try {
           await update(brand.id, { logo: dataUrl });
           toast.success('Logo uploaded');
-          import('@/shared/services/registry').then(({ services }) => {
-            services.brands.getById(brand.id).then(updated => {
-              if (updated && onBrandUpdated) onBrandUpdated(updated);
-            });
-          });
+          // Store is updated — useBrandBySlug propagates automatically
         } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Upload failed';
-          toast.error(msg);
+          toast.error(err instanceof Error ? err.message : 'Upload failed');
         }
       } else {
         toast.success('Logo selected — click Save to apply');
@@ -140,14 +132,11 @@ export function BrandEditor({ brand, onBrandUpdated }: BrandEditorProps) {
     if (!isEditing) {
       await update(brand.id, { logo: undefined });
       toast.success('Logo removed');
-      const { services } = await import('@/shared/services/registry');
-      const updated = await services.brands.getById(brand.id);
-      if (updated && onBrandUpdated) onBrandUpdated(updated);
     } else {
       setPendingLogoFile('');
       toast.success('Logo will be removed on save');
     }
-  }, [brand.id, isEditing, update, onBrandUpdated]);
+  }, [brand.id, isEditing, update]);
 
   const addColor = () => {
     setExtraColors(prev => [...prev, { hex: '#6366f1', label: `Color ${prev.length + 1}` }]);

@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Image, Upload, Trash2, Download } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
-import { brandsService } from '@/features/brand/services/brands.local';
+import { services } from '@/shared/services/registry';
+import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
+import { compressLogo } from '@/shared/utils/imageUpload';
 import type { Brand } from '@/shared/types/brand';
 
 interface LogoToolProps {
@@ -14,6 +16,8 @@ export function LogoTool({ brandId }: LogoToolProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
 
+  const { updateBrand } = useBrandUpdate();
+
   useEffect(() => {
     loadBrand();
   }, [brandId]);
@@ -21,7 +25,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
   const loadBrand = async () => {
     try {
       setIsLoading(true);
-      const brandData = await brandsService.getById(brandId);
+      const brandData = await services.brands.getById(brandId);
       setBrand(brandData);
     } catch (error) {
       console.error('Failed to load brand:', error);
@@ -32,19 +36,10 @@ export function LogoTool({ brandId }: LogoToolProps) {
 
   const handleFileUpload = async (file: File) => {
     if (!brand) return;
-
     try {
-      // In a real app, you'd upload to a file service
-      // For demo, we'll use a data URL
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const dataUrl = e.target?.result as string;
-        const updatedBrand = await brandsService.update(brandId, {
-          logo: dataUrl
-        });
-        setBrand(updatedBrand);
-      };
-      reader.readAsDataURL(file);
+      const dataUrl = await compressLogo(file);
+      await updateBrand(brandId, { logo: dataUrl }, 'Logo uploaded');
+      setBrand({ ...brand, logo: dataUrl });
     } catch (error) {
       console.error('Failed to upload logo:', error);
     }
@@ -81,12 +76,9 @@ export function LogoTool({ brandId }: LogoToolProps) {
 
   const removeLogo = async () => {
     if (!brand) return;
-    
     try {
-      const updatedBrand = await brandsService.update(brandId, {
-        logo: undefined
-      });
-      setBrand(updatedBrand);
+      await updateBrand(brandId, { logo: undefined }, 'Logo removed');
+      setBrand({ ...brand, logo: undefined });
     } catch (error) {
       console.error('Failed to remove logo:', error);
     }

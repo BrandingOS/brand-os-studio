@@ -4,6 +4,7 @@ import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
 import { services } from '@/shared/services/registry';
+import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import type { Brand, BrandStrategy } from '@/shared/types/brand';
 
 interface BrandInfoToolProps {
@@ -13,6 +14,7 @@ interface BrandInfoToolProps {
 export function BrandInfoTool({ brandId }: BrandInfoToolProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { updateBrandSilent } = useBrandUpdate();
 
   const [vision, setVision] = useState('');
   const [mission, setMission] = useState('');
@@ -66,19 +68,20 @@ export function BrandInfoTool({ brandId }: BrandInfoToolProps) {
     };
 
     try {
-      const updatedBrand = await services.brands.update(brandId, {
+      const patch = {
         tone: overrides.tone ?? tone,
         audience: overrides.targetAudience ?? targetAudience,
         guidelines: {
           ...brand.guidelines,
           strategy: updatedStrategy,
         },
-      });
-      setBrand(updatedBrand);
+      };
+      await updateBrandSilent(brandId, patch);
+      setBrand({ ...brand, ...patch });
     } catch (error) {
       console.error('Failed to update brand strategy:', error);
     }
-  }, [brand, brandId, vision, mission, values, positioning, targetAudience, tone]);
+  }, [brand, brandId, vision, mission, values, positioning, targetAudience, tone, updateBrandSilent]);
 
   const addValue = () => {
     const trimmed = newValue.trim();
