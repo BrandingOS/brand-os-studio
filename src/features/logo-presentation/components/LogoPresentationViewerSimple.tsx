@@ -194,22 +194,32 @@ function HeroLightSlide({ concept, index, data }: { concept: LogoConcept; index:
 function VariationsSlide({ concept, color }: { concept: LogoConcept; color: string }) {
   const cc = concept.color || color;
   const accent = concept.colorAccent || cc;
+  const hasLogotype = !!concept.logotypeUrl;
   return (
     <div className="w-full aspect-video flex items-center justify-center" style={{ backgroundColor: BG }}>
-      <div className="w-[calc(100%-96px)] h-[calc(100%-64px)] grid grid-cols-2 grid-rows-2 gap-3">
+      <div className={`w-[calc(100%-96px)] h-[calc(100%-64px)] grid ${hasLogotype ? 'grid-cols-3 grid-rows-2' : 'grid-cols-2 grid-rows-2'} gap-3`}>
         {/* Large left card — spans 2 rows */}
         <div className="row-span-2 flex items-center justify-center p-8" style={{ backgroundColor: CARD_LIGHT, borderRadius: CARD_RADIUS }}>
           <div className="relative w-full h-full flex items-center justify-center">
-            <p className="absolute top-2 left-2 text-[9px] text-black/20">Logo Variations</p>
+            <p className="absolute top-2 left-2 text-[9px] text-black/20">Primary Logo</p>
             <img src={concept.logoUrl} alt="" className="max-w-[65%] max-h-[50%] object-contain" />
           </div>
         </div>
+        {/* Logotype card — if available */}
+        {hasLogotype && (
+          <div className="flex items-center justify-center p-6" style={{ backgroundColor: CARD_LIGHT, borderRadius: CARD_RADIUS }}>
+            <div className="relative w-full h-full flex items-center justify-center">
+              <p className="absolute top-2 left-2 text-[9px] text-black/20">Logotype</p>
+              <img src={concept.logotypeUrl} alt="" className="max-w-[80%] max-h-[40%] object-contain" />
+            </div>
+          </div>
+        )}
         {/* Top right — concept color */}
         <div className="flex items-center justify-center p-6" style={{ backgroundColor: accent, borderRadius: CARD_RADIUS }}>
           <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
         {/* Bottom right — concept dark */}
-        <div className="flex items-center justify-center p-6" style={{ backgroundColor: cc, borderRadius: CARD_RADIUS }}>
+        <div className={`flex items-center justify-center p-6 ${hasLogotype ? 'col-span-2' : ''}`} style={{ backgroundColor: cc, borderRadius: CARD_RADIUS }}>
           <img src={concept.logoUrl} alt="" className="max-w-[60%] max-h-[45%] object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
         </div>
       </div>

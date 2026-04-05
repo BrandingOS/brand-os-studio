@@ -4,6 +4,7 @@ export interface LogoConcept {
   rationale: string;      // 1-2 sentence explanation
   logoUrl: string;        // SVG/PNG URL
   iconUrl?: string;       // Separate icon/symbol URL (optional)
+  logotypeUrl?: string;   // Logotype / wordmark variation URL (optional)
   direction: string;      // e.g. "Geometric & Angular"
   whyItWorks: string[];   // 3-4 bullet points
   symbolBreakdown?: {     // Optional annotation points for symbol explanation

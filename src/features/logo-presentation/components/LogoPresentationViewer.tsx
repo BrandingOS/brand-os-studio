@@ -123,23 +123,30 @@ function WhyItWorksSlide({ concept, color }: { concept: LogoConcept; color: stri
 }
 
 function VariationsSlide({ concept }: { concept: LogoConcept }) {
+  const hasLogotype = !!concept.logotypeUrl;
   return (
     <div className="w-full aspect-video bg-white p-[5%]">
       <p className="text-[9px] uppercase tracking-[0.3em] text-gray-400 mb-4">Variations</p>
-      <div className="grid grid-cols-3 gap-4 h-[75%]">
+      <div className={`grid ${hasLogotype ? 'grid-cols-4' : 'grid-cols-3'} gap-4 h-[75%]`}>
         <div className="bg-white border border-gray-100 rounded-lg flex items-center justify-center p-4">
           <img src={concept.logoUrl} alt="Primary" className="max-h-[60%] object-contain" />
         </div>
         <div className="bg-white border border-gray-100 rounded-lg flex items-center justify-center p-4">
           <img src={concept.logoUrl} alt="Mark" className="max-h-[40%] object-contain" />
         </div>
+        {hasLogotype && (
+          <div className="bg-white border border-gray-100 rounded-lg flex items-center justify-center p-4">
+            <img src={concept.logotypeUrl} alt="Logotype" className="max-h-[50%] max-w-[85%] object-contain" />
+          </div>
+        )}
         <div className="bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center p-4">
           <img src={concept.logoUrl} alt="Mono" className="max-h-[60%] object-contain" style={{ filter: 'grayscale(1)' }} />
         </div>
       </div>
-      <div className="flex gap-4 mt-2 text-[8px] text-gray-400">
+      <div className={`flex gap-4 mt-2 text-[8px] text-gray-400`}>
         <span className="flex-1 text-center">Primary Logo</span>
         <span className="flex-1 text-center">Logomark</span>
+        {hasLogotype && <span className="flex-1 text-center">Logotype</span>}
         <span className="flex-1 text-center">Monochrome</span>
       </div>
     </div>

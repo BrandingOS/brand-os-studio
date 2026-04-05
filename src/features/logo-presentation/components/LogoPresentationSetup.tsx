@@ -38,6 +38,7 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
+  const logotypeFileRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,6 +54,15 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => onChange({ ...concept, iconUrl: reader.result as string });
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleLogotypeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange({ ...concept, logotypeUrl: reader.result as string });
     reader.readAsDataURL(file);
     e.target.value = '';
   };
@@ -140,6 +150,28 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
             <button onClick={() => iconFileRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 border-dashed border-white/10 hover:border-white/25 text-white/30 hover:text-white/60 transition-colors">
               <Upload className="h-4 w-4" />
               <span className="text-xs">Upload Icon (for symbol breakdown slides)</span>
+            </button>
+          )}
+        </div>
+
+        {/* Logotype / Wordmark Upload */}
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-white/30 font-semibold mb-2 block">Logotype / Wordmark (Optional)</label>
+          <input ref={logotypeFileRef} type="file" accept="image/svg+xml,image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogotypeUpload} />
+          {concept.logotypeUrl ? (
+            <div className="flex items-center gap-3">
+              <div className="w-24 h-12 rounded-lg bg-white flex items-center justify-center p-2">
+                <img src={concept.logotypeUrl} alt="" className="max-w-full max-h-full object-contain" />
+              </div>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => logotypeFileRef.current?.click()} className="text-xs text-white/40 hover:text-white transition-colors">Replace</button>
+                <button onClick={() => onChange({ ...concept, logotypeUrl: '' })} className="text-xs text-red-400/60 hover:text-red-400 transition-colors">Remove</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => logotypeFileRef.current?.click()} className="w-full flex items-center justify-center gap-2 px-4 py-4 rounded-xl border-2 border-dashed border-white/10 hover:border-white/25 text-white/30 hover:text-white/60 transition-colors">
+              <Type className="h-4 w-4" />
+              <span className="text-xs">Upload Logotype (text-only wordmark variation)</span>
             </button>
           )}
         </div>
@@ -246,6 +278,7 @@ function createVectorConcepts(): LogoConcept[] {
       rationale: 'A geometric arrow integrated with the letter V — representing direction and magnitude. The horizontal strike-through evokes a trajectory line, while the downward V-form doubles as the mathematical vector symbol. This is the most literal interpretation of the brand concept.',
       logoUrl: '/brands/vector/logo-1.svg',
       iconUrl: '/brands/vector/icon-1.svg',
+      logotypeUrl: '/brands/vector/logotype-1.svg',
       direction: 'Geometric & Directional',
       color: '#1B2A4A',
       colorAccent: '#3B82F6',
@@ -269,6 +302,7 @@ function createVectorConcepts(): LogoConcept[] {
       rationale: 'Two sharp triangles forming the V — the larger triangle carries momentum while the smaller detached triangle signals precision and separation. The ECTOR wordmark uses a bold, uppercase treatment that feels like a control panel readout.',
       logoUrl: '/brands/vector/logo-2.svg',
       iconUrl: '/brands/vector/icon-2.svg',
+      logotypeUrl: '/brands/vector/logotype-2.svg',
       direction: 'Bold & Structural',
       color: '#064E3B',
       colorAccent: '#10B981',
@@ -292,6 +326,7 @@ function createVectorConcepts(): LogoConcept[] {
       rationale: 'An asymmetric angular mark that suggests a plotted course — one element grounded, the other reaching upward at a precise angle. The lowercase \'ector\' wordmark softens the technical feel without losing precision.',
       logoUrl: '/brands/vector/logo-3.svg',
       iconUrl: '/brands/vector/icon-3.svg',
+      logotypeUrl: '/brands/vector/logotype-3.svg',
       direction: 'Dynamic & Angular',
       color: '#7C3AED',
       colorAccent: '#A78BFA',
@@ -315,6 +350,7 @@ function createVectorConcepts(): LogoConcept[] {
       rationale: 'A variant of the angular mark with a more grounded, contained geometry. The left element feels like a cockpit indicator while the right element reaches toward a target. This is the "flight deck" interpretation of the brand personality.',
       logoUrl: '/brands/vector/logo-4.svg',
       iconUrl: '/brands/vector/icon-4.svg',
+      logotypeUrl: '/brands/vector/logotype-4.svg',
       direction: 'Contained & Systematic',
       color: '#0F172A',
       colorAccent: '#F59E0B',
