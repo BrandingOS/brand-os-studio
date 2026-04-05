@@ -2,7 +2,7 @@
  * Builds slide data for the EditorWorkspace from existing template pages.
  */
 import type { Brand } from '@/shared/types/brand';
-import type { SlideData } from './EditorWorkspace';
+import type { SlideData } from '@/shared/editor';
 import {
   CoverHyperHyve,
   SectionDivider, ContentPage, ContentPageDark, ClosingTemplatePage,

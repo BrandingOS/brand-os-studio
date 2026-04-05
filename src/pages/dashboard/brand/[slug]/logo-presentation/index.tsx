@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
-import { LogoPresentationViewer } from '@/features/logo-presentation/components/LogoPresentationViewer';
-import { LogoPresentationViewerSimple } from '@/features/logo-presentation/components/LogoPresentationViewerSimple';
+import { EditorWorkspace } from '@/shared/editor';
 import { LogoPresentationSetup } from '@/features/logo-presentation/components/LogoPresentationSetup';
+import { buildLogoSlides } from '@/features/logo-presentation/buildLogoSlides';
 import type { LogoPresentationData } from '@/features/logo-presentation/types';
 
 export default function LogoPresentationPage() {
@@ -31,7 +31,7 @@ export default function LogoPresentationPage() {
     );
   }
 
-  // Show setup editor first, then presentation after "Generate"
+  // Show setup editor first, then full editor after "Generate"
   if (!presentationData) {
     return (
       <LogoPresentationSetup
@@ -41,20 +41,14 @@ export default function LogoPresentationPage() {
     );
   }
 
-  // Route to correct template
-  if (presentationData.template === 'simple') {
-    return (
-      <LogoPresentationViewerSimple
-        data={presentationData}
-        onClose={() => setPresentationData(null)}
-      />
-    );
-  }
+  // Build slides from presentation data and open the shared editor
+  const slides = buildLogoSlides(presentationData);
 
   return (
-    <LogoPresentationViewer
-      data={presentationData}
-      onClose={() => setPresentationData(null)} // Back to editor
+    <EditorWorkspace
+      brand={brand}
+      slides={slides}
+      onClose={() => setPresentationData(null)}
     />
   );
 }

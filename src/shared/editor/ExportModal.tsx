@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Image as ImageIcon, ChevronRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
-import type { TemplateLayout } from '../pages/templates/layout-config';
+import type { TemplateLayout } from './layout-config';
 import type { SlideData } from './EditorWorkspace';
 import { toast } from 'sonner';
 import { ExportDialog } from '@/shared/components/ExportDialog';

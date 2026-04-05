@@ -5,8 +5,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
-import type { TemplateLayout } from '../pages/templates/layout-config';
-import { getLayoutById } from '../pages/templates/layout-config';
+import type { TemplateLayout } from './layout-config';
+import { getLayoutById } from './layout-config';
 import { EditorBottomBar } from './EditorBottomBar';
 import { EditorTopBar } from './EditorTopBar';
 import { SlideNav } from './SlideNav';
@@ -25,11 +25,18 @@ interface EditorWorkspaceProps {
   onClose?: () => void;
 }
 
+export interface SlideRenderProps {
+  brand: Brand;
+  layout: TemplateLayout;
+  pageNumber: number;
+  totalPages: number;
+}
+
 export interface SlideData {
   id: string;
   name: string;
   bgColor?: string;
-  render: (props: { brand: Brand; layout: TemplateLayout; pageNumber: number; totalPages: number }) => React.ReactNode;
+  render: (props: SlideRenderProps) => React.ReactNode;
 }
 
 export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps) {
