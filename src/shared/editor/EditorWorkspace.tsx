@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil, Plus } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -67,6 +67,10 @@ interface EditorWorkspaceProps {
   inspectorPanel?: (currentSlideId: string | undefined, close: () => void) => React.ReactNode;
   /** Label for the inspector button (default "Content") */
   inspectorLabel?: string;
+  /** Optional callback to open an "Add Slide" picker. When provided, a "+" button appears in the top bar. */
+  onAddSlide?: () => void;
+  /** Optional callback to delete a specific slide by id. When provided, slide thumbnails get a delete button on hover. */
+  onDeleteSlide?: (slideId: string) => void;
 }
 
 export interface SlideRenderProps {
@@ -161,6 +165,8 @@ export function EditorWorkspace({
   editorKey = `editor-${brand.id}`,
   inspectorPanel,
   inspectorLabel = 'Content',
+  onAddSlide,
+  onDeleteSlide,
 }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
@@ -481,6 +487,16 @@ export function EditorWorkspace({
           </button>
           <div className="w-px h-4 bg-white/10 mx-1" />
 
+          {onAddSlide && (
+            <button
+              onClick={onAddSlide}
+              title="Add a new slide"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Add Slide</span>
+            </button>
+          )}
           {onOpenTemplatePicker && (
             <button
               onClick={onOpenTemplatePicker}
@@ -518,7 +534,7 @@ export function EditorWorkspace({
 
       {/* Main Area */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
-        <SlideNav slides={slides} currentSlide={currentSlide} onSelect={goTo} brand={brand} layout={layout} />
+        <SlideNav slides={slides} currentSlide={currentSlide} onSelect={goTo} brand={brand} layout={layout} onDeleteSlide={onDeleteSlide} />
 
         {canvasMode === 'freeform' ? (
           <div ref={canvasRef} className="flex-1 flex flex-col items-center overflow-hidden relative min-h-0">

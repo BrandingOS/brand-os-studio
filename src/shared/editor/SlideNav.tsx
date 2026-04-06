@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layers, Search, Copy, Plus, BookOpen } from 'lucide-react';
+import { Layers, Search, Copy, Plus, BookOpen, X } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import type { SlideData } from './EditorWorkspace';
@@ -10,6 +10,7 @@ interface SlideNavProps {
   onSelect: (idx: number) => void;
   brand: Brand;
   layout: TemplateLayout;
+  onDeleteSlide?: (slideId: string) => void;
 }
 
 const ADD_PAGE_CATEGORIES = [
@@ -19,7 +20,7 @@ const ADD_PAGE_CATEGORIES = [
   'DATA VISUALIZATION', 'GALLERY',
 ];
 
-export function SlideNav({ slides, currentSlide, onSelect, brand, layout }: SlideNavProps) {
+export function SlideNav({ slides, currentSlide, onSelect, brand, layout, onDeleteSlide }: SlideNavProps) {
   const [panel, setPanel] = useState<'none' | 'slides' | 'add'>('none');
   const togglePanel = (p: 'slides' | 'add') => setPanel(prev => prev === p ? 'none' : p);
 
@@ -37,31 +38,48 @@ export function SlideNav({ slides, currentSlide, onSelect, brand, layout }: Slid
         <div className="absolute left-10 top-0 bottom-0 z-20 w-48 bg-[#1a1a1a] border-r border-white/[0.06] flex flex-col animate-in slide-in-from-left duration-200">
           <div className="flex-1 overflow-y-auto py-2 px-2 space-y-2">
             {slides.map((slide, i) => (
-              <button
+              <div
                 key={slide.id}
-                onClick={() => { onSelect(i); setPanel('none'); }}
-                className={`w-full rounded-lg overflow-hidden transition-all ${
+                className={`group relative w-full rounded-lg overflow-hidden transition-all ${
                   i === currentSlide ? 'ring-2 ring-blue-500/60 shadow-lg' : 'ring-1 ring-white/[0.06] hover:ring-white/15'
                 }`}
               >
-                {/* Miniature slide render */}
-                <div className="aspect-video relative overflow-hidden bg-[#111]">
-                  <div
-                    className="absolute inset-0 pointer-events-none origin-top-left"
-                    style={{
-                      width: '1200px',
-                      transform: 'scale(0.148)',
-                      transformOrigin: 'top left',
+                <button
+                  onClick={() => { onSelect(i); setPanel('none'); }}
+                  className="w-full block"
+                >
+                  {/* Miniature slide render */}
+                  <div className="aspect-video relative overflow-hidden bg-[#111]">
+                    <div
+                      className="absolute inset-0 pointer-events-none origin-top-left"
+                      style={{
+                        width: '1200px',
+                        transform: 'scale(0.148)',
+                        transformOrigin: 'top left',
+                      }}
+                    >
+                      {slide.render({ brand, layout, pageNumber: i + 1, totalPages: slides.length })}
+                    </div>
+                    {/* Slide number overlay */}
+                    <div className="absolute top-1 left-1.5 text-[7px] font-mono text-white/40 bg-black/30 px-1 rounded">
+                      {i + 1}
+                    </div>
+                  </div>
+                </button>
+                {/* Delete button — only when onDeleteSlide is provided */}
+                {onDeleteSlide && slides.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Remove this slide?')) onDeleteSlide(slide.id);
                     }}
+                    title="Remove slide"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-md bg-black/60 hover:bg-red-500/70 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"
                   >
-                    {slide.render({ brand, layout, pageNumber: i + 1, totalPages: slides.length })}
-                  </div>
-                  {/* Slide number overlay */}
-                  <div className="absolute top-1 left-1.5 text-[7px] font-mono text-white/40 bg-black/30 px-1 rounded">
-                    {i + 1}
-                  </div>
-                </div>
-              </button>
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>

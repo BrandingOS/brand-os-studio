@@ -21,6 +21,9 @@ import { buildLogoSlides } from '@/features/logo-presentation/buildLogoSlides';
 import { buildSimpleLogoSlides } from '@/features/logo-presentation/buildSimpleLogoSlides';
 import { useLogoPresentationStore, LOGO_PRESENTATION_TEMPLATES } from '@/features/logo-presentation/store';
 import { useLogoPresentationDocsStore, type LogoPresentationDoc } from '@/features/logo-presentation/docsStore';
+import { buildExtraSlides } from '@/shared/presentation/buildExtraSlides';
+import { AddSlidePanel } from '@/shared/presentation/AddSlidePanel';
+import { getStyleById } from '@/shared/presentation/styles';
 import type { LogoPresentationData, LogoConcept } from '@/features/logo-presentation/types';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
@@ -61,6 +64,7 @@ export default function LogoPresentationPage() {
 
   const docsStore = useLogoPresentationDocsStore();
   const docs = brand ? docsStore.docs[brand.id] || [] : [];
+  const [showAddSlide, setShowAddSlide] = useState(false);
 
   const docIdParam = searchParams.get('doc');
   const newParam = searchParams.get('new');
@@ -158,35 +162,61 @@ export default function LogoPresentationPage() {
   // ── Editor view (active doc loaded) ──
   if (activeDoc) {
     const presentationData = buildPresentationData(brand, activeDoc);
-    const slides = activeDoc.template === 'simple'
+    const baseSlides = activeDoc.template === 'simple'
       ? buildSimpleLogoSlides(presentationData)
       : buildLogoSlides(presentationData);
 
+    const visibleBase = baseSlides.filter((s) => !(activeDoc.hiddenSlideIds || []).includes(s.id));
+    // Use the brand's primary color via the minimal style (extras follow brand colors)
+    const extraStyle = getStyleById('minimal');
+    const extras = buildExtraSlides(activeDoc.extraSlides || [], extraStyle);
+    const slides = [...visibleBase, ...extras];
+
     return (
-      <EditorWorkspace
-        brand={brand}
-        slides={slides}
-        onClose={() => {
-          docsStore.setActive(brand.id, null);
-          setSearchParams({});
-        }}
-        useSettingsStore={useLogoPresentationStore}
-        templates={LOGO_PRESENTATION_TEMPLATES}
-        customizerTitle={activeDoc.name}
-        editorKey={`logo-pres-doc-${activeDoc.id}`}
-        onTemplateChange={(templateId) => {
-          docsStore.update(brand.id, activeDoc.id, { template: templateId as 'premium' | 'simple' });
-        }}
-        inspectorLabel="Edit Concept"
-        inspectorPanel={(slideId, close) => (
-          <LogoConceptInspector
-            brand={brand}
-            docId={activeDoc.id}
-            currentSlideId={slideId}
-            onClose={close}
+      <>
+        <EditorWorkspace
+          brand={brand}
+          slides={slides}
+          onClose={() => {
+            docsStore.setActive(brand.id, null);
+            setSearchParams({});
+          }}
+          useSettingsStore={useLogoPresentationStore}
+          templates={LOGO_PRESENTATION_TEMPLATES}
+          customizerTitle={activeDoc.name}
+          editorKey={`logo-pres-doc-${activeDoc.id}`}
+          onTemplateChange={(templateId) => {
+            docsStore.update(brand.id, activeDoc.id, { template: templateId as 'premium' | 'simple' });
+          }}
+          inspectorLabel="Edit Concept"
+          inspectorPanel={(slideId, close) => (
+            <LogoConceptInspector
+              brand={brand}
+              docId={activeDoc.id}
+              currentSlideId={slideId}
+              onClose={close}
+            />
+          )}
+          onAddSlide={() => setShowAddSlide(true)}
+          onDeleteSlide={(slideId) => {
+            if ((activeDoc.extraSlides || []).some((e) => e.id === slideId)) {
+              docsStore.removeExtraSlide(brand.id, activeDoc.id, slideId);
+            } else {
+              docsStore.hideSlide(brand.id, activeDoc.id, slideId);
+            }
+            toast.success('Slide removed');
+          }}
+        />
+        {showAddSlide && (
+          <AddSlidePanel
+            onAdd={(layout) => {
+              docsStore.addExtraSlide(brand.id, activeDoc.id, layout);
+              toast.success('Slide added');
+            }}
+            onClose={() => setShowAddSlide(false)}
           />
         )}
-      />
+      </>
     );
   }
 

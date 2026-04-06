@@ -19,6 +19,8 @@ import { buildTemplateSlides, type ContentType, CONTENT_TYPES } from '@/shared/p
 import { PRESENTATION_STYLES, getStyleById, getStyleSpacingDefaults } from '@/shared/presentation/styles';
 import { createPresentationStore } from '@/shared/presentation/store';
 import { usePresentationDocsStore, type PresentationDocument } from '@/shared/presentation/presentationDocsStore';
+import { buildExtraSlides } from '@/shared/presentation/buildExtraSlides';
+import { AddSlidePanel } from '@/shared/presentation/AddSlidePanel';
 import { toast } from 'sonner';
 
 const usePresentationSettingsStore = createPresentationStore('presentations-settings', {
@@ -35,6 +37,7 @@ export default function PresentationsPage() {
 
   const docsStore = usePresentationDocsStore();
   const [showPicker, setShowPicker] = useState(false);
+  const [showAddSlide, setShowAddSlide] = useState(false);
 
   const docId = searchParams.get('doc');
   const docs = brand ? docsStore.docs[brand.id] || [] : [];
@@ -170,8 +173,12 @@ export default function PresentationsPage() {
   }
 
   // ── Editor view (active doc loaded) ──
-  // Build slides from doc's styleId, contentType, and overrides
-  const slides = buildTemplateSlides(brand, activeDoc.styleId, activeDoc.contentType, activeDoc.slideOverrides as any);
+  // Build slides: auto-generated (filtered by hidden) + extras
+  const baseSlides = buildTemplateSlides(brand, activeDoc.styleId, activeDoc.contentType, activeDoc.slideOverrides as any);
+  const visibleBase = baseSlides.filter((s) => !(activeDoc.hiddenSlideIds || []).includes(s.id));
+  const style = getStyleById(activeDoc.styleId);
+  const extras = buildExtraSlides(activeDoc.extraSlides || [], style);
+  const slides = [...visibleBase, ...extras];
 
   const styleTemplates = PRESENTATION_STYLES.map((s) => ({
     id: s.id,
@@ -180,24 +187,44 @@ export default function PresentationsPage() {
   }));
 
   return (
-    <EditorWorkspace
-      brand={brand}
-      slides={slides}
-      onClose={() => {
-        // Mark no active doc and return to list
-        docsStore.setActive(brand.id, null);
-        setSearchParams({});
-      }}
-      useSettingsStore={usePresentationSettingsStore}
-      templates={styleTemplates}
-      customizerTitle={activeDoc.name}
-      editorKey={`pres-doc-${activeDoc.id}`}
-      onTemplateChange={(styleId) => {
-        // Persist the style change to the document
-        docsStore.updateStyle(brand.id, activeDoc.id, styleId);
-      }}
-      onOpenTemplatePicker={() => setShowPicker(true)}
-    />
+    <>
+      <EditorWorkspace
+        brand={brand}
+        slides={slides}
+        onClose={() => {
+          // Mark no active doc and return to list
+          docsStore.setActive(brand.id, null);
+          setSearchParams({});
+        }}
+        useSettingsStore={usePresentationSettingsStore}
+        templates={styleTemplates}
+        customizerTitle={activeDoc.name}
+        editorKey={`pres-doc-${activeDoc.id}`}
+        onTemplateChange={(styleId) => {
+          docsStore.updateStyle(brand.id, activeDoc.id, styleId);
+        }}
+        onOpenTemplatePicker={() => setShowPicker(true)}
+        onAddSlide={() => setShowAddSlide(true)}
+        onDeleteSlide={(slideId) => {
+          // Extras get fully removed; auto-generated slides get hidden
+          if ((activeDoc.extraSlides || []).some((e) => e.id === slideId)) {
+            docsStore.removeExtraSlide(brand.id, activeDoc.id, slideId);
+          } else {
+            docsStore.hideSlide(brand.id, activeDoc.id, slideId);
+          }
+          toast.success('Slide removed');
+        }}
+      />
+      {showAddSlide && (
+        <AddSlidePanel
+          onAdd={(layout) => {
+            docsStore.addExtraSlide(brand.id, activeDoc.id, layout);
+            toast.success('Slide added');
+          }}
+          onClose={() => setShowAddSlide(false)}
+        />
+      )}
+    </>
   );
 }
 

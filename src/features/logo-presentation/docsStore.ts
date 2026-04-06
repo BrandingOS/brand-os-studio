@@ -10,6 +10,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LogoConcept, PresentationTemplate } from './types';
 
+/** A user-added extra slide for a logo presentation doc */
+export interface LogoExtraSlide {
+  id: string;
+  layout: 'cover' | 'section' | 'two-col' | 'two-col-reverse' | 'full-bleed' | 'three-col' | 'quote' | 'stats' | 'list' | 'closing';
+  data: Record<string, any>;
+}
+
 export interface LogoPresentationDoc {
   id: string;
   brandId: string;
@@ -21,6 +28,10 @@ export interface LogoPresentationDoc {
   template: PresentationTemplate;
   /** Per-slide field overrides applied on top of the rendered slides */
   slideOverrides: Record<string, Record<string, any>>;
+  /** User-added extra slides appended after the auto-generated ones */
+  extraSlides: LogoExtraSlide[];
+  /** Auto-generated slide ids the user has hidden */
+  hiddenSlideIds: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -52,6 +63,10 @@ interface LogoDocsState {
   addConcept: (brandId: string, docId: string, concept: LogoConcept) => void;
   removeConcept: (brandId: string, docId: string, index: number) => void;
   setSlideOverride: (brandId: string, docId: string, slideId: string, override: Record<string, any>) => void;
+  addExtraSlide: (brandId: string, docId: string, layout: LogoExtraSlide['layout']) => LogoExtraSlide;
+  removeExtraSlide: (brandId: string, docId: string, slideId: string) => void;
+  hideSlide: (brandId: string, docId: string, slideId: string) => void;
+  unhideSlide: (brandId: string, docId: string, slideId: string) => void;
   setActive: (brandId: string, docId: string | null) => void;
   duplicate: (brandId: string, docId: string) => LogoPresentationDoc | null;
 
@@ -97,6 +112,8 @@ export const useLogoPresentationDocsStore = create<LogoDocsState>()(
           createdAt: Date.now(),
           updatedAt: Date.now(),
           slideOverrides: {},
+          extraSlides: [],
+          hiddenSlideIds: [],
           ...draft,
         };
         set((state) => ({
@@ -190,6 +207,69 @@ export const useLogoPresentationDocsStore = create<LogoDocsState>()(
                 updatedAt: Date.now(),
               };
             }),
+          },
+        })),
+
+      addExtraSlide: (brandId, docId, layout) => {
+        const newSlide: LogoExtraSlide = {
+          id: `extra_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          layout,
+          data: {},
+        };
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? { ...d, extraSlides: [...(d.extraSlides || []), newSlide], updatedAt: Date.now() }
+                : d
+            ),
+          },
+        }));
+        return newSlide;
+      },
+
+      removeExtraSlide: (brandId, docId, slideId) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? { ...d, extraSlides: (d.extraSlides || []).filter((s) => s.id !== slideId), updatedAt: Date.now() }
+                : d
+            ),
+          },
+        })),
+
+      hideSlide: (brandId, docId, slideId) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? {
+                    ...d,
+                    hiddenSlideIds: Array.from(new Set([...(d.hiddenSlideIds || []), slideId])),
+                    updatedAt: Date.now(),
+                  }
+                : d
+            ),
+          },
+        })),
+
+      unhideSlide: (brandId, docId, slideId) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? {
+                    ...d,
+                    hiddenSlideIds: (d.hiddenSlideIds || []).filter((id) => id !== slideId),
+                    updatedAt: Date.now(),
+                  }
+                : d
+            ),
           },
         })),
 
