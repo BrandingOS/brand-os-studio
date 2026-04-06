@@ -48,6 +48,12 @@ export interface PresentationDocument {
   contentType: ContentType;
   settings?: Partial<PresentationSettings>;
   slideOverrides: Record<string, SlideOverride>;
+  /**
+   * Per-slide HTML snapshots — the latest cleaned innerHTML of each
+   * `[data-slide-canvas]` after the user has edited it. Re-injected on
+   * mount so edits survive reload. Keyed by slide id.
+   */
+  slideHTMLSnapshots?: Record<string, string>;
   /** User-added extra slides appended after the auto-generated ones */
   extraSlides: ExtraSlide[];
   /** Auto-generated slide ids the user has hidden */
@@ -70,6 +76,8 @@ interface PresentationDocsState {
   updateSettings: (brandId: string, docId: string, settings: Partial<PresentationSettings>) => void;
   updateStyle: (brandId: string, docId: string, styleId: string) => void;
   setSlideOverride: (brandId: string, docId: string, slideId: string, override: Partial<SlideOverride>) => void;
+  setSlideHTMLSnapshot: (brandId: string, docId: string, slideId: string, html: string) => void;
+  clearSlideHTMLSnapshot: (brandId: string, docId: string, slideId: string) => void;
   addExtraSlide: (brandId: string, docId: string, layout: ExtraSlide['layout']) => ExtraSlide;
   removeExtraSlide: (brandId: string, docId: string, slideId: string) => void;
   hideSlide: (brandId: string, docId: string, slideId: string) => void;
@@ -174,6 +182,35 @@ export const usePresentationDocsStore = create<PresentationDocsState>()(
                 },
                 updatedAt: Date.now(),
               };
+            }),
+          },
+        })),
+
+      setSlideHTMLSnapshot: (brandId, docId, slideId, html) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? {
+                    ...d,
+                    slideHTMLSnapshots: { ...(d.slideHTMLSnapshots || {}), [slideId]: html },
+                    updatedAt: Date.now(),
+                  }
+                : d
+            ),
+          },
+        })),
+
+      clearSlideHTMLSnapshot: (brandId, docId, slideId) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) => {
+              if (d.id !== docId) return d;
+              const next = { ...(d.slideHTMLSnapshots || {}) };
+              delete next[slideId];
+              return { ...d, slideHTMLSnapshots: next, updatedAt: Date.now() };
             }),
           },
         })),

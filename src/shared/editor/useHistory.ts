@@ -14,6 +14,13 @@ interface UseHistoryOptions {
   editorKey: string;
   /** ID of the currently visible slide */
   currentSlideId?: string;
+  /**
+   * Optional persistence callback. When provided, every saved snapshot is
+   * also forwarded here so the host can write the latest HTML for the
+   * slide into a per-document store that survives page reload.
+   * The callback fires on the same debounce as the in-session history.
+   */
+  onPersistSnapshot?: (slideId: string, html: string) => void;
 }
 
 /** Strip transient editing styles from cloned HTML */
@@ -31,11 +38,13 @@ function getCleanHtml(): string {
   return clone.innerHTML;
 }
 
-export function useHistory({ editorKey, currentSlideId }: UseHistoryOptions) {
+export function useHistory({ editorKey, currentSlideId, onPersistSnapshot }: UseHistoryOptions) {
   const paused = useRef(false);
   const currentIdRef = useRef<string | undefined>(currentSlideId);
+  const persistRef = useRef<typeof onPersistSnapshot>(onPersistSnapshot);
 
   useEffect(() => { currentIdRef.current = currentSlideId; }, [currentSlideId]);
+  useEffect(() => { persistRef.current = onPersistSnapshot; }, [onPersistSnapshot]);
 
   /** Apply a snapshot's HTML to the current canvas */
   const applySnapshot = useCallback((snap: Snapshot | null) => {
@@ -55,6 +64,8 @@ export function useHistory({ editorKey, currentSlideId }: UseHistoryOptions) {
     const html = getCleanHtml();
     if (!html) return;
     useEditorHistoryStore.getState().pushSnapshot(editorKey, id, html);
+    // Also forward to the host's persistence callback so the edit survives reload
+    persistRef.current?.(id, html);
   }, [editorKey]);
 
   /** Undo */

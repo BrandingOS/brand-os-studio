@@ -28,6 +28,7 @@ import { EditableSlide } from './blocks/EditableSlide';
 import { EditorContext } from './EditorContext';
 import { useHistory } from './useHistory';
 import { HistoryPanel } from './HistoryPanel';
+import { useSlideSnapshotStore } from './slideSnapshotStore';
 import { captureElementForExport } from './exportCapture';
 import { toast } from 'sonner';
 
@@ -72,6 +73,18 @@ interface EditorWorkspaceProps {
   onAddSlide?: () => void;
   /** Optional callback to delete a specific slide by id. When provided, slide thumbnails get a delete button on hover. */
   onDeleteSlide?: (slideId: string) => void;
+  /**
+   * Per-slide HTML snapshots from a persisted doc store. When provided,
+   * the workspace re-injects the snapshot into the slide canvas after
+   * React paint so user edits survive reload. Keyed by slide id.
+   */
+  slideSnapshots?: Record<string, string>;
+  /**
+   * Persistence callback. Fires whenever the user edits a slide (debounced
+   * by useHistory). Hosts wire this to their doc-store mutation so the
+   * snapshot survives reload.
+   */
+  onPersistSlideSnapshot?: (slideId: string, html: string) => void;
 }
 
 export interface SlideRenderProps {
@@ -168,6 +181,8 @@ export function EditorWorkspace({
   inspectorLabel = 'Content',
   onAddSlide,
   onDeleteSlide,
+  slideSnapshots,
+  onPersistSlideSnapshot,
 }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
@@ -184,7 +199,50 @@ export function EditorWorkspace({
   const canvasRef = useRef<HTMLDivElement>(null);
   // Per-slide undo/redo + persistence — keyed by current slide id and editor instance
   const currentSlideIdForHistory = slides[currentSlide]?.id;
-  const { undo, redo, jumpTo } = useHistory({ editorKey, currentSlideId: currentSlideIdForHistory });
+
+  // Default snapshot persistence: writes through to a shared Zustand store
+  // keyed by editorKey so EVERY consumer of EditorWorkspace gets reload
+  // persistence automatically. Hosts that want their own store can pass
+  // `slideSnapshots` + `onPersistSlideSnapshot` to override.
+  const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[editorKey]);
+  const setDefaultSnapshot = useSlideSnapshotStore((s) => s.set);
+
+  const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
+  const effectivePersist = onPersistSlideSnapshot
+    ?? ((slideId: string, html: string) => setDefaultSnapshot(editorKey, slideId, html));
+
+  const { undo, redo, jumpTo } = useHistory({
+    editorKey,
+    currentSlideId: currentSlideIdForHistory,
+    onPersistSnapshot: effectivePersist,
+  });
+
+  // Re-inject persisted HTML snapshot after React paints the slide. Keyed
+  // by slide id ref so we only run once per slide visit; subsequent edits
+  // are tracked through the same MutationObserver and persisted via the
+  // effectivePersist callback above.
+  const restoredSnapshotRef = useRef<string | null>(null);
+  useEffect(() => {
+    const slideId = currentSlideIdForHistory;
+    if (!slideId || !effectiveSnapshots) return;
+    const snapshot = effectiveSnapshots[slideId];
+    if (!snapshot) {
+      restoredSnapshotRef.current = null;
+      return;
+    }
+    // Avoid re-restoring on every re-render of the same slide
+    const restoreKey = `${slideId}::${snapshot.length}`;
+    if (restoredSnapshotRef.current === restoreKey) return;
+
+    // Wait for React to mount the slide DOM, then swap in the snapshot.
+    const timer = setTimeout(() => {
+      const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+      if (!canvas) return;
+      canvas.innerHTML = snapshot;
+      restoredSnapshotRef.current = restoreKey;
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [currentSlideIdForHistory, effectiveSnapshots]);
   const scrollCooldown = useRef(false);
   const [slideOffset, setSlideOffset] = useState(0);
   const scrollAccum = useRef(0);
