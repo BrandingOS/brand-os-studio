@@ -1,10 +1,9 @@
 /**
  * useHistory — persisted, per-slide undo/redo for the slide editor.
  *
- * Backed by useEditorHistoryStore (Zustand + localStorage), so:
- * - Edits survive reloads
- * - Each slide has its own snapshot timeline
- * - Users can jump to any historical snapshot via the History panel
+ * Backed by useEditorHistoryStore (Zustand + localStorage). Uses
+ * getState() inside callbacks/effects to avoid re-render loops that
+ * would otherwise cause the canvas HTML to be repeatedly overwritten.
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -33,7 +32,6 @@ function getCleanHtml(): string {
 }
 
 export function useHistory({ editorKey, currentSlideId }: UseHistoryOptions) {
-  const store = useEditorHistoryStore();
   const paused = useRef(false);
   const currentIdRef = useRef<string | undefined>(currentSlideId);
 
@@ -46,83 +44,85 @@ export function useHistory({ editorKey, currentSlideId }: UseHistoryOptions) {
     if (!canvas) return;
     paused.current = true;
     canvas.innerHTML = snap.html;
-    setTimeout(() => { paused.current = false; }, 80);
+    setTimeout(() => { paused.current = false; }, 100);
   }, []);
 
-  /** Capture current state into the store */
+  /** Capture current state into the store (uses getState — no re-render loop) */
   const saveState = useCallback(() => {
     if (paused.current) return;
     const id = currentIdRef.current;
     if (!id) return;
     const html = getCleanHtml();
     if (!html) return;
-    store.pushSnapshot(editorKey, id, html);
-  }, [editorKey, store]);
+    useEditorHistoryStore.getState().pushSnapshot(editorKey, id, html);
+  }, [editorKey]);
 
   /** Undo */
   const undo = useCallback(() => {
     const id = currentIdRef.current;
     if (!id) return;
-    const snap = store.undo(editorKey, id);
+    const snap = useEditorHistoryStore.getState().undo(editorKey, id);
     if (!snap) {
       toast.info('Nothing to undo on this slide', { duration: 1500 });
       return;
     }
     applySnapshot(snap);
     toast.success('Undone', { duration: 1200 });
-  }, [editorKey, store, applySnapshot]);
+  }, [editorKey, applySnapshot]);
 
   /** Redo */
   const redo = useCallback(() => {
     const id = currentIdRef.current;
     if (!id) return;
-    const snap = store.redo(editorKey, id);
+    const snap = useEditorHistoryStore.getState().redo(editorKey, id);
     if (!snap) {
       toast.info('Nothing to redo on this slide', { duration: 1500 });
       return;
     }
     applySnapshot(snap);
     toast.success('Redone', { duration: 1200 });
-  }, [editorKey, store, applySnapshot]);
+  }, [editorKey, applySnapshot]);
 
   /** Jump to a specific snapshot index */
   const jumpTo = useCallback((index: number) => {
     const id = currentIdRef.current;
     if (!id) return;
-    const snap = store.jumpTo(editorKey, id, index);
+    const snap = useEditorHistoryStore.getState().jumpTo(editorKey, id, index);
     if (snap) {
       applySnapshot(snap);
       toast.success('Restored from history', { duration: 1200 });
     }
-  }, [editorKey, store, applySnapshot]);
+  }, [editorKey, applySnapshot]);
 
   /**
-   * On slide change: restore the latest persisted snapshot for that slide
-   * (if any), then re-bind the MutationObserver to the new canvas.
+   * On slide change: re-bind the MutationObserver. We DO NOT auto-restore
+   * persisted HTML because React owns the slide tree — restoring stale HTML
+   * over a new React render would break the editor when styles or content
+   * change. History snapshots are only used for undo/redo and the History
+   * panel within the same session.
    */
   useEffect(() => {
     if (!currentSlideId) return;
 
     paused.current = true;
+    let observer: MutationObserver | null = null;
 
     const setup = setTimeout(() => {
       const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
       if (!canvas) return;
 
-      // Restore latest snapshot if one exists
-      const latest = store.getCurrentSnapshot(editorKey, currentSlideId);
-      if (latest) {
-        canvas.innerHTML = latest.html;
-      } else {
-        // First time on this slide — capture the initial state as the baseline
+      // Capture the React-rendered baseline as the first snapshot
+      // (only if no snapshots exist yet for this slide in this session)
+      const existing = useEditorHistoryStore.getState().getHistory(editorKey, currentSlideId);
+      if (!existing || existing.snapshots.length === 0) {
         const html = getCleanHtml();
         if (html) {
-          store.pushSnapshot(editorKey, currentSlideId, html, 'Initial');
+          useEditorHistoryStore.getState().pushSnapshot(editorKey, currentSlideId, html, 'Initial');
         }
       }
 
       // Re-bind observer
-      const observer = new MutationObserver(() => {
+      observer = new MutationObserver(() => {
         if (paused.current) return;
         clearTimeout((observer as any).__timer);
         (observer as any).__timer = setTimeout(saveState, 700);
@@ -137,19 +137,17 @@ export function useHistory({ editorKey, currentSlideId }: UseHistoryOptions) {
       });
 
       paused.current = false;
-      (canvas as any).__historyObserver = observer;
     }, 200);
 
     return () => {
       clearTimeout(setup);
-      const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
-      const observer = canvas ? (canvas as any).__historyObserver : null;
       if (observer) {
         observer.disconnect();
-        delete (canvas as any).__historyObserver;
+        observer = null;
       }
     };
-  }, [currentSlideId, editorKey, saveState, store]);
+    // Only re-run when slide id or editor key changes — not on every store update
+  }, [currentSlideId, editorKey, saveState]);
 
   /** Keyboard shortcuts */
   useEffect(() => {
