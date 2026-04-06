@@ -25,6 +25,7 @@ import { InsertMenu } from './InsertMenu';
 import { RemixPanel } from './RemixPanel';
 import { ExportModal } from './ExportModal';
 import { EditableSlide } from './blocks/EditableSlide';
+import { EditorContext } from './EditorContext';
 import { useHistory } from './useHistory';
 import { toast } from 'sonner';
 
@@ -412,6 +413,7 @@ export function EditorWorkspace({
 
   // ─── Editor Mode ───────────────────────────────────────────
   return (
+    <EditorContext.Provider value={{ brand }}>
     <div ref={containerRef} className="fixed inset-0 z-40 bg-[#141414] flex flex-col outline-none" tabIndex={0}>
       {/* Top Bar */}
       <div className="h-11 bg-[#141414] border-b border-white/[0.04] flex items-center justify-between px-3 shrink-0 z-10">
@@ -585,5 +587,6 @@ export function EditorWorkspace({
         <ExportModal brand={brand} slides={slides} layout={layout} onClose={() => setActivePanel('none')} onExportPDF={handleExportPDF} />
       )}
     </div>
+    </EditorContext.Provider>
   );
 }

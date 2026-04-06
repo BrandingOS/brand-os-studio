@@ -3,9 +3,10 @@
  * Every button is functional.
  */
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, AlignLeft, AlignCenter, AlignRight, Upload, FolderOpen, ImageIcon } from 'lucide-react';
 import type { BlockType } from './BlockTypes';
 import { TURN_INTO_OPTIONS } from './BlockTypes';
+import { useEditorContext } from '../EditorContext';
 import { toast } from 'sonner';
 
 interface FloatingToolbarProps {
@@ -49,6 +50,13 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
   const toolbarRef = useRef<HTMLDivElement>(null);
   const isText = blockType === 'text' || blockType === 'heading';
   const isImage = blockType === 'image' || blockType === 'logo';
+
+  // Brand assets from editor context — used to populate the asset picker
+  const editorCtx = useEditorContext();
+  const brand = editorCtx?.brand;
+  const imageAssets = (brand?.assets || []).filter(a =>
+    a.type === 'image' || a.type === 'logo' || a.type === 'icon'
+  );
 
   const toggleDropdown = (id: string) => setOpenDropdown(prev => prev === id ? null : id);
 
@@ -231,7 +239,69 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
       {isImage && (
         <>
           <div className="w-px h-4 bg-white/10 mx-0.5" />
-          <button onClick={handleReplace} className="px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">Replace</button>
+          {/* Replace dropdown — Upload + Brand Assets */}
+          <div className="relative">
+            <button
+              onClick={() => toggleDropdown('replace')}
+              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              Replace <ChevronDown className="h-3 w-3" />
+            </button>
+            {openDropdown === 'replace' && (
+              <div className="absolute top-full left-0 mt-1 w-72 bg-[#2a2a2a] rounded-xl border border-white/[0.08] shadow-2xl z-50 overflow-hidden">
+                {/* Upload from device */}
+                <button
+                  onClick={() => { fileInputRef.current?.click(); setOpenDropdown(null); }}
+                  className="w-full px-3 py-2.5 text-left text-[12px] text-white/70 hover:text-white hover:bg-white/5 flex items-center gap-2 border-b border-white/[0.04]"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <div className="flex-1">
+                    <div>Upload from device</div>
+                    <div className="text-[10px] text-white/30">PNG, JPG, SVG, WebP</div>
+                  </div>
+                </button>
+
+                {/* Brand Assets section */}
+                <div className="px-3 py-2 flex items-center gap-2 text-[10px] text-white/30 uppercase tracking-wider border-b border-white/[0.04]">
+                  <FolderOpen className="h-3 w-3" />
+                  Brand Assets ({imageAssets.length})
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {imageAssets.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-[11px] text-white/25">
+                      No image assets in brand library
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5 p-2">
+                      {imageAssets.map((asset) => (
+                        <button
+                          key={asset.id}
+                          onClick={() => {
+                            onChangeStyle('__replaceImageSrc', asset.url);
+                            setOpenDropdown(null);
+                            toast.success(`Replaced with ${asset.name}`);
+                          }}
+                          className="group relative aspect-square rounded-md overflow-hidden bg-white/[0.04] border border-white/[0.06] hover:border-white/20 transition-colors"
+                          title={asset.name}
+                        >
+                          <img
+                            src={asset.url}
+                            alt={asset.name}
+                            className="w-full h-full object-contain p-1"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-sm px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="text-[8px] text-white/80 truncate">{asset.name}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button onClick={() => {
             const currentFit = style.objectFit || 'cover';
             const nextFit = currentFit === 'cover' ? 'contain' : currentFit === 'contain' ? 'fill' : 'cover';
