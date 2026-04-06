@@ -65,7 +65,8 @@ export default {
 				},
 				fontFamily: {
 					display: ['"Plus Jakarta Sans"','Inter','ui-sans-serif','system-ui','sans-serif'],
-					sans: ['Inter','ui-sans-serif','system-ui','sans-serif']
+					sans: ['Inter','ui-sans-serif','system-ui','sans-serif'],
+					serif: ['"Playfair Display"','Georgia','Cambria','"Times New Roman"','Times','serif']
 				},
 				borderRadius: {
 					lg: 'var(--radius)',
