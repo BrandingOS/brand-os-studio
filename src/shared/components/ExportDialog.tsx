@@ -102,6 +102,7 @@ export function ExportDialog({
   pptxBuilder,
   frameGenerator,
   title = 'Export',
+  onCustomExport,
 }: ExportDialogProps) {
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat | null>(null);
   const [scale, setScale] = useState(2);
