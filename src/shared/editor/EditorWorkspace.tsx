@@ -345,30 +345,52 @@ export function EditorWorkspace({
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
   // Rasterize every <img> in the cloned slide at its actual rendered DOM size,
-  // respecting object-fit and any CSS filters. This solves two html2canvas bugs:
+  // respecting object-fit and any CSS filters. This solves three html2canvas bugs:
   //   1. SVG <img> elements are captured at viewBox size, not CSS size
   //   2. CSS filters (e.g. brightness(0) invert(1)) are not applied to <img>
+  //   3. ctx.filter does not reliably apply to SVG images in all browsers
   //
   // After this pass, every image is a plain bitmap pre-sized for the export, so
   // html2canvas just draws it at the img's CSS box without any further scaling.
   const preprocessFilteredImages = useCallback(async (root: HTMLElement) => {
     const imgs = Array.from(root.querySelectorAll('img'));
-    const PIXEL_SCALE = 2; // 2x for crisp output
+    const PIXEL_SCALE = 2;
+
+    /** Detect "make this white" filter pattern: brightness(0) invert(1) */
+    const isInvertWhiteFilter = (f: string): boolean => {
+      const lower = f.toLowerCase();
+      return (
+        (lower.includes('brightness(0)') && lower.includes('invert(1)')) ||
+        (lower.includes('brightness(0)') && lower.includes('invert(100%)'))
+      );
+    };
+
+    /** Detect "make this black" filter pattern: brightness(0) alone */
+    const isBlackFilter = (f: string): boolean => {
+      const lower = f.toLowerCase();
+      return lower.includes('brightness(0)') && !lower.includes('invert');
+    };
+
+    /** Detect grayscale filter */
+    const isGrayscaleFilter = (f: string): boolean => {
+      const lower = f.toLowerCase();
+      return lower.includes('grayscale(1)') || lower.includes('grayscale(100%)');
+    };
+
     await Promise.all(imgs.map(async (img) => {
       try {
         const src = img.src;
-        if (!src || src.startsWith('data:')) return; // already a data URL — skip
+        if (!src || src.startsWith('data:')) return;
 
-        // Read the actual rendered size of the img in the staged clone
         const rect = img.getBoundingClientRect();
         const cssW = Math.round(rect.width);
         const cssH = Math.round(rect.height);
-        if (cssW < 2 || cssH < 2) return; // invisible — skip
+        if (cssW < 2 || cssH < 2) return;
 
         const filter = img.style.filter || window.getComputedStyle(img).filter || 'none';
         const objectFit = window.getComputedStyle(img).objectFit || 'fill';
 
-        // Load the original image into a fresh Image object (gets natural dimensions)
+        // Load original
         const tempImg = new Image();
         await new Promise<void>((res, rej) => {
           tempImg.onload = () => res();
@@ -379,7 +401,6 @@ export function EditorWorkspace({
         const naturalW = tempImg.naturalWidth || cssW;
         const naturalH = tempImg.naturalHeight || cssH;
 
-        // Create a canvas sized to the CSS box at 2x for crispness
         const canvas = document.createElement('canvas');
         canvas.width = cssW * PIXEL_SCALE;
         canvas.height = cssH * PIXEL_SCALE;
@@ -387,52 +408,95 @@ export function EditorWorkspace({
         if (!ctx) return;
         ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
 
-        // Apply CSS filter (canvas2d natively supports filter strings)
-        if (filter !== 'none' && filter !== '') {
-          ctx.filter = filter;
-        }
-
-        // Compute destination rectangle respecting object-fit
+        // Compute object-fit destination rect
         let dx = 0, dy = 0, dw = cssW, dh = cssH;
         const naturalRatio = naturalW / naturalH;
         const boxRatio = cssW / cssH;
-
         if (objectFit === 'contain') {
           if (naturalRatio > boxRatio) {
-            // Image is wider than the box — fit by width
-            dw = cssW;
-            dh = cssW / naturalRatio;
-            dx = 0;
-            dy = (cssH - dh) / 2;
+            dw = cssW; dh = cssW / naturalRatio; dx = 0; dy = (cssH - dh) / 2;
           } else {
-            // Image is taller — fit by height
-            dh = cssH;
-            dw = cssH * naturalRatio;
-            dy = 0;
-            dx = (cssW - dw) / 2;
+            dh = cssH; dw = cssH * naturalRatio; dy = 0; dx = (cssW - dw) / 2;
           }
         } else if (objectFit === 'cover') {
           if (naturalRatio > boxRatio) {
-            // Image is wider — fit by height, crop sides
-            dh = cssH;
-            dw = cssH * naturalRatio;
-            dy = 0;
-            dx = (cssW - dw) / 2;
+            dh = cssH; dw = cssH * naturalRatio; dy = 0; dx = (cssW - dw) / 2;
           } else {
-            // Image is taller — fit by width, crop top/bottom
-            dw = cssW;
-            dh = cssW / naturalRatio;
-            dx = 0;
-            dy = (cssH - dh) / 2;
+            dw = cssW; dh = cssW / naturalRatio; dx = 0; dy = (cssH - dh) / 2;
           }
         }
-        // 'fill' (default) and others: stretch to fill — leave dx/dy/dw/dh as defaults
 
+        // Draw the image normally first
         ctx.drawImage(tempImg, dx, dy, dw, dh);
 
-        // Replace the img source with the rasterized version
-        img.src = canvas.toDataURL('image/png');
+        // Apply filter via manual pixel manipulation for the patterns we know
+        // (more reliable than ctx.filter for SVG images across browsers)
+        if (filter !== 'none' && filter !== '') {
+          try {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+
+            if (isInvertWhiteFilter(filter)) {
+              // Make every opaque pixel white
+              for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] > 0) {
+                  data[i] = 255;
+                  data[i + 1] = 255;
+                  data[i + 2] = 255;
+                }
+              }
+            } else if (isBlackFilter(filter)) {
+              // Make every opaque pixel black
+              for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] > 0) {
+                  data[i] = 0;
+                  data[i + 1] = 0;
+                  data[i + 2] = 0;
+                }
+              }
+            } else if (isGrayscaleFilter(filter)) {
+              for (let i = 0; i < data.length; i += 4) {
+                if (data[i + 3] > 0) {
+                  const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                  data[i] = gray;
+                  data[i + 1] = gray;
+                  data[i + 2] = gray;
+                }
+              }
+            } else {
+              // Unknown filter — try the canvas2d filter approach as a fallback
+              const fallbackCanvas = document.createElement('canvas');
+              fallbackCanvas.width = canvas.width;
+              fallbackCanvas.height = canvas.height;
+              const fctx = fallbackCanvas.getContext('2d');
+              if (fctx) {
+                fctx.scale(PIXEL_SCALE, PIXEL_SCALE);
+                fctx.filter = filter;
+                fctx.drawImage(tempImg, dx, dy, dw, dh);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.drawImage(fallbackCanvas, 0, 0);
+                ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
+              }
+            }
+            ctx.putImageData(imageData, 0, 0);
+          } catch (filterErr) {
+            console.warn('[PDF Export] Filter application failed:', filterErr);
+          }
+        }
+
+        // Set the new src and WAIT for it to actually load
+        const dataUrl = canvas.toDataURL('image/png');
         img.style.filter = 'none';
+        await new Promise<void>((res) => {
+          // Detach any existing handlers
+          const onDone = () => res();
+          img.addEventListener('load', onDone, { once: true });
+          img.addEventListener('error', onDone, { once: true });
+          img.src = dataUrl;
+          // Safety timeout in case the load event doesn't fire (rare for data URLs)
+          setTimeout(onDone, 500);
+        });
       } catch (e) {
         console.warn('[PDF Export] Failed to rasterize img:', e);
       }
