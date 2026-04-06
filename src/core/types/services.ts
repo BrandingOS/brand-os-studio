@@ -32,6 +32,21 @@ export interface IStorageService {
   getPublicUrl(path: string): string;
 }
 
+// ─── Upload Service ────────────────────────────────────────────
+// Higher-level upload abstraction used by `useUpload`. The Local
+// implementation compresses to data URLs; a Supabase impl would
+// upload to object storage and return a public URL.
+
+export interface UploadServiceResult {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+export interface IUploadService {
+  uploadImage(file: File, opts?: { kind?: 'logo' | 'asset' | 'image' }): Promise<UploadServiceResult>;
+}
+
 // ─── Design Storage ────────────────────────────────────────────
 
 export interface IDesignStorage {
@@ -48,4 +63,5 @@ export const SERVICE_KEYS = {
   BRANDS: 'brands',
   STORAGE: 'storage',
   DESIGN_STORAGE: 'designStorage',
+  UPLOAD: 'upload',
 } as const;

@@ -1,0 +1,30 @@
+/**
+ * Brand Token CSS Variables
+ *
+ * Single source of truth for brand-driven design tokens used across BrandOS.
+ * Components reference these via `var(--brand-primary)`, `var(--brand-font-heading)`,
+ * etc. The values are written by `applyBrandTokens()` (see PresentationStyleAdapter)
+ * whenever the active brand or presentation style changes.
+ *
+ * Default values are neutral fallbacks so components render correctly before
+ * a brand has been applied.
+ */
+
+:root {
+  /* Brand colors — overridden by applyBrandTokens(brand) */
+  --brand-primary: #0A0A0F;
+  --brand-secondary: #6B7280;
+  --brand-accent: #F36123;
+
+  /* Brand typography — overridden by applyBrandTokens(brand) */
+  --brand-font-heading: 'Inter', system-ui, sans-serif;
+  --brand-font-body: 'Inter', system-ui, sans-serif;
+
+  /* Presentation style tokens — overridden by applyPresentationStyle(style) */
+  --pres-bg-light: #FFFFFF;
+  --pres-bg-dark: #0A0A0F;
+  --pres-text-on-light: #0A0A0F;
+  --pres-text-on-dark: #FFFFFF;
+  --pres-card-radius: 14px;
+  --pres-accent: var(--brand-primary);
+}

@@ -3,6 +3,8 @@ import { devtools } from 'zustand/middleware';
 import { container } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 import type { Brand, CreateBrandInput } from '../types/brand';
+import { loadBrandFonts } from '@/shared/design-system/fonts';
+import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 
 /**
  * Helper to get the brands service from the DI container.
@@ -42,6 +44,7 @@ export const useBrandStore = create<BrandStore>()(
         try {
           const brand = await getBrandsService().getById(id);
           set({ current: brand ?? undefined, isLoading: false }, false, 'loadById/success');
+          if (brand) { loadBrandFonts(brand); applyBrandTokens(brand); }
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to load brand', isLoading: false }, false, 'loadById/error');
         }
@@ -52,6 +55,7 @@ export const useBrandStore = create<BrandStore>()(
         try {
           const brand = await getBrandsService().getBySlug(slug);
           set({ current: brand ?? undefined, isLoading: false }, false, 'loadBySlug/success');
+          if (brand) { loadBrandFonts(brand); applyBrandTokens(brand); }
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to load brand', isLoading: false }, false, 'loadBySlug/error');
         }
@@ -86,6 +90,11 @@ export const useBrandStore = create<BrandStore>()(
               : state.current,
             isLoading: false,
           }), false, 'update/success');
+          if (patch.fonts || patch.primaryColor || patch.secondaryColor) {
+            const next = { ...(useBrandStore.getState().current ?? {}), ...patch } as Brand;
+            loadBrandFonts(next);
+            applyBrandTokens(next);
+          }
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to update brand', isLoading: false }, false, 'update/error');
         }

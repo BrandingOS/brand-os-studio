@@ -16,6 +16,7 @@ import { container } from './container/ServiceContainer';
 import { SERVICE_KEYS } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
+import { LocalUploadService } from './adapters/upload/LocalUploadService';
 
 export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
@@ -25,6 +26,10 @@ export function bootServices(): void {
 
   // ─── Design Storage ────────────────────────────────────────
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
+
+  // ─── Upload Service ────────────────────────────────────────
+  // Local impl compresses to data URL. Swap to SupabaseUploadService in prod.
+  container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
 }
 
 /**
