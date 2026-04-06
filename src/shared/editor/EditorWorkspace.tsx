@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -437,6 +437,23 @@ export function EditorWorkspace({
         <span className="text-white/30 text-xs hidden md:block">{slide?.name || ''}</span>
 
         <div className="flex items-center gap-1">
+          {/* Undo / Redo */}
+          <button
+            onClick={undo}
+            title="Undo (⌘Z / Ctrl+Z)"
+            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={redo}
+            title="Redo (⌘⇧Z / Ctrl+Y)"
+            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <Redo2 className="h-4 w-4" />
+          </button>
+          <div className="w-px h-4 bg-white/10 mx-1" />
+
           {onOpenTemplatePicker && (
             <button
               onClick={onOpenTemplatePicker}
