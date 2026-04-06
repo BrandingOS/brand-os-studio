@@ -20,7 +20,7 @@ const quickActions = [
   { label: 'Instagram', icon: Square, path: 'brandkit/instagram-posts', gradient: 'from-teal-400 to-cyan-500' },
   { label: 'QR Code', icon: QrCode, path: 'brandkit/qr-code', gradient: 'from-blue-400 to-blue-600' },
   { label: 'Animations', icon: Play, path: 'brandkit/animations', gradient: 'from-orange-500 to-amber-500' },
-  { label: 'Presentations', icon: Presentation, path: 'brandkit/presentations', gradient: 'from-purple-500 to-violet-600' },
+  { label: 'Presentations', icon: Presentation, path: 'presentations', gradient: 'from-purple-500 to-violet-600' },
 ];
 
 export default function BrandHomePage() {
