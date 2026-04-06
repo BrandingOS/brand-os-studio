@@ -4,6 +4,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditorWorkspace } from '@/shared/editor';
 import { LogoPresentationSetup } from '@/features/logo-presentation/components/LogoPresentationSetup';
 import { buildLogoSlides } from '@/features/logo-presentation/buildLogoSlides';
+import { buildSimpleLogoSlides } from '@/features/logo-presentation/buildSimpleLogoSlides';
 import { useLogoPresentationStore, LOGO_PRESENTATION_TEMPLATES } from '@/features/logo-presentation/store';
 import type { LogoPresentationData } from '@/features/logo-presentation/types';
 
@@ -42,7 +43,10 @@ export default function LogoPresentationPage() {
     );
   }
 
-  const slides = buildLogoSlides(presentationData);
+  // Dispatch slide builder based on template choice from setup
+  const slides = presentationData.template === 'simple'
+    ? buildSimpleLogoSlides(presentationData)
+    : buildLogoSlides(presentationData);
 
   return (
     <EditorWorkspace
@@ -51,7 +55,11 @@ export default function LogoPresentationPage() {
       onClose={() => setPresentationData(null)}
       useSettingsStore={useLogoPresentationStore}
       templates={LOGO_PRESENTATION_TEMPLATES}
-      customizerTitle="Logo Presentation"
+      customizerTitle={`Logo Presentation - ${presentationData.template === 'simple' ? 'Simple' : 'Premium'}`}
+      onTemplateChange={(templateId) => {
+        // When user switches template in editor, update the data and rebuild
+        setPresentationData(prev => prev ? { ...prev, template: templateId as 'premium' | 'simple' } : prev);
+      }}
     />
   );
 }
