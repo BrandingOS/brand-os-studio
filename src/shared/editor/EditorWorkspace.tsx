@@ -1,12 +1,18 @@
 /**
- * EditorWorkspace — Chronicle-inspired slide editor.
- * Full-screen dark workspace with centered editable slide.
+ * EditorWorkspace — shared slide editor for all presentation types.
+ * Full-screen dark workspace with centered editable slide,
+ * zoom/pan, presentation mode, customization sidebar,
+ * and proportional header/footer overlays.
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
+import { PresentationCustomizer } from '@/shared/presentation/PresentationCustomizer';
+import { createPresentationStore } from '@/shared/presentation/store';
+import type { PresentationSettings, SizeFormat } from '@/shared/presentation/types';
+import { SIZE_PRESETS, DEFAULT_PRESENTATION_SETTINGS } from '@/shared/presentation/types';
 import { EditorBottomBar } from './EditorBottomBar';
 import { EditorTopBar } from './EditorTopBar';
 import { SlideNav } from './SlideNav';
@@ -18,6 +24,19 @@ import { ExportModal } from './ExportModal';
 import { EditableSlide } from './blocks/EditableSlide';
 import { useHistory } from './useHistory';
 import { toast } from 'sonner';
+
+// ── Store (single instance for all editor usage) ────────────
+const useEditorSettingsStore = createPresentationStore('editor-presentation-settings');
+
+// ── Templates available in the editor customizer ────────────
+const EDITOR_TEMPLATES = [
+  { id: 'hyperhyve', name: 'Studio', description: 'Structured grid with centered logo header' },
+  { id: 'identity', name: 'Identity', description: 'Full-bleed color blocks with bold logos' },
+  { id: 'noteform', name: 'Noteform', description: 'Dark cinematic with editorial metadata' },
+  { id: 'signal', name: 'Signal', description: 'Bright accent hero blocks with oversized numbers' },
+];
+
+// ── Types ───────────────────────────────────────────────────
 
 interface EditorWorkspaceProps {
   brand: Brand;
@@ -39,11 +58,73 @@ export interface SlideData {
   render: (props: SlideRenderProps) => React.ReactNode;
 }
 
+// ── Proportional Header/Footer ──────────────────────────────
+// Uses percentage-based positioning so it scales with any size
+
+function SlideChrome({
+  settings,
+  brandName,
+  pageNumber,
+  totalPages,
+}: {
+  settings: PresentationSettings;
+  brandName: string;
+  pageNumber: number;
+  totalPages: number;
+}) {
+  const pad = `${settings.spacing.padding / 12}%`;
+
+  return (
+    <>
+      {/* Header */}
+      {settings.header.enabled && (
+        <div
+          className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between pointer-events-none"
+          style={{ padding: `${pad} ${pad} 0 ${pad}` }}
+        >
+          <div className="flex items-center gap-[0.6em]">
+            {settings.header.showProjectName && (
+              <span className="text-[0.55em] font-medium tracking-[0.08em] uppercase opacity-30">{brandName}</span>
+            )}
+            {settings.header.customText && (
+              <>
+                <span className="opacity-15">·</span>
+                <span className="text-[0.55em] opacity-25">{settings.header.customText}</span>
+              </>
+            )}
+          </div>
+          {settings.header.showDate && (
+            <span className="text-[0.5em] opacity-20">{new Date().toLocaleDateString()}</span>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      {settings.footer.enabled && (
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between pointer-events-none"
+          style={{ padding: `0 ${pad} ${pad} ${pad}` }}
+        >
+          {settings.footer.customText ? (
+            <span className="text-[0.5em] opacity-20">{settings.footer.customText}</span>
+          ) : <span />}
+          {settings.footer.showPageNumbers && (
+            <span className="text-[0.5em] font-mono opacity-20">{pageNumber} / {totalPages}</span>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Main Component ──────────────────────────────────────────
+
 export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [layoutId, setLayoutId] = useState('hyperhyve');
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const [perSlideBg, setPerSlideBg] = useState<Record<string, string>>({});
   const [canvasMode, setCanvasMode] = useState<'freeform' | 'scroll'>('freeform');
   const [zoom, setZoom] = useState(1);
@@ -52,13 +133,33 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const canvasRef = useRef<HTMLDivElement>(null);
   const { undo, redo } = useHistory();
   const scrollCooldown = useRef(false);
-  const [slideOffset, setSlideOffset] = useState(0); // -1 to 1, for smooth transition
+  const [slideOffset, setSlideOffset] = useState(0);
   const scrollAccum = useRef(0);
+
+  // Presentation settings from shared store
+  const {
+    settings,
+    setTemplate,
+    setSizeFormat,
+    setCustomSize,
+    setLanguageDirection,
+    updateSpacing,
+    updateHeader,
+    updateFooter,
+    resetSettings,
+  } = useEditorSettingsStore();
 
   const layout = getLayoutById(layoutId);
   const totalPages = slides.length;
   const slide = slides[currentSlide];
   const bgOverride = slide ? perSlideBg[slide.id] : undefined;
+
+  // Derive aspect ratio from settings
+  const aspectRatio = `${settings.size.width} / ${settings.size.height}`;
+  const isPortrait = settings.size.height > settings.size.width;
+
+  // Keep layout in sync with settings template
+  useEffect(() => { setLayoutId(settings.template); }, [settings.template]);
 
   const goTo = useCallback((idx: number) => {
     if (idx >= 0 && idx < totalPages) {
@@ -80,51 +181,52 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(currentSlide - 1); }
       if (e.key === 'Escape') {
         if (presentMode) setPresentMode(false);
+        else if (showCustomizer) setShowCustomizer(false);
         else if (activePanel !== 'none') setActivePanel('none');
       }
-      // Zoom shortcuts
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); setZoom(prev => Math.min(2, prev + 0.1)); }
       if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); setZoom(prev => Math.max(0.3, prev - 0.1)); }
       if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [currentSlide, goTo, presentMode, activePanel]);
+  }, [currentSlide, goTo, presentMode, activePanel, showCustomizer]);
 
-  // Auto-focus container
   useEffect(() => { containerRef.current?.focus(); }, []);
 
-  // Auto-fit: calculate zoom so slide fills canvas with edge gap
   const calculateFitZoom = useCallback(() => {
-    // Use window dimensions minus top bar (48px) and bottom bar (48px)
-    const viewW = window.innerWidth - 60 - 80; // 60 for left nav, 80 for right padding
-    const viewH = window.innerHeight - 48 - 48 - 80; // top bar, bottom bar, 80 for gap
+    const customizerW = showCustomizer ? 288 : 0;
+    const viewW = window.innerWidth - 60 - 80 - customizerW;
+    const viewH = window.innerHeight - 48 - 48 - 80;
+    // Use settings aspect ratio
     const slideW = 1200;
-    const slideH = 675; // 16:9
+    const slideH = slideW * (settings.size.height / settings.size.width);
     const fitZoom = Math.min(viewW / slideW, viewH / slideH);
-    return Math.max(0.4, Math.min(fitZoom, 1)); // clamp 40%-100%
-  }, []);
+    return Math.max(0.3, Math.min(fitZoom, 1));
+  }, [showCustomizer, settings.size.width, settings.size.height]);
 
-  // Set initial zoom to fit on mount and resize
   useEffect(() => {
-    // Delay slightly to ensure layout is ready
     const timer = setTimeout(() => setZoom(calculateFitZoom()), 50);
     const handleResize = () => setZoom(calculateFitZoom());
     window.addEventListener('resize', handleResize);
     return () => { clearTimeout(timer); window.removeEventListener('resize', handleResize); };
   }, [calculateFitZoom]);
 
+  // Recalculate zoom when customizer opens/closes
+  useEffect(() => {
+    const timer = setTimeout(() => setZoom(calculateFitZoom()), 200);
+    return () => clearTimeout(timer);
+  }, [showCustomizer, calculateFitZoom]);
+
   // Block browser swipe navigation
   useEffect(() => {
     document.documentElement.style.overscrollBehaviorX = 'none';
     document.body.style.overscrollBehaviorX = 'none';
-
     const dummyState = { editorOpen: true };
     window.history.pushState(dummyState, '');
     window.history.pushState(dummyState, '');
     const handlePopState = () => window.history.pushState(dummyState, '');
     window.addEventListener('popstate', handlePopState);
-
     return () => {
       document.documentElement.style.overscrollBehaviorX = '';
       document.body.style.overscrollBehaviorX = '';
@@ -132,41 +234,32 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
     };
   }, []);
 
-  // Canvas zoom + slide navigation (freeform mode only)
+  // Canvas zoom + slide navigation
   useEffect(() => {
     if (canvasMode !== 'freeform') return;
     const el = canvasRef.current;
     if (!el) return;
 
     const handleWheel = (e: WheelEvent) => {
-      // Always prevent default to stop browser navigation
       e.preventDefault();
       e.stopPropagation();
 
       if (e.ctrlKey || e.metaKey) {
-        // Zoom with snap-to-fit magnet
         const delta = e.deltaY > 0 ? -0.05 : 0.05;
         setZoom(prev => {
           const next = Math.min(2, Math.max(0.3, prev + delta));
-          // Magnet: snap to fit-zoom when within 5% of it
           const fitZoom = calculateFitZoom();
           if (Math.abs(next - fitZoom) < 0.05) return fitZoom;
-          // Also snap to 100%
           if (Math.abs(next - 1) < 0.04) return 1;
-          // Also snap to 50%
           if (Math.abs(next - 0.5) < 0.04) return 0.5;
           return next;
         });
       } else {
-        // Smooth magnetic scroll between slides
         scrollAccum.current += e.deltaY;
-        const threshold = 120; // pixels of scroll before committing to next slide
-
-        // Live drag: show partial offset as user scrolls
+        const threshold = 120;
         const dragAmount = Math.max(-1, Math.min(1, scrollAccum.current / threshold));
         setSlideOffset(dragAmount);
 
-        // When threshold crossed, snap to next/prev slide
         if (Math.abs(scrollAccum.current) > threshold && !scrollCooldown.current) {
           scrollCooldown.current = true;
           const dir = scrollAccum.current > 0 ? 1 : -1;
@@ -179,13 +272,11 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           });
           setActivePanel('none');
 
-          // Animate snap: offset overshoots then returns to 0
           setSlideOffset(dir * 0.3);
           setTimeout(() => setSlideOffset(0), 150);
           setTimeout(() => { scrollCooldown.current = false; }, 500);
         }
 
-        // Reset accumulator if user stops scrolling (decay)
         clearTimeout((scrollAccum as any)._resetTimer);
         (scrollAccum as any)._resetTimer = setTimeout(() => {
           scrollAccum.current = 0;
@@ -194,11 +285,8 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
       }
     };
 
-    // Prevent overscroll/back-forward navigation
     const handleTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        e.preventDefault();
-      }
+      if (e.touches.length === 1) e.preventDefault();
     };
 
     el.addEventListener('wheel', handleWheel, { passive: false });
@@ -212,45 +300,92 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   const zoomIn = () => setZoom(prev => Math.min(2, prev + 0.1));
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
-  const zoomFit = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
   const handleExportPDF = useCallback(async () => {
+    const w = settings.size.width;
+    const h = settings.size.height;
+    const orientation = w >= h ? 'landscape' : 'portrait';
     toast.loading('Exporting PDF...');
     try {
       const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+      const pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] });
 
       for (let i = 0; i < slides.length; i++) {
         setCurrentSlide(i);
-        await new Promise(r => setTimeout(r, 200)); // Let it render
+        await new Promise(r => setTimeout(r, 200));
 
         const el = document.querySelector('[data-slide-canvas]') as HTMLElement;
         if (!el) continue;
 
         const canvas = await html2canvas(el, { scale: 3, backgroundColor: null, useCORS: true, logging: false });
-        if (i > 0) pdf.addPage([1920, 1080], 'landscape');
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, 1920, 1080);
+        if (i > 0) pdf.addPage([w, h], orientation);
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
       }
 
       const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
-      pdf.save(`${slug}-brand-guidelines.pdf`);
+      pdf.save(`${slug}-presentation.pdf`);
       toast.dismiss();
-      toast.success(`PDF exported (${slides.length} pages)`);
+      toast.success(`PDF exported (${slides.length} pages, ${w}×${h})`);
     } catch (err) {
       toast.dismiss();
       toast.error('PDF export failed');
       console.error(err);
     }
-  }, [brand, slides]);
+  }, [brand, slides, settings.size]);
+
+  // ── Slide wrapper that applies settings ───────────────────
+  const renderSlideWithChrome = useCallback((
+    slideData: SlideData,
+    pageNumber: number,
+    opts?: { isExportTarget?: boolean; onClick?: () => void }
+  ) => {
+    const slideBg = perSlideBg[slideData.id];
+    const r = settings.spacing.cornerRadius;
+    const innerPad = `${settings.spacing.padding / 10}%`;
+
+    return (
+      <div
+        data-slide-canvas={opts?.isExportTarget ? '' : undefined}
+        className={`w-full h-full overflow-hidden shadow-2xl ring-1 ring-white/[0.08] relative`}
+        style={{
+          borderRadius: `${r}px`,
+          backgroundColor: slideBg || undefined,
+          direction: settings.language.direction,
+          // Font size scales with container so em-based chrome adapts
+          fontSize: 'clamp(14px, 1.4vw, 20px)',
+        }}
+        onClick={opts?.onClick}
+      >
+        {/* Chrome: header + footer */}
+        <SlideChrome
+          settings={settings}
+          brandName={brand.name}
+          pageNumber={pageNumber}
+          totalPages={totalPages}
+        />
+
+        {/* Inner padding wrapper */}
+        <div className="absolute inset-0" style={{ padding: innerPad }}>
+          <div className="w-full h-full overflow-hidden">
+            <EditableSlide>
+              {slideData.render({ brand, layout, pageNumber, totalPages })}
+            </EditableSlide>
+          </div>
+        </div>
+      </div>
+    );
+  }, [settings, perSlideBg, brand, layout, totalPages]);
 
   // ─── Presentation Mode ─────────────────────────────────────
   if (presentMode) {
     return (
       <div ref={containerRef} className="fixed inset-0 z-50 bg-black flex flex-col outline-none" tabIndex={0}>
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="w-full max-w-[85vw]">
-            {slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}
+          <div className="w-full max-w-[85vw]" style={{ maxHeight: '85vh' }}>
+            <div style={{ aspectRatio, maxWidth: '100%', maxHeight: '100%', margin: '0 auto' }}>
+              {renderSlideWithChrome(slide, currentSlide + 1, { isExportTarget: true })}
+            </div>
           </div>
         </div>
         <div className="h-11 flex items-center justify-center gap-6 bg-black/90 border-t border-white/5">
@@ -273,15 +408,51 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
   return (
     <div ref={containerRef} className="fixed inset-0 z-40 bg-[#141414] flex flex-col outline-none" tabIndex={0}>
       {/* Top Bar */}
-      <EditorTopBar
-        brand={brand}
-        currentSlide={currentSlide}
-        totalPages={totalPages}
-        slideName={slide?.name || ''}
-        onPresent={() => setPresentMode(true)}
-        onExport={() => togglePanel('export')}
-        onClose={onClose}
-      />
+      <div className="h-11 bg-[#141414] border-b border-white/[0.04] flex items-center justify-between px-3 shrink-0 z-10">
+        {/* Left: breadcrumb */}
+        <div className="flex items-center gap-2">
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
+          <div className="flex items-center gap-2 bg-white/[0.05] rounded-lg px-3 py-1.5">
+            {brand.logo && <img src={brand.logo} alt="" className="h-3.5 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />}
+            <span className="text-white/70 text-[13px] font-medium">{brand.name}</span>
+            <span className="text-white/15 text-[13px]">/</span>
+            <span className="text-white/40 text-[13px]">Slide {currentSlide + 1} of {totalPages}</span>
+          </div>
+          {/* Size badge */}
+          <span className="text-[9px] text-white/20 bg-white/[0.04] px-2 py-0.5 rounded-full">
+            {settings.size.format} · {settings.size.width}×{settings.size.height}
+          </span>
+        </div>
+
+        {/* Center: slide name */}
+        <span className="text-white/30 text-xs hidden md:block">{slide?.name || ''}</span>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowCustomizer(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              showCustomizer ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Customize</span>
+          </button>
+          <button onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied'); }} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+            Share
+          </button>
+          <button onClick={() => togglePanel('export')} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+            Export
+          </button>
+          <button onClick={() => setPresentMode(true)} className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+            Present
+          </button>
+        </div>
+      </div>
 
       {/* Main Area */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
@@ -299,39 +470,30 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
               </div>
             </div>
 
-            {/* Canvas with proper padding */}
+            {/* Canvas */}
             <div className="flex-1 w-full flex items-center justify-center min-h-0" style={{ padding: '8px 40px 8px 48px' }}>
-            {/* Zoom controls — bottom right */}
-            <div className="absolute bottom-5 right-12 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/80 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
-              <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
-              <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">
-                {Math.round(zoom * 100)}%
-              </button>
-              <button onClick={zoomIn} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">+</button>
-            </div>
+              {/* Zoom controls */}
+              <div className="absolute bottom-5 right-12 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/80 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
+                <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
+                <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button onClick={zoomIn} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">+</button>
+              </div>
 
-            {/* The Slide — fills available space with comfortable padding */}
-            <div
-              key={currentSlide}
-              className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.97] duration-300"
-            >
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}
-              >
-                <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '16/9' }}>
-                  <div data-slide-canvas className="w-full h-full rounded-xl overflow-hidden shadow-2xl ring-1 ring-white/[0.08]" style={bgOverride ? { backgroundColor: bgOverride } : undefined}>
-                    <EditableSlide>{slide?.render({ brand, layout, pageNumber: currentSlide + 1, totalPages })}</EditableSlide>
+              {/* The Slide */}
+              <div key={currentSlide} className="w-full h-full flex items-center justify-center animate-in fade-in zoom-in-[0.97] duration-300">
+                <div className="w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}>
+                  <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio }}>
+                    {renderSlideWithChrome(slide, currentSlide + 1, { isExportTarget: true })}
                   </div>
                 </div>
               </div>
-            </div>
             </div>
           </div>
         ) : (
           /* ─── SCROLL VIEW ─── */
           <div ref={canvasRef} className="flex-1 flex flex-col overflow-hidden relative min-h-0">
-            {/* Slide/Scroll toggle */}
             <div className="flex justify-center py-2 shrink-0 w-full">
               <div className="inline-flex items-center gap-0.5 bg-[#1e1e1e] rounded-full px-1 py-0.5 border border-white/[0.06]">
                 <button onClick={() => setCanvasMode('freeform')} className={`px-4 py-1 rounded-full text-[11px] font-medium transition-colors ${canvasMode === 'freeform' ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}>Slide</button>
@@ -339,37 +501,21 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
               </div>
             </div>
 
-            {/* Scrollable slides */}
             <div className="flex-1 min-h-0 snap-y snap-mandatory" style={{ overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth' }}>
-              {slides.map((s, i) => {
-                const slideBg = perSlideBg[s.id];
-                return (
-                  <div key={s.id} className="snap-center flex items-center justify-center" style={{ minHeight: '100%', padding: '12px 40px 12px 48px' }}>
-                  <div
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}
-                  >
-                    <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio: '16/9' }}>
-                      <div
-                        data-slide-canvas={i === currentSlide ? '' : undefined}
-                        className={`w-full h-full rounded-xl overflow-hidden shadow-xl ring-1 transition-all ${
-                          i === currentSlide ? 'ring-white/15' : 'ring-white/[0.04]'
-                        }`}
-                        style={slideBg ? { backgroundColor: slideBg } : undefined}
-                        onClick={() => setCurrentSlide(i)}
-                      >
-                        <EditableSlide>
-                          {s.render({ brand, layout, pageNumber: i + 1, totalPages })}
-                        </EditableSlide>
-                      </div>
+              {slides.map((s, i) => (
+                <div key={s.id} className="snap-center flex items-center justify-center" style={{ minHeight: '100%', padding: '12px 40px 12px 48px' }}>
+                  <div className="w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}>
+                    <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio }}>
+                      {renderSlideWithChrome(s, i + 1, {
+                        isExportTarget: i === currentSlide,
+                        onClick: () => setCurrentSlide(i),
+                      })}
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
             </div>
 
-            {/* Zoom controls */}
             <div className="absolute bottom-3 right-8 z-10 flex items-center gap-0.5 bg-[#1e1e1e]/80 rounded-lg px-0.5 py-0.5 border border-white/[0.06]">
               <button onClick={zoomOut} className="w-6 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-xs">−</button>
               <button onClick={zoomReset} className="px-1.5 h-6 rounded flex items-center justify-center text-white/30 hover:text-white hover:bg-white/10 transition-colors text-[10px] font-mono">{Math.round(zoom * 100)}%</button>
@@ -377,13 +523,32 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
             </div>
           </div>
         )}
+
+        {/* ─── Customizer Sidebar ─── */}
+        {showCustomizer && (
+          <div className="w-72 border-l border-white/[0.06] bg-[#141414] shrink-0 animate-in slide-in-from-right duration-200">
+            <PresentationCustomizer
+              settings={settings}
+              templates={EDITOR_TEMPLATES}
+              onSetTemplate={(id) => { setTemplate(id); setLayoutId(id); }}
+              onSetSizeFormat={setSizeFormat}
+              onSetCustomSize={setCustomSize}
+              onSetLanguageDirection={setLanguageDirection}
+              onUpdateSpacing={updateSpacing}
+              onUpdateHeader={updateHeader}
+              onUpdateFooter={updateFooter}
+              onReset={resetSettings}
+              title="Presentation"
+            />
+          </div>
+        )}
       </div>
 
-      {/* Panels — positioned above the bottom bar, outside scroll area */}
+      {/* Panels — positioned above the bottom bar */}
       <div className="relative shrink-0">
         {activePanel === 'theme' && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 z-30">
-            <ThemeDrawer layoutId={layoutId} onChangeLayout={setLayoutId} onClose={() => setActivePanel('none')} />
+            <ThemeDrawer layoutId={layoutId} onChangeLayout={(id) => { setLayoutId(id); setTemplate(id); }} onClose={() => setActivePanel('none')} />
           </div>
         )}
         {activePanel === 'background' && (
@@ -411,7 +576,6 @@ export function EditorWorkspace({ brand, slides, onClose }: EditorWorkspaceProps
           </div>
         )}
 
-        {/* Bottom Bar */}
         <EditorBottomBar activePanel={activePanel} onTogglePanel={togglePanel} />
       </div>
 
