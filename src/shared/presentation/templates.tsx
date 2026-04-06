@@ -25,6 +25,7 @@ import {
   ClosingPage,
   type PageProps,
 } from './pages';
+import { buildBrandUiSlidesForBrandGuide } from './slides/BrandUiUxSlides';
 
 // ── Content Types ───────────────────────────────────────
 
@@ -166,6 +167,8 @@ function buildBrandGuideSlides(brand: Brand, style: PresentationStyle, overrides
       subtitle: fonts?.primary || 'Plus Jakarta Sans',
       body: `Our type system uses ${fonts?.primary || 'Plus Jakarta Sans'} for headings and ${fonts?.secondary || 'Inter'} for body text. This combination balances personality with readability across all applications.`,
     }, overrides),
+    // Brand UI/UX section — divider + design system + hero + dashboard
+    ...buildBrandUiSlidesForBrandGuide(brand, style, overrides),
     makeSlide('voice', 'Brand Voice', QuotePage, {
       style,
       quote: strategy?.positioning || `${brand.name} speaks with clarity, confidence, and purpose. Every word reflects who we are.`,

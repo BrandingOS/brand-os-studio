@@ -5,6 +5,7 @@
  */
 import type { SlideData, SlideRenderProps } from '@/shared/editor';
 import type { LogoPresentationData, LogoConcept } from './types';
+import { buildBrandUiSlidesForLogo } from '@/shared/presentation/slides/BrandUiUxSlides';
 
 // ── Tokens ─────────────────────────────────────────
 const BG = '#0A0A0F';
@@ -304,6 +305,9 @@ export function buildSimpleLogoSlides(data: LogoPresentationData): SlideData[] {
     slides.push({ id: `${concept.id}-rationale`, name: `Concept ${label} — Rationale`, render: (_p) => <RationaleSlide concept={concept} index={i} data={data} /> });
     slides.push({ id: `${concept.id}-brand-hero`, name: `Concept ${label} — Brand Color`, render: (_p) => <BrandColorHeroSlide concept={concept} index={i} data={data} /> });
   });
+
+  // Brand UI/UX section — divider + design system + hero + dashboard
+  slides.push(...buildBrandUiSlidesForLogo(data));
 
   slides.push({ id: 'divider-all', name: 'All Options', render: (_p: SlideRenderProps) => <SectionDividerSlide title="ALL OPTIONS" /> });
   slides.push({ id: 'all-options', name: 'All Logos', render: (_p: SlideRenderProps) => <AllOptionsSlide data={data} /> });
