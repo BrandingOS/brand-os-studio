@@ -159,7 +159,9 @@ export function EditorWorkspace({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { undo, redo } = useHistory();
+  // Per-slide undo/redo — keyed by current slide id so history never crosses slides
+  const currentSlideIdForHistory = slides[currentSlide]?.id;
+  const { undo, redo } = useHistory({ currentSlideId: currentSlideIdForHistory });
   const scrollCooldown = useRef(false);
   const [slideOffset, setSlideOffset] = useState(0);
   const scrollAccum = useRef(0);
