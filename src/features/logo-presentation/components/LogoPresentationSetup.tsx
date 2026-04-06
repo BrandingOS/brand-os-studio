@@ -4,7 +4,7 @@
  * write rationales, pick colors.
  */
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye, RotateCcw } from 'lucide-react';
+import { Upload, Plus, X, Trash2, ChevronRight, ChevronUp, ChevronDown, Palette, Type, Sparkles, Eye, RotateCcw } from 'lucide-react';
 import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
@@ -31,11 +31,15 @@ function createEmptyConcept(index: number): LogoConcept {
   };
 }
 
-function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
+function ConceptEditor({ concept, index, onChange, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown, brandColor }: {
   concept: LogoConcept;
   index: number;
   onChange: (c: LogoConcept) => void;
   onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   brandColor: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -86,9 +90,29 @@ function ConceptEditor({ concept, index, onChange, onRemove, brandColor }: {
           </span>
           <span className="text-sm font-semibold text-white/80">Concept {String.fromCharCode(65 + index)}</span>
         </div>
-        <button onClick={onRemove} className="p-1 rounded hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors">
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Reorder buttons */}
+          <button
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            title="Move up"
+            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-white/30 transition-colors"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            title="Move down"
+            className="p-1 rounded hover:bg-white/10 text-white/30 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-white/30 transition-colors"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          <div className="w-px h-4 bg-white/10 mx-1" />
+          <button onClick={onRemove} title="Delete concept" className="p-1 rounded hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="p-5 space-y-4">
@@ -466,6 +490,16 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
     setConcepts(prev => [...prev, createEmptyConcept(prev.length)]);
   };
 
+  const moveConcept = (index: number, direction: -1 | 1) => {
+    setConcepts(prev => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
   const handleResetDraft = () => {
     if (!confirm('Reset all changes and start over? This cannot be undone.')) return;
     draftStore.clearDraft(brand.id);
@@ -665,6 +699,10 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
                   index={i}
                   onChange={(c) => updateConcept(i, c)}
                   onRemove={() => removeConcept(i)}
+                  onMoveUp={() => moveConcept(i, -1)}
+                  onMoveDown={() => moveConcept(i, 1)}
+                  canMoveUp={i > 0}
+                  canMoveDown={i < concepts.length - 1}
                   brandColor={brand.primaryColor}
                 />
               ))}
