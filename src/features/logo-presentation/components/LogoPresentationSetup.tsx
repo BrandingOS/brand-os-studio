@@ -9,12 +9,26 @@ import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
-import { useLogoPresentationDataStore, type LogoPresentationDraft } from '../dataStore';
 import { toast } from 'sonner';
+
+export interface LogoPresentationDraft {
+  concepts: LogoConcept[];
+  brief: string;
+  personality: string;
+  clientName: string;
+  template: PresentationTemplate;
+}
 
 interface LogoPresentationSetupProps {
   brand: Brand;
-  onStart: (data: LogoPresentationData) => void;
+  /** Optional initial draft when editing an existing doc; otherwise use defaults */
+  initialDraft?: LogoPresentationDraft;
+  /** Called when the user clicks Generate — passes both the full LogoPresentationData and the raw draft */
+  onStart: (data: LogoPresentationData, draft: LogoPresentationDraft) => void;
+  /** Called when the user clicks Back / closes the setup */
+  onClose?: () => void;
+  /** Header label override (e.g. "New Logo Presentation" / "Edit Setup") */
+  title?: string;
 }
 
 function createEmptyConcept(index: number): LogoConcept {
@@ -419,55 +433,30 @@ function createVectorConcepts(): LogoConcept[] {
   ];
 }
 
-export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupProps) {
+export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, title }: LogoPresentationSetupProps) {
   const isVector = brand.slug === 'vector';
 
-  // Persisted draft store — keyed per brand id
-  const draftStore = useLogoPresentationDataStore();
-  const savedDraft = draftStore.drafts[brand.id];
+  // Build defaults — used only when no initialDraft is provided
+  const buildDefaultDraft = (): LogoPresentationDraft => ({
+    concepts: isVector ? createVectorConcepts() : [
+      createEmptyConcept(0),
+      createEmptyConcept(1),
+      createEmptyConcept(2),
+    ],
+    brief: brand.guidelines?.strategy?.positioning || brand.strategy || '',
+    personality: (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', '),
+    clientName: '',
+    template: isVector ? 'simple' : 'premium',
+  });
 
-  // Build the initial draft from saved data, or fall back to defaults
-  const buildInitialDraft = (): LogoPresentationDraft => {
-    if (savedDraft) return savedDraft;
-    return {
-      concepts: isVector ? createVectorConcepts() : [
-        createEmptyConcept(0),
-        createEmptyConcept(1),
-        createEmptyConcept(2),
-      ],
-      brief: brand.guidelines?.strategy?.positioning || brand.strategy || '',
-      personality: (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', '),
-      clientName: '',
-      template: isVector ? 'simple' : 'premium',
-    };
-  };
+  // Local state — initialized from initialDraft (editing existing) or defaults (new)
+  const [concepts, setConceptsLocal] = useState<LogoConcept[]>(() => initialDraft?.concepts || buildDefaultDraft().concepts);
+  const [brief, setBriefLocal] = useState(() => initialDraft?.brief ?? buildDefaultDraft().brief);
+  const [personality, setPersonalityLocal] = useState(() => initialDraft?.personality ?? buildDefaultDraft().personality);
+  const [clientName, setClientNameLocal] = useState(() => initialDraft?.clientName ?? buildDefaultDraft().clientName);
+  const [template, setTemplateLocal] = useState<PresentationTemplate>(() => initialDraft?.template || buildDefaultDraft().template);
 
-  // Local state mirrors the store for fast updates
-  const [concepts, setConceptsLocal] = useState<LogoConcept[]>(() => buildInitialDraft().concepts);
-  const [brief, setBriefLocal] = useState(() => buildInitialDraft().brief);
-  const [personality, setPersonalityLocal] = useState(() => buildInitialDraft().personality);
-  const [clientName, setClientNameLocal] = useState(() => buildInitialDraft().clientName);
-  const [template, setTemplateLocal] = useState<PresentationTemplate>(() => buildInitialDraft().template);
-
-  // First mount: if no saved draft existed, save the initial defaults so reloads stay consistent
-  useEffect(() => {
-    if (!draftStore.drafts[brand.id]) {
-      draftStore.setDraft(brand.id, {
-        concepts, brief, personality, clientName, template,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brand.id]);
-
-  // Persist on every change — debounced via the store's set function
-  useEffect(() => {
-    draftStore.setDraft(brand.id, {
-      concepts, brief, personality, clientName, template,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [concepts, brief, personality, clientName, template, brand.id]);
-
-  // Wrapper setters that update local state (store sync happens via the effect above)
+  // Wrapper setters
   const setConcepts = (updater: LogoConcept[] | ((prev: LogoConcept[]) => LogoConcept[])) => {
     setConceptsLocal(prev => typeof updater === 'function' ? (updater as any)(prev) : updater);
   };
@@ -502,24 +491,13 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
 
   const handleResetDraft = () => {
     if (!confirm('Reset all changes and start over? This cannot be undone.')) return;
-    draftStore.clearDraft(brand.id);
-    const fresh = {
-      concepts: isVector ? createVectorConcepts() : [
-        createEmptyConcept(0),
-        createEmptyConcept(1),
-        createEmptyConcept(2),
-      ],
-      brief: brand.guidelines?.strategy?.positioning || brand.strategy || '',
-      personality: (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', '),
-      clientName: '',
-      template: (isVector ? 'simple' : 'premium') as PresentationTemplate,
-    };
+    const fresh = buildDefaultDraft();
     setConceptsLocal(fresh.concepts);
     setBriefLocal(fresh.brief);
     setPersonalityLocal(fresh.personality);
     setClientNameLocal(fresh.clientName);
     setTemplateLocal(fresh.template);
-    toast.success('Draft reset');
+    toast.success('Reset to defaults');
   };
 
   const handleGenerate = () => {
@@ -551,7 +529,15 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
       version: 'v1',
     };
 
-    onStart(data);
+    const draft: LogoPresentationDraft = {
+      concepts: filledConcepts,
+      brief,
+      personality,
+      clientName,
+      template,
+    };
+
+    onStart(data, draft);
   };
 
   return (
@@ -559,12 +545,13 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
       {/* Header */}
       <div className="h-14 border-b border-white/[0.04] flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-white/80">Logo Presentation Setup</h1>
-          {savedDraft && (
-            <span className="text-[10px] text-emerald-400/60 bg-emerald-400/[0.06] px-2 py-0.5 rounded-full border border-emerald-400/[0.1]">
-              Auto-saved
-            </span>
+          {onClose && (
+            <button onClick={onClose} className="text-sm text-white/30 hover:text-white/60 transition-colors">
+              ← Back
+            </button>
           )}
+          {onClose && <span className="text-white/10">|</span>}
+          <h1 className="text-lg font-semibold text-white/80">{title || 'Logo Presentation Setup'}</h1>
         </div>
         <div className="flex items-center gap-2">
           <button

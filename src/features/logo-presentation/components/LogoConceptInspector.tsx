@@ -6,16 +6,17 @@
  * Every change goes through the persisted draft store, so the slides
  * automatically rebuild and persist across reloads.
  */
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { Upload, Palette, Pencil, X, Check } from 'lucide-react';
-import { useLogoPresentationDataStore } from '../dataStore';
+import { useLogoPresentationDocsStore } from '../docsStore';
 import { PaletteGenerator } from './PaletteGenerator';
-import { useState } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import type { LogoConcept } from '../types';
 
 interface Props {
   brand: Brand;
+  /** Active document id — required for the inspector to read/write the right doc */
+  docId: string;
   currentSlideId: string | undefined;
   onClose: () => void;
 }
@@ -41,10 +42,13 @@ function getConceptIdFromSlideId(slideId: string | undefined): string | null {
   return null;
 }
 
-export function LogoConceptInspector({ brand, currentSlideId, onClose }: Props) {
-  const draft = useLogoPresentationDataStore((s) => s.drafts[brand.id]);
-  const updateDraft = useLogoPresentationDataStore((s) => s.updateDraft);
-  const updateConcept = useLogoPresentationDataStore((s) => s.updateConcept);
+export function LogoConceptInspector({ brand, docId, currentSlideId, onClose }: Props) {
+  // Read the active document from the docs store
+  const doc = useLogoPresentationDocsStore((s) =>
+    (s.docs[brand.id] || []).find((d) => d.id === docId)
+  );
+  const updateConceptInDoc = useLogoPresentationDocsStore((s) => s.updateConcept);
+  const updateDoc = useLogoPresentationDocsStore((s) => s.update);
 
   const logoFileRef = useRef<HTMLInputElement>(null);
   const iconFileRef = useRef<HTMLInputElement>(null);
@@ -53,21 +57,31 @@ export function LogoConceptInspector({ brand, currentSlideId, onClose }: Props) 
 
   const conceptId = useMemo(() => getConceptIdFromSlideId(currentSlideId), [currentSlideId]);
 
-  // Find the concept and its index in the array
+  // Find the concept and its index in the doc
   const conceptInfo = useMemo(() => {
-    if (!draft || !conceptId) return null;
-    const index = draft.concepts.findIndex(c => c.id === conceptId);
+    if (!doc || !conceptId) return null;
+    const index = doc.concepts.findIndex(c => c.id === conceptId);
     if (index === -1) return null;
-    return { concept: draft.concepts[index], index };
-  }, [draft, conceptId]);
+    return { concept: doc.concepts[index], index };
+  }, [doc, conceptId]);
 
-  if (!draft) {
+  if (!doc) {
     return (
       <div className="p-6 text-center text-white/30 text-xs">
-        No saved presentation data
+        Document not found
       </div>
     );
   }
+
+  // Local helpers that proxy to the docs store, keeping the old call signatures
+  const updateDraft = (_brandId: string, patch: { brief?: string; personality?: string; clientName?: string }) => {
+    updateDoc(brand.id, docId, patch);
+  };
+  const updateConcept = (_brandId: string, index: number, concept: LogoConcept) => {
+    updateConceptInDoc(brand.id, docId, index, concept);
+  };
+  // Compatibility shim — older inline references
+  const draft = doc;
 
   // ── Brand-level slide (cover, brief, personality, thank you) ──
   if (!conceptInfo) {

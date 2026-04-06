@@ -1,0 +1,194 @@
+/**
+ * Persisted store of "logo presentation documents" per brand.
+ *
+ * Each document is an independent saved instance with its own concepts,
+ * brief, template choice, and slide overrides. Editing a document does
+ * NOT affect the brand or any other document. Picking a template creates
+ * a NEW document — never edits the original.
+ */
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import type { LogoConcept, PresentationTemplate } from './types';
+
+export interface LogoPresentationDoc {
+  id: string;
+  brandId: string;
+  name: string;
+  concepts: LogoConcept[];
+  brief: string;
+  personality: string;
+  clientName: string;
+  template: PresentationTemplate;
+  /** Per-slide field overrides applied on top of the rendered slides */
+  slideOverrides: Record<string, Record<string, any>>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface LogoDocsState {
+  /** brandId → docs */
+  docs: Record<string, LogoPresentationDoc[]>;
+  /** brandId → currently active doc id */
+  activeDocId: Record<string, string | null>;
+
+  listForBrand: (brandId: string) => LogoPresentationDoc[];
+  get: (brandId: string, docId: string) => LogoPresentationDoc | undefined;
+  create: (brandId: string, draft: Omit<LogoPresentationDoc, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'slideOverrides'>) => LogoPresentationDoc;
+  update: (brandId: string, docId: string, patch: Partial<LogoPresentationDoc>) => void;
+  rename: (brandId: string, docId: string, name: string) => void;
+  remove: (brandId: string, docId: string) => void;
+  updateConcept: (brandId: string, docId: string, index: number, concept: LogoConcept) => void;
+  addConcept: (brandId: string, docId: string, concept: LogoConcept) => void;
+  removeConcept: (brandId: string, docId: string, index: number) => void;
+  setSlideOverride: (brandId: string, docId: string, slideId: string, override: Record<string, any>) => void;
+  setActive: (brandId: string, docId: string | null) => void;
+  duplicate: (brandId: string, docId: string) => LogoPresentationDoc | null;
+}
+
+function makeId(): string {
+  return `logodoc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export const useLogoPresentationDocsStore = create<LogoDocsState>()(
+  persist(
+    (set, get) => ({
+      docs: {},
+      activeDocId: {},
+
+      listForBrand: (brandId) => get().docs[brandId] || [],
+
+      get: (brandId, docId) =>
+        (get().docs[brandId] || []).find((d) => d.id === docId),
+
+      create: (brandId, draft) => {
+        const doc: LogoPresentationDoc = {
+          id: makeId(),
+          brandId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          slideOverrides: {},
+          ...draft,
+        };
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: [...(state.docs[brandId] || []), doc],
+          },
+          activeDocId: { ...state.activeDocId, [brandId]: doc.id },
+        }));
+        return doc;
+      },
+
+      update: (brandId, docId, patch) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId ? { ...d, ...patch, updatedAt: Date.now() } : d
+            ),
+          },
+        })),
+
+      rename: (brandId, docId, name) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId ? { ...d, name, updatedAt: Date.now() } : d
+            ),
+          },
+        })),
+
+      remove: (brandId, docId) =>
+        set((state) => {
+          const next = (state.docs[brandId] || []).filter((d) => d.id !== docId);
+          const wasActive = state.activeDocId[brandId] === docId;
+          return {
+            docs: { ...state.docs, [brandId]: next },
+            activeDocId: wasActive ? { ...state.activeDocId, [brandId]: null } : state.activeDocId,
+          };
+        }),
+
+      updateConcept: (brandId, docId, index, concept) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) => {
+              if (d.id !== docId) return d;
+              const concepts = d.concepts.map((c, i) => (i === index ? concept : c));
+              return { ...d, concepts, updatedAt: Date.now() };
+            }),
+          },
+        })),
+
+      addConcept: (brandId, docId, concept) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? { ...d, concepts: [...d.concepts, concept], updatedAt: Date.now() }
+                : d
+            ),
+          },
+        })),
+
+      removeConcept: (brandId, docId, index) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) =>
+              d.id === docId
+                ? { ...d, concepts: d.concepts.filter((_, i) => i !== index), updatedAt: Date.now() }
+                : d
+            ),
+          },
+        })),
+
+      setSlideOverride: (brandId, docId, slideId, override) =>
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: (state.docs[brandId] || []).map((d) => {
+              if (d.id !== docId) return d;
+              return {
+                ...d,
+                slideOverrides: {
+                  ...d.slideOverrides,
+                  [slideId]: { ...(d.slideOverrides[slideId] || {}), ...override },
+                },
+                updatedAt: Date.now(),
+              };
+            }),
+          },
+        })),
+
+      setActive: (brandId, docId) =>
+        set((state) => ({
+          activeDocId: { ...state.activeDocId, [brandId]: docId },
+        })),
+
+      duplicate: (brandId, docId) => {
+        const doc = get().get(brandId, docId);
+        if (!doc) return null;
+        const dup: LogoPresentationDoc = {
+          ...doc,
+          id: makeId(),
+          name: `${doc.name} (copy)`,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((state) => ({
+          docs: {
+            ...state.docs,
+            [brandId]: [...(state.docs[brandId] || []), dup],
+          },
+        }));
+        return dup;
+      },
+    }),
+    {
+      name: 'logo-presentation-docs',
+    },
+  ),
+);
