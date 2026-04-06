@@ -3,12 +3,13 @@
  * before generating the presentation. Upload logos, set names,
  * write rationales, pick colors.
  */
-import { useState, useRef } from 'react';
-import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, Plus, X, Trash2, ChevronRight, Palette, Type, Sparkles, Eye, RotateCcw } from 'lucide-react';
 import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
+import { useLogoPresentationDataStore, type LogoPresentationDraft } from '../dataStore';
 import { toast } from 'sonner';
 
 interface LogoPresentationSetupProps {
@@ -396,19 +397,60 @@ function createVectorConcepts(): LogoConcept[] {
 
 export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupProps) {
   const isVector = brand.slug === 'vector';
-  const [concepts, setConcepts] = useState<LogoConcept[]>(
-    isVector ? createVectorConcepts() : [
-      createEmptyConcept(0),
-      createEmptyConcept(1),
-      createEmptyConcept(2),
-    ]
-  );
-  const [brief, setBrief] = useState(brand.guidelines?.strategy?.positioning || brand.strategy || '');
-  const [personality, setPersonality] = useState(
-    (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', ')
-  );
-  const [clientName, setClientName] = useState('');
-  const [template, setTemplate] = useState<PresentationTemplate>(isVector ? 'simple' : 'premium');
+
+  // Persisted draft store — keyed per brand id
+  const draftStore = useLogoPresentationDataStore();
+  const savedDraft = draftStore.drafts[brand.id];
+
+  // Build the initial draft from saved data, or fall back to defaults
+  const buildInitialDraft = (): LogoPresentationDraft => {
+    if (savedDraft) return savedDraft;
+    return {
+      concepts: isVector ? createVectorConcepts() : [
+        createEmptyConcept(0),
+        createEmptyConcept(1),
+        createEmptyConcept(2),
+      ],
+      brief: brand.guidelines?.strategy?.positioning || brand.strategy || '',
+      personality: (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', '),
+      clientName: '',
+      template: isVector ? 'simple' : 'premium',
+    };
+  };
+
+  // Local state mirrors the store for fast updates
+  const [concepts, setConceptsLocal] = useState<LogoConcept[]>(() => buildInitialDraft().concepts);
+  const [brief, setBriefLocal] = useState(() => buildInitialDraft().brief);
+  const [personality, setPersonalityLocal] = useState(() => buildInitialDraft().personality);
+  const [clientName, setClientNameLocal] = useState(() => buildInitialDraft().clientName);
+  const [template, setTemplateLocal] = useState<PresentationTemplate>(() => buildInitialDraft().template);
+
+  // First mount: if no saved draft existed, save the initial defaults so reloads stay consistent
+  useEffect(() => {
+    if (!draftStore.drafts[brand.id]) {
+      draftStore.setDraft(brand.id, {
+        concepts, brief, personality, clientName, template,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand.id]);
+
+  // Persist on every change — debounced via the store's set function
+  useEffect(() => {
+    draftStore.setDraft(brand.id, {
+      concepts, brief, personality, clientName, template,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [concepts, brief, personality, clientName, template, brand.id]);
+
+  // Wrapper setters that update local state (store sync happens via the effect above)
+  const setConcepts = (updater: LogoConcept[] | ((prev: LogoConcept[]) => LogoConcept[])) => {
+    setConceptsLocal(prev => typeof updater === 'function' ? (updater as any)(prev) : updater);
+  };
+  const setBrief = (v: string) => setBriefLocal(v);
+  const setPersonality = (v: string) => setPersonalityLocal(v);
+  const setClientName = (v: string) => setClientNameLocal(v);
+  const setTemplate = (v: PresentationTemplate) => setTemplateLocal(v);
 
   const updateConcept = (index: number, c: LogoConcept) => {
     setConcepts(prev => prev.map((p, i) => i === index ? c : p));
@@ -422,6 +464,28 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
   const addConcept = () => {
     if (concepts.length >= 5) { toast.error('Maximum 5 concepts'); return; }
     setConcepts(prev => [...prev, createEmptyConcept(prev.length)]);
+  };
+
+  const handleResetDraft = () => {
+    if (!confirm('Reset all changes and start over? This cannot be undone.')) return;
+    draftStore.clearDraft(brand.id);
+    const fresh = {
+      concepts: isVector ? createVectorConcepts() : [
+        createEmptyConcept(0),
+        createEmptyConcept(1),
+        createEmptyConcept(2),
+      ],
+      brief: brand.guidelines?.strategy?.positioning || brand.strategy || '',
+      personality: (brand.guidelines?.strategy?.personality || [brand.tone || 'Professional']).join(', '),
+      clientName: '',
+      template: (isVector ? 'simple' : 'premium') as PresentationTemplate,
+    };
+    setConceptsLocal(fresh.concepts);
+    setBriefLocal(fresh.brief);
+    setPersonalityLocal(fresh.personality);
+    setClientNameLocal(fresh.clientName);
+    setTemplateLocal(fresh.template);
+    toast.success('Draft reset');
   };
 
   const handleGenerate = () => {
@@ -460,12 +524,29 @@ export function LogoPresentationSetup({ brand, onStart }: LogoPresentationSetupP
     <div className="fixed inset-0 z-40 bg-[#111] flex flex-col">
       {/* Header */}
       <div className="h-14 border-b border-white/[0.04] flex items-center justify-between px-6 shrink-0">
-        <h1 className="text-lg font-semibold text-white/80">Logo Presentation Setup</h1>
-        <button onClick={handleGenerate} className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors" style={{ backgroundColor: brand.primaryColor, color: '#fff' }}>
-          <Eye className="h-4 w-4" />
-          Generate Presentation
-          <ChevronRight className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold text-white/80">Logo Presentation Setup</h1>
+          {savedDraft && (
+            <span className="text-[10px] text-emerald-400/60 bg-emerald-400/[0.06] px-2 py-0.5 rounded-full border border-emerald-400/[0.1]">
+              Auto-saved
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResetDraft}
+            title="Reset all changes and start over"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white/40 hover:text-white/70 hover:bg-white/[0.05] border border-white/[0.06] transition-colors"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Reset
+          </button>
+          <button onClick={handleGenerate} className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors" style={{ backgroundColor: brand.primaryColor, color: '#fff' }}>
+            <Eye className="h-4 w-4" />
+            Generate Presentation
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
