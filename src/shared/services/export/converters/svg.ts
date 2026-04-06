@@ -70,6 +70,35 @@ export async function htmlToSVG(
 }
 
 /**
+ * Convert an HTML element to a TRUE vector SVG via the DOM-to-vector pipeline.
+ * Walks the slide DOM, emits Vector IR, then SVG markup with real <text>,
+ * <rect>, and <image> elements. Opens in Illustrator with editable text and
+ * selectable shapes.
+ */
+export async function htmlToVectorSVG(
+  element: HTMLElement,
+  options: ExportOptions,
+  onProgress?: (pct: number) => void,
+): Promise<ExportResult> {
+  onProgress?.(10);
+  const { domToIR } = await import('../vectorize/domToIR');
+  const { irToSvg } = await import('../vectorize/irToSvg');
+  onProgress?.(25);
+
+  const ir = await domToIR(element);
+  onProgress?.(70);
+
+  const svgText = await irToSvg(ir, { inlineVectorImages: true });
+  onProgress?.(100);
+
+  return {
+    blob: new Blob([svgText], { type: 'image/svg+xml' }),
+    filename: `${options.filename}.svg`,
+    mimeType: 'image/svg+xml',
+  };
+}
+
+/**
  * Fetch a raw SVG file from a URL and return as ExportResult.
  * For logos and assets that are already SVG.
  */

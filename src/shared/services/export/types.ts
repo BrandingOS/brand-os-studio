@@ -8,6 +8,7 @@ export type ExportFormat =
   | 'png'
   | 'jpg'
   | 'svg'
+  | 'svg-editable'
   | 'pdf-flat'
   | 'pdf-editable'
   | 'pptx'
@@ -119,7 +120,16 @@ export const FORMAT_INFO: Record<ExportFormat, FormatInfo> = {
   svg: {
     format: 'svg',
     label: 'SVG',
-    description: 'Scalable vector graphic',
+    description: 'High-resolution image embedded in SVG',
+    icon: 'Image',
+    category: 'image',
+    fileExtension: 'svg',
+    mimeType: 'image/svg+xml',
+  },
+  'svg-editable': {
+    format: 'svg-editable',
+    label: 'SVG (Editable)',
+    description: 'True vector — editable text and shapes in Illustrator',
     icon: 'PenTool',
     category: 'image',
     fileExtension: 'svg',
@@ -137,7 +147,7 @@ export const FORMAT_INFO: Record<ExportFormat, FormatInfo> = {
   'pdf-editable': {
     format: 'pdf-editable',
     label: 'PDF (Editable)',
-    description: 'PDF with selectable text and shapes',
+    description: 'Editable in Illustrator — live text + real shapes',
     icon: 'FileEdit',
     category: 'document',
     fileExtension: 'pdf',

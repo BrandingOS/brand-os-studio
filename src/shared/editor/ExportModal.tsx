@@ -63,7 +63,7 @@ export function ExportModal({ brand, slides, layout, onClose, onExportPDF }: Exp
         open={true}
         onClose={() => { setShowAdvanced(false); onClose(); }}
         source={source}
-        availableFormats={['png', 'jpg', 'svg', 'pdf-flat', 'pptx']}
+        availableFormats={['png', 'jpg', 'svg', 'svg-editable', 'pdf-flat', 'pdf-editable', 'pptx']}
         defaultFilename={`${slug}-slide`}
         pages={getPages}
         title="Export Slide"

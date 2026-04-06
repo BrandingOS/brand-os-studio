@@ -21,6 +21,8 @@ export async function exportDesign(request: ExportRequest): Promise<ExportResult
       return exportRaster(source, format, options, onProgress);
     case 'svg':
       return exportSVG(source, options, onProgress);
+    case 'svg-editable':
+      return exportSVGEditable(source, options, onProgress);
     case 'pdf-flat':
       return exportPDFFlat(source, options, onProgress);
     case 'pdf-editable':
@@ -95,12 +97,34 @@ async function exportPDFFlat(
 async function exportPDFEditable(
   source: ExportSource, options: ExportOptions, onProgress?: (pct: number) => void,
 ): Promise<ExportResult> {
-  if (!source.pdfBuilder) {
-    throw new Error('pdf-editable requires a pdfBuilder function in the source');
+  // Path 1 — caller supplied a programmatic builder (e.g. business cards, invoices).
+  if (source.pdfBuilder) {
+    const { buildEditablePDF } = await import('./converters/pdf');
+    return buildEditablePDF(source.pdfBuilder, options, onProgress);
   }
 
-  const { buildEditablePDF } = await import('./converters/pdf');
-  return buildEditablePDF(source.pdfBuilder, options, onProgress);
+  // Path 2 — generic DOM-to-vector pipeline. Walks the slide DOM, emits IR,
+  // builds a real jsPDF document with editable text + shapes.
+  const { htmlToVectorPDF } = await import('./converters/pdf');
+  const elements = resolveElements(source);
+  return htmlToVectorPDF(elements, options, onProgress);
+}
+
+async function exportSVGEditable(
+  source: ExportSource, options: ExportOptions, onProgress?: (pct: number) => void,
+): Promise<ExportResult> {
+  // Path 1 — caller supplied a programmatic SVG builder.
+  if (source.svgBuilder) {
+    onProgress?.(30);
+    const svg = source.svgBuilder();
+    onProgress?.(100);
+    return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: `${options.filename}.svg`, mimeType: 'image/svg+xml' };
+  }
+
+  // Path 2 — DOM-to-vector pipeline.
+  const { htmlToVectorSVG } = await import('./converters/svg');
+  const elements = resolveElements(source);
+  return htmlToVectorSVG(elements[0], options, onProgress);
 }
 
 async function exportPPTX(

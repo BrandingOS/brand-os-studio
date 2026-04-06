@@ -126,6 +126,46 @@ export async function fabricToPDFFlat(
   };
 }
 
+// ─── Editable PDF (DOM-to-vector pipeline) ───────────────────────────
+
+/**
+ * Convert one or more HTML elements into a multi-page editable PDF.
+ *
+ * Walks each slide DOM into a Vector IR, then emits a real jsPDF document
+ * where text is selectable in Illustrator and shapes are real PDF graphics
+ * objects (not raster). Elements with unsupported CSS features (shadows,
+ * gradients, transforms) fall back to high-res raster patches at their
+ * coordinates so the rest of the slide stays editable.
+ */
+export async function htmlToVectorPDF(
+  elements: HTMLElement[],
+  options: ExportOptions,
+  onProgress?: (pct: number) => void,
+): Promise<ExportResult> {
+  if (elements.length === 0) throw new Error('htmlToVectorPDF: no elements');
+  onProgress?.(5);
+
+  const { domToIR } = await import('../vectorize/domToIR');
+  const { irsToPdf } = await import('../vectorize/irToPdf');
+  onProgress?.(15);
+
+  const irs = [];
+  for (let i = 0; i < elements.length; i++) {
+    const ir = await domToIR(elements[i]);
+    irs.push(ir);
+    onProgress?.(15 + Math.round((i + 1) / elements.length * 60));
+  }
+
+  const blob = await irsToPdf(irs, { filename: options.filename });
+  onProgress?.(100);
+
+  return {
+    blob,
+    filename: `${options.filename}.pdf`,
+    mimeType: 'application/pdf',
+  };
+}
+
 // ─── Editable PDF (programmatic) ─────────────────────────────────────
 
 type PDFBuilder = (doc: any) => Promise<void>;
