@@ -345,6 +345,77 @@ export function EditorWorkspace({
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
+  /**
+   * Editable PDF export — iterates slides one at a time, runs the
+   * DOM-to-vector walker on each, and stitches the IRs into a single
+   * multi-page jsPDF document with real text and shape primitives.
+   *
+   * Mirrors the slide-stepping pattern used by the raster handleExportPDF
+   * below: setCurrentSlide(i) → wait for React mount → query the live DOM
+   * → walk to IR → next slide. Final stitch via irsToPdf.
+   */
+  const handleExportEditablePDF = useCallback(async () => {
+    toast.loading(`Building editable PDF (${slides.length} slides)...`, { id: 'pdf-edit-export' });
+
+    try {
+      const { domToIR } = await import('@/shared/services/export/vectorize/domToIR');
+      const { irsToPdf } = await import('@/shared/services/export/vectorize/irToPdf');
+
+      const irs = [];
+      const failures: Array<{ index: number; name: string; error: string }> = [];
+
+      for (let i = 0; i < slides.length; i++) {
+        const slideName = slides[i]?.name || `Slide ${i + 1}`;
+        try {
+          setCurrentSlide(i);
+          await new Promise((r) => setTimeout(r, 350));
+
+          const liveEl = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+          if (!liveEl) {
+            failures.push({ index: i, name: slideName, error: 'slide canvas not found' });
+            continue;
+          }
+
+          const ir = await domToIR(liveEl);
+          irs.push(ir);
+        } catch (slideErr) {
+          const msg = slideErr instanceof Error ? slideErr.message : String(slideErr);
+          console.warn(`[Editable PDF] Slide ${i} (${slideName}) failed:`, slideErr);
+          failures.push({ index: i, name: slideName, error: msg });
+        }
+      }
+
+      if (irs.length === 0) {
+        toast.dismiss('pdf-edit-export');
+        toast.error('Editable PDF export failed: no slides could be vectorized');
+        return;
+      }
+
+      const blob = await irsToPdf(irs);
+      const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${slug}-editable.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      toast.dismiss('pdf-edit-export');
+      if (failures.length > 0) {
+        toast.success(`Exported ${irs.length}/${slides.length} editable slides — ${failures.length} skipped`, { duration: 6000 });
+        console.warn('[Editable PDF] Some slides skipped:', failures);
+      } else {
+        toast.success(`Editable PDF exported (${irs.length} pages)`);
+      }
+    } catch (err) {
+      toast.dismiss('pdf-edit-export');
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Editable PDF export failed: ${msg}`);
+      console.error('[Editable PDF] Fatal error:', err);
+    }
+  }, [brand, slides]);
+
   const handleExportPDF = useCallback(async () => {
     // Target export dimensions — use settings size, capped to A4 long edge
     const rawW = settings.size.width;
@@ -733,7 +804,7 @@ export function EditorWorkspace({
       </div>
 
       {activePanel === 'export' && (
-        <ExportModal brand={brand} slides={slides} layout={layout} onClose={() => setActivePanel('none')} onExportPDF={handleExportPDF} />
+        <ExportModal brand={brand} slides={slides} layout={layout} onClose={() => setActivePanel('none')} onExportPDF={handleExportPDF} onExportEditablePDF={handleExportEditablePDF} />
       )}
     </div>
     </EditorContext.Provider>

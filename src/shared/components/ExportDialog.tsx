@@ -46,6 +46,13 @@ interface ExportDialogProps {
   frameGenerator?: FrameGenerator | (() => FrameGenerator);
   /** Title override */
   title?: string;
+  /**
+   * Per-format custom export handlers. When a format key is present, the
+   * dialog calls the handler instead of dispatching to the export engine.
+   * Used for formats that need slide-by-slide stepping (e.g. editable PDF
+   * when slides are virtualized in the host editor).
+   */
+  onCustomExport?: Partial<Record<ExportFormat, () => Promise<void> | void>>;
 }
 
 // ─── Icons ───────────────────────────────────────────────────────────
@@ -122,6 +129,25 @@ export function ExportDialog({
     setProgress(0);
     setExportDone(false);
 
+    // Per-format custom override (e.g. editor-driven slide stepping)
+    const customHandler = onCustomExport?.[selectedFormat];
+    if (customHandler) {
+      try {
+        await customHandler();
+        setExportDone(true);
+        setTimeout(() => {
+          setExportDone(false);
+          setSelectedFormat(null);
+        }, 1500);
+      } catch (err) {
+        console.error('Custom export failed:', err);
+        toast.error(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      } finally {
+        setIsExporting(false);
+      }
+      return;
+    }
+
     try {
       // Build the export source with optional overrides
       const exportSource: ExportSource = { ...source };
@@ -188,7 +214,7 @@ export function ExportDialog({
     } finally {
       setIsExporting(false);
     }
-  }, [selectedFormat, source, pages, editablePdfBuilder, frameGenerator, defaultFilename, scale, jpgQuality, resolution]);
+  }, [selectedFormat, source, pages, editablePdfBuilder, frameGenerator, defaultFilename, scale, jpgQuality, resolution, onCustomExport]);
 
   const reset = () => {
     setSelectedFormat(null);

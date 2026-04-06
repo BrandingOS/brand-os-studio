@@ -14,9 +14,12 @@ interface ExportModalProps {
   layout: TemplateLayout;
   onClose: () => void;
   onExportPDF: () => void;
+  /** Optional handler for the editable (vector) PDF path — needed because
+   *  slides are virtualized and the engine can't see them all at once. */
+  onExportEditablePDF?: () => Promise<void> | void;
 }
 
-export function ExportModal({ brand, slides, layout, onClose, onExportPDF }: ExportModalProps) {
+export function ExportModal({ brand, slides, layout, onClose, onExportPDF, onExportEditablePDF }: ExportModalProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
@@ -67,6 +70,7 @@ export function ExportModal({ brand, slides, layout, onClose, onExportPDF }: Exp
         defaultFilename={`${slug}-slide`}
         pages={getPages}
         title="Export Slide"
+        onCustomExport={onExportEditablePDF ? { 'pdf-editable': onExportEditablePDF } : undefined}
       />
     );
   }
