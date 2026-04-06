@@ -18,7 +18,7 @@ export async function htmlToPPTX(
   onProgress?.(5);
 
   const PptxGenJS = (await import('pptxgenjs')).default;
-  const { default: html2canvas } = await import('html2canvas');
+  const { captureElementForExport } = await import('@/shared/editor/exportCapture');
   onProgress?.(10);
 
   const pptx = new PptxGenJS();
@@ -29,13 +29,10 @@ export async function htmlToPPTX(
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
 
-    // Render the HTML element to canvas
-    const canvas = await html2canvas(el, {
+    // Use shared capture utility (handles SVG sizing, CSS filters, container queries)
+    const canvas = await captureElementForExport(el, {
       scale,
       backgroundColor: options.backgroundColor === null ? null : (options.backgroundColor || '#ffffff'),
-      useCORS: true,
-      logging: false,
-      allowTaint: true,
     });
 
     // Convert to base64 data URL

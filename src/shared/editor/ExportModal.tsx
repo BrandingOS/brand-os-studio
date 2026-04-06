@@ -3,6 +3,7 @@ import { X, Image as ImageIcon, ChevronRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import type { SlideData } from './EditorWorkspace';
+import { captureElementForExport } from './exportCapture';
 import { toast } from 'sonner';
 import { ExportDialog } from '@/shared/components/ExportDialog';
 import type { ExportSource } from '@/shared/services/export/types';
@@ -37,8 +38,8 @@ export function ExportModal({ brand, slides, layout, onClose, onExportPDF }: Exp
 
       toast.loading('Exporting image...');
 
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(el, { scale: 4, backgroundColor: null, useCORS: true, logging: false });
+      // Use shared capture utility (handles SVG sizing, CSS filters, container queries)
+      const canvas = await captureElementForExport(el, { scale: 4, backgroundColor: '#ffffff' });
       const link = document.createElement('a');
       link.download = `${slug}-slide.png`;
       link.href = canvas.toDataURL('image/png');
@@ -48,8 +49,9 @@ export function ExportModal({ brand, slides, layout, onClose, onExportPDF }: Exp
 
       toast.dismiss();
       toast.success(`Exported ${canvas.width}x${canvas.height}px`);
-    } catch {
+    } catch (err) {
       toast.dismiss();
+      console.error('[PNG Export] failed:', err);
       toast.error('Export failed');
     }
   };

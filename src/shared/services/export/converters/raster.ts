@@ -2,6 +2,7 @@
  * Raster Converter — PNG & JPG from HTML elements and Fabric canvases
  */
 import type { ExportOptions, ExportResult, RasterFormat } from '../types';
+import { captureElementForExport } from '@/shared/editor/exportCapture';
 
 /**
  * Convert an HTML element to a raster image (PNG or JPG).
@@ -13,16 +14,13 @@ export async function htmlToRaster(
   onProgress?: (pct: number) => void,
 ): Promise<ExportResult> {
   onProgress?.(10);
-  const { default: html2canvas } = await import('html2canvas');
   onProgress?.(20);
 
   const scale = options.scale ?? 2;
-  const canvas = await html2canvas(element, {
+  // Use shared capture utility (handles SVG sizing, CSS filters, container queries)
+  const canvas = await captureElementForExport(element, {
     scale,
     backgroundColor: options.backgroundColor === null ? null : (options.backgroundColor || '#ffffff'),
-    useCORS: true,
-    logging: false,
-    allowTaint: true,
   });
   onProgress?.(80);
 

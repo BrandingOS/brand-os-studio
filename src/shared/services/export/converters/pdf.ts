@@ -28,7 +28,7 @@ export async function htmlToPDFFlat(
   onProgress?.(5);
 
   const { default: jsPDF } = await import('jspdf');
-  const { default: html2canvas } = await import('html2canvas');
+  const { captureElementForExport } = await import('@/shared/editor/exportCapture');
   onProgress?.(10);
 
   const scale = options.scale ?? 2;
@@ -49,12 +49,12 @@ export async function htmlToPDFFlat(
 
   for (let i = 0; i < elements.length; i++) {
     const el = elements[i];
-    const canvas = await html2canvas(el, {
+    // Use shared capture utility (handles SVG sizing, CSS filters, container queries)
+    const canvas = await captureElementForExport(el, {
+      width: pageW,
+      height: pageH,
       scale,
       backgroundColor: options.backgroundColor === null ? null : (options.backgroundColor || '#ffffff'),
-      useCORS: true,
-      logging: false,
-      allowTaint: true,
     });
 
     if (i > 0) {
@@ -62,8 +62,8 @@ export async function htmlToPDFFlat(
     }
 
     doc.addImage(
-      canvas.toDataURL('image/png'),
-      'PNG',
+      canvas.toDataURL('image/jpeg', 0.92),
+      'JPEG',
       0, 0,
       pageW, pageH,
     );

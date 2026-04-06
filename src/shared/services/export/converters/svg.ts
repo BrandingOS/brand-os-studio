@@ -38,16 +38,14 @@ export async function htmlToSVG(
   onProgress?: (pct: number) => void,
 ): Promise<ExportResult> {
   onProgress?.(10);
-  const { default: html2canvas } = await import('html2canvas');
+  const { captureElementForExport } = await import('@/shared/editor/exportCapture');
   onProgress?.(20);
 
   const scale = options.scale ?? 4;
-  const canvas = await html2canvas(element, {
+  // Use shared capture utility (handles SVG sizing, CSS filters, container queries)
+  const canvas = await captureElementForExport(element, {
     scale,
     backgroundColor: options.backgroundColor === null ? null : (options.backgroundColor || '#ffffff'),
-    useCORS: true,
-    logging: false,
-    allowTaint: true,
   });
   onProgress?.(70);
 
