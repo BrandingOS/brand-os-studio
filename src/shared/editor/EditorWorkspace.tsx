@@ -345,14 +345,14 @@ export function EditorWorkspace({
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
   const handleExportPDF = useCallback(async () => {
-    // Use settings dimensions for the PDF format, but cap to avoid jsPDF / memory issues
+    // Target export dimensions — use settings size, capped to A4 long edge for safety
     const rawW = settings.size.width;
     const rawH = settings.size.height;
-    const MAX_DIM = 3508; // A4 long edge — anything larger becomes flaky
+    const MAX_DIM = 3508;
     const scaleDown = Math.min(1, MAX_DIM / Math.max(rawW, rawH));
-    const w = Math.round(rawW * scaleDown);
-    const h = Math.round(rawH * scaleDown);
-    const orientation = w >= h ? 'landscape' : 'portrait';
+    const exportW = Math.round(rawW * scaleDown);
+    const exportH = Math.round(rawH * scaleDown);
+    const orientation = exportW >= exportH ? 'landscape' : 'portrait';
 
     toast.loading(`Exporting ${slides.length} slides...`, { id: 'pdf-export' });
 
@@ -360,53 +360,77 @@ export function EditorWorkspace({
     let pdf: any = null;
     let success = 0;
 
+    // Create a single off-DOM staging container at the exact export size.
+    // This isolates each slide capture from the editor's zoom/transform/scroll
+    // context so html2canvas always captures a deterministic 1920×1080 (or chosen
+    // size) area regardless of how the editor is currently zoomed.
+    const stage = document.createElement('div');
+    stage.setAttribute('data-pdf-stage', '');
+    stage.style.cssText = [
+      'position: fixed',
+      'top: -10000px',
+      'left: 0',
+      `width: ${exportW}px`,
+      `height: ${exportH}px`,
+      'z-index: -1',
+      'overflow: hidden',
+      'pointer-events: none',
+      'background: #ffffff',
+    ].join(';');
+    document.body.appendChild(stage);
+
     try {
       const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      pdf = new jsPDF({ orientation, unit: 'px', format: [w, h], compress: true });
+      pdf = new jsPDF({ orientation, unit: 'px', format: [exportW, exportH], compress: true });
 
       for (let i = 0; i < slides.length; i++) {
         const slideName = slides[i]?.name || `Slide ${i + 1}`;
         try {
-          // Navigate to the slide and give React time to mount + reflow
+          // Navigate the live editor to this slide and let React mount it
           setCurrentSlide(i);
-          await new Promise((r) => setTimeout(r, 450));
+          await new Promise((r) => setTimeout(r, 350));
 
-          const el = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
-          if (!el) {
+          const liveEl = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+          if (!liveEl) {
             failures.push({ index: i, name: slideName, error: 'slide canvas not found' });
             continue;
           }
 
-          // Capture options tuned for modern CSS (gradients, filters, container queries).
-          // foreignObjectRendering uses native browser SVG rendering and handles MUCH more
-          // than html2canvas's own renderer — including container query units.
-          let canvas: HTMLCanvasElement;
-          try {
-            canvas = await html2canvas(el, {
-              scale: 2,
-              backgroundColor: '#ffffff',
-              useCORS: true,
-              allowTaint: false,
-              logging: false,
-              foreignObjectRendering: true,
-              imageTimeout: 5000,
-            });
-          } catch (foErr) {
-            // Fallback to the legacy renderer if foreignObjectRendering fails
-            console.warn(`[PDF Export] foreignObjectRendering failed for slide ${i}, falling back`, foErr);
-            canvas = await html2canvas(el, {
-              scale: 2,
-              backgroundColor: '#ffffff',
-              useCORS: true,
-              allowTaint: true,
-              logging: false,
-              foreignObjectRendering: false,
-              imageTimeout: 5000,
-            });
-          }
+          // Clone the live slide DOM into the staging container at exact export dimensions.
+          // The clone preserves all inline styles, classes, and child markup. Container query
+          // units (cqi/cqb) on the clone will resolve against the staging container's
+          // exactDeck size — exactly what we want.
+          stage.innerHTML = '';
+          const clone = liveEl.cloneNode(true) as HTMLElement;
+          clone.style.width = `${exportW}px`;
+          clone.style.height = `${exportH}px`;
+          clone.style.maxWidth = 'none';
+          clone.style.maxHeight = 'none';
+          clone.style.transform = 'none';
+          clone.style.boxShadow = 'none';
+          stage.appendChild(clone);
 
-          // Convert to JPEG (smaller than PNG, fewer issues with huge canvases)
+          // Give the browser one frame to compute layout for the cloned subtree
+          await new Promise((r) => requestAnimationFrame(() => r(null)));
+          await new Promise((r) => setTimeout(r, 50));
+
+          // Capture the staged clone at its known fixed dimensions
+          const canvas = await html2canvas(clone, {
+            width: exportW,
+            height: exportH,
+            windowWidth: exportW,
+            windowHeight: exportH,
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            foreignObjectRendering: false,
+            imageTimeout: 8000,
+          });
+
+          // Convert to JPEG (smaller, fewer issues with huge canvases)
           let dataUrl: string;
           try {
             dataUrl = canvas.toDataURL('image/jpeg', 0.92);
@@ -416,9 +440,9 @@ export function EditorWorkspace({
           }
 
           if (success > 0) {
-            pdf.addPage([w, h], orientation);
+            pdf.addPage([exportW, exportH], orientation);
           }
-          pdf.addImage(dataUrl, 'JPEG', 0, 0, w, h);
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, exportW, exportH);
           success++;
         } catch (slideErr) {
           const msg = slideErr instanceof Error ? slideErr.message : String(slideErr);
@@ -426,6 +450,9 @@ export function EditorWorkspace({
           failures.push({ index: i, name: slideName, error: msg });
         }
       }
+
+      // Cleanup staging container
+      if (stage.parentNode) stage.parentNode.removeChild(stage);
 
       toast.dismiss('pdf-export');
 
@@ -448,6 +475,8 @@ export function EditorWorkspace({
         toast.success(`PDF exported (${success} pages)`);
       }
     } catch (err) {
+      // Cleanup staging on fatal error
+      if (stage.parentNode) stage.parentNode.removeChild(stage);
       toast.dismiss('pdf-export');
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`PDF export failed: ${msg}`);
