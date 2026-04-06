@@ -142,41 +142,43 @@ const rounded: PresentationStyle = {
 const cncpt: PresentationStyle = {
   id: 'cncpt',
   name: 'CNCPT',
-  description: 'Architectural and editorial — serif type, sharp geometry, considered space.',
-  preview: 'linear-gradient(135deg, #1a1a1a, #333333)',
+  description: 'Architectural studio — massive centered type, generous space, numbered systems.',
+  preview: 'linear-gradient(135deg, #FFFFFF, #F5F5F5)',
 
   cornerRadius: 0,
   cardRadius: 0,
 
   bgLight: '#FFFFFF',
   bgDark: '#0F0F0F',
-  bgAccent: 'brand',
+  bgAccent: '#0F0F0F',
   textOnLight: '#0F0F0F',
-  textOnDark: '#F0F0F0',
+  textOnDark: '#F5F5F5',
   textMuted: '#8A8A8A',
-  borderColor: '#D4D4D4',
+  borderColor: '#E5E5E5',
 
-  headingFont: 'serif',
-  headingWeight: 400,
+  // Sans-serif but bold and dramatic — matches the real CNCPT site
+  headingFont: 'sans',
+  headingWeight: 700,
   bodyFont: 'sans',
-  headingSize: 'clamp(2.5rem, 5.5vw, 5rem)',
-  subheadingSize: 'clamp(1.25rem, 2.5vw, 1.75rem)',
+  headingSize: 'clamp(3rem, 7vw, 6rem)',
+  subheadingSize: 'clamp(1.5rem, 3vw, 2.25rem)',
   bodySize: 'clamp(0.9375rem, 1.25vw, 1.0625rem)',
-  labelSize: '0.6875rem',
-  labelTracking: '0.15em',
+  labelSize: '0.625rem',
+  labelTracking: '0.2em',
 
   pagePadding: '9%',
   contentGap: '3rem',
-  coverAlign: 'left',
-  gridColumns: 2,
+  // Centered cover like the real CNCPT hero
+  coverAlign: 'center',
+  gridColumns: 3,
 
-  showHeaderRule: true,
+  showHeaderRule: false,
   showFooterRule: false,
   headerStyle: 'minimal',
 
   cardShadow: 'none',
-  cardBorder: '1px solid #D4D4D4',
-  overlayOpacity: 0.25,
+  cardBorder: '1px solid #E5E5E5',
+  overlayOpacity: 0.3,
   imageFilter: 'none',
 };
 

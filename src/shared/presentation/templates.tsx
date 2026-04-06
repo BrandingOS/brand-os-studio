@@ -33,7 +33,8 @@ export type ContentType =
   | 'company-profile'
   | 'brand-presentation'
   | 'pitch-deck'
-  | 'logo-showcase';
+  | 'logo-showcase'
+  | 'studio-portfolio';
 
 export interface ContentTypeInfo {
   id: ContentType;
@@ -48,6 +49,7 @@ export const CONTENT_TYPES: ContentTypeInfo[] = [
   { id: 'brand-presentation', name: 'Brand Presentation', description: 'Brand pitch to stakeholders', icon: 'Presentation' },
   { id: 'pitch-deck', name: 'Pitch Deck', description: 'Investor or client pitch', icon: 'Rocket' },
   { id: 'logo-showcase', name: 'Logo Showcase', description: 'Logo concepts and rationale', icon: 'Image' },
+  { id: 'studio-portfolio', name: 'Studio Portfolio', description: 'Architecture / design studio portfolio (CNCPT-inspired)', icon: 'Layers' },
 ];
 
 // ── Slide Builder ───────────────────────────────────────
@@ -437,6 +439,144 @@ function buildLogoShowcaseSlides(brand: Brand, style: PresentationStyle): SlideD
   ];
 }
 
+// ── Studio Portfolio Content (CNCPT-inspired) ───────────
+
+function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle): SlideData[] {
+  const tagline = brand.tagline || `Transforming ideas into ${brand.tone || 'meaningful'} experiences for modern, considered, timeless results.`;
+
+  return [
+    // 1. Hero — massive centered tagline (CNCPT signature)
+    makeSlide('hero', 'Hero', CoverPage, {
+      style,
+      title: tagline,
+      subtitle: `${brand.name} -- ${brand.tone || 'Studio'}`,
+      logoUrl: brand.logo,
+    }),
+
+    // 2. Intro section divider
+    makeSlide('intro-divider', 'About', SectionDividerPage, {
+      style,
+      sectionNumber: '01',
+      sectionLabel: 'About The Studio',
+    }),
+
+    // 3. About — two column with subtitle
+    makeSlide('about', 'About', TwoColumnPage, {
+      style,
+      sectionLabel: 'Studio',
+      title: brand.name,
+      subtitle: brand.guidelines?.strategy?.positioning || `An independent ${brand.tone || 'design'} studio.`,
+      body: brand.guidelines?.strategy?.mission || `${brand.name} is a multidisciplinary studio creating thoughtful work for clients who value craft, restraint, and longevity.`,
+      imageUrl: brand.logo,
+    }),
+
+    // 4. Services divider
+    makeSlide('services-divider', 'Services', SectionDividerPage, {
+      style,
+      sectionNumber: '02',
+      sectionLabel: 'What We Do',
+    }),
+
+    // 5. Services — 3 columns (CNCPT shows 3 services)
+    makeSlide('services', 'Services', ThreeColumnPage, {
+      style,
+      sectionLabel: 'Services',
+      title: 'What We Do',
+      columns: [
+        { title: 'Strategy', body: 'Brand positioning, naming, and verbal identity built on real research.' },
+        { title: 'Identity', body: 'Logos, type systems, color, and the visual rules that hold them together.' },
+        { title: 'Experience', body: 'Websites, apps, and digital products designed end-to-end.' },
+      ],
+    }),
+
+    // 6. Process divider
+    makeSlide('process-divider', 'Process', SectionDividerPage, {
+      style,
+      sectionNumber: '03',
+      sectionLabel: 'How We Work',
+    }),
+
+    // 7. Process — 4 numbered steps (the CNCPT signature 01-04)
+    makeSlide('process', 'How We Work', ListPage, {
+      style,
+      sectionLabel: 'Process',
+      title: 'How We Work',
+      items: [
+        { title: 'Consultation', description: 'We begin with deep listening -- understanding the goals, constraints, and people behind the work.' },
+        { title: 'Concept', description: 'Strategic and visual directions explored, refined, and presented with rationale.' },
+        { title: 'Refinement', description: 'Iterating on the chosen direction with precision and care across every detail.' },
+        { title: 'Execution', description: 'Final delivery with everything organized, documented, and ready to live in the world.' },
+      ],
+    }),
+
+    // 8. Portfolio divider
+    makeSlide('portfolio-divider', 'Work', SectionDividerPage, {
+      style,
+      sectionNumber: '04',
+      sectionLabel: 'Selected Work',
+    }),
+
+    // 9-11. Three full-bleed project showcases (Budapest/Hamburg/Valencia from CNCPT)
+    makeSlide('project-1', 'Project I', FullBleedImagePage, {
+      style,
+      title: 'Budapest',
+      subtitle: 'Residential -- 2024',
+      imageUrl: brand.logo,
+    }),
+    makeSlide('project-2', 'Project II', FullBleedImagePage, {
+      style,
+      title: 'Hamburg',
+      subtitle: 'Commercial -- 2024',
+      imageUrl: brand.logo,
+    }),
+    makeSlide('project-3', 'Project III', FullBleedImagePage, {
+      style,
+      title: 'Valencia',
+      subtitle: 'Hospitality -- 2023',
+      imageUrl: brand.logo,
+    }),
+
+    // 12. Stats — by the numbers
+    makeSlide('stats', 'By The Numbers', StatsPage, {
+      style,
+      sectionLabel: 'Track Record',
+      title: 'By The Numbers',
+      stats: [
+        { value: '12+', label: 'Years' },
+        { value: '80+', label: 'Projects' },
+        { value: '25+', label: 'Awards' },
+        { value: '15', label: 'Countries' },
+      ],
+    }),
+
+    // 13. Approach quote
+    makeSlide('approach', 'Approach', QuotePage, {
+      style,
+      quote: 'Good work takes time. Great work takes patience, restraint, and the willingness to leave things out.',
+      quoteAuthor: brand.name,
+    }),
+
+    // 14. Contact divider
+    makeSlide('contact-divider', 'Contact', SectionDividerPage, {
+      style,
+      sectionNumber: '05',
+      sectionLabel: 'Get In Touch',
+    }),
+
+    // 15. Closing — contact info
+    makeSlide('closing', 'Contact', ClosingPage, {
+      style,
+      title: 'Make Something',
+      subtitle: brand.name,
+      logoUrl: brand.logo,
+      contactInfo: {
+        email: `hello@${brand.slug}.com`,
+        website: `${brand.slug}.com`,
+      },
+    }),
+  ];
+}
+
 // ── Master Builder ──────────────────────────────────────
 
 export function buildTemplateSlides(
@@ -457,6 +597,8 @@ export function buildTemplateSlides(
       return buildPitchDeckSlides(brand, style);
     case 'logo-showcase':
       return buildLogoShowcaseSlides(brand, style);
+    case 'studio-portfolio':
+      return buildStudioPortfolioSlides(brand, style);
     default:
       return buildBrandGuideSlides(brand, style);
   }
