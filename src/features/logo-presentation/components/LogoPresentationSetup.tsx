@@ -9,6 +9,7 @@ import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
+import { useLogoPresentationDocsStore } from '../docsStore';
 import { toast } from 'sonner';
 
 export interface LogoPresentationDraft {
@@ -29,6 +30,8 @@ interface LogoPresentationSetupProps {
   onClose?: () => void;
   /** Header label override (e.g. "New Logo Presentation" / "Edit Setup") */
   title?: string;
+  /** When editing an existing doc, this is called on every field change so the parent can persist live */
+  onDraftChange?: (draft: LogoPresentationDraft) => void;
 }
 
 function createEmptyConcept(index: number): LogoConcept {
@@ -433,10 +436,11 @@ function createVectorConcepts(): LogoConcept[] {
   ];
 }
 
-export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, title }: LogoPresentationSetupProps) {
+export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, title, onDraftChange }: LogoPresentationSetupProps) {
   const isVector = brand.slug === 'vector';
+  const docsStore = useLogoPresentationDocsStore();
 
-  // Build defaults — used only when no initialDraft is provided
+  // Build defaults — used only when no initialDraft and no setup draft is saved
   const buildDefaultDraft = (): LogoPresentationDraft => ({
     concepts: isVector ? createVectorConcepts() : [
       createEmptyConcept(0),
@@ -449,12 +453,38 @@ export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, t
     template: isVector ? 'simple' : 'premium',
   });
 
-  // Local state — initialized from initialDraft (editing existing) or defaults (new)
-  const [concepts, setConceptsLocal] = useState<LogoConcept[]>(() => initialDraft?.concepts || buildDefaultDraft().concepts);
-  const [brief, setBriefLocal] = useState(() => initialDraft?.brief ?? buildDefaultDraft().brief);
-  const [personality, setPersonalityLocal] = useState(() => initialDraft?.personality ?? buildDefaultDraft().personality);
-  const [clientName, setClientNameLocal] = useState(() => initialDraft?.clientName ?? buildDefaultDraft().clientName);
-  const [template, setTemplateLocal] = useState<PresentationTemplate>(() => initialDraft?.template || buildDefaultDraft().template);
+  // Decide initial state:
+  // 1. initialDraft (when editing an existing doc) — wins
+  // 2. saved setup draft for this brand (in-progress new presentation)
+  // 3. defaults
+  const isEditing = !!initialDraft;
+  const buildInitial = (): LogoPresentationDraft => {
+    if (initialDraft) return initialDraft;
+    const savedDraft = docsStore.setupDrafts[brand.id];
+    if (savedDraft) return savedDraft;
+    return buildDefaultDraft();
+  };
+
+  const [concepts, setConceptsLocal] = useState<LogoConcept[]>(() => buildInitial().concepts);
+  const [brief, setBriefLocal] = useState(() => buildInitial().brief);
+  const [personality, setPersonalityLocal] = useState(() => buildInitial().personality);
+  const [clientName, setClientNameLocal] = useState(() => buildInitial().clientName);
+  const [template, setTemplateLocal] = useState<PresentationTemplate>(() => buildInitial().template);
+
+  // Persist every change.
+  // - When creating a NEW presentation (no initialDraft): write to the setup draft slot
+  //   so reloads keep the in-progress data
+  // - When editing an EXISTING doc: notify the parent via onDraftChange so it can
+  //   write directly to the doc
+  useEffect(() => {
+    const draft = { concepts, brief, personality, clientName, template };
+    if (isEditing) {
+      onDraftChange?.(draft);
+    } else {
+      docsStore.setSetupDraft(brand.id, draft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [concepts, brief, personality, clientName, template, brand.id, isEditing]);
 
   // Wrapper setters
   const setConcepts = (updater: LogoConcept[] | ((prev: LogoConcept[]) => LogoConcept[])) => {
@@ -497,6 +527,9 @@ export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, t
     setPersonalityLocal(fresh.personality);
     setClientNameLocal(fresh.clientName);
     setTemplateLocal(fresh.template);
+    if (!isEditing) {
+      docsStore.clearSetupDraft(brand.id);
+    }
     toast.success('Reset to defaults');
   };
 
@@ -537,6 +570,11 @@ export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, t
       template,
     };
 
+    // Clear the setup draft slot now that we are creating a real doc
+    if (!isEditing) {
+      docsStore.clearSetupDraft(brand.id);
+    }
+
     onStart(data, draft);
   };
 
@@ -552,6 +590,11 @@ export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, t
           )}
           {onClose && <span className="text-white/10">|</span>}
           <h1 className="text-lg font-semibold text-white/80">{title || 'Logo Presentation Setup'}</h1>
+          {!isEditing && (
+            <span className="text-[10px] text-emerald-400/60 bg-emerald-400/[0.06] px-2 py-0.5 rounded-full border border-emerald-400/[0.1]">
+              Auto-saved
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button

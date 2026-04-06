@@ -113,6 +113,16 @@ export default function LogoPresentationPage() {
         initialDraft={initialDraft}
         title={editingDoc ? `Edit Setup — ${editingDoc.name}` : 'New Logo Presentation'}
         onClose={() => setSearchParams({})}
+        onDraftChange={editingDoc ? (draft) => {
+          // Live-sync edits to the existing doc
+          docsStore.update(brand.id, editingDoc.id, {
+            concepts: draft.concepts,
+            brief: draft.brief,
+            personality: draft.personality,
+            clientName: draft.clientName,
+            template: draft.template,
+          });
+        } : undefined}
         onStart={(_data, draft) => {
           if (editingDoc) {
             // Update the existing doc with new draft data

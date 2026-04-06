@@ -25,11 +25,22 @@ export interface LogoPresentationDoc {
   updatedAt: number;
 }
 
+/** In-progress setup draft (before user clicks Generate) */
+export interface LogoSetupDraft {
+  concepts: LogoConcept[];
+  brief: string;
+  personality: string;
+  clientName: string;
+  template: PresentationTemplate;
+}
+
 interface LogoDocsState {
   /** brandId → docs */
   docs: Record<string, LogoPresentationDoc[]>;
   /** brandId → currently active doc id */
   activeDocId: Record<string, string | null>;
+  /** brandId → in-progress setup draft (for ?new=1 view) */
+  setupDrafts: Record<string, LogoSetupDraft>;
 
   listForBrand: (brandId: string) => LogoPresentationDoc[];
   get: (brandId: string, docId: string) => LogoPresentationDoc | undefined;
@@ -43,6 +54,11 @@ interface LogoDocsState {
   setSlideOverride: (brandId: string, docId: string, slideId: string, override: Record<string, any>) => void;
   setActive: (brandId: string, docId: string | null) => void;
   duplicate: (brandId: string, docId: string) => LogoPresentationDoc | null;
+
+  /** Setup draft methods (in-progress new presentation) */
+  getSetupDraft: (brandId: string) => LogoSetupDraft | undefined;
+  setSetupDraft: (brandId: string, draft: LogoSetupDraft) => void;
+  clearSetupDraft: (brandId: string) => void;
 }
 
 function makeId(): string {
@@ -54,6 +70,20 @@ export const useLogoPresentationDocsStore = create<LogoDocsState>()(
     (set, get) => ({
       docs: {},
       activeDocId: {},
+      setupDrafts: {},
+
+      getSetupDraft: (brandId) => get().setupDrafts[brandId],
+
+      setSetupDraft: (brandId, draft) =>
+        set((state) => ({
+          setupDrafts: { ...state.setupDrafts, [brandId]: draft },
+        })),
+
+      clearSetupDraft: (brandId) =>
+        set((state) => {
+          const { [brandId]: _, ...rest } = state.setupDrafts;
+          return { setupDrafts: rest };
+        }),
 
       listForBrand: (brandId) => get().docs[brandId] || [],
 
