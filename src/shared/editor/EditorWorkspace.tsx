@@ -344,45 +344,97 @@ export function EditorWorkspace({
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
-  // Pre-process images that use CSS filters (e.g. brightness(0) invert(1) on a logo).
-  // html2canvas does not apply CSS filters to <img> elements, so we render the filter
-  // into a temporary canvas and replace the img's src with the resulting data URL.
+  // Rasterize every <img> in the cloned slide at its actual rendered DOM size,
+  // respecting object-fit and any CSS filters. This solves two html2canvas bugs:
+  //   1. SVG <img> elements are captured at viewBox size, not CSS size
+  //   2. CSS filters (e.g. brightness(0) invert(1)) are not applied to <img>
+  //
+  // After this pass, every image is a plain bitmap pre-sized for the export, so
+  // html2canvas just draws it at the img's CSS box without any further scaling.
   const preprocessFilteredImages = useCallback(async (root: HTMLElement) => {
     const imgs = Array.from(root.querySelectorAll('img'));
+    const PIXEL_SCALE = 2; // 2x for crisp output
     await Promise.all(imgs.map(async (img) => {
-      const inlineFilter = img.style.filter;
-      const computedFilter = window.getComputedStyle(img).filter;
-      const filter = inlineFilter || computedFilter || 'none';
-      if (filter === 'none' || filter === '') return;
-
       try {
         const src = img.src;
-        if (!src) return;
+        if (!src || src.startsWith('data:')) return; // already a data URL — skip
+
+        // Read the actual rendered size of the img in the staged clone
+        const rect = img.getBoundingClientRect();
+        const cssW = Math.round(rect.width);
+        const cssH = Math.round(rect.height);
+        if (cssW < 2 || cssH < 2) return; // invisible — skip
+
+        const filter = img.style.filter || window.getComputedStyle(img).filter || 'none';
+        const objectFit = window.getComputedStyle(img).objectFit || 'fill';
+
+        // Load the original image into a fresh Image object (gets natural dimensions)
         const tempImg = new Image();
-        // Same-origin SVGs do not need crossOrigin; cross-origin would taint anyway
         await new Promise<void>((res, rej) => {
           tempImg.onload = () => res();
           tempImg.onerror = () => rej(new Error('img load failed'));
           tempImg.src = src;
         });
 
-        const naturalW = tempImg.naturalWidth || 512;
-        const naturalH = tempImg.naturalHeight || 512;
+        const naturalW = tempImg.naturalWidth || cssW;
+        const naturalH = tempImg.naturalHeight || cssH;
+
+        // Create a canvas sized to the CSS box at 2x for crispness
         const canvas = document.createElement('canvas');
-        canvas.width = naturalW;
-        canvas.height = naturalH;
+        canvas.width = cssW * PIXEL_SCALE;
+        canvas.height = cssH * PIXEL_SCALE;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
+        ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
 
-        // Apply the CSS filter via canvas2d filter, then draw the image
-        ctx.filter = filter;
-        ctx.drawImage(tempImg, 0, 0, naturalW, naturalH);
+        // Apply CSS filter (canvas2d natively supports filter strings)
+        if (filter !== 'none' && filter !== '') {
+          ctx.filter = filter;
+        }
 
-        // Replace the img with the filtered raster
+        // Compute destination rectangle respecting object-fit
+        let dx = 0, dy = 0, dw = cssW, dh = cssH;
+        const naturalRatio = naturalW / naturalH;
+        const boxRatio = cssW / cssH;
+
+        if (objectFit === 'contain') {
+          if (naturalRatio > boxRatio) {
+            // Image is wider than the box — fit by width
+            dw = cssW;
+            dh = cssW / naturalRatio;
+            dx = 0;
+            dy = (cssH - dh) / 2;
+          } else {
+            // Image is taller — fit by height
+            dh = cssH;
+            dw = cssH * naturalRatio;
+            dy = 0;
+            dx = (cssW - dw) / 2;
+          }
+        } else if (objectFit === 'cover') {
+          if (naturalRatio > boxRatio) {
+            // Image is wider — fit by height, crop sides
+            dh = cssH;
+            dw = cssH * naturalRatio;
+            dy = 0;
+            dx = (cssW - dw) / 2;
+          } else {
+            // Image is taller — fit by width, crop top/bottom
+            dw = cssW;
+            dh = cssW / naturalRatio;
+            dx = 0;
+            dy = (cssH - dh) / 2;
+          }
+        }
+        // 'fill' (default) and others: stretch to fill — leave dx/dy/dw/dh as defaults
+
+        ctx.drawImage(tempImg, dx, dy, dw, dh);
+
+        // Replace the img source with the rasterized version
         img.src = canvas.toDataURL('image/png');
         img.style.filter = 'none';
       } catch (e) {
-        console.warn('[PDF Export] Failed to pre-process filtered image, will fall back:', e);
+        console.warn('[PDF Export] Failed to rasterize img:', e);
       }
     }));
   }, []);
