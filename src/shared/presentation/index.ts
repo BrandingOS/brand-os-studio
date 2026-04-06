@@ -1,4 +1,17 @@
 export { PresentationCustomizer } from './PresentationCustomizer';
+export {
+  CoverPage,
+  SectionDividerPage,
+  TwoColumnPage,
+  TwoColumnReversePage,
+  FullBleedImagePage,
+  ThreeColumnPage,
+  QuotePage,
+  StatsPage,
+  ListPage,
+  ClosingPage,
+  type PageProps,
+} from './pages';
 export { createPresentationStore } from './store';
 export type { PresentationStore } from './store';
 export {
