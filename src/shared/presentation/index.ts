@@ -1,4 +1,5 @@
 export { PresentationCustomizer } from './PresentationCustomizer';
+export { TemplatePicker } from './TemplatePicker';
 export {
   CoverPage,
   SectionDividerPage,
@@ -19,6 +20,12 @@ export {
   getStyleById,
   type PresentationStyle,
 } from './styles';
+export {
+  buildTemplateSlides,
+  CONTENT_TYPES,
+  type ContentType,
+  type ContentTypeInfo,
+} from './templates';
 export {
   DEFAULT_PRESENTATION_SETTINGS,
   SIZE_PRESETS,
