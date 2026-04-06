@@ -8,10 +8,11 @@
  * 10 styles is active. Content types (Brand Guide, Company Profile, etc.)
  * determine WHAT data fills each layout slot.
  */
-import type { SlideData, SlideRenderProps } from '@/shared/editor';
+import type { SlideData } from '@/shared/editor';
 import type { Brand } from '@/shared/types/brand';
 import type { PresentationStyle } from './styles';
 import { getStyleById } from './styles';
+import { makeSlide as factoryMakeSlide } from './slideFactory';
 import {
   CoverPage,
   SectionDividerPage,
@@ -69,6 +70,12 @@ export const CONTENT_TYPES: ContentTypeInfo[] = [
  */
 export type SlideOverridesMap = Record<string, Partial<Omit<PageProps, 'style' | 'brand' | 'pageNumber' | 'totalPages' | 'orientation' | 'aspectRatioValue' | 'settings'>>>;
 
+/**
+ * Thin wrapper around the shared slideFactory.makeSlide. Keeps the local
+ * positional-arg signature so the 100+ call sites below don't need to change,
+ * but routes through the unified factory so all surfaces share one
+ * implementation of override merging + render-prop wiring.
+ */
 function makeSlide(
   id: string,
   name: string,
@@ -76,22 +83,7 @@ function makeSlide(
   props: Omit<PageProps, 'brand' | 'pageNumber' | 'totalPages' | 'orientation' | 'aspectRatioValue' | 'settings'>,
   overrides?: SlideOverridesMap,
 ): SlideData {
-  const merged = { ...props, ...(overrides?.[id] || {}) };
-  return {
-    id,
-    name,
-    render: (rp: SlideRenderProps) => (
-      <Component
-        {...merged}
-        brand={rp.brand}
-        pageNumber={rp.pageNumber}
-        totalPages={rp.totalPages}
-        orientation={rp.orientation}
-        aspectRatioValue={rp.aspectRatioValue}
-        settings={rp.settings}
-      />
-    ),
-  };
+  return factoryMakeSlide({ id, name, Component, props, overrides });
 }
 
 // ── Brand Guide Content ─────────────────────────────────

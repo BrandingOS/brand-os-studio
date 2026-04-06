@@ -1,8 +1,8 @@
+@import './shared/design-system/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import './shared/design-system/tokens.css';
 
 /* SOLID DESIGN SYSTEM – Grayscale + Glassmorphism
    All colors MUST be HSL. Use tokens below via tailwind.config.ts
