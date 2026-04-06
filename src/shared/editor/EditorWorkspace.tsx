@@ -61,6 +61,10 @@ export interface SlideRenderProps {
   layout: TemplateLayout;
   pageNumber: number;
   totalPages: number;
+  /** Slide orientation derived from settings.size — pages adapt layouts */
+  orientation: 'portrait' | 'landscape' | 'square';
+  /** Aspect ratio number (width / height) — useful for fine-grained adaptation */
+  aspectRatioValue: number;
 }
 
 export interface SlideData {
@@ -177,6 +181,9 @@ export function EditorWorkspace({
 
   // Derive aspect ratio from settings
   const aspectRatio = `${settings.size.width} / ${settings.size.height}`;
+  const aspectRatioValue = settings.size.width / settings.size.height;
+  const orientation: 'portrait' | 'landscape' | 'square' =
+    aspectRatioValue > 1.05 ? 'landscape' : aspectRatioValue < 0.95 ? 'portrait' : 'square';
 
   useEffect(() => { setLayoutId(settings.template); }, [settings.template]);
 
@@ -354,14 +361,19 @@ export function EditorWorkspace({
           borderRadius: `${settings.spacing.cornerRadius}px`,
           backgroundColor: slideBg || undefined,
           direction: settings.language.direction,
-          fontSize: 'clamp(14px, 1.4vw, 20px)',
+          // Container queries — slide is the size container so everything scales with it
+          containerType: 'inline-size',
+          // Base font-size: 1% of the smaller dimension so it adapts to portrait/landscape
+          fontSize: 'min(1.2cqi, 1.2cqb)',
         }}
         onClick={opts?.onClick}
       >
-        {/* Slide content — renders at full size, no padding wrapper */}
-        <EditableSlide>
-          {slideData.render({ brand, layout, pageNumber, totalPages })}
-        </EditableSlide>
+        {/* Slide content — fills container, scales via cqi/cqb units */}
+        <div className="absolute inset-0">
+          <EditableSlide>
+            {slideData.render({ brand, layout, pageNumber, totalPages, orientation, aspectRatioValue })}
+          </EditableSlide>
+        </div>
 
         {/* Chrome overlays — float on top, never displace content */}
         <SlideChrome

@@ -1,9 +1,12 @@
 /**
  * Reusable Page Layout Components for Presentations
  *
- * 10 content-agnostic slide layouts that work with ANY PresentationStyle.
- * All visual styling (colors, radii, typography, spacing) is driven by the
- * `style` prop so the same layouts produce different visual results per style.
+ * 10 content-agnostic slide layouts that adapt to ANY canvas size and any
+ * PresentationStyle. All sizing uses container query units (cqi/cqmin) so
+ * fonts and spacing scale with the slide itself, not the viewport.
+ *
+ * Layouts auto-detect orientation: in portrait, two-column layouts stack
+ * vertically. The slide always fills its container — no aspect-video lock.
  */
 
 import React from 'react';
@@ -33,6 +36,10 @@ export interface PageProps {
   contactInfo?: { email?: string; website?: string; phone?: string };
   pageNumber?: number;
   totalPages?: number;
+  /** Slide orientation — passed by EditorWorkspace, used to adapt layouts */
+  orientation?: 'portrait' | 'landscape' | 'square';
+  /** Aspect ratio (width / height) for fine-grained adaptation */
+  aspectRatioValue?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -49,35 +56,72 @@ const fc = (font: 'display' | 'sans' | 'serif' | 'mono'): string => {
 const accent = (s: PresentationStyle, b: Brand): string =>
   s.bgAccent === 'brand' ? b.primaryColor : s.bgAccent;
 
-const Logo: React.FC<{ url?: string; brand: Brand; size?: number; className?: string; invert?: boolean }> = ({ url, brand, size = 36, className = '', invert }) => {
+/**
+ * Resolve a clamp() expression into a container-query-relative value.
+ * Original used vw (viewport) — we replace with cqi (container inline size)
+ * so font sizes scale with the slide, not the viewport.
+ */
+const cqiSize = (clampExpr: string): string => {
+  // Replace 'vw' with 'cqi' inside the clamp expression
+  return clampExpr.replace(/vw/g, 'cqi');
+};
+
+/** Convert percentage padding string to cqi-based for proportional scaling */
+const cqiPadding = (pad: string): string => {
+  const match = pad.match(/(\d+(?:\.\d+)?)%?/);
+  if (!match) return pad;
+  const value = parseFloat(match[1]);
+  return `${value}cqi`;
+};
+
+const Logo: React.FC<{ url?: string; brand: Brand; sizeCqi?: number; className?: string; invert?: boolean }> = ({ url, brand, sizeCqi = 4, className = '', invert }) => {
   const src = url || brand.logo || brand.logoAssets?.full || brand.logoAssets?.icon;
   if (!src) return null;
-  return <img src={src} alt={brand.name} className={`object-contain ${className}`} style={{ height: size, width: 'auto', filter: invert ? 'brightness(0) invert(1)' : undefined }} />;
+  return (
+    <img
+      src={src}
+      alt={brand.name}
+      className={`object-contain ${className}`}
+      style={{
+        height: `${sizeCqi}cqi`,
+        maxHeight: `${sizeCqi}cqb`,
+        width: 'auto',
+        filter: invert ? 'brightness(0) invert(1)' : undefined,
+      }}
+    />
+  );
 };
+
+// Base wrapper that fills the slide container completely
+const slideClass = 'absolute inset-0 w-full h-full overflow-hidden';
 
 // ── 1. Cover Page ──────────────────────────────────────
 
 export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
+  const headSize = cqiSize(s.headingSize);
+  const bodySize = cqiSize(s.bodySize);
+  const labelSize = cqiSize(s.labelSize);
 
   if (s.coverAlign === 'split') {
     return (
-      <div className="w-full aspect-video flex overflow-hidden" style={{ borderRadius: s.cornerRadius }}>
-        <div className="w-1/2 flex flex-col justify-between relative" style={{ backgroundColor: s.bgDark, padding: s.pagePadding }}>
-          <Logo url={logoUrl} brand={brand} size={32} invert />
+      <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgDark }}>
+        <div className="w-1/2 flex flex-col justify-between relative" style={{ padding: pad }}>
+          <Logo url={logoUrl} brand={brand} sizeCqi={3.2} invert />
           <div>
-            <h1 className={`${fc(s.headingFont)} leading-[0.95]`} style={{ color: s.textOnDark, fontSize: s.headingSize, fontWeight: s.headingWeight }}>{title}</h1>
-            {subtitle && <p className={`${fc(s.bodyFont)} mt-4`} style={{ color: s.textMuted, fontSize: s.bodySize }}>{subtitle}</p>}
+            <h1 className={`${fc(s.headingFont)} leading-[0.95]`} style={{ color: s.textOnDark, fontSize: headSize, fontWeight: s.headingWeight }}>{title}</h1>
+            {subtitle && <p className={`${fc(s.bodyFont)} mt-[1.5em]`} style={{ color: s.textMuted, fontSize: bodySize }}>{subtitle}</p>}
           </div>
-          <div className="flex items-center gap-3" style={{ fontSize: s.labelSize, color: s.textMuted, letterSpacing: s.labelTracking }}>
+          <div className="flex items-center gap-[0.6em]" style={{ fontSize: labelSize, color: s.textMuted, letterSpacing: s.labelTracking }}>
             <span>{brand.name}</span>
             <span style={{ opacity: 0.3 }}>·</span>
             <span>{new Date().getFullYear()}</span>
           </div>
         </div>
-        <div className="w-1/2 relative" style={{ backgroundColor: a }}>
+        <div className="w-1/2 relative flex items-center justify-center" style={{ backgroundColor: a }}>
           <div className="absolute inset-0 bg-black/10" />
-          {logoUrl && <div className="absolute inset-0 flex items-center justify-center"><Logo url={logoUrl} brand={brand} size={80} invert className="opacity-20" /></div>}
+          {(logoUrl || brand.logo) && <Logo url={logoUrl} brand={brand} sizeCqi={8} invert className="opacity-25" />}
         </div>
       </div>
     );
@@ -85,34 +129,34 @@ export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitl
 
   if (s.coverAlign === 'left' || s.coverAlign === 'right') {
     return (
-      <div className="w-full aspect-video flex flex-col justify-between relative overflow-hidden" style={{ backgroundColor: s.bgDark, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
-        <Logo url={logoUrl} brand={brand} size={32} invert />
-        <div style={{ maxWidth: '70%' }}>
-          <h1 className={`${fc(s.headingFont)} leading-[0.95]`} style={{ color: s.textOnDark, fontSize: s.headingSize, fontWeight: s.headingWeight }}>{title}</h1>
-          {subtitle && <p className={`${fc(s.bodyFont)} mt-4`} style={{ color: s.textMuted, fontSize: s.bodySize }}>{subtitle}</p>}
+      <div className={`${slideClass} flex flex-col justify-between relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
+        <Logo url={logoUrl} brand={brand} sizeCqi={3.2} invert />
+        <div style={{ maxWidth: '75%' }}>
+          <h1 className={`${fc(s.headingFont)} leading-[0.95]`} style={{ color: s.textOnDark, fontSize: headSize, fontWeight: s.headingWeight }}>{title}</h1>
+          {subtitle && <p className={`${fc(s.bodyFont)} mt-[1.5em]`} style={{ color: s.textMuted, fontSize: bodySize }}>{subtitle}</p>}
         </div>
-        <div className="flex items-center gap-3" style={{ fontSize: s.labelSize, color: s.textMuted, letterSpacing: s.labelTracking }}>
+        <div className="flex items-center gap-[0.6em]" style={{ fontSize: labelSize, color: s.textMuted, letterSpacing: s.labelTracking }}>
           <span>{brand.name}</span>
           <span style={{ opacity: 0.3 }}>·</span>
           <span>{new Date().getFullYear()}</span>
         </div>
-        {s.showHeaderRule && <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: a }} />}
-        <div className="absolute -bottom-20 -right-20 w-[300px] h-[300px] rounded-full" style={{ background: a, opacity: 0.06 }} />
+        {s.showHeaderRule && <div className="absolute top-0 left-0 right-0" style={{ height: '0.2cqi', background: a }} />}
+        <div className="absolute -bottom-[15cqi] -right-[15cqi] rounded-full" style={{ width: '30cqi', height: '30cqi', background: a, opacity: 0.06 }} />
       </div>
     );
   }
 
   // center (default)
   return (
-    <div className="w-full aspect-video flex flex-col items-center justify-center text-center relative overflow-hidden" style={{ backgroundColor: s.bgDark, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
+    <div className={`${slideClass} flex flex-col items-center justify-center text-center relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
       <div className="absolute inset-0 opacity-[0.06]" style={{ background: `radial-gradient(ellipse at 50% 60%, ${a} 0%, transparent 70%)` }} />
-      <div className="relative z-10 flex flex-col items-center gap-4" style={{ maxWidth: '75%' }}>
-        <Logo url={logoUrl} brand={brand} size={44} invert className="mb-4" />
-        <h1 className={`${fc(s.headingFont)} leading-[1.05]`} style={{ color: s.textOnDark, fontSize: s.headingSize, fontWeight: s.headingWeight }}>{title}</h1>
-        {subtitle && <p className={`${fc(s.bodyFont)} mt-2`} style={{ color: s.textMuted, fontSize: s.bodySize }}>{subtitle}</p>}
+      <div className="relative z-10 flex flex-col items-center gap-[1em]" style={{ maxWidth: '80%' }}>
+        <Logo url={logoUrl} brand={brand} sizeCqi={4} invert className="mb-[1em]" />
+        <h1 className={`${fc(s.headingFont)} leading-[1.05]`} style={{ color: s.textOnDark, fontSize: headSize, fontWeight: s.headingWeight }}>{title}</h1>
+        {subtitle && <p className={`${fc(s.bodyFont)}`} style={{ color: s.textMuted, fontSize: bodySize, marginTop: '0.5em' }}>{subtitle}</p>}
       </div>
-      <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-[5%]">
-        <span style={{ fontSize: s.labelSize, color: s.textMuted, letterSpacing: s.labelTracking, opacity: 0.5 }}>{brand.name} · {new Date().getFullYear()}</span>
+      <div className="absolute bottom-0 left-0 right-0 flex justify-center" style={{ paddingBottom: pad }}>
+        <span style={{ fontSize: labelSize, color: s.textMuted, letterSpacing: s.labelTracking, opacity: 0.5 }}>{brand.name} · {new Date().getFullYear()}</span>
       </div>
     </div>
   );
@@ -122,14 +166,15 @@ export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitl
 
 export const SectionDividerPage: React.FC<PageProps> = ({ style: s, brand, sectionNumber, sectionLabel }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
   return (
-    <div className="w-full aspect-video flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: a, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
+    <div className={`${slideClass} flex items-center justify-center relative`} style={{ backgroundColor: a, padding: pad }}>
       {sectionNumber && (
-        <span className={`absolute select-none ${fc(s.headingFont)} leading-none`} style={{ fontSize: 'min(180px, 18vw)', fontWeight: 900, color: '#ffffff', opacity: 0.08 }}>{sectionNumber}</span>
+        <span className={`absolute select-none ${fc(s.headingFont)} leading-none`} style={{ fontSize: '32cqi', fontWeight: 900, color: '#ffffff', opacity: 0.08 }}>{sectionNumber}</span>
       )}
-      <div className="relative z-10 flex flex-col items-center text-center gap-3">
-        {sectionNumber && <span className={`${fc(s.headingFont)} leading-none`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: '#ffffff' }}>{sectionNumber}</span>}
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: '#ffffff', opacity: 0.8 }}>{sectionLabel}</span>}
+      <div className="relative z-10 flex flex-col items-center text-center gap-[0.8em]">
+        {sectionNumber && <span className={`${fc(s.headingFont)} leading-none`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: '#ffffff' }}>{sectionNumber}</span>}
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: '#ffffff', opacity: 0.85 }}>{sectionLabel}</span>}
       </div>
     </div>
   );
@@ -137,24 +182,26 @@ export const SectionDividerPage: React.FC<PageProps> = ({ style: s, brand, secti
 
 // ── 3. Two Column Page ─────────────────────────────────
 
-export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel }) => {
+export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape' }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
+  const isPortrait = orientation === 'portrait';
   return (
-    <div className="w-full aspect-video flex overflow-hidden" style={{ backgroundColor: s.bgLight, borderRadius: s.cornerRadius, padding: s.pagePadding, gap: s.contentGap }}>
-      <div className="flex flex-col justify-center" style={{ flex: '0 0 55%' }}>
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase mb-3 block`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: a }}>{sectionLabel}</span>}
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
-        {subtitle && <p className={`${fc(s.bodyFont)} mt-3 leading-relaxed`} style={{ fontSize: s.bodySize, color: s.textOnLight, opacity: 0.8 }}>{subtitle}</p>}
-        {body && <p className={`${fc(s.bodyFont)} mt-3 leading-relaxed`} style={{ fontSize: s.bodySize, color: s.textMuted }}>{body}</p>}
-        {s.showHeaderRule && <div className="mt-6" style={{ height: 1, background: s.borderColor, opacity: 0.4 }} />}
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
+      <div className="flex flex-col justify-center" style={{ flex: isPortrait ? '1 1 auto' : '0 0 55%' }}>
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '1em' }}>{sectionLabel}</span>}
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
+        {subtitle && <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textOnLight, opacity: 0.8, marginTop: '0.8em' }}>{subtitle}</p>}
+        {body && <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '0.8em' }}>{body}</p>}
+        {s.showHeaderRule && <div style={{ height: '0.15cqi', background: s.borderColor, opacity: 0.4, marginTop: '1.5em' }} />}
       </div>
-      <div className="relative overflow-hidden flex-1" style={{ borderRadius: s.cardRadius }}>
+      <div className="relative overflow-hidden flex-1" style={{ borderRadius: `${s.cardRadius}px`, minHeight: 0 }}>
         {imageUrl ? (
-          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}08` }}>
+          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}10` }}>
             <img src={imageUrl} alt="" className="max-w-[70%] max-h-[70%] object-contain" style={{ filter: s.imageFilter }} />
           </div>
         ) : (
-          <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${a}15, ${a}08)` }} />
+          <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${a}20, ${a}08)` }} />
         )}
       </div>
     </div>
@@ -163,24 +210,26 @@ export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, sub
 
 // ── 4. Two Column Reverse Page ─────────────────────────
 
-export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel }) => {
+export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape' }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
+  const isPortrait = orientation === 'portrait';
   return (
-    <div className="w-full aspect-video flex overflow-hidden" style={{ backgroundColor: s.bgLight, borderRadius: s.cornerRadius, padding: s.pagePadding, gap: s.contentGap }}>
-      <div className="relative overflow-hidden" style={{ flex: '0 0 45%', borderRadius: s.cardRadius }}>
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
+      <div className="relative overflow-hidden" style={{ flex: isPortrait ? '1 1 auto' : '0 0 45%', borderRadius: `${s.cardRadius}px`, minHeight: 0, order: isPortrait ? 2 : 1 }}>
         {imageUrl ? (
-          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}08` }}>
+          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}10` }}>
             <img src={imageUrl} alt="" className="max-w-[70%] max-h-[70%] object-contain" style={{ filter: s.imageFilter }} />
           </div>
         ) : (
-          <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${a}15, ${a}08)` }} />
+          <div className="w-full h-full" style={{ background: `linear-gradient(135deg, ${a}20, ${a}08)` }} />
         )}
       </div>
-      <div className="flex flex-col justify-center flex-1">
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase mb-3 block`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: a }}>{sectionLabel}</span>}
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
-        {subtitle && <p className={`${fc(s.bodyFont)} mt-3 leading-relaxed`} style={{ fontSize: s.bodySize, color: s.textOnLight, opacity: 0.8 }}>{subtitle}</p>}
-        {body && <p className={`${fc(s.bodyFont)} mt-3 leading-relaxed`} style={{ fontSize: s.bodySize, color: s.textMuted }}>{body}</p>}
+      <div className="flex flex-col justify-center flex-1" style={{ order: isPortrait ? 1 : 2 }}>
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '1em' }}>{sectionLabel}</span>}
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
+        {subtitle && <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textOnLight, opacity: 0.8, marginTop: '0.8em' }}>{subtitle}</p>}
+        {body && <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '0.8em' }}>{body}</p>}
       </div>
     </div>
   );
@@ -190,17 +239,18 @@ export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, tit
 
 export const FullBleedImagePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, imageUrl }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
   return (
-    <div className="w-full aspect-video relative overflow-hidden" style={{ borderRadius: s.cornerRadius }}>
+    <div className={`${slideClass}`}>
       {imageUrl ? (
         <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: s.imageFilter }} />
       ) : (
         <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${s.bgDark}, ${a})` }} />
       )}
       <div className="absolute inset-0" style={{ background: `linear-gradient(to top, rgba(0,0,0,${s.overlayOpacity}) 0%, rgba(0,0,0,${s.overlayOpacity * 0.3}) 40%, transparent 70%)` }} />
-      <div className="absolute bottom-0 left-0 z-10 flex flex-col" style={{ padding: s.pagePadding, maxWidth: '70%' }}>
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.headingSize, fontWeight: s.headingWeight, color: '#fff' }}>{title}</h2>}
-        {subtitle && <p className={`${fc(s.bodyFont)} mt-2`} style={{ fontSize: s.bodySize, color: 'rgba(255,255,255,0.75)' }}>{subtitle}</p>}
+      <div className="absolute bottom-0 left-0 z-10 flex flex-col" style={{ padding: pad, maxWidth: '75%' }}>
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.headingSize), fontWeight: s.headingWeight, color: '#fff' }}>{title}</h2>}
+        {subtitle && <p className={`${fc(s.bodyFont)}`} style={{ fontSize: cqiSize(s.bodySize), color: 'rgba(255,255,255,0.8)', marginTop: '0.5em' }}>{subtitle}</p>}
       </div>
     </div>
   );
@@ -208,29 +258,49 @@ export const FullBleedImagePage: React.FC<PageProps> = ({ style: s, brand, title
 
 // ── 6. Three Column Page ───────────────────────────────
 
-export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionLabel, title, items, columns }) => {
+export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionLabel, title, items, columns, orientation = 'landscape' }) => {
   const a = accent(s, brand);
-  // Accept either `items` or `columns` (columns has body instead of description)
+  const pad = cqiPadding(s.pagePadding);
   const cardData = items?.map(i => ({ title: i.title, desc: i.description }))
     || columns?.map(c => ({ title: c.title, desc: c.body }))
     || [];
-  const cols = s.gridColumns;
+  // Adapt columns based on orientation: fewer columns in portrait
+  const isPortrait = orientation === 'portrait';
+  const cols = isPortrait ? Math.min(2, s.gridColumns) : s.gridColumns;
+  const isDarkBg = s.bgLight.startsWith('#1') || s.bgLight.startsWith('#0') || s.bgLight === s.bgDark;
+  const cardBg = isDarkBg ? `${s.borderColor}20` : 'transparent';
 
   return (
-    <div className="w-full aspect-video flex flex-col overflow-hidden" style={{ backgroundColor: s.bgLight, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
+    <div className={`${slideClass} flex flex-col`} style={{ backgroundColor: s.bgLight, padding: pad }}>
       <div className="shrink-0">
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block mb-2`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: a }}>{sectionLabel}</span>}
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
-        {s.showHeaderRule && <div className="mt-4" style={{ height: 1, background: s.borderColor, opacity: 0.4 }} />}
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '0.5em' }}>{sectionLabel}</span>}
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
+        {s.showHeaderRule && <div style={{ height: '0.15cqi', background: s.borderColor, opacity: 0.4, marginTop: '1em' }} />}
       </div>
 
-      <div className="grid flex-1 items-start" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: s.contentGap, marginTop: s.contentGap }}>
+      <div
+        className="grid flex-1 items-start min-h-0"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          gap: '2cqi',
+          marginTop: '2cqi',
+        }}
+      >
         {cardData.slice(0, cols).map((card, i) => (
-          <div key={i} className="flex flex-col" style={{ backgroundColor: s.bgLight === s.bgDark ? `${s.borderColor}15` : undefined, borderRadius: s.cardRadius, boxShadow: s.cardShadow, border: s.cardBorder, padding: `clamp(12px, 2vw, 24px)` }}>
-            {/* Number indicator */}
-            <span className={`${fc(s.headingFont)} mb-3`} style={{ fontSize: s.subheadingSize, fontWeight: 800, color: a, opacity: 0.2 }}>{String(i + 1).padStart(2, '0')}</span>
-            <h3 className={`${fc(s.headingFont)} leading-snug`} style={{ fontSize: s.bodySize, fontWeight: s.headingWeight, color: s.textOnLight }}>{card.title}</h3>
-            <p className={`${fc(s.bodyFont)} mt-2 leading-relaxed`} style={{ fontSize: s.labelSize, color: s.textMuted }}>{card.desc}</p>
+          <div
+            key={i}
+            className="flex flex-col h-full overflow-hidden"
+            style={{
+              backgroundColor: cardBg,
+              borderRadius: `${s.cardRadius}px`,
+              boxShadow: s.cardShadow,
+              border: s.cardBorder,
+              padding: '2cqi',
+            }}
+          >
+            <span className={`${fc(s.headingFont)} mb-[0.5em]`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: 800, color: a, opacity: 0.25, lineHeight: 1 }}>{String(i + 1).padStart(2, '0')}</span>
+            <h3 className={`${fc(s.headingFont)} leading-snug`} style={{ fontSize: cqiSize(s.bodySize), fontWeight: s.headingWeight, color: s.textOnLight }}>{card.title}</h3>
+            <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.labelSize), color: s.textMuted, marginTop: '0.5em' }}>{card.desc}</p>
           </div>
         ))}
       </div>
@@ -242,14 +312,14 @@ export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionL
 
 export const QuotePage: React.FC<PageProps> = ({ style: s, brand, quote, quoteAuthor }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
   return (
-    <div className="w-full aspect-video flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: s.bgDark, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
-      {/* Decorative accent line */}
-      <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: a, opacity: 0.4 }} />
-      <div className="relative max-w-[75%]">
-        <span className={`${fc(s.headingFont)} absolute -top-8 -left-4 select-none leading-none`} style={{ fontSize: '100px', color: a, opacity: 0.2 }} aria-hidden="true">&ldquo;</span>
-        {quote && <blockquote className={`${fc(s.headingFont)} relative z-10 leading-relaxed`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnDark, fontStyle: s.headingFont === 'serif' ? 'italic' : 'normal' }}>{quote}</blockquote>}
-        {quoteAuthor && <p className={`${fc(s.bodyFont)} mt-6`} style={{ fontSize: s.bodySize, color: s.textMuted }}>&mdash; {quoteAuthor}</p>}
+    <div className={`${slideClass} flex items-center justify-center relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
+      <div className="absolute top-0 left-0 h-full" style={{ width: '0.5cqi', background: a, opacity: 0.4 }} />
+      <div className="relative" style={{ maxWidth: '78%' }}>
+        <span className={`${fc(s.headingFont)} absolute select-none leading-none`} style={{ fontSize: '18cqi', color: a, opacity: 0.18, top: '-3cqi', left: '-2cqi' }} aria-hidden="true">&ldquo;</span>
+        {quote && <blockquote className={`${fc(s.headingFont)} relative z-10 leading-relaxed`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnDark, fontStyle: s.headingFont === 'serif' ? 'italic' : 'normal' }}>{quote}</blockquote>}
+        {quoteAuthor && <p className={`${fc(s.bodyFont)}`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '1.5em' }}>&mdash; {quoteAuthor}</p>}
       </div>
     </div>
   );
@@ -259,23 +329,40 @@ export const QuotePage: React.FC<PageProps> = ({ style: s, brand, quote, quoteAu
 
 export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, stats = [] }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
   const displayStats = stats.slice(0, 4);
   const cols = displayStats.length <= 2 ? 2 : displayStats.length;
-  // For dark themes, use a slightly lighter card bg
-  const isDarkBg = s.bgLight === s.bgDark || s.bgLight.startsWith('#1') || s.bgLight.startsWith('#0');
-  const cardBg = isDarkBg ? `${s.borderColor}20` : undefined;
+  const isDarkBg = s.bgLight.startsWith('#1') || s.bgLight.startsWith('#0') || s.bgLight === s.bgDark;
+  const cardBg = isDarkBg ? `${s.borderColor}20` : 'transparent';
 
   return (
-    <div className="w-full aspect-video flex flex-col overflow-hidden" style={{ backgroundColor: s.bgLight, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
+    <div className={`${slideClass} flex flex-col`} style={{ backgroundColor: s.bgLight, padding: pad }}>
       <div className="shrink-0">
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block mb-2`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: a }}>{sectionLabel}</span>}
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '0.5em' }}>{sectionLabel}</span>}
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
       </div>
-      <div className="grid items-center flex-1" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: s.contentGap, marginTop: s.contentGap }}>
+      <div
+        className="grid items-center flex-1 min-h-0"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          gap: '2cqi',
+          marginTop: '2cqi',
+        }}
+      >
         {displayStats.map((stat, i) => (
-          <div key={i} className="flex flex-col items-center justify-center text-center" style={{ borderRadius: s.cardRadius, boxShadow: s.cardShadow, border: s.cardBorder, padding: `clamp(16px, 3vw, 32px)`, backgroundColor: cardBg }}>
-            <span className={`${fc(s.headingFont)} leading-none`} style={{ fontSize: s.headingSize, fontWeight: 800, color: a }}>{stat.value}</span>
-            <span className={`${fc(s.bodyFont)} mt-3 uppercase`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: s.textMuted }}>{stat.label}</span>
+          <div
+            key={i}
+            className="flex flex-col items-center justify-center text-center"
+            style={{
+              borderRadius: `${s.cardRadius}px`,
+              boxShadow: s.cardShadow,
+              border: s.cardBorder,
+              padding: '3cqi',
+              backgroundColor: cardBg,
+            }}
+          >
+            <span className={`${fc(s.headingFont)} leading-none`} style={{ fontSize: cqiSize(s.headingSize), fontWeight: 800, color: a }}>{stat.value}</span>
+            <span className={`${fc(s.bodyFont)} uppercase`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: s.textMuted, marginTop: '1em' }}>{stat.label}</span>
           </div>
         ))}
       </div>
@@ -285,22 +372,24 @@ export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, section
 
 // ── 9. List Page ───────────────────────────────────────
 
-export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, items = [] }) => {
+export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, items = [], orientation = 'landscape' }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
+  const isPortrait = orientation === 'portrait';
   return (
-    <div className="w-full aspect-video flex overflow-hidden" style={{ backgroundColor: s.bgLight, borderRadius: s.cornerRadius, padding: s.pagePadding, gap: s.contentGap }}>
-      <div className="flex flex-col justify-center" style={{ flex: '0 0 35%' }}>
-        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block mb-3`} style={{ fontSize: s.labelSize, letterSpacing: s.labelTracking, color: a }}>{sectionLabel}</span>}
-        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: s.subheadingSize, fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
-        {s.showHeaderRule && <div className="mt-4" style={{ width: '40%', height: 2, background: a, opacity: 0.3 }} />}
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
+      <div className="flex flex-col justify-center" style={{ flex: isPortrait ? '0 0 auto' : '0 0 35%' }}>
+        {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '0.8em' }}>{sectionLabel}</span>}
+        {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
+        {s.showHeaderRule && <div style={{ width: '40%', height: '0.3cqi', background: a, opacity: 0.3, marginTop: '1em' }} />}
       </div>
-      <div className="flex flex-col justify-center flex-1 gap-5 overflow-y-auto">
+      <div className="flex flex-col justify-center flex-1 overflow-hidden" style={{ gap: '1.5cqi' }}>
         {items.map((item, i) => (
-          <div key={i} className="flex gap-4 items-start">
-            <span className={`${fc(s.headingFont)} shrink-0 leading-none`} style={{ fontSize: s.subheadingSize, fontWeight: 700, color: a, opacity: 0.25, minWidth: '2.5ch', textAlign: 'right' }}>{String(i + 1).padStart(2, '0')}</span>
-            <div style={{ borderLeft: `2px solid ${a}20`, paddingLeft: '12px' }}>
-              <h4 className={`${fc(s.headingFont)} leading-snug`} style={{ fontSize: s.bodySize, fontWeight: s.headingWeight, color: s.textOnLight }}>{item.title}</h4>
-              <p className={`${fc(s.bodyFont)} mt-1 leading-relaxed`} style={{ fontSize: s.bodySize, color: s.textMuted }}>{item.description}</p>
+          <div key={i} className="flex items-start" style={{ gap: '1.5cqi' }}>
+            <span className={`${fc(s.headingFont)} shrink-0 leading-none`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: 700, color: a, opacity: 0.25, minWidth: '2.5ch', textAlign: 'right' }}>{String(i + 1).padStart(2, '0')}</span>
+            <div style={{ borderLeft: `0.15cqi solid ${a}30`, paddingLeft: '1cqi' }}>
+              <h4 className={`${fc(s.headingFont)} leading-snug`} style={{ fontSize: cqiSize(s.bodySize), fontWeight: s.headingWeight, color: s.textOnLight }}>{item.title}</h4>
+              <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '0.3em' }}>{item.description}</p>
             </div>
           </div>
         ))}
@@ -313,25 +402,25 @@ export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionL
 
 export const ClosingPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl, contactInfo }) => {
   const a = accent(s, brand);
+  const pad = cqiPadding(s.pagePadding);
   return (
-    <div className="w-full aspect-video flex flex-col items-center justify-center relative overflow-hidden" style={{ backgroundColor: s.bgDark, borderRadius: s.cornerRadius, padding: s.pagePadding }}>
-      {/* Ambient glow */}
+    <div className={`${slideClass} flex flex-col items-center justify-center relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
       <div className="absolute inset-0 opacity-[0.05]" style={{ background: `radial-gradient(ellipse at 50% 60%, ${a} 0%, transparent 60%)` }} />
       <div className="relative z-10 flex flex-col items-center text-center">
-        <Logo url={logoUrl} brand={brand} size={48} invert className="mb-6" />
-        <h2 className={`${fc(s.headingFont)}`} style={{ fontSize: s.headingSize, fontWeight: s.headingWeight, color: s.textOnDark }}>{title || 'Thank You'}</h2>
-        {subtitle && <p className={`${fc(s.bodyFont)} mt-3`} style={{ fontSize: s.bodySize, color: s.textMuted }}>{subtitle}</p>}
-        <div className="mt-4 w-8" style={{ height: 2, background: a, opacity: 0.5 }} />
-        <p className={`${fc(s.headingFont)} mt-4`} style={{ fontSize: s.bodySize, color: a, fontWeight: 600, opacity: 0.7 }}>{brand.name}</p>
+        <Logo url={logoUrl} brand={brand} sizeCqi={5} invert className="mb-[1em]" />
+        <h2 className={`${fc(s.headingFont)}`} style={{ fontSize: cqiSize(s.headingSize), fontWeight: s.headingWeight, color: s.textOnDark }}>{title || 'Thank You'}</h2>
+        {subtitle && <p className={`${fc(s.bodyFont)}`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '0.6em' }}>{subtitle}</p>}
+        <div style={{ width: '4cqi', height: '0.3cqi', background: a, opacity: 0.5, marginTop: '1em' }} />
+        <p className={`${fc(s.headingFont)}`} style={{ fontSize: cqiSize(s.bodySize), color: a, fontWeight: 600, opacity: 0.7, marginTop: '1em' }}>{brand.name}</p>
         {contactInfo && (
-          <div className={`${fc(s.bodyFont)} mt-6 flex items-center gap-6`} style={{ fontSize: s.labelSize, color: s.textMuted }}>
+          <div className={`${fc(s.bodyFont)} flex items-center`} style={{ fontSize: cqiSize(s.labelSize), color: s.textMuted, gap: '2cqi', marginTop: '1.5em' }}>
             {contactInfo.email && <span>{contactInfo.email}</span>}
             {contactInfo.website && <span>{contactInfo.website}</span>}
             {contactInfo.phone && <span>{contactInfo.phone}</span>}
           </div>
         )}
       </div>
-      {s.showFooterRule && <div className="absolute bottom-[6%] left-1/2 -translate-x-1/2" style={{ width: '25%', height: 1, background: s.borderColor, opacity: 0.2 }} />}
+      {s.showFooterRule && <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: '6cqi', width: '25%', height: '0.15cqi', background: s.borderColor, opacity: 0.2 }} />}
     </div>
   );
 };
