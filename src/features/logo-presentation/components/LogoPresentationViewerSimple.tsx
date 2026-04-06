@@ -213,7 +213,7 @@ function VariationsSlide({ concept, color }: { concept: LogoConcept; color: stri
           <div className="flex items-center justify-center p-6" style={{ backgroundColor: CARD_LIGHT, borderRadius: CARD_RADIUS }}>
             <div className="relative w-full h-full flex items-center justify-center">
               <p className="absolute top-2 left-2 text-[9px] text-black/20">Logotype</p>
-              <img src={concept.logotypeUrl} alt="" className="max-w-[80%] max-h-[40%] object-contain" />
+              <img src={concept.logotypeUrl} alt="" className="max-w-[90%] max-h-[65%] object-contain" />
             </div>
           </div>
         )}
