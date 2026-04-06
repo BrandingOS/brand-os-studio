@@ -12,6 +12,7 @@
 import React from 'react';
 import type { Brand } from '@/shared/types/brand';
 import type { PresentationStyle } from './styles';
+import type { PresentationSettings } from './types';
 
 // ── Page Props ─────────────────────────────────────────
 
@@ -40,6 +41,8 @@ export interface PageProps {
   orientation?: 'portrait' | 'landscape' | 'square';
   /** Aspect ratio (width / height) for fine-grained adaptation */
   aspectRatioValue?: number;
+  /** User presentation settings — overrides style defaults for spacing/radius */
+  settings?: PresentationSettings;
 }
 
 // ── Helpers ────────────────────────────────────────────
@@ -74,6 +77,33 @@ const cqiPadding = (pad: string): string => {
   return `${value}cqi`;
 };
 
+/**
+ * Compute effective spacing values from user settings.
+ * Settings are synced to style defaults when style changes (in EditorWorkspace),
+ * then user adjustments override. Either way, settings is the source of truth.
+ *
+ * - settings.spacing.padding (number from slider 20-120) → cqi value (slider/10)
+ * - settings.spacing.margins (number 10-80) → cqi gap (slider/10)
+ * - settings.spacing.cornerRadius (number 0-24) → inner card radius in px
+ *
+ * Falls back to style values when settings unavailable (legacy slide builders).
+ */
+const useSpacing = (s: PresentationStyle, settings?: PresentationSettings) => {
+  if (settings) {
+    return {
+      padding: `${(settings.spacing.padding / 10).toFixed(1)}cqi`,
+      gap: `${(settings.spacing.margins / 10).toFixed(1)}cqi`,
+      radius: settings.spacing.cornerRadius,
+    };
+  }
+  // Legacy fallback
+  return {
+    padding: cqiPadding(s.pagePadding),
+    gap: '2cqi',
+    radius: s.cardRadius,
+  };
+};
+
 const Logo: React.FC<{ url?: string; brand: Brand; sizeCqi?: number; className?: string; invert?: boolean }> = ({ url, brand, sizeCqi = 4, className = '', invert }) => {
   const src = url || brand.logo || brand.logoAssets?.full || brand.logoAssets?.icon;
   if (!src) return null;
@@ -97,9 +127,9 @@ const slideClass = 'absolute inset-0 w-full h-full overflow-hidden';
 
 // ── 1. Cover Page ──────────────────────────────────────
 
-export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl }) => {
+export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl, settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad } = useSpacing(s, settings);
   const headSize = cqiSize(s.headingSize);
   const bodySize = cqiSize(s.bodySize);
   const labelSize = cqiSize(s.labelSize);
@@ -164,9 +194,9 @@ export const CoverPage: React.FC<PageProps> = ({ style: s, brand, title, subtitl
 
 // ── 2. Section Divider Page ────────────────────────────
 
-export const SectionDividerPage: React.FC<PageProps> = ({ style: s, brand, sectionNumber, sectionLabel }) => {
+export const SectionDividerPage: React.FC<PageProps> = ({ style: s, brand, sectionNumber, sectionLabel, settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad } = useSpacing(s, settings);
   return (
     <div className={`${slideClass} flex items-center justify-center relative`} style={{ backgroundColor: a, padding: pad }}>
       {sectionNumber && (
@@ -182,12 +212,12 @@ export const SectionDividerPage: React.FC<PageProps> = ({ style: s, brand, secti
 
 // ── 3. Two Column Page ─────────────────────────────────
 
-export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape' }) => {
+export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape', settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad, gap, radius } = useSpacing(s, settings);
   const isPortrait = orientation === 'portrait';
   return (
-    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap, flexDirection: isPortrait ? 'column' : 'row' }}>
       <div className="flex flex-col justify-center" style={{ flex: isPortrait ? '1 1 auto' : '0 0 55%' }}>
         {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '1em' }}>{sectionLabel}</span>}
         {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
@@ -195,7 +225,7 @@ export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, sub
         {body && <p className={`${fc(s.bodyFont)} leading-relaxed`} style={{ fontSize: cqiSize(s.bodySize), color: s.textMuted, marginTop: '0.8em' }}>{body}</p>}
         {s.showHeaderRule && <div style={{ height: '0.15cqi', background: s.borderColor, opacity: 0.4, marginTop: '1.5em' }} />}
       </div>
-      <div className="relative overflow-hidden flex-1" style={{ borderRadius: `${s.cardRadius}px`, minHeight: 0 }}>
+      <div className="relative overflow-hidden flex-1" style={{ borderRadius: `${radius}px`, minHeight: 0 }}>
         {imageUrl ? (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}10` }}>
             <img src={imageUrl} alt="" className="max-w-[70%] max-h-[70%] object-contain" style={{ filter: s.imageFilter }} />
@@ -210,13 +240,13 @@ export const TwoColumnPage: React.FC<PageProps> = ({ style: s, brand, title, sub
 
 // ── 4. Two Column Reverse Page ─────────────────────────
 
-export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape' }) => {
+export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, body, imageUrl, sectionLabel, orientation = 'landscape', settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad, gap, radius } = useSpacing(s, settings);
   const isPortrait = orientation === 'portrait';
   return (
-    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
-      <div className="relative overflow-hidden" style={{ flex: isPortrait ? '1 1 auto' : '0 0 45%', borderRadius: `${s.cardRadius}px`, minHeight: 0, order: isPortrait ? 2 : 1 }}>
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap, flexDirection: isPortrait ? 'column' : 'row' }}>
+      <div className="relative overflow-hidden" style={{ flex: isPortrait ? '1 1 auto' : '0 0 45%', borderRadius: `${radius}px`, minHeight: 0, order: isPortrait ? 2 : 1 }}>
         {imageUrl ? (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: `${a}10` }}>
             <img src={imageUrl} alt="" className="max-w-[70%] max-h-[70%] object-contain" style={{ filter: s.imageFilter }} />
@@ -237,9 +267,9 @@ export const TwoColumnReversePage: React.FC<PageProps> = ({ style: s, brand, tit
 
 // ── 5. Full Bleed Image Page ───────────────────────────
 
-export const FullBleedImagePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, imageUrl }) => {
+export const FullBleedImagePage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, imageUrl, settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad } = useSpacing(s, settings);
   return (
     <div className={`${slideClass}`}>
       {imageUrl ? (
@@ -258,9 +288,9 @@ export const FullBleedImagePage: React.FC<PageProps> = ({ style: s, brand, title
 
 // ── 6. Three Column Page ───────────────────────────────
 
-export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionLabel, title, items, columns, orientation = 'landscape' }) => {
+export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionLabel, title, items, columns, orientation = 'landscape', settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad, gap, radius } = useSpacing(s, settings);
   const cardData = items?.map(i => ({ title: i.title, desc: i.description }))
     || columns?.map(c => ({ title: c.title, desc: c.body }))
     || [];
@@ -282,8 +312,8 @@ export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionL
         className="grid flex-1 items-start min-h-0"
         style={{
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gap: '2cqi',
-          marginTop: '2cqi',
+          gap,
+          marginTop: gap,
         }}
       >
         {cardData.slice(0, cols).map((card, i) => (
@@ -292,7 +322,7 @@ export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionL
             className="flex flex-col h-full overflow-hidden"
             style={{
               backgroundColor: cardBg,
-              borderRadius: `${s.cardRadius}px`,
+              borderRadius: `${radius}px`,
               boxShadow: s.cardShadow,
               border: s.cardBorder,
               padding: '2cqi',
@@ -310,9 +340,9 @@ export const ThreeColumnPage: React.FC<PageProps> = ({ style: s, brand, sectionL
 
 // ── 7. Quote Page ──────────────────────────────────────
 
-export const QuotePage: React.FC<PageProps> = ({ style: s, brand, quote, quoteAuthor }) => {
+export const QuotePage: React.FC<PageProps> = ({ style: s, brand, quote, quoteAuthor, settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad } = useSpacing(s, settings);
   return (
     <div className={`${slideClass} flex items-center justify-center relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
       <div className="absolute top-0 left-0 h-full" style={{ width: '0.5cqi', background: a, opacity: 0.4 }} />
@@ -327,9 +357,9 @@ export const QuotePage: React.FC<PageProps> = ({ style: s, brand, quote, quoteAu
 
 // ── 8. Stats Page ──────────────────────────────────────
 
-export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, stats = [] }) => {
+export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, stats = [], settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad, gap, radius } = useSpacing(s, settings);
   const displayStats = stats.slice(0, 4);
   const cols = displayStats.length <= 2 ? 2 : displayStats.length;
   const isDarkBg = s.bgLight.startsWith('#1') || s.bgLight.startsWith('#0') || s.bgLight === s.bgDark;
@@ -345,8 +375,8 @@ export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, section
         className="grid items-center flex-1 min-h-0"
         style={{
           gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gap: '2cqi',
-          marginTop: '2cqi',
+          gap,
+          marginTop: gap,
         }}
       >
         {displayStats.map((stat, i) => (
@@ -354,7 +384,7 @@ export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, section
             key={i}
             className="flex flex-col items-center justify-center text-center"
             style={{
-              borderRadius: `${s.cardRadius}px`,
+              borderRadius: `${radius}px`,
               boxShadow: s.cardShadow,
               border: s.cardBorder,
               padding: '3cqi',
@@ -372,12 +402,12 @@ export const StatsPage: React.FC<PageProps> = ({ style: s, brand, title, section
 
 // ── 9. List Page ───────────────────────────────────────
 
-export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, items = [], orientation = 'landscape' }) => {
+export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionLabel, items = [], orientation = 'landscape', settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad, gap } = useSpacing(s, settings);
   const isPortrait = orientation === 'portrait';
   return (
-    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap: '3cqi', flexDirection: isPortrait ? 'column' : 'row' }}>
+    <div className={`${slideClass} flex`} style={{ backgroundColor: s.bgLight, padding: pad, gap, flexDirection: isPortrait ? 'column' : 'row' }}>
       <div className="flex flex-col justify-center" style={{ flex: isPortrait ? '0 0 auto' : '0 0 35%' }}>
         {sectionLabel && <span className={`${fc(s.bodyFont)} uppercase block`} style={{ fontSize: cqiSize(s.labelSize), letterSpacing: s.labelTracking, color: a, marginBottom: '0.8em' }}>{sectionLabel}</span>}
         {title && <h2 className={`${fc(s.headingFont)} leading-tight`} style={{ fontSize: cqiSize(s.subheadingSize), fontWeight: s.headingWeight, color: s.textOnLight }}>{title}</h2>}
@@ -400,9 +430,9 @@ export const ListPage: React.FC<PageProps> = ({ style: s, brand, title, sectionL
 
 // ── 10. Closing Page ───────────────────────────────────
 
-export const ClosingPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl, contactInfo }) => {
+export const ClosingPage: React.FC<PageProps> = ({ style: s, brand, title, subtitle, logoUrl, contactInfo, settings }) => {
   const a = accent(s, brand);
-  const pad = cqiPadding(s.pagePadding);
+  const { padding: pad } = useSpacing(s, settings);
   return (
     <div className={`${slideClass} flex flex-col items-center justify-center relative`} style={{ backgroundColor: s.bgDark, padding: pad }}>
       <div className="absolute inset-0 opacity-[0.05]" style={{ background: `radial-gradient(ellipse at 50% 60%, ${a} 0%, transparent 60%)` }} />

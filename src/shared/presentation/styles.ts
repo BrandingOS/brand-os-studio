@@ -488,3 +488,31 @@ export const PRESENTATION_STYLES: PresentationStyle[] = [
 export function getStyleById(id: string): PresentationStyle {
   return PRESENTATION_STYLES.find((s) => s.id === id) ?? minimal;
 }
+
+/**
+ * Extract spacing defaults from a style as customizer-compatible numbers.
+ * Used to sync user-facing settings when the user picks a new style.
+ *
+ * - pagePadding '8%' → padding 80 (the % * 10)
+ * - contentGap '2rem' → margins 20 (rem * 10)
+ * - cardRadius (px) → cornerRadius (px, unchanged)
+ */
+export function getStyleSpacingDefaults(style: PresentationStyle): {
+  padding: number;
+  margins: number;
+  cornerRadius: number;
+} {
+  // Extract percentage from pagePadding
+  const padMatch = style.pagePadding.match(/(\d+(?:\.\d+)?)/);
+  const padding = padMatch ? Math.round(parseFloat(padMatch[1]) * 10) : 60;
+
+  // Extract rem from contentGap
+  const gapMatch = style.contentGap.match(/(\d+(?:\.\d+)?)/);
+  const margins = gapMatch ? Math.round(parseFloat(gapMatch[1]) * 10) : 20;
+
+  return {
+    padding: Math.max(20, Math.min(120, padding)),
+    margins: Math.max(10, Math.min(80, margins)),
+    cornerRadius: style.cardRadius,
+  };
+}

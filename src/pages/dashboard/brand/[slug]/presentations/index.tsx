@@ -8,7 +8,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditorWorkspace } from '@/shared/editor';
 import { TemplatePicker } from '@/shared/presentation/TemplatePicker';
 import { buildTemplateSlides, type ContentType } from '@/shared/presentation/templates';
-import { PRESENTATION_STYLES } from '@/shared/presentation/styles';
+import { PRESENTATION_STYLES, getStyleById, getStyleSpacingDefaults } from '@/shared/presentation/styles';
 import { createPresentationStore } from '@/shared/presentation/store';
 import type { SlideData } from '@/shared/editor';
 
@@ -60,6 +60,12 @@ export default function PresentationsPage() {
         onSelect={(styleId, contentType) => {
           setActiveStyleId(styleId);
           setActiveContentType(contentType);
+          // Sync the editor settings store to this style's spacing defaults
+          const style = getStyleById(styleId);
+          const defaults = getStyleSpacingDefaults(style);
+          const store = usePresentationSettingsStore.getState();
+          store.setTemplate(styleId);
+          store.updateSpacing(defaults);
           setSlides(buildTemplateSlides(brand, styleId, contentType));
           setShowPicker(false);
         }}

@@ -56,7 +56,7 @@ function makeSlide(
   id: string,
   name: string,
   Component: React.ComponentType<PageProps>,
-  props: Omit<PageProps, 'brand' | 'pageNumber' | 'totalPages' | 'orientation' | 'aspectRatioValue'>,
+  props: Omit<PageProps, 'brand' | 'pageNumber' | 'totalPages' | 'orientation' | 'aspectRatioValue' | 'settings'>,
 ): SlideData {
   return {
     id,
@@ -69,6 +69,7 @@ function makeSlide(
         totalPages={rp.totalPages}
         orientation={rp.orientation}
         aspectRatioValue={rp.aspectRatioValue}
+        settings={rp.settings}
       />
     ),
   };

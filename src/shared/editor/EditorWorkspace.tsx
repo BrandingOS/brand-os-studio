@@ -16,6 +16,7 @@ import { getLayoutById } from './layout-config';
 import { PresentationCustomizer } from '@/shared/presentation/PresentationCustomizer';
 import { createPresentationStore } from '@/shared/presentation/store';
 import type { PresentationSettings, PresentationTemplate, SizeFormat } from '@/shared/presentation/types';
+import { getStyleById, getStyleSpacingDefaults } from '@/shared/presentation/styles';
 import { EditorBottomBar } from './EditorBottomBar';
 import { SlideNav } from './SlideNav';
 import { ThemeDrawer } from './ThemeDrawer';
@@ -65,6 +66,8 @@ export interface SlideRenderProps {
   orientation: 'portrait' | 'landscape' | 'square';
   /** Aspect ratio number (width / height) — useful for fine-grained adaptation */
   aspectRatioValue: number;
+  /** Full presentation settings — pages use spacing to override style defaults */
+  settings: PresentationSettings;
 }
 
 export interface SlideData {
@@ -358,7 +361,7 @@ export function EditorWorkspace({
         data-slide-canvas={opts?.isExportTarget ? '' : undefined}
         className="w-full h-full overflow-hidden shadow-2xl ring-1 ring-white/[0.08] relative"
         style={{
-          borderRadius: `${settings.spacing.cornerRadius}px`,
+          // Frame is always a clean rectangle — corner radius applies INSIDE the design
           backgroundColor: slideBg || undefined,
           direction: settings.language.direction,
           // Container queries — slide is the size container so everything scales with it
@@ -371,7 +374,7 @@ export function EditorWorkspace({
         {/* Slide content — fills container, scales via cqi/cqb units */}
         <div className="absolute inset-0">
           <EditableSlide>
-            {slideData.render({ brand, layout, pageNumber, totalPages, orientation, aspectRatioValue })}
+            {slideData.render({ brand, layout, pageNumber, totalPages, orientation, aspectRatioValue, settings })}
           </EditableSlide>
         </div>
 
@@ -520,7 +523,17 @@ export function EditorWorkspace({
             <PresentationCustomizer
               settings={settings}
               templates={templates}
-              onSetTemplate={(id) => { setTemplate(id); setLayoutId(id); onTemplateChange?.(id); setCurrentSlide(0); }}
+              onSetTemplate={(id) => {
+                setTemplate(id);
+                setLayoutId(id);
+                // Sync spacing settings to the new style's defaults if it's a presentation style
+                const presStyle = getStyleById(id);
+                if (presStyle && presStyle.id === id) {
+                  updateSpacing(getStyleSpacingDefaults(presStyle));
+                }
+                onTemplateChange?.(id);
+                setCurrentSlide(0);
+              }}
               onSetSizeFormat={setSizeFormat}
               onSetCustomSize={setCustomSize}
               onSetLanguageDirection={setLanguageDirection}
