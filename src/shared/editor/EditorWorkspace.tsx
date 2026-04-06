@@ -184,7 +184,17 @@ export function EditorWorkspace({
   slideSnapshots,
   onPersistSlideSnapshot,
 }: EditorWorkspaceProps) {
-  const [currentSlide, setCurrentSlide] = useState(0);
+  // Restore the last viewed slide for this editor instance so reload
+  // returns to the same page instead of slide 0.
+  const initialSlideIndex = useSlideSnapshotStore.getState().getCurrentSlideIndex(editorKey);
+  const [currentSlide, setCurrentSlide] = useState(() =>
+    Math.min(Math.max(0, initialSlideIndex), Math.max(0, slides.length - 1)),
+  );
+
+  // Persist the current slide whenever it changes
+  useEffect(() => {
+    useSlideSnapshotStore.getState().setCurrentSlideIndex(editorKey, currentSlide);
+  }, [editorKey, currentSlide]);
   const [showHistory, setShowHistory] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const [layoutId, setLayoutId] = useState('hyperhyve');

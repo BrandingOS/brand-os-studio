@@ -25,18 +25,24 @@ import { persist } from 'zustand/middleware';
 interface SlideSnapshotState {
   /** editorKey -> slideId -> html */
   snapshots: Record<string, Record<string, string>>;
+  /** editorKey -> last viewed slide index (so reload returns to the same page) */
+  currentSlideIndex: Record<string, number>;
 
   set: (editorKey: string, slideId: string, html: string) => void;
   get: (editorKey: string, slideId: string) => string | undefined;
   getAllForEditor: (editorKey: string) => Record<string, string>;
   clearSlide: (editorKey: string, slideId: string) => void;
   clearEditor: (editorKey: string) => void;
+
+  setCurrentSlideIndex: (editorKey: string, index: number) => void;
+  getCurrentSlideIndex: (editorKey: string) => number;
 }
 
 export const useSlideSnapshotStore = create<SlideSnapshotState>()(
   persist(
     (set, get) => ({
       snapshots: {},
+      currentSlideIndex: {},
 
       set: (editorKey, slideId, html) =>
         set((state) => ({
@@ -66,8 +72,17 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
         set((state) => {
           const next = { ...state.snapshots };
           delete next[editorKey];
-          return { snapshots: next };
+          const idx = { ...state.currentSlideIndex };
+          delete idx[editorKey];
+          return { snapshots: next, currentSlideIndex: idx };
         }),
+
+      setCurrentSlideIndex: (editorKey, index) =>
+        set((state) => ({
+          currentSlideIndex: { ...state.currentSlideIndex, [editorKey]: index },
+        })),
+
+      getCurrentSlideIndex: (editorKey) => get().currentSlideIndex[editorKey] ?? 0,
     }),
     { name: 'slide-snapshots' },
   ),
