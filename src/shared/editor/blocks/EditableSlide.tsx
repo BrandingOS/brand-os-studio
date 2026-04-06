@@ -141,7 +141,7 @@ function removeResizeHandles(container: HTMLElement) {
   container.querySelectorAll('.resize-handle').forEach(h => h.remove());
 }
 
-export function EditableSlide({ children }: EditableSlideProps) {
+export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<SelectedElement | null>(null);
   const [editing, setEditing] = useState(false);
