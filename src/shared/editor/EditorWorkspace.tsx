@@ -344,6 +344,49 @@ export function EditorWorkspace({
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.1));
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
+  // Pre-process images that use CSS filters (e.g. brightness(0) invert(1) on a logo).
+  // html2canvas does not apply CSS filters to <img> elements, so we render the filter
+  // into a temporary canvas and replace the img's src with the resulting data URL.
+  const preprocessFilteredImages = useCallback(async (root: HTMLElement) => {
+    const imgs = Array.from(root.querySelectorAll('img'));
+    await Promise.all(imgs.map(async (img) => {
+      const inlineFilter = img.style.filter;
+      const computedFilter = window.getComputedStyle(img).filter;
+      const filter = inlineFilter || computedFilter || 'none';
+      if (filter === 'none' || filter === '') return;
+
+      try {
+        const src = img.src;
+        if (!src) return;
+        const tempImg = new Image();
+        // Same-origin SVGs do not need crossOrigin; cross-origin would taint anyway
+        await new Promise<void>((res, rej) => {
+          tempImg.onload = () => res();
+          tempImg.onerror = () => rej(new Error('img load failed'));
+          tempImg.src = src;
+        });
+
+        const naturalW = tempImg.naturalWidth || 512;
+        const naturalH = tempImg.naturalHeight || 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = naturalW;
+        canvas.height = naturalH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Apply the CSS filter via canvas2d filter, then draw the image
+        ctx.filter = filter;
+        ctx.drawImage(tempImg, 0, 0, naturalW, naturalH);
+
+        // Replace the img with the filtered raster
+        img.src = canvas.toDataURL('image/png');
+        img.style.filter = 'none';
+      } catch (e) {
+        console.warn('[PDF Export] Failed to pre-process filtered image, will fall back:', e);
+      }
+    }));
+  }, []);
+
   const handleExportPDF = useCallback(async () => {
     // Target export dimensions — use settings size, capped to A4 long edge for safety
     const rawW = settings.size.width;
@@ -415,6 +458,11 @@ export function EditorWorkspace({
           await new Promise((r) => requestAnimationFrame(() => r(null)));
           await new Promise((r) => setTimeout(r, 50));
 
+          // Pre-process any images that use CSS filters (e.g. inverted logos on
+          // colored backgrounds). html2canvas does not apply CSS filters to <img>
+          // elements, so we have to bake them into the bitmap up front.
+          await preprocessFilteredImages(clone);
+
           // Capture the staged clone at its known fixed dimensions
           const canvas = await html2canvas(clone, {
             width: exportW,
@@ -482,7 +530,7 @@ export function EditorWorkspace({
       toast.error(`PDF export failed: ${msg}`);
       console.error('[PDF Export] Fatal error:', err);
     }
-  }, [brand, slides, settings.size]);
+  }, [brand, slides, settings.size, preprocessFilteredImages]);
 
   // ── Render a slide with optional chrome overlay (NO content padding) ──
   const renderSlide = useCallback((
