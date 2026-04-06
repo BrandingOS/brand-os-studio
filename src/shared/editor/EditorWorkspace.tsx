@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -50,6 +50,10 @@ interface EditorWorkspaceProps {
   templates?: PresentationTemplate[];
   /** Label shown in the customizer header */
   customizerTitle?: string;
+  /** Called when the user switches template/style in the customizer — allows parent to rebuild slides */
+  onTemplateChange?: (templateId: string) => void;
+  /** Called when user wants to open the full template picker */
+  onOpenTemplatePicker?: () => void;
 }
 
 export interface SlideRenderProps {
@@ -133,6 +137,8 @@ export function EditorWorkspace({
   useSettingsStore,
   templates = DEFAULT_EDITOR_TEMPLATES,
   customizerTitle = 'Presentation',
+  onTemplateChange,
+  onOpenTemplatePicker,
 }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [layoutId, setLayoutId] = useState('hyperhyve');
@@ -414,6 +420,15 @@ export function EditorWorkspace({
         <span className="text-white/30 text-xs hidden md:block">{slide?.name || ''}</span>
 
         <div className="flex items-center gap-1">
+          {onOpenTemplatePicker && (
+            <button
+              onClick={onOpenTemplatePicker}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Templates</span>
+            </button>
+          )}
           <button
             onClick={() => setShowCustomizer(prev => !prev)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
@@ -493,7 +508,7 @@ export function EditorWorkspace({
             <PresentationCustomizer
               settings={settings}
               templates={templates}
-              onSetTemplate={(id) => { setTemplate(id); setLayoutId(id); }}
+              onSetTemplate={(id) => { setTemplate(id); setLayoutId(id); onTemplateChange?.(id); setCurrentSlide(0); }}
               onSetSizeFormat={setSizeFormat}
               onSetCustomSize={setCustomSize}
               onSetLanguageDirection={setLanguageDirection}

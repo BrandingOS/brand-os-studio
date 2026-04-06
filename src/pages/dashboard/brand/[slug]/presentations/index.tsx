@@ -1,8 +1,8 @@
 /**
  * Presentations Page — Template picker → Editor workspace.
- * Users pick a style + content type, then enter the full editor.
+ * Supports live style switching without leaving the editor.
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditorWorkspace } from '@/shared/editor';
@@ -12,7 +12,6 @@ import { PRESENTATION_STYLES } from '@/shared/presentation/styles';
 import { createPresentationStore } from '@/shared/presentation/store';
 import type { SlideData } from '@/shared/editor';
 
-// Per-presentation store (persisted separately from brand guides)
 const usePresentationSettingsStore = createPresentationStore('presentations-settings', {
   spacing: { padding: 0, margins: 0, cornerRadius: 0 },
   header: { enabled: false, showDate: false, showProjectName: false },
@@ -24,7 +23,16 @@ export default function PresentationsPage() {
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const [slides, setSlides] = useState<SlideData[] | null>(null);
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  const [activeStyleId, setActiveStyleId] = useState<string>('minimal');
+  const [activeContentType, setActiveContentType] = useState<ContentType>('brand-guide');
+  const [showPicker, setShowPicker] = useState(false);
+
+  // Rebuild slides when style changes
+  const switchStyle = useCallback((styleId: string) => {
+    if (!brand) return;
+    setActiveStyleId(styleId);
+    setSlides(buildTemplateSlides(brand, styleId, activeContentType));
+  }, [brand, activeContentType]);
 
   if (isLoading) {
     return (
@@ -45,21 +53,25 @@ export default function PresentationsPage() {
     );
   }
 
-  // Step 1: Template picker
-  if (!slides) {
+  // Initial picker or re-open picker
+  if (!slides || showPicker) {
     return (
       <TemplatePicker
         onSelect={(styleId, contentType) => {
-          setSelectedStyle(styleId);
-          const built = buildTemplateSlides(brand, styleId, contentType);
-          setSlides(built);
+          setActiveStyleId(styleId);
+          setActiveContentType(contentType);
+          setSlides(buildTemplateSlides(brand, styleId, contentType));
+          setShowPicker(false);
         }}
-        onClose={() => navigate(`/dashboard/brand/${slug}`)}
+        onClose={() => slides ? setShowPicker(false) : navigate(`/dashboard/brand/${slug}`)}
+        brandName={brand.name}
+        brandColor={brand.primaryColor}
       />
     );
   }
 
-  // Step 2: Full editor with selected slides
+  // Build style list as templates for the customizer —
+  // switching template in the customizer triggers a style switch
   const styleTemplates = PRESENTATION_STYLES.map(s => ({
     id: s.id,
     name: s.name,
@@ -70,10 +82,15 @@ export default function PresentationsPage() {
     <EditorWorkspace
       brand={brand}
       slides={slides}
-      onClose={() => setSlides(null)}
+      onClose={() => {
+        setSlides(null);
+        setShowPicker(false);
+      }}
       useSettingsStore={usePresentationSettingsStore}
       templates={styleTemplates}
       customizerTitle="Presentation"
+      onTemplateChange={switchStyle}
+      onOpenTemplatePicker={() => setShowPicker(true)}
     />
   );
 }
