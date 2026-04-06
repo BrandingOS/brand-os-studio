@@ -3,13 +3,13 @@
  * Shows 10 style thumbnails with real mini-slide previews.
  */
 import { useState } from 'react';
-import { X, Check, BookOpen, Building2, Presentation, Rocket, Image, ArrowRight, Layers } from 'lucide-react';
+import { X, Check, BookOpen, Building2, Presentation, Rocket, Image, ArrowRight, Layers, Layout, LayoutDashboard, Smartphone, FileSearch } from 'lucide-react';
 import { PRESENTATION_STYLES, type PresentationStyle } from './styles';
 import { CONTENT_TYPES, type ContentType } from './templates';
 import { StyleThumbnail } from './StyleThumbnail';
 
 const CONTENT_ICONS: Record<string, React.ElementType> = {
-  BookOpen, Building2, Presentation, Rocket, Image, Layers,
+  BookOpen, Building2, Presentation, Rocket, Image, Layers, Layout, LayoutDashboard, Smartphone, FileSearch,
 };
 
 interface TemplatePickerProps {

@@ -34,7 +34,11 @@ export type ContentType =
   | 'brand-presentation'
   | 'pitch-deck'
   | 'logo-showcase'
-  | 'studio-portfolio';
+  | 'studio-portfolio'
+  | 'ui-ux-showcase'
+  | 'dashboard-showcase'
+  | 'mobile-app-showcase'
+  | 'case-study';
 
 export interface ContentTypeInfo {
   id: ContentType;
@@ -50,6 +54,10 @@ export const CONTENT_TYPES: ContentTypeInfo[] = [
   { id: 'pitch-deck', name: 'Pitch Deck', description: 'Investor or client pitch', icon: 'Rocket' },
   { id: 'logo-showcase', name: 'Logo Showcase', description: 'Logo concepts and rationale', icon: 'Image' },
   { id: 'studio-portfolio', name: 'Studio Portfolio', description: 'Architecture / design studio portfolio (CNCPT-inspired)', icon: 'Layers' },
+  { id: 'ui-ux-showcase', name: 'UI/UX Showcase', description: 'Present a UI/UX project — research, wireframes, screens, results', icon: 'Layout' },
+  { id: 'dashboard-showcase', name: 'Dashboard Showcase', description: 'Showcase a dashboard product — KPIs, screens, features', icon: 'LayoutDashboard' },
+  { id: 'mobile-app-showcase', name: 'Mobile App Showcase', description: 'Mobile app project deck — flows, screens, features', icon: 'Smartphone' },
+  { id: 'case-study', name: 'Case Study', description: 'Deep-dive case study — challenge, process, solution, results', icon: 'FileSearch' },
 ];
 
 // ── Slide Builder ───────────────────────────────────────
@@ -585,6 +593,414 @@ function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle, over
   ];
 }
 
+// ── UI/UX Showcase Content ──────────────────────────────
+
+function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
+  return [
+    makeSlide('cover', 'Cover', CoverPage, {
+      style,
+      title: `${brand.name} -- UI/UX`,
+      subtitle: 'Product Design Case Study',
+      logoUrl: brand.logo,
+    }, overrides),
+    makeSlide('overview', 'Overview', SectionDividerPage, {
+      style, sectionNumber: '01', sectionLabel: 'Project Overview',
+    }, overrides),
+    makeSlide('intro', 'Introduction', TwoColumnPage, {
+      style,
+      sectionLabel: 'The Project',
+      title: 'Designing a better experience',
+      subtitle: 'Role: Product Designer  ·  Duration: 8 weeks  ·  Team: 4',
+      body: 'A complete redesign focused on clarity, speed, and accessibility — built around the way real users actually work.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('challenge', 'Challenge', SectionDividerPage, {
+      style, sectionNumber: '02', sectionLabel: 'The Challenge',
+    }, overrides),
+    makeSlide('challenge-detail', 'Challenge Detail', QuotePage, {
+      style,
+      quote: 'Users were dropping off at 64% during onboarding. The product had everything — and that was the problem.',
+      quoteAuthor: 'Discovery findings',
+    }, overrides),
+    makeSlide('research', 'Research', ListPage, {
+      style,
+      sectionLabel: 'Research',
+      title: 'How we listened',
+      items: [
+        { title: 'User Interviews', description: '12 sessions across 4 user segments — recorded, coded, synthesized.' },
+        { title: 'Competitive Audit', description: '8 direct competitors + 4 adjacent products mapped against 23 criteria.' },
+        { title: 'Analytics Deep-Dive', description: 'Funnel analysis revealed three critical drop-off points.' },
+        { title: 'Heuristic Review', description: 'Nielsen 10-heuristic audit — 27 issues identified across 6 flows.' },
+      ],
+    }, overrides),
+    makeSlide('process', 'Process', SectionDividerPage, {
+      style, sectionNumber: '03', sectionLabel: 'Design Process',
+    }, overrides),
+    makeSlide('process-steps', 'Process Steps', ThreeColumnPage, {
+      style,
+      sectionLabel: 'Approach',
+      title: 'From insights to interface',
+      columns: [
+        { title: 'Discover', body: 'User interviews, journey maps, opportunity sizing.' },
+        { title: 'Define', body: 'Personas, problem statements, success metrics.' },
+        { title: 'Design', body: 'Wireframes, prototypes, usability testing, iteration.' },
+      ],
+    }, overrides),
+    makeSlide('wireframes', 'Wireframes', TwoColumnPage, {
+      style,
+      sectionLabel: 'Phase 1',
+      title: 'Low-fidelity wireframes',
+      body: 'Rapid sketches and Figma wireframes used to test layout, hierarchy, and information architecture before any visual polish.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('design-system', 'Design System', SectionDividerPage, {
+      style, sectionNumber: '04', sectionLabel: 'Design System',
+    }, overrides),
+    makeSlide('system-pillars', 'System Pillars', ThreeColumnPage, {
+      style,
+      sectionLabel: 'System',
+      title: 'Built for scale',
+      columns: [
+        { title: 'Tokens', body: 'Single source of truth for color, typography, spacing, radius, motion.' },
+        { title: 'Components', body: '48 components across 5 categories — fully accessible and themeable.' },
+        { title: 'Patterns', body: 'Composed flows for the 12 most common product tasks.' },
+      ],
+    }, overrides),
+    makeSlide('hifi', 'High-Fidelity Screens', FullBleedImagePage, {
+      style,
+      title: 'High-fidelity designs',
+      subtitle: 'Pixel-perfect screens ready for engineering',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('flow', 'User Flow', TwoColumnReversePage, {
+      style,
+      sectionLabel: 'Flow',
+      title: 'A clearer path',
+      body: 'The redesigned onboarding flow reduces 14 steps to 6, with progressive disclosure of complexity. Users now reach value 3.2x faster.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('results', 'Results', SectionDividerPage, {
+      style, sectionNumber: '05', sectionLabel: 'Results',
+    }, overrides),
+    makeSlide('metrics', 'Metrics', StatsPage, {
+      style,
+      sectionLabel: 'Impact',
+      title: 'Measured impact',
+      stats: [
+        { value: '+62%', label: 'Activation' },
+        { value: '-48%', label: 'Drop-off' },
+        { value: '4.8', label: 'CSAT' },
+        { value: '3.2x', label: 'Time to Value' },
+      ],
+    }, overrides),
+    makeSlide('learnings', 'Learnings', QuotePage, {
+      style,
+      quote: 'The biggest win was not what we added — it was what we removed. Restraint is a feature.',
+      quoteAuthor: 'Project retrospective',
+    }, overrides),
+    makeSlide('closing', 'Thank You', ClosingPage, {
+      style,
+      title: 'Thank You',
+      subtitle: `${brand.name} -- Product Design`,
+      logoUrl: brand.logo,
+    }, overrides),
+  ];
+}
+
+// ── Dashboard Showcase Content ──────────────────────────
+
+function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
+  return [
+    makeSlide('cover', 'Cover', CoverPage, {
+      style,
+      title: `${brand.name} Dashboard`,
+      subtitle: 'Product Showcase',
+      logoUrl: brand.logo,
+    }, overrides),
+    makeSlide('intro-divider', 'Introduction', SectionDividerPage, {
+      style, sectionNumber: '01', sectionLabel: 'Introduction',
+    }, overrides),
+    makeSlide('intro', 'Intro', TwoColumnPage, {
+      style,
+      sectionLabel: 'The Product',
+      title: `Meet ${brand.name}`,
+      subtitle: 'A modern dashboard built for clarity at any scale',
+      body: 'Real-time analytics, customizable widgets, role-based views, and an interface that gets out of the way so teams can focus on decisions.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('overview', 'Dashboard Overview', FullBleedImagePage, {
+      style,
+      title: 'Single source of truth',
+      subtitle: 'Everything that matters, in one view',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('kpis', 'Key Metrics', StatsPage, {
+      style,
+      sectionLabel: 'KPIs',
+      title: 'What you can track',
+      stats: [
+        { value: '120+', label: 'Metrics' },
+        { value: '24', label: 'Widgets' },
+        { value: '15', label: 'Integrations' },
+        { value: 'Real-time', label: 'Updates' },
+      ],
+    }, overrides),
+    makeSlide('features-divider', 'Features', SectionDividerPage, {
+      style, sectionNumber: '02', sectionLabel: 'Core Features',
+    }, overrides),
+    makeSlide('features', 'Core Features', ThreeColumnPage, {
+      style,
+      sectionLabel: 'Built-in',
+      title: 'Designed for daily use',
+      columns: [
+        { title: 'Live Metrics', body: 'Real-time data streaming with sub-second updates and smart alerting.' },
+        { title: 'Custom Views', body: 'Save layouts per team, role, or workflow — share with one click.' },
+        { title: 'Smart Filters', body: 'Slice and dice across any dimension with persistent filter sets.' },
+      ],
+    }, overrides),
+    makeSlide('analytics', 'Analytics', TwoColumnPage, {
+      style,
+      sectionLabel: 'Analytics',
+      title: 'Deep visibility',
+      body: 'From high-level trends to row-level detail in a single click. Drill down without losing context, then bring teammates in via shareable views.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('integrations', 'Integrations', ListPage, {
+      style,
+      sectionLabel: 'Integrations',
+      title: 'Connects everywhere',
+      items: [
+        { title: 'Data Warehouses', description: 'BigQuery, Snowflake, Redshift, Postgres, MySQL.' },
+        { title: 'Product Tools', description: 'Segment, Amplitude, Mixpanel, Heap, Posthog.' },
+        { title: 'Business Tools', description: 'Salesforce, HubSpot, Stripe, Zapier, Slack.' },
+        { title: 'Custom APIs', description: 'REST and GraphQL endpoints with secure auth.' },
+      ],
+    }, overrides),
+    makeSlide('mobile', 'Mobile', TwoColumnReversePage, {
+      style,
+      sectionLabel: 'On the go',
+      title: 'Native mobile experience',
+      body: 'iOS and Android apps with offline support, push alerts, and the same dashboard fidelity as the web — optimized for thumbs.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('users-divider', 'Built For', SectionDividerPage, {
+      style, sectionNumber: '03', sectionLabel: 'Built For',
+    }, overrides),
+    makeSlide('users', 'Roles', ThreeColumnPage, {
+      style,
+      sectionLabel: 'Personas',
+      title: 'Made for every role',
+      columns: [
+        { title: 'Executives', body: 'High-level KPIs, weekly digests, board-ready exports.' },
+        { title: 'Operators', body: 'Real-time alerts, threshold monitoring, anomaly detection.' },
+        { title: 'Analysts', body: 'Raw data access, custom queries, deep-dive exports.' },
+      ],
+    }, overrides),
+    makeSlide('testimonial', 'Testimonial', QuotePage, {
+      style,
+      quote: 'It replaced four tools and saved my team eight hours a week. Honestly the best dashboard we have ever used.',
+      quoteAuthor: 'VP of Operations -- Customer',
+    }, overrides),
+    makeSlide('impact', 'Impact', StatsPage, {
+      style,
+      sectionLabel: 'Outcomes',
+      title: 'Real outcomes',
+      stats: [
+        { value: '8h', label: 'Saved Weekly' },
+        { value: '92%', label: 'Adoption' },
+        { value: '4.9', label: 'Rating' },
+        { value: '5x', label: 'Faster Insights' },
+      ],
+    }, overrides),
+    makeSlide('closing', 'Thank You', ClosingPage, {
+      style,
+      title: 'Get Started',
+      subtitle: `${brand.name} Dashboard`,
+      logoUrl: brand.logo,
+      contactInfo: { website: `${brand.slug}.com`, email: `hello@${brand.slug}.com` },
+    }, overrides),
+  ];
+}
+
+// ── Mobile App Showcase Content ─────────────────────────
+
+function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
+  return [
+    makeSlide('cover', 'Cover', CoverPage, {
+      style,
+      title: brand.name,
+      subtitle: 'Mobile App Design',
+      logoUrl: brand.logo,
+    }, overrides),
+    makeSlide('intro-divider', 'Concept', SectionDividerPage, {
+      style, sectionNumber: '01', sectionLabel: 'The Concept',
+    }, overrides),
+    makeSlide('concept', 'Concept', TwoColumnPage, {
+      style,
+      sectionLabel: 'App',
+      title: brand.name,
+      subtitle: brand.tagline || 'Designed for daily use',
+      body: 'A focused mobile experience that respects your time, your data, and your attention. Built mobile-first, optimized for one-handed use.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('hero-screen', 'Hero', FullBleedImagePage, {
+      style,
+      title: 'The home screen',
+      subtitle: 'First impression — and last',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('flows-divider', 'Flows', SectionDividerPage, {
+      style, sectionNumber: '02', sectionLabel: 'Key Flows',
+    }, overrides),
+    makeSlide('flows', 'Key Flows', ThreeColumnPage, {
+      style,
+      sectionLabel: 'User Flows',
+      title: 'Three core journeys',
+      columns: [
+        { title: 'Onboarding', body: '60-second sign up to first action — no friction, no fluff.' },
+        { title: 'Daily Use', body: 'Open the app, do the thing, close the app. No detours.' },
+        { title: 'Insights', body: 'Weekly summary that turns data into actionable next steps.' },
+      ],
+    }, overrides),
+    makeSlide('design-system', 'Design System', TwoColumnReversePage, {
+      style,
+      sectionLabel: 'System',
+      title: 'A focused system',
+      body: 'Custom typography, generous tap targets, dark + light themes, dynamic type support, and motion that feels native on iOS and Android.',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('features', 'Features', ListPage, {
+      style,
+      sectionLabel: 'Features',
+      title: 'What is inside',
+      items: [
+        { title: 'Offline-first', description: 'Works without connection. Syncs intelligently when you are back online.' },
+        { title: 'Biometric Auth', description: 'Face ID, Touch ID, fingerprint — secure by default.' },
+        { title: 'Smart Notifications', description: 'Quiet hours, batching, AI-prioritized alerts.' },
+        { title: 'Widgets', description: 'Home screen, lock screen, and Today view widgets.' },
+      ],
+    }, overrides),
+    makeSlide('screens', 'Screens', FullBleedImagePage, {
+      style,
+      title: 'Screen library',
+      subtitle: 'Every screen designed end-to-end',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('metrics', 'Metrics', StatsPage, {
+      style,
+      sectionLabel: 'Performance',
+      title: 'By the numbers',
+      stats: [
+        { value: '4.9', label: 'App Store' },
+        { value: '2.1s', label: 'Cold Start' },
+        { value: '12MB', label: 'App Size' },
+        { value: '99.9%', label: 'Crash-Free' },
+      ],
+    }, overrides),
+    makeSlide('closing', 'Available Now', ClosingPage, {
+      style,
+      title: 'Available Now',
+      subtitle: `${brand.name} for iOS and Android`,
+      logoUrl: brand.logo,
+    }, overrides),
+  ];
+}
+
+// ── Case Study Content ──────────────────────────────────
+
+function buildCaseStudySlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
+  return [
+    makeSlide('cover', 'Cover', CoverPage, {
+      style,
+      title: 'Case Study',
+      subtitle: brand.name,
+      logoUrl: brand.logo,
+    }, overrides),
+    makeSlide('summary', 'Executive Summary', TwoColumnPage, {
+      style,
+      sectionLabel: 'Summary',
+      title: 'Executive summary',
+      body: `${brand.name} faced a critical challenge with user retention. Through research, design iteration, and rigorous testing, we delivered a solution that moved every key metric in the right direction.`,
+    }, overrides),
+    makeSlide('challenge-divider', 'Challenge', SectionDividerPage, {
+      style, sectionNumber: '01', sectionLabel: 'The Challenge',
+    }, overrides),
+    makeSlide('challenge', 'Challenge', QuotePage, {
+      style,
+      quote: 'How might we make our most important workflow feel effortless without removing the power our users depend on?',
+      quoteAuthor: 'Project brief',
+    }, overrides),
+    makeSlide('approach-divider', 'Approach', SectionDividerPage, {
+      style, sectionNumber: '02', sectionLabel: 'Our Approach',
+    }, overrides),
+    makeSlide('approach', 'Approach', ThreeColumnPage, {
+      style,
+      sectionLabel: 'Phases',
+      title: 'How we worked',
+      columns: [
+        { title: 'Research', body: 'Quantitative + qualitative research to identify root causes.' },
+        { title: 'Prototype', body: 'Rapid prototyping with weekly user testing sessions.' },
+        { title: 'Ship', body: 'Phased rollout with detailed measurement and iteration.' },
+      ],
+    }, overrides),
+    makeSlide('solution-divider', 'Solution', SectionDividerPage, {
+      style, sectionNumber: '03', sectionLabel: 'The Solution',
+    }, overrides),
+    makeSlide('solution', 'Solution', FullBleedImagePage, {
+      style,
+      title: 'A redesigned experience',
+      subtitle: 'Faster, clearer, more confident',
+      imageUrl: brand.logo,
+    }, overrides),
+    makeSlide('details', 'Solution Details', ListPage, {
+      style,
+      sectionLabel: 'What changed',
+      title: 'Specific improvements',
+      items: [
+        { title: 'Information Architecture', description: 'Reorganized navigation around user mental models, not org charts.' },
+        { title: 'Progressive Disclosure', description: 'Hide complexity until it is needed. Surface power on demand.' },
+        { title: 'Feedback Loops', description: 'Every action gets an acknowledgment. Every error has a fix.' },
+        { title: 'Performance', description: 'Cut average task time by 47% through targeted optimization.' },
+      ],
+    }, overrides),
+    makeSlide('results-divider', 'Results', SectionDividerPage, {
+      style, sectionNumber: '04', sectionLabel: 'Results',
+    }, overrides),
+    makeSlide('results', 'Results', StatsPage, {
+      style,
+      sectionLabel: 'Impact',
+      title: 'Measurable wins',
+      stats: [
+        { value: '+87%', label: 'Retention' },
+        { value: '-52%', label: 'Support Tickets' },
+        { value: '4.8', label: 'NPS' },
+        { value: '$2.4M', label: 'Annual Savings' },
+      ],
+    }, overrides),
+    makeSlide('testimonial', 'Testimonial', QuotePage, {
+      style,
+      quote: 'This project paid for itself in the first quarter and the team has not stopped talking about it.',
+      quoteAuthor: 'VP of Product -- Client',
+    }, overrides),
+    makeSlide('takeaways', 'Takeaways', ListPage, {
+      style,
+      sectionLabel: 'Lessons',
+      title: 'Key takeaways',
+      items: [
+        { title: 'Listen first', description: 'Every assumption we tested was wrong in some way. Research saves rework.' },
+        { title: 'Ship to learn', description: 'A simple version in production beats a perfect version in Figma.' },
+        { title: 'Measure ruthlessly', description: 'If it is not measured, it is not real. Pick metrics before building.' },
+      ],
+    }, overrides),
+    makeSlide('closing', 'Thank You', ClosingPage, {
+      style,
+      title: 'Thank You',
+      subtitle: `${brand.name} -- Case Study`,
+      logoUrl: brand.logo,
+    }, overrides),
+  ];
+}
+
 // ── Master Builder ──────────────────────────────────────
 
 export function buildTemplateSlides(
@@ -608,6 +1024,14 @@ export function buildTemplateSlides(
       return buildLogoShowcaseSlides(brand, style, overrides);
     case 'studio-portfolio':
       return buildStudioPortfolioSlides(brand, style, overrides);
+    case 'ui-ux-showcase':
+      return buildUiUxShowcaseSlides(brand, style, overrides);
+    case 'dashboard-showcase':
+      return buildDashboardShowcaseSlides(brand, style, overrides);
+    case 'mobile-app-showcase':
+      return buildMobileAppShowcaseSlides(brand, style, overrides);
+    case 'case-study':
+      return buildCaseStudySlides(brand, style, overrides);
     default:
       return buildBrandGuideSlides(brand, style, overrides);
   }
