@@ -95,6 +95,7 @@ export default function PresentationsPage() {
       useSettingsStore={usePresentationSettingsStore}
       templates={styleTemplates}
       customizerTitle="Presentation"
+      editorKey={`pres-${brand.id}-${activeStyleId}-${activeContentType}`}
       onTemplateChange={switchStyle}
       onOpenTemplatePicker={() => setShowPicker(true)}
     />

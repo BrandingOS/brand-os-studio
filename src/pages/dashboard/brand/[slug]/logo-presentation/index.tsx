@@ -56,6 +56,7 @@ export default function LogoPresentationPage() {
       useSettingsStore={useLogoPresentationStore}
       templates={LOGO_PRESENTATION_TEMPLATES}
       customizerTitle={`Logo Presentation - ${presentationData.template === 'simple' ? 'Simple' : 'Premium'}`}
+      editorKey={`logo-pres-${brand.id}-${presentationData.template}`}
       onTemplateChange={(templateId) => {
         // When user switches template in editor, update the data and rebuild
         setPresentationData(prev => prev ? { ...prev, template: templateId as 'premium' | 'simple' } : prev);

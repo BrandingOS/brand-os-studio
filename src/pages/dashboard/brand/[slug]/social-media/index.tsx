@@ -86,6 +86,7 @@ export default function SocialMediaPage() {
       useSettingsStore={useSocialSettingsStore}
       templates={styleTemplates}
       customizerTitle={`Social — ${selectedSize.label}`}
+      editorKey={`social-${brand.id}-${selectedSize.platform}-${selectedSize.format}`}
       onTemplateChange={(styleId) => {
         // Rebuild slides with the new style
         setSlides(buildSocialSlides(brand, selectedSize, styleId));

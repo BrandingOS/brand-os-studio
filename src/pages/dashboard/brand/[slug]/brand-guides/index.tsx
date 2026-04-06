@@ -37,6 +37,7 @@ export default function BrandGuidesPage() {
       brand={brand}
       slides={slides}
       onClose={() => navigate(`/dashboard/brand/${slug}`)}
+      editorKey={`brand-guides-${brand.id}`}
     />
   );
 }

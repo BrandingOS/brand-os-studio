@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -27,6 +27,7 @@ import { ExportModal } from './ExportModal';
 import { EditableSlide } from './blocks/EditableSlide';
 import { EditorContext } from './EditorContext';
 import { useHistory } from './useHistory';
+import { HistoryPanel } from './HistoryPanel';
 import { toast } from 'sonner';
 
 // ── Default store (for brand guidelines) ────────────────────
@@ -56,6 +57,8 @@ interface EditorWorkspaceProps {
   onTemplateChange?: (templateId: string) => void;
   /** Called when user wants to open the full template picker */
   onOpenTemplatePicker?: () => void;
+  /** Unique key for this editor instance — used for persisted history per slide */
+  editorKey?: string;
 }
 
 export interface SlideRenderProps {
@@ -147,8 +150,10 @@ export function EditorWorkspace({
   customizerTitle = 'Presentation',
   onTemplateChange,
   onOpenTemplatePicker,
+  editorKey = `editor-${brand.id}`,
 }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
   const [layoutId, setLayoutId] = useState('hyperhyve');
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
@@ -159,9 +164,9 @@ export function EditorWorkspace({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  // Per-slide undo/redo — keyed by current slide id so history never crosses slides
+  // Per-slide undo/redo + persistence — keyed by current slide id and editor instance
   const currentSlideIdForHistory = slides[currentSlide]?.id;
-  const { undo, redo } = useHistory({ currentSlideId: currentSlideIdForHistory });
+  const { undo, redo, jumpTo } = useHistory({ editorKey, currentSlideId: currentSlideIdForHistory });
   const scrollCooldown = useRef(false);
   const [slideOffset, setSlideOffset] = useState(0);
   const scrollAccum = useRef(0);
@@ -439,7 +444,7 @@ export function EditorWorkspace({
         <span className="text-white/30 text-xs hidden md:block">{slide?.name || ''}</span>
 
         <div className="flex items-center gap-1">
-          {/* Undo / Redo */}
+          {/* Undo / Redo / History */}
           <button
             onClick={undo}
             title="Undo (⌘Z / Ctrl+Z)"
@@ -453,6 +458,15 @@ export function EditorWorkspace({
             className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
           >
             <Redo2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setShowHistory(prev => !prev)}
+            title="Version history"
+            className={`p-1.5 rounded-lg transition-colors ${
+              showHistory ? 'text-white bg-white/10' : 'text-white/40 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <History className="h-4 w-4" />
           </button>
           <div className="w-px h-4 bg-white/10 mx-1" />
 
@@ -565,6 +579,16 @@ export function EditorWorkspace({
               title={customizerTitle}
             />
           </div>
+        )}
+
+        {/* History Panel */}
+        {showHistory && currentSlideIdForHistory && (
+          <HistoryPanel
+            editorKey={editorKey}
+            slideId={currentSlideIdForHistory}
+            onJumpTo={jumpTo}
+            onClose={() => setShowHistory(false)}
+          />
         )}
       </div>
 
