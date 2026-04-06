@@ -110,8 +110,10 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
   return (
     <div
       ref={toolbarRef}
-      className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in duration-100"
-      style={{ top: Math.max(8, position.top - 56), left: Math.min(window.innerWidth - 500, Math.max(8, position.left + position.width / 2 - 250)) }}
+      className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in slide-in-from-top-2 duration-200"
+      // Canva-style: ALWAYS pinned at the top center of the editor.
+      // Position never changes — only the toolbar contents adapt to the selected element.
+      style={{ top: 52, left: '50%', transform: 'translateX(-50%)' }}
       onMouseDown={e => e.stopPropagation()}
     >
       {/* Hidden file input for image replace */}
