@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil, Plus, RotateCcw } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -61,6 +61,12 @@ interface EditorWorkspaceProps {
   onOpenTemplatePicker?: () => void;
   /** Unique key for this editor instance — used for persisted history per slide */
   editorKey?: string;
+  /**
+   * Optional document id. When provided, snapshots are scoped to
+   * `${editorKey}::${docId}` so two presentations created from the same
+   * template have completely independent edits.
+   */
+  docId?: string;
   /**
    * Optional context-aware inspector panel rendered as a right sidebar.
    * Receives the current slide id and a close callback.
@@ -183,18 +189,23 @@ export function EditorWorkspace({
   onDeleteSlide,
   slideSnapshots,
   onPersistSlideSnapshot,
+  docId,
 }: EditorWorkspaceProps) {
+  // Compose the effective editor key — appending the doc id (when present)
+  // gives every document its own snapshot space so two presentations from
+  // the same template are independent.
+  const effectiveEditorKey = docId ? `${editorKey}::${docId}` : editorKey;
   // Restore the last viewed slide for this editor instance so reload
   // returns to the same page instead of slide 0.
-  const initialSlideIndex = useSlideSnapshotStore.getState().getCurrentSlideIndex(editorKey);
+  const initialSlideIndex = useSlideSnapshotStore.getState().getCurrentSlideIndex(effectiveEditorKey);
   const [currentSlide, setCurrentSlide] = useState(() =>
     Math.min(Math.max(0, initialSlideIndex), Math.max(0, slides.length - 1)),
   );
 
   // Persist the current slide whenever it changes
   useEffect(() => {
-    useSlideSnapshotStore.getState().setCurrentSlideIndex(editorKey, currentSlide);
-  }, [editorKey, currentSlide]);
+    useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
+  }, [effectiveEditorKey, currentSlide]);
   const [showHistory, setShowHistory] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const [layoutId, setLayoutId] = useState('hyperhyve');
@@ -211,48 +222,50 @@ export function EditorWorkspace({
   const currentSlideIdForHistory = slides[currentSlide]?.id;
 
   // Default snapshot persistence: writes through to a shared Zustand store
-  // keyed by editorKey so EVERY consumer of EditorWorkspace gets reload
-  // persistence automatically. Hosts that want their own store can pass
-  // `slideSnapshots` + `onPersistSlideSnapshot` to override.
-  const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[editorKey]);
+  // keyed by effectiveEditorKey so EVERY consumer of EditorWorkspace gets
+  // reload persistence automatically. Hosts that want their own store can
+  // pass `slideSnapshots` + `onPersistSlideSnapshot` to override.
+  const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[effectiveEditorKey]);
   const setDefaultSnapshot = useSlideSnapshotStore((s) => s.set);
 
   const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
   const effectivePersist = onPersistSlideSnapshot
-    ?? ((slideId: string, html: string) => setDefaultSnapshot(editorKey, slideId, html));
+    ?? ((slideId: string, html: string) => setDefaultSnapshot(effectiveEditorKey, slideId, html));
 
   const { undo, redo, jumpTo } = useHistory({
-    editorKey,
+    editorKey: effectiveEditorKey,
     currentSlideId: currentSlideIdForHistory,
     onPersistSnapshot: effectivePersist,
   });
 
-  // Re-inject persisted HTML snapshot after React paints the slide. Keyed
-  // by slide id ref so we only run once per slide visit; subsequent edits
-  // are tracked through the same MutationObserver and persisted via the
-  // effectivePersist callback above.
-  const restoredSnapshotRef = useRef<string | null>(null);
+  // Initial freeze: when a slide is viewed for the first time and has no
+  // snapshot yet, capture its HTML right after React paints. From that
+  // point on, the slide is rendered via dangerouslySetInnerHTML in
+  // renderSlide so React never touches it again.
   useEffect(() => {
     const slideId = currentSlideIdForHistory;
-    if (!slideId || !effectiveSnapshots) return;
-    const snapshot = effectiveSnapshots[slideId];
-    if (!snapshot) {
-      restoredSnapshotRef.current = null;
-      return;
-    }
-    // Avoid re-restoring on every re-render of the same slide
-    const restoreKey = `${slideId}::${snapshot.length}`;
-    if (restoredSnapshotRef.current === restoreKey) return;
+    if (!slideId) return;
+    const existing = effectiveSnapshots?.[slideId];
+    if (existing) return; // Already frozen — render path will inject
 
-    // Wait for React to mount the slide DOM, then swap in the snapshot.
     const timer = setTimeout(() => {
       const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
       if (!canvas) return;
-      canvas.innerHTML = snapshot;
-      restoredSnapshotRef.current = restoreKey;
-    }, 250);
+      effectivePersist(slideId, canvas.innerHTML);
+    }, 350);
     return () => clearTimeout(timer);
-  }, [currentSlideIdForHistory, effectiveSnapshots]);
+    // Intentionally only re-runs when the slide id changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSlideIdForHistory]);
+
+  // Reset the current slide to its template defaults — clears the snapshot
+  // so the next render falls through to the React tree and freezes again.
+  const resetCurrentSlide = useCallback(() => {
+    const slideId = currentSlideIdForHistory;
+    if (!slideId) return;
+    useSlideSnapshotStore.getState().clearSlide(effectiveEditorKey, slideId);
+    toast.success('Slide reset to template');
+  }, [currentSlideIdForHistory, effectiveEditorKey]);
   const scrollCooldown = useRef(false);
   const [slideOffset, setSlideOffset] = useState(0);
   const scrollAccum = useRef(0);
@@ -596,9 +609,12 @@ export function EditorWorkspace({
         }}
         onClick={opts?.onClick}
       >
-        {/* Slide content — fills container, scales via cqi/cqb units */}
+        {/* Slide content — fills container, scales via cqi/cqb units.
+            If a snapshot exists, EditableSlide injects it via
+            dangerouslySetInnerHTML so React never reconciles the inside
+            (decouples user edits from any prop/state re-render). */}
         <div className="absolute inset-0">
-          <EditableSlide>
+          <EditableSlide frozenHtml={effectiveSnapshots?.[slideData.id]}>
             {slideData.render({ brand, layout, pageNumber, totalPages, orientation, aspectRatioValue, settings })}
           </EditableSlide>
         </div>
@@ -612,7 +628,7 @@ export function EditorWorkspace({
         />
       </div>
     );
-  }, [settings, perSlideBg, brand, layout, totalPages]);
+  }, [settings, perSlideBg, brand, layout, totalPages, effectiveSnapshots]);
 
   // ─── Presentation Mode ─────────────────────────────────────
   if (presentMode) {
@@ -684,6 +700,13 @@ export function EditorWorkspace({
             }`}
           >
             <History className="h-4 w-4" />
+          </button>
+          <button
+            onClick={resetCurrentSlide}
+            title="Reset this slide to the template default (clears your edits for this slide only)"
+            className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <RotateCcw className="h-4 w-4" />
           </button>
           <div className="w-px h-4 bg-white/10 mx-1" />
 

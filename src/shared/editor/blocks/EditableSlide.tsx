@@ -11,7 +11,17 @@ import { FloatingToolbar } from './FloatingToolbar';
 import type { BlockType } from './BlockTypes';
 
 interface EditableSlideProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
+  /**
+   * When set, the inner content is injected via dangerouslySetInnerHTML
+   * instead of rendering React children. Used by EditorWorkspace to mount
+   * a frozen HTML snapshot so the slide is fully decoupled from React
+   * re-renders triggered by brand/settings/template prop changes.
+   *
+   * Click handlers and contentEditable still work because they're attached
+   * to the outer wrapper, which delegates events from any child DOM node.
+   */
+  frozenHtml?: string;
 }
 
 interface SelectedElement {
@@ -22,11 +32,14 @@ interface SelectedElement {
 
 function detectBlockType(el: HTMLElement): BlockType {
   const tag = el.tagName.toLowerCase();
-  if (tag === 'img') return 'image';
-  if (tag === 'svg') return 'image';
+  if (tag === 'img' || tag === 'svg' || tag === 'picture') return 'image';
   if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'heading';
   if (tag === 'blockquote') return 'text';
-  if (tag === 'p' || tag === 'span' || tag === 'div') {
+  // SVG text nodes
+  if (tag === 'text' || tag === 'tspan') return 'text';
+  // Generic text-bearing tags
+  const TEXT_TAGS = new Set(['p', 'span', 'div', 'a', 'li', 'td', 'th', 'dt', 'dd', 'label', 'button', 'figcaption', 'em', 'strong', 'small', 'b', 'i', 'mark', 'code']);
+  if (TEXT_TAGS.has(tag)) {
     const fontSize = window.getComputedStyle(el).fontSize;
     const size = parseFloat(fontSize);
     if (size > 24) return 'heading';
@@ -139,15 +152,36 @@ export function EditableSlide({ children }: EditableSlideProps) {
     selectedRef.current = selected;
   }, [selected]);
 
-  // Find the nearest meaningful element from a click target
+  // Find the nearest meaningful element from a click target.
+  // Strategy: walk UP from the click target until we find an element with
+  // its OWN direct text content (not just inherited from descendants), an
+  // image, or a styled shape. This makes single-character labels, list
+  // items, table cells, SVG text and nested text inside flex containers
+  // all editable — no tag-name allowlist.
   const findMeaningfulElement = useCallback((target: HTMLElement): HTMLElement => {
     let el = target;
     while (el.parentElement && el.parentElement !== containerRef.current) {
       const tag = el.tagName.toLowerCase();
-      // Stop at meaningful elements
-      if (tag === 'img' || tag === 'svg' || tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'blockquote') break;
-      const text = el.textContent?.trim() || '';
-      if (text.length > 2) break;
+
+      // Hard stops — these are always "the thing"
+      if (tag === 'img' || tag === 'svg' || tag === 'picture' || tag === 'video') break;
+      if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'blockquote') break;
+      if (tag === 'text' || tag === 'tspan') break;
+
+      // Direct text content (text node children, NOT descendant text)
+      const directText = Array.from(el.childNodes)
+        .filter((n) => n.nodeType === Node.TEXT_NODE)
+        .map((n) => (n.textContent ?? '').trim())
+        .join('');
+      if (directText.length >= 1) break;
+
+      // Single-text-child elements (e.g. <span>01</span>) — pick the leaf
+      const childCount = el.children.length;
+      if (childCount === 0) {
+        const leafText = (el.textContent ?? '').trim();
+        if (leafText.length >= 1) break;
+      }
+
       el = el.parentElement;
     }
     return el;
@@ -305,6 +339,13 @@ export function EditableSlide({ children }: EditableSlideProps) {
     };
   }, [selected]);
 
+  // When a frozen snapshot is supplied, render it via dangerouslySetInnerHTML
+  // so React never reconciles the inner DOM. The wrapper stays React-managed
+  // for click/dblclick/mousedown delegation.
+  const innerProps = frozenHtml
+    ? { dangerouslySetInnerHTML: { __html: frozenHtml } }
+    : { children };
+
   return (
     <div ref={containerRef} className="relative w-full h-full" onClick={handleContainerClick}>
       <div
@@ -345,9 +386,8 @@ export function EditableSlide({ children }: EditableSlideProps) {
           document.addEventListener('mouseup', onUp);
         }}
         className="w-full h-full"
-      >
-        {children}
-      </div>
+        {...innerProps}
+      />
 
       {/* Floating toolbar for selected element */}
       {selected && (
