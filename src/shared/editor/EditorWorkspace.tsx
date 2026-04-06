@@ -345,31 +345,113 @@ export function EditorWorkspace({
   const zoomReset = () => { setZoom(calculateFitZoom()); setPan({ x: 0, y: 0 }); };
 
   const handleExportPDF = useCallback(async () => {
-    const w = settings.size.width;
-    const h = settings.size.height;
+    // Use settings dimensions for the PDF format, but cap to avoid jsPDF / memory issues
+    const rawW = settings.size.width;
+    const rawH = settings.size.height;
+    const MAX_DIM = 3508; // A4 long edge — anything larger becomes flaky
+    const scaleDown = Math.min(1, MAX_DIM / Math.max(rawW, rawH));
+    const w = Math.round(rawW * scaleDown);
+    const h = Math.round(rawH * scaleDown);
     const orientation = w >= h ? 'landscape' : 'portrait';
-    toast.loading('Exporting PDF...');
+
+    toast.loading(`Exporting ${slides.length} slides...`, { id: 'pdf-export' });
+
+    const failures: Array<{ index: number; name: string; error: string }> = [];
+    let pdf: any = null;
+    let success = 0;
+
     try {
       const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation, unit: 'px', format: [w, h] });
+      pdf = new jsPDF({ orientation, unit: 'px', format: [w, h], compress: true });
+
       for (let i = 0; i < slides.length; i++) {
-        setCurrentSlide(i);
-        await new Promise(r => setTimeout(r, 200));
-        const el = document.querySelector('[data-slide-canvas]') as HTMLElement;
-        if (!el) continue;
-        const canvas = await html2canvas(el, { scale: 3, backgroundColor: null, useCORS: true, logging: false });
-        if (i > 0) pdf.addPage([w, h], orientation);
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
+        const slideName = slides[i]?.name || `Slide ${i + 1}`;
+        try {
+          // Navigate to the slide and give React time to mount + reflow
+          setCurrentSlide(i);
+          await new Promise((r) => setTimeout(r, 450));
+
+          const el = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+          if (!el) {
+            failures.push({ index: i, name: slideName, error: 'slide canvas not found' });
+            continue;
+          }
+
+          // Capture options tuned for modern CSS (gradients, filters, container queries).
+          // foreignObjectRendering uses native browser SVG rendering and handles MUCH more
+          // than html2canvas's own renderer — including container query units.
+          let canvas: HTMLCanvasElement;
+          try {
+            canvas = await html2canvas(el, {
+              scale: 2,
+              backgroundColor: '#ffffff',
+              useCORS: true,
+              allowTaint: false,
+              logging: false,
+              foreignObjectRendering: true,
+              imageTimeout: 5000,
+            });
+          } catch (foErr) {
+            // Fallback to the legacy renderer if foreignObjectRendering fails
+            console.warn(`[PDF Export] foreignObjectRendering failed for slide ${i}, falling back`, foErr);
+            canvas = await html2canvas(el, {
+              scale: 2,
+              backgroundColor: '#ffffff',
+              useCORS: true,
+              allowTaint: true,
+              logging: false,
+              foreignObjectRendering: false,
+              imageTimeout: 5000,
+            });
+          }
+
+          // Convert to JPEG (smaller than PNG, fewer issues with huge canvases)
+          let dataUrl: string;
+          try {
+            dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          } catch (taintErr) {
+            failures.push({ index: i, name: slideName, error: 'canvas tainted (CORS)' });
+            continue;
+          }
+
+          if (success > 0) {
+            pdf.addPage([w, h], orientation);
+          }
+          pdf.addImage(dataUrl, 'JPEG', 0, 0, w, h);
+          success++;
+        } catch (slideErr) {
+          const msg = slideErr instanceof Error ? slideErr.message : String(slideErr);
+          console.warn(`[PDF Export] Slide ${i} (${slideName}) failed:`, slideErr);
+          failures.push({ index: i, name: slideName, error: msg });
+        }
       }
+
+      toast.dismiss('pdf-export');
+
+      if (success === 0) {
+        const detail = failures[0]?.error || 'unknown error';
+        toast.error(`PDF export failed: ${detail}`);
+        console.error('[PDF Export] All slides failed:', failures);
+        return;
+      }
+
       const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
       pdf.save(`${slug}-presentation.pdf`);
-      toast.dismiss();
-      toast.success(`PDF exported (${slides.length} pages)`);
+
+      if (failures.length > 0) {
+        toast.success(`Exported ${success}/${slides.length} slides — ${failures.length} skipped`, {
+          duration: 6000,
+        });
+        console.warn('[PDF Export] Some slides skipped:', failures);
+      } else {
+        toast.success(`PDF exported (${success} pages)`);
+      }
     } catch (err) {
-      toast.dismiss();
-      toast.error('PDF export failed');
-      console.error(err);
+      toast.dismiss('pdf-export');
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`PDF export failed: ${msg}`);
+      console.error('[PDF Export] Fatal error:', err);
     }
   }, [brand, slides, settings.size]);
 
