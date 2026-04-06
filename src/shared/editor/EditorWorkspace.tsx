@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -59,6 +59,14 @@ interface EditorWorkspaceProps {
   onOpenTemplatePicker?: () => void;
   /** Unique key for this editor instance — used for persisted history per slide */
   editorKey?: string;
+  /**
+   * Optional context-aware inspector panel rendered as a right sidebar.
+   * Receives the current slide id and a close callback.
+   * When provided, an "Edit Content" button appears in the top bar.
+   */
+  inspectorPanel?: (currentSlideId: string | undefined, close: () => void) => React.ReactNode;
+  /** Label for the inspector button (default "Content") */
+  inspectorLabel?: string;
 }
 
 export interface SlideRenderProps {
@@ -151,9 +159,12 @@ export function EditorWorkspace({
   onTemplateChange,
   onOpenTemplatePicker,
   editorKey = `editor-${brand.id}`,
+  inspectorPanel,
+  inspectorLabel = 'Content',
 }: EditorWorkspaceProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
+  const [showInspector, setShowInspector] = useState(false);
   const [layoutId, setLayoutId] = useState('hyperhyve');
   const [presentMode, setPresentMode] = useState(false);
   const [activePanel, setActivePanel] = useState<'none' | 'theme' | 'background' | 'insert' | 'export' | 'remix'>('none');
@@ -479,8 +490,19 @@ export function EditorWorkspace({
               <span className="hidden sm:inline">Templates</span>
             </button>
           )}
+          {inspectorPanel && (
+            <button
+              onClick={() => { setShowInspector(prev => !prev); if (!showInspector) setShowCustomizer(false); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                showInspector ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{inspectorLabel}</span>
+            </button>
+          )}
           <button
-            onClick={() => setShowCustomizer(prev => !prev)}
+            onClick={() => { setShowCustomizer(prev => !prev); if (!showCustomizer) setShowInspector(false); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
               showCustomizer ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
@@ -589,6 +611,13 @@ export function EditorWorkspace({
             onJumpTo={jumpTo}
             onClose={() => setShowHistory(false)}
           />
+        )}
+
+        {/* Inspector Panel — context-aware content editor */}
+        {showInspector && inspectorPanel && (
+          <div className="w-80 border-l border-white/[0.06] bg-[#141414] shrink-0 animate-in slide-in-from-right duration-200 flex flex-col">
+            {inspectorPanel(currentSlideIdForHistory, () => setShowInspector(false))}
+          </div>
         )}
       </div>
 

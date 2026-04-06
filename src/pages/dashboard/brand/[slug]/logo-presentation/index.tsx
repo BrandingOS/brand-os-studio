@@ -7,6 +7,7 @@ import { buildLogoSlides } from '@/features/logo-presentation/buildLogoSlides';
 import { buildSimpleLogoSlides } from '@/features/logo-presentation/buildSimpleLogoSlides';
 import { useLogoPresentationStore, LOGO_PRESENTATION_TEMPLATES } from '@/features/logo-presentation/store';
 import { useLogoPresentationDataStore } from '@/features/logo-presentation/dataStore';
+import { LogoConceptInspector } from '@/features/logo-presentation/components/LogoConceptInspector';
 import type { LogoPresentationData, LogoConcept } from '@/features/logo-presentation/types';
 import type { Brand } from '@/shared/types/brand';
 
@@ -131,6 +132,14 @@ export default function LogoPresentationPage() {
         dataStore.updateDraft(brand.id, { template: templateId as 'premium' | 'simple' });
         setPresentationData(prev => prev ? { ...prev, template: templateId as 'premium' | 'simple' } : prev);
       }}
+      inspectorLabel="Edit Concept"
+      inspectorPanel={(slideId, close) => (
+        <LogoConceptInspector
+          brand={brand}
+          currentSlideId={slideId}
+          onClose={close}
+        />
+      )}
     />
   );
 }
