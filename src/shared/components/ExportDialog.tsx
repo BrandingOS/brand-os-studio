@@ -126,14 +126,17 @@ export function ExportDialog({
       // Build the export source with optional overrides
       const exportSource: ExportSource = { ...source };
 
-      // For multi-page exports
-      if (pages && (selectedFormat === 'pdf-flat' || selectedFormat === 'pptx')) {
+      // For multi-page exports — pdf-flat / pptx / pdf-editable all stitch
+      // every slide into a single multi-page document
+      if (pages && (selectedFormat === 'pdf-flat' || selectedFormat === 'pptx' || selectedFormat === 'pdf-editable')) {
         const resolvedPages = typeof pages === 'function' ? pages() : pages;
         exportSource.element = resolvedPages;
         exportSource.type = 'html-element';
       }
 
-      // For editable PDF — uses real text/shapes via jsPDF API
+      // For editable PDF — if a programmatic builder was supplied (business
+      // cards, invoices, etc.) use it; otherwise the engine falls through to
+      // the DOM-to-vector pipeline which walks every page in `element`.
       if (selectedFormat === 'pdf-editable' && editablePdfBuilder) {
         exportSource.pdfBuilder = editablePdfBuilder;
         exportSource.type = 'jspdf-programmatic';
