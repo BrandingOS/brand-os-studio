@@ -21,6 +21,9 @@ interface LogoPresentationDataState {
   /** Map of brand id → draft data */
   drafts: Record<string, LogoPresentationDraft>;
 
+  /** Map of brand id → whether the user is currently in the editor (has clicked Generate) */
+  inEditor: Record<string, boolean>;
+
   /** Get the draft for a brand (returns undefined if none saved) */
   getDraft: (brandId: string) => LogoPresentationDraft | undefined;
 
@@ -39,6 +42,12 @@ interface LogoPresentationDataState {
   /** Remove a concept by index */
   removeConcept: (brandId: string, index: number) => void;
 
+  /** Mark whether the user has entered the editor */
+  setInEditor: (brandId: string, value: boolean) => void;
+
+  /** Whether the user was last seen inside the editor */
+  isInEditor: (brandId: string) => boolean;
+
   /** Clear the saved draft for a brand */
   clearDraft: (brandId: string) => void;
 }
@@ -47,8 +56,14 @@ export const useLogoPresentationDataStore = create<LogoPresentationDataState>()(
   persist(
     (set, get) => ({
       drafts: {},
+      inEditor: {},
 
       getDraft: (brandId) => get().drafts[brandId],
+
+      setInEditor: (brandId, value) =>
+        set((state) => ({ inEditor: { ...state.inEditor, [brandId]: value } })),
+
+      isInEditor: (brandId) => !!get().inEditor[brandId],
 
       setDraft: (brandId, draft) =>
         set((state) => ({
@@ -103,8 +118,9 @@ export const useLogoPresentationDataStore = create<LogoPresentationDataState>()(
 
       clearDraft: (brandId) =>
         set((state) => {
-          const { [brandId]: _, ...rest } = state.drafts;
-          return { drafts: rest };
+          const { [brandId]: _, ...restDrafts } = state.drafts;
+          const { [brandId]: __, ...restEditor } = state.inEditor;
+          return { drafts: restDrafts, inEditor: restEditor };
         }),
     }),
     {
