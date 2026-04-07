@@ -12,101 +12,104 @@ import {
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
-  Edit,
-  FileText,
-  Briefcase,
   Settings,
-  Image,
-  BookOpen,
-  CircleUser,
-  Monitor,
-  CreditCard,
-  RectangleHorizontal,
-  Square,
-  Smartphone,
-  Presentation,
-  Play,
-  QrCode,
   PenTool,
-  Palette,
-  MessageCircle,
-  Target,
-  Type,
-  FolderOpen,
-  Lock,
+  Briefcase,
+  BookOpen,
   Share2,
 } from 'lucide-react';
 
-const brandNavItems = [
+/**
+ * Brand-scope navigation — five sections.
+ *
+ * Designed per docs/ux-redesign/ARCHITECTURE.md §3. Replaces the previous
+ * 7-item nav + 18-item brandkit submenu. Each section has a primary URL plus
+ * a `matchPaths` predicate that highlights the section when the user is on
+ * any legacy URL belonging to that section. This lets the new IA land
+ * without breaking bookmarks or rewriting every existing page in one pass.
+ *
+ * Stages 8–11 progressively replace the section landing pages with their
+ * real, fleshed-out content (Identity tabs, Assets categories, etc).
+ */
+interface BrandNavItem {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  /**
+   * Substrings of `location.pathname` that should highlight this section.
+   * `:slug` is replaced at runtime.
+   */
+  matchPaths: string[];
+  /** When true, only an exact pathname match counts as active (for Overview). */
+  exact?: boolean;
+}
+
+const brandNavItems: BrandNavItem[] = [
   {
     title: "Overview",
     url: "/dashboard/brand/:slug",
     icon: LayoutDashboard,
-    disabled: false,
+    matchPaths: [],
+    exact: true,
   },
   {
-    title: "Edit Brand",
-    url: "/dashboard/brand/:slug/edit",
-    icon: Edit,
-    disabled: false,
+    title: "Identity",
+    url: "/dashboard/brand/:slug/identity",
+    icon: PenTool,
+    matchPaths: [
+      "/dashboard/brand/:slug/identity",
+      "/dashboard/brand/:slug/edit",
+      "/dashboard/brand/:slug/brandkit/color-system",
+      "/dashboard/brand/:slug/brandkit/typography",
+      "/dashboard/brand/:slug/brandkit/brand-voice",
+      "/dashboard/brand/:slug/brandkit/brand-strategy",
+      "/dashboard/brand/:slug/brandkit/logo-files",
+      "/dashboard/brand/:slug/brandkit/profile-icons",
+      "/dashboard/brand/:slug/brandkit/settings",
+    ],
   },
   {
-    title: "Brand Kit",
-    url: "/dashboard/brand/:slug/brandkit",
+    title: "Assets",
+    url: "/dashboard/brand/:slug/assets",
     icon: Briefcase,
-    disabled: false,
+    matchPaths: [
+      "/dashboard/brand/:slug/assets",
+      "/dashboard/brand/:slug/brandkit/assets",
+      "/dashboard/brand/:slug/brandkit/business-cards",
+      "/dashboard/brand/:slug/brandkit/facebook-covers",
+      "/dashboard/brand/:slug/brandkit/instagram-posts",
+      "/dashboard/brand/:slug/brandkit/instagram-stories",
+      "/dashboard/brand/:slug/brandkit/presentations",
+      "/dashboard/brand/:slug/brandkit/animations",
+      "/dashboard/brand/:slug/brandkit/qr-code",
+      "/dashboard/brand/:slug/brandkit/invoices",
+      "/dashboard/brand/:slug/brandkit/mockups",
+      "/dashboard/brand/:slug/brandkit/design-tool",
+      "/dashboard/brand/:slug/social-media",
+      "/dashboard/brand/:slug/presentations",
+      // Bare /brandkit (the legacy hub) routes here too — Assets is the
+      // closest semantic home for the deliverable browser.
+      "/dashboard/brand/:slug/brandkit",
+    ],
   },
   {
-    title: "Social Media",
-    url: "/dashboard/brand/:slug/social-media",
-    icon: Share2,
-    disabled: false,
-  },
-  {
-    title: "Brand Guides",
-    url: "/dashboard/brand/:slug/brand-guides",
-    icon: BookOpen,
-    disabled: false,
-  },
-  {
-    title: "Presentations",
-    url: "/dashboard/brand/:slug/presentations",
-    icon: Presentation,
-    disabled: false,
-  },
-  {
-    title: "Logo Presentation",
-    url: "/dashboard/brand/:slug/logo-presentation",
-    icon: Presentation,
-    disabled: false,
-  },
-  {
-    title: "Guidelines Editor",
+    title: "Guidelines",
     url: "/dashboard/brand/:slug/guidelines",
-    icon: FileText,
-    disabled: false,
+    icon: BookOpen,
+    matchPaths: [
+      "/dashboard/brand/:slug/guidelines",
+      "/dashboard/brand/:slug/brand-guides",
+    ],
   },
-];
-
-const brandKitItems = [
-  { title: "Settings", url: "/dashboard/brand/:slug/brandkit/settings", icon: Settings, disabled: false },
-  { title: "Brand Assets", url: "/dashboard/brand/:slug/brandkit/assets", icon: FolderOpen, disabled: false },
-  { title: "Brand Strategy", url: "/dashboard/brand/:slug/brandkit/brand-strategy", icon: Target, disabled: false },
-  { title: "Typography", url: "/dashboard/brand/:slug/brandkit/typography", icon: Type, disabled: false },
-  { title: "Color System", url: "/dashboard/brand/:slug/brandkit/color-system", icon: Palette, disabled: false },
-  { title: "Brand Voice", url: "/dashboard/brand/:slug/brandkit/brand-voice", icon: MessageCircle, disabled: false },
-  { title: "Logo Files", url: "/dashboard/brand/:slug/brandkit/logo-files", icon: Image, disabled: false },
-  { title: "Profile Icons", url: "/dashboard/brand/:slug/brandkit/profile-icons", icon: CircleUser, disabled: false },
-  { title: "Mockup Designs", url: "/dashboard/brand/:slug/brandkit/mockups", icon: Monitor, disabled: false },
-  { title: "Business Cards", url: "/dashboard/brand/:slug/brandkit/business-cards", icon: CreditCard, disabled: false },
-  { title: "Facebook Covers", url: "/dashboard/brand/:slug/brandkit/facebook-covers", icon: RectangleHorizontal, disabled: false },
-  { title: "Instagram Posts", url: "/dashboard/brand/:slug/brandkit/instagram-posts", icon: Square, disabled: false },
-  { title: "Instagram Stories", url: "/dashboard/brand/:slug/brandkit/instagram-stories", icon: Smartphone, disabled: false },
-  { title: "Presentations", url: "/dashboard/brand/:slug/brandkit/presentations", icon: Presentation, disabled: false },
-  { title: "Animations", url: "/dashboard/brand/:slug/brandkit/animations", icon: Play, disabled: false },
-  { title: "QR Code", url: "/dashboard/brand/:slug/brandkit/qr-code", icon: QrCode, disabled: false },
-  { title: "Invoices", url: "/dashboard/brand/:slug/brandkit/invoices", icon: FileText, disabled: false },
-  { title: "Design Tool", url: "/dashboard/brand/:slug/brandkit/design-tool", icon: PenTool, disabled: false },
+  {
+    title: "Share",
+    url: "/dashboard/brand/:slug/share",
+    icon: Share2,
+    matchPaths: [
+      "/dashboard/brand/:slug/share",
+      "/dashboard/brand/:slug/logo-presentation",
+    ],
+  },
 ];
 
 export function BrandSidebar() {
@@ -115,84 +118,53 @@ export function BrandSidebar() {
   const location = useLocation();
   const collapsed = state === 'collapsed';
 
-  const buildUrl = (template: string) => {
-    return template.replace(':slug', slug || '');
-  };
+  const buildUrl = (template: string) => template.replace(':slug', slug || '');
 
-  const isActive = (urlTemplate: string) => {
-    const url = buildUrl(urlTemplate);
-    if (url === `/dashboard/brand/${slug}`) {
+  const isActive = (item: BrandNavItem) => {
+    const url = buildUrl(item.url);
+    if (item.exact) {
       return location.pathname === url;
     }
-    if (url === `/dashboard/brand/${slug}/brandkit`) {
-      return location.pathname === url;
-    }
-    return location.pathname.startsWith(url);
+    // Match exactly OR as a path prefix (so /identity, /identity/logo, etc all match).
+    return item.matchPaths.some((m) => {
+      const built = buildUrl(m);
+      return location.pathname === built || location.pathname.startsWith(`${built}/`);
+    });
   };
 
-  const getNavClass = (urlTemplate: string) => {
-    return isActive(urlTemplate)
+  const getNavClass = (item: BrandNavItem) =>
+    isActive(item)
       ? "bg-primary/10 text-primary font-medium border-r-2 border-primary"
       : "hover:bg-muted/50 text-muted-foreground hover:text-foreground";
-  };
-
-  const isBrandKitActive = location.pathname.includes('/brandkit');
-
-  const renderNavItem = (item: typeof brandNavItems[0], compact = false) => (
-    <SidebarMenuItem key={item.title}>
-      <SidebarMenuButton asChild className={compact ? "h-9" : "h-11"}>
-        {item.disabled ? (
-          <span className="opacity-40 cursor-not-allowed pointer-events-none flex items-center gap-3 px-3 py-2 rounded-lg">
-            <item.icon className={`shrink-0 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
-            {!collapsed && (
-              <span className="text-sm flex items-center gap-2">
-                {item.title}
-                <Lock className="h-3 w-3 opacity-50" />
-              </span>
-            )}
-          </span>
-        ) : (
-          <NavLink
-            to={buildUrl(item.url)}
-            className={`${getNavClass(item.url)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
-            end={item.url === "/dashboard/brand/:slug" || item.url === "/dashboard/brand/:slug/brandkit"}
-          >
-            <item.icon className={`shrink-0 ${compact ? 'h-4 w-4' : 'h-5 w-5'}`} />
-            {!collapsed && <span className="text-sm">{item.title}</span>}
-          </NavLink>
-        )}
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
 
   return (
     <Sidebar className="border-r transition-all duration-200" collapsible="icon">
       <SidebarContent className="px-2 py-4">
-        {/* Main Brand Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel className={collapsed ? "sr-only" : ""}>
             Brand
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {brandNavItems.map((item) => renderNavItem(item))}
+              {brandNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="h-11">
+                    <NavLink
+                      to={buildUrl(item.url)}
+                      className={`${getNavClass(item)} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                      end={item.exact}
+                    >
+                      <item.icon className="shrink-0 h-5 w-5" />
+                      {!collapsed && <span className="text-sm">{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Brand Kit Sub-Navigation (always visible, expanded when in brand kit) */}
-        {isBrandKitActive && !collapsed && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Brand Kit</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {brandKitItems.map((item) => renderNavItem(item, true))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {/* Settings at Bottom */}
+        {/* Brand Settings at Bottom */}
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
@@ -200,7 +172,7 @@ export function BrandSidebar() {
                 <SidebarMenuButton asChild>
                   <NavLink
                     to={buildUrl('/dashboard/brand/:slug/brandkit/settings')}
-                    className={`${getNavClass('/dashboard/brand/:slug/brandkit/settings')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                    className="hover:bg-muted/50 text-muted-foreground hover:text-foreground flex items-center gap-3 px-3 py-2 rounded-lg transition-all"
                   >
                     <Settings className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="text-sm">Brand Settings</span>}

@@ -36,6 +36,9 @@ import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
 import LogoMakerPage from "./pages/dashboard/logo-maker";
 import LearnPage from "./pages/learn";
+import IdentityPage from "./pages/dashboard/brand/[slug]/identity";
+import AssetsPage from "./pages/dashboard/brand/[slug]/assets";
+import SharePage from "./pages/dashboard/brand/[slug]/share";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
@@ -100,6 +103,21 @@ const App = () => (
           <Route path="/dashboard/brand/:slug/edit" element={
             <ProtectedRoute>
               <BrandEditPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/identity" element={
+            <ProtectedRoute>
+              <IdentityPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/assets" element={
+            <ProtectedRoute>
+              <AssetsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/share" element={
+            <ProtectedRoute>
+              <SharePage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/brandkit" element={
