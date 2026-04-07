@@ -34,7 +34,6 @@ import {
   Type,
   FolderOpen,
   Lock,
-  Download,
   Share2,
 } from 'lucide-react';
 
@@ -70,6 +69,12 @@ const brandNavItems = [
     disabled: false,
   },
   {
+    title: "Presentations",
+    url: "/dashboard/brand/:slug/presentations",
+    icon: Presentation,
+    disabled: false,
+  },
+  {
     title: "Logo Presentation",
     url: "/dashboard/brand/:slug/logo-presentation",
     icon: Presentation,
@@ -102,7 +107,6 @@ const brandKitItems = [
   { title: "QR Code", url: "/dashboard/brand/:slug/brandkit/qr-code", icon: QrCode, disabled: false },
   { title: "Invoices", url: "/dashboard/brand/:slug/brandkit/invoices", icon: FileText, disabled: false },
   { title: "Design Tool", url: "/dashboard/brand/:slug/brandkit/design-tool", icon: PenTool, disabled: false },
-  { title: "Download Fonts", url: "/dashboard/brand/:slug/brandkit/download-fonts", icon: Download, disabled: true },
 ];
 
 export function BrandSidebar() {

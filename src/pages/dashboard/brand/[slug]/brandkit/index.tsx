@@ -44,9 +44,7 @@ export default function BrandKitHubPage() {
 
   return (
     <BrandLayout brandName={brand?.name}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <BrandKitHub brand={brand} slug={slug!} />
-      </div>
+      <BrandKitHub brand={brand} slug={slug!} />
     </BrandLayout>
   );
 }

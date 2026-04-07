@@ -5,4 +5,3 @@ export { DashboardShell } from './DashboardShell';
 export { UnifiedEditorShell, EditorTopBar, EditorBottomBar, PanelSection, useEditorShell } from './EditorShell';
 export type { EditorViewMode } from './EditorShell';
 export { OnboardingShell } from './OnboardingShell';
-export { SettingsShell } from './SettingsShell';

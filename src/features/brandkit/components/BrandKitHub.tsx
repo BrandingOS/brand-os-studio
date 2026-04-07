@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import { BRAND_KIT_MODULES } from '../data/modules';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 interface BrandKitHubProps {
   brand: Brand;
@@ -23,13 +24,19 @@ export function BrandKitHub({ brand, slug }: BrandKitHubProps) {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Brand Kit</h1>
-        <p className="text-muted-foreground">
-          Everything you need to build and maintain <span className="font-medium text-foreground">{brand.name}</span>'s visual identity.
-        </p>
-      </div>
+      <PageHeader
+        breadcrumb={[
+          { label: 'Brands', to: '/dashboard/brands' },
+          { label: brand.name, to: `/dashboard/brand/${slug}` },
+        ]}
+        title="Brand Kit"
+        subtitle={
+          <>
+            Everything you need to build and maintain{' '}
+            <span className="font-medium text-foreground">{brand.name}</span>'s visual identity.
+          </>
+        }
+      />
 
       {/* Module Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

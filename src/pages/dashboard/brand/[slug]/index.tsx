@@ -4,6 +4,7 @@ import { TeamPanel } from '@/features/collaboration';
 import { SharePanel } from '@/features/brand/components/SharePanel';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import type { Brand } from '@/shared/types/brand';
 import {
   Briefcase, FileText, Edit, Presentation, Image, BookOpen,
@@ -61,24 +62,27 @@ export default function BrandHomePage() {
   }
 
   return (
-    <BrandLayout brandName={brand.name}>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* Brand Header */}
-        <div className="mb-8 flex items-center gap-4">
-          {brand.logo ? (
-            <div className="w-14 h-14 rounded-xl bg-muted/30 flex items-center justify-center p-2 overflow-hidden">
-              <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
-            </div>
-          ) : (
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>
-              {brand.name.charAt(0)}
-            </div>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold">{brand.name}</h1>
-            <p className="text-sm text-muted-foreground">{brand.tone || 'Configure your brand identity'}</p>
-          </div>
-        </div>
+    <BrandLayout brandName={brand.name} maxWidth="5xl">
+      <div>
+        <PageHeader
+          breadcrumb={[{ label: 'Brands', to: '/dashboard/brands' }]}
+          eyebrow={
+            brand.logo ? (
+              <div className="w-10 h-10 rounded-lg bg-muted/30 flex items-center justify-center p-1.5 overflow-hidden">
+                <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (
+              <div
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-base font-bold text-white"
+                style={{ backgroundColor: brand.primaryColor }}
+              >
+                {brand.name.charAt(0)}
+              </div>
+            )
+          }
+          title={brand.name}
+          subtitle={brand.tone || 'Configure your brand identity'}
+        />
 
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-8">

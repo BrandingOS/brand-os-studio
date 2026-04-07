@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
@@ -17,17 +18,15 @@ export default function BrandsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Brands</h1>
-            <p className="text-muted-foreground">
-              Manage and organize all your brands in one place.
-            </p>
-          </div>
-          <Button onClick={() => navigate('/onboarding')}>
-            Create New Brand
-          </Button>
-        </div>
+        <PageHeader
+          title="My Brands"
+          subtitle="Manage and organize all your brands in one place."
+          actions={
+            <Button onClick={() => navigate('/onboarding')}>
+              Create New Brand
+            </Button>
+          }
+        />
 
         {isLoading ? (
           <Card>
