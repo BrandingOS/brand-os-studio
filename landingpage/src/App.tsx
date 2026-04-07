@@ -13,7 +13,7 @@ function App() {
   useScrollReveal();
 
   return (
-    <div className="min-h-screen bg-background bg-dot-grid text-foreground animate-bg-pan">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <main>
         <HeroSection />

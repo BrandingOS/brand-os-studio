@@ -1,10 +1,9 @@
-import { Button } from '@/components/ui/button';
 import { Building2 } from 'lucide-react';
 
 const navItems = [
-  { label: 'Setup', href: '#setup' },
-  { label: 'Features', href: '#features' },
   { label: 'Why', href: '#pain' },
+  { label: 'Setup', href: '#setup' },
+  { label: 'Modules', href: '#features' },
 ];
 
 const scrollToEarlyAccess = () => {
@@ -12,48 +11,47 @@ const scrollToEarlyAccess = () => {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
+/**
+ * Navbar — Relume-style.
+ *
+ * Flat sticky bar with a thin bottom hairline. No glass blur, no pill
+ * rounding around the whole nav. Logo left, links center, single black
+ * pill CTA right. Same height across all breakpoints.
+ */
 export default function Navbar() {
   return (
-    <header className="sticky top-4 z-40">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/90 backdrop-blur-sm">
       <div className="container-tight">
-        <div className="mx-auto max-w-4xl">
-          <div className="nav-glass flex items-center justify-between rounded-full px-4 py-2">
-            <div className="flex items-center gap-3" data-animate>
-              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <a href="#" className="font-display text-lg font-semibold">
-                Brand OS
-              </a>
-            </div>
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <a href="#" className="flex items-center gap-2.5" aria-label="Brand OS">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-foreground text-background">
+              <Building2 className="h-4 w-4" />
+            </span>
+            <span className="font-display text-lg font-bold tracking-tight">Brand OS</span>
+          </a>
 
-            <nav
-              className="hidden md:flex items-center gap-6"
-              aria-label="Primary"
-              data-animate
-            >
-              {navItems.map((n) => (
-                <a
-                  key={n.label}
-                  href={n.href}
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {n.label}
-                </a>
-              ))}
-            </nav>
-
-            <div className="hidden sm:flex items-center gap-3" data-animate>
-              <Button
-                variant="hero"
-                shape="pill"
-                className="cta-glow"
-                onClick={scrollToEarlyAccess}
+          {/* Center nav */}
+          <nav className="hidden md:flex items-center gap-10" aria-label="Primary">
+            {navItems.map((n) => (
+              <a
+                key={n.label}
+                href={n.href}
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                Get Early Access
-              </Button>
-            </div>
-          </div>
+                {n.label}
+              </a>
+            ))}
+          </nav>
+
+          {/* CTA */}
+          <button
+            type="button"
+            onClick={scrollToEarlyAccess}
+            className="btn-primary h-10 px-5 text-sm"
+          >
+            Get Early Access
+          </button>
         </div>
       </div>
     </header>

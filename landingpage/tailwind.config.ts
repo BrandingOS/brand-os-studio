@@ -48,8 +48,11 @@ export default {
         },
       },
       fontFamily: {
+        // Display: tighter, more editorial. Plus Jakarta Sans is loaded in
+        // index.html. Inter handles UI / body. Both Google Fonts.
         display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -58,38 +61,17 @@ export default {
       },
       keyframes: {
         'fade-in': {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        float: {
-          '0%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-6px)' },
-          '100%': { transform: 'translateY(0)' },
         },
         'marquee-left': {
           '0%': { transform: 'translateX(0)' },
           '100%': { transform: 'translateX(-50%)' },
         },
-        ripple: {
-          '0%': { transform: 'scale(0.9)', opacity: '0.35' },
-          '100%': { transform: 'scale(1.6)', opacity: '0' },
-        },
-        'micro-bounce': {
-          '0%,100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-2px)' },
-        },
-        'bg-pan': {
-          '0%': { backgroundPosition: '0 0' },
-          '100%': { backgroundPosition: '40px 40px' },
-        },
       },
       animation: {
-        'fade-in': 'fade-in 0.4s ease-out both',
-        float: 'float 6s ease-in-out infinite',
-        'marquee-left': 'marquee-left 30s linear infinite',
-        'ripple-slow': 'ripple 6s ease-out infinite',
-        'micro-bounce': 'micro-bounce 1.5s ease-in-out infinite',
-        'bg-pan': 'bg-pan 24s linear infinite',
+        'fade-in': 'fade-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'marquee-left': 'marquee-left 38s linear infinite',
       },
     },
   },

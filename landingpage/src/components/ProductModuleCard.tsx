@@ -1,5 +1,11 @@
 import type { ProductModuleData } from '@/types';
 
+/**
+ * Product module card — Relume light theme.
+ *
+ * Thin border, white background, image at the bottom in grayscale.
+ * No more dark panel / gradient overlay.
+ */
 export const ProductModuleCard = ({
   icon: Icon,
   title,
@@ -7,18 +13,25 @@ export const ProductModuleCard = ({
   image,
 }: ProductModuleData) => {
   return (
-    <div className="feature-gradient feature-stroke p-6 rounded-2xl panel-dark" data-animate>
-      <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-accent/40 bg-transparent">
-        <Icon className="h-6 w-6" />
+    <article
+      className="surface overflow-hidden flex flex-col transition-all duration-300 hover:border-foreground hover:-translate-y-1"
+      data-animate
+    >
+      <div className="p-7 flex-1">
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-foreground">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h4 className="mt-5 font-display text-xl font-bold tracking-tight">{title}</h4>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{description}</p>
       </div>
-      <h4 className="mt-3 text-xl font-semibold">{title}</h4>
-      <p className="text-sm text-muted-foreground">{description}</p>
-      <img
-        src={image}
-        alt={`Grayscale illustration of ${title.toLowerCase()}`}
-        loading="lazy"
-        className="mt-4 rounded-xl w-full h-28 object-cover opacity-90"
-      />
-    </div>
+      <div className="border-t border-border">
+        <img
+          src={image}
+          alt={`Illustration of ${title.toLowerCase()}`}
+          loading="lazy"
+          className="w-full h-36 object-cover grayscale"
+        />
+      </div>
+    </article>
   );
 };

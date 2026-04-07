@@ -1,6 +1,4 @@
 import { useState, type FormEvent } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 
 /**
@@ -101,18 +99,14 @@ export function EarlyAccessForm({
 
   if (status === 'success') {
     return (
-      <div
-        className={
-          variant === 'inline'
-            ? 'mx-auto max-w-md flex items-center justify-center gap-2 rounded-full border border-border bg-secondary/60 px-5 py-3 text-sm'
-            : 'mx-auto max-w-md flex items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/60 px-6 py-4 text-sm'
-        }
-      >
-        <CheckCircle2 className="h-4 w-4 text-foreground" />
-        <span className="text-foreground font-medium">You're on the list.</span>
-        <span className="text-muted-foreground hidden sm:inline">
-          We'll be in touch soon.
-        </span>
+      <div className="surface flex items-center gap-3 px-5 py-4">
+        <CheckCircle2 className="h-5 w-5 text-foreground shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">You're on the list.</p>
+          <p className="text-xs text-muted-foreground">
+            We'll send one email when Brand OS launches.
+          </p>
+        </div>
       </div>
     );
   }
@@ -121,27 +115,25 @@ export function EarlyAccessForm({
     return (
       <form
         onSubmit={handleSubmit}
-        className="mx-auto max-w-md space-y-3"
+        className="space-y-3"
         data-animate
         noValidate
       >
-        <Input
+        <input
           type="email"
           inputMode="email"
           autoComplete="email"
           required
-          className="w-full input-pill h-12 px-5 text-center focus:placeholder-transparent"
+          className="input-pill w-full"
           placeholder={placeholder}
           aria-label="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={status === 'submitting'}
         />
-        <Button
+        <button
           type="submit"
-          variant="hero"
-          shape="pill"
-          className="h-12 px-8 w-full"
+          className="btn-primary w-full"
           disabled={status === 'submitting'}
         >
           {status === 'submitting' ? (
@@ -151,7 +143,7 @@ export function EarlyAccessForm({
           ) : (
             buttonLabel
           )}
-        </Button>
+        </button>
         {errorMsg && (
           <p className="text-xs text-destructive text-center">{errorMsg}</p>
         )}
@@ -163,27 +155,25 @@ export function EarlyAccessForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto max-w-md flex flex-col md:flex-row items-center gap-2 justify-center"
+      className="flex flex-col sm:flex-row items-stretch gap-2 w-full"
       data-animate
       noValidate
     >
-      <Input
+      <input
         type="email"
         inputMode="email"
         autoComplete="email"
         required
-        className="w-full md:w-64 input-pill h-12 px-5 text-center focus:placeholder-transparent"
+        className="input-pill flex-1 min-w-0"
         placeholder={placeholder}
         aria-label="Email address"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={status === 'submitting'}
       />
-      <Button
+      <button
         type="submit"
-        variant="hero"
-        shape="pill"
-        className="h-12 px-6 w-full md:w-auto"
+        className="btn-primary shrink-0"
         disabled={status === 'submitting'}
       >
         {status === 'submitting' ? (
@@ -193,9 +183,9 @@ export function EarlyAccessForm({
         ) : (
           buttonLabel
         )}
-      </Button>
+      </button>
       {errorMsg && (
-        <p className="text-xs text-destructive w-full text-center md:text-left">
+        <p className="text-xs text-destructive w-full">
           {errorMsg}
         </p>
       )}

@@ -1,23 +1,32 @@
+/**
+ * Marquee — Relume-style "as featured in" strip.
+ *
+ * Sits just under the hero. Single line of value-prop tags scrolling
+ * horizontally with edge masks. No background fill, just thin top + bottom
+ * hairlines and a soft fade at the edges (handled by .marquee class).
+ */
 export const MarqueeSection = () => {
+  const items = [
+    'One source of truth',
+    'On-brand, every time',
+    'Auto-generated assets',
+    'Export anywhere',
+    'Share live guidelines',
+    'Design faster',
+  ];
+
   return (
-    <section className="py-6">
-      <div className="container-tight">
-        <div className="marquee rounded-full bg-secondary/60 border border-border/60">
-          <div className="marquee-inner px-6 py-3">
-            <span className="marquee-item">One source of truth •</span>
-            <span className="marquee-item">On‑brand, every time •</span>
-            <span className="marquee-item">Auto‑generated assets •</span>
-            <span className="marquee-item">Export anywhere •</span>
-            <span className="marquee-item">Share live guidelines •</span>
-            <span className="marquee-item">Design faster •</span>
-            {/* duplicate for seamless loops */}
-            <span className="marquee-item">One source of truth •</span>
-            <span className="marquee-item">On‑brand, every time •</span>
-            <span className="marquee-item">Auto‑generated assets •</span>
-            <span className="marquee-item">Export anywhere •</span>
-            <span className="marquee-item">Share live guidelines •</span>
-            <span className="marquee-item">Design faster •</span>
-          </div>
+    <section className="border-y border-border py-8">
+      <div className="marquee">
+        <div className="marquee-inner px-6">
+          {[...items, ...items].map((item, i) => (
+            <span key={i} className="marquee-item flex items-center gap-4">
+              {item}
+              <span aria-hidden className="text-border">
+                ●
+              </span>
+            </span>
+          ))}
         </div>
       </div>
     </section>

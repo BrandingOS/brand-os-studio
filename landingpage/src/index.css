@@ -2,56 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-/* SOLID DESIGN SYSTEM – Grayscale + Glassmorphism
-   All colors MUST be HSL. Use tokens below via tailwind.config.ts
-   Self-contained landing-page subset of the Brand OS design system.
+/* ──────────────────────────────────────────────────────────────────
+   Brand OS — Landing Page v3 (Relume-style)
+   Pure monochrome, editorial typography, sharp edges, generous space.
+   No glass effects. No decorative gradients. Black-on-white discipline.
+   ──────────────────────────────────────────────────────────────────
 */
 
 @layer base {
   :root {
+    /* Pure monochrome — no warm tints, no decorative color */
     --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
+    --foreground: 0 0% 4%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 0 0% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 7%;
+    --popover-foreground: 0 0% 4%;
 
-    --primary: 0 0% 12%;
+    /* Primary = near-black. Used for filled buttons + active text. */
+    --primary: 0 0% 4%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 98%;
-    --secondary-foreground: 0 0% 12%;
+    --secondary-foreground: 0 0% 4%;
 
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 62%;
+    --muted-foreground: 0 0% 38%;
 
     --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 12%;
+    --accent-foreground: 0 0% 4%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 7%;
+    /* Crisper border than v1/v2 — Relume uses thin, slightly darker lines */
+    --border: 0 0% 86%;
+    --input: 0 0% 86%;
+    --ring: 0 0% 4%;
 
-    --radius: 14px;
+    /* Sharper radius — no soft 14px blob */
+    --radius: 8px;
 
-    --panel: 0 0% 12%;
+    /* Editorial dark panel for footer */
+    --panel: 0 0% 4%;
     --panel-foreground: 0 0% 96%;
-
-    --cta-foreground: 0 0% 100%;
-    --dot-color: 0 0% 93%;
-    --dot-size: 22px;
-    --accent-pop: 18 87% 54%;
-
-    --shadow-elegant: 0 8px 30px -10px hsl(0 0% 0% / 0.15);
-    --shadow-glow: 0 12px 40px -10px hsl(0 0% 0% / 0.25);
-
-    --gradient-glass: linear-gradient(180deg, hsl(0 0% 100% / 0.6), hsl(0 0% 100% / 0.35));
-    --gradient-cta: linear-gradient(180deg, hsl(var(--primary) / 0.88), hsl(var(--primary) / 1));
   }
 
   * {
@@ -60,140 +56,162 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'ss01' on, 'liga' on;
+    font-feature-settings: 'ss01' on, 'cv11' on, 'liga' on;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Slightly larger default body text — Relume uses generous body sizes */
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  /* Tighten heading tracking globally for the editorial Relume feel */
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+    font-feature-settings: 'ss01' on, 'cv11' on, 'liga' on;
+  }
+
+  ::selection {
+    background-color: hsl(var(--foreground));
+    color: hsl(var(--background));
   }
 }
 
 @layer utilities {
-  .bg-dot-grid {
-    background-image: radial-gradient(hsl(var(--dot-color)) 1px, transparent 1px);
-    background-size: var(--dot-size) var(--dot-size);
-    background-position: 0 0;
-  }
+  /* ── Layout primitives ─────────────────────────────────────────── */
 
-  .glass-surface {
-    background: var(--gradient-glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid hsl(var(--border) / 0.7);
-  }
-
-  .btn-hero {
-    background: var(--gradient-cta);
-    color: hsl(var(--cta-foreground));
-    box-shadow: var(--shadow-glow);
-    border: 1px solid hsl(var(--primary) / 0.2);
-  }
-
-  .btn-hero:hover {
-    background: hsl(var(--primary-foreground));
-    color: hsl(var(--primary));
-    border: 1px solid hsl(var(--primary) / 0.2);
-    box-shadow: none;
-    transition: all 0.4s;
-  }
-
-  .shadow-elegant {
-    box-shadow: var(--shadow-elegant);
-  }
-
-  .shadow-glow {
-    box-shadow: var(--shadow-glow);
+  .container-tight {
+    @apply max-w-7xl mx-auto px-6 sm:px-8 lg:px-12;
   }
 
   .section {
-    @apply py-20 md:py-8;
+    @apply py-24 md:py-32;
   }
 
-  .container-tight {
-    @apply max-w-6xl mx-auto px-4 sm:px-6;
-  }
-
-  .nav-glass {
-    @apply glass-surface rounded-full border border-border/70 shadow-elegant px-4 py-2;
-  }
-
-  .card-soft {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    position: relative;
-  }
-  .card-soft::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(120% 120% at 0% 0%, hsl(0 0% 100% / 0.6) 0%, transparent 50%);
-    border-radius: inherit;
-    pointer-events: none;
-  }
-
-  .input-pill {
-    border-radius: 9999px;
-  }
-
-  .panel-dark {
-    background: hsl(var(--panel));
-    color: hsl(var(--panel-foreground));
-  }
-
-  .animate-bg-pan {
-    animation: bg-pan 24s linear infinite;
-  }
-
-  .cta-glow {
-    box-shadow: 0 8px 30px -10px hsl(0 0% 0% / 0.25);
-  }
-
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.35) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
-  .feature-gradient {
-    position: relative;
-    background: hsl(var(--panel));
-    border-radius: var(--radius);
-  }
-  .feature-gradient::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, hsl(var(--muted) / 0.1), hsl(var(--muted) / 0));
-    border-radius: inherit;
-    pointer-events: none;
-  }
-  .feature-stroke {
-    border: 1px solid hsl(var(--border) / 0.6);
-  }
-
-  .marquee {
-    overflow: hidden;
-  }
-  .marquee-inner {
-    display: flex;
-    gap: 3.5rem;
-    white-space: nowrap;
-    will-change: transform;
-    animation: marquee 28s linear infinite;
-  }
-  .marquee-item {
-    font-size: 0.875rem;
-    letter-spacing: 0.04em;
-    color: hsl(var(--muted-foreground));
-  }
+  /* ── Typography helpers ────────────────────────────────────────── */
 
   .font-display {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+  }
+
+  /* The signature Relume eyebrow — small, uppercase, tracked out */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-foreground;
+  }
+
+  .eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 28px;
+    height: 1px;
+    background-color: currentColor;
+  }
+
+  /* Massive editorial display heading */
+  .display {
+    @apply font-display font-bold tracking-tight;
+    font-size: clamp(2.75rem, 5.5vw, 5rem);
+    line-height: 1.04;
+  }
+
+  .display-lg {
+    @apply font-display font-bold tracking-tight;
+    font-size: clamp(3.25rem, 7vw, 6.5rem);
+    line-height: 1.02;
+  }
+
+  .h-section {
+    @apply font-display font-bold tracking-tight;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    line-height: 1.08;
+  }
+
+  /* ── Borders / surfaces — sharp, thin, monochrome ──────────────── */
+
+  .surface {
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  .surface-dark {
+    background: hsl(var(--panel));
+    color: hsl(var(--panel-foreground));
+    border-radius: var(--radius);
+  }
+
+  .hairline {
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  /* Numbered process card — Relume's signature 01/02/03 layout */
+  .process-card {
+    @apply surface p-8 md:p-10 transition-all duration-300;
+  }
+  .process-card:hover {
+    border-color: hsl(var(--foreground));
+    transform: translateY(-2px);
+  }
+
+  /* ── Buttons (Relume-style: solid black or outlined black) ─────── */
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-foreground text-background px-7 h-12 text-sm font-medium transition-all duration-200;
+  }
+  .btn-primary:hover {
+    background: hsl(var(--foreground) / 0.88);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-foreground bg-background text-foreground px-7 h-12 text-sm font-medium transition-all duration-200;
+  }
+  .btn-secondary:hover {
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
+  }
+
+  /* ── Marquee strip ─────────────────────────────────────────────── */
+
+  .marquee {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+  }
+  .marquee-inner {
+    display: flex;
+    gap: 4rem;
+    white-space: nowrap;
+    will-change: transform;
+    animation: marquee 38s linear infinite;
+  }
+  .marquee-item {
+    @apply text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
+
+  /* ── Subtle dot pattern (kept but desaturated) ─────────────────── */
+
+  .bg-dot {
+    background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Numbered "01" / "02" / "03" tag */
+  .num-tag {
+    @apply inline-flex items-center justify-center text-sm font-mono tracking-widest text-muted-foreground;
+  }
+
+  /* Pill input for the early access form */
+  .input-pill {
+    @apply h-12 rounded-full border border-input bg-background px-5 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-foreground transition-colors;
   }
 }
 
@@ -206,41 +224,18 @@
   }
 }
 
-@keyframes ripple {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
+/* Reveal-on-scroll animation paired with the useScrollReveal hook */
+@keyframes fadeUp {
+  from {
     opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes arrowPulse {
-  0%,
-  100% {
-    color: inherit;
-    transform: translateX(0);
-  }
-  50% {
-    color: hsl(var(--accent-pop));
-    transform: translateX(1px);
-  }
-}
-
-.arrow-pulse {
-  display: inline-block;
-  padding: 0 3px;
-  animation: arrowPulse 2s ease-in-out infinite;
+[data-animate].animate-fade-in {
+  animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

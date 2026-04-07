@@ -1,101 +1,84 @@
-import { Button } from '@/components/ui/button';
+import { Building2 } from 'lucide-react';
 
+const linkColumns = [
+  {
+    label: 'Product',
+    items: ['Overview', 'Guidelines', 'Design Studio', 'Templates'],
+  },
+  {
+    label: 'Resources',
+    items: ['Blog', 'Help Center', 'API', 'Changelog'],
+  },
+  {
+    label: 'Company',
+    items: ['About', 'Careers', 'Contact', 'Press'],
+  },
+];
+
+/**
+ * Footer — Relume-style dark editorial outro.
+ *
+ * Pure dark surface, no decorative noise. Big logo + tagline at the top,
+ * link columns in the middle, hairline + copyright at the bottom.
+ */
 export default function Footer() {
   return (
-    <footer className="mt-20">
-      <div className="container-tight">
-        {/* Floating dark widget */}
-        <div className="relative mx-auto max-w-5xl rounded-3xl px-8 py-12 text-center shadow-elegant">
-          {/* dark panel background */}
-          <div
-            className="absolute inset-0 rounded-3xl panel-dark feature-stroke overflow-hidden"
-            aria-hidden
-          />
-
-          {/* subtle grid + vignette */}
-          <div
-            className="pointer-events-none absolute inset-0 rounded-3xl bg-grid opacity-35 [mask-image:radial-gradient(120%_95%_at_50%_50%,transparent_28%,black_78%)]"
-            aria-hidden
-          />
-
-          {/* soft corner highlight */}
-          <div
-            className="pointer-events-none absolute inset-0 rounded-3xl [background:radial-gradient(140%_100%_at_0%_0%,hsl(0_0%_100%/.08)_0%,transparent_50%)]"
-            aria-hidden
-          />
-
-          {/* glass hairline */}
-          <div
-            className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-white/5"
-            aria-hidden
-          />
-
-          {/* content */}
-          <div className="relative flex flex-col items-center space-y-6">
-            <h3 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-white">
-              Your Brand. Everywhere. Always.
-            </h3>
-
-            <nav
-              className="mt-6 grid w-full grid-cols-1 sm:grid-cols-3 gap-8 justify-items-center"
-              aria-label="Footer"
+    <footer className="surface-dark mt-24">
+      <div className="container-tight py-20 md:py-24">
+        {/* Top: brand block */}
+        <div className="grid gap-12 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <a
+              href="#"
+              className="inline-flex items-center gap-2.5"
+              aria-label="Brand OS"
             >
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Product</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><span className="text-white/50 cursor-default">Overview</span></li>
-                  <li><span className="text-white/50 cursor-default">Guidelines</span></li>
-                  <li><span className="text-white/50 cursor-default">Design Studio</span></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Resources</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><span className="text-white/50 cursor-default">Blog</span></li>
-                  <li><span className="text-white/50 cursor-default">Help Center</span></li>
-                  <li><span className="text-white/50 cursor-default">API</span></li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Company</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><span className="text-white/50 cursor-default">About</span></li>
-                  <li><span className="text-white/50 cursor-default">Careers</span></li>
-                  <li><span className="text-white/50 cursor-default">Contact</span></li>
-                </ul>
-              </div>
-            </nav>
-
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="input-pill bg-transparent text-white/90 border border-white/20 hover:bg-white/5 hover:border-white/35 focus-visible:ring-2 focus-visible:ring-white/20 transition-all duration-300"
-              >
-                License
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="input-pill bg-transparent text-white/90 border border-white/20 hover:bg-white/5 hover:border-white/35 focus-visible:ring-2 focus-visible:ring-white/20 transition-all duration-300"
-              >
-                Changelog
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="input-pill bg-transparent text-white/90 border border-white/20 hover:bg-white/5 hover:border-white/35 focus-visible:ring-2 focus-visible:ring-white/20 transition-all duration-300"
-              >
-                Status
-              </Button>
-            </div>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-background text-foreground">
+                <Building2 className="h-4 w-4" />
+              </span>
+              <span className="font-display text-xl font-bold tracking-tight text-background">
+                Brand OS
+              </span>
+            </a>
+            <p className="mt-6 text-base text-background/60 max-w-sm leading-relaxed">
+              The brand workspace where founders and designers ship one
+              identity, used everywhere.
+            </p>
           </div>
+
+          <nav
+            className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8"
+            aria-label="Footer"
+          >
+            {linkColumns.map((col) => (
+              <div key={col.label}>
+                <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-background mb-5">
+                  {col.label}
+                </h4>
+                <ul className="space-y-3">
+                  {col.items.map((item) => (
+                    <li key={item}>
+                      <span className="text-sm text-background/55 cursor-default">
+                        {item}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </nav>
         </div>
 
-        <div className="py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Brand OS. All rights reserved.
+        {/* Bottom: hairline + copyright */}
+        <div className="mt-20 pt-8 border-t border-background/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <p className="text-xs text-background/50">
+            © {new Date().getFullYear()} Brand OS. All rights reserved.
+          </p>
+          <div className="flex items-center gap-6 text-xs text-background/50">
+            <span className="cursor-default">Privacy</span>
+            <span className="cursor-default">Terms</span>
+            <span className="cursor-default">Cookies</span>
+          </div>
         </div>
       </div>
     </footer>
