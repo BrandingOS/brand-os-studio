@@ -1,4 +1,4 @@
-import { Building2 } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 const linkColumns = [
   {
@@ -16,49 +16,58 @@ const linkColumns = [
 ];
 
 /**
- * Footer — Relume-style dark editorial outro.
- *
- * Pure dark surface, no decorative noise. Big logo + tagline at the top,
- * link columns in the middle, hairline + copyright at the bottom.
+ * Footer — dark with subtle violet aurora wash at the top.
  */
 export default function Footer() {
   return (
-    <footer className="surface-dark mt-24">
-      <div className="container-tight py-20 md:py-24">
-        {/* Top: brand block */}
+    <footer className="relative border-t border-border mt-24 overflow-hidden">
+      {/* Top edge violet wash */}
+      <div
+        aria-hidden
+        className="aurora-blob aurora-blob-violet"
+        style={{
+          width: 800,
+          height: 400,
+          top: '-30%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          opacity: 0.18,
+        }}
+      />
+
+      <div className="container-tight py-20 md:py-24 relative z-10">
         <div className="grid gap-12 md:grid-cols-12">
+          {/* Brand */}
           <div className="md:col-span-5">
-            <a
-              href="#"
-              className="inline-flex items-center gap-2.5"
-              aria-label="Brand OS"
-            >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-background text-foreground">
-                <Building2 className="h-4 w-4" />
+            <a href="#" className="inline-flex items-center gap-2.5">
+              <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet to-pink">
+                <Sparkles className="h-4 w-4 text-white" />
+                <span className="absolute inset-0 rounded-lg bg-gradient-to-br from-violet to-pink blur-md opacity-60 -z-10" />
               </span>
-              <span className="font-display text-xl font-bold tracking-tight text-background">
+              <span className="font-display text-xl font-bold tracking-tight text-foreground">
                 Brand OS
               </span>
             </a>
-            <p className="mt-6 text-base text-background/60 max-w-sm leading-relaxed">
+            <p className="mt-6 text-base text-fg-muted max-w-sm leading-relaxed">
               The brand workspace where founders and designers ship one
               identity, used everywhere.
             </p>
           </div>
 
+          {/* Link columns */}
           <nav
             className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8"
             aria-label="Footer"
           >
             {linkColumns.map((col) => (
               <div key={col.label}>
-                <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-background mb-5">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground mb-5">
                   {col.label}
                 </h4>
                 <ul className="space-y-3">
                   {col.items.map((item) => (
                     <li key={item}>
-                      <span className="text-sm text-background/55 cursor-default">
+                      <span className="text-sm text-fg-dim cursor-default">
                         {item}
                       </span>
                     </li>
@@ -69,12 +78,12 @@ export default function Footer() {
           </nav>
         </div>
 
-        {/* Bottom: hairline + copyright */}
-        <div className="mt-20 pt-8 border-t border-background/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <p className="text-xs text-background/50">
+        {/* Bottom row */}
+        <div className="mt-20 pt-8 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <p className="text-xs text-fg-dim">
             © {new Date().getFullYear()} Brand OS. All rights reserved.
           </p>
-          <div className="flex items-center gap-6 text-xs text-background/50">
+          <div className="flex items-center gap-6 text-xs text-fg-dim">
             <span className="cursor-default">Privacy</span>
             <span className="cursor-default">Terms</span>
             <span className="cursor-default">Cookies</span>

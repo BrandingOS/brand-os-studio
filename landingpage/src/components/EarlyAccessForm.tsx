@@ -99,11 +99,13 @@ export function EarlyAccessForm({
 
   if (status === 'success') {
     return (
-      <div className="surface flex items-center gap-3 px-5 py-4">
-        <CheckCircle2 className="h-5 w-5 text-foreground shrink-0" />
+      <div className="surface flex items-center gap-3 px-5 py-4 border-violet/40">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet to-pink shrink-0">
+          <CheckCircle2 className="h-5 w-5 text-white" />
+        </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">You're on the list.</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-fg-muted">
             We'll send one email when Brand OS launches.
           </p>
         </div>
@@ -124,7 +126,7 @@ export function EarlyAccessForm({
           inputMode="email"
           autoComplete="email"
           required
-          className="input-pill w-full"
+          className="input-glow w-full"
           placeholder={placeholder}
           aria-label="Email address"
           value={email}
@@ -133,7 +135,7 @@ export function EarlyAccessForm({
         />
         <button
           type="submit"
-          className="btn-primary w-full"
+          className="btn-glow w-full"
           disabled={status === 'submitting'}
         >
           {status === 'submitting' ? (
@@ -164,7 +166,7 @@ export function EarlyAccessForm({
         inputMode="email"
         autoComplete="email"
         required
-        className="input-pill flex-1 min-w-0"
+        className="input-glow flex-1 min-w-0"
         placeholder={placeholder}
         aria-label="Email address"
         value={email}
@@ -173,7 +175,7 @@ export function EarlyAccessForm({
       />
       <button
         type="submit"
-        className="btn-primary shrink-0"
+        className="btn-glow shrink-0"
         disabled={status === 'submitting'}
       >
         {status === 'submitting' ? (

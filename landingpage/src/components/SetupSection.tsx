@@ -1,20 +1,21 @@
 import SectionSplit from '@/components/SectionSplit';
 import { setupSteps } from '@/data/content';
+import { Reveal } from '@/components/fancy/Reveal';
 
 export const SetupSection = () => {
   return (
     <section className="section border-t border-border" id="setup">
       <div className="container-tight">
-        <div className="max-w-3xl">
-          <span className="eyebrow" data-animate>
-            How it works
-          </span>
-          <h2 className="h-section mt-6" data-animate>
-            Set it up once. Brand everything.
+        <Reveal className="max-w-3xl">
+          <span className="eyebrow">How it works</span>
+          <h2 className="h-section mt-6 text-foreground">
+            Set it up once.
+            <br />
+            <span className="gradient-text">Brand everything.</span>
           </h2>
-        </div>
+        </Reveal>
 
-        <div className="mt-20 space-y-24 md:space-y-32">
+        <div className="mt-24 space-y-28 md:space-y-36">
           {setupSteps.map((step, index) => (
             <SectionSplit
               key={step.title}
@@ -22,12 +23,12 @@ export const SetupSection = () => {
               title={step.title}
               subtitle={step.subtitle}
             >
-              <div className="surface overflow-hidden">
+              <div className="surface glow-ring overflow-hidden">
                 <img
                   src={step.image}
                   alt={`Illustration of ${step.title.toLowerCase()}`}
                   loading="lazy"
-                  className="w-full aspect-[4/3] object-cover grayscale"
+                  className="w-full aspect-[4/3] object-cover"
                 />
               </div>
             </SectionSplit>

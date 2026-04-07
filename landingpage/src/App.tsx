@@ -7,13 +7,10 @@ import { SetupSection } from '@/components/SetupSection';
 import { ProductModulesSection } from '@/components/ProductModulesSection';
 import { StatisticsSection } from '@/components/StatisticsSection';
 import { FinalCTASection } from '@/components/FinalCTASection';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 function App() {
-  useScrollReveal();
-
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground antialiased">
       <Navbar />
       <main>
         <HeroSection />

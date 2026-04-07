@@ -1,22 +1,31 @@
+import { motion } from 'framer-motion';
 import type { FeatureCardData } from '@/types';
+import { SpotlightCard } from '@/components/fancy/SpotlightCard';
+import { revealItem } from '@/components/fancy/Reveal';
 
 interface FeatureCardProps extends FeatureCardData {
   index: number;
 }
 
 /**
- * Numbered process card — Relume signature.
- *
- * Big "01 / 02 / 03" tag at the top, then title, then body.
- * Thin border that darkens on hover.
+ * Numbered pain-point card with cursor-following violet spotlight.
+ * Lives inside a `RevealStagger` parent so it inherits the stagger.
  */
 export const FeatureCard = ({ icon: Icon, title, desc, index }: FeatureCardProps) => (
-  <div data-animate className="process-card">
-    <div className="flex items-center justify-between">
-      <span className="num-tag">{String(index + 1).padStart(2, '0')}</span>
-      <Icon className="h-5 w-5 text-muted-foreground" />
-    </div>
-    <h3 className="mt-10 font-display text-2xl font-bold tracking-tight">{title}</h3>
-    <p className="mt-3 text-base text-muted-foreground leading-relaxed">{desc}</p>
-  </div>
+  <motion.div variants={revealItem}>
+    <SpotlightCard className="p-8 md:p-10 h-full">
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-sm tracking-widest text-fg-dim">
+          {String(index + 1).padStart(2, '0')}
+        </span>
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet/20 to-pink/20 border border-violet/30">
+          <Icon className="h-5 w-5 text-violet" />
+        </span>
+      </div>
+      <h3 className="mt-10 font-display text-2xl font-bold tracking-tight text-foreground">
+        {title}
+      </h3>
+      <p className="mt-3 text-base text-fg-muted leading-relaxed">{desc}</p>
+    </SpotlightCard>
+  </motion.div>
 );
