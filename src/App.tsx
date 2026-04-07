@@ -161,6 +161,55 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
+
+          {/*
+            Stage 14 — Short-form `/b/:slug/...` aliases.
+            See docs/ux-redesign/ARCHITECTURE.md §8 for the full migration map.
+            These render the SAME components as the legacy `/dashboard/brand/...`
+            routes; old URLs still work, new URLs are now bookmarkable. The
+            full migration of internal links to the short form is deferred and
+            documented in docs/ux-redesign/EXECUTION.md.
+          */}
+          <Route path="/b/:slug" element={
+            <ProtectedRoute>
+              <BrandHomePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/identity" element={
+            <ProtectedRoute>
+              <IdentityPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/assets" element={
+            <ProtectedRoute>
+              <AssetsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guidelines" element={
+            <ProtectedRoute>
+              <GuidelinesHubPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/share" element={
+            <ProtectedRoute>
+              <SharePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/edit" element={
+            <ProtectedRoute>
+              <BrandEditPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/brandkit" element={
+            <ProtectedRoute>
+              <BrandKitHubPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/brandkit/:moduleId" element={
+            <ProtectedRoute>
+              <BrandKitModulePage />
+            </ProtectedRoute>
+          } />
           <Route path="/settings/account" element={
             <ProtectedRoute>
               <AccountSettingsPage />
