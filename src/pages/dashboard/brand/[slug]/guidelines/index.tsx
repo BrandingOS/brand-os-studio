@@ -133,12 +133,22 @@ export default function GuidelinesHubPage() {
               <p className="text-muted-foreground">Comprehensive brand documentation and editor</p>
             </div>
             <div className="flex gap-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
               >
                 <Edit className="w-4 h-4 mr-2" />
                 Open Editor
+              </Button>
+              {/* Stage 10: surface the EditorWorkspace flow that previously
+                  lived only at /brand-guides. Same canonical Guidelines
+                  section, deeper editing surface. */}
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/dashboard/brand/${slug}/brand-guides`)}
+              >
+                <PanelRightOpen className="w-4 h-4 mr-2" />
+                Slide Editor
               </Button>
               <Button>
                 <Download className="w-4 h-4 mr-2" />

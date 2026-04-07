@@ -11,12 +11,19 @@ import {
   CreditCard, Square, QrCode, Play
 } from 'lucide-react';
 
+// Quick actions on the brand overview lead into the new five-section IA.
+// Each card maps to one of the canonical sections (Identity, Assets,
+// Guidelines, Share) — see docs/ux-redesign/ARCHITECTURE.md §3.
+//
+// Legacy direct entries to specific brandkit modules were removed in
+// Stage 10: they duplicated the Identity and Assets hubs. The single
+// "Brand Guides" duplicate was also removed (Guidelines covers it).
 const quickActions = [
-  { label: 'Brand Guides', icon: BookOpen, path: 'brand-guides', gradient: 'from-rose-500 to-pink-600' },
-  { label: 'Brand Kit', icon: Briefcase, path: 'brandkit', gradient: 'from-violet-500 to-purple-600' },
-  { label: 'Guidelines Editor', icon: FileText, path: 'guidelines/canvas', gradient: 'from-pink-500 to-rose-600' },
-  { label: 'Edit Brand', icon: Edit, path: 'edit', gradient: 'from-blue-500 to-blue-600' },
-  { label: 'Logo Files', icon: Image, path: 'brandkit/logo-files', gradient: 'from-cyan-500 to-blue-500' },
+  { label: 'Identity', icon: Edit, path: 'identity', gradient: 'from-blue-500 to-blue-600' },
+  { label: 'Assets', icon: Briefcase, path: 'assets', gradient: 'from-violet-500 to-purple-600' },
+  { label: 'Guidelines', icon: BookOpen, path: 'guidelines', gradient: 'from-rose-500 to-pink-600' },
+  { label: 'Share', icon: Presentation, path: 'share', gradient: 'from-emerald-500 to-teal-600' },
+  { label: 'Logo Files', icon: Image, path: 'identity?tab=logo', gradient: 'from-cyan-500 to-blue-500' },
   { label: 'Business Cards', icon: CreditCard, path: 'brandkit/business-cards', gradient: 'from-indigo-500 to-blue-600' },
   { label: 'Instagram', icon: Square, path: 'brandkit/instagram-posts', gradient: 'from-teal-400 to-cyan-500' },
   { label: 'QR Code', icon: QrCode, path: 'brandkit/qr-code', gradient: 'from-blue-400 to-blue-600' },
