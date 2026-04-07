@@ -153,12 +153,21 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
   }, [selected]);
 
   // Find the nearest meaningful element from a click target.
-  // Strategy: walk UP from the click target until we find an element with
-  // its OWN direct text content (not just inherited from descendants), an
-  // image, or a styled shape. This makes single-character labels, list
-  // items, table cells, SVG text and nested text inside flex containers
-  // all editable — no tag-name allowlist.
+  //
+  // Two modes:
+  //   1. Click landed ON a leaf (no element children) → walk UP looking
+  //      for the nearest text-bearing or image element. Lets you click
+  //      on a wrapping span and select the inner text element.
+  //   2. Click landed on a CONTAINER (has element children) → that means
+  //      you clicked the empty background area inside it. Select the
+  //      container itself; do NOT walk up. Otherwise selecting the
+  //      background would walk all the way up to the slide root and
+  //      "delete background" would nuke the whole slide.
   const findMeaningfulElement = useCallback((target: HTMLElement): HTMLElement => {
+    // Container click → select the container as-is
+    if (target.children.length > 0) return target;
+
+    // Leaf click → walk up until we find a meaningful node
     let el = target;
     while (el.parentElement && el.parentElement !== containerRef.current) {
       const tag = el.tagName.toLowerCase();
@@ -175,9 +184,8 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
         .join('');
       if (directText.length >= 1) break;
 
-      // Single-text-child elements (e.g. <span>01</span>) — pick the leaf
-      const childCount = el.children.length;
-      if (childCount === 0) {
+      // Single-text-child leaf
+      if (el.children.length === 0) {
         const leafText = (el.textContent ?? '').trim();
         if (leafText.length >= 1) break;
       }
@@ -289,17 +297,42 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
         return;
       }
 
-      // Delete/Backspace removes selected element (only when not editing text inline)
+      // Delete/Backspace
+      //   - leaf element (no children) → remove from DOM
+      //   - container with children → only clear its background so the
+      //     user's intent ("delete background") doesn't nuke the whole
+      //     slide and everything inside it
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedRef.current && !editingRef.current) {
         e.preventDefault();
         const el = selectedRef.current.element;
-        if (el && el.isConnected) {
+        if (!el || !el.isConnected) {
+          setSelected(null);
+          setEditing(false);
+          return;
+        }
+
+        const isLeaf = el.children.length === 0;
+        const isSlideRoot = el.parentElement === containerRef.current;
+
+        if (isLeaf && !isSlideRoot) {
+          // Real removal — leaf element with no children
           removeSelectionStyles(el);
           if (containerRef.current) removeResizeHandles(containerRef.current);
           el.remove();
+          setSelected(null);
+          setEditing(false);
+        } else {
+          // Container or slide root — only clear its background fills.
+          // The element stays, so its children survive.
+          el.style.backgroundColor = 'transparent';
+          el.style.backgroundImage = 'none';
+          if (el.dataset.originalBg !== undefined) {
+            el.dataset.originalBg = '';
+          }
+          // Refresh selection so the toolbar updates
+          const rect = el.getBoundingClientRect();
+          setSelected((prev) => (prev ? { ...prev, rect } : null));
         }
-        setSelected(null);
-        setEditing(false);
       }
     };
     window.addEventListener('keydown', handleKey);
