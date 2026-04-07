@@ -315,51 +315,65 @@ export function EditorWorkspace({
     useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
   }, [effectiveEditorKey, currentSlide, slides.length]);
 
-  // Save handler: capture ONLY the current slide and write directly to
-  // IDB. Awaited — the success toast only appears after the write
-  // committed. Fast (no iteration) and reliable (no chain to break).
+  // Save handler: flush all edits to IDB.
+  //
+  // Strategy: first capture the CURRENTLY visible slide (so the user's
+  // most recent edits — which haven't been navigated-away-from — are
+  // included), then merge with any prior pendingEdits from earlier
+  // slides the user visited and navigated past, then write everything
+  // to IDB in parallel awaited writes. No iteration, no slide flipping,
+  // no waiting for paint.
   const saveEdits = useCallback(async () => {
-    const slideId = slides[currentSlide]?.id;
-    if (!slideId) {
-      toast.error('No active slide to save');
-      return;
-    }
+    const currentId = slides[currentSlide]?.id;
     const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
-    if (!canvas) {
-      toast.error('Slide canvas not found');
+
+    // Build the final write set: existing pendingEdits + current slide HTML
+    const writes = new Map(pendingEdits);
+    if (currentId && canvas) {
+      const clone = canvas.cloneNode(true) as HTMLElement;
+      clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
+        (el as HTMLElement).style.outline = '';
+        (el as HTMLElement).style.outlineOffset = '';
+        (el as HTMLElement).style.boxShadow = '';
+        (el as HTMLElement).style.borderRadius = '';
+      });
+      clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
+      writes.set(currentId, clone.innerHTML);
+    }
+
+    if (writes.size === 0) {
+      toast.info('Nothing to save');
       return;
     }
 
-    // Strip the same UI artifacts useHistory's getCleanHtml does
-    const clone = canvas.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
-      (el as HTMLElement).style.outline = '';
-      (el as HTMLElement).style.outlineOffset = '';
-      (el as HTMLElement).style.boxShadow = '';
-      (el as HTMLElement).style.borderRadius = '';
-    });
-    clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
-    const html = clone.innerHTML;
-
-    toast.loading('Saving...', { id: 'save-edits' });
-    const ok = await saveSnapshot(effectiveEditorKey, slideId, html);
+    toast.loading(`Saving ${writes.size} slide${writes.size > 1 ? 's' : ''}...`, { id: 'save-edits' });
+    const results = await Promise.all(
+      Array.from(writes.entries()).map(([slideId, html]) =>
+        saveSnapshot(effectiveEditorKey, slideId, html).then((ok) => ({ slideId, html, ok })),
+      ),
+    );
     toast.dismiss('save-edits');
 
-    if (!ok) {
-      toast.error('Save failed — check console for details');
-      return;
-    }
+    const successes = results.filter((r) => r.ok);
+    const failures = results.filter((r) => !r.ok);
 
-    // Update local mirror so the slide stays frozen in this session
-    setPersistedSnapshots((prev) => ({ ...prev, [slideId]: html }));
-    setPendingEdits((prev) => {
-      const next = new Map(prev);
-      next.delete(slideId);
-      return next;
-    });
+    // Update local mirror for everything that succeeded
+    if (successes.length > 0) {
+      setPersistedSnapshots((prev) => {
+        const next = { ...prev };
+        for (const r of successes) next[r.slideId] = r.html;
+        return next;
+      });
+    }
+    setPendingEdits(new Map());
     setHasUnsaved(false);
-    toast.success('Slide saved');
-  }, [slides, currentSlide, effectiveEditorKey]);
+
+    if (failures.length === 0) {
+      toast.success(`Saved ${successes.length} slide${successes.length !== 1 ? 's' : ''}`);
+    } else {
+      toast.error(`Saved ${successes.length}/${writes.size} — ${failures.length} failed (check console)`);
+    }
+  }, [slides, currentSlide, pendingEdits, effectiveEditorKey]);
 
   // Browser-native warning when the user tries to leave with unsaved edits.
   useEffect(() => {
@@ -436,13 +450,45 @@ export function EditorWorkspace({
 
   useEffect(() => { setLayoutId(settings.template); }, [settings.template]);
 
+  // Capture the currently visible slide's HTML into pendingEdits BEFORE
+  // navigating away. This is how we accumulate edits across slides
+  // without depending on the MutationObserver chain. Save then flushes
+  // the whole Map to IDB in one batch.
+  const captureCurrentSlideHtml = useCallback(() => {
+    const slideId = slides[currentSlide]?.id;
+    if (!slideId) return;
+    const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+    if (!canvas) return;
+    const clone = canvas.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
+      (el as HTMLElement).style.outline = '';
+      (el as HTMLElement).style.outlineOffset = '';
+      (el as HTMLElement).style.boxShadow = '';
+      (el as HTMLElement).style.borderRadius = '';
+    });
+    clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
+    const html = clone.innerHTML;
+    // Only mark as edited if it differs from the persisted snapshot
+    // (avoid bloating the Map with unchanged template HTML)
+    const persisted = persistedSnapshots[slideId];
+    if (persisted === html) return;
+    setPendingEdits((prev) => {
+      const next = new Map(prev);
+      next.set(slideId, html);
+      return next;
+    });
+    setHasUnsaved(true);
+  }, [slides, currentSlide, persistedSnapshots]);
+
   const goTo = useCallback((idx: number) => {
     if (idx >= 0 && idx < totalPages) {
+      // Capture the OUTGOING slide before React unmounts it
+      captureCurrentSlideHtml();
       setCurrentSlide(idx);
       setActivePanel('none');
       setPan({ x: 0, y: 0 });
     }
-  }, [totalPages]);
+  }, [totalPages, captureCurrentSlideHtml]);
 
   const togglePanel = useCallback((panel: 'insert' | 'theme' | 'background' | 'export' | 'remix') => {
     setActivePanel(prev => prev === panel ? 'none' : panel);
@@ -951,7 +997,7 @@ export function EditorWorkspace({
                 <div key={s.id} className="snap-center flex items-center justify-center" style={{ minHeight: '100%', padding: '12px 40px 12px 48px' }}>
                   <div className="w-full h-full flex items-center justify-center" style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s ease-out' }}>
                     <div style={{ width: '100%', maxWidth: '100%', maxHeight: '100%', aspectRatio }}>
-                      {renderSlide(s, i + 1, { isExportTarget: i === currentSlide, onClick: () => setCurrentSlide(i) })}
+                      {renderSlide(s, i + 1, { isExportTarget: i === currentSlide, onClick: () => goTo(i) })}
                     </div>
                   </div>
                 </div>
