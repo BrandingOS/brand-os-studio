@@ -196,16 +196,14 @@ export function EditorWorkspace({
   // the same template are independent.
   const effectiveEditorKey = docId ? `${editorKey}::${docId}` : editorKey;
   // Restore the last viewed slide for this editor instance so reload
-  // returns to the same page instead of slide 0.
+  // returns to the same page instead of slide 0. The first read happens
+  // synchronously (might be 0 if IDB hasn't hydrated yet); a follow-up
+  // effect re-applies the persisted index after hydration completes.
   const initialSlideIndex = useSlideSnapshotStore.getState().getCurrentSlideIndex(effectiveEditorKey);
   const [currentSlide, setCurrentSlide] = useState(() =>
     Math.min(Math.max(0, initialSlideIndex), Math.max(0, slides.length - 1)),
   );
-
-  // Persist the current slide whenever it changes
-  useEffect(() => {
-    useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
-  }, [effectiveEditorKey, currentSlide]);
+  const initialJumpRef = useRef(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const [layoutId, setLayoutId] = useState('hyperhyve');
@@ -227,6 +225,10 @@ export function EditorWorkspace({
   // pass `slideSnapshots` + `onPersistSlideSnapshot` to override.
   const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[effectiveEditorKey]);
   const setDefaultSnapshot = useSlideSnapshotStore((s) => s.set);
+  // IndexedDB hydration is async — we MUST wait for it before reading
+  // snapshots or capturing initial freezes, otherwise the empty state
+  // races with the freshly-rendered template and overwrites real edits.
+  const hasHydrated = useSlideSnapshotStore((s) => s.hasHydrated);
 
   const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
   const effectivePersist = onPersistSlideSnapshot
@@ -238,11 +240,29 @@ export function EditorWorkspace({
     onPersistSnapshot: effectivePersist,
   });
 
+  // After hydration: restore the persisted slide index AND persist any
+  // future navigation. Both must run only once IDB has caught up.
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!initialJumpRef.current) {
+      initialJumpRef.current = true;
+      const persisted = useSlideSnapshotStore.getState().getCurrentSlideIndex(effectiveEditorKey);
+      const clamped = Math.min(Math.max(0, persisted), Math.max(0, slides.length - 1));
+      if (clamped !== currentSlide) setCurrentSlide(clamped);
+    }
+    useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
+  }, [hasHydrated, effectiveEditorKey, currentSlide, slides.length]);
+
   // Initial freeze: when a slide is viewed for the first time and has no
   // snapshot yet, capture its HTML right after React paints. From that
   // point on, the slide is rendered via dangerouslySetInnerHTML in
   // renderSlide so React never touches it again.
+  //
+  // CRITICAL: gate on hasHydrated. If we capture before IDB hydration
+  // completes, we overwrite the user's saved edit with the freshly
+  // rendered template defaults.
   useEffect(() => {
+    if (!hasHydrated) return;
     const slideId = currentSlideIdForHistory;
     if (!slideId) return;
     const existing = effectiveSnapshots?.[slideId];
@@ -254,9 +274,9 @@ export function EditorWorkspace({
       effectivePersist(slideId, canvas.innerHTML);
     }, 350);
     return () => clearTimeout(timer);
-    // Intentionally only re-runs when the slide id changes
+    // Intentionally only re-runs when the slide id changes or hydration flips
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSlideIdForHistory]);
+  }, [currentSlideIdForHistory, hasHydrated]);
 
   // Reset the current slide to its template defaults — clears the snapshot
   // so the next render falls through to the React tree and freezes again.

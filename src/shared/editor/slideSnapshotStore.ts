@@ -37,6 +37,13 @@ interface SlideSnapshotState {
   snapshots: Record<string, Record<string, string>>;
   /** editorKey -> last viewed slide index (so reload returns to the same page) */
   currentSlideIndex: Record<string, number>;
+  /**
+   * True once Zustand persist has finished loading state from IndexedDB.
+   * Consumers must NOT capture or freeze slides until this is true,
+   * otherwise the freshly-rendered template will overwrite the saved
+   * snapshot before it's read back.
+   */
+  hasHydrated: boolean;
 
   set: (editorKey: string, slideId: string, html: string) => void;
   get: (editorKey: string, slideId: string) => string | undefined;
@@ -46,6 +53,8 @@ interface SlideSnapshotState {
 
   setCurrentSlideIndex: (editorKey: string, index: number) => void;
   getCurrentSlideIndex: (editorKey: string) => number;
+
+  _setHasHydrated: (v: boolean) => void;
 }
 
 export const useSlideSnapshotStore = create<SlideSnapshotState>()(
@@ -53,6 +62,7 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
     (set, get) => ({
       snapshots: {},
       currentSlideIndex: {},
+      hasHydrated: false,
 
       set: (editorKey, slideId, html) =>
         set((state) => ({
@@ -93,6 +103,8 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
         })),
 
       getCurrentSlideIndex: (editorKey) => get().currentSlideIndex[editorKey] ?? 0,
+
+      _setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {
       name: 'slide-snapshots',
@@ -100,6 +112,13 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
       // include inlined logo data URLs that blow the 5 MB localStorage
       // quota. IDB has dramatically more room and is async-safe.
       storage: createJSONStorage(() => idbStringStorage),
+      // Persist only the data fields, not the hydration flag itself
+      partialize: (s) => ({ snapshots: s.snapshots, currentSlideIndex: s.currentSlideIndex } as any),
+      onRehydrateStorage: () => (state) => {
+        // Called once IDB read completes (success or failure). Flip the
+        // flag so consumers know it's safe to read snapshots and freeze.
+        state?._setHasHydrated(true);
+      },
     },
   ),
 );
