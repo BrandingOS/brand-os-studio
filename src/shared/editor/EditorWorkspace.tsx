@@ -9,7 +9,7 @@
  * on top as pointer-events-none overlays.
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil, Plus, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, LayoutGrid, Undo2, Redo2, History, Pencil, Plus, RotateCcw, Save } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { TemplateLayout } from './layout-config';
 import { getLayoutById } from './layout-config';
@@ -219,20 +219,34 @@ export function EditorWorkspace({
   // Per-slide undo/redo + persistence — keyed by current slide id and editor instance
   const currentSlideIdForHistory = slides[currentSlide]?.id;
 
-  // Default snapshot persistence: writes through to a shared Zustand store
-  // keyed by effectiveEditorKey so EVERY consumer of EditorWorkspace gets
-  // reload persistence automatically. Hosts that want their own store can
-  // pass `slideSnapshots` + `onPersistSlideSnapshot` to override.
+  // Persisted snapshots from IndexedDB. The hydration flag tells us when
+  // the async IDB read is done — we must not read snapshots before that
+  // or we'll show stale defaults.
   const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[effectiveEditorKey]);
   const setDefaultSnapshot = useSlideSnapshotStore((s) => s.set);
-  // IndexedDB hydration is async — we MUST wait for it before reading
-  // snapshots or capturing initial freezes, otherwise the empty state
-  // races with the freshly-rendered template and overwrites real edits.
   const hasHydrated = useSlideSnapshotStore((s) => s.hasHydrated);
-
   const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
-  const effectivePersist = onPersistSlideSnapshot
-    ?? ((slideId: string, html: string) => setDefaultSnapshot(effectiveEditorKey, slideId, html));
+
+  // ── Explicit save model ──────────────────────────────────────
+  // The user controls when edits persist. Edits captured by the
+  // MutationObserver in useHistory go into a local pendingEdits map; the
+  // Save button writes them to the IDB-backed snapshot store. A
+  // beforeunload prompt warns if the user tries to leave with unsaved
+  // changes. This sidesteps every timing race the auto-save model had.
+  const [pendingEdits, setPendingEdits] = useState<Map<string, string>>(new Map());
+  const hasUnsaved = pendingEdits.size > 0;
+
+  const localPersist = useCallback((slideId: string, html: string) => {
+    setPendingEdits((prev) => {
+      const next = new Map(prev);
+      next.set(slideId, html);
+      return next;
+    });
+  }, []);
+
+  // If a host explicitly supplied a persistence callback, route through
+  // it (used for doc-store integrations); otherwise buffer locally.
+  const effectivePersist = onPersistSlideSnapshot ?? localPersist;
 
   const { undo, redo, jumpTo } = useHistory({
     editorKey: effectiveEditorKey,
@@ -253,30 +267,46 @@ export function EditorWorkspace({
     useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
   }, [hasHydrated, effectiveEditorKey, currentSlide, slides.length]);
 
-  // Initial freeze: when a slide is viewed for the first time and has no
-  // snapshot yet, capture its HTML right after React paints. From that
-  // point on, the slide is rendered via dangerouslySetInnerHTML in
-  // renderSlide so React never touches it again.
-  //
-  // CRITICAL: gate on hasHydrated. If we capture before IDB hydration
-  // completes, we overwrite the user's saved edit with the freshly
-  // rendered template defaults.
-  useEffect(() => {
-    if (!hasHydrated) return;
-    const slideId = currentSlideIdForHistory;
-    if (!slideId) return;
-    const existing = effectiveSnapshots?.[slideId];
-    if (existing) return; // Already frozen — render path will inject
+  // Save handler: flush all pending edits to the IDB-backed snapshot store.
+  // Takes whatever the user has touched in this session and writes it out.
+  const saveEdits = useCallback(() => {
+    if (pendingEdits.size === 0) {
+      toast.info('No unsaved changes');
+      return;
+    }
+    const count = pendingEdits.size;
+    pendingEdits.forEach((html, slideId) => {
+      setDefaultSnapshot(effectiveEditorKey, slideId, html);
+    });
+    setPendingEdits(new Map());
+    toast.success(`Saved ${count} slide${count > 1 ? 's' : ''}`);
+  }, [pendingEdits, effectiveEditorKey, setDefaultSnapshot]);
 
-    const timer = setTimeout(() => {
-      const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
-      if (!canvas) return;
-      effectivePersist(slideId, canvas.innerHTML);
-    }, 350);
-    return () => clearTimeout(timer);
-    // Intentionally only re-runs when the slide id changes or hydration flips
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSlideIdForHistory, hasHydrated]);
+  // Browser-native warning when the user tries to leave with unsaved edits.
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Required by Chrome/Edge — the actual message is browser-controlled.
+      e.returnValue = 'You have unsaved edits. Leave anyway?';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsaved]);
+
+  // Cmd/Ctrl+S keyboard shortcut for save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (cmd && e.key === 's') {
+        e.preventDefault();
+        saveEdits();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [saveEdits]);
 
   // Reset the current slide to its template defaults — clears the snapshot
   // so the next render falls through to the React tree and freezes again.
@@ -630,11 +660,13 @@ export function EditorWorkspace({
         onClick={opts?.onClick}
       >
         {/* Slide content — fills container, scales via cqi/cqb units.
-            If a snapshot exists, EditableSlide injects it via
-            dangerouslySetInnerHTML so React never reconciles the inside
-            (decouples user edits from any prop/state re-render). */}
+            Frozen HTML priority: in-session pending edits > persisted
+            saved snapshots > React template tree. When frozenHtml is set,
+            EditableSlide uses dangerouslySetInnerHTML so React doesn't
+            reconcile the inside and brand/settings re-renders can never
+            clobber user edits. */}
         <div className="absolute inset-0">
-          <EditableSlide frozenHtml={effectiveSnapshots?.[slideData.id]}>
+          <EditableSlide frozenHtml={pendingEdits.get(slideData.id) ?? effectiveSnapshots?.[slideData.id]}>
             {slideData.render({ brand, layout, pageNumber, totalPages, orientation, aspectRatioValue, settings })}
           </EditableSlide>
         </div>
@@ -648,7 +680,7 @@ export function EditorWorkspace({
         />
       </div>
     );
-  }, [settings, perSlideBg, brand, layout, totalPages, effectiveSnapshots]);
+  }, [settings, perSlideBg, brand, layout, totalPages, effectiveSnapshots, pendingEdits]);
 
   // ─── Presentation Mode ─────────────────────────────────────
   if (presentMode) {
@@ -727,6 +759,19 @@ export function EditorWorkspace({
             className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors"
           >
             <RotateCcw className="h-4 w-4" />
+          </button>
+          <button
+            onClick={saveEdits}
+            disabled={!hasUnsaved}
+            title={hasUnsaved ? `Save ${pendingEdits.size} edited slide${pendingEdits.size > 1 ? 's' : ''} (⌘S / Ctrl+S)` : 'No unsaved changes'}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+              hasUnsaved
+                ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 ring-1 ring-amber-500/30'
+                : 'text-white/30 cursor-not-allowed'
+            }`}
+          >
+            <Save className="h-3.5 w-3.5" />
+            <span>Save{hasUnsaved ? ` (${pendingEdits.size})` : ''}</span>
           </button>
           <div className="w-px h-4 bg-white/10 mx-1" />
 
