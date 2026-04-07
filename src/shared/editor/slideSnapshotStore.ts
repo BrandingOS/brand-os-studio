@@ -112,8 +112,9 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
       // include inlined logo data URLs that blow the 5 MB localStorage
       // quota. IDB has dramatically more room and is async-safe.
       storage: createJSONStorage(() => idbStringStorage),
-      // Persist only the data fields, not the hydration flag itself
-      partialize: (s) => ({ snapshots: s.snapshots, currentSlideIndex: s.currentSlideIndex } as any),
+      // Persist ONLY the slide index map. Snapshots are written through
+      // the direct-IDB layer in snapshotIDB.ts, awaited per save.
+      partialize: (s) => ({ currentSlideIndex: s.currentSlideIndex } as any),
       onRehydrateStorage: () => (state) => {
         // Called once IDB read completes (success or failure). Flip the
         // flag so consumers know it's safe to read snapshots and freeze.

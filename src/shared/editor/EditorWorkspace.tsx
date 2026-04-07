@@ -29,6 +29,7 @@ import { EditorContext } from './EditorContext';
 import { useHistory } from './useHistory';
 import { HistoryPanel } from './HistoryPanel';
 import { useSlideSnapshotStore } from './slideSnapshotStore';
+import { loadSnapshotsForEditor, saveSnapshot, deleteSnapshot } from './snapshotIDB';
 import { captureElementForExport } from './exportCapture';
 import { toast } from 'sonner';
 
@@ -219,13 +220,25 @@ export function EditorWorkspace({
   // Per-slide undo/redo + persistence — keyed by current slide id and editor instance
   const currentSlideIdForHistory = slides[currentSlide]?.id;
 
-  // Persisted snapshots from IndexedDB. The hydration flag tells us when
-  // the async IDB read is done — we must not read snapshots before that
-  // or we'll show stale defaults.
-  const defaultSnapshots = useSlideSnapshotStore((s) => s.snapshots[effectiveEditorKey]);
-  const setDefaultSnapshot = useSlideSnapshotStore((s) => s.set);
-  const hasHydrated = useSlideSnapshotStore((s) => s.hasHydrated);
-  const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
+  // Persisted snapshots — loaded synchronously from IDB on mount via a
+  // React state map. No Zustand persist middleware, no hydration race,
+  // no selector identity gymnastics. Reads are explicit, writes are
+  // awaited so we know they actually persisted.
+  const [persistedSnapshots, setPersistedSnapshots] = useState<Record<string, string>>({});
+  const [hasLoadedSnapshots, setHasLoadedSnapshots] = useState(false);
+  const effectiveSnapshots = slideSnapshots ?? persistedSnapshots;
+
+  // Load snapshots from IDB once on mount and whenever the editor key changes
+  useEffect(() => {
+    let cancelled = false;
+    setHasLoadedSnapshots(false);
+    loadSnapshotsForEditor(effectiveEditorKey).then((map) => {
+      if (cancelled) return;
+      setPersistedSnapshots(map);
+      setHasLoadedSnapshots(true);
+    });
+    return () => { cancelled = true; };
+  }, [effectiveEditorKey]);
 
   // ── Explicit save model ──────────────────────────────────────
   // The user controls when edits persist. The Save button iterates EVERY
@@ -299,56 +312,51 @@ export function EditorWorkspace({
     useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
   }, [hasHydrated, effectiveEditorKey, currentSlide, slides.length]);
 
-  // Save handler: iterate EVERY slide via the same proven pattern as the
-  // editable PDF export — setCurrentSlide(i), wait for React paint, query
-  // the live DOM, capture innerHTML, write to the snapshot store. Always
-  // works regardless of whether the MutationObserver / pendingEdits chain
-  // fired correctly. After saving, restore the user's original slide.
+  // Save handler: capture ONLY the current slide and write directly to
+  // IDB. Awaited — the success toast only appears after the write
+  // committed. Fast (no iteration) and reliable (no chain to break).
   const saveEdits = useCallback(async () => {
-    const startedOn = currentSlide;
-    toast.loading(`Saving ${slides.length} slides...`, { id: 'save-edits' });
-
-    let captured = 0;
-    try {
-      for (let i = 0; i < slides.length; i++) {
-        const slide = slides[i];
-        if (!slide?.id) continue;
-
-        // Navigate to this slide and let React mount it
-        setCurrentSlide(i);
-        await new Promise((r) => setTimeout(r, 320));
-
-        const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
-        if (!canvas) continue;
-
-        // Strip the same UI artifacts useHistory's getCleanHtml does
-        const clone = canvas.cloneNode(true) as HTMLElement;
-        clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
-          (el as HTMLElement).style.outline = '';
-          (el as HTMLElement).style.outlineOffset = '';
-          (el as HTMLElement).style.boxShadow = '';
-          (el as HTMLElement).style.borderRadius = '';
-        });
-        clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
-
-        setDefaultSnapshot(effectiveEditorKey, slide.id, clone.innerHTML);
-        captured++;
-      }
-
-      // Return user to where they started
-      setCurrentSlide(startedOn);
-      setPendingEdits(new Map());
-      setHasUnsaved(false);
-
-      toast.dismiss('save-edits');
-      toast.success(`Saved ${captured} slide${captured !== 1 ? 's' : ''}`);
-    } catch (err) {
-      toast.dismiss('save-edits');
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Save failed: ${msg}`);
-      console.error('[save-edits] failed:', err);
+    const slideId = slides[currentSlide]?.id;
+    if (!slideId) {
+      toast.error('No active slide to save');
+      return;
     }
-  }, [slides, currentSlide, effectiveEditorKey, setDefaultSnapshot]);
+    const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+    if (!canvas) {
+      toast.error('Slide canvas not found');
+      return;
+    }
+
+    // Strip the same UI artifacts useHistory's getCleanHtml does
+    const clone = canvas.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
+      (el as HTMLElement).style.outline = '';
+      (el as HTMLElement).style.outlineOffset = '';
+      (el as HTMLElement).style.boxShadow = '';
+      (el as HTMLElement).style.borderRadius = '';
+    });
+    clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
+    const html = clone.innerHTML;
+
+    toast.loading('Saving...', { id: 'save-edits' });
+    const ok = await saveSnapshot(effectiveEditorKey, slideId, html);
+    toast.dismiss('save-edits');
+
+    if (!ok) {
+      toast.error('Save failed — check console for details');
+      return;
+    }
+
+    // Update local mirror so the slide stays frozen in this session
+    setPersistedSnapshots((prev) => ({ ...prev, [slideId]: html }));
+    setPendingEdits((prev) => {
+      const next = new Map(prev);
+      next.delete(slideId);
+      return next;
+    });
+    setHasUnsaved(false);
+    toast.success('Slide saved');
+  }, [slides, currentSlide, effectiveEditorKey]);
 
   // Browser-native warning when the user tries to leave with unsaved edits.
   useEffect(() => {
@@ -376,12 +384,22 @@ export function EditorWorkspace({
     return () => window.removeEventListener('keydown', handler);
   }, [saveEdits]);
 
-  // Reset the current slide to its template defaults — clears the snapshot
-  // so the next render falls through to the React tree and freezes again.
-  const resetCurrentSlide = useCallback(() => {
+  // Reset the current slide to its template defaults — clears the
+  // persisted snapshot so the next render falls through to the React tree.
+  const resetCurrentSlide = useCallback(async () => {
     const slideId = currentSlideIdForHistory;
     if (!slideId) return;
-    useSlideSnapshotStore.getState().clearSlide(effectiveEditorKey, slideId);
+    await deleteSnapshot(effectiveEditorKey, slideId);
+    setPersistedSnapshots((prev) => {
+      const next = { ...prev };
+      delete next[slideId];
+      return next;
+    });
+    setPendingEdits((prev) => {
+      const next = new Map(prev);
+      next.delete(slideId);
+      return next;
+    });
     toast.success('Slide reset to template');
   }, [currentSlideIdForHistory, effectiveEditorKey]);
   const scrollCooldown = useRef(false);
