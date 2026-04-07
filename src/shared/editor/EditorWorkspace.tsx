@@ -299,18 +299,21 @@ export function EditorWorkspace({
     onPersistSnapshot: effectivePersist,
   });
 
-  // After hydration: restore the persisted slide index AND persist any
-  // future navigation. Both must run only once IDB has caught up.
+  // Restore the persisted slide index on mount (one-shot) and keep it
+  // updated on every navigation. The slideSnapshotStore's currentSlideIndex
+  // is persisted via Zustand (small localStorage value, no race issues).
   useEffect(() => {
-    if (!hasHydrated) return;
     if (!initialJumpRef.current) {
       initialJumpRef.current = true;
       const persisted = useSlideSnapshotStore.getState().getCurrentSlideIndex(effectiveEditorKey);
       const clamped = Math.min(Math.max(0, persisted), Math.max(0, slides.length - 1));
-      if (clamped !== currentSlide) setCurrentSlide(clamped);
+      if (clamped !== currentSlide) {
+        setCurrentSlide(clamped);
+        return;
+      }
     }
     useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
-  }, [hasHydrated, effectiveEditorKey, currentSlide, slides.length]);
+  }, [effectiveEditorKey, currentSlide, slides.length]);
 
   // Save handler: capture ONLY the current slide and write directly to
   // IDB. Awaited — the success toast only appears after the write
