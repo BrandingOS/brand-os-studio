@@ -228,13 +228,18 @@ export function EditorWorkspace({
   const effectiveSnapshots = slideSnapshots ?? defaultSnapshots;
 
   // ── Explicit save model ──────────────────────────────────────
-  // The user controls when edits persist. Edits captured by the
-  // MutationObserver in useHistory go into a local pendingEdits map; the
-  // Save button writes them to the IDB-backed snapshot store. A
-  // beforeunload prompt warns if the user tries to leave with unsaved
-  // changes. This sidesteps every timing race the auto-save model had.
+  // The user controls when edits persist. The Save button iterates EVERY
+  // slide (same pattern as the editable PDF export — setCurrentSlide,
+  // wait for paint, query DOM, capture innerHTML) and writes the
+  // captured HTML to the IDB-backed snapshot store in one batch. The
+  // dirty flag is set by ANY input/click event on the live slide canvas,
+  // which is direct and bypasses the MutationObserver chain entirely.
+  const [hasUnsaved, setHasUnsaved] = useState(false);
+  // pendingEdits is only kept around as a hint for slides edited and
+  // navigated away from in the same session — useHistory writes to it
+  // through the localPersist callback below, but the Save button doesn't
+  // depend on it any more.
   const [pendingEdits, setPendingEdits] = useState<Map<string, string>>(new Map());
-  const hasUnsaved = pendingEdits.size > 0;
 
   const localPersist = useCallback((slideId: string, html: string) => {
     setPendingEdits((prev) => {
@@ -244,9 +249,36 @@ export function EditorWorkspace({
     });
   }, []);
 
-  // If a host explicitly supplied a persistence callback, route through
-  // it (used for doc-store integrations); otherwise buffer locally.
   const effectivePersist = onPersistSlideSnapshot ?? localPersist;
+
+  // Direct dirty signal: listen for any input/click on the active slide
+  // canvas. This catches contentEditable typing, color picker changes,
+  // image replacements, etc. — without depending on the MutationObserver
+  // chain in useHistory which has been unreliable in this setup.
+  useEffect(() => {
+    const slideId = currentSlideIdForHistory;
+    if (!slideId) return;
+    let canvas: HTMLElement | null = null;
+    const markDirty = () => setHasUnsaved(true);
+
+    const tryAttach = () => {
+      canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+      if (!canvas) return;
+      canvas.addEventListener('input', markDirty);
+      canvas.addEventListener('keyup', markDirty);
+      canvas.addEventListener('paste', markDirty);
+    };
+
+    const t = setTimeout(tryAttach, 300);
+    return () => {
+      clearTimeout(t);
+      if (canvas) {
+        canvas.removeEventListener('input', markDirty);
+        canvas.removeEventListener('keyup', markDirty);
+        canvas.removeEventListener('paste', markDirty);
+      }
+    };
+  }, [currentSlideIdForHistory]);
 
   const { undo, redo, jumpTo } = useHistory({
     editorKey: effectiveEditorKey,
@@ -267,20 +299,56 @@ export function EditorWorkspace({
     useSlideSnapshotStore.getState().setCurrentSlideIndex(effectiveEditorKey, currentSlide);
   }, [hasHydrated, effectiveEditorKey, currentSlide, slides.length]);
 
-  // Save handler: flush all pending edits to the IDB-backed snapshot store.
-  // Takes whatever the user has touched in this session and writes it out.
-  const saveEdits = useCallback(() => {
-    if (pendingEdits.size === 0) {
-      toast.info('No unsaved changes');
-      return;
+  // Save handler: iterate EVERY slide via the same proven pattern as the
+  // editable PDF export — setCurrentSlide(i), wait for React paint, query
+  // the live DOM, capture innerHTML, write to the snapshot store. Always
+  // works regardless of whether the MutationObserver / pendingEdits chain
+  // fired correctly. After saving, restore the user's original slide.
+  const saveEdits = useCallback(async () => {
+    const startedOn = currentSlide;
+    toast.loading(`Saving ${slides.length} slides...`, { id: 'save-edits' });
+
+    let captured = 0;
+    try {
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        if (!slide?.id) continue;
+
+        // Navigate to this slide and let React mount it
+        setCurrentSlide(i);
+        await new Promise((r) => setTimeout(r, 320));
+
+        const canvas = document.querySelector('[data-slide-canvas]') as HTMLElement | null;
+        if (!canvas) continue;
+
+        // Strip the same UI artifacts useHistory's getCleanHtml does
+        const clone = canvas.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll('[style*="outline: 2px solid"]').forEach((el) => {
+          (el as HTMLElement).style.outline = '';
+          (el as HTMLElement).style.outlineOffset = '';
+          (el as HTMLElement).style.boxShadow = '';
+          (el as HTMLElement).style.borderRadius = '';
+        });
+        clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
+
+        setDefaultSnapshot(effectiveEditorKey, slide.id, clone.innerHTML);
+        captured++;
+      }
+
+      // Return user to where they started
+      setCurrentSlide(startedOn);
+      setPendingEdits(new Map());
+      setHasUnsaved(false);
+
+      toast.dismiss('save-edits');
+      toast.success(`Saved ${captured} slide${captured !== 1 ? 's' : ''}`);
+    } catch (err) {
+      toast.dismiss('save-edits');
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Save failed: ${msg}`);
+      console.error('[save-edits] failed:', err);
     }
-    const count = pendingEdits.size;
-    pendingEdits.forEach((html, slideId) => {
-      setDefaultSnapshot(effectiveEditorKey, slideId, html);
-    });
-    setPendingEdits(new Map());
-    toast.success(`Saved ${count} slide${count > 1 ? 's' : ''}`);
-  }, [pendingEdits, effectiveEditorKey, setDefaultSnapshot]);
+  }, [slides, currentSlide, effectiveEditorKey, setDefaultSnapshot]);
 
   // Browser-native warning when the user tries to leave with unsaved edits.
   useEffect(() => {
@@ -762,16 +830,15 @@ export function EditorWorkspace({
           </button>
           <button
             onClick={saveEdits}
-            disabled={!hasUnsaved}
-            title={hasUnsaved ? `Save ${pendingEdits.size} edited slide${pendingEdits.size > 1 ? 's' : ''} (⌘S / Ctrl+S)` : 'No unsaved changes'}
+            title={hasUnsaved ? 'You have unsaved edits — click to save (⌘S / Ctrl+S)' : 'Save all slides (⌘S / Ctrl+S)'}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
               hasUnsaved
-                ? 'bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 ring-1 ring-amber-500/30'
-                : 'text-white/30 cursor-not-allowed'
+                ? 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 ring-1 ring-amber-500/40'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
           >
             <Save className="h-3.5 w-3.5" />
-            <span>Save{hasUnsaved ? ` (${pendingEdits.size})` : ''}</span>
+            <span>Save{hasUnsaved ? ' •' : ''}</span>
           </button>
           <div className="w-px h-4 bg-white/10 mx-1" />
 
