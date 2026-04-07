@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useDashboard } from '../hooks/useDashboard';
 import { AdminPanel } from './AdminPanel';
+import { ContinueSurface } from './ContinueSurface';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -71,7 +72,11 @@ export function DashboardMain() {
     <div className="space-y-8">
       {/* Admin Panel - Only for admin users */}
       <AdminPanel />
-      
+
+      {/* Continue surface — picks up the most-recently-edited brand and
+          gives the returning user a one-click resume (USER-FLOWS.md F6). */}
+      <ContinueSurface brands={brands} />
+
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="p-6">
