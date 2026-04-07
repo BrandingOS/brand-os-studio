@@ -497,7 +497,12 @@ export function EditorWorkspace({
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Don't hijack arrow keys when the user is typing into ANY editable
+      // surface — input/textarea OR a contentEditable text block inside
+      // a slide. Otherwise the cursor can't navigate within the text.
+      const tgt = e.target as HTMLElement | null;
+      if (tgt instanceof HTMLInputElement || tgt instanceof HTMLTextAreaElement) return;
+      if (tgt && (tgt.isContentEditable || tgt.closest('[contenteditable="true"]'))) return;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goTo(currentSlide + 1); }
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goTo(currentSlide - 1); }
       if (e.key === 'Escape') {
