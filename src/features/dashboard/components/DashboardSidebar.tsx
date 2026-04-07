@@ -16,17 +16,24 @@ import {
 import {
   LayoutDashboard,
   Building2,
-  FileText,
-  Palette,
-  Image,
   Settings,
   Users,
   BarChart3,
   Folder,
-  Star,
-  Archive
+  GraduationCap,
 } from 'lucide-react';
 
+/**
+ * Workspace-scope navigation.
+ *
+ * See docs/ux-redesign/ARCHITECTURE.md §2 for the full IA.
+ *
+ * Items intentionally removed in the UX redesign:
+ * - "Logo Maker" → brand-scoped (Save-to-Brand flow shipped Stage 4); no
+ *   longer makes sense as a workspace-level entry.
+ * - "Activity" → folded into Home as a feed in Stage 16; the route remains
+ *   accessible by URL until then.
+ */
 const mainNavItems = [
   {
     title: "Home",
@@ -35,16 +42,10 @@ const mainNavItems = [
     description: "Dashboard overview",
   },
   {
-    title: "My Brands",
+    title: "Brands",
     url: "/dashboard/brands",
     icon: Building2,
     description: "Manage your brands",
-  },
-  {
-    title: "Logo Maker",
-    url: "/dashboard/logo-maker",
-    icon: Star,
-    description: "Create a new logo",
   },
   {
     title: "Templates",
@@ -54,10 +55,10 @@ const mainNavItems = [
     featureId: "guidelines-templates",
   },
   {
-    title: "Activity",
-    url: "/dashboard/activity",
-    icon: BarChart3,
-    description: "Recent activity",
+    title: "Learn",
+    url: "/learn",
+    icon: GraduationCap,
+    description: "Tutorials & examples",
   },
 ];
 
