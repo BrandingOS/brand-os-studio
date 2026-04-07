@@ -1,0 +1,15 @@
+# SPA fallback for React Router on Cloudflare Pages / Netlify.
+#
+# Without this rule, refreshing on any client-side route (e.g.
+# /dashboard/brand/raqm/identity, /b/acme/assets) returns a 404 because
+# the host looks for a file at that path. With this rule, the host
+# serves /index.html for any unknown path and React Router resolves the
+# route in the browser.
+#
+# Vite copies anything in `public/` into `dist/` automatically, so this
+# file ships as `dist/_redirects` after build — exactly where Cloudflare
+# Pages and Netlify look for it. No further config needed.
+#
+# See docs/ux-redesign/EXECUTION.md and the hosting plan for context.
+
+/*    /index.html   200
