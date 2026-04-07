@@ -20,7 +20,17 @@
  * doc-store integration needed.
  */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { idbStringStorage } from './idbStorage';
+
+// One-time cleanup: the previous version persisted to localStorage and
+// blew the 5 MB quota when slides contained inlined image data URLs.
+// Drop the old key so freed space stays freed. Safe to call repeatedly.
+try {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('slide-snapshots');
+  }
+} catch { /* ignore — private mode, etc. */ }
 
 interface SlideSnapshotState {
   /** editorKey -> slideId -> html */
@@ -84,6 +94,12 @@ export const useSlideSnapshotStore = create<SlideSnapshotState>()(
 
       getCurrentSlideIndex: (editorKey) => get().currentSlideIndex[editorKey] ?? 0,
     }),
-    { name: 'slide-snapshots' },
+    {
+      name: 'slide-snapshots',
+      // Use IndexedDB instead of localStorage — slide HTML snapshots can
+      // include inlined logo data URLs that blow the 5 MB localStorage
+      // quota. IDB has dramatically more room and is async-safe.
+      storage: createJSONStorage(() => idbStringStorage),
+    },
   ),
 );
