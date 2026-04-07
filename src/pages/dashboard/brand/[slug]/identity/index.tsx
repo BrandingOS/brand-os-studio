@@ -1,95 +1,76 @@
 /**
- * Identity — Stage 7 landing page.
+ * Identity — tabbed page that absorbs the brand's identity-bearing modules.
  *
- * The Identity section will be a tabbed page (Logo, Colors, Typography,
- * Voice, Strategy) that absorbs the legacy Edit page and the identity-bearing
- * brandkit modules. See docs/ux-redesign/ARCHITECTURE.md §3.1.
+ * Tabs: Logo · Colors · Typography · Voice · Strategy
  *
- * Stage 7 (this commit): a hub that links to all the existing identity-bearing
- * pages, so the new sidebar item lands somewhere useful.
+ * Each tab inline-mounts the existing module from src/features/brandkit/.
+ * No new module code — this is pure information-architecture work that
+ * surfaces what already exists, in one place, with one header.
  *
- * Stage 8 (next): replace this with a real tabbed page that mounts each
- * identity module inline.
+ * The active tab is persisted to a `?tab=` search param so deep links work.
+ *
+ * See docs/ux-redesign/ARCHITECTURE.md §3.1.
  */
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { BrandLayout } from '@/features/brand';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { Card } from '@/components/ui/card';
-import {
-  Edit,
-  Palette,
-  Type,
-  MessageCircle,
-  Target,
-  Image as ImageIcon,
-  CircleUser,
-} from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LogoFilesModule } from '@/features/brandkit/components/LogoFilesModule';
+import { ColorSystemModule } from '@/features/brandkit/components/colors/ColorSystemModule';
+import { TypographyModule } from '@/features/brandkit/components/TypographyModule';
+import { BrandVoiceModule } from '@/features/brandkit/components/BrandVoiceModule';
+import { BrandStrategyModule } from '@/features/brandkit/components/BrandStrategyModule';
+import type { Brand } from '@/shared/types/brand';
+import { Image as ImageIcon, Palette, Type, MessageCircle, Target } from 'lucide-react';
 
-interface IdentityCard {
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  path: string;
-  accent: string;
+const TABS = ['logo', 'colors', 'typography', 'voice', 'strategy'] as const;
+type TabId = (typeof TABS)[number];
+
+const TAB_META: Record<TabId, { label: string; icon: React.ElementType }> = {
+  logo: { label: 'Logo', icon: ImageIcon },
+  colors: { label: 'Colors', icon: Palette },
+  typography: { label: 'Typography', icon: Type },
+  voice: { label: 'Voice', icon: MessageCircle },
+  strategy: { label: 'Strategy', icon: Target },
+};
+
+function isValidTab(value: string | null): value is TabId {
+  return value !== null && (TABS as readonly string[]).includes(value);
 }
-
-const identityCards: IdentityCard[] = [
-  {
-    title: 'Logo',
-    description: 'Upload, manage, and download your logo variants.',
-    icon: ImageIcon,
-    path: 'brandkit/logo-files',
-    accent: 'from-blue-500 to-blue-600',
-  },
-  {
-    title: 'Profile Icons',
-    description: 'Generate icons for social profiles and favicons.',
-    icon: CircleUser,
-    path: 'brandkit/profile-icons',
-    accent: 'from-cyan-500 to-blue-500',
-  },
-  {
-    title: 'Colors',
-    description: 'Palette, harmonies, contrast, and accessibility checks.',
-    icon: Palette,
-    path: 'brandkit/color-system',
-    accent: 'from-rose-500 to-pink-600',
-  },
-  {
-    title: 'Typography',
-    description: 'Font pairings, scale, and hierarchy.',
-    icon: Type,
-    path: 'brandkit/typography',
-    accent: 'from-gray-700 to-gray-900',
-  },
-  {
-    title: 'Voice',
-    description: 'Tone, messaging, and writing rules.',
-    icon: MessageCircle,
-    path: 'brandkit/brand-voice',
-    accent: 'from-amber-500 to-orange-500',
-  },
-  {
-    title: 'Strategy',
-    description: 'Mission, vision, and values.',
-    icon: Target,
-    path: 'brandkit/brand-strategy',
-    accent: 'from-blue-600 to-indigo-600',
-  },
-  {
-    title: 'Edit basics',
-    description: 'Brand name, tone, and the legacy edit form.',
-    icon: Edit,
-    path: 'edit',
-    accent: 'from-violet-500 to-purple-600',
-  },
-];
 
 export default function IdentityPage() {
   const { slug } = useParams<{ slug: string }>();
-  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { brand, isLoading, error } = useBrandBySlug(slug);
+  const updateBrand = useBrandStore((s) => s.update);
+
+  const activeTab: TabId = useMemo(() => {
+    const fromUrl = searchParams.get('tab');
+    return isValidTab(fromUrl) ? fromUrl : 'logo';
+  }, [searchParams]);
+
+  const handleTabChange = useCallback(
+    (value: string) => {
+      if (!isValidTab(value)) return;
+      const next = new URLSearchParams(searchParams);
+      next.set('tab', value);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
+
+  // ColorSystemModule is the only identity module that needs an updater.
+  // Mirror the pattern used by BrandKitModuleView.
+  const handleBrandUpdate = useCallback(
+    async (patch: Partial<Brand>) => {
+      if (!brand) return;
+      await updateBrand(brand.id, patch);
+    },
+    [brand, updateBrand],
+  );
 
   if (isLoading) {
     return (
@@ -113,36 +94,49 @@ export default function IdentityPage() {
 
   return (
     <BrandLayout brandName={brand.name}>
-      <div className="space-y-8">
+      <div className="space-y-6">
         <PageHeader
           breadcrumb={[
             { label: 'Brands', to: '/dashboard/brands' },
             { label: brand.name, to: `/dashboard/brand/${slug}` },
           ]}
           title="Identity"
-          subtitle="Everything that makes this brand recognizable — logo, colors, type, voice, and strategy."
+          subtitle="Everything that makes this brand recognizable — logo, colors, type, voice, strategy."
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {identityCards.map((card) => (
-            <Card
-              key={card.path}
-              onClick={() => navigate(`/dashboard/brand/${slug}/${card.path}`)}
-              className="group relative overflow-hidden p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
-            >
-              <div
-                className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${card.accent} opacity-10 group-hover:opacity-20 transition-opacity`}
-              />
-              <div
-                className={`relative w-11 h-11 rounded-xl bg-gradient-to-br ${card.accent} flex items-center justify-center mb-3`}
-              >
-                <card.icon className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="relative text-base font-semibold mb-1">{card.title}</h3>
-              <p className="relative text-sm text-muted-foreground">{card.description}</p>
-            </Card>
-          ))}
-        </div>
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+            {TABS.map((id) => {
+              const { label, icon: Icon } = TAB_META[id];
+              return (
+                <TabsTrigger key={id} value={id} className="gap-2">
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+
+          <TabsContent value="logo" className="mt-6">
+            <LogoFilesModule brand={brand} />
+          </TabsContent>
+
+          <TabsContent value="colors" className="mt-6">
+            <ColorSystemModule brand={brand} onUpdate={handleBrandUpdate} />
+          </TabsContent>
+
+          <TabsContent value="typography" className="mt-6">
+            <TypographyModule brand={brand} />
+          </TabsContent>
+
+          <TabsContent value="voice" className="mt-6">
+            <BrandVoiceModule brand={brand} />
+          </TabsContent>
+
+          <TabsContent value="strategy" className="mt-6">
+            <BrandStrategyModule brand={brand} />
+          </TabsContent>
+        </Tabs>
       </div>
     </BrandLayout>
   );
