@@ -71,13 +71,26 @@ function applySelectionStyles(el: HTMLElement) {
   el.style.outlineOffset = '3px';
   el.style.borderRadius = '6px';
   el.style.boxShadow = '0 0 0 6px rgba(59, 130, 246, 0.12)';
-  el.style.cursor = 'move';
-  // Make draggable
-  if (!el.dataset.draggable) {
-    el.dataset.draggable = 'true';
-    if (!el.style.position || el.style.position === 'static') {
-      el.style.position = 'relative';
+
+  // Only LEAF elements (no element children) and images can be dragged.
+  // Dragging a container would visually move all its descendants because
+  // they live in its coordinate space — the user hits this as "moving
+  // the first layer moves the whole slide".
+  const isImage = el.tagName === 'IMG' || el.tagName === 'SVG';
+  const isLeaf = el.children.length === 0;
+  const canDrag = isImage || isLeaf;
+
+  if (canDrag) {
+    el.style.cursor = 'move';
+    if (!el.dataset.draggable) {
+      el.dataset.draggable = 'true';
+      if (!el.style.position || el.style.position === 'static') {
+        el.style.position = 'relative';
+      }
     }
+  } else {
+    el.style.cursor = 'default';
+    delete el.dataset.draggable;
   }
 }
 
