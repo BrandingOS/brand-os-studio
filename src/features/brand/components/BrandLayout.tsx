@@ -1,18 +1,11 @@
 /**
- * BrandLayout — brand-scope shell (v3, two-rail).
+ * BrandLayout — brand-scope shell.
  *
- * The brand scope mounts BOTH global navigation surfaces side by side:
- *
- *   AppRail (88px)  ·  BrandContextRail (256px)  ·  page
- *   global product       contextual to this brand
- *
- * AppRail is the spine that follows the user across the whole product. The
- * brand switcher lives in its top slot, satisfying the rule that switching
- * brands belongs at the top of the sidebar area, never inside the canvas.
- *
- * BrandContextRail is the brand's own home — the five-section IA from
- * docs/ux-redesign/ARCHITECTURE.md §3, with a brand-identity header card so
- * the user always knows exactly which brand they are operating on.
+ * The brand scope mounts a single navigation rail: AppRail. AppRail is
+ * scope-aware and switches its item set to the brand items when a brand slug
+ * is in the URL, so the rail itself becomes the brand nav. There is no
+ * separate brand context rail — the brand identity lives in AppRail's top
+ * slot via the brand switcher.
  *
  * The layout owns horizontal/vertical padding and the centered max-width
  * column. Pages MUST NOT redeclare these — they came from here.
@@ -21,7 +14,6 @@ import { ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { AppRail } from '@/shared/layouts/AppRail';
-import { BrandContextRail } from '@/shared/layouts/BrandContextRail';
 import { BrandNavbar } from './BrandNavbar';
 
 interface BrandLayoutProps {
@@ -46,10 +38,10 @@ export function BrandLayout({ children, brandName, maxWidth = '6xl' }: BrandLayo
   const { slug } = useParams<{ slug: string }>();
   // Pull the active brand straight from the store. Pages that mount this
   // layout always run useBrandBySlug, which sets `current`, so by the time the
-  // rails read it the brand is in place.
+  // rail reads it the brand is in place.
   const currentBrand = useBrandStore((s) => s.current);
   const brandList = useBrandStore((s) => s.list);
-  const brandForRail =
+  const resolvedBrand =
     currentBrand && currentBrand.slug === slug
       ? currentBrand
       : brandList.find((b) => b.slug === slug) ?? null;
@@ -57,10 +49,9 @@ export function BrandLayout({ children, brandName, maxWidth = '6xl' }: BrandLayo
   return (
     <div className="h-screen flex w-full bg-background overflow-hidden">
       <AppRail brandSlug={slug} />
-      {slug && <BrandContextRail slug={slug} brand={brandForRail} />}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <BrandNavbar brandName={brandName ?? brandForRail?.name} />
+        <BrandNavbar brandName={brandName ?? resolvedBrand?.name} />
 
         <main className="flex-1 overflow-auto">
           <div className="px-4 sm:px-6 lg:px-8 py-6">

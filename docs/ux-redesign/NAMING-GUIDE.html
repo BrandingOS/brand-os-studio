@@ -62,16 +62,29 @@
     color: var(--text);
   }
 
-  /* ---------- Diagram ---------- */
+  /* ---------- Diagrams ---------- */
+  .diagrams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
   .diagram {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 18px;
     display: grid;
-    grid-template-columns: 110px 240px 1fr;
+    grid-template-columns: 110px 1fr;
     gap: 12px;
-    min-height: 360px;
+    min-height: 380px;
+  }
+  .diagram h5 {
+    grid-column: 1 / -1;
+    margin: 0 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
   }
   .col {
     border: 1px dashed var(--border);
@@ -94,32 +107,25 @@
     border-radius: 999px;
     letter-spacing: 0.02em;
   }
-  .col .scope {
-    font-size: 10px;
-    text-transform: uppercase;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    margin-top: 4px;
-  }
   .col h3 {
     margin: 6px 0 2px;
-    font-size: 14px;
+    font-size: 13px;
   }
   .col .meta {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--muted);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .slot {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 11px;
+    padding: 7px 9px;
+    font-size: 10.5px;
     color: var(--muted);
     margin-top: 6px;
   }
-  .slot strong { color: var(--text); display:block; font-size:12px; margin-bottom:2px; }
+  .slot strong { color: var(--text); display:block; font-size:11px; margin-bottom:2px; }
 
   .col.center .topbar {
     background: rgba(255,255,255,0.03);
@@ -142,7 +148,7 @@
     align-items: center;
     justify-content: center;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
   }
@@ -188,6 +194,55 @@
   .pill.editor    { background: rgba(255,181,71,0.14); color: #ffce86; }
   .pill.both      { background: rgba(255,255,255,0.08); color: var(--text); }
 
+  /* ---------- Item lists ---------- */
+  .items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .items .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+  }
+  .items .card h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .items ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: it;
+  }
+  .items li {
+    counter-increment: it;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 13.5px;
+  }
+  .items li:last-child { border-bottom: none; }
+  .items li::before {
+    content: counter(it);
+    color: var(--muted);
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .items li em { color: var(--muted); font-size: 12px; font-style: normal; }
+
   /* ---------- Mental model ---------- */
   .grid-2 {
     display: grid;
@@ -201,14 +256,14 @@
     border-radius: var(--radius);
     padding: 16px 18px;
   }
-  .card h4 {
+  .card.note h4 {
     margin: 0 0 6px;
     font-size: 13px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--muted);
   }
-  .card p { margin: 0; font-size: 13.5px; }
+  .card.note p { margin: 0; font-size: 13.5px; }
   .alias {
     background: var(--primary-soft);
     border: 1px solid rgba(124,92,255,0.4);
@@ -252,8 +307,9 @@
     text-align: center;
   }
 
-  @media (max-width: 720px) {
-    .diagram { grid-template-columns: 1fr; min-height: auto; }
+  @media (max-width: 820px) {
+    .diagrams { grid-template-columns: 1fr; }
+    .items { grid-template-columns: 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
     .phrase .row { grid-template-columns: 1fr; }
   }
@@ -265,31 +321,82 @@
     <p class="subtitle">Use these names when talking about the UI so we never get crossed wires.</p>
 
     <h2>The shape</h2>
-    <div class="diagram" aria-label="BrandOS shell diagram">
-      <div class="col">
-        <span class="tag">AppRail</span>
-        <h3>Global rail</h3>
-        <div class="meta">88px · always present</div>
-        <div class="slot"><strong>Top slot</strong>brand switcher (in brand) / BrandOS mark (in workspace)</div>
-        <div class="slot"><strong>Middle</strong>Home · Brands · Templates · Learn</div>
-        <div class="slot" style="margin-top:auto;"><strong>Bottom slot</strong>Settings · UserMenu</div>
-      </div>
+    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">
+      One rail to rule them all — <strong style="color:var(--text);">AppRail</strong>.
+      Its item set <em>swaps</em> based on whether you're in the dashboard or inside a brand.
+      There is no second rail in brand scope; the AppRail itself becomes the brand nav.
+    </p>
 
-      <div class="col">
-        <span class="tag" style="background:var(--accent); color:#0b0c0f;">BrandContextRail</span>
-        <h3>Brand sidebar</h3>
-        <div class="meta">256px · brand scope only</div>
-        <div class="slot"><strong>Header card</strong>brand logo + name + tone</div>
-        <div class="slot"><strong>Sections</strong>Overview · Identity · Assets · Guidelines · Share</div>
-        <div class="slot" style="margin-top:auto;"><strong>Bottom</strong>Brand Settings</div>
-      </div>
-
-      <div class="col center">
-        <div class="topbar">
-          <span><strong style="color:var(--text);">BrandNavbar</strong> / <strong style="color:var(--text);">DashboardNavbar</strong></span>
-          <span>h-14</span>
+    <div class="diagrams">
+      <!-- Workspace diagram -->
+      <div class="diagram" aria-label="Workspace shell">
+        <h5>Workspace scope</h5>
+        <div class="col">
+          <span class="tag">AppRail</span>
+          <h3>Workspace mode</h3>
+          <div class="meta">88px</div>
+          <div class="slot"><strong>Top</strong>BrandOS mark</div>
+          <div class="slot"><strong>Middle</strong>Home · Brands · Learn</div>
+          <div class="slot" style="margin-top:auto;"><strong>Bottom</strong>Settings · Profile</div>
         </div>
-        <div class="canvas">page content</div>
+        <div class="col center">
+          <div class="topbar">
+            <span><strong style="color:var(--text);">DashboardNavbar</strong></span>
+            <span>h-14</span>
+          </div>
+          <div class="canvas">page content</div>
+        </div>
+      </div>
+
+      <!-- Brand diagram -->
+      <div class="diagram" aria-label="Brand shell">
+        <h5>Brand scope</h5>
+        <div class="col">
+          <span class="tag" style="background:var(--accent); color:#0b0c0f;">AppRail</span>
+          <h3>Brand mode</h3>
+          <div class="meta">88px · same rail, different items</div>
+          <div class="slot"><strong>Top</strong>brand switcher (logo + name)</div>
+          <div class="slot"><strong>Middle</strong>Overview · Setup · Guidelines · Folders · Brand Kit · Designs · Templates</div>
+          <div class="slot" style="margin-top:auto;"><strong>Bottom</strong>Settings · Profile</div>
+        </div>
+        <div class="col center">
+          <div class="topbar">
+            <span><strong style="color:var(--text);">BrandNavbar</strong></span>
+            <span>h-14</span>
+          </div>
+          <div class="canvas">page content</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>Item sets</h2>
+    <div class="items">
+      <div class="card">
+        <h4>AppRail · Workspace mode</h4>
+        <ol>
+          <li><strong>Home</strong>&nbsp;<em>— /dashboard</em></li>
+          <li><strong>Brands</strong>&nbsp;<em>— /dashboard/brands</em></li>
+          <li><strong>Learn</strong>&nbsp;<em>— /learn</em></li>
+        </ol>
+        <p style="margin:14px 0 0; font-size:12px; color:var(--muted);">
+          Bottom slot: <code>Settings</code> · <code>UserMenu</code> (profile)
+        </p>
+      </div>
+
+      <div class="card">
+        <h4>AppRail · Brand mode</h4>
+        <ol>
+          <li><strong>Overview</strong>&nbsp;<em>— /dashboard/brand/:slug</em></li>
+          <li><strong>Setup</strong>&nbsp;<em>— /dashboard/brand/:slug/edit</em></li>
+          <li><strong>Guidelines</strong>&nbsp;<em>— /dashboard/brand/:slug/guidelines</em></li>
+          <li><strong>Folders</strong>&nbsp;<em>— /dashboard/brand/:slug/dam</em></li>
+          <li><strong>Brand Kit</strong>&nbsp;<em>— /dashboard/brand/:slug/kit</em></li>
+          <li><strong>Designs</strong>&nbsp;<em>— /dashboard/brand/:slug/assets</em></li>
+          <li><strong>Templates</strong>&nbsp;<em>— /dashboard/brand/:slug/templates</em></li>
+        </ol>
+        <p style="margin:14px 0 0; font-size:12px; color:var(--muted);">
+          Top slot: brand switcher · Bottom slot: <code>Settings</code> · <code>UserMenu</code>
+        </p>
       </div>
     </div>
 
@@ -308,13 +415,7 @@
           <td><span class="name">AppRail</span></td>
           <td><span class="pill both">workspace + brand</span></td>
           <td>88px wide</td>
-          <td>Slim global rail. Icon + label stacked, never icon-only. Brand switcher at top, workspace nav middle, Settings + UserMenu bottom.</td>
-        </tr>
-        <tr>
-          <td><span class="name">BrandContextRail</span></td>
-          <td><span class="pill brand">brand only</span></td>
-          <td>256px wide</td>
-          <td>Contextual brand sidebar. Brand identity header card, then the 5 sections, then Brand Settings.</td>
+          <td>The single global navigation rail. Icon + label stacked, never icon-only. <strong>Its item set is scope-aware</strong> — workspace items in the dashboard, brand items inside a brand. Brand switcher in the top slot, Settings + UserMenu at the bottom.</td>
         </tr>
         <tr>
           <td><span class="name">BrandNavbar</span></td>
@@ -345,18 +446,18 @@
 
     <h2>Mental model</h2>
     <div class="grid-2">
-      <div class="card">
+      <div class="card note">
         <h4>Rail</h4>
-        <p>Vertical, sits on the left. <strong>AppRail</strong>, <strong>BrandContextRail</strong>, <strong>EditorRail</strong>.</p>
+        <p>Vertical, sits on the left. <strong>AppRail</strong>, <strong>EditorRail</strong>.</p>
       </div>
-      <div class="card">
+      <div class="card note">
         <h4>Navbar / TopBar</h4>
         <p>Horizontal, sits on top. <strong>BrandNavbar</strong>, <strong>DashboardNavbar</strong>, <strong>EditorTopBar</strong>.</p>
       </div>
     </div>
 
     <div class="alias" style="margin-top:16px;">
-      <p style="margin:0;">From the original brief — <strong>"Sidebar 1"</strong> = <code>AppRail</code>. <strong>"Sidebar 2"</strong> = <code>BrandContextRail</code>.</p>
+      <p style="margin:0;">There is <strong>only one</strong> primary rail in this product: <code>AppRail</code>. It changes its items based on context. There is no separate brand sidebar component.</p>
     </div>
 
     <h2>The shells (layout wrappers that mount the bars)</h2>
@@ -367,13 +468,13 @@
       <tbody>
         <tr>
           <td><span class="name">DashboardShell</span> / <span class="name">DashboardLayout</span></td>
-          <td>AppRail + DashboardNavbar</td>
-          <td>Workspace pages (Home, Brands, Templates, Learn, Settings)</td>
+          <td>AppRail (workspace mode) + DashboardNavbar</td>
+          <td>Workspace pages (Home, Brands, Learn, Settings, marketplace)</td>
         </tr>
         <tr>
           <td><span class="name">BrandLayout</span></td>
-          <td>AppRail + BrandContextRail + BrandNavbar</td>
-          <td>All brand pages (Overview, Identity, Assets, Guidelines, Share)</td>
+          <td>AppRail (brand mode) + BrandNavbar</td>
+          <td>All brand pages (Overview, Setup, Guidelines, Folders, Brand Kit, Designs, Templates)</td>
         </tr>
         <tr>
           <td><span class="name">EditorShell</span></td>
@@ -388,21 +489,21 @@
       <div class="row">
         <div>
           <span class="label">Instead of</span>
-          <span class="bad">"make the second sidebar wider"</span>
+          <span class="bad">"add an item to the left nav"</span>
         </div>
         <div>
           <span class="label">Say</span>
-          <span class="good">"make BrandContextRail wider"</span>
+          <span class="good">"add an item to AppRail in workspace mode" <em>or</em> "in brand mode"</span>
         </div>
       </div>
       <div class="row">
         <div>
           <span class="label">Instead of</span>
-          <span class="bad">"move the brand switcher to the top"</span>
+          <span class="bad">"move the brand switcher"</span>
         </div>
         <div>
           <span class="label">Say</span>
-          <span class="good">"the brand switcher already lives in AppRail's top slot — change X about it"</span>
+          <span class="good">"the brand switcher lives in AppRail's top slot — change X about it"</span>
         </div>
       </div>
       <div class="row">
@@ -418,21 +519,21 @@
       <div class="row">
         <div>
           <span class="label">Instead of</span>
-          <span class="bad">"add an item to the left nav"</span>
-        </div>
-        <div>
-          <span class="label">Say</span>
-          <span class="good">"add an item to AppRail" (global) <em>or</em> "add a section to BrandContextRail" (brand-specific)</span>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <span class="label">Instead of</span>
           <span class="bad">"change the dashboard topbar"</span>
         </div>
         <div>
           <span class="label">Say</span>
           <span class="good">"change DashboardNavbar"</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"the brand sidebar should…"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"AppRail in brand mode should…" (there is no separate brand sidebar)</span>
         </div>
       </div>
     </div>

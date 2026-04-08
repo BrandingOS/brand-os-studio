@@ -1,10 +1,12 @@
 /**
  * AppRail — the slim, always-visible global navigation rail.
  *
- * This is sidebar #1 in the v3 two-rail architecture (see
- * docs/ux-redesign/ARCHITECTURE.md and the inside-brand IA notes). It is the
- * single global navigation surface across the workspace AND brand scopes — the
- * thing that never disappears as the user moves between contexts.
+ * This is the single primary navigation surface across the entire product.
+ * Its item set is **scope-aware**: the rail shows workspace items when the
+ * user is in the dashboard, and brand items when the user is inside a brand.
+ * This is intentional — there is no second rail in brand scope. The AppRail
+ * itself becomes the brand nav, with the brand switcher pinned to the top
+ * slot so the user always knows which brand they are operating on.
  *
  * Layout (top → bottom):
  *
@@ -13,8 +15,10 @@
  *   │      │    • brand scope    → brand switcher (logo + name)
  *   │      │    • workspace mode → workspace mark
  *   ├──────┤
- *   │ MAIN │  workspace nav (Home / Brands / Templates / Learn)
- *   │      │  icon stacked over a small label — NOT icon-only
+ *   │ MAIN │  scope-aware nav
+ *   │      │    • workspace      → Home · Brands · Learn
+ *   │      │    • brand          → Overview · Setup · Guidelines · Folders
+ *   │      │                       Brand Kit · Designs · Templates
  *   ├──────┤
  *   │ FOOT │  Settings + UserMenu
  *   └──────┘
@@ -24,16 +28,21 @@
  * not meant to collapse — it is the spine of the product.
  */
 import { useEffect, useMemo } from 'react';
-import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   Building2,
-  Folder,
   GraduationCap,
   Settings,
   ChevronsUpDown,
   Check,
   Sparkles,
+  LayoutDashboard,
+  Wrench,
+  BookOpen,
+  FolderOpen,
+  Palette,
+  LayoutTemplate,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -57,17 +66,96 @@ interface RailItem {
   matchPrefixes?: string[];
 }
 
-const mainItems: RailItem[] = [
+/**
+ * Workspace-mode items (the dashboard scope).
+ *
+ * Intentionally short — the dashboard is a control center, not a deep editor.
+ * Templates is brand-scoped now and lives in the brand item set below.
+ */
+const workspaceItems: RailItem[] = [
   { title: 'Home', url: '/dashboard', icon: Home, exact: true },
   {
     title: 'Brands',
     url: '/dashboard/brands',
     icon: Building2,
-    matchPrefixes: ['/dashboard/brand/'],
+    // Don't highlight Brands when the user is INSIDE a brand — the rail is
+    // showing brand items at that point and the active item is one of those.
   },
-  { title: 'Templates', url: '/dashboard/templates', icon: Folder },
   { title: 'Learn', url: '/learn', icon: GraduationCap },
 ];
+
+/**
+ * Brand-mode items (the brand scope).
+ *
+ * Built per-slug so each NavLink targets the correct brand. The list is the
+ * primary navigation INSIDE the brand workspace — there is no second rail.
+ */
+function brandItems(slug: string): RailItem[] {
+  return [
+    {
+      title: 'Overview',
+      url: `/dashboard/brand/${slug}`,
+      icon: LayoutDashboard,
+      exact: true,
+    },
+    {
+      // The user calls this "Setup" / "Brand Setup" — the place where the
+      // brand record itself is edited. It maps to the existing brand-edit
+      // page, which is the canonical brand-record editor.
+      title: 'Setup',
+      url: `/dashboard/brand/${slug}/edit`,
+      icon: Wrench,
+      matchPrefixes: [
+        `/dashboard/brand/${slug}/edit`,
+        `/dashboard/brand/${slug}/identity`,
+      ],
+    },
+    {
+      title: 'Guidelines',
+      url: `/dashboard/brand/${slug}/guidelines`,
+      icon: BookOpen,
+      matchPrefixes: [
+        `/dashboard/brand/${slug}/guidelines`,
+        `/dashboard/brand/${slug}/brand-guides`,
+      ],
+    },
+    {
+      // "Folders" is the brand's asset library — folders of assets — which
+      // is exactly what the existing DAM (Digital Asset Management) page is.
+      title: 'Folders',
+      url: `/dashboard/brand/${slug}/dam`,
+      icon: FolderOpen,
+    },
+    {
+      title: 'Brand Kit',
+      url: `/dashboard/brand/${slug}/kit`,
+      icon: Sparkles,
+      matchPrefixes: [
+        `/dashboard/brand/${slug}/kit`,
+        `/dashboard/brand/${slug}/brandkit`,
+      ],
+    },
+    {
+      // "Designs" = generated design outputs (cards, social posts, etc).
+      // These already live in the Assets hub, so Designs lands there.
+      title: 'Designs',
+      url: `/dashboard/brand/${slug}/assets`,
+      icon: Palette,
+      matchPrefixes: [
+        `/dashboard/brand/${slug}/assets`,
+        `/dashboard/brand/${slug}/social-media`,
+        `/dashboard/brand/${slug}/presentations`,
+      ],
+    },
+    {
+      // Brand-scoped templates (different from the workspace marketplace).
+      // Mounted as a stub page until the brand templates feature ships.
+      title: 'Templates',
+      url: `/dashboard/brand/${slug}/templates`,
+      icon: LayoutTemplate,
+    },
+  ];
+}
 
 interface AppRailProps {
   /**
@@ -93,6 +181,13 @@ export function AppRail({ brandSlug }: AppRailProps) {
   const currentBrand = useMemo(
     () => (brandSlug ? brands.find((b) => b.slug === brandSlug) : undefined),
     [brandSlug, brands],
+  );
+
+  // Scope-aware item set: brand items when we're inside a brand, workspace
+  // items otherwise. The rail's role swaps with the user's context.
+  const items = useMemo<RailItem[]>(
+    () => (brandSlug ? brandItems(brandSlug) : workspaceItems),
+    [brandSlug],
   );
 
   const isItemActive = (item: RailItem) => {
@@ -232,9 +327,9 @@ export function AppRail({ brandSlug }: AppRailProps) {
         )}
       </div>
 
-      {/* MAIN — workspace nav --------------------------------------------- */}
+      {/* MAIN — scope-aware nav (workspace items OR brand items) --------- */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-1">
-        {mainItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const active = isItemActive(item);
           return (
