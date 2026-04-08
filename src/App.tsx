@@ -51,6 +51,7 @@ const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelin
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
 const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
+const BrandKitV2Page = lazy(() => import('./features/brandkit-v2/BrandKitPage'));
 
 const queryClient = new QueryClient();
 
@@ -174,6 +175,16 @@ const App = () => (
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
 
           {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
+          <Route path="/b/:slug/kit" element={
+            <ProtectedRoute>
+              <BrandKitV2Page />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/kit" element={
+            <ProtectedRoute>
+              <BrandKitV2Page />
+            </ProtectedRoute>
+          } />
           <Route path="/b/:slug/dam" element={
             <ProtectedRoute>
               <DamPage />

@@ -60,6 +60,7 @@ const QUICK_ACTIONS: SearchItem[] = [
 function brandSubpages(slug: string, name: string): SearchItem[] {
   return [
     { id: `b:${slug}:overview`, kind: 'brand', title: name, subtitle: 'Open brand overview', group: 'Brands', icon: 'brand', href: `/b/${slug}`, keywords: [name, slug, 'brand', 'overview'] },
+    { id: `b:${slug}:kit`, kind: 'brand', title: `${name} · Brand Kit`, subtitle: 'All assets in one place — bulk export', group: 'Brands', icon: 'brand', href: `/b/${slug}/kit`, keywords: [name, 'kit', 'brand kit', 'export', 'download', 'zip'] },
     { id: `b:${slug}:identity`, kind: 'brand', title: `${name} · Identity`, subtitle: 'Logo, colors, typography, voice', group: 'Brands', icon: 'brand', href: `/b/${slug}/identity`, keywords: [name, 'identity', 'logo', 'colors'] },
     { id: `b:${slug}:assets`, kind: 'asset', title: `${name} · Assets`, subtitle: 'Brand asset library', group: 'Brands', icon: 'asset', href: `/b/${slug}/assets`, keywords: [name, 'assets', 'dam', 'library'] },
     { id: `b:${slug}:dam`, kind: 'asset', title: `${name} · DAM`, subtitle: 'Digital asset manager', group: 'Brands', icon: 'asset', href: `/b/${slug}/dam`, keywords: [name, 'dam', 'upload', 'library'] },

@@ -17,6 +17,7 @@ import {
   Briefcase,
   BookOpen,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 
 /**
@@ -51,6 +52,14 @@ const brandNavItems: BrandNavItem[] = [
     icon: LayoutDashboard,
     matchPaths: [],
     exact: true,
+  },
+  {
+    title: "Brand Kit",
+    url: "/dashboard/brand/:slug/kit",
+    icon: Sparkles,
+    matchPaths: [
+      "/dashboard/brand/:slug/kit",
+    ],
   },
   {
     title: "Identity",
