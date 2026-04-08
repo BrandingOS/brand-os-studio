@@ -91,7 +91,7 @@ export function InnerNavRail({
   const location = useLocation();
   // Current full URL within the app, used to highlight active href items.
   // We compare against item.href so query-param-driven filters (like
-  // /dam?category=logo) get an active state on the matching nav item.
+  // /folders?category=logo) get an active state on the matching nav item.
   const currentUrl = location.pathname + (location.search || '');
 
   const [open, setOpen] = React.useState<boolean>(() => {

@@ -1,7 +1,11 @@
 /**
- * DAM (Digital Asset Manager) — per-brand asset library.
+ * Folders — per-brand asset library.
  *
- * Mounted at /b/:slug/dam (and the legacy /dashboard/brand/:slug/dam).
+ * Mounted at /dashboard/brand/:slug/folders (and the short-form
+ * /b/:slug/folders). The legacy /dam path resolves to the same page via
+ * a redirect for bookmark compatibility — internally everything points at
+ * /folders. The component file keeps its DamPage name to avoid a noisy
+ * rename, but the user-facing URL and nav label are both "Folders" now.
  *
  * v5 PRD Phase 3. Frontify DAM-style: drag-drop upload, categories, tags,
  * filters, grid + lightbox. Works against Brand.assets via useBrandStore;
@@ -74,13 +78,13 @@ export default function DamPage() {
                 id: 'filters',
                 label: 'Categories',
                 items: [
-                  { id: 'all',       label: 'All assets', icon: LayoutGrid, href: `/dashboard/brand/${slug}/dam` },
-                  { id: 'logo',      label: 'Logos',      icon: ImageIcon,  href: `/dashboard/brand/${slug}/dam?category=logo` },
-                  { id: 'photo',     label: 'Photos',     icon: Camera,     href: `/dashboard/brand/${slug}/dam?category=photo` },
-                  { id: 'icon',      label: 'Icons',      icon: Smile,      href: `/dashboard/brand/${slug}/dam?category=icon` },
-                  { id: 'social',    label: 'Social',     icon: Share2,     href: `/dashboard/brand/${slug}/dam?category=social` },
-                  { id: 'mockup',    label: 'Mockups',    icon: Box,        href: `/dashboard/brand/${slug}/dam?category=mockup` },
-                  { id: 'reference', label: 'References', icon: Bookmark,   href: `/dashboard/brand/${slug}/dam?category=reference` },
+                  { id: 'all',       label: 'All assets', icon: LayoutGrid, href: `/dashboard/brand/${slug}/folders` },
+                  { id: 'logo',      label: 'Logos',      icon: ImageIcon,  href: `/dashboard/brand/${slug}/folders?category=logo` },
+                  { id: 'photo',     label: 'Photos',     icon: Camera,     href: `/dashboard/brand/${slug}/folders?category=photo` },
+                  { id: 'icon',      label: 'Icons',      icon: Smile,      href: `/dashboard/brand/${slug}/folders?category=icon` },
+                  { id: 'social',    label: 'Social',     icon: Share2,     href: `/dashboard/brand/${slug}/folders?category=social` },
+                  { id: 'mockup',    label: 'Mockups',    icon: Box,        href: `/dashboard/brand/${slug}/folders?category=mockup` },
+                  { id: 'reference', label: 'References', icon: Bookmark,   href: `/dashboard/brand/${slug}/folders?category=reference` },
                 ],
               },
             ],

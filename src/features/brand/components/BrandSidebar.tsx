@@ -78,6 +78,7 @@ const brandNavItems: BrandNavItem[] = [
     icon: Briefcase,
     matchPaths: [
       "/dashboard/brand/:slug/assets",
+      "/dashboard/brand/:slug/folders",
       "/dashboard/brand/:slug/dam",
       "/dashboard/brand/:slug/social-media",
       "/dashboard/brand/:slug/presentations",

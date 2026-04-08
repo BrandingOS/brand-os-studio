@@ -1,7 +1,7 @@
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider } from "next-themes";
@@ -60,6 +60,15 @@ const BrandSettingsV2Page = lazy(() => import('./features/brandkit-v2/BrandSetti
 function BrandKitRedirect() {
   const { slug } = useParams<{ slug: string }>();
   return <Navigate to={`/b/${slug}/kit`} replace />;
+}
+
+/** Legacy /dam URL → new /folders home. Lives as a child of the brand
+ *  shell so the redirect happens inside the persistent layout (no flash
+ *  of unmount). Preserves any ?category= filter the user had on the URL. */
+function DamRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/dashboard/brand/${slug}/folders${search}`} replace />;
 }
 
 const queryClient = new QueryClient();
@@ -147,7 +156,10 @@ const App = () => (
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="dam" element={<DamPage />} />
+            <Route path="folders" element={<DamPage />} />
+            {/* Legacy /dam path — child redirect into the new /folders home,
+                so old bookmarks keep working without breaking the shell. */}
+            <Route path="dam" element={<DamRedirect />} />
           </Route>
           {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
@@ -253,7 +265,10 @@ const App = () => (
             <Route path="share" element={<SharePage />} />
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="dam" element={<DamPage />} />
+            <Route path="folders" element={<DamPage />} />
+            {/* Legacy /dam path — child redirect into the new /folders home,
+                so old bookmarks keep working without breaking the shell. */}
+            <Route path="dam" element={<DamRedirect />} />
           </Route>
           <Route path="/b/:slug/brandkit" element={
             <ProtectedRoute>

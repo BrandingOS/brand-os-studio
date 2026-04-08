@@ -11,7 +11,7 @@
  *   - Setup       /edit          (the brand-record editor)
  *   - Brand Kit   /kit           (the unified brand kit hub)
  *   - Guidelines  /guidelines    (the brand book)
- *   - Folders     /dam           (asset library)
+ *   - Folders     /folders       (asset library)
  *   - Designs     /assets        (generated deliverables)
  *   - Templates   /templates     (brand-scoped templates)
  */
@@ -53,7 +53,7 @@ const QUICK_LINKS: QuickLink[] = [
   { label: 'Setup',      description: 'Edit logos, colors, type',     path: 'edit',       icon: Wrench },
   { label: 'Brand Kit',  description: 'The unified brand system',     path: 'kit',        icon: Sparkles },
   { label: 'Guidelines', description: 'The brand book',               path: 'guidelines', icon: BookOpen },
-  { label: 'Folders',    description: 'Asset library',                path: 'dam',        icon: FolderOpen },
+  { label: 'Folders',    description: 'Asset library',                path: 'folders',    icon: FolderOpen },
   { label: 'Designs',    description: 'Generated deliverables',       path: 'assets',     icon: Palette },
   { label: 'Templates',  description: 'Brand-scoped templates',       path: 'templates',  icon: LayoutTemplate },
 ];

@@ -120,11 +120,16 @@ function brandItems(slug: string): RailItem[] {
       ],
     },
     {
-      // "Folders" is the brand's asset library — folders of assets — which
-      // is exactly what the existing DAM (Digital Asset Management) page is.
+      // "Folders" is the brand's asset library. Lives at /folders; the
+      // legacy /dam URL still resolves via a redirect, so old bookmarks
+      // light up this nav item too via matchPrefixes.
       title: 'Folders',
-      url: `/dashboard/brand/${slug}/dam`,
+      url: `/dashboard/brand/${slug}/folders`,
       icon: FolderOpen,
+      matchPrefixes: [
+        `/dashboard/brand/${slug}/folders`,
+        `/dashboard/brand/${slug}/dam`,
+      ],
     },
     {
       title: 'Brand Kit',
