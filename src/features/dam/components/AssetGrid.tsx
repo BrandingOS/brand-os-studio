@@ -1,7 +1,16 @@
+/**
+ * AssetGrid — the Folders page asset list, in two views.
+ *
+ * Both grid and list view render the canonical AssetCard / AssetThumb from
+ * `@/shared/ui/AssetCard`. This file does NOT reimplement the card chrome —
+ * if you need to change how assets look, change AssetCard. There is exactly
+ * one source of truth for asset card visuals.
+ */
 import * as React from 'react';
-import { FileText, Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import type { Asset } from '@/shared/types/brand';
 import { cn } from '@/lib/utils';
+import { AssetCard, AssetThumb } from '@/shared/ui/AssetCard';
 
 interface AssetGridProps {
   assets: Asset[];
@@ -35,7 +44,7 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
               i !== assets.length - 1 && 'border-b border-border',
             )}
           >
-            <AssetThumb asset={a} size="sm" />
+            <AssetThumb asset={a} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-foreground">{a.name}</div>
               <div className="truncate text-[11px] text-muted-foreground">
@@ -44,7 +53,10 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
             </div>
             <div className="hidden gap-1 sm:flex">
               {(a.tags ?? []).slice(0, 3).map((tag) => (
-                <span key={tag} className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+                <span
+                  key={tag}
+                  className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground"
+                >
                   {tag}
                 </span>
               ))}
@@ -58,65 +70,13 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {assets.map((a) => (
-        <button
+        <AssetCard
           key={a.id}
-          type="button"
+          asset={a}
+          subtitle={a.category}
           onClick={() => onOpen(a)}
-          className="group flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.4)]"
-        >
-          {/* Top: square thumbnail well. Asset is centered with breathing
-              room from the edge, on a muted bed so transparent SVGs read. */}
-          <div className="relative aspect-square w-full overflow-hidden bg-muted/30">
-            <AssetThumb asset={a} size="lg" />
-          </div>
-          {/* Bottom: dedicated label row. Lives BELOW the thumbnail well —
-              never overlapping the asset — so the card stays readable no
-              matter what the image is. */}
-          <div className="border-t border-border/60 px-3 py-2.5">
-            <div className="truncate text-[12px] font-semibold text-foreground">{a.name}</div>
-            <div className="truncate text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              {a.category}
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function AssetThumb({ asset, size }: { asset: Asset; size: 'sm' | 'lg' }) {
-  const isImage = ['image', 'logo', 'icon'].includes(asset.type) && asset.url;
-  if (isImage) {
-    if (size === 'sm') {
-      return (
-        <img
-          src={asset.url}
-          alt={asset.name}
-          className="h-10 w-10 rounded-md object-contain bg-muted/30 p-1"
         />
-      );
-    }
-    // Large grid thumbnail: absolute-fill the parent so the box constraint
-    // wins regardless of the SVG's intrinsic size, and use object-contain
-    // so logos/icons fit (instead of being cropped by object-cover).
-    return (
-      <img
-        src={asset.url}
-        alt={asset.name}
-        className="absolute inset-0 h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-[1.04]"
-      />
-    );
-  }
-  if (size === 'sm') {
-    return (
-      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted/30">
-        <FileText className="h-5 w-5 text-muted-foreground" />
-      </div>
-    );
-  }
-  return (
-    <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
-      <FileText className="h-8 w-8 text-muted-foreground" />
+      ))}
     </div>
   );
 }
