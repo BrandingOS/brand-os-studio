@@ -220,11 +220,7 @@ export default function AssetsPage() {
     <BrandLayout brandName={brand.name}>
       <div className="space-y-6">
         <PageHeader
-          breadcrumb={[
-            { label: 'Brands', to: '/dashboard/brands' },
-            { label: brand.name, to: `/dashboard/brand/${slug}` },
-          ]}
-          title="Assets"
+          title="Designs"
           subtitle="Generated deliverables built from your brand identity — print, social, screen, and utility."
         />
 

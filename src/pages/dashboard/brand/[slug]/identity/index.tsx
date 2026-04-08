@@ -96,10 +96,6 @@ export default function IdentityPage() {
     <BrandLayout brandName={brand.name}>
       <div className="space-y-6">
         <PageHeader
-          breadcrumb={[
-            { label: 'Brands', to: '/dashboard/brands' },
-            { label: brand.name, to: `/dashboard/brand/${slug}` },
-          ]}
           title="Identity"
           subtitle="Everything that makes this brand recognizable — logo, colors, type, voice, strategy."
         />

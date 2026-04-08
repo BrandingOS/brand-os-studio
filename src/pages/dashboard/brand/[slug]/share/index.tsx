@@ -61,10 +61,6 @@ export default function SharePage() {
     <BrandLayout brandName={brand.name}>
       <div className="space-y-8">
         <PageHeader
-          breadcrumb={[
-            { label: 'Brands', to: '/dashboard/brands' },
-            { label: brand.name, to: `/dashboard/brand/${slug}` },
-          ]}
           title="Share"
           subtitle="Turn this brand into something you can send out — links, decks, and downloads."
         />

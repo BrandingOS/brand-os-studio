@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
-import { InnerNavRail, useActiveAnchor } from '@/shared/layouts/InnerNavRail';
+import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -45,6 +46,28 @@ export default function GuidelinesHubPage() {
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const activeAnchor = useActiveAnchor(ANCHORS);
+
+  const innerNav: InnerNavConfig = {
+    title: 'Guidelines',
+    icon: BookOpen,
+    storageKey: 'brandos:guidelines-nav-open',
+    activeAnchor,
+    groups: [
+      {
+        id: 'sections',
+        label: 'On this page',
+        items: [
+          { id: 'overview',     label: 'Overview',     icon: BookOpen,      anchor: 'overview' },
+          { id: 'strategy',     label: 'Strategy',     icon: Target,        anchor: 'strategy' },
+          { id: 'logo',         label: 'Logo',         icon: PenTool,       anchor: 'logo' },
+          { id: 'colors',       label: 'Colors',       icon: Palette,       anchor: 'colors' },
+          { id: 'typography',   label: 'Typography',   icon: Type,          anchor: 'typography' },
+          { id: 'voice',        label: 'Voice & Tone', icon: MessageCircle, anchor: 'voice' },
+          { id: 'applications', label: 'Applications', icon: Layers,        anchor: 'applications' },
+        ],
+      },
+    ],
+  };
 
   if (isLoading) {
     return (
@@ -69,25 +92,12 @@ export default function GuidelinesHubPage() {
   }
 
   return (
-    <BrandLayout maxWidth="7xl">
-      {/* Sticky page header — same pattern as BrandKitPage */}
-      <div className="sticky top-0 z-20 -mx-4 mb-8 border-b border-border bg-background/85 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-background">
-              <BookOpen className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Guidelines
-              </p>
-              <h1 className="truncate font-display text-2xl font-bold tracking-[-0.02em] text-foreground">
-                {brand.name}
-              </h1>
-            </div>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center gap-2">
+    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
+      <PageHeader
+        title="Guidelines"
+        subtitle="The brand book — strategy, logo, color, type, voice, and applications."
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -100,35 +110,11 @@ export default function GuidelinesHubPage() {
               <Download className="h-3.5 w-3.5 mr-1.5" />
               Download PDF
             </Button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {/* Inner nav + sections */}
-      <div className="flex gap-6">
-        <InnerNavRail
-          title="Guidelines"
-          icon={BookOpen}
-          storageKey="brandos:guidelines-nav-open"
-          activeAnchor={activeAnchor}
-          groups={[
-            {
-              id: 'sections',
-              label: 'On this page',
-              items: [
-                { id: 'overview',     label: 'Overview',     icon: BookOpen,       anchor: 'overview' },
-                { id: 'strategy',     label: 'Strategy',     icon: Target,         anchor: 'strategy' },
-                { id: 'logo',         label: 'Logo',         icon: PenTool,        anchor: 'logo' },
-                { id: 'colors',       label: 'Colors',       icon: Palette,        anchor: 'colors' },
-                { id: 'typography',   label: 'Typography',   icon: Type,           anchor: 'typography' },
-                { id: 'voice',        label: 'Voice & Tone', icon: MessageCircle,  anchor: 'voice' },
-                { id: 'applications', label: 'Applications', icon: Layers,         anchor: 'applications' },
-              ],
-            },
-          ]}
-        />
-
-        <div className="min-w-0 flex-1 space-y-12 pb-12">
+      <div className="space-y-12 pb-12">
           {/* Overview */}
           <section id="section-overview" className="scroll-mt-32">
             <SectionHeader title="Overview" subtitle="What this brand stands for" />
@@ -307,7 +293,6 @@ export default function GuidelinesHubPage() {
               </p>
             </Card>
           </section>
-        </div>
       </div>
     </BrandLayout>
   );

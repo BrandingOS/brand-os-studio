@@ -4,25 +4,47 @@
  * Mounted at /b/:slug/kit AND /b/:slug/brandkit (legacy route now points
  * here so users land on the same hub regardless of how they navigate).
  *
- * Layout (3 columns when fully open):
- *   [BrandLayout sidebar] [BrandKitInnerNav] [main content with 9 sections]
- *
- * Sections (anchored):
- *   #settings → BrandSettingsHub (the canonical edit form)
- *   #logo · #colors · #typography · #stationery · #social · #favicons ·
- *   #mockups · #brand-book
- *
- * Sticky topbar with bulk Download brand kit (.zip).
+ * Shell pattern (v3.3):
+ *   - Inner nav is declared via `BrandLayout`'s `innerNav` prop, so the rail
+ *     mounts as a structural column adjacent to AppRail (not as a card
+ *     floating inside the page body).
+ *   - One PageHeader at the top of the content. No bespoke sticky brand bars.
+ *   - Sections are anchored so the inner nav can smooth-scroll to them.
  */
 import * as React from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
-import { Edit3, Share2, Download, Loader2, Sparkles } from 'lucide-react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Edit3,
+  Share2,
+  Download,
+  Loader2,
+  Settings as SettingsIcon,
+  Image as ImageIcon,
+  Palette,
+  Type,
+  CreditCard,
+  Instagram,
+  Smile,
+  Box,
+  BookOpen,
+  Facebook,
+  Square,
+  Smartphone,
+  Presentation,
+  Play,
+  QrCode,
+  FileText,
+  PenTool,
+  Wand2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandLayout } from '@/features/brand/components/BrandLayout';
+import { PageHeader } from '@/shared/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { exportBrandKitZip } from './bulkExport';
 import { downloadBlob } from './downloaders';
-import { BrandKitInnerNav, useActiveAnchor } from './BrandKitInnerNav';
 import { SettingsSection } from './sections/SettingsSection';
 import { LogoSection } from './sections/LogoSection';
 import { ColorsSection } from './sections/ColorsSection';
@@ -48,10 +70,57 @@ const ANCHORS = [
 export default function BrandKitPage() {
   const { slug } = useParams<{ slug: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { current, loadBySlug } = useBrandStore();
   const [exporting, setExporting] = React.useState(false);
   const [progress, setProgress] = React.useState<{ pct: number; label: string }>({ pct: 0, label: '' });
   const activeAnchor = useActiveAnchor(ANCHORS);
+
+  // Inner-nav config — passed to BrandLayout so the rail mounts as a
+  // structural column next to AppRail. Two groups: in-page anchors and
+  // deep editor route links.
+  const innerNav: InnerNavConfig | undefined = slug
+    ? {
+        title: 'Brand Kit',
+        icon: Wand2,
+        storageKey: 'brandos:brandkit-nav-open',
+        activeAnchor,
+        groups: [
+          {
+            id: 'sections',
+            label: 'On this page',
+            items: [
+              { id: 'settings', label: 'Settings', icon: SettingsIcon, anchor: 'settings' },
+              { id: 'logo', label: 'Logo', icon: ImageIcon, anchor: 'logo' },
+              { id: 'colors', label: 'Colors', icon: Palette, anchor: 'colors' },
+              { id: 'typography', label: 'Typography', icon: Type, anchor: 'typography' },
+              { id: 'stationery', label: 'Stationery', icon: CreditCard, anchor: 'stationery' },
+              { id: 'social', label: 'Social & Screen', icon: Instagram, anchor: 'social' },
+              { id: 'favicons', label: 'Favicons', icon: Smile, anchor: 'favicons' },
+              { id: 'mockups', label: 'Mockups', icon: Box, anchor: 'mockups' },
+              { id: 'brand-book', label: 'Brand book', icon: BookOpen, anchor: 'brand-book' },
+            ],
+          },
+          {
+            id: 'editors',
+            label: 'Deep editors',
+            items: [
+              { id: 'brand-guides', label: 'Brand Guides', icon: BookOpen, href: `/dashboard/brand/${slug}/brand-guides` },
+              { id: 'profile-icons', label: 'Profile Icons', icon: Smile, href: `/b/${slug}/brandkit/profile-icons` },
+              { id: 'business-cards', label: 'Business Cards', icon: CreditCard, href: `/b/${slug}/brandkit/business-cards` },
+              { id: 'facebook-covers', label: 'Facebook Covers', icon: Facebook, href: `/b/${slug}/brandkit/facebook-covers` },
+              { id: 'instagram-posts', label: 'Instagram Posts', icon: Square, href: `/b/${slug}/brandkit/instagram-posts` },
+              { id: 'instagram-stories', label: 'Instagram Stories', icon: Smartphone, href: `/b/${slug}/brandkit/instagram-stories` },
+              { id: 'presentations', label: 'Presentations', icon: Presentation, href: `/b/${slug}/brandkit/presentations` },
+              { id: 'animations', label: 'Animations', icon: Play, href: `/b/${slug}/brandkit/animations` },
+              { id: 'qr-code', label: 'QR Code', icon: QrCode, href: `/b/${slug}/brandkit/qr-code` },
+              { id: 'invoices', label: 'Invoices', icon: FileText, href: `/b/${slug}/brandkit/invoices` },
+              { id: 'design-tool', label: 'Design Tool', icon: PenTool, href: `/b/${slug}/brandkit/design-tool` },
+            ],
+          },
+        ],
+      }
+    : undefined;
 
   React.useEffect(() => {
     if (slug) loadBySlug(slug);
@@ -114,106 +183,72 @@ export default function BrandKitPage() {
   }
 
   return (
-    <BrandLayout maxWidth="7xl">
-      {/* Sticky topbar */}
-      <div className="sticky top-0 z-20 -mx-4 mb-8 border-b border-border bg-background/85 px-4 py-4 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            {current.logo ? (
-              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-background p-1.5">
-                <img src={current.logo} alt={current.name} className="max-h-full max-w-full object-contain" />
-              </div>
-            ) : (
-              <div
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
-                style={{ backgroundColor: current.primaryColor || '#7c3aed' }}
-              >
-                {current.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Brand Kit</p>
-              <h1 className="truncate font-display text-2xl font-bold tracking-[-0.02em] text-foreground">
-                {current.name}
-              </h1>
-            </div>
-            <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10px] font-semibold text-foreground">
-              <Sparkles className="h-2.5 w-2.5 text-primary" />
-              {completeness}% complete
-            </span>
-          </div>
-
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <Link
-              to={`/b/${slug}/settings`}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40"
+    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
+      <PageHeader
+        title="Brand Kit"
+        subtitle={`Everything in ${current.name}'s brand system, in one place. ${completeness}% complete.`}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/b/${slug}/settings`)}
             >
-              <Edit3 className="h-3 w-3" />
+              <Edit3 className="h-3.5 w-3.5 mr-1.5" />
               Brand Settings
-            </Link>
-            <Link
-              to={`/p/${slug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(`/p/${slug}`, '_blank', 'noopener,noreferrer')}
             >
-              <Share2 className="h-3 w-3" />
+              <Share2 className="h-3.5 w-3.5 mr-1.5" />
               Share portal
-            </Link>
-            <button
-              type="button"
-              onClick={handleBulkExport}
-              disabled={exporting}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.7)] transition hover:opacity-95 disabled:opacity-60"
-            >
+            </Button>
+            <Button size="sm" onClick={handleBulkExport} disabled={exporting}>
               {exporting ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                   {progress.pct}% · {progress.label}
                 </>
               ) : (
                 <>
-                  <Download className="h-3.5 w-3.5" />
-                  Download brand kit (.zip)
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Download .zip
                 </>
               )}
-            </button>
-          </div>
+            </Button>
+          </>
+        }
+      />
+
+      <div className="space-y-14 pb-12">
+        <div id="section-settings" className="scroll-mt-32">
+          <SettingsSection slug={slug} />
         </div>
-      </div>
-
-      {/* Main: inner nav + sections */}
-      <div className="flex gap-6">
-        <BrandKitInnerNav slug={slug} activeAnchor={activeAnchor} />
-
-        <div className="min-w-0 flex-1 space-y-14 pb-12">
-          <div id="section-settings" className="scroll-mt-32">
-            <SettingsSection slug={slug} />
-          </div>
-          <div id="section-logo" className="scroll-mt-32">
-            <LogoSection brand={current} slug={slug} />
-          </div>
-          <div id="section-colors" className="scroll-mt-32">
-            <ColorsSection brand={current} slug={slug} />
-          </div>
-          <div id="section-typography" className="scroll-mt-32">
-            <TypographySection brand={current} slug={slug} />
-          </div>
-          <div id="section-stationery" className="scroll-mt-32">
-            <StationerySection brand={current} slug={slug} />
-          </div>
-          <div id="section-social" className="scroll-mt-32">
-            <SocialSection brand={current} slug={slug} />
-          </div>
-          <div id="section-favicons" className="scroll-mt-32">
-            <FaviconSection brand={current} slug={slug} />
-          </div>
-          <div id="section-mockups" className="scroll-mt-32">
-            <MockupsSection brand={current} slug={slug} />
-          </div>
-          <div id="section-brand-book" className="scroll-mt-32">
-            <BrandBookSection brand={current} slug={slug} />
-          </div>
+        <div id="section-logo" className="scroll-mt-32">
+          <LogoSection brand={current} slug={slug} />
+        </div>
+        <div id="section-colors" className="scroll-mt-32">
+          <ColorsSection brand={current} slug={slug} />
+        </div>
+        <div id="section-typography" className="scroll-mt-32">
+          <TypographySection brand={current} slug={slug} />
+        </div>
+        <div id="section-stationery" className="scroll-mt-32">
+          <StationerySection brand={current} slug={slug} />
+        </div>
+        <div id="section-social" className="scroll-mt-32">
+          <SocialSection brand={current} slug={slug} />
+        </div>
+        <div id="section-favicons" className="scroll-mt-32">
+          <FaviconSection brand={current} slug={slug} />
+        </div>
+        <div id="section-mockups" className="scroll-mt-32">
+          <MockupsSection brand={current} slug={slug} />
+        </div>
+        <div id="section-brand-book" className="scroll-mt-32">
+          <BrandBookSection brand={current} slug={slug} />
         </div>
       </div>
     </BrandLayout>

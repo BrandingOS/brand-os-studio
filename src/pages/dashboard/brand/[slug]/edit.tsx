@@ -7,6 +7,7 @@ import { ColorPaletteEditor } from '@/features/brand/components/ColorPaletteEdit
 import { FontSelector } from '@/features/brand/components/FontSelector';
 import { IconGallery } from '@/features/brand/components/IconGallery';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { Eye, Edit, Save } from 'lucide-react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useToast } from '@/hooks/use-toast';
@@ -99,111 +100,98 @@ export default function BrandEditPage() {
   }
 
   return (
-    <BrandLayout brandName={brand?.name}>
-      <div className="min-h-screen brand-editor-bg">
-        {/* Sticky Header */}
-        <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
-          <div className="max-w-[1400px] mx-auto px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Brand Editor</h1>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  Edit your brand identity and see live preview
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button onClick={handleSave} variant="default" size="lg" className="shadow-sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => setPreviewMode(!previewMode)}
-                  className="shadow-sm"
-                >
-                  {previewMode ? (
-                    <>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Mode
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Preview Mode
-                    </>
-                  )}
-                </Button>
-              </div>
+    <BrandLayout brandName={brand?.name} maxWidth="7xl">
+      <PageHeader
+        title="Setup"
+        subtitle="Edit this brand's identity — logos, colors, type — with a live preview."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPreviewMode(!previewMode)}
+            >
+              {previewMode ? (
+                <>
+                  <Edit className="h-3.5 w-3.5 mr-1.5" />
+                  Edit Mode
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                  Preview Mode
+                </>
+              )}
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              Save Changes
+            </Button>
+          </>
+        }
+      />
+
+      <div
+        className={`grid gap-6 transition-all duration-300 ${
+          previewMode ? 'grid-cols-1' : 'lg:grid-cols-[65%_35%]'
+        }`}
+      >
+        {/* Left Panel — Editor Grid */}
+        {!previewMode && (
+          <div className="space-y-6 min-w-0">
+            <LogoUploader
+              brandId={editedBrand.id}
+              logoSystem={editedBrand.guidelines?.logoSystem || {}}
+              onLogoSystemChange={(logoSystem) => {
+                const updated = {
+                  ...editedBrand,
+                  guidelines: { ...(editedBrand.guidelines || {}), logoSystem },
+                };
+                setEditedBrand(updated);
+                update(editedBrand.id, { guidelines: updated.guidelines });
+              }}
+            />
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <ColorPaletteEditor
+                colorPalette={editedBrand.guidelines?.colorPalette || {}}
+                onColorPaletteChange={(colorPalette) => {
+                  const updated = {
+                    ...editedBrand,
+                    guidelines: { ...(editedBrand.guidelines || {}), colorPalette },
+                  };
+                  setEditedBrand(updated);
+                  update(editedBrand.id, { guidelines: updated.guidelines });
+                }}
+              />
+
+              <FontSelector
+                fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
+                onFontsChange={(fonts) => {
+                  const updatedFonts = {
+                    primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
+                    secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter',
+                  };
+                  setEditedBrand({ ...editedBrand, fonts: updatedFonts });
+                  update(editedBrand.id, { fonts: updatedFonts });
+                }}
+              />
             </div>
+
+            <IconGallery />
           </div>
-        </div>
+        )}
 
-        {/* Main Content */}
-        <div className="max-w-[1400px] mx-auto px-8 py-8">
-          <div className={`grid gap-6 transition-all duration-300 ${previewMode ? 'grid-cols-1' : 'lg:grid-cols-[65%_35%]'}`}>
-            {/* Left Panel - Editor Grid */}
-            {!previewMode && (
-              <div className="space-y-6">
-                {/* Logos Section */}
-                <LogoUploader
-                  brandId={editedBrand.id}
-                  logoSystem={editedBrand.guidelines?.logoSystem || {}}
-                  onLogoSystemChange={(logoSystem) => {
-                    const updated = {
-                      ...editedBrand,
-                      guidelines: { ...(editedBrand.guidelines || {}), logoSystem }
-                    };
-                    setEditedBrand(updated);
-                    // Auto-save logo changes immediately
-                    update(editedBrand.id, { guidelines: updated.guidelines });
-                  }}
-                />
-
-                {/* Colors & Typography Grid */}
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <ColorPaletteEditor
-                    colorPalette={editedBrand.guidelines?.colorPalette || {}}
-                    onColorPaletteChange={(colorPalette) => {
-                      const updated = {
-                        ...editedBrand,
-                        guidelines: { ...(editedBrand.guidelines || {}), colorPalette }
-                      };
-                      setEditedBrand(updated);
-                      update(editedBrand.id, { guidelines: updated.guidelines });
-                    }}
-                  />
-
-                  <FontSelector
-                    fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
-                    onFontsChange={(fonts) => {
-                      const updatedFonts = {
-                        primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
-                        secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter',
-                      };
-                      setEditedBrand({ ...editedBrand, fonts: updatedFonts });
-                      update(editedBrand.id, { fonts: updatedFonts });
-                    }}
-                  />
-                </div>
-
-                {/* Iconography Section */}
-                <IconGallery />
+        {/* Right Panel — Live Preview */}
+        <div className={previewMode ? 'mx-auto max-w-5xl w-full' : 'min-w-0'}>
+          <div className={!previewMode ? 'sticky top-4' : ''}>
+            <div className="rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center justify-between mb-5 pb-3 border-b border-border">
+                <h3 className="text-sm font-medium text-foreground">Live Preview</h3>
+                <span className="text-xs text-muted-foreground">Updates in real-time</span>
               </div>
-            )}
-
-            {/* Right Panel - Sticky Preview */}
-            <div className={`${previewMode ? 'mx-auto max-w-5xl w-full' : ''}`}>
-              <div className={`${!previewMode ? 'sticky top-24' : ''}`}>
-                <div className="brand-card p-6">
-                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-600">Live Preview</h3>
-                    <div className="text-xs text-gray-400">Updates in real-time</div>
-                  </div>
-                  <div className="overflow-y-auto max-h-[calc(100vh-16rem)]">
-                    <BrandBoard brand={editedBrand} />
-                  </div>
-                </div>
+              <div className="overflow-y-auto max-h-[calc(100vh-16rem)]">
+                <BrandBoard brand={editedBrand} />
               </div>
             </div>
           </div>
