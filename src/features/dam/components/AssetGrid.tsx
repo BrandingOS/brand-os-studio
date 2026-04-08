@@ -62,9 +62,12 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
           key={a.id}
           type="button"
           onClick={() => onOpen(a)}
-          className="group relative overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.4)]"
+          className="group relative block w-full overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.4)]"
         >
-          <div className="aspect-square">
+          {/* Square thumbnail well — explicit width + aspect-ratio so the
+              <img> inside is bound by a real box and SVGs/logos can't run
+              wild. bg-muted gives transparent assets a visible bed. */}
+          <div className="relative aspect-square w-full overflow-hidden bg-muted/30">
             <AssetThumb asset={a} size="lg" />
           </div>
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent p-2.5">
@@ -80,20 +83,36 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
 function AssetThumb({ asset, size }: { asset: Asset; size: 'sm' | 'lg' }) {
   const isImage = ['image', 'logo', 'icon'].includes(asset.type) && asset.url;
   if (isImage) {
+    if (size === 'sm') {
+      return (
+        <img
+          src={asset.url}
+          alt={asset.name}
+          className="h-10 w-10 rounded-md object-contain bg-muted/30 p-1"
+        />
+      );
+    }
+    // Large grid thumbnail: absolute-fill the parent so the box constraint
+    // wins regardless of the SVG's intrinsic size, and use object-contain
+    // so logos/icons fit (instead of being cropped by object-cover).
     return (
       <img
         src={asset.url}
         alt={asset.name}
-        className={cn(
-          'h-full w-full object-cover transition group-hover:scale-105',
-          size === 'sm' && 'h-10 w-10 rounded-md',
-        )}
+        className="absolute inset-0 h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-[1.04]"
       />
     );
   }
+  if (size === 'sm') {
+    return (
+      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted/30">
+        <FileText className="h-5 w-5 text-muted-foreground" />
+      </div>
+    );
+  }
   return (
-    <div className={cn('flex h-full w-full items-center justify-center bg-muted/30', size === 'sm' && 'h-10 w-10 rounded-md')}>
-      <FileText className="h-6 w-6 text-muted-foreground" />
+    <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
+      <FileText className="h-8 w-8 text-muted-foreground" />
     </div>
   );
 }
