@@ -41,6 +41,7 @@ const WORKSPACE_PAGES: SearchItem[] = [
   { id: 'page:learn', kind: 'page', title: 'Learn', subtitle: 'Tutorials and best practices', group: 'Pages', icon: 'guideline', href: '/learn', keywords: ['learn', 'help', 'tutorials', 'docs'] },
   { id: 'page:logo-maker', kind: 'page', title: 'Logo Maker', subtitle: 'Generate a logo from scratch', group: 'Pages', icon: 'create', href: '/dashboard/logo-maker', keywords: ['logo', 'generate', 'create'] },
   { id: 'page:activity', kind: 'page', title: 'Activity', subtitle: 'Recent edits and updates', group: 'Pages', icon: 'route', href: '/dashboard/activity', keywords: ['activity', 'feed', 'recent'] },
+  { id: 'page:marketplace', kind: 'page', title: 'Marketplace', subtitle: 'Integrations & extensions', group: 'Pages', icon: 'route', href: '/marketplace', keywords: ['marketplace', 'integrations', 'apps', 'extensions'] },
   { id: 'page:settings', kind: 'setting', title: 'Account settings', subtitle: 'Profile, billing, password', group: 'Settings', icon: 'setting', href: '/settings/account', keywords: ['settings', 'account', 'profile'] },
   { id: 'page:plans', kind: 'setting', title: 'Plans & billing', subtitle: 'Upgrade or change plan', group: 'Settings', icon: 'setting', href: '/settings/plans', keywords: ['billing', 'plans', 'upgrade', 'subscription'] },
 ];
@@ -61,8 +62,13 @@ function brandSubpages(slug: string, name: string): SearchItem[] {
     { id: `b:${slug}:overview`, kind: 'brand', title: name, subtitle: 'Open brand overview', group: 'Brands', icon: 'brand', href: `/b/${slug}`, keywords: [name, slug, 'brand', 'overview'] },
     { id: `b:${slug}:identity`, kind: 'brand', title: `${name} · Identity`, subtitle: 'Logo, colors, typography, voice', group: 'Brands', icon: 'brand', href: `/b/${slug}/identity`, keywords: [name, 'identity', 'logo', 'colors'] },
     { id: `b:${slug}:assets`, kind: 'asset', title: `${name} · Assets`, subtitle: 'Brand asset library', group: 'Brands', icon: 'asset', href: `/b/${slug}/assets`, keywords: [name, 'assets', 'dam', 'library'] },
+    { id: `b:${slug}:dam`, kind: 'asset', title: `${name} · DAM`, subtitle: 'Digital asset manager', group: 'Brands', icon: 'asset', href: `/b/${slug}/dam`, keywords: [name, 'dam', 'upload', 'library'] },
     { id: `b:${slug}:guidelines`, kind: 'guideline', title: `${name} · Guidelines`, subtitle: 'Published brand book', group: 'Brands', icon: 'guideline', href: `/b/${slug}/guidelines`, keywords: [name, 'guidelines', 'brand book', 'rules'] },
+    { id: `b:${slug}:blocks`, kind: 'guideline', title: `${name} · Block builder`, subtitle: 'Block-based guidelines builder', group: 'Brands', icon: 'guideline', href: `/b/${slug}/guidelines/blocks`, keywords: [name, 'blocks', 'builder', 'editor'] },
+    { id: `b:${slug}:analytics`, kind: 'page', title: `${name} · Analytics`, subtitle: 'Performance and engagement', group: 'Brands', icon: 'route', href: `/b/${slug}/analytics`, keywords: [name, 'analytics', 'metrics', 'stats'] },
+    { id: `b:${slug}:approvals`, kind: 'page', title: `${name} · Approvals`, subtitle: 'Review queue', group: 'Brands', icon: 'route', href: `/b/${slug}/approvals`, keywords: [name, 'approvals', 'review', 'queue'] },
     { id: `b:${slug}:share`, kind: 'brand', title: `${name} · Share`, subtitle: 'Share, export, public portal', group: 'Brands', icon: 'route', href: `/b/${slug}/share`, keywords: [name, 'share', 'export', 'public', 'portal'] },
+    { id: `b:${slug}:portal`, kind: 'brand', title: `${name} · Public portal`, subtitle: 'Public-facing brand portal', group: 'Brands', icon: 'route', href: `/p/${slug}`, keywords: [name, 'portal', 'public', 'showcase'] },
   ];
 }
 

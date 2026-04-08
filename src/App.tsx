@@ -47,6 +47,10 @@ const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
 const BrandPortalV2Page = lazy(() => import('./features/brand-portal/v2/BrandPortalV2Page'));
+const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelinesPage'));
+const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
+const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
+const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
 
 const queryClient = new QueryClient();
 
@@ -183,6 +187,41 @@ const App = () => (
           <Route path="/templates" element={
             <ProtectedRoute>
               <TemplatesMarketplacePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/marketplace" element={
+            <ProtectedRoute>
+              <MarketplacePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guidelines/blocks" element={
+            <ProtectedRoute>
+              <BlocksGuidelinesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/guidelines/blocks" element={
+            <ProtectedRoute>
+              <BlocksGuidelinesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/analytics" element={
+            <ProtectedRoute>
+              <AnalyticsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/analytics" element={
+            <ProtectedRoute>
+              <AnalyticsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/approvals" element={
+            <ProtectedRoute>
+              <ApprovalsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/approvals" element={
+            <ProtectedRoute>
+              <ApprovalsPage />
             </ProtectedRoute>
           } />
 

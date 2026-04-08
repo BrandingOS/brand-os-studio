@@ -9,7 +9,7 @@
 import * as React from 'react';
 import { BrandAssistantDrawer } from './BrandAssistantDrawer';
 import { AssistantTrigger } from './AssistantTrigger';
-import { mockProvider } from './providers/mockProvider';
+import { getProvider } from './providers/claudeProvider';
 import type { AssistantMessage, AssistantProvider } from './types';
 import { useBrandStore } from '@/shared/store/brandStore';
 
@@ -35,7 +35,7 @@ export function BrandAssistantProvider({ children }: { children: React.ReactNode
   const [messages, setMessages] = React.useState<AssistantMessage[]>([]);
   const [isThinking, setIsThinking] = React.useState(false);
   const currentBrand = useBrandStore((s) => s.current);
-  const provider: AssistantProvider = mockProvider;
+  const provider: AssistantProvider = React.useMemo(() => getProvider(), []);
 
   // Listen for global open events (from command palette etc.)
   React.useEffect(() => {
