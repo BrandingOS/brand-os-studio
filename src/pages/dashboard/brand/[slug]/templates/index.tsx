@@ -15,21 +15,47 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LayoutTemplate, ExternalLink } from 'lucide-react';
+import { LayoutTemplate, ExternalLink, Sparkles } from 'lucide-react';
+import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 
 export default function BrandTemplatesPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { brand } = useBrandBySlug(slug);
 
+  // Minimal inner nav so the page is structurally consistent with the rest
+  // of the brand surfaces. Will fill out as the feature ships.
+  const innerNav: InnerNavConfig = {
+    title: 'Templates',
+    icon: LayoutTemplate,
+    storageKey: 'brandos:brand-templates-nav-open',
+    groups: [
+      {
+        id: 'sections',
+        label: 'On this page',
+        items: [
+          { id: 'coming-soon', label: 'Coming soon', icon: Sparkles, anchor: 'coming-soon' },
+        ],
+      },
+      {
+        id: 'related',
+        label: 'Related',
+        items: [
+          { id: 'marketplace', label: 'Marketplace', icon: ExternalLink, href: '/templates' },
+        ],
+      },
+    ],
+  };
+
   return (
-    <BrandLayout brandName={brand?.name}>
+    <BrandLayout brandName={brand?.name} innerNav={innerNav}>
       <PageHeader
         title="Templates"
         subtitle="Templates saved to this brand"
       />
 
-      <Card className="p-10 mt-6 flex flex-col items-center text-center gap-4 bg-muted/20">
+      <section id="section-coming-soon" className="scroll-mt-24 mt-6">
+        <Card className="p-10 flex flex-col items-center text-center gap-4 bg-muted/20">
         <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           <LayoutTemplate className="h-7 w-7 text-primary" />
         </div>
@@ -45,7 +71,8 @@ export default function BrandTemplatesPage() {
           <ExternalLink className="h-4 w-4 mr-2" />
           Open Templates Marketplace
         </Button>
-      </Card>
+        </Card>
+      </section>
     </BrandLayout>
   );
 }

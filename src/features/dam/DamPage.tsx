@@ -8,7 +8,7 @@
  * no separate backend yet (file storage is a follow-up sprint).
  */
 import * as React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -19,14 +19,40 @@ import { AssetGrid } from './components/AssetGrid';
 import { AssetLightbox } from './components/AssetLightbox';
 import type { Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
+import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import {
+  FolderOpen,
+  LayoutGrid,
+  Image as ImageIcon,
+  Camera,
+  Smile,
+  Share2,
+  Box,
+  Bookmark,
+} from 'lucide-react';
 
 const ASSET_CATEGORIES = ['all', 'logo', 'photo', 'icon', 'social', 'mockup', 'reference'] as const;
 type AssetCategory = (typeof ASSET_CATEGORIES)[number];
 
+function isAssetCategory(value: string | null): value is AssetCategory {
+  return value !== null && (ASSET_CATEGORIES as readonly string[]).includes(value);
+}
+
 export default function DamPage() {
   const { slug } = useParams<{ slug: string }>();
   const { current, loadBySlug, update } = useBrandStore();
-  const [category, setCategory] = React.useState<AssetCategory>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Category is driven by the URL so the inner nav's href filter items can
+  // highlight the active one and the user can deep-link / bookmark a view.
+  const categoryParam = searchParams.get('category');
+  const category: AssetCategory = isAssetCategory(categoryParam) ? categoryParam : 'all';
+  const setCategory = (next: AssetCategory) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'all') params.delete('category');
+    else params.set('category', next);
+    setSearchParams(params, { replace: true });
+  };
+
   const [search, setSearch] = React.useState('');
   const [view, setView] = React.useState<'grid' | 'list'>('grid');
   const [activeAsset, setActiveAsset] = React.useState<Asset | null>(null);
@@ -34,6 +60,30 @@ export default function DamPage() {
   useEffect(() => {
     if (slug) loadBySlug(slug);
   }, [slug, loadBySlug]);
+
+  // Build the inner-nav config — href filter items mirroring asset categories.
+  const innerNav: InnerNavConfig | undefined = slug
+    ? {
+        title: 'Folders',
+        icon: FolderOpen,
+        storageKey: 'brandos:folders-nav-open',
+        groups: [
+          {
+            id: 'filters',
+            label: 'Categories',
+            items: [
+              { id: 'all',       label: 'All assets', icon: LayoutGrid, href: `/dashboard/brand/${slug}/dam` },
+              { id: 'logo',      label: 'Logos',      icon: ImageIcon,  href: `/dashboard/brand/${slug}/dam?category=logo` },
+              { id: 'photo',     label: 'Photos',     icon: Camera,     href: `/dashboard/brand/${slug}/dam?category=photo` },
+              { id: 'icon',      label: 'Icons',      icon: Smile,      href: `/dashboard/brand/${slug}/dam?category=icon` },
+              { id: 'social',    label: 'Social',     icon: Share2,     href: `/dashboard/brand/${slug}/dam?category=social` },
+              { id: 'mockup',    label: 'Mockups',    icon: Box,        href: `/dashboard/brand/${slug}/dam?category=mockup` },
+              { id: 'reference', label: 'References', icon: Bookmark,   href: `/dashboard/brand/${slug}/dam?category=reference` },
+            ],
+          },
+        ],
+      }
+    : undefined;
 
   const assets = current?.assets ?? [];
 
@@ -110,11 +160,10 @@ export default function DamPage() {
   }
 
   return (
-    <BrandLayout>
+    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
       <PageHeader
-        eyebrow="Digital Asset Manager"
-        title="Asset Library"
-        subtitle={`${current.name}'s files, logos, photography, and templates`}
+        title="Folders"
+        subtitle={`${current.name}'s asset library — logos, photos, icons, mockups, and references.`}
       />
 
       <div className="space-y-6">
@@ -123,7 +172,7 @@ export default function DamPage() {
         <AssetFiltersBar
           categories={[...ASSET_CATEGORIES]}
           activeCategory={category}
-          onCategoryChange={(c) => setCategory(c as AssetCategory)}
+          onCategoryChange={(c) => isAssetCategory(c) && setCategory(c)}
           search={search}
           onSearchChange={setSearch}
           view={view}

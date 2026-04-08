@@ -8,10 +8,13 @@ import { FontSelector } from '@/features/brand/components/FontSelector';
 import { IconGallery } from '@/features/brand/components/IconGallery';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/shared/ui/PageHeader';
-import { Eye, Edit, Save } from 'lucide-react';
+import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { Eye, Edit, Save, Wrench, Image as ImageIcon, Palette, Type, Shapes, Sparkles } from 'lucide-react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useToast } from '@/hooks/use-toast';
 import { Brand } from '@/shared/types/brand';
+
+const SETUP_ANCHORS = ['logos', 'colors', 'typography', 'iconography'];
 
 export default function BrandEditPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -19,6 +22,33 @@ export default function BrandEditPage() {
   const [previewMode, setPreviewMode] = useState(false);
   const [editedBrand, setEditedBrand] = useState<Brand | null>(null);
   const { toast } = useToast();
+  const activeAnchor = useActiveAnchor(SETUP_ANCHORS);
+
+  const innerNav: InnerNavConfig = {
+    title: 'Setup',
+    icon: Wrench,
+    storageKey: 'brandos:setup-nav-open',
+    activeAnchor,
+    groups: [
+      {
+        id: 'sections',
+        label: 'On this page',
+        items: [
+          { id: 'logos',       label: 'Logos',       icon: ImageIcon, anchor: 'logos' },
+          { id: 'colors',      label: 'Colors',      icon: Palette,   anchor: 'colors' },
+          { id: 'typography',  label: 'Typography',  icon: Type,      anchor: 'typography' },
+          { id: 'iconography', label: 'Iconography', icon: Shapes,    anchor: 'iconography' },
+        ],
+      },
+      {
+        id: 'related',
+        label: 'Related',
+        items: [
+          { id: 'identity', label: 'Identity tabs', icon: Sparkles, href: `/dashboard/brand/${slug}/identity` },
+        ],
+      },
+    ],
+  };
 
   useEffect(() => {
     if (slug) {
@@ -100,7 +130,7 @@ export default function BrandEditPage() {
   }
 
   return (
-    <BrandLayout brandName={brand?.name} maxWidth="7xl">
+    <BrandLayout brandName={brand?.name} maxWidth="7xl" innerNav={innerNav}>
       <PageHeader
         title="Setup"
         subtitle="Edit this brand's identity — logos, colors, type — with a live preview."
@@ -138,21 +168,23 @@ export default function BrandEditPage() {
       >
         {/* Left Panel — Editor Grid */}
         {!previewMode && (
-          <div className="space-y-6 min-w-0">
-            <LogoUploader
-              brandId={editedBrand.id}
-              logoSystem={editedBrand.guidelines?.logoSystem || {}}
-              onLogoSystemChange={(logoSystem) => {
-                const updated = {
-                  ...editedBrand,
-                  guidelines: { ...(editedBrand.guidelines || {}), logoSystem },
-                };
-                setEditedBrand(updated);
-                update(editedBrand.id, { guidelines: updated.guidelines });
-              }}
-            />
+          <div className="space-y-8 min-w-0">
+            <section id="section-logos" className="scroll-mt-24">
+              <LogoUploader
+                brandId={editedBrand.id}
+                logoSystem={editedBrand.guidelines?.logoSystem || {}}
+                onLogoSystemChange={(logoSystem) => {
+                  const updated = {
+                    ...editedBrand,
+                    guidelines: { ...(editedBrand.guidelines || {}), logoSystem },
+                  };
+                  setEditedBrand(updated);
+                  update(editedBrand.id, { guidelines: updated.guidelines });
+                }}
+              />
+            </section>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <section id="section-colors" className="scroll-mt-24">
               <ColorPaletteEditor
                 colorPalette={editedBrand.guidelines?.colorPalette || {}}
                 onColorPaletteChange={(colorPalette) => {
@@ -164,7 +196,9 @@ export default function BrandEditPage() {
                   update(editedBrand.id, { guidelines: updated.guidelines });
                 }}
               />
+            </section>
 
+            <section id="section-typography" className="scroll-mt-24">
               <FontSelector
                 fonts={editedBrand.fonts || { primary: 'Inter', secondary: 'Inter' }}
                 onFontsChange={(fonts) => {
@@ -176,9 +210,11 @@ export default function BrandEditPage() {
                   update(editedBrand.id, { fonts: updatedFonts });
                 }}
               />
-            </div>
+            </section>
 
-            <IconGallery />
+            <section id="section-iconography" className="scroll-mt-24">
+              <IconGallery />
+            </section>
           </div>
         )}
 

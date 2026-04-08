@@ -17,6 +17,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import {
   CreditCard,
   RectangleHorizontal,
@@ -196,6 +197,28 @@ export default function AssetsPage() {
     [activeCategory],
   );
 
+  // Build the inner-nav config — href filter items mirroring categories.
+  const innerNav: InnerNavConfig | undefined = slug
+    ? {
+        title: 'Designs',
+        icon: LayoutGrid,
+        storageKey: 'brandos:designs-nav-open',
+        groups: [
+          {
+            id: 'filters',
+            label: 'Categories',
+            items: [
+              { id: 'all',     label: 'All',     icon: LayoutGrid, href: `/dashboard/brand/${slug}/assets` },
+              { id: 'print',   label: 'Print',   icon: Printer,    href: `/dashboard/brand/${slug}/assets?category=print` },
+              { id: 'social',  label: 'Social',  icon: Megaphone,  href: `/dashboard/brand/${slug}/assets?category=social` },
+              { id: 'screen',  label: 'Screen',  icon: MonitorPlay,href: `/dashboard/brand/${slug}/assets?category=screen` },
+              { id: 'utility', label: 'Utility', icon: Wrench,     href: `/dashboard/brand/${slug}/assets?category=utility` },
+            ],
+          },
+        ],
+      }
+    : undefined;
+
   if (isLoading) {
     return (
       <BrandLayout brandName="Loading...">
@@ -217,7 +240,7 @@ export default function AssetsPage() {
   }
 
   return (
-    <BrandLayout brandName={brand.name}>
+    <BrandLayout brandName={brand.name} maxWidth="7xl" innerNav={innerNav}>
       <div className="space-y-6">
         <PageHeader
           title="Designs"

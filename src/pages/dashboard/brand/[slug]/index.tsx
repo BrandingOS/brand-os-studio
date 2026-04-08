@@ -24,6 +24,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import type { Brand } from '@/shared/types/brand';
 import {
   Wrench,
@@ -34,6 +35,10 @@ import {
   LayoutTemplate,
   ArrowRight,
   Edit3,
+  LayoutDashboard,
+  Compass,
+  Target,
+  Users,
 } from 'lucide-react';
 
 interface QuickLink {
@@ -52,11 +57,33 @@ const QUICK_LINKS: QuickLink[] = [
   { label: 'Templates',  description: 'Brand-scoped templates',       path: 'templates',  icon: LayoutTemplate },
 ];
 
+const OVERVIEW_ANCHORS = ['glance', 'jump', 'identity', 'sharing'];
+
 export default function BrandHomePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
+  const activeAnchor = useActiveAnchor(OVERVIEW_ANCHORS);
+
+  const innerNav: InnerNavConfig = {
+    title: 'Overview',
+    icon: LayoutDashboard,
+    storageKey: 'brandos:overview-nav-open',
+    activeAnchor,
+    groups: [
+      {
+        id: 'sections',
+        label: 'On this page',
+        items: [
+          { id: 'glance',   label: 'At a glance',         icon: LayoutDashboard, anchor: 'glance' },
+          { id: 'jump',     label: 'Jump into',           icon: Compass,         anchor: 'jump' },
+          { id: 'identity', label: 'Identity highlights', icon: Target,          anchor: 'identity' },
+          { id: 'sharing',  label: 'Sharing & team',      icon: Users,           anchor: 'sharing' },
+        ],
+      },
+    ],
+  };
 
   const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
@@ -86,7 +113,7 @@ export default function BrandHomePage() {
   }
 
   return (
-    <BrandLayout brandName={brand.name}>
+    <BrandLayout brandName={brand.name} innerNav={innerNav} maxWidth="7xl">
       <PageHeader
         title="Overview"
         subtitle={brand.tone || 'At a glance — what this brand is and where to go next.'}
@@ -102,8 +129,9 @@ export default function BrandHomePage() {
         }
       />
 
-      <div className="space-y-10">
+      <div className="space-y-12">
         {/* At-a-glance card --------------------------------------------- */}
+        <section id="section-glance" className="scroll-mt-24">
         <Card className="p-6">
           <div className="flex items-start gap-5">
             {brand.logo ? (
@@ -126,8 +154,10 @@ export default function BrandHomePage() {
             </div>
           </div>
         </Card>
+        </section>
 
         {/* Quick links — uniform card grid ------------------------------ */}
+        <section id="section-jump" className="scroll-mt-24">
         <Section title="Jump into" subtitle="The main surfaces of this brand">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {QUICK_LINKS.map((link) => {
@@ -151,8 +181,10 @@ export default function BrandHomePage() {
             })}
           </div>
         </Section>
+        </section>
 
         {/* Brand identity summary (only when populated) ----------------- */}
+        <section id="section-identity" className="scroll-mt-24">
         {brand.guidelines?.strategy && (
           <Section title="Identity highlights" subtitle="Pulled from the brand guidelines">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -191,14 +223,17 @@ export default function BrandHomePage() {
             </div>
           </Section>
         )}
+        </section>
 
         {/* Sharing & team ---------------------------------------------- */}
+        <section id="section-sharing" className="scroll-mt-24">
         <Section title="Sharing & team" subtitle="Public link, custom domain, and collaborators">
           <div className="space-y-4">
             <SharePanel brand={brand} onUpdate={handleBrandUpdate} />
             <TeamPanel brandId={slug ?? ''} brandName={brand.name} />
           </div>
         </Section>
+        </section>
       </div>
     </BrandLayout>
   );

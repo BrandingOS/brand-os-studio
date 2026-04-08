@@ -25,7 +25,7 @@
  * or route hrefs (navigate while staying in the same shell).
  */
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +88,12 @@ export function InnerNavRail({
   storageKey,
 }: InnerNavRailProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Current full URL within the app, used to highlight active href items.
+  // We compare against item.href so query-param-driven filters (like
+  // /dam?category=logo) get an active state on the matching nav item.
+  const currentUrl = location.pathname + (location.search || '');
+
   const [open, setOpen] = React.useState<boolean>(() => {
     try {
       const v = localStorage.getItem(storageKey);
@@ -178,7 +184,15 @@ export function InnerNavRail({
               {group.items.map((item) => {
                 const Icon = item.icon;
                 const isAnchor = !!item.anchor;
-                const isActive = isAnchor && activeAnchor === item.anchor;
+                // Anchor items: active when the anchor is in view.
+                // Href items: active when the current URL exactly matches the
+                // item's href (so filter pills like ?category=logo highlight
+                // when the user lands on that filter view).
+                const isActive = isAnchor
+                  ? activeAnchor === item.anchor
+                  : item.href
+                    ? currentUrl === item.href
+                    : false;
                 return (
                   <li key={item.id}>
                     <button
