@@ -10,12 +10,12 @@
  * Brand Context Rail owns that. The breadcrumb here is a derived label only.
  */
 import { useMemo } from 'react';
-import { Search, Bell, HelpCircle } from 'lucide-react';
+import { Search, Bell, HelpCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 
 interface BrandNavbarProps {
   brandName?: string;
@@ -70,20 +70,31 @@ export function BrandNavbar({ brandName }: BrandNavbarProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="px-4 sm:px-6 lg:px-8 flex h-14 items-center justify-between gap-4">
-        {/* Breadcrumb — Brand · Section ----------------------------------- */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold text-foreground truncate max-w-[160px]">
-            {brandName ?? 'Brand'}
-          </span>
-          <span className="text-muted-foreground/60">/</span>
-          <span className="text-sm text-muted-foreground truncate">
-            {sectionLabel}
-          </span>
-          {isAdmin && (
-            <Badge variant="secondary" className="hidden md:inline-flex ml-2">
-              Admin
-            </Badge>
-          )}
+        {/* Left: back-to-dashboard + breadcrumb (Brand · Section) -------- */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            to="/dashboard"
+            aria-label="Back to dashboard"
+            className="group inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+          <span aria-hidden className="hidden sm:inline-block h-5 w-px bg-border" />
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-semibold text-foreground truncate max-w-[160px]">
+              {brandName ?? 'Brand'}
+            </span>
+            <span className="text-muted-foreground/60">/</span>
+            <span className="text-sm text-muted-foreground truncate">
+              {sectionLabel}
+            </span>
+            {isAdmin && (
+              <Badge variant="secondary" className="hidden md:inline-flex ml-2">
+                Admin
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Search --------------------------------------------------------- */}
