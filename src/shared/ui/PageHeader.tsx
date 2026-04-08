@@ -43,11 +43,11 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cn('mb-8', className)}>
+    <header className={cn('mb-6', className)}>
       {breadcrumb && breadcrumb.length > 0 && (
         <nav
           aria-label="Breadcrumb"
-          className="mb-2 flex items-center gap-1 text-xs text-muted-foreground"
+          className="mb-1.5 flex items-center gap-1 text-xs text-muted-foreground"
         >
           {breadcrumb.map((crumb, i) => (
             <Fragment key={`${crumb.label}-${i}`}>
@@ -67,14 +67,16 @@ export function PageHeader({
         </nav>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {eyebrow && <div className="mb-2 flex items-center gap-2">{eyebrow}</div>}
-          <h1 className="text-2xl font-bold leading-tight tracking-tight sm:text-3xl">
+          {eyebrow && <div className="mb-1.5 flex items-center gap-2">{eyebrow}</div>}
+          <h1 className="text-lg font-bold leading-tight tracking-tight sm:text-xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p>
+            <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+              {subtitle}
+            </p>
           )}
         </div>
 
@@ -83,7 +85,7 @@ export function PageHeader({
         )}
       </div>
 
-      {belowSlot && <div className="mt-4">{belowSlot}</div>}
+      {belowSlot && <div className="mt-3">{belowSlot}</div>}
     </header>
   );
 }

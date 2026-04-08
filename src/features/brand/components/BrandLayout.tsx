@@ -80,7 +80,7 @@ export function BrandLayout({
         <BrandNavbar brandName={brandName ?? resolvedBrand?.name} />
 
         <main className="flex-1 overflow-auto">
-          <div className="px-6 sm:px-8 lg:px-10 py-8">
+          <div className="px-6 sm:px-8 lg:px-10 py-5">
             <div className={`mx-auto w-full ${maxWidthClass[maxWidth]}`}>
               {children}
             </div>
