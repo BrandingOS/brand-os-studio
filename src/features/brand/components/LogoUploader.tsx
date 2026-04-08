@@ -1,8 +1,11 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, X, GripVertical } from 'lucide-react';
 import { compressLogo, validateUploadFile } from '@/shared/utils/imageUpload';
 import { toast } from 'sonner';
+import { AssetPicker } from '@/shared/ui/AssetPicker';
+import { useBrandStore } from '@/shared/store/brandStore';
+import type { Asset } from '@/shared/types/brand';
 
 interface LogoUploaderProps {
   brandId: string;
@@ -104,6 +107,27 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
   const [uploading, setUploading] = useState<string | null>(null);
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Read the active brand from the store so AssetPicker can show its asset
+  // library. We don't refetch here — the page above already loaded the
+  // brand and seeded the store.
+  const currentBrand = useBrandStore((s) => s.current);
+
+  // Adopt an existing brand asset into a logo slot. Mirrors the upload
+  // shape so the rest of LogoUploader doesn't care which path filled it.
+  const handlePickAsset = (logoType: string, asset: Asset) => {
+    if (!asset.url) return;
+    onLogoSystemChange({
+      ...logoSystem,
+      [logoType]: {
+        url: asset.url,
+        description: `${logoType} logo`,
+        usage: 'General use',
+      },
+    });
+    toast.success(
+      `${LOGO_TYPES.find((t) => t.key === logoType)?.label || logoType} set from ${asset.name}`,
+    );
+  };
 
   // ─── File Upload ────────────────────────────────────────────
   const handleFileUpload = async (logoType: string, file: File) => {
@@ -285,40 +309,39 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
                   </Button>
                 </div>
               ) : (
-                /* ─── Empty Slot with Placeholder ──────── */
-                <label
-                  className={`cursor-pointer block transition-all duration-200 ${
-                    isDraggedOver ? 'ring-2 ring-primary ring-offset-2 scale-[1.02]' : ''
-                  }`}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFileUpload(type.key, file);
-                      e.target.value = '';
-                    }}
-                    disabled={uploading === type.key}
-                  />
-                  <div className="aspect-[4/3] rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/40 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col items-center justify-center gap-1 transition-all hover:bg-gray-100/50 dark:hover:bg-gray-700/30">
-                    {uploading === type.key ? (
-                      <div className="text-xs text-gray-400">Compressing...</div>
-                    ) : (
-                      <>
-                        {/* Placeholder illustration */}
-                        <div className="w-16 h-8 text-gray-300 dark:text-gray-600">
-                          {type.placeholder}
-                        </div>
-                        <div className="flex items-center gap-1 text-gray-400">
-                          <Upload className="h-3 w-3" />
-                          <span className="text-[10px] font-medium">Upload</span>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </label>
+                /* ─── Empty Slot — opens the canonical AssetPicker ──── */
+                <AssetPicker
+                  brand={currentBrand ?? undefined}
+                  accept="image/*"
+                  filter={(a) => ['logo', 'image', 'icon'].includes(a.type)}
+                  onUpload={(file) => handleFileUpload(type.key, file)}
+                  onPick={(asset) => handlePickAsset(type.key, asset)}
+                  trigger={
+                    <button
+                      type="button"
+                      disabled={uploading === type.key}
+                      className={`block w-full cursor-pointer transition-all duration-200 ${
+                        isDraggedOver ? 'ring-2 ring-primary ring-offset-2 scale-[1.02]' : ''
+                      }`}
+                    >
+                      <div className="aspect-[4/3] rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-primary/40 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col items-center justify-center gap-1 transition-all hover:bg-gray-100/50 dark:hover:bg-gray-700/30">
+                        {uploading === type.key ? (
+                          <div className="text-xs text-gray-400">Compressing...</div>
+                        ) : (
+                          <>
+                            <div className="w-16 h-8 text-gray-300 dark:text-gray-600">
+                              {type.placeholder}
+                            </div>
+                            <div className="flex items-center gap-1 text-gray-400">
+                              <Upload className="h-3 w-3" />
+                              <span className="text-[10px] font-medium">Add logo</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  }
+                />
               )}
 
               {/* Description tooltip */}

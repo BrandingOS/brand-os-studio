@@ -90,6 +90,30 @@ overflowed the cards. The only correct way to render an asset is via
 
 ---
 
+## Asset picker — the canonical "give me an image" UI
+
+| Component | Path | What it is |
+|---|---|---|
+| **`<AssetPicker />`** | `src/shared/ui/AssetPicker.tsx` | Two-path popover for any control that needs the user to choose an image: **Upload from device** (file picker) + **Pick from brand assets** (grid of existing brand assets). Trigger is whatever clickable element you pass — a button, an empty slot, an icon — and the popover opens beside it. Pass `brand`, `accept`, `filter`, `onUpload`, `onPick`, `trigger`. Currently: LogoUploader empty slots in Setup. |
+
+**Do not** add another `<input type="file" />` to the codebase. Use this.
+The product previously had ~17 separate file inputs scattered across
+brand kit, editor tools, onboarding, and brand setup, each with its own
+validation rules and UI. Migrate them to AssetPicker as you touch them.
+If you need a feature it doesn't have (e.g. multi-file upload, accept
+non-images), add a prop here — don't fork.
+
+Open migration tasks (not yet using AssetPicker):
+
+- `src/features/dam/components/AssetUploadZone.tsx` — drag-drop ZONE for the Folders page. Different UX (entire surface is a drop target, no popover) — leave it as the dedicated upload zone, but reuse the same validation/compression utilities.
+- `src/features/onboarding/components/steps/UploadAssetsStep.tsx` and friends — first-run flows where there are no brand assets yet. Could still use AssetPicker (the brand-assets section will just show empty state), or leave as a simple file input.
+- `src/features/editor/tools/LogoTool.tsx`, `src/shared/editor/blocks/FloatingToolbar.tsx`, `src/shared/editor/BackgroundPopover.tsx`, `src/shared/editor/InsertMenu.tsx`, `src/features/editor/components/ToolPanel.tsx` — editor surfaces. **Inside the off-limits editable-export baseline** — only refactor with explicit approval.
+- `src/features/brandkit-v2/BrandSettingsHub.tsx`, `src/features/brandkit/components/AssetManagerModule.tsx` — brand kit upload surfaces.
+- `src/features/logo-presentation/components/*` — logo presentation flow.
+- `src/features/ai/components/AIAssistantBox.tsx` — AI assistant attachment input.
+
+---
+
 ## Primitive UI — shared/ui
 
 These wrap or extend the shadcn primitives in `src/components/ui/`:
