@@ -186,11 +186,28 @@ export function AssetPicker({
 }
 
 /**
+ * Checkered transparency bed — same pattern Photoshop / Figma / every
+ * image editor uses. It shows white assets, dark assets, and
+ * transparent assets equally well because it has both light and dark
+ * within it. A solid bed can never satisfy both "white logo visible"
+ * and "still feels light" at the same time; the checker can.
+ */
+const CHECKER_BG: React.CSSProperties = {
+  backgroundColor: '#f5f5f5',
+  backgroundImage:
+    'linear-gradient(45deg, #d4d4d4 25%, transparent 25%),' +
+    'linear-gradient(-45deg, #d4d4d4 25%, transparent 25%),' +
+    'linear-gradient(45deg, transparent 75%, #d4d4d4 75%),' +
+    'linear-gradient(-45deg, transparent 75%, #d4d4d4 75%)',
+  backgroundSize: '12px 12px',
+  backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0px',
+};
+
+/**
  * Picker thumbnail. By the time this renders, the parent has already
  * filtered to displayable images (URL present, type ∈ image|logo|icon),
  * so we can render the <img> unconditionally and not worry about
- * fallbacks. The bed is intentionally a darker neutral so transparent
- * and white logos are visible — light bed + white logo = invisible.
+ * fallbacks.
  */
 function PickerThumb({
   asset,
@@ -204,9 +221,10 @@ function PickerThumb({
       type="button"
       onClick={onClick}
       title={asset.name}
+      style={CHECKER_BG}
       className={cn(
         'group flex aspect-square items-center justify-center overflow-hidden rounded-lg',
-        'border border-border bg-[#eaeaea] p-2 transition hover:border-primary hover:shadow-sm',
+        'border border-border p-2 transition hover:border-primary hover:shadow-sm',
       )}
     >
       <img
