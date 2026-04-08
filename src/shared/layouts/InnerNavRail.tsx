@@ -67,11 +67,25 @@ export interface InnerNavConfig {
    */
   activeAnchor?: string;
   /**
-   * Unique localStorage key for the collapsed state, e.g.
-   * `brandos:guidelines-nav-open`. Each page must pass its own key.
+   * @deprecated The collapsed state is now SHARED across the entire brand
+   * scope under a single global key — see INNER_NAV_OPEN_KEY in
+   * InnerNavRail.tsx. This prop is kept on the type for backwards
+   * compatibility with pages that still pass it; the value is ignored.
+   * Don't pass it on new code.
    */
-  storageKey: string;
+  storageKey?: string;
 }
+
+/**
+ * One global localStorage key for the InnerNavRail open/closed state.
+ *
+ * Why global instead of per-page: the rail is part of the persistent
+ * brand-scope shell. The user expects "I closed the rail once → it stays
+ * closed everywhere I go". Per-page storage keys gave each page its own
+ * memory, which made the rail snap open/closed as the user moved between
+ * tabs — annoying and contrary to a sticky preference.
+ */
+const INNER_NAV_OPEN_KEY = 'brandos:inner-nav-open';
 
 interface InnerNavRailProps extends InnerNavConfig {}
 
@@ -85,7 +99,6 @@ export function InnerNavRail({
   icon: TitleIcon,
   groups,
   activeAnchor,
-  storageKey,
 }: InnerNavRailProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -94,36 +107,25 @@ export function InnerNavRail({
   // /folders?category=logo) get an active state on the matching nav item.
   const currentUrl = location.pathname + (location.search || '');
 
+  // Single global open/closed state — persists across every brand page so
+  // the user's preference sticks once they set it. The rail does NOT
+  // re-snap open or closed as they navigate.
   const [open, setOpen] = React.useState<boolean>(() => {
     try {
-      const v = localStorage.getItem(storageKey);
+      const v = localStorage.getItem(INNER_NAV_OPEN_KEY);
       return v === null ? true : v === '1';
     } catch {
       return true;
     }
   });
 
-  // Re-read collapsed state when storageKey changes. The rail is now part
-  // of the persistent shell (BrandRouteLayout) and stays mounted across
-  // brand-scope navigation, so when the user moves from one page to another
-  // the storageKey prop changes but the component instance does not — we
-  // need an effect to pick up the new key's value from localStorage.
   React.useEffect(() => {
     try {
-      const v = localStorage.getItem(storageKey);
-      setOpen(v === null ? true : v === '1');
-    } catch {
-      setOpen(true);
-    }
-  }, [storageKey]);
-
-  React.useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, open ? '1' : '0');
+      localStorage.setItem(INNER_NAV_OPEN_KEY, open ? '1' : '0');
     } catch {
       /* noop */
     }
-  }, [open, storageKey]);
+  }, [open]);
 
   const handleAnchor = (anchor: string) => {
     const el = document.getElementById(`section-${anchor}`);
