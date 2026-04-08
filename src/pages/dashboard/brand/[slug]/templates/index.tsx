@@ -9,14 +9,15 @@
  * The workspace-level marketplace at /templates is a different surface
  * (cross-brand catalog) and stays where it is.
  */
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LayoutTemplate, ExternalLink, Sparkles } from 'lucide-react';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 
 export default function BrandTemplatesPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -25,7 +26,7 @@ export default function BrandTemplatesPage() {
 
   // Minimal inner nav so the page is structurally consistent with the rest
   // of the brand surfaces. Will fill out as the feature ships.
-  const innerNav: InnerNavConfig = {
+  const innerNav = useMemo<InnerNavConfig>(() => ({
     title: 'Templates',
     icon: LayoutTemplate,
     storageKey: 'brandos:brand-templates-nav-open',
@@ -45,10 +46,12 @@ export default function BrandTemplatesPage() {
         ],
       },
     ],
-  };
+  }), []);
+
+  useBrandPageConfig({ brandName: brand?.name, innerNav });
 
   return (
-    <BrandLayout brandName={brand?.name} innerNav={innerNav}>
+    <>
       <PageHeader
         title="Templates"
         subtitle="Templates saved to this brand"
@@ -73,6 +76,6 @@ export default function BrandTemplatesPage() {
         </Button>
         </Card>
       </section>
-    </BrandLayout>
+    </>
   );
 }

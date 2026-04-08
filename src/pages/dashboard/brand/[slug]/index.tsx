@@ -15,8 +15,8 @@
  *   - Designs     /assets        (generated deliverables)
  *   - Templates   /templates     (brand-scoped templates)
  */
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand';
 import { TeamPanel } from '@/features/collaboration';
 import { SharePanel } from '@/features/brand/components/SharePanel';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
@@ -25,6 +25,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { Brand } from '@/shared/types/brand';
 import {
   Wrench,
@@ -66,7 +67,7 @@ export default function BrandHomePage() {
   const updateBrand = useBrandStore((s) => s.update);
   const activeAnchor = useActiveAnchor(OVERVIEW_ANCHORS);
 
-  const innerNav: InnerNavConfig = {
+  const innerNav = useMemo<InnerNavConfig>(() => ({
     title: 'Overview',
     icon: LayoutDashboard,
     storageKey: 'brandos:overview-nav-open',
@@ -83,7 +84,9 @@ export default function BrandHomePage() {
         ],
       },
     ],
-  };
+  }), [activeAnchor]);
+
+  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
 
   const handleBrandUpdate = async (patch: Partial<Brand>) => {
     if (!brand) return;
@@ -92,28 +95,24 @@ export default function BrandHomePage() {
 
   if (isLoading) {
     return (
-      <BrandLayout brandName="Loading…">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        </div>
-      </BrandLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (error || !brand) {
     return (
-      <BrandLayout>
-        <Card className="p-8 text-center max-w-lg mx-auto mt-12">
-          <h3 className="text-lg font-semibold mb-2">Brand not found</h3>
-          <p className="text-muted-foreground mb-4">{error || 'Could not load brand.'}</p>
-          <Button onClick={() => navigate('/dashboard/brands')}>Back to brands</Button>
-        </Card>
-      </BrandLayout>
+      <Card className="p-8 text-center max-w-lg mx-auto mt-12">
+        <h3 className="text-lg font-semibold mb-2">Brand not found</h3>
+        <p className="text-muted-foreground mb-4">{error || 'Could not load brand.'}</p>
+        <Button onClick={() => navigate('/dashboard/brands')}>Back to brands</Button>
+      </Card>
     );
   }
 
   return (
-    <BrandLayout brandName={brand.name} innerNav={innerNav} maxWidth="7xl">
+    <>
       <PageHeader
         title="Overview"
         subtitle={brand.tone || 'At a glance — what this brand is and where to go next.'}
@@ -235,7 +234,7 @@ export default function BrandHomePage() {
         </Section>
         </section>
       </div>
-    </BrandLayout>
+    </>
   );
 }
 

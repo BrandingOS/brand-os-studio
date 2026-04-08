@@ -41,6 +41,7 @@ import IdentityPage from "./pages/dashboard/brand/[slug]/identity";
 import AssetsPage from "./pages/dashboard/brand/[slug]/assets";
 import SharePage from "./pages/dashboard/brand/[slug]/share";
 import BrandTemplatesPage from "./pages/dashboard/brand/[slug]/templates";
+import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
@@ -115,36 +116,39 @@ const App = () => (
               <AdminAnalyticsPage />
             </ProtectedRoute>
           } />
+          {/*
+            ─────────────────────────────────────────────────────────────
+            Brand scope — nested under BrandRouteLayout.
+
+            BrandRouteLayout mounts BrandLayout EXACTLY ONCE for all of
+            these child routes. As the user navigates between Overview,
+            Setup, Guidelines, etc., AppRail / BrandNavbar / InnerNavRail
+            stay mounted; only the Outlet (the page contents) swaps. No
+            flicker, no scroll loss, no re-running of the brand-list lazy
+            load. Pages publish their config (innerNav, maxWidth, brandName)
+            via `useBrandPageConfig` so the parent layout knows what to
+            render.
+
+            Fullscreen / standalone surfaces under the same prefix
+            (brand-guides editor, guidelines/canvas, etc.) stay as flat
+            sibling routes below — they intentionally bypass this shell.
+            ─────────────────────────────────────────────────────────────
+          */}
           <Route path="/dashboard/brand/:slug" element={
             <ProtectedRoute>
-              <BrandHomePage />
+              <BrandRouteLayout />
             </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/edit" element={
-            <ProtectedRoute>
-              <BrandEditPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/identity" element={
-            <ProtectedRoute>
-              <IdentityPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/assets" element={
-            <ProtectedRoute>
-              <AssetsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/share" element={
-            <ProtectedRoute>
-              <SharePage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/templates" element={
-            <ProtectedRoute>
-              <BrandTemplatesPage />
-            </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<BrandHomePage />} />
+            <Route path="edit" element={<BrandEditPage />} />
+            <Route path="identity" element={<IdentityPage />} />
+            <Route path="assets" element={<AssetsPage />} />
+            <Route path="share" element={<SharePage />} />
+            <Route path="templates" element={<BrandTemplatesPage />} />
+            <Route path="guidelines" element={<GuidelinesHubPage />} />
+            <Route path="kit" element={<BrandKitV2Page />} />
+            <Route path="dam" element={<DamPage />} />
+          </Route>
           {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
@@ -176,11 +180,7 @@ const App = () => (
               <SocialMediaPage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/guidelines" element={
-            <ProtectedRoute>
-              <GuidelinesHubPage />
-            </ProtectedRoute>
-          } />
+          {/* /dashboard/brand/:slug/guidelines is now nested under BrandRouteLayout above. */}
           <Route path="/dashboard/brand/:slug/guidelines/canvas" element={
             <ProtectedRoute>
               <CanvasGuidelinesPage />
@@ -189,26 +189,8 @@ const App = () => (
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
 
           {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
-          <Route path="/b/:slug/kit" element={
-            <ProtectedRoute>
-              <BrandKitV2Page />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/kit" element={
-            <ProtectedRoute>
-              <BrandKitV2Page />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/dam" element={
-            <ProtectedRoute>
-              <DamPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/dam" element={
-            <ProtectedRoute>
-              <DamPage />
-            </ProtectedRoute>
-          } />
+          {/* /dashboard/brand/:slug/kit and /dam are nested under BrandRouteLayout above.
+              The /b/:slug short-form aliases are nested under their own BrandRouteLayout below. */}
           <Route path="/templates" element={
             <ProtectedRoute>
               <TemplatesMarketplacePage />
@@ -258,36 +240,21 @@ const App = () => (
             full migration of internal links to the short form is deferred and
             documented in docs/ux-redesign/EXECUTION.md.
           */}
+          {/* Short-form /b/:slug aliases — same nested-shell pattern. */}
           <Route path="/b/:slug" element={
             <ProtectedRoute>
-              <BrandHomePage />
+              <BrandRouteLayout />
             </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/identity" element={
-            <ProtectedRoute>
-              <IdentityPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/assets" element={
-            <ProtectedRoute>
-              <AssetsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/guidelines" element={
-            <ProtectedRoute>
-              <GuidelinesHubPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/share" element={
-            <ProtectedRoute>
-              <SharePage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/edit" element={
-            <ProtectedRoute>
-              <BrandEditPage />
-            </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<BrandHomePage />} />
+            <Route path="edit" element={<BrandEditPage />} />
+            <Route path="identity" element={<IdentityPage />} />
+            <Route path="assets" element={<AssetsPage />} />
+            <Route path="share" element={<SharePage />} />
+            <Route path="guidelines" element={<GuidelinesHubPage />} />
+            <Route path="kit" element={<BrandKitV2Page />} />
+            <Route path="dam" element={<DamPage />} />
+          </Route>
           <Route path="/b/:slug/brandkit" element={
             <ProtectedRoute>
               <BrandKitRedirect />

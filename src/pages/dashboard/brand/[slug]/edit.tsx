@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { BrandBoard } from '@/features/brand/components/BrandBoard';
 import { LogoUploader } from '@/features/brand/components/LogoUploader';
 import { ColorPaletteEditor } from '@/features/brand/components/ColorPaletteEditor';
@@ -9,6 +8,7 @@ import { IconGallery } from '@/features/brand/components/IconGallery';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { Eye, Edit, Save, Wrench, Image as ImageIcon, Palette, Type, Shapes, Sparkles } from 'lucide-react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ export default function BrandEditPage() {
   const { toast } = useToast();
   const activeAnchor = useActiveAnchor(SETUP_ANCHORS);
 
-  const innerNav: InnerNavConfig = {
+  const innerNav = useMemo<InnerNavConfig>(() => ({
     title: 'Setup',
     icon: Wrench,
     storageKey: 'brandos:setup-nav-open',
@@ -48,7 +48,9 @@ export default function BrandEditPage() {
         ],
       },
     ],
-  };
+  }), [activeAnchor, slug]);
+
+  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
 
   useEffect(() => {
     if (slug) {
@@ -119,18 +121,14 @@ export default function BrandEditPage() {
 
   if (isLoading || !editedBrand) {
     return (
-      <BrandLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="text-lg font-medium">Loading brand...</div>
-          </div>
-        </div>
-      </BrandLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-lg font-medium">Loading brand...</div>
+      </div>
     );
   }
 
   return (
-    <BrandLayout brandName={brand?.name} maxWidth="7xl" innerNav={innerNav}>
+    <>
       <PageHeader
         title="Setup"
         subtitle="Edit this brand's identity — logos, colors, type — with a live preview."
@@ -233,6 +231,6 @@ export default function BrandEditPage() {
           </div>
         </div>
       </div>
-    </BrandLayout>
+    </>
   );
 }

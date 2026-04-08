@@ -13,11 +13,13 @@
  */
 import { useCallback, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
+import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { Sparkles } from 'lucide-react';
 import { LogoFilesModule } from '@/features/brandkit/components/LogoFilesModule';
 import { ColorSystemModule } from '@/features/brandkit/components/colors/ColorSystemModule';
 import { TypographyModule } from '@/features/brandkit/components/TypographyModule';
@@ -62,6 +64,28 @@ export default function IdentityPage() {
     [searchParams, setSearchParams],
   );
 
+  // Inner-nav items mirror the tabs as href links — clicking an item updates
+  // ?tab= and stays on the same page, which keeps the rail and chrome mounted.
+  const innerNav = useMemo<InnerNavConfig>(() => ({
+    title: 'Identity',
+    icon: Sparkles,
+    storageKey: 'brandos:identity-nav-open',
+    groups: [
+      {
+        id: 'tabs',
+        label: 'Sections',
+        items: TABS.map((id) => ({
+          id,
+          label: TAB_META[id].label,
+          icon: TAB_META[id].icon,
+          href: `/dashboard/brand/${slug}/identity?tab=${id}`,
+        })),
+      },
+    ],
+  }), [slug]);
+
+  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
+
   // ColorSystemModule is the only identity module that needs an updater.
   // Mirror the pattern used by BrandKitModuleView.
   const handleBrandUpdate = useCallback(
@@ -74,27 +98,22 @@ export default function IdentityPage() {
 
   if (isLoading) {
     return (
-      <BrandLayout brandName="Loading...">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        </div>
-      </BrandLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (error || !brand) {
     return (
-      <BrandLayout>
-        <div className="text-center py-16">
-          <p className="text-muted-foreground">{error || 'Brand not found.'}</p>
-        </div>
-      </BrandLayout>
+      <div className="text-center py-16">
+        <p className="text-muted-foreground">{error || 'Brand not found.'}</p>
+      </div>
     );
   }
 
   return (
-    <BrandLayout brandName={brand.name}>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <PageHeader
           title="Identity"
           subtitle="Everything that makes this brand recognizable — logo, colors, type, voice, strategy."
@@ -133,7 +152,6 @@ export default function IdentityPage() {
             <BrandStrategyModule brand={brand} />
           </TabsContent>
         </Tabs>
-      </div>
-    </BrandLayout>
+    </div>
   );
 }

@@ -103,6 +103,20 @@ export function InnerNavRail({
     }
   });
 
+  // Re-read collapsed state when storageKey changes. The rail is now part
+  // of the persistent shell (BrandRouteLayout) and stays mounted across
+  // brand-scope navigation, so when the user moves from one page to another
+  // the storageKey prop changes but the component instance does not — we
+  // need an effect to pick up the new key's value from localStorage.
+  React.useEffect(() => {
+    try {
+      const v = localStorage.getItem(storageKey);
+      setOpen(v === null ? true : v === '1');
+    } catch {
+      setOpen(true);
+    }
+  }, [storageKey]);
+
   React.useEffect(() => {
     try {
       localStorage.setItem(storageKey, open ? '1' : '0');

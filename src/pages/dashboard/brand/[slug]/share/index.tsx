@@ -8,8 +8,8 @@
  * Stage 11 will deepen this with batch export, link sharing, and
  * collaboration controls.
  */
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { BrandLayout } from '@/features/brand';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
@@ -21,7 +21,12 @@ import {
   Download,
   Link2,
   Copy,
+  Share2,
 } from 'lucide-react';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
+import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+
+const SHARE_ANCHORS = ['showcase', 'logo-deck', 'guidelines-export'];
 
 export default function SharePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -29,6 +34,27 @@ export default function SharePage() {
   const { brand, isLoading, error } = useBrandBySlug(slug);
 
   const showcaseUrl = `${window.location.origin}/brand/${slug}/showcase`;
+  const activeAnchor = useActiveAnchor(SHARE_ANCHORS);
+
+  const innerNav = useMemo<InnerNavConfig>(() => ({
+    title: 'Share',
+    icon: Share2,
+    storageKey: 'brandos:share-nav-open',
+    activeAnchor,
+    groups: [
+      {
+        id: 'sections',
+        label: 'On this page',
+        items: [
+          { id: 'showcase',          label: 'Public showcase', icon: Globe,        anchor: 'showcase' },
+          { id: 'logo-deck',         label: 'Logo deck',        icon: Presentation, anchor: 'logo-deck' },
+          { id: 'guidelines-export', label: 'Guidelines PDF',   icon: Download,     anchor: 'guidelines-export' },
+        ],
+      },
+    ],
+  }), [activeAnchor]);
+
+  useBrandPageConfig({ brandName: brand?.name, innerNav });
 
   const handleCopyShowcase = () => {
     navigator.clipboard.writeText(showcaseUrl).then(
@@ -39,34 +65,29 @@ export default function SharePage() {
 
   if (isLoading) {
     return (
-      <BrandLayout brandName="Loading...">
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        </div>
-      </BrandLayout>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
     );
   }
 
   if (error || !brand) {
     return (
-      <BrandLayout>
-        <div className="text-center py-16">
-          <p className="text-muted-foreground">{error || 'Brand not found.'}</p>
-        </div>
-      </BrandLayout>
+      <div className="text-center py-16">
+        <p className="text-muted-foreground">{error || 'Brand not found.'}</p>
+      </div>
     );
   }
 
   return (
-    <BrandLayout brandName={brand.name}>
-      <div className="space-y-8">
+    <div className="space-y-8">
         <PageHeader
           title="Share"
           subtitle="Turn this brand into something you can send out — links, decks, and downloads."
         />
 
         {/* Public showcase link — shipped feature, surface it. */}
-        <Card className="p-5">
+        <Card id="section-showcase" className="scroll-mt-24 p-5">
           <div className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
               <Globe className="w-5 h-5 text-white" />
@@ -98,7 +119,8 @@ export default function SharePage() {
 
         {/* Logo presentation — exists today as standalone, surface it here. */}
         <Card
-          className="p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
+          id="section-logo-deck"
+          className="scroll-mt-24 p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
           onClick={() => navigate(`/dashboard/brand/${slug}/logo-presentation`)}
         >
           <div className="flex items-start gap-4">
@@ -116,7 +138,8 @@ export default function SharePage() {
 
         {/* Brand book / guidelines export. */}
         <Card
-          className="p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
+          id="section-guidelines-export"
+          className="scroll-mt-24 p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
           onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
         >
           <div className="flex items-start gap-4">
@@ -131,7 +154,6 @@ export default function SharePage() {
             </div>
           </div>
         </Card>
-      </div>
-    </BrandLayout>
+    </div>
   );
 }

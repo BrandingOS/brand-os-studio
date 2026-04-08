@@ -38,10 +38,10 @@ import {
   Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { exportBrandKitZip } from './bulkExport';
 import { downloadBlob } from './downloaders';
@@ -76,10 +76,10 @@ export default function BrandKitPage() {
   const [progress, setProgress] = React.useState<{ pct: number; label: string }>({ pct: 0, label: '' });
   const activeAnchor = useActiveAnchor(ANCHORS);
 
-  // Inner-nav config — passed to BrandLayout so the rail mounts as a
-  // structural column next to AppRail. Two groups: in-page anchors and
+  // Inner-nav config — published to BrandRouteLayout so the rail mounts as
+  // a structural column next to AppRail. Two groups: in-page anchors and
   // deep editor route links.
-  const innerNav: InnerNavConfig | undefined = slug
+  const innerNav = React.useMemo<InnerNavConfig | undefined>(() => slug
     ? {
         title: 'Brand Kit',
         icon: Wand2,
@@ -120,7 +120,11 @@ export default function BrandKitPage() {
           },
         ],
       }
-    : undefined;
+    : undefined,
+    [slug, activeAnchor],
+  );
+
+  useBrandPageConfig({ brandName: current?.name, maxWidth: '7xl', innerNav });
 
   React.useEffect(() => {
     if (slug) loadBySlug(slug);
@@ -175,15 +179,11 @@ export default function BrandKitPage() {
   };
 
   if (!current || !slug) {
-    return (
-      <BrandLayout>
-        <div className="p-8 text-sm text-muted-foreground">Loading brand kit…</div>
-      </BrandLayout>
-    );
+    return <div className="p-8 text-sm text-muted-foreground">Loading brand kit…</div>;
   }
 
   return (
-    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
+    <>
       <PageHeader
         title="Brand Kit"
         subtitle={`Everything in ${current.name}'s brand system, in one place. ${completeness}% complete.`}
@@ -251,6 +251,6 @@ export default function BrandKitPage() {
           <BrandBookSection brand={current} slug={slug} />
         </div>
       </div>
-    </BrandLayout>
+    </>
   );
 }

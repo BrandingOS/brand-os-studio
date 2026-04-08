@@ -24,9 +24,10 @@ import {
   Download,
   ExternalLink,
 } from 'lucide-react';
-import { BrandLayout } from '@/features/brand/components/BrandLayout';
+import { useMemo } from 'react';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +48,7 @@ export default function GuidelinesHubPage() {
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const activeAnchor = useActiveAnchor(ANCHORS);
 
-  const innerNav: InnerNavConfig = {
+  const innerNav = useMemo<InnerNavConfig>(() => ({
     title: 'Guidelines',
     icon: BookOpen,
     storageKey: 'brandos:guidelines-nav-open',
@@ -67,32 +68,28 @@ export default function GuidelinesHubPage() {
         ],
       },
     ],
-  };
+  }), [activeAnchor]);
+
+  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
 
   if (isLoading) {
-    return (
-      <BrandLayout>
-        <div className="p-8 text-sm text-muted-foreground">Loading guidelines…</div>
-      </BrandLayout>
-    );
+    return <div className="p-8 text-sm text-muted-foreground">Loading guidelines…</div>;
   }
 
   if (error || !brand) {
     return (
-      <BrandLayout>
-        <Card className="p-8 text-center max-w-lg mx-auto mt-12">
-          <h3 className="text-lg font-semibold mb-2">Brand not found</h3>
-          <p className="text-muted-foreground mb-4">
-            {error || 'The requested brand could not be found.'}
-          </p>
-          <Button onClick={() => navigate('/dashboard/brands')}>Back to brands</Button>
-        </Card>
-      </BrandLayout>
+      <Card className="p-8 text-center max-w-lg mx-auto mt-12">
+        <h3 className="text-lg font-semibold mb-2">Brand not found</h3>
+        <p className="text-muted-foreground mb-4">
+          {error || 'The requested brand could not be found.'}
+        </p>
+        <Button onClick={() => navigate('/dashboard/brands')}>Back to brands</Button>
+      </Card>
     );
   }
 
   return (
-    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
+    <>
       <PageHeader
         title="Guidelines"
         subtitle="The brand book — strategy, logo, color, type, voice, and applications."
@@ -294,7 +291,7 @@ export default function GuidelinesHubPage() {
             </Card>
           </section>
       </div>
-    </BrandLayout>
+    </>
   );
 }
 

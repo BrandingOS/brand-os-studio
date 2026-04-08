@@ -10,7 +10,6 @@
 import * as React from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
-import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { AssetUploadZone } from './components/AssetUploadZone';
@@ -20,6 +19,7 @@ import { AssetLightbox } from './components/AssetLightbox';
 import type { Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
+import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import {
   FolderOpen,
   LayoutGrid,
@@ -62,28 +62,34 @@ export default function DamPage() {
   }, [slug, loadBySlug]);
 
   // Build the inner-nav config — href filter items mirroring asset categories.
-  const innerNav: InnerNavConfig | undefined = slug
-    ? {
-        title: 'Folders',
-        icon: FolderOpen,
-        storageKey: 'brandos:folders-nav-open',
-        groups: [
-          {
-            id: 'filters',
-            label: 'Categories',
-            items: [
-              { id: 'all',       label: 'All assets', icon: LayoutGrid, href: `/dashboard/brand/${slug}/dam` },
-              { id: 'logo',      label: 'Logos',      icon: ImageIcon,  href: `/dashboard/brand/${slug}/dam?category=logo` },
-              { id: 'photo',     label: 'Photos',     icon: Camera,     href: `/dashboard/brand/${slug}/dam?category=photo` },
-              { id: 'icon',      label: 'Icons',      icon: Smile,      href: `/dashboard/brand/${slug}/dam?category=icon` },
-              { id: 'social',    label: 'Social',     icon: Share2,     href: `/dashboard/brand/${slug}/dam?category=social` },
-              { id: 'mockup',    label: 'Mockups',    icon: Box,        href: `/dashboard/brand/${slug}/dam?category=mockup` },
-              { id: 'reference', label: 'References', icon: Bookmark,   href: `/dashboard/brand/${slug}/dam?category=reference` },
+  const innerNav = React.useMemo<InnerNavConfig | undefined>(
+    () =>
+      slug
+        ? {
+            title: 'Folders',
+            icon: FolderOpen,
+            storageKey: 'brandos:folders-nav-open',
+            groups: [
+              {
+                id: 'filters',
+                label: 'Categories',
+                items: [
+                  { id: 'all',       label: 'All assets', icon: LayoutGrid, href: `/dashboard/brand/${slug}/dam` },
+                  { id: 'logo',      label: 'Logos',      icon: ImageIcon,  href: `/dashboard/brand/${slug}/dam?category=logo` },
+                  { id: 'photo',     label: 'Photos',     icon: Camera,     href: `/dashboard/brand/${slug}/dam?category=photo` },
+                  { id: 'icon',      label: 'Icons',      icon: Smile,      href: `/dashboard/brand/${slug}/dam?category=icon` },
+                  { id: 'social',    label: 'Social',     icon: Share2,     href: `/dashboard/brand/${slug}/dam?category=social` },
+                  { id: 'mockup',    label: 'Mockups',    icon: Box,        href: `/dashboard/brand/${slug}/dam?category=mockup` },
+                  { id: 'reference', label: 'References', icon: Bookmark,   href: `/dashboard/brand/${slug}/dam?category=reference` },
+                ],
+              },
             ],
-          },
-        ],
-      }
-    : undefined;
+          }
+        : undefined,
+    [slug],
+  );
+
+  useBrandPageConfig({ brandName: current?.name, maxWidth: '7xl', innerNav });
 
   const assets = current?.assets ?? [];
 
@@ -152,15 +158,11 @@ export default function DamPage() {
   };
 
   if (!current) {
-    return (
-      <BrandLayout>
-        <div className="p-8">Loading brand…</div>
-      </BrandLayout>
-    );
+    return <div className="p-8">Loading brand…</div>;
   }
 
   return (
-    <BrandLayout maxWidth="7xl" innerNav={innerNav}>
+    <>
       <PageHeader
         title="Folders"
         subtitle={`${current.name}'s asset library — logos, photos, icons, mockups, and references.`}
@@ -197,7 +199,7 @@ export default function DamPage() {
           />
         )}
       </div>
-    </BrandLayout>
+    </>
   );
 }
 
