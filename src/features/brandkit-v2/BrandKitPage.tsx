@@ -1,22 +1,29 @@
 /**
  * BrandKitPage — the unified Brand Kit v2 surface.
  *
- * Mounted at /b/:slug/kit (and /dashboard/brand/:slug/kit).
+ * Mounted at /b/:slug/kit AND /b/:slug/brandkit (legacy route now points
+ * here so users land on the same hub regardless of how they navigate).
  *
- * Composes 8 sections (Logo · Colors · Typography · Stationery · Social ·
- * Favicon · Mockups · Brand Book) under a sticky topbar with the bulk
- * "Download brand kit (.zip)" CTA.
+ * Layout (3 columns when fully open):
+ *   [BrandLayout sidebar] [BrandKitInnerNav] [main content with 9 sections]
  *
- * v5 sprint-3 / Brand Kit v2.
+ * Sections (anchored):
+ *   #settings → BrandSettingsHub (the canonical edit form)
+ *   #logo · #colors · #typography · #stationery · #social · #favicons ·
+ *   #mockups · #brand-book
+ *
+ * Sticky topbar with bulk Download brand kit (.zip).
  */
 import * as React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { Edit3, Share2, Download, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { BrandLayout } from '@/features/brand/components/BrandLayout';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { exportBrandKitZip } from './bulkExport';
 import { downloadBlob } from './downloaders';
+import { BrandKitInnerNav, useActiveAnchor } from './BrandKitInnerNav';
+import { SettingsSection } from './sections/SettingsSection';
 import { LogoSection } from './sections/LogoSection';
 import { ColorsSection } from './sections/ColorsSection';
 import { TypographySection } from './sections/TypographySection';
@@ -26,15 +33,40 @@ import { FaviconSection } from './sections/FaviconSection';
 import { MockupsSection } from './sections/MockupsSection';
 import { BrandBookSection } from './sections/BrandBookSection';
 
+const ANCHORS = [
+  'settings',
+  'logo',
+  'colors',
+  'typography',
+  'stationery',
+  'social',
+  'favicons',
+  'mockups',
+  'brand-book',
+];
+
 export default function BrandKitPage() {
   const { slug } = useParams<{ slug: string }>();
+  const location = useLocation();
   const { current, loadBySlug } = useBrandStore();
   const [exporting, setExporting] = React.useState(false);
   const [progress, setProgress] = React.useState<{ pct: number; label: string }>({ pct: 0, label: '' });
+  const activeAnchor = useActiveAnchor(ANCHORS);
 
   React.useEffect(() => {
     if (slug) loadBySlug(slug);
   }, [slug, loadBySlug]);
+
+  // If a hash is present on first mount, scroll to it
+  React.useEffect(() => {
+    if (!current) return;
+    const hash = location.hash.replace('#', '');
+    if (!hash) return;
+    setTimeout(() => {
+      const el = document.getElementById(`section-${hash}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }, [current, location.hash]);
 
   const completeness = React.useMemo(() => {
     if (!current) return 0;
@@ -113,11 +145,11 @@ export default function BrandKitPage() {
 
           <div className="flex flex-shrink-0 items-center gap-2">
             <Link
-              to={`/b/${slug}/identity`}
+              to={`/b/${slug}/settings`}
               className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40"
             >
               <Edit3 className="h-3 w-3" />
-              Edit brand
+              Brand Settings
             </Link>
             <Link
               to={`/p/${slug}`}
@@ -150,16 +182,39 @@ export default function BrandKitPage() {
         </div>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-14 pb-12">
-        <LogoSection brand={current} slug={slug} />
-        <ColorsSection brand={current} slug={slug} />
-        <TypographySection brand={current} slug={slug} />
-        <StationerySection brand={current} slug={slug} />
-        <SocialSection brand={current} slug={slug} />
-        <FaviconSection brand={current} slug={slug} />
-        <MockupsSection brand={current} slug={slug} />
-        <BrandBookSection brand={current} slug={slug} />
+      {/* Main: inner nav + sections */}
+      <div className="flex gap-6">
+        <BrandKitInnerNav slug={slug} activeAnchor={activeAnchor} />
+
+        <div className="min-w-0 flex-1 space-y-14 pb-12">
+          <div id="section-settings" className="scroll-mt-32">
+            <SettingsSection slug={slug} />
+          </div>
+          <div id="section-logo" className="scroll-mt-32">
+            <LogoSection brand={current} slug={slug} />
+          </div>
+          <div id="section-colors" className="scroll-mt-32">
+            <ColorsSection brand={current} slug={slug} />
+          </div>
+          <div id="section-typography" className="scroll-mt-32">
+            <TypographySection brand={current} slug={slug} />
+          </div>
+          <div id="section-stationery" className="scroll-mt-32">
+            <StationerySection brand={current} slug={slug} />
+          </div>
+          <div id="section-social" className="scroll-mt-32">
+            <SocialSection brand={current} slug={slug} />
+          </div>
+          <div id="section-favicons" className="scroll-mt-32">
+            <FaviconSection brand={current} slug={slug} />
+          </div>
+          <div id="section-mockups" className="scroll-mt-32">
+            <MockupsSection brand={current} slug={slug} />
+          </div>
+          <div id="section-brand-book" className="scroll-mt-32">
+            <BrandBookSection brand={current} slug={slug} />
+          </div>
+        </div>
       </div>
     </BrandLayout>
   );

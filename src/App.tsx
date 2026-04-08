@@ -1,7 +1,7 @@
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider } from "next-themes";
@@ -52,6 +52,14 @@ const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
 const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
 const BrandKitV2Page = lazy(() => import('./features/brandkit-v2/BrandKitPage'));
+const BrandSettingsV2Page = lazy(() => import('./features/brandkit-v2/BrandSettingsPage'));
+
+/** Tiny helper that redirects the legacy `/brandkit` (no moduleId) URL
+ * to the merged Brand Kit v2 page at `/kit`. Preserves the slug. */
+function BrandKitRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  return <Navigate to={`/b/${slug}/kit`} replace />;
+}
 
 const queryClient = new QueryClient();
 
@@ -132,9 +140,10 @@ const App = () => (
               <SharePage />
             </ProtectedRoute>
           } />
+          {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
-              <BrandKitHubPage />
+              <BrandKitRedirect />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/brandkit/:moduleId" element={
@@ -276,7 +285,17 @@ const App = () => (
           } />
           <Route path="/b/:slug/brandkit" element={
             <ProtectedRoute>
-              <BrandKitHubPage />
+              <BrandKitRedirect />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/settings" element={
+            <ProtectedRoute>
+              <BrandSettingsV2Page />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/settings" element={
+            <ProtectedRoute>
+              <BrandSettingsV2Page />
             </ProtectedRoute>
           } />
           <Route path="/b/:slug/brandkit/:moduleId" element={

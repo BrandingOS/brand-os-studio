@@ -59,6 +59,8 @@ const brandNavItems: BrandNavItem[] = [
     icon: Sparkles,
     matchPaths: [
       "/dashboard/brand/:slug/kit",
+      "/dashboard/brand/:slug/brandkit",
+      "/dashboard/brand/:slug/settings",
     ],
   },
   {
@@ -68,13 +70,6 @@ const brandNavItems: BrandNavItem[] = [
     matchPaths: [
       "/dashboard/brand/:slug/identity",
       "/dashboard/brand/:slug/edit",
-      "/dashboard/brand/:slug/brandkit/color-system",
-      "/dashboard/brand/:slug/brandkit/typography",
-      "/dashboard/brand/:slug/brandkit/brand-voice",
-      "/dashboard/brand/:slug/brandkit/brand-strategy",
-      "/dashboard/brand/:slug/brandkit/logo-files",
-      "/dashboard/brand/:slug/brandkit/profile-icons",
-      "/dashboard/brand/:slug/brandkit/settings",
     ],
   },
   {
@@ -83,22 +78,9 @@ const brandNavItems: BrandNavItem[] = [
     icon: Briefcase,
     matchPaths: [
       "/dashboard/brand/:slug/assets",
-      "/dashboard/brand/:slug/brandkit/assets",
-      "/dashboard/brand/:slug/brandkit/business-cards",
-      "/dashboard/brand/:slug/brandkit/facebook-covers",
-      "/dashboard/brand/:slug/brandkit/instagram-posts",
-      "/dashboard/brand/:slug/brandkit/instagram-stories",
-      "/dashboard/brand/:slug/brandkit/presentations",
-      "/dashboard/brand/:slug/brandkit/animations",
-      "/dashboard/brand/:slug/brandkit/qr-code",
-      "/dashboard/brand/:slug/brandkit/invoices",
-      "/dashboard/brand/:slug/brandkit/mockups",
-      "/dashboard/brand/:slug/brandkit/design-tool",
+      "/dashboard/brand/:slug/dam",
       "/dashboard/brand/:slug/social-media",
       "/dashboard/brand/:slug/presentations",
-      // Bare /brandkit (the legacy hub) routes here too — Assets is the
-      // closest semantic home for the deliverable browser.
-      "/dashboard/brand/:slug/brandkit",
     ],
   },
   {
