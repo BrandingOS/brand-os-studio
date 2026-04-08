@@ -206,7 +206,7 @@ function PickerThumb({
       title={asset.name}
       className={cn(
         'group flex aspect-square items-center justify-center overflow-hidden rounded-lg',
-        'border border-border bg-neutral-800 p-2 transition hover:border-primary hover:shadow-sm',
+        'border border-border bg-neutral-100 p-2 transition hover:border-primary hover:shadow-sm dark:bg-neutral-200',
       )}
     >
       <img
