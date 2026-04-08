@@ -7,6 +7,8 @@ import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { CommandPaletteProvider } from "@/shared/search/CommandPaletteProvider";
+import { BrandAssistantProvider } from "@/features/ai/v5/BrandAssistantProvider";
 
 // Pages
 import IndexPage from "./pages/Index";
@@ -42,6 +44,9 @@ import SharePage from "./pages/dashboard/brand/[slug]/share";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
+const DamPage = lazy(() => import('./features/dam/DamPage'));
+const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
+const BrandPortalV2Page = lazy(() => import('./features/brand-portal/v2/BrandPortalV2Page'));
 
 const queryClient = new QueryClient();
 
@@ -51,6 +56,8 @@ const App = () => (
     <TooltipProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AuthProvider>
+          <CommandPaletteProvider>
+          <BrandAssistantProvider>
           <Toaster />
           <ErrorBoundary>
           <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
@@ -162,6 +169,23 @@ const App = () => (
           } />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
 
+          {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
+          <Route path="/b/:slug/dam" element={
+            <ProtectedRoute>
+              <DamPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/dam" element={
+            <ProtectedRoute>
+              <DamPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/templates" element={
+            <ProtectedRoute>
+              <TemplatesMarketplacePage />
+            </ProtectedRoute>
+          } />
+
           {/*
             Stage 14 — Short-form `/b/:slug/...` aliases.
             See docs/ux-redesign/ARCHITECTURE.md §8 for the full migration map.
@@ -222,11 +246,14 @@ const App = () => (
           } />
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
+          <Route path="/p/:slug" element={<BrandPortalV2Page />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
           </ErrorBoundary>
+          </BrandAssistantProvider>
+          </CommandPaletteProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -1,3 +1,4 @@
+import { HomeV5 } from '../v5/HomeV5';
 import { useNavigate } from 'react-router-dom';
 import { useDashboard } from '../hooks/useDashboard';
 import { AdminPanel } from './AdminPanel';
@@ -23,6 +24,13 @@ import {
 } from 'lucide-react';
 
 export function DashboardMain() {
+  // BrandOS v5 — the workspace home is now composed by HomeV5.
+  // The legacy implementation below is kept dormant but unreachable.
+  return <HomeV5 />;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _LegacyDashboardMain() {
   const navigate = useNavigate();
   const {
     brands,

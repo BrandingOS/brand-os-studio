@@ -31,3 +31,6 @@ dist-ssr
 qa-screenshots/
 audit-*.png
 test-screenshots/
+
+# Local research / reference assets — not part of the product
+new-version/
