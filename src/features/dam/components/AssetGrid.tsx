@@ -62,17 +62,21 @@ export function AssetGrid({ assets, view, onOpen }: AssetGridProps) {
           key={a.id}
           type="button"
           onClick={() => onOpen(a)}
-          className="group relative block w-full overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.4)]"
+          className="group flex w-full flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_20px_50px_-20px_hsl(var(--primary)/0.4)]"
         >
-          {/* Square thumbnail well — explicit width + aspect-ratio so the
-              <img> inside is bound by a real box and SVGs/logos can't run
-              wild. bg-muted gives transparent assets a visible bed. */}
+          {/* Top: square thumbnail well. Asset is centered with breathing
+              room from the edge, on a muted bed so transparent SVGs read. */}
           <div className="relative aspect-square w-full overflow-hidden bg-muted/30">
             <AssetThumb asset={a} size="lg" />
           </div>
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/40 to-transparent p-2.5">
-            <div className="truncate text-[11px] font-semibold text-foreground">{a.name}</div>
-            <div className="truncate text-[10px] text-muted-foreground">{a.category}</div>
+          {/* Bottom: dedicated label row. Lives BELOW the thumbnail well —
+              never overlapping the asset — so the card stays readable no
+              matter what the image is. */}
+          <div className="border-t border-border/60 px-3 py-2.5">
+            <div className="truncate text-[12px] font-semibold text-foreground">{a.name}</div>
+            <div className="truncate text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+              {a.category}
+            </div>
           </div>
         </button>
       ))}
