@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BrandOS — Shell Naming Guide</title>
+<style>
+  :root {
+    --bg: #0b0c0f;
+    --panel: #14161b;
+    --panel-2: #1b1e25;
+    --border: #262a33;
+    --text: #e6e8ee;
+    --muted: #8a90a0;
+    --primary: #7c5cff;
+    --primary-soft: rgba(124, 92, 255, 0.14);
+    --accent: #43d4a3;
+    --warn: #ffb547;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 48px 24px 80px; }
+  h1 {
+    font-size: 28px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--muted); margin: 0 0 32px; font-size: 14px; }
+  h2 {
+    font-size: 18px;
+    margin: 40px 0 14px;
+    letter-spacing: -0.005em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 18px;
+    border-radius: 2px;
+    background: var(--primary);
+    display: inline-block;
+  }
+  p { margin: 0 0 12px; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  /* ---------- Diagram ---------- */
+  .diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 110px 240px 1fr;
+    gap: 12px;
+    min-height: 360px;
+  }
+  .col {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    position: relative;
+    background: var(--panel-2);
+    display: flex;
+    flex-direction: column;
+  }
+  .col .tag {
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+  }
+  .col .scope {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+  .col h3 {
+    margin: 6px 0 2px;
+    font-size: 14px;
+  }
+  .col .meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .slot {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .slot strong { color: var(--text); display:block; font-size:12px; margin-bottom:2px; }
+
+  .col.center .topbar {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .col.center .canvas {
+    flex: 1;
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* ---------- Tables ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel-2);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td .name { font-weight: 600; }
+  .pill {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .pill.workspace { background: rgba(124,92,255,0.16); color: #b8a4ff; }
+  .pill.brand     { background: rgba(67,212,163,0.14); color: #6deebf; }
+  .pill.editor    { background: rgba(255,181,71,0.14); color: #ffce86; }
+  .pill.both      { background: rgba(255,255,255,0.08); color: var(--text); }
+
+  /* ---------- Mental model ---------- */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .card h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .card p { margin: 0; font-size: 13.5px; }
+  .alias {
+    background: var(--primary-soft);
+    border: 1px solid rgba(124,92,255,0.4);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    font-size: 13.5px;
+  }
+  .alias strong { color: #b8a4ff; }
+
+  /* ---------- Phrasebook ---------- */
+  .phrase {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 0;
+  }
+  .phrase .row {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+  .phrase .row:last-child { border-bottom: none; }
+  .phrase .bad { color: #ff8b8b; font-size: 13px; }
+  .phrase .good { color: #6deebf; font-size: 13px; }
+  .phrase .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 2px;
+    color: var(--muted);
+  }
+
+  footer {
+    margin-top: 56px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .diagram { grid-template-columns: 1fr; min-height: auto; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .phrase .row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>BrandOS — Shell Naming Guide</h1>
+    <p class="subtitle">Use these names when talking about the UI so we never get crossed wires.</p>
+
+    <h2>The shape</h2>
+    <div class="diagram" aria-label="BrandOS shell diagram">
+      <div class="col">
+        <span class="tag">AppRail</span>
+        <h3>Global rail</h3>
+        <div class="meta">88px · always present</div>
+        <div class="slot"><strong>Top slot</strong>brand switcher (in brand) / BrandOS mark (in workspace)</div>
+        <div class="slot"><strong>Middle</strong>Home · Brands · Templates · Learn</div>
+        <div class="slot" style="margin-top:auto;"><strong>Bottom slot</strong>Settings · UserMenu</div>
+      </div>
+
+      <div class="col">
+        <span class="tag" style="background:var(--accent); color:#0b0c0f;">BrandContextRail</span>
+        <h3>Brand sidebar</h3>
+        <div class="meta">256px · brand scope only</div>
+        <div class="slot"><strong>Header card</strong>brand logo + name + tone</div>
+        <div class="slot"><strong>Sections</strong>Overview · Identity · Assets · Guidelines · Share</div>
+        <div class="slot" style="margin-top:auto;"><strong>Bottom</strong>Brand Settings</div>
+      </div>
+
+      <div class="col center">
+        <div class="topbar">
+          <span><strong style="color:var(--text);">BrandNavbar</strong> / <strong style="color:var(--text);">DashboardNavbar</strong></span>
+          <span>h-14</span>
+        </div>
+        <div class="canvas">page content</div>
+      </div>
+    </div>
+
+    <h2>Naming reference</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Scope</th>
+          <th>Size</th>
+          <th>What it is</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="name">AppRail</span></td>
+          <td><span class="pill both">workspace + brand</span></td>
+          <td>88px wide</td>
+          <td>Slim global rail. Icon + label stacked, never icon-only. Brand switcher at top, workspace nav middle, Settings + UserMenu bottom.</td>
+        </tr>
+        <tr>
+          <td><span class="name">BrandContextRail</span></td>
+          <td><span class="pill brand">brand only</span></td>
+          <td>256px wide</td>
+          <td>Contextual brand sidebar. Brand identity header card, then the 5 sections, then Brand Settings.</td>
+        </tr>
+        <tr>
+          <td><span class="name">BrandNavbar</span></td>
+          <td><span class="pill brand">brand only</span></td>
+          <td>h-14</td>
+          <td>Slim topbar inside a brand. Shows <code>Brand · Section</code> breadcrumb + search + notifications/help.</td>
+        </tr>
+        <tr>
+          <td><span class="name">DashboardNavbar</span></td>
+          <td><span class="pill workspace">workspace only</span></td>
+          <td>h-14</td>
+          <td>Slim topbar in the workspace. Workspace label + search + theme toggle + notifications/help.</td>
+        </tr>
+        <tr>
+          <td><span class="name">EditorRail</span></td>
+          <td><span class="pill editor">editor only</span></td>
+          <td>~56px</td>
+          <td>Editor mode/tool rail. Existing — unchanged in this redesign.</td>
+        </tr>
+        <tr>
+          <td><span class="name">EditorTopBar</span></td>
+          <td><span class="pill editor">editor only</span></td>
+          <td>h-12</td>
+          <td>Editor topbar (back · title · save state · share). Existing — unchanged in this redesign.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Mental model</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h4>Rail</h4>
+        <p>Vertical, sits on the left. <strong>AppRail</strong>, <strong>BrandContextRail</strong>, <strong>EditorRail</strong>.</p>
+      </div>
+      <div class="card">
+        <h4>Navbar / TopBar</h4>
+        <p>Horizontal, sits on top. <strong>BrandNavbar</strong>, <strong>DashboardNavbar</strong>, <strong>EditorTopBar</strong>.</p>
+      </div>
+    </div>
+
+    <div class="alias" style="margin-top:16px;">
+      <p style="margin:0;">From the original brief — <strong>"Sidebar 1"</strong> = <code>AppRail</code>. <strong>"Sidebar 2"</strong> = <code>BrandContextRail</code>.</p>
+    </div>
+
+    <h2>The shells (layout wrappers that mount the bars)</h2>
+    <table>
+      <thead>
+        <tr><th>Shell</th><th>Mounts</th><th>Used by</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="name">DashboardShell</span> / <span class="name">DashboardLayout</span></td>
+          <td>AppRail + DashboardNavbar</td>
+          <td>Workspace pages (Home, Brands, Templates, Learn, Settings)</td>
+        </tr>
+        <tr>
+          <td><span class="name">BrandLayout</span></td>
+          <td>AppRail + BrandContextRail + BrandNavbar</td>
+          <td>All brand pages (Overview, Identity, Assets, Guidelines, Share)</td>
+        </tr>
+        <tr>
+          <td><span class="name">EditorShell</span></td>
+          <td>EditorRail + EditorTopBar</td>
+          <td>Editors (unchanged in this redesign)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>How to phrase requests</h2>
+    <div class="phrase">
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"make the second sidebar wider"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"make BrandContextRail wider"</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"move the brand switcher to the top"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"the brand switcher already lives in AppRail's top slot — change X about it"</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"shrink the topbar inside a brand"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"shrink BrandNavbar"</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"add an item to the left nav"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"add an item to AppRail" (global) <em>or</em> "add a section to BrandContextRail" (brand-specific)</span>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="label">Instead of</span>
+          <span class="bad">"change the dashboard topbar"</span>
+        </div>
+        <div>
+          <span class="label">Say</span>
+          <span class="good">"change DashboardNavbar"</span>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      docs/ux-redesign/NAMING-GUIDE.html · keep this open while we work on UI
+    </footer>
+  </div>
+</body>
+</html>
