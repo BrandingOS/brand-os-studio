@@ -53,6 +53,7 @@ export default function BrandTemplatesPage() {
   return (
     <>
       <PageHeader
+        compact
         title="Templates"
         subtitle="Templates saved to this brand"
       />

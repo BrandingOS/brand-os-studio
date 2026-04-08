@@ -30,6 +30,15 @@ interface PageHeaderProps {
   actions?: ReactNode;
   /** Bottom slot for tabs / filter pills under the header. */
   belowSlot?: ReactNode;
+  /**
+   * Compact mode — used by brand-scope pages where the page name is
+   * already shown in the InnerNavRail header AND in the BrandNavbar
+   * breadcrumb. Hides the visible title + subtitle + eyebrow (the title
+   * is kept as an sr-only `<h1>` for accessibility) and renders only the
+   * actions row + belowSlot. If there are no actions and no belowSlot,
+   * the header collapses to nothing visible.
+   */
+  compact?: boolean;
   className?: string;
 }
 
@@ -40,8 +49,29 @@ export function PageHeader({
   eyebrow,
   actions,
   belowSlot,
+  compact = false,
   className,
 }: PageHeaderProps) {
+  // Compact path — used by brand-scope pages. Title becomes sr-only
+  // (still an h1 for screen readers), no subtitle, no eyebrow. The
+  // visible chrome is JUST the actions row + belowSlot. Saves the
+  // ~80px of vertical space the visible title was eating.
+  if (compact) {
+    const hasVisibleContent = Boolean(actions) || Boolean(belowSlot);
+    return (
+      <header className={cn(hasVisibleContent ? 'mb-4' : 'mb-0', className)}>
+        <h1 className="sr-only">{title}</h1>
+        {actions && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {actions}
+          </div>
+        )}
+        {belowSlot && <div className={actions ? 'mt-3' : ''}>{belowSlot}</div>}
+      </header>
+    );
+  }
+
+  // Standard path — workspace-scope pages keep the visible title block.
   return (
     <header className={cn('mb-6', className)}>
       {breadcrumb && breadcrumb.length > 0 && (

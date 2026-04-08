@@ -130,6 +130,7 @@ export default function BrandEditPage() {
   return (
     <>
       <PageHeader
+        compact
         title="Setup"
         subtitle="Edit this brand's identity — logos, colors, type — with a live preview."
         actions={

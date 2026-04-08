@@ -70,9 +70,21 @@
 |---|---|---|
 | **`PageHeader`** | `src/shared/ui/PageHeader.tsx` | The canonical page-level header. Title, optional subtitle, optional eyebrow, actions slot, optional below-slot for tabs/filters. **Every page uses this.** Do not roll your own `<div className="mb-8 flex items-center gap-4"><h1>...</h1></div>`. |
 
-Brand pages should NOT pass a `breadcrumb` to PageHeader — `BrandNavbar`
-already shows the brand · section breadcrumb. Use the breadcrumb only for
-workspace-scope pages where there's no other context.
+**Brand pages must pass `compact`.** In brand scope the page name is
+already shown in the InnerNavRail header AND in the BrandNavbar
+breadcrumb. The visible PageHeader title would be a third copy. Compact
+mode hides the visible title/subtitle/eyebrow (the `<h1>` is kept as
+`sr-only` for screen-reader accessibility) and renders only the actions
+row + belowSlot. The header collapses to nothing visible if there are
+no actions and no belowSlot — exactly what some brand pages want.
+
+Workspace pages (Home, Brands, Templates, Learn, Settings) do NOT pass
+`compact` — they need the visible title because there's no inner rail
+above them.
+
+Brand pages should also NOT pass a `breadcrumb` to PageHeader —
+`BrandNavbar` already shows the brand · section breadcrumb. Use the
+breadcrumb only for workspace-scope pages where there's no other context.
 
 ---
 

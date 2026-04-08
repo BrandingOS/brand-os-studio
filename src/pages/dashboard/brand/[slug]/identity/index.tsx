@@ -115,6 +115,7 @@ export default function IdentityPage() {
   return (
     <div className="space-y-6">
         <PageHeader
+          compact
           title="Identity"
           subtitle="Everything that makes this brand recognizable — logo, colors, type, voice, strategy."
         />

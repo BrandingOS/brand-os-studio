@@ -168,6 +168,7 @@ export default function DamPage() {
   return (
     <>
       <PageHeader
+        compact
         title="Folders"
         subtitle={`${current.name}'s asset library — logos, photos, icons, mockups, and references.`}
       />

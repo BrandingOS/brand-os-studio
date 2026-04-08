@@ -82,6 +82,7 @@ export default function SharePage() {
   return (
     <div className="space-y-8">
         <PageHeader
+          compact
           title="Share"
           subtitle="Turn this brand into something you can send out — links, decks, and downloads."
         />

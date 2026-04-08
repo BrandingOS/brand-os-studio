@@ -91,6 +91,7 @@ export default function GuidelinesHubPage() {
   return (
     <>
       <PageHeader
+        compact
         title="Guidelines"
         subtitle="The brand book — strategy, logo, color, type, voice, and applications."
         actions={

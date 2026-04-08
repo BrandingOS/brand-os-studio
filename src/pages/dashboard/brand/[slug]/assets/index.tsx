@@ -244,6 +244,7 @@ export default function AssetsPage() {
   return (
     <div className="space-y-6">
         <PageHeader
+          compact
           title="Designs"
           subtitle="Generated deliverables built from your brand identity — print, social, screen, and utility."
         />

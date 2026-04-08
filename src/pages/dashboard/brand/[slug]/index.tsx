@@ -114,6 +114,7 @@ export default function BrandHomePage() {
   return (
     <>
       <PageHeader
+        compact
         title="Overview"
         subtitle={brand.tone || 'At a glance — what this brand is and where to go next.'}
         actions={

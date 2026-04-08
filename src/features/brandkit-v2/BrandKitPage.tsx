@@ -185,6 +185,7 @@ export default function BrandKitPage() {
   return (
     <>
       <PageHeader
+        compact
         title="Brand Kit"
         subtitle={`Everything in ${current.name}'s brand system, in one place. ${completeness}% complete.`}
         actions={
