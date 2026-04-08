@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -17,9 +15,7 @@ import {
 import {
   Search,
   Bell,
-  Settings,
   HelpCircle,
-  Sparkles,
   Command,
   Sun,
   Moon,
@@ -42,7 +38,7 @@ const initialNotifications: Notification[] = [
 ];
 
 export function DashboardNavbar() {
-  const { user, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const { theme, setTheme } = useTheme();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -87,18 +83,17 @@ export function DashboardNavbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-        {/* Logo and Trigger */}
-        <div className="flex items-center gap-4">
-          <SidebarTrigger />
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-8 h-8 bg-primary rounded-lg">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-lg font-semibold">Brand OS</h1>
-              <p className="text-xs text-muted-foreground">Studio</p>
-            </div>
+        {/* Workspace label — the AppRail owns the global brand mark, so the
+            topbar just shows where you are. */}
+        <div className="flex items-center gap-3 min-w-0">
+          <Link to="/dashboard" className="text-sm font-semibold text-foreground hover:opacity-80 transition-opacity">
+            Workspace
           </Link>
+          {isAdmin && (
+            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+              Admin
+            </Badge>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -123,13 +118,6 @@ export function DashboardNavbar() {
 
         {/* Right Actions */}
         <div className="flex items-center space-x-2">
-          {/* Admin Badge */}
-          {isAdmin && (
-            <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-              Admin
-            </Badge>
-          )}
-
           {/* Mobile Search */}
           <Button variant="ghost" size="sm" className="md:hidden">
             <Search className="h-4 w-4" />
@@ -202,13 +190,7 @@ export function DashboardNavbar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Settings */}
-          <Button variant="ghost" size="sm">
-            <Settings className="h-4 w-4" />
-          </Button>
-
-          {/* User Menu */}
-          <UserMenu />
+          {/* Settings + User now live in AppRail bottom slot. */}
         </div>
       </div>
     </header>

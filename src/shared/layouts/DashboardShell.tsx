@@ -1,14 +1,14 @@
 /**
- * DashboardShell — Layout for all dashboard pages.
+ * DashboardShell — workspace-scope shell (v3).
  *
- * Wraps content with the standard sidebar + topbar + padded content area.
- * Used by: /dashboard, /dashboard/brands, /dashboard/brand/:slug/*, /dashboard/templates, etc.
+ * Wraps content with the AppRail + topbar + padded content area. Used by all
+ * non-brand-scoped pages (workspace home, brands list, templates, settings,
+ * etc). The brand scope uses BrandLayout, which mounts a second contextual
+ * rail in addition to AppRail.
  */
 import { ReactNode } from 'react';
-import { SidebarProvider } from '@/components/ui/sidebar';
 import { DashboardNavbar } from '@/features/dashboard/components/DashboardNavbar';
-import { DashboardSidebar } from '@/features/dashboard/components/DashboardSidebar';
-import { AppShell } from './AppShell';
+import { AppRail } from './AppRail';
 import { cn } from '@/lib/utils';
 
 interface DashboardShellProps {
@@ -27,23 +27,27 @@ const maxWidthMap = {
   full: 'max-w-full',
 };
 
-export function DashboardShell({ children, maxWidth = 'xl', noPadding = false, className }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  maxWidth = 'xl',
+  noPadding = false,
+  className,
+}: DashboardShellProps) {
   return (
-    <SidebarProvider>
-      <AppShell
-        mode="sidebar"
-        sidebar={<DashboardSidebar />}
-        topbar={<DashboardNavbar />}
-      >
-        <div className={cn(
-          !noPadding && 'px-4 sm:px-6 lg:px-8 py-6',
-          className,
-        )}>
-          <div className={cn('mx-auto w-full', maxWidthMap[maxWidth])}>
-            {children}
+    <div className="h-screen flex w-full bg-background overflow-hidden">
+      <AppRail />
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <DashboardNavbar />
+
+        <main className="flex-1 overflow-auto">
+          <div className={cn(!noPadding && 'px-4 sm:px-6 lg:px-8 py-6', className)}>
+            <div className={cn('mx-auto w-full', maxWidthMap[maxWidth])}>
+              {children}
+            </div>
           </div>
-        </div>
-      </AppShell>
-    </SidebarProvider>
+        </main>
+      </div>
+    </div>
   );
 }

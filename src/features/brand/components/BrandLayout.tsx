@@ -1,7 +1,28 @@
+/**
+ * BrandLayout — brand-scope shell (v3, two-rail).
+ *
+ * The brand scope mounts BOTH global navigation surfaces side by side:
+ *
+ *   AppRail (88px)  ·  BrandContextRail (256px)  ·  page
+ *   global product       contextual to this brand
+ *
+ * AppRail is the spine that follows the user across the whole product. The
+ * brand switcher lives in its top slot, satisfying the rule that switching
+ * brands belongs at the top of the sidebar area, never inside the canvas.
+ *
+ * BrandContextRail is the brand's own home — the five-section IA from
+ * docs/ux-redesign/ARCHITECTURE.md §3, with a brand-identity header card so
+ * the user always knows exactly which brand they are operating on.
+ *
+ * The layout owns horizontal/vertical padding and the centered max-width
+ * column. Pages MUST NOT redeclare these — they came from here.
+ */
 import { ReactNode } from 'react';
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { useParams } from 'react-router-dom';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { AppRail } from '@/shared/layouts/AppRail';
+import { BrandContextRail } from '@/shared/layouts/BrandContextRail';
 import { BrandNavbar } from './BrandNavbar';
-import { BrandSidebar } from './BrandSidebar';
 
 interface BrandLayoutProps {
   children: ReactNode;
@@ -21,33 +42,34 @@ const maxWidthClass: Record<NonNullable<BrandLayoutProps['maxWidth']>, string> =
   full: 'max-w-full',
 };
 
-/**
- * BrandLayout — brand-scope shell.
- *
- * Provides the standard horizontal gutter + vertical rhythm and centers content
- * in a max-width column. Pages MUST NOT redeclare horizontal/vertical padding —
- * that's owned here.
- *
- * See docs/ux-redesign/ARCHITECTURE.md §5 for the page-template system.
- */
 export function BrandLayout({ children, brandName, maxWidth = '6xl' }: BrandLayoutProps) {
+  const { slug } = useParams<{ slug: string }>();
+  // Pull the active brand straight from the store. Pages that mount this
+  // layout always run useBrandBySlug, which sets `current`, so by the time the
+  // rails read it the brand is in place.
+  const currentBrand = useBrandStore((s) => s.current);
+  const brandList = useBrandStore((s) => s.list);
+  const brandForRail =
+    currentBrand && currentBrand.slug === slug
+      ? currentBrand
+      : brandList.find((b) => b.slug === slug) ?? null;
+
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <BrandSidebar />
+    <div className="h-screen flex w-full bg-background overflow-hidden">
+      <AppRail brandSlug={slug} />
+      {slug && <BrandContextRail slug={slug} brand={brandForRail} />}
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <BrandNavbar brandName={brandName} />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <BrandNavbar brandName={brandName ?? brandForRail?.name} />
 
-          <main className="flex-1 overflow-auto">
-            <div className="px-4 sm:px-6 lg:px-8 py-6">
-              <div className={`mx-auto w-full ${maxWidthClass[maxWidth]}`}>
-                {children}
-              </div>
+        <main className="flex-1 overflow-auto">
+          <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <div className={`mx-auto w-full ${maxWidthClass[maxWidth]}`}>
+              {children}
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }
