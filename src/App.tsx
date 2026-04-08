@@ -22,7 +22,6 @@ import AdminBrandsPage from "./pages/dashboard/admin/brands";
 import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
 import BrandHomePage from "./pages/dashboard/brand/[slug]";
 import BrandEditPage from "./pages/dashboard/brand/[slug]/edit";
-import BrandKitHubPage from "./pages/dashboard/brand/[slug]/brandkit";
 import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
 import BrandGuidesPage from "./pages/dashboard/brand/[slug]/brand-guides";
 import LogoPresentationPage from "./pages/dashboard/brand/[slug]/logo-presentation";
