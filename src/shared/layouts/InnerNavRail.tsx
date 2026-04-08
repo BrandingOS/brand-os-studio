@@ -167,7 +167,7 @@ export function InnerNavRail({
   return (
     <aside
       aria-label={`${title} navigation`}
-      className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border/60 bg-muted/10"
+      className="hidden lg:flex w-[200px] shrink-0 flex-col border-r border-border/60 bg-muted/10"
     >
       {/* Header — title + collapse */}
       <header className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-border/60">
