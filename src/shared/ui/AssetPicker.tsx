@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Upload, FolderOpen } from 'lucide-react';
+import { Upload, FolderOpen, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Asset, Brand } from '@/shared/types/brand';
 
@@ -89,17 +89,9 @@ export function AssetPicker({
   const [open, setOpen] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  // Only show assets that will actually render as a real image:
-  // they must (a) have a URL, (b) be one of the image-shaped types.
-  // Documents and URL-less placeholders are dropped here so the picker
-  // never shows the FileText or broken-image fallback. The caller's
-  // filter (if any) is applied AFTER this baseline.
   const assets = React.useMemo(() => {
     const all = brand?.assets ?? [];
-    const renderable = all.filter(
-      (a) => Boolean(a.url) && ['image', 'logo', 'icon'].includes(a.type),
-    );
-    return filter ? renderable.filter(filter) : renderable;
+    return filter ? all.filter(filter) : all;
   }, [brand?.assets, filter]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,13 +177,6 @@ export function AssetPicker({
   );
 }
 
-/**
- * Picker thumbnail. By the time this renders, the parent has already
- * filtered to displayable images (URL present, type ∈ image|logo|icon),
- * so we can render the <img> unconditionally and not worry about
- * fallbacks. The bed is a soft medium-light grey — light enough to
- * feel neutral, dark enough that white logos still get a visible edge.
- */
 function PickerThumb({
   asset,
   onClick,
@@ -199,6 +184,7 @@ function PickerThumb({
   asset: Asset;
   onClick: () => void;
 }) {
+  const isImage = Boolean(asset.url) && ['image', 'logo', 'icon'].includes(asset.type);
   return (
     <button
       type="button"
@@ -206,14 +192,18 @@ function PickerThumb({
       title={asset.name}
       className={cn(
         'group flex aspect-square items-center justify-center overflow-hidden rounded-lg',
-        'border border-border bg-[#d4d4d4] p-2 transition hover:border-primary hover:shadow-sm',
+        'border border-border bg-muted/40 p-2 transition hover:border-primary hover:shadow-sm',
       )}
     >
-      <img
-        src={asset.url}
-        alt={asset.name}
-        className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.05]"
-      />
+      {isImage ? (
+        <img
+          src={asset.url}
+          alt={asset.name}
+          className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.05]"
+        />
+      ) : (
+        <FileText className="h-4 w-4 text-muted-foreground" />
+      )}
     </button>
   );
 }

@@ -74,7 +74,21 @@ function DamRedirect() {
 const queryClient = new QueryClient();
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+  // ThemeProvider config notes:
+  // - enableSystem={false}: ignore the OS preference and stick to the
+  //   explicit user choice. With enableSystem=true the provider listens to
+  //   prefers-color-scheme and can flip the theme out from under us if the
+  //   OS reports a transition (e.g. macOS auto dark/light at sundown).
+  // - disableTransitionOnChange: when the theme DOES change, snap instead of
+  //   running CSS transitions on every color. Without this, every component
+  //   with `transition-colors` slow-fades on theme change which looks like
+  //   the whole page is "breathing" between dark and light.
+  <ThemeProvider
+    attribute="class"
+    defaultTheme="light"
+    enableSystem={false}
+    disableTransitionOnChange
+  >
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
