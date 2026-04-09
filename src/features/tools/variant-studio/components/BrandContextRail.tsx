@@ -9,9 +9,7 @@
  *      Background) — those sections READ from this palette and never
  *      offer their own "add" affordance, so the user only manages
  *      colors in one place.
- *   3. BRAND — name + slogan. Slogan is BRAND-LEVEL: text, alignment,
- *      color (black/white/gray), AND the per-variant "include in this
- *      variant" checkbox all live here together.
+ *   3. BRAND — name only.
  *   4. MISSING FROM YOUR BRAND — only when there are missing archetypes
  *   5. LOGO COLOR — pick a brand color to recolor the logo. Reads
  *      swatches from Brand Colors above. No add button here.
@@ -20,17 +18,17 @@
  *      black, brand colors → solid colored chips).
  *   7. QUICK EXPORT — per-format buttons for the current draft.
  *
- *   STICKY BOTTOM: "Add this variant" CTA — commits the draft to
- *   the gallery.
+ * The "Add this variant" CTA does NOT live in the rail any more — it
+ * sits directly under the live preview in the page area, so the user
+ * always sees the action button right next to what they're previewing.
+ *
+ * The Slogan section was removed entirely — neither brand-level
+ * controls nor the per-variant include checkbox appear in the rail.
  */
 import { Lock, Plus, Type } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type {
   Background,
-  BrandSlogan,
   Composition,
   ExportFormat,
   Layout,
@@ -54,16 +52,13 @@ interface BrandContextRailProps {
   palette: PaletteContext;
   brandName: string;
   variants: VariantSpec[];
-  slogan: BrandSlogan;
   onAddCustomColor: (hex: string) => void;
   onGenerateMissing: (spec: VariantSpec) => void;
   onRenameBrand?: (next: string) => void;
-  onChangeSlogan: (next: BrandSlogan) => void;
 
   // Draft editing
   draft: VariantSpec | null;
   onChangeDraft: (patch: Partial<VariantSpec>) => void;
-  onAddDraft: () => void;
 
   // Per-format export of the current draft
   onExport: (format: ExportFormat) => void;
@@ -78,14 +73,11 @@ export function BrandContextRail({
   palette,
   brandName,
   variants,
-  slogan,
   onAddCustomColor,
   onGenerateMissing,
   onRenameBrand,
-  onChangeSlogan,
   draft,
   onChangeDraft,
-  onAddDraft,
   onExport,
 }: BrandContextRailProps) {
   const activeSource = sources.find((s) => s.id === activeSourceId) ?? null;
@@ -131,7 +123,7 @@ export function BrandContextRail({
           </div>
         </Section>
 
-        {/* 3. BRAND (name + slogan: text, alignment, color, include) */}
+        {/* 3. BRAND (name only — slogan controls removed entirely) */}
         <Section label="Brand">
           <div className="space-y-2">
             <input
@@ -155,70 +147,6 @@ export function BrandContextRail({
                 </span>
               </div>
             )}
-
-            {/* Slogan: text, alignment, color, AND the per-variant
-                include checkbox — all in one place. The checkbox
-                used to live in its own section at the bottom of
-                the rail; consolidating it here keeps the slogan
-                story self-contained. */}
-            <div className="pt-1">
-              <div className="mb-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                Slogan
-              </div>
-              <Input
-                value={slogan.text}
-                onChange={(e) => onChangeSlogan({ ...slogan, text: e.target.value })}
-                placeholder="Your tagline"
-                className="h-8 text-xs"
-              />
-              <div className="mt-1.5">
-                <Segmented
-                  value={slogan.alignment}
-                  options={[
-                    { value: 'left', label: 'Left' },
-                    { value: 'center', label: 'Center' },
-                    { value: 'right', label: 'Right' },
-                  ]}
-                  onChange={(v) =>
-                    onChangeSlogan({ ...slogan, alignment: v as 'left' | 'center' | 'right' })
-                  }
-                />
-              </div>
-              <div className="mt-1.5">
-                <div className="mb-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                  Slogan color
-                </div>
-                <div className="flex gap-1.5">
-                  <SloganColorChip
-                    label="Black"
-                    swatch="#000000"
-                    active={slogan.color === 'black'}
-                    onClick={() => onChangeSlogan({ ...slogan, color: 'black' })}
-                  />
-                  <SloganColorChip
-                    label="White"
-                    swatch="#FFFFFF"
-                    active={slogan.color === 'white'}
-                    onClick={() => onChangeSlogan({ ...slogan, color: 'white' })}
-                  />
-                  <SloganColorChip
-                    label="Gray"
-                    swatch="#6B7280"
-                    active={slogan.color === 'gray'}
-                    onClick={() => onChangeSlogan({ ...slogan, color: 'gray' })}
-                  />
-                </div>
-              </div>
-              {draft && (
-                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] font-medium text-foreground">
-                  <Checkbox
-                    checked={!!draft.includeSlogan}
-                    onCheckedChange={(v) => onChangeDraft({ includeSlogan: !!v })}
-                  />
-                  Include the slogan in this variant
-                </label>
-              )}
-            </div>
           </div>
         </Section>
 
@@ -321,19 +249,6 @@ export function BrandContextRail({
             </div>
           </Section>
         )}
-      </div>
-
-      {/* ── Sticky CTA — never moves when the rail scrolls ── */}
-      <div className="shrink-0 border-t bg-background p-3">
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={onAddDraft}
-          disabled={!hasDraftAndSource}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          Add this variant
-        </Button>
       </div>
     </div>
   );
@@ -556,39 +471,6 @@ function Segmented<T extends string>({
         </button>
       ))}
     </div>
-  );
-}
-
-function SloganColorChip({
-  label,
-  swatch,
-  active,
-  onClick,
-}: {
-  label: string;
-  swatch: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className={cn(
-        'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors',
-        active
-          ? 'border-primary bg-primary/5 text-foreground'
-          : 'border-border text-muted-foreground hover:border-foreground/30',
-      )}
-    >
-      <span
-        className="h-3 w-3 rounded-full border"
-        style={{ background: swatch }}
-      />
-      {label}
-    </button>
   );
 }
 

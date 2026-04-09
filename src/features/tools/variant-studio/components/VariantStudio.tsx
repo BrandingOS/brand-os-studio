@@ -217,13 +217,6 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
   } = session.payload;
   const activeSource = sources.find((s) => s.id === activeSourceId) ?? sources[0] ?? null;
 
-  const handleChangeSlogan = useCallback(
-    (next: BrandSlogan) => {
-      patchPayload({ slogan: next });
-    },
-    [patchPayload],
-  );
-
   // ── Source CRUD ────────────────────────────────────────────
 
   const handlePickSourceFile = useCallback(
@@ -440,13 +433,10 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       palette={palette}
       brandName={brand?.name ?? activeSource?.wordmark?.text ?? 'My brand'}
       variants={variants}
-      slogan={slogan}
       onAddCustomColor={handleAddCustomColor}
       onGenerateMissing={handleGenerateMissing}
-      onChangeSlogan={handleChangeSlogan}
       draft={draft}
       onChangeDraft={handleChangeDraft}
-      onAddDraft={handleAddDraft}
       onExport={(format) => {
         const featureKey: keyof typeof PUBLIC_GATES =
           format === 'svg'
@@ -469,6 +459,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
           draft={draft}
           palette={palette}
           slogan={slogan}
+          onAdd={handleAddDraft}
         />
       )}
       <VariantGallery
