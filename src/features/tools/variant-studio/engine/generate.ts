@@ -18,6 +18,7 @@ import type {
   VariantSpec,
 } from './types';
 import { deriveColorMap } from './colorMap';
+import { contrastRatio } from './palette';
 
 /** Stable, content-addressable id for a spec. */
 export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
@@ -127,6 +128,122 @@ export function backgroundHex(bg: Background, palette: PaletteContext): string {
   return '#FFFFFF';
 }
 
+// ─── Dedupe + validity helpers ──────────────────────────────────
+//
+// Two specs that produce the *same render output* should not coexist
+// as separate variants — they're noise. The content-hashed `id` from
+// `variantId` collapses identical specs but doesn't catch the case
+// where two different specs render identically (e.g. for a monolithic
+// source, `composition: 'lockup'` and `composition: 'icon-only'`
+// render the same thing because there's nothing to extract).
+//
+// `renderKey` is the canonical fingerprint of "what does this look
+// like on screen". Variants with the same renderKey are deduped.
+
+/** A canonical key describing the *visible result* of a spec. */
+export function renderKey(spec: VariantSpec, source: SourceLogo): string {
+  const isMonolithic = !source.icon;
+  // For monolithic sources, composition + layout collapse to the
+  // identity render — they don't change the output, so we strip them
+  // from the key.
+  const composition = isMonolithic ? '*' : spec.composition;
+  const layout =
+    isMonolithic || spec.composition !== 'lockup' ? '*' : spec.layout;
+  // Mono modes are color-fixed; for non-mono modes the actual color
+  // map matters.
+  const colorSig =
+    spec.colorMode === 'mono-white'
+      ? 'white'
+      : spec.colorMode === 'mono-black'
+        ? 'black'
+        : spec.colorMode === 'inverse'
+          ? 'inverse'
+          : `${spec.colorMap.icon.hex}|${spec.colorMap.wordmark.hex}`.toLowerCase();
+  const bg = `${spec.background.kind}:${(spec.background.value ?? '').toLowerCase()}`;
+  return [composition, layout, colorSig, bg, spec.safeArea].join('::');
+}
+
+/**
+ * Effective foreground color a variant will paint the icon with,
+ * accounting for color mode. Used to detect "logo color === bg color"
+ * situations where the variant would be invisible.
+ */
+function effectiveForegroundHex(spec: VariantSpec): string {
+  if (spec.colorMode === 'mono-white') return '#FFFFFF';
+  if (spec.colorMode === 'mono-black') return '#000000';
+  return spec.colorMap.icon.hex;
+}
+
+/**
+ * A variant is "invisible" when the foreground and background are
+ * effectively the same color. We never want to ship those — they
+ * render as a solid square with no logo.
+ *
+ * Transparent backgrounds are exempt: we don't know what surface
+ * they'll land on, so we can't judge.
+ */
+export function isInvisibleVariant(
+  spec: VariantSpec,
+  palette: PaletteContext,
+): boolean {
+  if (spec.background.kind === 'transparent') return false;
+  const fg = effectiveForegroundHex(spec);
+  const bg = backgroundHex(spec.background, palette);
+  // Contrast ratio of 1 = identical luminance. Anything below ~1.3
+  // is functionally the same color (or close enough to be illegible).
+  return contrastRatio(fg, bg) < 1.3;
+}
+
+/**
+ * Filter a variant list down to a unique, visible set.
+ *
+ *  - Drops variants where fg ≈ bg (the logo would be invisible).
+ *  - Collapses variants that produce the same render (per renderKey).
+ *
+ * Keeps the FIRST occurrence of each renderKey so user-curated
+ * variants take precedence over later programmatically-added ones.
+ */
+export function dedupeVariants(
+  variants: VariantSpec[],
+  source: SourceLogo,
+  palette: PaletteContext,
+): VariantSpec[] {
+  const seen = new Set<string>();
+  const out: VariantSpec[] = [];
+  for (const v of variants) {
+    if (isInvisibleVariant(v, palette)) continue;
+    const key = renderKey(v, source);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(v);
+  }
+  return out;
+}
+
+/**
+ * Try to append a new variant to a list. If the new variant would
+ * collide with an existing one (same renderKey) or would be
+ * invisible, the original list is returned unchanged and the
+ * existing collider is reported back. Used by every "add variant"
+ * code path so duplicates can never enter the session.
+ */
+export function tryAddVariant(
+  variants: VariantSpec[],
+  next: VariantSpec,
+  source: SourceLogo,
+  palette: PaletteContext,
+): { variants: VariantSpec[]; addedId: string; collidedWith?: string } {
+  if (isInvisibleVariant(next, palette)) {
+    return { variants, addedId: variants[0]?.id ?? next.id, collidedWith: 'invisible' };
+  }
+  const nextKey = renderKey(next, source);
+  const existing = variants.find((v) => renderKey(v, source) === nextKey);
+  if (existing) {
+    return { variants, addedId: existing.id, collidedWith: existing.id };
+  }
+  return { variants: [...variants, next], addedId: next.id };
+}
+
 /**
  * The starter set every new session ships with. The goal: a brand-new
  * user opens the studio and immediately sees a credible logo system,
@@ -198,16 +315,9 @@ export function seedDefaultVariants(
   ];
 
   const recipes = isMonolithic ? monolithicRecipes : decomposedRecipes;
-
-  // De-duplicate by id (resolve gives us content-hashed ids).
-  const seen = new Set<string>();
-  const out: VariantSpec[] = [];
-  for (const r of recipes) {
-    const v = resolveVariant(r);
-    if (!seen.has(v.id)) {
-      seen.add(v.id);
-      out.push(v);
-    }
-  }
-  return out;
+  // Resolve every recipe and run the full dedupe pipeline:
+  // collapses by render-key AND drops invisible (fg=bg) variants in
+  // one pass. So even if the recipe set above accidentally listed two
+  // recipes that produce the same render, only one survives.
+  return dedupeVariants(recipes.map(resolveVariant), source, palette);
 }

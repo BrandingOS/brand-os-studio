@@ -24,7 +24,13 @@ import {
   paletteFromBrand,
   addCustomColor,
 } from '../engine/palette';
-import { resolveVariant, seedDefaultVariants } from '../engine/generate';
+import {
+  resolveVariant,
+  seedDefaultVariants,
+  dedupeVariants,
+  tryAddVariant,
+  renderKey,
+} from '../engine/generate';
 import type {
   ExportFormat,
   PaletteContext,
@@ -159,6 +165,29 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.payload.source?.id]);
 
+  // Stale-session migration: a persisted session may have variants
+  // that were generated under the older logic (when monolithic
+  // sources still produced icon-only / wordmark-only / stacked
+  // duplicates). Run the dedupe pipeline once on load and rewrite
+  // the session if anything was filtered. Also catches "fg = bg"
+  // invisible variants the user may have manually constructed.
+  useEffect(() => {
+    const src = session.payload.source;
+    if (!src) return;
+    const cleaned = dedupeVariants(session.payload.variants, src, session.payload.palette);
+    if (cleaned.length === session.payload.variants.length) return;
+    const surviving = new Set(cleaned.map((v) => v.id));
+    patchPayload({
+      variants: cleaned,
+      pinned: session.payload.pinned.filter((id) => surviving.has(id)),
+      selectedVariantId:
+        session.payload.selectedVariantId && surviving.has(session.payload.selectedVariantId)
+          ? session.payload.selectedVariantId
+          : (cleaned[0]?.id ?? null),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.payload.source?.id, session.payload.source?.original.svg]);
+
   const { source, palette, variants, pinned, selectedVariantId } = session.payload;
 
   const selectedVariant = useMemo(
@@ -181,11 +210,17 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         background: patch.background ?? selectedVariant.background,
         colorOverride: patch.colorMap ?? selectedVariant.colorMap,
       });
-      // Replace by old id, but if the new id collapses onto an existing
-      // one, just point selection at it.
-      const existing = variants.find((v) => v.id === next.id);
-      if (existing) {
-        patchPayload({ selectedVariantId: existing.id });
+      // If the new spec would render identically to an existing
+      // variant in the list (different from the one we're editing),
+      // just point selection at the existing one — don't create a
+      // duplicate. Compare via renderKey, not content-hashed id, so
+      // monolithic-source equivalences collapse.
+      const nextKey = renderKey(next, source);
+      const collider = variants.find(
+        (v) => v.id !== selectedVariant.id && renderKey(v, source) === nextKey,
+      );
+      if (collider) {
+        patchPayload({ selectedVariantId: collider.id });
         return;
       }
       patchPayload({
@@ -208,30 +243,40 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
   const handleAddBlank = useCallback(() => {
     if (!source) return;
     const next = resolveVariant({ source, palette, composition: 'lockup', layout: 'horizontal' });
-    if (variants.some((v) => v.id === next.id)) {
-      patchPayload({ selectedVariantId: next.id });
+    const result = tryAddVariant(variants, next, source, palette);
+    if (result.collidedWith === 'invisible') {
+      toast.info('That variant would be invisible (logo color matches background).');
       return;
     }
-    patchPayload({
-      variants: [...variants, next],
-      selectedVariantId: next.id,
-    });
+    if (result.collidedWith) {
+      patchPayload({ selectedVariantId: result.addedId });
+      toast.info('That variant already exists.');
+      return;
+    }
+    patchPayload({ variants: result.variants, selectedVariantId: result.addedId });
   }, [source, palette, variants, patchPayload]);
 
   const handleGenerateMissing = useCallback(
     (spec: VariantSpec) => {
-      if (variants.some((v) => v.id === spec.id)) {
-        patchPayload({ selectedVariantId: spec.id });
+      if (!source) return;
+      const result = tryAddVariant(variants, spec, source, palette);
+      if (result.collidedWith === 'invisible') {
+        toast.info('That variant would be invisible.');
+        return;
+      }
+      if (result.collidedWith) {
+        patchPayload({ selectedVariantId: result.addedId });
+        toast.info('That variant already exists.');
         return;
       }
       patchPayload({
-        variants: [...variants, spec],
-        selectedVariantId: spec.id,
-        pinned: [...pinned, spec.id],
+        variants: result.variants,
+        selectedVariantId: result.addedId,
+        pinned: [...pinned, result.addedId],
       });
       toast.success('Variant generated');
     },
-    [variants, pinned, patchPayload],
+    [source, palette, variants, pinned, patchPayload],
   );
 
   const handleTogglePin = useCallback(
