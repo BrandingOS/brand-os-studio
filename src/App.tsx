@@ -45,6 +45,13 @@ import FeaturesIndexPage from "./pages/dashboard/features";
 import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
+// Tools platform — public + in-app routes for the Tools suite. Lazy-loaded
+// because the variant-studio bundle pulls in jspdf/jszip and isn't needed
+// on the main dashboard path.
+const ToolsDirectoryPage = lazy(() => import('./pages/tools'));
+const PublicVariantStudioPage = lazy(() => import('./pages/tools/logo-variant-generator'));
+const ClaimPage = lazy(() => import('./pages/tools/claim'));
+const VariantStudioInAppPage = lazy(() => import('./pages/dashboard/brand/[slug]/tools/variant-studio'));
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
@@ -219,6 +226,36 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
+
+          {/*
+            ─────────────────────────────────────────────────────────────
+            Tools platform routes.
+            See `src/features/tools/README.md` for the architecture.
+
+            - `/tools` — public directory of free tools (SEO hub).
+            - `/tools/<slug>` — public landing + studio for a single tool.
+            - `/claim` — the after-signup landing that materializes any
+              anonymous tool session into a real brand.
+            - `/dashboard/brand/:slug/tools/variant-studio` and the short
+              form `/b/:slug/tools/variant-studio` — in-app entry into
+              the studio inside an existing brand. These intentionally
+              live as flat sibling routes so they get the `h-12` editor
+              chrome instead of the brand shell.
+            ─────────────────────────────────────────────────────────────
+          */}
+          <Route path="/tools" element={<ToolsDirectoryPage />} />
+          <Route path="/tools/logo-variant-generator" element={<PublicVariantStudioPage />} />
+          <Route path="/claim" element={<ClaimPage />} />
+          <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
+            <ProtectedRoute>
+              <VariantStudioInAppPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/variant-studio" element={
+            <ProtectedRoute>
+              <VariantStudioInAppPage />
+            </ProtectedRoute>
+          } />
 
           {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
           {/* /dashboard/brand/:slug/kit and /dam are nested under BrandRouteLayout above.

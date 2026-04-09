@@ -1,0 +1,150 @@
+/**
+ * renderSvg — turn a (source, spec) tuple into a self-contained SVG
+ * string.
+ *
+ * The SVG produced here is the source of truth for vector exports
+ * (SVG, PDF). The canvas renderer rasterizes the same SVG, so previews
+ * and exports stay pixel-identical.
+ *
+ * Strategy:
+ *   1. Compute placement via `engine/layout`.
+ *   2. Embed the source icon as either inline SVG (preferred) or as
+ *      a base64 raster `<image>` (fallback).
+ *   3. Apply the variant's color via SVG filters: `mono-white` →
+ *      brightness(0) invert(1), `mono-black` → brightness(0), etc.
+ *      For brand mode the source is left untouched.
+ *   4. Render the wordmark as a `<text>` element using the source's
+ *      `wordmark.fontFamily`.
+ *   5. Wrap the whole composition in a viewBox sized to the placement
+ *      bounds plus safeArea padding.
+ *
+ * This module is pure — string in, string out, no DOM.
+ */
+import type { VariantSpec, SourceLogo } from '../engine/types';
+import { computePlacement } from '../engine/layout';
+import { backgroundHex } from '../engine/generate';
+import type { PaletteContext } from '../engine/types';
+
+interface RenderOptions {
+  source: SourceLogo;
+  spec: VariantSpec;
+  palette: PaletteContext;
+  /** Output dimensions in px. SVG scales the placement into this box. */
+  width: number;
+  height: number;
+}
+
+const SAFE_AREA_FACTOR: Record<VariantSpec['safeArea'], number> = {
+  tight: 0.06,
+  standard: 0.12,
+  generous: 0.2,
+};
+
+export function renderSvg({ source, spec, palette, width, height }: RenderOptions): string {
+  const hasIcon = spec.composition !== 'wordmark-only';
+  const hasWordmark = spec.composition !== 'icon-only';
+  const iconAspect =
+    source.original.width && source.original.height
+      ? source.original.width / source.original.height
+      : 1;
+  const wordmarkText = source.wordmark?.text ?? '';
+  const wordmarkFont = source.wordmark?.fontFamily ?? 'Inter, sans-serif';
+  const wordmarkAspect = Math.max(2, wordmarkText.length * 0.55);
+
+  const placement = computePlacement(spec.layout, {
+    hasIcon,
+    hasWordmark: hasWordmark && wordmarkText.length > 0,
+    iconAspect,
+    wordmarkAspect,
+  }, spec.customLayout);
+
+  const pad = Math.max(placement.bounds.width, placement.bounds.height) * SAFE_AREA_FACTOR[spec.safeArea];
+  const vbW = placement.bounds.width + pad * 2;
+  const vbH = placement.bounds.height + pad * 2;
+
+  const bgHex = backgroundHex(spec.background, palette);
+  const bgRect =
+    spec.background.kind === 'transparent'
+      ? ''
+      : `<rect width="${vbW}" height="${vbH}" fill="${escapeAttr(bgHex)}"/>`;
+
+  // Color filter for the icon based on color mode
+  const filter = colorFilterForMode(spec);
+
+  // Icon embed
+  let iconSvg = '';
+  if (hasIcon && placement.icon) {
+    const ix = placement.icon.x + pad;
+    const iy = placement.icon.y + pad;
+    const iw = placement.icon.width;
+    const ih = placement.icon.height;
+    if (source.original.svg) {
+      // Inline SVG embed via <g> with viewBox transform.
+      iconSvg = `<g transform="translate(${ix} ${iy})" ${filter ? `filter="${filter}"` : ''}>${inlineSvgForEmbed(source.original.svg, iw, ih)}</g>`;
+    } else if (source.original.raster) {
+      iconSvg = `<image x="${ix}" y="${iy}" width="${iw}" height="${ih}" href="${escapeAttr(source.original.raster)}" preserveAspectRatio="xMidYMid meet" ${filter ? `filter="${filter}"` : ''}/>`;
+    }
+  }
+
+  // Wordmark text
+  let wordmarkSvg = '';
+  if (hasWordmark && placement.wordmark && wordmarkText) {
+    const wx = placement.wordmark.x + pad;
+    const wy = placement.wordmark.y + pad;
+    const wh = placement.wordmark.height;
+    const fill = wordmarkFillForMode(spec);
+    wordmarkSvg = `<text x="${wx}" y="${wy + wh * 0.78}" font-family="${escapeAttr(wordmarkFont)}" font-size="${wh}" font-weight="700" fill="${escapeAttr(fill)}">${escapeText(wordmarkText)}</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="${width}" height="${height}">${defs()}${bgRect}${iconSvg}${wordmarkSvg}</svg>`;
+}
+
+function defs(): string {
+  // Reusable filter primitives. Lightweight; ~0.3KB.
+  return (
+    '<defs>' +
+    '<filter id="vsMonoWhite"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/></filter>' +
+    '<filter id="vsMonoBlack"><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter>' +
+    '<filter id="vsInverse"><feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/></filter>' +
+    '</defs>'
+  );
+}
+
+function colorFilterForMode(spec: VariantSpec): string {
+  if (spec.colorMode === 'mono-white') return 'url(#vsMonoWhite)';
+  if (spec.colorMode === 'mono-black') return 'url(#vsMonoBlack)';
+  if (spec.colorMode === 'inverse') return 'url(#vsInverse)';
+  return '';
+}
+
+function wordmarkFillForMode(spec: VariantSpec): string {
+  if (spec.colorMode === 'mono-white') return '#FFFFFF';
+  if (spec.colorMode === 'mono-black') return '#000000';
+  return spec.colorMap.wordmark.hex;
+}
+
+/**
+ * Inline an SVG string as an embedded fragment, sized to (w, h).
+ * The simplest reliable approach: wrap the inner XML in a nested
+ * <svg> with explicit width/height. This sidesteps viewBox parsing.
+ */
+function inlineSvgForEmbed(raw: string, w: number, h: number): string {
+  // Strip XML decl + outer <svg> opening attrs we don't want, keep inner.
+  const inner = raw
+    .replace(/<\?xml[^>]*\?>/, '')
+    .replace(/<!DOCTYPE[^>]*>/, '');
+  const viewBoxMatch = inner.match(/viewBox="([^"]+)"/);
+  const viewBox = viewBoxMatch ? viewBoxMatch[1] : `0 0 ${w} ${h}`;
+  // Pull out the children of the outer <svg>.
+  const childrenMatch = inner.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+  const children = childrenMatch ? childrenMatch[1] : inner;
+  return `<svg width="${w}" height="${h}" viewBox="${escapeAttr(viewBox)}" preserveAspectRatio="xMidYMid meet">${children}</svg>`;
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeText(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}

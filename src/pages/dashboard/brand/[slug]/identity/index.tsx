@@ -21,6 +21,9 @@ import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { Sparkles } from 'lucide-react';
 import { LogoFilesModule } from '@/features/brandkit/components/LogoFilesModule';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Wand2 } from 'lucide-react';
 import { ColorSystemModule } from '@/features/brandkit/components/colors/ColorSystemModule';
 import { TypographyModule } from '@/features/brandkit/components/TypographyModule';
 import { BrandVoiceModule } from '@/features/brandkit/components/BrandVoiceModule';
@@ -133,7 +136,26 @@ export default function IdentityPage() {
             })}
           </TabsList>
 
-          <TabsContent value="logo" className="mt-6">
+          <TabsContent value="logo" className="mt-6 space-y-4">
+            {/* Variant Studio entry — the missing-variants generator. The
+                studio mounts inside the editor scope (its own h-12 shell)
+                so this is a navigation, not an inline embed. */}
+            <div className="flex items-center justify-between rounded-lg border bg-gradient-to-br from-primary/5 to-transparent p-4">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Wand2 className="h-4 w-4 text-primary" />
+                  Variant Studio
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Generate, customize, and export every logo variant your brand needs.
+                </p>
+              </div>
+              <Button asChild size="sm">
+                <Link to={`/dashboard/brand/${brand.slug}/tools/variant-studio`}>
+                  Open studio
+                </Link>
+              </Button>
+            </div>
             <LogoFilesModule brand={brand} />
           </TabsContent>
 
