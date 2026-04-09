@@ -40,11 +40,9 @@ import {
   deriveFilename,
   type KitItem,
 } from '../render/exportPipeline';
-import { SourcePanel } from './SourcePanel';
-import { VariantGrid } from './VariantGrid';
-import { PreviewCanvas } from './PreviewCanvas';
-import { SpecPanel } from './SpecPanel';
-import { MissingVariantsRail } from './MissingVariantsRail';
+import { BrandContextRail } from './BrandContextRail';
+import { EditBar } from './EditBar';
+import { VariantGallery } from './VariantGallery';
 
 const TOOL_SLUG = 'logo-variant-generator' as const;
 
@@ -271,71 +269,64 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     );
   }
 
-  const left = (
-    <>
-      <SourcePanel source={source} brandName={brand?.name} onPickFile={handlePickFile} />
-      <MissingVariantsRail
-        source={source}
-        palette={palette}
-        variants={variants}
-        onGenerate={handleGenerateMissing}
-      />
-      <VariantGrid
-        source={source}
-        palette={palette}
-        variants={variants}
-        pinnedIds={new Set(pinned)}
-        selectedId={selectedVariant.id}
-        onSelect={(id) => patchPayload({ selectedVariantId: id })}
-        onTogglePin={handleTogglePin}
-        onAddBlank={handleAddBlank}
-      />
-    </>
-  );
-
-  const center = (
-    <PreviewCanvas source={source} spec={selectedVariant} palette={palette} />
-  );
-
-  const right = (
-    <SpecPanel
-      spec={selectedVariant}
-      palette={palette}
-      onChange={updateSelectedSpec}
-      onAddCustomColor={handleAddCustomColor}
-      pinnedCount={pinned.length}
-      onExport={(format) => {
-        // Wire each format through the appropriate gate.
-        const featureKey =
-          format === 'svg'
-            ? 'export-svg'
-            : format === 'pdf'
-              ? 'export-pdf'
-              : 'export-png-1x';
-        // Lazy gate trigger via ToolGate render-prop is heavier here;
-        // for buttons inside SpecPanel we just delegate the gate decision
-        // through this central wrapper.
-        runGated(featureKey, () => doExport(format));
-      }}
-      onExportKit={() => runGated('export-kit', doExportKit)}
-    />
-  );
-
-  // Centralized gate runner so SpecPanel doesn't need to know about modes.
-  // For free features in public mode and everything in in-app mode, this
-  // calls the action immediately. For gated features in public mode, we
-  // mount a hidden ToolGate via state — done inline here for brevity.
+  // Centralized gate runner. For free features in public mode and
+  // everything in in-app mode this calls the action immediately;
+  // otherwise it routes to signup with the action carried in `next`.
   function runGated(feature: keyof typeof PUBLIC_GATES, action: () => void) {
     const requirement = gates[feature] ?? 'free';
     if (mode === 'in-app' || requirement === 'free') {
       action();
       return;
     }
-    // Public mode + auth required → flag the user toward signup.
-    // Use the same modal-less path the ToolGate uses.
     const next = encodeURIComponent(`/claim?slug=${TOOL_SLUG}&feature=${feature}`);
     window.location.href = `/?signup=1&next=${next}`;
   }
+
+  // ── New layout: BrandContextRail + EditBar + VariantGallery ──
+
+  const left = (
+    <BrandContextRail
+      source={source}
+      palette={palette}
+      brandName={brand?.name ?? source.wordmark?.text ?? 'My brand'}
+      variants={variants}
+      onPickFile={handlePickFile}
+      onAddCustomColor={handleAddCustomColor}
+      onGenerateMissing={handleGenerateMissing}
+    />
+  );
+
+  const topBar = (
+    <EditBar
+      spec={selectedVariant}
+      palette={palette}
+      pinnedCount={pinned.length}
+      onChange={updateSelectedSpec}
+      onExport={(format) => {
+        const featureKey: keyof typeof PUBLIC_GATES =
+          format === 'svg'
+            ? 'export-svg'
+            : format === 'pdf'
+              ? 'export-pdf'
+              : 'export-png-1x';
+        runGated(featureKey, () => doExport(format));
+      }}
+      onExportKit={() => runGated('export-kit', doExportKit)}
+    />
+  );
+
+  const center = (
+    <VariantGallery
+      source={source}
+      palette={palette}
+      variants={variants}
+      pinnedIds={new Set(pinned)}
+      selectedId={selectedVariant.id}
+      onSelect={(id) => patchPayload({ selectedVariantId: id })}
+      onTogglePin={handleTogglePin}
+      onAddBlank={handleAddBlank}
+    />
+  );
 
   return (
     <ToolShell
@@ -367,8 +358,8 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         ) : null
       }
       left={left}
+      topBar={topBar}
       center={center}
-      right={right}
     />
   );
 }
