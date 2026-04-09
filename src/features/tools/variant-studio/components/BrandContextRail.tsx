@@ -213,6 +213,7 @@ export function BrandContextRail({
           spec={selectedSpec}
           palette={palette}
           pinnedCount={pinnedCount}
+          isMonolithic={!source?.icon}
           onChange={onChangeSpec}
           onExport={onExport}
           onExportKit={onExportKit}
@@ -233,6 +234,9 @@ interface EditVariantSectionProps {
   spec: VariantSpec;
   palette: PaletteContext;
   pinnedCount: number;
+  /** Source has no separate icon asset → composition + layout collapse
+   *  to "render the source as-is", so we hide those controls. */
+  isMonolithic: boolean;
   onChange: (patch: Partial<VariantSpec>) => void;
   onExport: (format: ExportFormat) => void;
   onExportKit: () => void;
@@ -242,6 +246,7 @@ function EditVariantSection({
   spec,
   palette,
   pinnedCount,
+  isMonolithic,
   onChange,
   onExport,
   onExportKit,
@@ -258,29 +263,38 @@ function EditVariantSection({
         <div className="mt-0.5 truncate text-[10px] text-muted-foreground">{spec.label}</div>
       </div>
 
-      <Section label="Type">
-        <Segmented
-          value={spec.composition}
-          options={[
-            { value: 'lockup', label: 'Lockup' },
-            { value: 'icon-only', label: 'Icon' },
-            { value: 'wordmark-only', label: 'Word' },
-          ]}
-          onChange={(v) => onChange({ composition: v as Composition })}
-        />
-      </Section>
+      {/* Composition + layout only make sense when the source has been
+          decomposed into separate icon and wordmark assets. With a
+          monolithic logo (the common case) every option produces the
+          same render — so we hide them entirely instead of showing
+          controls that don't do anything. */}
+      {!isMonolithic && (
+        <>
+          <Section label="Type">
+            <Segmented
+              value={spec.composition}
+              options={[
+                { value: 'lockup', label: 'Lockup' },
+                { value: 'icon-only', label: 'Icon' },
+                { value: 'wordmark-only', label: 'Word' },
+              ]}
+              onChange={(v) => onChange({ composition: v as Composition })}
+            />
+          </Section>
 
-      {spec.composition === 'lockup' && (
-        <Section label="Layout">
-          <Segmented
-            value={spec.layout}
-            options={[
-              { value: 'horizontal', label: 'Horizontal' },
-              { value: 'stacked', label: 'Stacked' },
-            ]}
-            onChange={(v) => onChange({ layout: v as Layout })}
-          />
-        </Section>
+          {spec.composition === 'lockup' && (
+            <Section label="Layout">
+              <Segmented
+                value={spec.layout}
+                options={[
+                  { value: 'horizontal', label: 'Horizontal' },
+                  { value: 'stacked', label: 'Stacked' },
+                ]}
+                onChange={(v) => onChange({ layout: v as Layout })}
+              />
+            </Section>
+          )}
+        </>
       )}
 
       <Section label="Color mode">

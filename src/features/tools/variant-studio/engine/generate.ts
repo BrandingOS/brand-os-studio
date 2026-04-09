@@ -39,10 +39,19 @@ export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
   return `v_${(h >>> 0).toString(36)}`;
 }
 
+/**
+ * Build a human label for a variant. The label intentionally omits
+ * the composition + layout for the simple "lockup horizontal" case
+ * because that's the implicit default — surfacing it on every tile
+ * (when most variants share it) just creates visual noise. We only
+ * call them out when the user has explicitly chosen a non-default.
+ */
 export function variantLabel(spec: Pick<VariantSpec, 'composition' | 'layout' | 'colorMode' | 'background'>): string {
   const parts: string[] = [];
-  parts.push(LABEL_COMPOSITION[spec.composition]);
-  if (spec.composition === 'lockup') parts.push(LABEL_LAYOUT[spec.layout] ?? spec.layout);
+  if (spec.composition !== 'lockup') parts.push(LABEL_COMPOSITION[spec.composition]);
+  if (spec.composition === 'lockup' && spec.layout !== 'horizontal') {
+    parts.push(LABEL_LAYOUT[spec.layout] ?? spec.layout);
+  }
   parts.push(LABEL_COLOR[spec.colorMode]);
   if (spec.background.kind !== 'transparent') parts.push(LABEL_BG[spec.background.kind]);
   return parts.join(' · ');
@@ -122,12 +131,49 @@ export function backgroundHex(bg: Background, palette: PaletteContext): string {
  * The starter set every new session ships with. The goal: a brand-new
  * user opens the studio and immediately sees a credible logo system,
  * not an empty grid.
+ *
+ * The recipes differ depending on whether the source is monolithic
+ * (one image containing icon + wordmark already baked together — the
+ * common case) or has been decomposed into a separate icon and
+ * wordmark. For monolithic sources, composition and layout collapse
+ * to "render the source as-is" — so we only seed color/background
+ * variations, never duplicate icon/wordmark/horizontal/stacked
+ * tiles. For decomposed sources, the full matrix is meaningful.
  */
 export function seedDefaultVariants(
   source: SourceLogo,
   palette: PaletteContext,
 ): VariantSpec[] {
-  const recipes: ResolveInput[] = [
+  const isMonolithic = !source.icon;
+
+  const monolithicRecipes: ResolveInput[] = [
+    // Color treatments — every monolithic logo needs these
+    { source, palette, composition: 'lockup', colorMode: 'brand' },
+    { source, palette, composition: 'lockup', colorMode: 'mono-black' },
+    {
+      source,
+      palette,
+      composition: 'lockup',
+      colorMode: 'mono-white',
+      background: { kind: 'solid', value: '#000000' },
+    },
+    {
+      source,
+      palette,
+      composition: 'lockup',
+      colorMode: 'mono-white',
+      background: { kind: 'brand' },
+    },
+    {
+      source,
+      palette,
+      composition: 'lockup',
+      colorMode: 'brand',
+      background: { kind: 'solid', value: '#FFFFFF' },
+    },
+  ];
+
+  const decomposedRecipes: ResolveInput[] = [
     { source, palette, composition: 'lockup', layout: 'horizontal', colorMode: 'brand' },
     { source, palette, composition: 'lockup', layout: 'stacked', colorMode: 'brand' },
     {
@@ -150,6 +196,9 @@ export function seedDefaultVariants(
       background: { kind: 'brand' },
     },
   ];
+
+  const recipes = isMonolithic ? monolithicRecipes : decomposedRecipes;
+
   // De-duplicate by id (resolve gives us content-hashed ids).
   const seen = new Set<string>();
   const out: VariantSpec[] = [];

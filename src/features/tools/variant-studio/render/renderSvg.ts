@@ -46,8 +46,22 @@ const SAFE_AREA_FACTOR: Record<VariantSpec['safeArea'], number> = {
 };
 
 export function renderSvg({ source, spec, palette, width: _w, height: _h }: RenderOptions): string {
-  const hasIcon = spec.composition !== 'wordmark-only';
-  const hasWordmark = spec.composition !== 'icon-only';
+  // Is the source a monolithic logo (one image containing both icon
+  // AND wordmark already baked together)? That's the common case for
+  // uploaded brand logos. If so, we render the source as the entire
+  // composition and never add a separate wordmark text element on top
+  // — adding text would double the wordmark, since the source SVG
+  // already includes it. The user only gets a separately-rendered
+  // wordmark when they've supplied a SEPARATE icon asset, which is
+  // the explicit "I have decomposed assets" case.
+  const isMonolithic = !source.icon;
+
+  // For monolithic sources every composition collapses to "render the
+  // source as-is" — we have no way to extract just the icon or just
+  // the wordmark without true decomposition. Composition / layout
+  // become cosmetic and the renderer ignores them.
+  const hasIcon = isMonolithic ? true : spec.composition !== 'wordmark-only';
+  const hasWordmark = isMonolithic ? false : spec.composition !== 'icon-only';
   const iconAspect =
     source.original.width && source.original.height
       ? source.original.width / source.original.height

@@ -94,15 +94,29 @@ export interface MissingVariantSuggestion {
 /**
  * Diff the archetype against the user's current variant set and return
  * recipes for the missing ones.
+ *
+ * For monolithic sources (no separate icon asset) we skip the
+ * composition-based archetypes (icon-only, wordmark-only, stacked vs.
+ * horizontal) since they all collapse to "render the source as-is" —
+ * suggesting them would just produce duplicates.
  */
 export function findMissingVariants(
   source: SourceLogo,
   palette: PaletteContext,
   current: VariantSpec[],
 ): MissingVariantSuggestion[] {
+  const isMonolithic = !source.icon;
+  const MEANINGFUL_FOR_MONOLITHIC = new Set([
+    'lockup-horizontal-brand',
+    'lockup-mono-black',
+    'lockup-mono-white',
+    'lockup-on-brand-bg',
+  ]);
+
   const haveIds = new Set(current.map((v) => v.id));
   const missing: MissingVariantSuggestion[] = [];
   for (const recipe of ARCHETYPE) {
+    if (isMonolithic && !MEANINGFUL_FOR_MONOLITHIC.has(recipe.key)) continue;
     const spec = recipe.build(source, palette);
     if (!haveIds.has(spec.id)) {
       missing.push({ key: recipe.key, label: recipe.label, purpose: recipe.purpose, spec });
