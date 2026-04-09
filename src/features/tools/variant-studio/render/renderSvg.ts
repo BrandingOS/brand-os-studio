@@ -160,23 +160,47 @@ export function renderSvg({ source, spec, palette, slogan, width: _w, height: _h
   // Output is sized as 100% so the SVG fills its container — the
   // caller's wrapper element decides the pixel size via CSS. The
   // viewBox preserves the composition's aspect ratio.
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${defs()}${bgRect}${iconSvg}${wordmarkSvg}${sloganSvg}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${defs(spec)}${bgRect}${iconSvg}${wordmarkSvg}${sloganSvg}</svg>`;
 }
 
-function defs(): string {
-  // Reusable filter primitives. Lightweight; ~0.3KB.
+function defs(spec: VariantSpec): string {
+  // Static filters: mono-white, mono-black, inverse.
+  // Dynamic filter: when colorMode is 'custom' we generate a
+  // feColorMatrix on the fly that flattens every pixel to the chosen
+  // color (preserving alpha). This is what makes "Logo color" picks
+  // actually recolor the SVG instead of just being stored on the
+  // spec — same matrix shape as mono-white but with the chosen RGB
+  // instead of (1,1,1).
+  let customFilter = '';
+  if (spec.colorMode === 'custom') {
+    const { r, g, b } = hexToRgb01(spec.colorMap.icon.hex);
+    customFilter = `<filter id="vsCustomFill"><feColorMatrix type="matrix" values="0 0 0 0 ${r}  0 0 0 0 ${g}  0 0 0 0 ${b}  0 0 0 1 0"/></filter>`;
+  }
   return (
     '<defs>' +
     '<filter id="vsMonoWhite"><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/></filter>' +
     '<filter id="vsMonoBlack"><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter>' +
     '<filter id="vsInverse"><feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/></filter>' +
+    customFilter +
     '</defs>'
   );
+}
+
+/** Hex string → RGB components in 0..1 range, for SVG color matrices. */
+function hexToRgb01(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  return {
+    r: parseInt(v.substring(0, 2), 16) / 255,
+    g: parseInt(v.substring(2, 4), 16) / 255,
+    b: parseInt(v.substring(4, 6), 16) / 255,
+  };
 }
 
 function colorFilterForMode(spec: VariantSpec): string {
   if (spec.colorMode === 'mono-white') return 'url(#vsMonoWhite)';
   if (spec.colorMode === 'mono-black') return 'url(#vsMonoBlack)';
+  if (spec.colorMode === 'custom') return 'url(#vsCustomFill)';
   if (spec.colorMode === 'inverse') return 'url(#vsInverse)';
   return '';
 }
