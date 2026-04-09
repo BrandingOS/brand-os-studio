@@ -27,10 +27,10 @@ interface RevealProps {
 export function Reveal({
   children,
   className = '',
-  y = 24,
+  y = 20,
   delay = 0,
-  duration = 0.7,
-  amount = 0.05,
+  duration = 0.45,
+  amount = 0.12,
 }: RevealProps) {
   return (
     <motion.div
@@ -76,9 +76,9 @@ export function RevealItem({
   children,
   className = '',
   index = 0,
-  staggerDelay = 0.08,
-  y = 28,
-  amount = 0.05,
+  staggerDelay = 0.04,
+  y = 20,
+  amount = 0.12,
 }: RevealItemProps) {
   return (
     <motion.div
@@ -87,7 +87,7 @@ export function RevealItem({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount }}
       transition={{
-        duration: 0.7,
+        duration: 0.45,
         delay: index * staggerDelay,
         ease: [0.22, 1, 0.36, 1],
       }}

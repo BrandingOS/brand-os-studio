@@ -40,9 +40,9 @@ export const HeroSection = () => {
         <div className="mx-auto text-center max-w-4xl">
           {/* Eyebrow pill */}
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="inline-flex"
           >
             <div className="glass-surface inline-flex items-center gap-2 rounded-full px-4 py-1.5 shadow-soft">
@@ -55,9 +55,9 @@ export const HeroSection = () => {
 
           {/* Editorial headline — refined size */}
           <motion.h1
-            initial={{ opacity: 0, y: 28 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.55, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
             className="display-xl mt-8"
           >
             Save hours of <span className="text-accent-pop">repetitive</span>
@@ -67,9 +67,9 @@ export const HeroSection = () => {
 
           {/* Subtitle */}
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.5, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
             className="mt-8 mx-auto max-w-2xl text-lg md:text-xl text-muted-foreground leading-relaxed"
           >
             Create your brand system once — Brand OS syncs your logo,
@@ -78,9 +78,9 @@ export const HeroSection = () => {
 
           {/* Primary CTA button — opens modal */}
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
             className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <button
@@ -103,9 +103,9 @@ export const HeroSection = () => {
 
         {/* ── Bottom: hero mockup with ripple + floating tiles ──── */}
         <motion.div
-          initial={{ opacity: 0, y: 80, scale: 0.96 }}
+          initial={{ opacity: 0, y: 50, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 1.1, delay: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.7, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="relative mt-20 md:mt-28 mx-auto max-w-5xl"
         >
           {/* Ripple background */}

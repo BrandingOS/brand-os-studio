@@ -20,28 +20,26 @@ import {
   FileStack,
   Bell,
   Beaker,
-  Crown,
+  Hammer,
+  Plus,
+  RefreshCw,
+  Users,
+  Lightbulb,
+  Eye,
 } from 'lucide-react';
 import { submitEarlyAccess } from '@/lib/supabase';
 
 /**
- * MultiStepEarlyAccess — 5-step early-access signup form (v5.1).
+ * MultiStepEarlyAccess — 5-step early-access signup form (v5.2).
  *
- * Engagement-optimized question order. The email is LAST, after the
- * user has already invested effort in 4 quick clicks — by then the
- * commitment cost of one more step (their email) feels trivial.
- *
- *   Step 1 — Role         "What brings you here?"
- *   Step 2 — First brand  "What would you build first?"
- *   Step 3 — Excited about "Which feature gets you most excited?"
- *   Step 4 — Tester level "Want to help shape Brand OS?"
- *   Step 5 — Email        "Where should we send your invite?"
- *
- * All non-email steps use chip selectors for fast tapping. Each step
- * is illustrated with a Lucide icon so it doesn't feel like a survey.
- *
- * Submits to Supabase via lib/supabase.ts using the new schema columns
- * `interesting_feature` and `tester_interest`.
+ * v5.2 changes:
+ *  - Step 2 changed from free-text use case → chip-based goal selector.
+ *    Free text scares non-native English speakers; chips are universal.
+ *  - Step 4 simplified — no more "founder list" jargon. Plain options.
+ *  - Step 5 (email) — direct, simple title. No idiomatic English.
+ *  - All step titles rewritten in beginner-friendly English.
+ *  - Step transitions sped up (0.35s → 0.22s) for snappier feel.
+ *  - Step 1 auto-advance delay reduced (220ms → 140ms).
  */
 
 const ROLES = [
@@ -50,6 +48,15 @@ const ROLES = [
   { id: 'Marketer', icon: Megaphone, label: 'Marketer', tag: 'Running campaigns and content' },
   { id: 'Agency / Studio', icon: Briefcase, label: 'Agency / Studio', tag: 'Managing many brands' },
   { id: 'Other', icon: User, label: 'Something else', tag: "I'll tell you later" },
+] as const;
+
+// NEW: chip-based goals (replaces the free-text question)
+const GOALS = [
+  { id: 'new-brand', icon: Plus, label: 'Build a new brand' },
+  { id: 'rebrand', icon: RefreshCw, label: 'Rebrand mine' },
+  { id: 'client-work', icon: Users, label: 'Work for clients' },
+  { id: 'personal', icon: Lightbulb, label: 'A personal project' },
+  { id: 'exploring', icon: Eye, label: 'Just exploring' },
 ] as const;
 
 const FEATURES = [
@@ -62,48 +69,48 @@ const FEATURES = [
   { id: 'typography', icon: Type, label: 'Typography & voice' },
 ] as const;
 
+// SIMPLIFIED: plain language, no "founder list" jargon
 const TESTER_LEVELS = [
   {
     id: 'notify',
     icon: Bell,
-    title: 'Just notify me',
-    body: "Send one email when it's live. Nothing else.",
+    title: 'Just tell me when it is ready',
   },
   {
     id: 'beta',
     icon: Beaker,
-    title: 'I want to test the beta',
-    body: 'Get early access and help shape it with feedback.',
+    title: 'I want to test it early',
   },
   {
     id: 'founder',
-    icon: Crown,
-    title: 'Sign me up for the founder list',
-    body: 'First in line. Lifetime supporter perks.',
+    icon: Hammer,
+    title: 'I want to help build it',
   },
 ] as const;
 
 type Role = (typeof ROLES)[number]['id'];
+type Goal = (typeof GOALS)[number]['id'];
 type Feature = (typeof FEATURES)[number]['id'];
 type TesterLevel = (typeof TESTER_LEVELS)[number]['id'];
 
 const TOTAL_STEPS = 5;
 
 const stepVariants = {
-  enter: { opacity: 0, x: 28 },
+  enter: { opacity: 0, x: 24 },
   center: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -28 },
+  exit: { opacity: 0, x: -24 },
 };
 
+// SPEED: faster step transitions
 const stepTransition = {
-  duration: 0.35,
+  duration: 0.22,
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
 export function MultiStepEarlyAccess() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [role, setRole] = useState<Role | null>(null);
-  const [useCase, setUseCase] = useState('');
+  const [goal, setGoal] = useState<Goal | null>(null);
   const [feature, setFeature] = useState<Feature | null>(null);
   const [testerLevel, setTesterLevel] = useState<TesterLevel | null>(null);
   const [email, setEmail] = useState('');
@@ -130,10 +137,15 @@ export function MultiStepEarlyAccess() {
       setStatus('submitting');
       setErrorMsg(null);
       try {
+        // Goal is mapped into the existing `use_case` column so we don't
+        // need to add yet another column. The label is human-readable.
+        const goalLabel = goal
+          ? GOALS.find((g) => g.id === goal)?.label
+          : undefined;
         await submitEarlyAccess({
           email: email.trim(),
           role: role ?? undefined,
-          use_case: useCase.trim() || undefined,
+          use_case: goalLabel,
           interesting_feature: feature ?? undefined,
           tester_interest: testerLevel ?? undefined,
         });
@@ -146,7 +158,7 @@ export function MultiStepEarlyAccess() {
         );
       }
     },
-    [isValidEmail, email, role, useCase, feature, testerLevel],
+    [isValidEmail, email, role, goal, feature, testerLevel],
   );
 
   // ─── Success state ──────────────────────────────────────────────
@@ -155,7 +167,7 @@ export function MultiStepEarlyAccess() {
       <motion.div
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col items-center text-center gap-5 py-8"
       >
         <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-foreground text-background shadow-elegant">
@@ -163,11 +175,10 @@ export function MultiStepEarlyAccess() {
         </span>
         <div>
           <p className="font-display text-2xl font-bold text-foreground">
-            You're on the list.
+            You are on the list.
           </p>
           <p className="mt-2 text-sm text-muted-foreground max-w-sm mx-auto">
-            We'll send one email when Brand OS launches. Nothing else.
-            Thanks for being early.
+            We will send you one email when Brand OS is ready. Thanks for being early.
           </p>
         </div>
       </motion.div>
@@ -177,14 +188,14 @@ export function MultiStepEarlyAccess() {
   return (
     <div>
       {/* Progress bar */}
-      <div className="flex items-center justify-center gap-1.5 mb-6">
+      <div className="flex items-center justify-center gap-1.5 mb-5">
         {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
           const isCurrent = i + 1 === step;
           const isDone = i + 1 < step;
           return (
             <span
               key={i}
-              className={`h-1.5 rounded-full transition-all duration-500 ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 isCurrent
                   ? 'w-12 bg-accent-pop'
                   : isDone
@@ -196,7 +207,7 @@ export function MultiStepEarlyAccess() {
         })}
       </div>
 
-      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-6">
+      <p className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-5">
         Step {step} of {TOTAL_STEPS}
       </p>
 
@@ -212,10 +223,10 @@ export function MultiStepEarlyAccess() {
             transition={stepTransition}
           >
             <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              First — what brings you here?
+              What do you do?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Just so we know who's getting early access.
+              So we know who is signing up.
             </p>
 
             <div className="mt-6 grid gap-2.5">
@@ -228,8 +239,8 @@ export function MultiStepEarlyAccess() {
                     type="button"
                     onClick={() => {
                       setRole(r.id);
-                      // tiny delay for the click feedback before advancing
-                      setTimeout(() => handleNext(), 220);
+                      // Tiny delay for the click feedback before advancing
+                      setTimeout(() => handleNext(), 140);
                     }}
                     className={`group relative flex items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 border ${
                       selected
@@ -257,7 +268,7 @@ export function MultiStepEarlyAccess() {
           </motion.div>
         )}
 
-        {/* ── Step 2: Use case ──────────────────────────────────── */}
+        {/* ── Step 2: Goal — chip-based, no more free text ──────── */}
         {step === 2 && (
           <motion.div
             key="step-2"
@@ -268,20 +279,46 @@ export function MultiStepEarlyAccess() {
             transition={stepTransition}
           >
             <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              What would you build with Brand OS first?
+              Why do you need Brand OS?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Be specific or vague — anything works. (Optional.)
+              Pick the closest one. You can change later.
             </p>
 
-            <textarea
-              autoFocus
-              rows={4}
-              placeholder="A new SaaS launch · a client rebrand · my coffee shop · the brand I always meant to make…"
-              value={useCase}
-              onChange={(e) => setUseCase(e.target.value)}
-              className="input-area w-full mt-5"
-            />
+            <div className="mt-6 grid gap-2.5">
+              {GOALS.map((g) => {
+                const selected = goal === g.id;
+                const Icon = g.icon;
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => {
+                      setGoal(g.id);
+                      setTimeout(() => handleNext(), 140);
+                    }}
+                    className={`group relative flex items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 border ${
+                      selected
+                        ? 'border-accent-pop bg-[hsl(var(--accent-pop-soft))]'
+                        : 'border-border bg-background hover:border-foreground/40'
+                    }`}
+                  >
+                    <span
+                      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        selected
+                          ? 'bg-accent-pop text-white'
+                          : 'bg-muted text-foreground'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <p className="text-sm font-semibold text-foreground">
+                      {g.label}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
 
             <div className="mt-6 flex items-center justify-between">
               <button
@@ -291,10 +328,6 @@ export function MultiStepEarlyAccess() {
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
-              </button>
-              <button type="button" onClick={handleNext} className="btn-primary">
-                Next
-                <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           </motion.div>
@@ -311,10 +344,10 @@ export function MultiStepEarlyAccess() {
             transition={stepTransition}
           >
             <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              Which part are you most excited about?
+              Which feature do you like most?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Pick the one that made you stop scrolling.
+              Pick one. We will build it first.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -361,7 +394,7 @@ export function MultiStepEarlyAccess() {
           </motion.div>
         )}
 
-        {/* ── Step 4: Tester level ──────────────────────────────── */}
+        {/* ── Step 4: Tester level — simplified ─────────────────── */}
         {step === 4 && (
           <motion.div
             key="step-4"
@@ -372,10 +405,10 @@ export function MultiStepEarlyAccess() {
             transition={stepTransition}
           >
             <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              Want to help shape Brand OS?
+              How do you want to use it?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Pick what fits — it changes when you'll get access.
+              Pick one. This decides when you get access.
             </p>
 
             <div className="mt-6 grid gap-2.5">
@@ -386,7 +419,10 @@ export function MultiStepEarlyAccess() {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setTesterLevel(t.id)}
+                    onClick={() => {
+                      setTesterLevel(t.id);
+                      setTimeout(() => handleNext(), 140);
+                    }}
                     className={`group relative flex items-center gap-4 rounded-2xl p-4 text-left transition-all duration-200 border ${
                       selected
                         ? 'border-accent-pop bg-[hsl(var(--accent-pop-soft))]'
@@ -402,16 +438,15 @@ export function MultiStepEarlyAccess() {
                     >
                       <Icon className="h-5 w-5" />
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground">{t.title}</p>
-                      <p className="text-xs text-muted-foreground">{t.body}</p>
-                    </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {t.title}
+                    </p>
                   </button>
                 );
               })}
             </div>
 
-            <div className="mt-8 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between">
               <button
                 type="button"
                 onClick={handleBack}
@@ -420,20 +455,11 @@ export function MultiStepEarlyAccess() {
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </button>
-              <button
-                type="button"
-                onClick={handleNext}
-                disabled={!testerLevel}
-                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:bg-foreground disabled:hover:text-background disabled:hover:border-0"
-              >
-                Next
-                <ArrowRight className="h-4 w-4" />
-              </button>
             </div>
           </motion.div>
         )}
 
-        {/* ── Step 5: Email (LAST) ──────────────────────────────── */}
+        {/* ── Step 5: Email — simple direct copy ────────────────── */}
         {step === 5 && (
           <motion.form
             key="step-5"
@@ -446,10 +472,10 @@ export function MultiStepEarlyAccess() {
             noValidate
           >
             <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-              Last one. Where should we send it?
+              What is your email?
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Just one email when we launch. No newsletter, no spam.
+              We will send you one email when Brand OS is ready.
             </p>
 
             <input
@@ -458,7 +484,7 @@ export function MultiStepEarlyAccess() {
               autoComplete="email"
               autoFocus
               required
-              placeholder="you@company.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -489,7 +515,7 @@ export function MultiStepEarlyAccess() {
                 {status === 'submitting' ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting…
+                    Saving…
                   </>
                 ) : (
                   <>

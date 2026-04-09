@@ -12,7 +12,7 @@ export const ProductModulesSection = () => {
   return (
     <section className="section">
       <div className="container-tight">
-        <Reveal y={60} duration={1.0}>
+        <Reveal y={32} duration={0.55}>
           <div className="strong-block px-6 sm:px-12 md:px-16 lg:px-20 py-20 md:py-28">
             {/* Inner subtle grid texture */}
             <div aria-hidden className="absolute inset-0 panel-grid opacity-60 pointer-events-none" />
