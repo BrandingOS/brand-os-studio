@@ -36,7 +36,16 @@ export async function exportSingle(svg: string, opts: ExportSingleOptions): Prom
 async function rasterize(svg: string, format: 'png' | 'jpg' | 'webp', density: ExportDensity): Promise<Blob> {
   const targetW = BASE_PX * density;
   const targetH = BASE_PX * density;
-  const blobUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+  // The rendered SVG uses width="100%" height="100%" so it can fluidly
+  // size to its container in the studio. For rasterization we need
+  // explicit pixel dimensions on the root SVG so the browser gives us
+  // a non-zero `naturalWidth`/`naturalHeight` when we load it as an
+  // Image. Inject those just for the export blob.
+  const sized = svg.replace(
+    /<svg([^>]*?)width="100%"\s+height="100%"/,
+    `<svg$1width="${targetW}" height="${targetH}"`,
+  );
+  const blobUrl = URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' }));
   try {
     const img = await loadImage(blobUrl);
     const canvas = document.createElement('canvas');

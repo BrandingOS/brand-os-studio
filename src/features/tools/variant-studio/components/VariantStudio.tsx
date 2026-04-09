@@ -108,6 +108,57 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSource]);
 
+  // SVG-URL hydrator: when the source has a raster URL ending in .svg
+  // and no inline svg field yet, fetch the file and inline it. This
+  // upgrade lets the renderer manipulate the source (color filters,
+  // mono modes, inline embeds) instead of relying on `<image href>`
+  // which can't be color-filtered reliably across browsers.
+  useEffect(() => {
+    const src = session.payload.source;
+    if (!src) return;
+    if (src.original.svg) return; // already inline
+    const url = src.original.raster;
+    if (!url) return;
+    const isSvgUrl =
+      url.endsWith('.svg') ||
+      url.includes('.svg?') ||
+      url.startsWith('data:image/svg');
+    if (!isSvgUrl) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const text = await (await fetch(url)).text();
+        if (cancelled) return;
+        if (!text.trim().startsWith('<svg') && !text.trim().startsWith('<?xml')) return;
+        // Try to read the intrinsic viewBox so the layout can size the
+        // icon with the correct aspect.
+        const vbMatch = text.match(/viewBox="([\d.\s-]+)"/);
+        let width = src.original.width;
+        let height = src.original.height;
+        if (vbMatch) {
+          const parts = vbMatch[1].split(/\s+/).map(Number);
+          if (parts.length === 4) {
+            width = parts[2];
+            height = parts[3];
+          }
+        }
+        patchPayload({
+          source: {
+            ...src,
+            original: { ...src.original, svg: text, width, height },
+          },
+        });
+      } catch (err) {
+        console.warn('[variant-studio] could not hydrate SVG source', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.payload.source?.id]);
+
   const { source, palette, variants, pinned, selectedVariantId } = session.payload;
 
   const selectedVariant = useMemo(
@@ -361,13 +412,19 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
 
 function sourceFromBrand(brand: Brand | undefined): SourceLogo | null {
   if (!brand?.logo) return null;
-  const isSvg = brand.logo.startsWith('data:image/svg') || brand.logo.includes('.svg');
+  // Only INLINE SVG markup (literally `<svg ...>`) goes into the svg
+  // field. Everything else — URLs, file paths, data URLs, raster
+  // images — goes into raster. The SVG `<image>` tag in the renderer
+  // handles all of those uniformly. (The async hydrator below will
+  // upgrade SVG URLs into the inline svg field once fetched, so the
+  // renderer can apply color filters properly.)
+  const isInlineSvg = brand.logo.trim().startsWith('<svg');
   return {
     id: `brand-${brand.id}`,
     kind: 'brand-asset',
     original: {
-      svg: isSvg && brand.logo.startsWith('<svg') ? brand.logo : undefined,
-      raster: !isSvg ? brand.logo : undefined,
+      svg: isInlineSvg ? brand.logo : undefined,
+      raster: isInlineSvg ? undefined : brand.logo,
       width: 512,
       height: 512,
     },

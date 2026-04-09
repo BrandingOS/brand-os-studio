@@ -76,14 +76,17 @@ export function VariantTile({
       )}
     >
       <div
-        className={cn(
-          'flex items-center justify-center overflow-hidden rounded-lg',
-          isLarge ? 'aspect-[3/2]' : 'aspect-[3/2]',
-        )}
+        className="relative flex aspect-[3/2] items-center justify-center overflow-hidden rounded-lg"
         style={tileBgStyle}
       >
+        {/* The rendered SVG is fluid (width/height = 100%) so we
+            constrain it to a centered inner box and let it fill that.
+            `[&>svg]` targets the injected SVG so it fills the wrapper. */}
         <div
-          className={cn(isLarge ? 'max-h-[78%] max-w-[78%]' : 'max-h-[80%] max-w-[80%]')}
+          className={cn(
+            'flex items-center justify-center [&>svg]:h-full [&>svg]:w-full',
+            isLarge ? 'h-[78%] w-[78%]' : 'h-[80%] w-[80%]',
+          )}
           dangerouslySetInnerHTML={{ __html: svg }}
         />
       </div>

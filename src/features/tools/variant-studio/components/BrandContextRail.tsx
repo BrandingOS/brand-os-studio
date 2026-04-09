@@ -102,7 +102,7 @@ export function BrandContextRail({
             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
               {source?.original.svg ? (
                 <div
-                  className="h-full w-full p-1"
+                  className="flex h-full w-full items-center justify-center p-1 [&>svg]:h-full [&>svg]:w-full"
                   dangerouslySetInnerHTML={{ __html: source.original.svg }}
                 />
               ) : source?.original.raster ? (

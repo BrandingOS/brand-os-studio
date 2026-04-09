@@ -29,7 +29,12 @@ interface RenderOptions {
   source: SourceLogo;
   spec: VariantSpec;
   palette: PaletteContext;
-  /** Output dimensions in px. SVG scales the placement into this box. */
+  /**
+   * Hint for the SVG's intrinsic dimensions. The renderer uses these
+   * to compute proportions, but the output `<svg>` is sized as
+   * `width="100%" height="100%"` so it fills its container — the
+   * caller controls actual pixel size via CSS on the wrapper.
+   */
   width: number;
   height: number;
 }
@@ -40,7 +45,7 @@ const SAFE_AREA_FACTOR: Record<VariantSpec['safeArea'], number> = {
   generous: 0.2,
 };
 
-export function renderSvg({ source, spec, palette, width, height }: RenderOptions): string {
+export function renderSvg({ source, spec, palette, width: _w, height: _h }: RenderOptions): string {
   const hasIcon = spec.composition !== 'wordmark-only';
   const hasWordmark = spec.composition !== 'icon-only';
   const iconAspect =
@@ -86,17 +91,25 @@ export function renderSvg({ source, spec, palette, width, height }: RenderOption
     }
   }
 
-  // Wordmark text
+  // Wordmark text. We force-fit the text into the wordmark bbox using
+  // `textLength` + `lengthAdjust="spacingAndGlyphs"`. Without this the
+  // text overflows the layout's reserved width because we estimate
+  // wordmark width from string length × a fudge factor — fonts vary
+  // wildly and "Vector" at weight 700 is much wider than the estimate.
   let wordmarkSvg = '';
   if (hasWordmark && placement.wordmark && wordmarkText) {
     const wx = placement.wordmark.x + pad;
     const wy = placement.wordmark.y + pad;
+    const ww = placement.wordmark.width;
     const wh = placement.wordmark.height;
     const fill = wordmarkFillForMode(spec);
-    wordmarkSvg = `<text x="${wx}" y="${wy + wh * 0.78}" font-family="${escapeAttr(wordmarkFont)}" font-size="${wh}" font-weight="700" fill="${escapeAttr(fill)}">${escapeText(wordmarkText)}</text>`;
+    wordmarkSvg = `<text x="${wx}" y="${wy + wh * 0.78}" font-family="${escapeAttr(wordmarkFont)}" font-size="${wh}" font-weight="700" textLength="${ww}" lengthAdjust="spacingAndGlyphs" fill="${escapeAttr(fill)}">${escapeText(wordmarkText)}</text>`;
   }
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="${width}" height="${height}">${defs()}${bgRect}${iconSvg}${wordmarkSvg}</svg>`;
+  // Output is sized as 100% so the SVG fills its container — the
+  // caller's wrapper element decides the pixel size via CSS. The
+  // viewBox preserves the composition's aspect ratio.
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${defs()}${bgRect}${iconSvg}${wordmarkSvg}</svg>`;
 }
 
 function defs(): string {
