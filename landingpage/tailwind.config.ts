@@ -48,6 +48,11 @@ export default {
           DEFAULT: 'hsl(var(--panel))',
           foreground: 'hsl(var(--panel-foreground))',
         },
+        'accent-pop': {
+          DEFAULT: 'hsl(var(--accent-pop))',
+          foreground: 'hsl(var(--accent-pop-fg))',
+          soft: 'hsl(var(--accent-pop-soft))',
+        },
       },
       fontFamily: {
         display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

@@ -37,6 +37,10 @@ export interface EarlyAccessSubmission {
   name?: string;
   role?: string;
   use_case?: string;
+  /** Which feature the user is most excited about (set in step 3 of the form). */
+  interesting_feature?: string;
+  /** Tester commitment level: 'notify' | 'beta' | 'founder'. */
+  tester_interest?: string;
   source?: string;
   user_agent?: string;
 }

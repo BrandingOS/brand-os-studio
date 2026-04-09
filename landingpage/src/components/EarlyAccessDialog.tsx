@@ -42,22 +42,22 @@ export function EarlyAccessDialog() {
               }}
             >
               <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                initial={{ opacity: 0, y: 28, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.97 }}
+                exit={{ opacity: 0, y: 20, scale: 0.96 }}
                 transition={{
-                  duration: 0.4,
+                  duration: 0.45,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2"
+                className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto"
               >
-                <div className="relative surface shadow-elegant p-6 sm:p-8">
+                <div className="relative surface shadow-elegant p-7 sm:p-10">
                   {/* Close button */}
                   <Dialog.Close asChild>
                     <button
                       type="button"
                       aria-label="Close"
-                      className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      className="absolute right-5 top-5 inline-flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -65,18 +65,18 @@ export function EarlyAccessDialog() {
 
                   {/* Heading */}
                   <Dialog.Title asChild>
-                    <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-                      Get early access
+                    <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight pr-12">
+                      Get early access.
                     </h2>
                   </Dialog.Title>
                   <Dialog.Description asChild>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Three quick questions, then we'll save your spot.
+                      Five quick questions. About 30 seconds. Email at the end.
                     </p>
                   </Dialog.Description>
 
                   {/* The form */}
-                  <div className="mt-6">
+                  <div className="mt-7">
                     <MultiStepEarlyAccess />
                   </div>
                 </div>

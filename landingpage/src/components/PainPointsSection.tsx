@@ -1,6 +1,6 @@
 import { painPoints } from '@/data/content';
 import { FeatureCard } from '@/components/FeatureCard';
-import { Reveal, RevealStagger } from '@/components/fancy/Reveal';
+import { Reveal } from '@/components/fancy/Reveal';
 
 export const PainPointsSection = () => {
   return (
@@ -24,11 +24,11 @@ export const PainPointsSection = () => {
           </Reveal>
         </div>
 
-        <RevealStagger className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-3">
           {painPoints.map((feature, index) => (
             <FeatureCard key={feature.title} index={index} {...feature} />
           ))}
-        </RevealStagger>
+        </div>
       </div>
     </section>
   );

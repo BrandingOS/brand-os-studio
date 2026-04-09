@@ -1,12 +1,12 @@
 import { stats } from '@/data/content';
 import { StatCard } from '@/components/StatCard';
-import { Reveal, RevealStagger } from '@/components/fancy/Reveal';
+import { Reveal } from '@/components/fancy/Reveal';
 
 export const StatisticsSection = () => {
   return (
     <section className="section bg-secondary/40 border-y border-border">
       <div className="container-tight">
-        <Reveal className="max-w-3xl mb-16 md:mb-24">
+        <Reveal className="max-w-3xl mb-16 md:mb-20">
           <span className="eyebrow">By the numbers</span>
           <h2 className="h-section mt-6">
             Brand consistency
@@ -15,11 +15,11 @@ export const StatisticsSection = () => {
           </h2>
         </Reveal>
 
-        <RevealStagger className="grid gap-12 md:gap-8 md:grid-cols-3">
-          {stats.map((stat) => (
-            <StatCard key={stat.label} {...stat} />
+        <div className="grid gap-12 md:gap-10 md:grid-cols-3">
+          {stats.map((stat, i) => (
+            <StatCard key={stat.label} index={i} {...stat} />
           ))}
-        </RevealStagger>
+        </div>
       </div>
     </section>
   );

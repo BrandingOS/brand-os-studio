@@ -1,64 +1,64 @@
-import { motion } from 'framer-motion';
 import { productModules } from '@/data/content';
 import { ProductModuleCard } from '@/components/ProductModuleCard';
-import { Reveal, RevealStagger } from '@/components/fancy/Reveal';
+import { Reveal } from '@/components/fancy/Reveal';
 
 /**
  * Product modules — the headline "strong block" of the page.
  *
- * Full-width dark panel with a subtle inner grid texture, eyebrow,
- * massive headline, three intro paragraph, then a 6-card grid of
- * product modules. Heavy reveal animations, parallax-feeling vertical
- * spacing.
+ * Full-bleed dark panel. Each module card now has its own scroll
+ * trigger (no more parent stagger that strands fast-scrollers at opacity 0).
  */
 export const ProductModulesSection = () => {
   return (
     <section className="section">
       <div className="container-tight">
-        <motion.div
-          initial={{ opacity: 0, y: 80 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
-          className="strong-block px-6 sm:px-12 md:px-16 lg:px-20 py-20 md:py-32"
-        >
-          {/* Inner subtle grid texture */}
-          <div aria-hidden className="absolute inset-0 panel-grid opacity-60 pointer-events-none" />
-          {/* Soft top-left highlight */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(80% 60% at 20% 0%, hsl(0 0% 100% / 0.05) 0%, transparent 60%)',
-            }}
-          />
+        <Reveal y={60} duration={1.0}>
+          <div className="strong-block px-6 sm:px-12 md:px-16 lg:px-20 py-20 md:py-28">
+            {/* Inner subtle grid texture */}
+            <div aria-hidden className="absolute inset-0 panel-grid opacity-60 pointer-events-none" />
+            {/* Soft top-left highlight */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background:
+                  'radial-gradient(80% 60% at 20% 0%, hsl(0 0% 100% / 0.05) 0%, transparent 60%)',
+              }}
+            />
+            {/* Subtle accent glow bottom-right */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-20"
+              style={{
+                background:
+                  'radial-gradient(circle, hsl(var(--accent-pop)) 0%, transparent 60%)',
+                filter: 'blur(60px)',
+              }}
+            />
 
-          <div className="relative" id="features">
-            <Reveal className="max-w-3xl">
-              <span className="eyebrow-light">Why Brand OS</span>
-              <h2 className="h-section mt-6 text-[hsl(var(--panel-foreground))]">
-                More than guidelines —
-                <br />
-                your brand OS.
-              </h2>
-              <p className="mt-6 text-lg md:text-xl text-white/65 leading-relaxed max-w-2xl">
-                Live brand logic that auto-applies to every output — from
-                slides and posts to print and your website. One source of
-                truth, used everywhere.
-              </p>
-            </Reveal>
+            <div className="relative" id="features">
+              <div className="max-w-3xl">
+                <span className="eyebrow-light">Why Brand OS</span>
+                <h2 className="h-section mt-6 text-[hsl(var(--panel-foreground))]">
+                  More than guidelines —
+                  <br />
+                  your brand OS.
+                </h2>
+                <p className="mt-6 text-lg md:text-xl text-white/65 leading-relaxed max-w-2xl">
+                  Live brand logic that auto-applies to every output — from
+                  slides and posts to print and your website. One source of
+                  truth, used everywhere.
+                </p>
+              </div>
 
-            <RevealStagger
-              className="mt-16 md:mt-20 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-              staggerDelay={0.1}
-            >
-              {productModules.map((module) => (
-                <ProductModuleCard key={module.title} {...module} />
-              ))}
-            </RevealStagger>
+              <div className="mt-16 md:mt-20 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {productModules.map((module, i) => (
+                  <ProductModuleCard key={module.title} index={i} {...module} />
+                ))}
+              </div>
+            </div>
           </div>
-        </motion.div>
+        </Reveal>
       </div>
     </section>
   );

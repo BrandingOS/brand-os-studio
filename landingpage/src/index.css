@@ -3,18 +3,17 @@
 @tailwind utilities;
 
 /* ──────────────────────────────────────────────────────────────────
-   Brand OS — Landing Page v5
-   Light editorial theme + Relume "strong blocks" + heavy scroll motion.
-   Built on top of the v1 visual language but amplified — bigger
-   typography, generous whitespace, refined surfaces, motion everywhere.
+   Brand OS — Landing Page v5.1
+   v1 light editorial + Relume strong blocks + Brand OS accent orange.
+   Refined type scale, wider container, color accents on key surfaces.
    ──────────────────────────────────────────────────────────────────
 */
 
 @layer base {
   :root {
-    /* Warm-white canvas — slightly off-pure to avoid screen glare */
-    --background: 36 33% 99%;          /* #FCFBF9 */
-    --foreground: 0 0% 8%;             /* near-black */
+    /* Warm-white canvas */
+    --background: 36 33% 99%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 8%;
@@ -43,15 +42,20 @@
 
     --radius: 14px;
 
-    /* Editorial dark for the "Why Brand OS" strong block + footer */
+    /* Editorial dark for strong blocks + footer */
     --panel: 0 0% 8%;
     --panel-foreground: 36 25% 96%;
+
+    /* ── Brand OS accent (the new color) ─────────────────────────── */
+    --accent-pop: 18 87% 54%;          /* #F36123 — Brand OS coral orange */
+    --accent-pop-fg: 0 0% 100%;
+    --accent-pop-soft: 18 87% 95%;     /* very pale orange wash */
 
     /* Subtle dot grid */
     --dot-color: 36 15% 90%;
     --dot-size: 26px;
 
-    /* Layered shadow system — warm, soft */
+    /* Layered shadow system */
     --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.04), 0 4px 16px -4px hsl(0 0% 0% / 0.06);
     --shadow-elevated: 0 4px 16px -4px hsl(0 0% 0% / 0.08), 0 12px 32px -8px hsl(0 0% 0% / 0.10);
     --shadow-elegant: 0 8px 30px -10px hsl(0 0% 0% / 0.15);
@@ -87,55 +91,62 @@
   }
 
   ::selection {
-    background-color: hsl(var(--foreground));
-    color: hsl(var(--background));
+    background-color: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop-fg));
   }
 }
 
 @layer utilities {
-  /* ── Layout ───────────────────────────────────────────────────── */
+  /* ── Layout (wider, less imprisoned) ──────────────────────────── */
 
   .container-tight {
-    @apply max-w-7xl mx-auto px-6 sm:px-8 lg:px-12;
+    @apply mx-auto px-6 sm:px-8 lg:px-12 xl:px-16;
+    max-width: 1440px;
+  }
+
+  .container-wide {
+    @apply mx-auto px-6 sm:px-8 lg:px-12 xl:px-16;
+    max-width: 1600px;
   }
 
   .section {
-    @apply py-24 md:py-36;
+    @apply py-24 md:py-32;
   }
 
-  /* ── Typography helpers ───────────────────────────────────────── */
+  /* ── Typography helpers (REFINED, less aggressive) ────────────── */
 
   .font-display {
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     letter-spacing: -0.03em;
   }
 
-  /* Massive editorial display heading */
+  /* Hero — refined from 7.5rem max → 5.25rem max */
   .display-xl {
     @apply font-display font-extrabold tracking-tight;
-    font-size: clamp(3rem, 8.5vw, 7.5rem);
-    line-height: 0.96;
+    font-size: clamp(2.5rem, 6vw, 5.25rem);
+    line-height: 0.98;
   }
 
   .display {
     @apply font-display font-extrabold tracking-tight;
-    font-size: clamp(2.5rem, 6vw, 5.5rem);
+    font-size: clamp(2.25rem, 5vw, 4.25rem);
     line-height: 1.02;
   }
 
+  /* Section headings — refined from 4.5rem max → 3.25rem max */
   .h-section {
     @apply font-display font-bold tracking-tight;
-    font-size: clamp(2.25rem, 5vw, 4.5rem);
-    line-height: 1.04;
+    font-size: clamp(1.875rem, 3.6vw, 3.25rem);
+    line-height: 1.08;
   }
 
   .h-card {
     @apply font-display font-bold tracking-tight;
-    font-size: clamp(1.5rem, 2.4vw, 2rem);
-    line-height: 1.15;
+    font-size: clamp(1.375rem, 2vw, 1.75rem);
+    line-height: 1.2;
   }
 
-  /* Eyebrow with leading rule — Relume signature */
+  /* Eyebrow with leading rule — Relume signature, now with accent gradient */
   .eyebrow {
     @apply inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-foreground;
   }
@@ -143,8 +154,8 @@
     content: '';
     display: inline-block;
     width: 32px;
-    height: 1px;
-    background-color: currentColor;
+    height: 2px;
+    background: linear-gradient(to right, hsl(var(--accent-pop)), hsl(var(--foreground)));
   }
 
   .eyebrow-light {
@@ -155,8 +166,23 @@
     content: '';
     display: inline-block;
     width: 32px;
-    height: 1px;
-    background-color: currentColor;
+    height: 2px;
+    background: linear-gradient(to right, hsl(var(--accent-pop)), hsl(var(--panel-foreground)));
+  }
+
+  /* ── Color helpers ────────────────────────────────────────────── */
+
+  .text-accent-pop {
+    color: hsl(var(--accent-pop));
+  }
+  .bg-accent-pop {
+    background-color: hsl(var(--accent-pop));
+  }
+  .border-accent-pop {
+    border-color: hsl(var(--accent-pop));
+  }
+  .ring-accent-pop {
+    --tw-ring-color: hsl(var(--accent-pop));
   }
 
   /* ── Surfaces ─────────────────────────────────────────────────── */
@@ -165,19 +191,6 @@
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
-  }
-
-  .surface-soft {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-soft);
-    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .surface-soft:hover {
-    box-shadow: var(--shadow-elevated);
-    transform: translateY(-3px);
-    border-color: hsl(0 0% 75%);
   }
 
   .glass-surface {
@@ -192,7 +205,7 @@
     box-shadow: var(--shadow-soft);
   }
 
-  /* The dark "strong block" used by Why Brand OS + Final CTA */
+  /* The dark "strong block" used by Why Brand OS + Final CTA + Footer */
   .strong-block {
     background: hsl(var(--panel));
     color: hsl(var(--panel-foreground));
@@ -201,16 +214,7 @@
     overflow: hidden;
   }
 
-  .strong-block-light {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) + 12px);
-    box-shadow: var(--shadow-elevated);
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* Soft warm card with the "v1" radial highlight */
+  /* Card with v1 radial highlight + soft shadow + accent on hover */
   .card-soft {
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
@@ -230,7 +234,6 @@
   .card-soft:hover {
     box-shadow: var(--shadow-elevated);
     transform: translateY(-4px);
-    border-color: hsl(0 0% 70%);
   }
 
   /* ── Buttons ──────────────────────────────────────────────────── */
@@ -252,10 +255,10 @@
     box-shadow: var(--shadow-glow);
   }
   .btn-primary-lg:hover {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
-    border: 1px solid hsl(var(--foreground));
+    background: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop-fg));
     transform: translateY(-2px);
+    box-shadow: 0 12px 40px -10px hsl(var(--accent-pop) / 0.5);
   }
 
   .btn-secondary {
@@ -263,19 +266,20 @@
   }
   .btn-secondary:hover {
     background: hsl(var(--secondary));
-    border-color: hsl(0 0% 60%);
+    border-color: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop));
   }
 
-  /* Inverted primary — used inside dark strong-block sections */
+  /* Inverted primary used inside dark strong-block sections */
   .btn-on-dark {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-background text-foreground px-9 h-14 text-base font-semibold transition-all duration-300;
     box-shadow: var(--shadow-glow);
   }
   .btn-on-dark:hover {
-    background: hsl(var(--foreground));
-    color: hsl(var(--background));
-    border: 1px solid hsl(var(--background));
+    background: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop-fg));
     transform: translateY(-2px);
+    box-shadow: 0 12px 40px -10px hsl(var(--accent-pop) / 0.6);
   }
 
   /* ── Inputs ───────────────────────────────────────────────────── */
@@ -284,16 +288,16 @@
     @apply h-12 rounded-full border border-input bg-background px-5 text-sm placeholder:text-muted-foreground focus-visible:outline-none transition-all duration-200;
   }
   .input-pill:focus-visible {
-    border-color: hsl(var(--foreground));
-    box-shadow: 0 0 0 3px hsl(0 0% 0% / 0.06);
+    border-color: hsl(var(--accent-pop));
+    box-shadow: 0 0 0 3px hsl(var(--accent-pop) / 0.15);
   }
 
   .input-area {
     @apply rounded-2xl border border-input bg-background px-5 py-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none transition-all duration-200 resize-none;
   }
   .input-area:focus-visible {
-    border-color: hsl(var(--foreground));
-    box-shadow: 0 0 0 3px hsl(0 0% 0% / 0.06);
+    border-color: hsl(var(--accent-pop));
+    box-shadow: 0 0 0 3px hsl(var(--accent-pop) / 0.15);
   }
 
   /* ── Backgrounds ──────────────────────────────────────────────── */
@@ -304,14 +308,6 @@
     background-position: 0 0;
   }
 
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
-    background-size: 56px 56px;
-  }
-
-  /* Strong-block subtle inner grid */
   .panel-grid {
     background-image:
       linear-gradient(to right, hsl(0 0% 100% / 0.05) 1px, transparent 1px),
@@ -339,27 +335,23 @@
 
   /* ── Shadows ──────────────────────────────────────────────────── */
 
-  .shadow-soft {
-    box-shadow: var(--shadow-soft);
-  }
-  .shadow-elevated {
-    box-shadow: var(--shadow-elevated);
-  }
-  .shadow-elegant {
-    box-shadow: var(--shadow-elegant);
-  }
-  .shadow-glow {
-    box-shadow: var(--shadow-glow);
-  }
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
+  .shadow-elegant { box-shadow: var(--shadow-elegant); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
 
-  /* ── Numbered process tag ────────────────────────────────────── */
+  /* ── Numbered tag — now in accent orange ─────────────────────── */
 
   .num-tag {
-    @apply inline-flex items-center justify-center font-mono text-xs tracking-widest text-muted-foreground;
+    @apply inline-flex items-center justify-center font-mono text-sm tracking-widest font-semibold;
+    color: hsl(var(--accent-pop));
   }
 
   .num-pill {
-    @apply inline-flex items-center justify-center h-10 w-10 rounded-full border border-border bg-secondary font-mono text-sm font-semibold text-foreground;
+    @apply inline-flex items-center justify-center h-11 w-11 rounded-full font-mono text-sm font-semibold;
+    background: hsl(var(--accent-pop) / 0.1);
+    border: 1px solid hsl(var(--accent-pop) / 0.3);
+    color: hsl(var(--accent-pop));
   }
 
   /* ── Floating decorative tile (used in hero) ──────────────────── */
@@ -409,16 +401,4 @@
 @keyframes bg-pan {
   0% { background-position: 0 0; }
   100% { background-position: var(--dot-size) var(--dot-size); }
-}
-
-/* Reveal-on-scroll animation paired with the Reveal component */
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(28px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

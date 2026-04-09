@@ -46,23 +46,23 @@ export const HeroSection = () => {
             className="inline-flex"
           >
             <div className="glass-surface inline-flex items-center gap-2 rounded-full px-4 py-1.5 shadow-soft">
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5 text-accent-pop" />
               <span className="text-xs font-medium tracking-wide text-foreground">
                 One-time setup → Endless consistency
               </span>
             </div>
           </motion.div>
 
-          {/* Massive editorial headline */}
+          {/* Editorial headline — refined size */}
           <motion.h1
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
             className="display-xl mt-8"
           >
-            Save hours of
+            Save hours of <span className="text-accent-pop">repetitive</span>
             <br />
-            repetitive boring work.
+            boring work.
           </motion.h1>
 
           {/* Subtitle */}
