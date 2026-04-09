@@ -1,27 +1,35 @@
 /**
  * BrandContextRail — the single side panel for the studio.
  *
- * One rail, two sections:
- *  1. BRAND CONTEXT — what informs every variant
- *     - source logo (with replace)
- *     - brand identity (name)
- *     - brand color palette (+ add custom)
- *     - wordmark typography
- *     - missing-variants suggestions (one-click generators)
+ * Two stacked sections, separated by the rail's own scroll area:
  *
- *  2. EDIT VARIANT — what the user is currently editing
- *     - composition (lockup / icon / wordmark)
- *     - layout (horizontal / stacked)
- *     - color mode (brand / mono / inverse / custom)
- *     - palette swatch picker (drives custom mode)
- *     - background (transparent / white / black / brand)
- *     - WCAG contrast pill (live)
- *     - export buttons (PNG / SVG / PDF) + kit export
+ *   1. CONTEXT (top, scrollable)
+ *      - Source slots (multi-source upload row)
+ *      - Brand identity (name, font hint)
+ *      - Palette (deduped swatches + add custom)
+ *      - Missing variants suggestions
  *
- * The main area is just the gallery. All editing happens here, in the
- * rail. There is no top bar.
+ *   2. EDIT DRAFT (bottom, also scrollable above the sticky CTA)
+ *      - Composition + layout (only when source has separable assets)
+ *      - Color mode dropdown
+ *      - Apply color (deduped palette swatches)
+ *      - Background chips
+ *      - Contrast pill (HIDDEN for transparent backgrounds — those
+ *        are placed on something else, so contrast is meaningless)
+ *      - Slogan: enable checkbox, text input, position toggle
+ *
+ *   3. STICKY BOTTOM CTA
+ *      - "Add this variant" — commits the draft to the gallery.
+ *        Lives in a sticky footer so it never moves when the user
+ *        scrolls the rail content.
+ *
+ * Layout-stability fix: every interactive element is a real <button>
+ * (or div with role=button) — no nested buttons. Sections never grow
+ * or shrink in response to clicks (no conditional rendering inside
+ * controls). The rail itself owns its scroll, so editing controls
+ * never push the gallery around.
  */
-import { Download, Plus, Sparkles, Type, Upload, Image as ImageIcon, Lock } from 'lucide-react';
+import { Lock, Plus, Sparkles, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,6 +38,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type {
   Background,
@@ -38,155 +48,127 @@ import type {
   ExportFormat,
   Layout,
   PaletteContext,
+  Slogan,
   SourceLogo,
   VariantSpec,
 } from '../engine/types';
 import { findMissingVariants } from '../engine/missingVariants';
 import { backgroundHex } from '../engine/generate';
-import { gradeContrast } from '../engine/palette';
+import { allPaletteColors, gradeContrast } from '../engine/palette';
+import { SourceSlots } from './SourceSlots';
 
 interface BrandContextRailProps {
-  // Brand-context inputs
-  source: SourceLogo | null;
+  // Sources
+  sources: SourceLogo[];
+  activeSourceId: string | null;
+  onPickSourceFile: (file: File) => void;
+  onSelectSource: (id: string) => void;
+  onRemoveSource: (id: string) => void;
+
+  // Brand context
   palette: PaletteContext;
   brandName: string;
   variants: VariantSpec[];
-  onPickFile: (file: File) => void;
   onAddCustomColor: (hex: string) => void;
   onGenerateMissing: (spec: VariantSpec) => void;
   onRenameBrand?: (next: string) => void;
 
-  // Edit-variant inputs
-  selectedSpec: VariantSpec | null;
-  pinnedCount: number;
-  onChangeSpec: (patch: Partial<VariantSpec>) => void;
+  // Draft editing
+  draft: VariantSpec | null;
+  onChangeDraft: (patch: Partial<VariantSpec>) => void;
+  onAddDraft: () => void;
+
+  // Top-level export already lives in the chrome topbar.
+  // We expose per-format buttons here too for power users.
   onExport: (format: ExportFormat) => void;
-  onExportKit: () => void;
 }
 
 export function BrandContextRail({
-  source,
+  sources,
+  activeSourceId,
+  onPickSourceFile,
+  onSelectSource,
+  onRemoveSource,
   palette,
   brandName,
   variants,
-  onPickFile,
   onAddCustomColor,
   onGenerateMissing,
   onRenameBrand,
-  selectedSpec,
-  pinnedCount,
-  onChangeSpec,
+  draft,
+  onChangeDraft,
+  onAddDraft,
   onExport,
-  onExportKit,
 }: BrandContextRailProps) {
+  const activeSource = sources.find((s) => s.id === activeSourceId) ?? null;
   const missing =
-    source != null
-      ? findMissingVariants(source, palette, variants)
+    activeSource != null
+      ? findMissingVariants(activeSource, palette, variants)
       : [];
+  const isMonolithic = !activeSource?.icon;
+  const colors = allPaletteColors(palette);
+  const wordmarkFont = activeSource?.wordmark?.fontFamily;
 
   return (
-    <div className="flex flex-col">
-      {/* ── Source ─────────────────────────────────────── */}
-      <Section label="Source">
-        <label className="group block">
-          <input
-            type="file"
-            className="sr-only"
-            accept="image/svg+xml,image/png,image/jpeg"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onPickFile(file);
-            }}
+    <div className="flex h-full flex-col">
+      {/* ── Scrollable rail body ──────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Sources */}
+        <Section label="Sources">
+          <SourceSlots
+            sources={sources}
+            activeSourceId={activeSourceId}
+            onPickFile={onPickSourceFile}
+            onSelect={onSelectSource}
+            onRemove={onRemoveSource}
           />
-          <div className="flex cursor-pointer items-center gap-3 rounded-lg border bg-card p-2.5 transition-colors hover:border-foreground/30">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-muted">
-              {source?.original.svg ? (
-                <div
-                  className="flex h-full w-full items-center justify-center p-1 [&>svg]:h-full [&>svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: source.original.svg }}
-                />
-              ) : source?.original.raster ? (
-                <img
-                  src={source.original.raster}
-                  alt=""
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <ImageIcon className="h-5 w-5 text-muted-foreground" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium text-foreground">
-                {source ? 'Logo loaded' : 'No source'}
-              </div>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Upload className="h-2.5 w-2.5" />
-                Replace
-              </div>
-            </div>
-          </div>
-        </label>
-      </Section>
+        </Section>
 
-      {/* ── Brand identity ─────────────────────────────── */}
-      <Section label="Brand">
-        <div className="space-y-1.5">
-          <input
-            type="text"
-            value={brandName}
-            onChange={(e) => onRenameBrand?.(e.target.value)}
-            disabled={!onRenameBrand}
-            placeholder="Brand name"
-            className={cn(
-              'w-full rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors',
-              onRenameBrand
-                ? 'focus:border-primary focus:ring-2 focus:ring-primary/20'
-                : 'cursor-not-allowed opacity-80',
-            )}
-          />
-          {source?.wordmark?.fontFamily && (
-            <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
-              <Type className="h-2.5 w-2.5" />
-              <span className="truncate" style={{ fontFamily: source.wordmark.fontFamily }}>
-                {source.wordmark.fontFamily}
-              </span>
-            </div>
-          )}
-        </div>
-      </Section>
-
-      {/* ── Colors ─────────────────────────────────────── */}
-      <Section label="Colors">
-        <div className="space-y-2">
-          {palette.brandColors.length > 0 && (
-            <ColorRow label="Brand" colors={palette.brandColors.map((c) => c.hex)} />
-          )}
-          {palette.customColors.length > 0 && (
-            <ColorRow label="Custom" colors={palette.customColors.map((c) => c.hex)} />
-          )}
-          <ColorRow label="Neutrals" colors={['#FFFFFF', '#000000']} />
-
-          <label className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border py-1.5 text-[10px] font-medium text-muted-foreground hover:border-primary hover:text-primary">
-            <Plus className="h-3 w-3" />
-            Add custom color
+        {/* Brand identity */}
+        <Section label="Brand">
+          <div className="space-y-1.5">
             <input
-              type="color"
-              className="sr-only"
-              onChange={(e) => onAddCustomColor(e.target.value.toUpperCase())}
+              type="text"
+              value={brandName}
+              onChange={(e) => onRenameBrand?.(e.target.value)}
+              disabled={!onRenameBrand}
+              placeholder="Brand name"
+              className={cn(
+                'w-full rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground outline-none transition-colors',
+                onRenameBrand
+                  ? 'focus:border-primary focus:ring-2 focus:ring-primary/20'
+                  : 'cursor-not-allowed opacity-80',
+              )}
             />
-          </label>
-        </div>
-      </Section>
+            {wordmarkFont && (
+              <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+                <Type className="h-2.5 w-2.5" />
+                <span className="truncate" style={{ fontFamily: wordmarkFont }}>
+                  {wordmarkFont}
+                </span>
+              </div>
+            )}
+          </div>
+        </Section>
 
-      {/* ── Missing variants — the killer feature ──────── */}
-      {source && (
-        <Section label="Missing from your brand" count={missing.length}>
-          {missing.length === 0 ? (
-            <div className="flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-              <Sparkles className="h-3 w-3" />
-              Logo system complete
-            </div>
-          ) : (
+        {/* Palette — already deduped via allPaletteColors */}
+        <Section label="Colors">
+          <div className="flex flex-wrap gap-1.5">
+            {colors.map((c) => (
+              <div
+                key={c.hex}
+                className="h-7 w-7 rounded-md border shadow-sm"
+                style={{ background: c.hex }}
+                title={`${c.label ?? c.source} · ${c.hex}`}
+              />
+            ))}
+            <CustomColorAdder onAdd={onAddCustomColor} />
+          </div>
+        </Section>
+
+        {/* Missing variants */}
+        {activeSource && missing.length > 0 && (
+          <Section label="Missing from your brand" count={missing.length}>
             <div className="space-y-1">
               {missing.map((m) => (
                 <button
@@ -197,82 +179,98 @@ export function BrandContextRail({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[11px] font-medium">{m.label}</div>
-                    <div className="truncate text-[9px] text-muted-foreground">{m.purpose}</div>
+                    <div className="truncate text-[9px] text-muted-foreground">
+                      {m.purpose}
+                    </div>
                   </div>
                   <Plus className="h-3 w-3 shrink-0 text-muted-foreground group-hover:text-primary" />
                 </button>
               ))}
             </div>
-          )}
-        </Section>
-      )}
+          </Section>
+        )}
 
-      {/* ── Edit variant — all per-variant controls ──────── */}
-      {selectedSpec && (
-        <EditVariantSection
-          spec={selectedSpec}
-          palette={palette}
-          pinnedCount={pinnedCount}
-          isMonolithic={!source?.icon}
-          onChange={onChangeSpec}
-          onExport={onExport}
-          onExportKit={onExportKit}
-        />
-      )}
+        {activeSource && missing.length === 0 && (
+          <Section label="Coverage">
+            <div className="flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <Sparkles className="h-3 w-3" />
+              Logo system complete
+            </div>
+          </Section>
+        )}
+
+        {/* ── Draft editor ──────────────────────────────── */}
+        {draft && activeSource && (
+          <DraftEditor
+            draft={draft}
+            palette={palette}
+            isMonolithic={isMonolithic}
+            onChange={onChangeDraft}
+            onExport={onExport}
+          />
+        )}
+      </div>
+
+      {/* ── Sticky CTA — never moves when the rail scrolls ── */}
+      <div className="shrink-0 border-t bg-background p-3">
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={onAddDraft}
+          disabled={!draft || !activeSource}
+        >
+          <Plus className="mr-1.5 h-4 w-4" />
+          Add this variant
+        </Button>
+      </div>
     </div>
   );
 }
 
-// ── Edit-variant section ─────────────────────────────────────
-//
-// Lives at the bottom of the rail. Every per-variant control:
-// composition, layout, color mode, palette swatches, background,
-// contrast pill, format buttons, kit export. Replaces the old
-// horizontal EditBar — same controls, vertical layout.
+// ─── Draft editor ─────────────────────────────────────────────
 
-interface EditVariantSectionProps {
-  spec: VariantSpec;
+interface DraftEditorProps {
+  draft: VariantSpec;
   palette: PaletteContext;
-  pinnedCount: number;
-  /** Source has no separate icon asset → composition + layout collapse
-   *  to "render the source as-is", so we hide those controls. */
   isMonolithic: boolean;
   onChange: (patch: Partial<VariantSpec>) => void;
   onExport: (format: ExportFormat) => void;
-  onExportKit: () => void;
 }
 
-function EditVariantSection({
-  spec,
+function DraftEditor({
+  draft,
   palette,
-  pinnedCount,
   isMonolithic,
   onChange,
   onExport,
-  onExportKit,
-}: EditVariantSectionProps) {
-  const bgHex = backgroundHex(spec.background, palette);
-  const grade = gradeContrast(spec.colorMap.icon.hex, bgHex);
+}: DraftEditorProps) {
+  const bgHex = backgroundHex(draft.background, palette);
+  // Transparent backgrounds: don't compute / show contrast at all.
+  // The variant will be placed on some other surface — the contrast
+  // here would be against an arbitrary white test, which is misleading.
+  const showContrast = draft.background.kind !== 'transparent';
+  const grade = showContrast
+    ? gradeContrast(draft.colorMap.icon.hex, bgHex)
+    : null;
+  const colors = allPaletteColors(palette);
+  const slogan: Slogan = draft.slogan ?? { enabled: false, text: '', position: 'below' };
 
   return (
     <>
       <div className="border-y bg-primary/5 px-3 py-2">
         <div className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-          Edit variant
+          Draft variant
         </div>
-        <div className="mt-0.5 truncate text-[10px] text-muted-foreground">{spec.label}</div>
+        <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+          {draft.label}
+        </div>
       </div>
 
-      {/* Composition + layout only make sense when the source has been
-          decomposed into separate icon and wordmark assets. With a
-          monolithic logo (the common case) every option produces the
-          same render — so we hide them entirely instead of showing
-          controls that don't do anything. */}
       {!isMonolithic && (
         <>
           <Section label="Type">
             <Segmented
-              value={spec.composition}
+              value={draft.composition}
               options={[
                 { value: 'lockup', label: 'Lockup' },
                 { value: 'icon-only', label: 'Icon' },
@@ -282,10 +280,10 @@ function EditVariantSection({
             />
           </Section>
 
-          {spec.composition === 'lockup' && (
+          {draft.composition === 'lockup' && (
             <Section label="Layout">
               <Segmented
-                value={spec.layout}
+                value={draft.layout}
                 options={[
                   { value: 'horizontal', label: 'Horizontal' },
                   { value: 'stacked', label: 'Stacked' },
@@ -299,7 +297,7 @@ function EditVariantSection({
 
       <Section label="Color mode">
         <Select
-          value={spec.colorMode}
+          value={draft.colorMode}
           onValueChange={(v) => onChange({ colorMode: v as ColorMode })}
         >
           <SelectTrigger className="h-8 w-full text-xs">
@@ -317,16 +315,12 @@ function EditVariantSection({
 
       <Section label="Apply color">
         <div className="flex flex-wrap gap-1.5">
-          {[
-            ...palette.brandColors,
-            ...palette.customColors,
-            palette.neutrals.black,
-            palette.neutrals.white,
-          ].map((c) => {
-            const active = spec.colorMap.icon.hex.toLowerCase() === c.hex.toLowerCase();
+          {colors.map((c) => {
+            const active =
+              draft.colorMap.icon.hex.toLowerCase() === c.hex.toLowerCase();
             return (
               <button
-                key={c.hex + c.source}
+                key={c.hex}
                 type="button"
                 title={c.label ?? c.hex}
                 onClick={() =>
@@ -351,46 +345,76 @@ function EditVariantSection({
         <div className="grid grid-cols-2 gap-1.5">
           <BgChip
             label="Transparent"
-            active={spec.background.kind === 'transparent'}
+            active={draft.background.kind === 'transparent'}
             onClick={() => onChange({ background: { kind: 'transparent' } })}
           />
           <BgChip
             label="White"
-            active={spec.background.kind === 'solid' && spec.background.value === '#FFFFFF'}
-            onClick={() => onChange({ background: { kind: 'solid', value: '#FFFFFF' } })}
+            active={
+              draft.background.kind === 'solid' && draft.background.value === '#FFFFFF'
+            }
+            onClick={() =>
+              onChange({ background: { kind: 'solid', value: '#FFFFFF' } })
+            }
           />
           <BgChip
             label="Black"
-            active={spec.background.kind === 'solid' && spec.background.value === '#000000'}
-            onClick={() => onChange({ background: { kind: 'solid', value: '#000000' } })}
+            active={
+              draft.background.kind === 'solid' && draft.background.value === '#000000'
+            }
+            onClick={() =>
+              onChange({ background: { kind: 'solid', value: '#000000' } })
+            }
           />
           <BgChip
             label="Brand"
-            active={spec.background.kind === 'brand'}
+            active={draft.background.kind === 'brand'}
             onClick={() => onChange({ background: { kind: 'brand' } })}
           />
         </div>
-        <ContrastPill grade={grade} />
+        {showContrast && grade && <ContrastPill grade={grade} />}
       </Section>
 
-      <Section label="Export">
+      <Section label="Slogan">
+        <div className="space-y-2">
+          <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-foreground">
+            <Checkbox
+              checked={slogan.enabled}
+              onCheckedChange={(v) =>
+                onChange({ slogan: { ...slogan, enabled: !!v } })
+              }
+            />
+            Include a slogan in this variant
+          </label>
+          <Input
+            value={slogan.text}
+            onChange={(e) => onChange({ slogan: { ...slogan, text: e.target.value } })}
+            placeholder="Your tagline"
+            className="h-8 text-xs"
+          />
+          <Segmented
+            value={slogan.position}
+            options={[
+              { value: 'below', label: 'Below' },
+              { value: 'right', label: 'Right' },
+            ]}
+            onChange={(v) =>
+              onChange({ slogan: { ...slogan, position: v as 'below' | 'right' } })
+            }
+          />
+        </div>
+      </Section>
+
+      <Section label="Quick export">
         <div className="grid grid-cols-2 gap-1.5">
           <FormatButton label="PNG" onClick={() => onExport('png')} />
           <FormatButton label="SVG" onClick={() => onExport('svg')} locked />
           <FormatButton label="PDF" onClick={() => onExport('pdf')} locked />
           <FormatButton label="JPG" onClick={() => onExport('jpg')} />
         </div>
-        <Button
-          size="sm"
-          className="mt-2 w-full"
-          onClick={onExportKit}
-          disabled={pinnedCount === 0}
-        >
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          Export kit ({pinnedCount})
-        </Button>
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Pin variants from the gallery to add them to the kit.
+          Export the current draft. To export many at once, use the Export Kit
+          button up top.
         </p>
       </Section>
     </>
@@ -423,23 +447,16 @@ function Section({
   );
 }
 
-function ColorRow({ label, colors }: { label: string; colors: string[] }) {
+function CustomColorAdder({ onAdd }: { onAdd: (hex: string) => void }) {
   return (
-    <div>
-      <div className="mb-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
-        {label}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {colors.map((hex) => (
-          <div
-            key={hex + label}
-            className="h-6 w-6 rounded-md border shadow-sm"
-            style={{ background: hex }}
-            title={hex}
-          />
-        ))}
-      </div>
-    </div>
+    <label className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary">
+      <Plus className="h-3 w-3" />
+      <input
+        type="color"
+        className="sr-only"
+        onChange={(e) => onAdd(e.target.value.toUpperCase())}
+      />
+    </label>
   );
 }
 
@@ -537,3 +554,4 @@ function FormatButton({
     </button>
   );
 }
+

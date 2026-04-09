@@ -14,6 +14,7 @@ import type {
   Composition,
   Layout,
   PaletteContext,
+  Slogan,
   SourceLogo,
   VariantSpec,
 } from './types';
@@ -23,6 +24,7 @@ import { contrastRatio } from './palette';
 /** Stable, content-addressable id for a spec. */
 export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
   const key = JSON.stringify({
+    s: spec.sourceId,
     c: spec.composition,
     l: spec.layout,
     cl: spec.customLayout,
@@ -30,6 +32,7 @@ export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
     map: spec.colorMap.icon.hex + spec.colorMap.wordmark.hex,
     bg: `${spec.background.kind}:${spec.background.value ?? ''}`,
     sa: spec.safeArea,
+    sl: spec.slogan?.enabled ? `${spec.slogan.text}:${spec.slogan.position}` : '',
   });
   // Tiny non-cryptographic hash — deterministic and short.
   let h = 0;
@@ -47,7 +50,9 @@ export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
  * (when most variants share it) just creates visual noise. We only
  * call them out when the user has explicitly chosen a non-default.
  */
-export function variantLabel(spec: Pick<VariantSpec, 'composition' | 'layout' | 'colorMode' | 'background'>): string {
+export function variantLabel(
+  spec: Pick<VariantSpec, 'composition' | 'layout' | 'colorMode' | 'background'> & { slogan?: Slogan },
+): string {
   const parts: string[] = [];
   if (spec.composition !== 'lockup') parts.push(LABEL_COMPOSITION[spec.composition]);
   if (spec.composition === 'lockup' && spec.layout !== 'horizontal') {
@@ -55,6 +60,7 @@ export function variantLabel(spec: Pick<VariantSpec, 'composition' | 'layout' | 
   }
   parts.push(LABEL_COLOR[spec.colorMode]);
   if (spec.background.kind !== 'transparent') parts.push(LABEL_BG[spec.background.kind]);
+  if (spec.slogan?.enabled && spec.slogan.text.trim()) parts.push('Slogan');
   return parts.join(' · ');
 }
 
@@ -92,6 +98,7 @@ interface ResolveInput {
   colorMode?: ColorMode;
   background?: Background;
   colorOverride?: Partial<ColorMap>;
+  slogan?: Slogan;
 }
 
 /**
@@ -107,18 +114,37 @@ export function resolveVariant(input: ResolveInput): VariantSpec {
   const colorMap = deriveColorMap(colorMode, input.palette, bgHex, input.colorOverride);
 
   const draft: Omit<VariantSpec, 'id' | 'label'> = {
+    sourceId: input.source.id,
     composition,
     layout,
     colorMode,
     colorMap,
     background,
+    slogan: input.slogan,
     safeArea: 'standard',
     format: 'png',
     density: 2,
   };
   const id = variantId(draft);
-  const label = variantLabel({ composition, layout, colorMode, background });
+  const label = variantLabel({ composition, layout, colorMode, background, slogan: input.slogan });
   return { ...draft, id, label };
+}
+
+/**
+ * Create a fresh "draft" variant for the rail editor. The user
+ * iterates on the draft via the EditVariant controls and commits it
+ * to the gallery via the Add button. This is the entry point for the
+ * rail's draft state — every new draft starts here.
+ */
+export function createDraft(source: SourceLogo, palette: PaletteContext): VariantSpec {
+  return resolveVariant({
+    source,
+    palette,
+    composition: 'lockup',
+    layout: 'horizontal',
+    colorMode: 'brand',
+    background: { kind: 'transparent' },
+  });
 }
 
 export function backgroundHex(bg: Background, palette: PaletteContext): string {
@@ -160,7 +186,10 @@ export function renderKey(spec: VariantSpec, source: SourceLogo): string {
           ? 'inverse'
           : `${spec.colorMap.icon.hex}|${spec.colorMap.wordmark.hex}`.toLowerCase();
   const bg = `${spec.background.kind}:${(spec.background.value ?? '').toLowerCase()}`;
-  return [composition, layout, colorSig, bg, spec.safeArea].join('::');
+  const slogan = spec.slogan?.enabled && spec.slogan.text.trim()
+    ? `${spec.slogan.text}|${spec.slogan.position}`
+    : '';
+  return [spec.sourceId, composition, layout, colorSig, bg, spec.safeArea, slogan].join('::');
 }
 
 /**

@@ -2,14 +2,22 @@
  * VariantStudio — the main component, mounted by both the in-app and
  * public routes.
  *
- * Owns the session payload via `useToolSession` (which persists to
- * localStorage so reloads are non-destructive). All edits go through
- * `resolveVariant` so ids and labels stay consistent.
+ * Multi-source + draft model:
  *
- * In-app mode wires up `useAutoSave` to persist `logoAssets` patches
- * back to the brand. Public mode skips that — its persistence is the
- * anonymous session, with the claim flow turning that into a brand
- * on signup.
+ *   - The session holds an array of `sources` (uploaded logos), an
+ *     `activeSourceId` for the one currently shown in the rail, a
+ *     `draft` VariantSpec the user is editing in the rail, and the
+ *     committed `variants` shown in the gallery.
+ *   - The rail's "Add this variant" CTA commits the draft to the
+ *     gallery (with renderKey dedupe + invisible-variant filter).
+ *   - Clicking a tile in the gallery loads its spec back into the
+ *     draft, so the user can re-edit and re-add a tweaked version.
+ *   - Uploading another logo adds it to `sources` and switches it to
+ *     active. The next "+" upload slot in the rail adds yet another.
+ *
+ * The session is persisted to localStorage via `useToolSession`. A
+ * migration effect on mount upgrades old single-source sessions to
+ * the new multi-source shape so existing users don't lose their work.
  */
 import { useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -29,11 +37,10 @@ import {
   seedDefaultVariants,
   dedupeVariants,
   tryAddVariant,
-  renderKey,
+  createDraft,
 } from '../engine/generate';
 import type {
   ExportFormat,
-  PaletteContext,
   SourceLogo,
   VariantSessionPayload,
   VariantSpec,
@@ -64,16 +71,12 @@ const PUBLIC_GATES: GateMap = {
   'mockup-premium': 'auth',
 };
 
-const IN_APP_GATES: GateMap = {}; // all features free in-app
+const IN_APP_GATES: GateMap = {};
 
 interface VariantStudioProps {
   mode: ToolMode;
-  /** In-app: the brand we're working in. Public: undefined. */
   brand?: Brand;
-  /** In-app back link. Public falls back to /tools. */
   backTo?: string;
-  /** Optional initial source — provided when entering from a brand asset
-   *  or from the public landing's upload card. */
   initialSource?: SourceLogo | null;
 }
 
@@ -83,14 +86,17 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
 
   const initialPayload = useMemo<VariantSessionPayload>(() => {
     const palette = brand ? paletteFromBrand(brand) : emptyPalette();
-    const source = initialSource ?? sourceFromBrand(brand);
-    const variants = source ? seedDefaultVariants(source, palette) : [];
+    const seedSource = initialSource ?? sourceFromBrand(brand);
+    const sources = seedSource ? [seedSource] : [];
+    const variants = seedSource ? seedDefaultVariants(seedSource, palette) : [];
+    const draft = seedSource ? createDraft(seedSource, palette) : null;
     return {
-      source,
+      sources,
+      activeSourceId: seedSource?.id ?? null,
       palette,
       variants,
+      draft,
       pinned: variants.slice(0, 3).map((v) => v.id),
-      selectedVariantId: variants[0]?.id ?? null,
     };
   }, [brand, initialSource]);
 
@@ -100,48 +106,58 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     initialPayload,
   });
 
-  // If we entered with an explicit source (e.g. from the landing
-  // upload card or from a brand asset click) and the persisted session
-  // has no source yet, hydrate it. We compare by source.id to avoid
-  // overwriting a session the user is mid-edit on.
+  // ── One-time session migration ─────────────────────────────
+  // Old sessions had `source` (singular), `selectedVariantId`, and
+  // no `draft`. Promote those into the new shape on first load.
   useEffect(() => {
-    if (initialSource && (!session.payload.source || session.payload.source.id !== initialSource.id)) {
-      patchPayload({
-        source: initialSource,
-        variants: seedDefaultVariants(initialSource, session.payload.palette),
-      });
-    }
+    const p = session.payload as unknown as Record<string, unknown>;
+    const looksOld = 'source' in p && !('sources' in p);
+    if (!looksOld) return;
+    const oldSource = (p.source as SourceLogo | null) ?? null;
+    patchPayload({
+      sources: oldSource ? [oldSource] : [],
+      activeSourceId: oldSource?.id ?? null,
+      draft: oldSource ? createDraft(oldSource, session.payload.palette) : null,
+    } as Partial<VariantSessionPayload>);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // If we entered with an explicit source and the session has none
+  // for it yet, hydrate.
+  useEffect(() => {
+    if (!initialSource) return;
+    const exists = session.payload.sources?.some((s) => s.id === initialSource.id);
+    if (exists) return;
+    const sources = [...(session.payload.sources ?? []), initialSource];
+    patchPayload({
+      sources,
+      activeSourceId: initialSource.id,
+      draft: createDraft(initialSource, session.payload.palette),
+      variants: [
+        ...session.payload.variants,
+        ...seedDefaultVariants(initialSource, session.payload.palette),
+      ],
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSource]);
 
-  // SVG-URL hydrator: when the source has a raster URL ending in .svg
-  // and no inline svg field yet, fetch the file and inline it. This
-  // upgrade lets the renderer manipulate the source (color filters,
-  // mono modes, inline embeds) instead of relying on `<image href>`
-  // which can't be color-filtered reliably across browsers.
+  // SVG-URL hydrator: fetch any source whose original is a remote
+  // .svg URL and inline its content. Runs once per source id.
   useEffect(() => {
-    const src = session.payload.source;
-    if (!src) return;
-    if (src.original.svg) return; // already inline
-    const url = src.original.raster;
-    if (!url) return;
-    const isSvgUrl =
-      url.endsWith('.svg') ||
-      url.includes('.svg?') ||
-      url.startsWith('data:image/svg');
-    if (!isSvgUrl) return;
-
+    const sources = session.payload.sources ?? [];
+    const needsFetch = sources.find(
+      (s) => !s.original.svg && s.original.raster && /\.svg(\?|$)/i.test(s.original.raster),
+    );
+    if (!needsFetch) return;
     let cancelled = false;
     (async () => {
       try {
-        const text = await (await fetch(url)).text();
+        const text = await (await fetch(needsFetch.original.raster!)).text();
         if (cancelled) return;
         if (!text.trim().startsWith('<svg') && !text.trim().startsWith('<?xml')) return;
-        // Try to read the intrinsic viewBox so the layout can size the
-        // icon with the correct aspect.
         const vbMatch = text.match(/viewBox="([\d.\s-]+)"/);
-        let width = src.original.width;
-        let height = src.original.height;
+        let width = needsFetch.original.width;
+        let height = needsFetch.original.height;
         if (vbMatch) {
           const parts = vbMatch[1].split(/\s+/).map(Number);
           if (parts.length === 4) {
@@ -149,12 +165,12 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
             height = parts[3];
           }
         }
-        patchPayload({
-          source: {
-            ...src,
-            original: { ...src.original, svg: text, width, height },
-          },
-        });
+        const updated = sources.map((s) =>
+          s.id === needsFetch.id
+            ? { ...s, original: { ...s.original, svg: text, width, height } }
+            : s,
+        );
+        patchPayload({ sources: updated });
       } catch (err) {
         console.warn('[variant-studio] could not hydrate SVG source', err);
       }
@@ -163,75 +179,134 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.payload.source?.id]);
+  }, [session.payload.sources?.map((s) => s.id).join(',')]);
 
-  // Stale-session migration: a persisted session may have variants
-  // that were generated under the older logic (when monolithic
-  // sources still produced icon-only / wordmark-only / stacked
-  // duplicates). Run the dedupe pipeline once on load and rewrite
-  // the session if anything was filtered. Also catches "fg = bg"
-  // invisible variants the user may have manually constructed.
+  // Stale-session migration: dedupe variants on load.
   useEffect(() => {
-    const src = session.payload.source;
-    if (!src) return;
-    const cleaned = dedupeVariants(session.payload.variants, src, session.payload.palette);
+    const sources = session.payload.sources ?? [];
+    if (sources.length === 0) return;
+    let cleaned = session.payload.variants;
+    for (const src of sources) {
+      cleaned = dedupeVariants(cleaned, src, session.payload.palette);
+    }
     if (cleaned.length === session.payload.variants.length) return;
     const surviving = new Set(cleaned.map((v) => v.id));
     patchPayload({
       variants: cleaned,
       pinned: session.payload.pinned.filter((id) => surviving.has(id)),
-      selectedVariantId:
-        session.payload.selectedVariantId && surviving.has(session.payload.selectedVariantId)
-          ? session.payload.selectedVariantId
-          : (cleaned[0]?.id ?? null),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.payload.source?.id, session.payload.source?.original.svg]);
+  }, [session.payload.sources?.length]);
 
-  const { source, palette, variants, pinned, selectedVariantId } = session.payload;
+  const { sources = [], activeSourceId, palette, variants, draft, pinned } = session.payload;
+  const activeSource = sources.find((s) => s.id === activeSourceId) ?? sources[0] ?? null;
 
-  const selectedVariant = useMemo(
-    () => variants.find((v) => v.id === selectedVariantId) ?? variants[0] ?? null,
-    [variants, selectedVariantId],
+  // ── Source CRUD ────────────────────────────────────────────
+
+  const handlePickSourceFile = useCallback(
+    async (file: File) => {
+      const next = await fileToSourceLogo(file);
+      const updatedSources = [...sources, next];
+      patchPayload({
+        sources: updatedSources,
+        activeSourceId: next.id,
+        draft: createDraft(next, palette),
+        variants: [...variants, ...seedDefaultVariants(next, palette)],
+      });
+      toast.success('Logo added');
+    },
+    [sources, variants, palette, patchPayload],
   );
 
-  // ── Mutators ────────────────────────────────────────────────
-
-  const updateSelectedSpec = useCallback(
-    (patch: Partial<VariantSpec>) => {
-      if (!source || !selectedVariant) return;
-      // Re-resolve via the engine so id, label, and color map stay in sync.
-      const next = resolveVariant({
-        source,
-        palette,
-        composition: patch.composition ?? selectedVariant.composition,
-        layout: patch.layout ?? selectedVariant.layout,
-        colorMode: patch.colorMode ?? selectedVariant.colorMode,
-        background: patch.background ?? selectedVariant.background,
-        colorOverride: patch.colorMap ?? selectedVariant.colorMap,
-      });
-      // If the new spec would render identically to an existing
-      // variant in the list (different from the one we're editing),
-      // just point selection at the existing one — don't create a
-      // duplicate. Compare via renderKey, not content-hashed id, so
-      // monolithic-source equivalences collapse.
-      const nextKey = renderKey(next, source);
-      const collider = variants.find(
-        (v) => v.id !== selectedVariant.id && renderKey(v, source) === nextKey,
-      );
-      if (collider) {
-        patchPayload({ selectedVariantId: collider.id });
-        return;
-      }
+  const handleSelectSource = useCallback(
+    (id: string) => {
+      const src = sources.find((s) => s.id === id);
+      if (!src) return;
       patchPayload({
-        variants: variants.map((v) => (v.id === selectedVariant.id ? next : v)),
-        selectedVariantId: next.id,
-        // pin tracking moves to the new id
-        pinned: pinned.map((p) => (p === selectedVariant.id ? next.id : p)),
+        activeSourceId: id,
+        draft: createDraft(src, palette),
       });
     },
-    [source, palette, selectedVariant, variants, pinned, patchPayload],
+    [sources, palette, patchPayload],
   );
+
+  const handleRemoveSource = useCallback(
+    (id: string) => {
+      const remaining = sources.filter((s) => s.id !== id);
+      const remainingVariants = variants.filter((v) => v.sourceId !== id);
+      const survivingIds = new Set(remainingVariants.map((v) => v.id));
+      const nextActive = remaining[0]?.id ?? null;
+      patchPayload({
+        sources: remaining,
+        activeSourceId: nextActive,
+        variants: remainingVariants,
+        pinned: pinned.filter((p) => survivingIds.has(p)),
+        draft: nextActive
+          ? createDraft(remaining.find((s) => s.id === nextActive)!, palette)
+          : null,
+      });
+    },
+    [sources, variants, pinned, palette, patchPayload],
+  );
+
+  // ── Draft editing ──────────────────────────────────────────
+
+  const handleChangeDraft = useCallback(
+    (patch: Partial<VariantSpec>) => {
+      if (!activeSource || !draft) return;
+      const next = resolveVariant({
+        source: activeSource,
+        palette,
+        composition: patch.composition ?? draft.composition,
+        layout: patch.layout ?? draft.layout,
+        colorMode: patch.colorMode ?? draft.colorMode,
+        background: patch.background ?? draft.background,
+        colorOverride: patch.colorMap ?? draft.colorMap,
+        slogan: patch.slogan ?? draft.slogan,
+      });
+      patchPayload({ draft: next });
+    },
+    [activeSource, palette, draft, patchPayload],
+  );
+
+  const handleAddDraft = useCallback(() => {
+    if (!activeSource || !draft) return;
+    const result = tryAddVariant(variants, draft, activeSource, palette);
+    if (result.collidedWith === 'invisible') {
+      toast.info('That variant would be invisible (logo color matches background).');
+      return;
+    }
+    if (result.collidedWith) {
+      toast.info('That variant already exists in the gallery.');
+      return;
+    }
+    patchPayload({
+      variants: result.variants,
+      pinned: [...pinned, result.addedId],
+      // Reset the draft to a fresh starting point so the user can
+      // immediately build the next one.
+      draft: createDraft(activeSource, palette),
+    });
+    toast.success('Variant added');
+  }, [activeSource, draft, variants, palette, pinned, patchPayload]);
+
+  const handleSelectGalleryTile = useCallback(
+    (id: string) => {
+      const tile = variants.find((v) => v.id === id);
+      if (!tile) return;
+      // Loading a tile into the draft means: switch the active source
+      // to whichever one this tile was generated from, then copy the
+      // tile spec into the draft for editing.
+      const src = sources.find((s) => s.id === tile.sourceId) ?? activeSource;
+      patchPayload({
+        activeSourceId: src?.id ?? activeSourceId,
+        draft: { ...tile },
+      });
+    },
+    [variants, sources, activeSource, activeSourceId, patchPayload],
+  );
+
+  // ── Other handlers ─────────────────────────────────────────
 
   const handleAddCustomColor = useCallback(
     (hex: string) => {
@@ -240,43 +315,21 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     [palette, patchPayload],
   );
 
-  const handleAddBlank = useCallback(() => {
-    if (!source) return;
-    const next = resolveVariant({ source, palette, composition: 'lockup', layout: 'horizontal' });
-    const result = tryAddVariant(variants, next, source, palette);
-    if (result.collidedWith === 'invisible') {
-      toast.info('That variant would be invisible (logo color matches background).');
-      return;
-    }
-    if (result.collidedWith) {
-      patchPayload({ selectedVariantId: result.addedId });
-      toast.info('That variant already exists.');
-      return;
-    }
-    patchPayload({ variants: result.variants, selectedVariantId: result.addedId });
-  }, [source, palette, variants, patchPayload]);
-
   const handleGenerateMissing = useCallback(
     (spec: VariantSpec) => {
-      if (!source) return;
-      const result = tryAddVariant(variants, spec, source, palette);
-      if (result.collidedWith === 'invisible') {
-        toast.info('That variant would be invisible.');
-        return;
-      }
+      if (!activeSource) return;
+      const result = tryAddVariant(variants, spec, activeSource, palette);
       if (result.collidedWith) {
-        patchPayload({ selectedVariantId: result.addedId });
-        toast.info('That variant already exists.');
+        toast.info('Already in your gallery.');
         return;
       }
       patchPayload({
         variants: result.variants,
-        selectedVariantId: result.addedId,
         pinned: [...pinned, result.addedId],
       });
       toast.success('Variant generated');
     },
-    [source, palette, variants, pinned, patchPayload],
+    [activeSource, variants, palette, pinned, patchPayload],
   );
 
   const handleTogglePin = useCallback(
@@ -288,85 +341,8 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     [pinned, patchPayload],
   );
 
-  const handlePickFile = useCallback(
-    async (file: File) => {
-      const next = await fileToSourceLogo(file);
-      const palette2 = palette;
-      patchPayload({
-        source: next,
-        variants: seedDefaultVariants(next, palette2),
-        pinned: [],
-        selectedVariantId: null,
-      });
-    },
-    [palette, patchPayload],
-  );
+  // ── Export ─────────────────────────────────────────────────
 
-  // ── Export ──────────────────────────────────────────────────
-
-  const doExport = useCallback(
-    async (format: ExportFormat) => {
-      if (!source || !selectedVariant) return;
-      try {
-        const svg = renderSvg({
-          source,
-          spec: selectedVariant,
-          palette,
-          width: 1024,
-          height: 1024,
-        });
-        const slug = brand?.slug ?? 'logo';
-        const filename = `${deriveFilename(slug, selectedVariant)}.${format}`;
-        const blob = await exportSingle(svg, { format, density: selectedVariant.density, filename });
-        triggerDownload(blob, filename);
-        toast.success(`${format.toUpperCase()} exported`);
-      } catch (err) {
-        console.error(err);
-        toast.error('Export failed');
-      }
-    },
-    [source, palette, selectedVariant, brand],
-  );
-
-  const doExportKit = useCallback(async () => {
-    if (!source) return;
-    const items: KitItem[] = pinned
-      .map((id) => variants.find((v) => v.id === id))
-      .filter((v): v is VariantSpec => !!v)
-      .map((v) => ({
-        spec: v,
-        svg: renderSvg({ source, spec: v, palette, width: 1024, height: 1024 }),
-        filename: deriveFilename(brand?.slug ?? 'logo', v),
-      }));
-    if (items.length === 0) return;
-    try {
-      const blob = await exportKit(items, `${brand?.name ?? 'Logo'} variants`);
-      triggerDownload(blob, `${brand?.slug ?? 'logo'}-variants.zip`);
-      toast.success(`Kit exported (${items.length} variants)`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Kit export failed');
-    }
-  }, [source, palette, pinned, variants, brand]);
-
-  // ── Render ──────────────────────────────────────────────────
-
-  if (!source || !selectedVariant) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground">No source logo loaded.</p>
-          <Button className="mt-3" onClick={() => (window.location.href = '/tools/logo-variant-generator')}>
-            Upload a logo
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Centralized gate runner. For free features in public mode and
-  // everything in in-app mode this calls the action immediately;
-  // otherwise it routes to signup with the action carried in `next`.
   function runGated(feature: keyof typeof PUBLIC_GATES, action: () => void) {
     const requirement = gates[feature] ?? 'free';
     if (mode === 'in-app' || requirement === 'free') {
@@ -377,20 +353,74 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     window.location.href = `/?signup=1&next=${next}`;
   }
 
-  // ── Layout: one rail (brand context + edit) + gallery ────
+  const doExportDraft = useCallback(
+    async (format: ExportFormat) => {
+      if (!activeSource || !draft) return;
+      try {
+        const svg = renderSvg({
+          source: activeSource,
+          spec: draft,
+          palette,
+          width: 1024,
+          height: 1024,
+        });
+        const slug = brand?.slug ?? 'logo';
+        const filename = `${deriveFilename(slug, draft)}.${format}`;
+        const blob = await exportSingle(svg, { format, density: draft.density, filename });
+        triggerDownload(blob, filename);
+        toast.success(`${format.toUpperCase()} exported`);
+      } catch (err) {
+        console.error(err);
+        toast.error('Export failed');
+      }
+    },
+    [activeSource, draft, palette, brand],
+  );
+
+  const doExportKit = useCallback(async () => {
+    const items: KitItem[] = pinned
+      .map((id) => variants.find((v) => v.id === id))
+      .filter((v): v is VariantSpec => !!v)
+      .map((v) => {
+        const src = sources.find((s) => s.id === v.sourceId);
+        if (!src) return null;
+        return {
+          spec: v,
+          svg: renderSvg({ source: src, spec: v, palette, width: 1024, height: 1024 }),
+          filename: deriveFilename(brand?.slug ?? 'logo', v),
+        };
+      })
+      .filter((x): x is KitItem => !!x);
+    if (items.length === 0) return;
+    try {
+      const blob = await exportKit(items, `${brand?.name ?? 'Logo'} variants`);
+      triggerDownload(blob, `${brand?.slug ?? 'logo'}-variants.zip`);
+      toast.success(`Kit exported (${items.length} variants)`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Kit export failed');
+    }
+  }, [pinned, variants, sources, palette, brand]);
+
+  // ── Render ─────────────────────────────────────────────────
+
+  const empty = sources.length === 0;
 
   const left = (
     <BrandContextRail
-      source={source}
+      sources={sources}
+      activeSourceId={activeSourceId}
+      onPickSourceFile={handlePickSourceFile}
+      onSelectSource={handleSelectSource}
+      onRemoveSource={handleRemoveSource}
       palette={palette}
-      brandName={brand?.name ?? source.wordmark?.text ?? 'My brand'}
+      brandName={brand?.name ?? activeSource?.wordmark?.text ?? 'My brand'}
       variants={variants}
-      onPickFile={handlePickFile}
       onAddCustomColor={handleAddCustomColor}
       onGenerateMissing={handleGenerateMissing}
-      selectedSpec={selectedVariant}
-      pinnedCount={pinned.length}
-      onChangeSpec={updateSelectedSpec}
+      draft={draft}
+      onChangeDraft={handleChangeDraft}
+      onAddDraft={handleAddDraft}
       onExport={(format) => {
         const featureKey: keyof typeof PUBLIC_GATES =
           format === 'svg'
@@ -398,22 +428,25 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
             : format === 'pdf'
               ? 'export-pdf'
               : 'export-png-1x';
-        runGated(featureKey, () => doExport(format));
+        runGated(featureKey, () => doExportDraft(format));
       }}
-      onExportKit={() => runGated('export-kit', doExportKit)}
     />
   );
 
-  const center = (
+  const center = empty ? (
+    <EmptyState onPickFile={handlePickSourceFile} />
+  ) : (
     <VariantGallery
-      source={source}
+      sources={sources}
       palette={palette}
       variants={variants}
       pinnedIds={new Set(pinned)}
-      selectedId={selectedVariant.id}
-      onSelect={(id) => patchPayload({ selectedVariantId: id })}
+      selectedId={null}
+      onSelect={handleSelectGalleryTile}
       onTogglePin={handleTogglePin}
-      onAddBlank={handleAddBlank}
+      onAddBlank={() => {
+        if (activeSource) patchPayload({ draft: createDraft(activeSource, palette) });
+      }}
     />
   );
 
@@ -433,7 +466,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
           {(trigger) => (
             <Button size="sm" onClick={trigger} disabled={pinned.length === 0}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              Export kit
+              Export logos
             </Button>
           )}
         </ToolGate>
@@ -455,14 +488,35 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
 
 // ─── Helpers ──────────────────────────────────────────────────
 
+function EmptyState({ onPickFile }: { onPickFile: (file: File) => void }) {
+  return (
+    <div className="flex h-full items-center justify-center p-8">
+      <label className="flex max-w-md cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-primary/40 bg-primary/5 p-12 text-center transition-colors hover:border-primary">
+        <input
+          type="file"
+          className="sr-only"
+          accept="image/svg+xml,image/png,image/jpeg"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onPickFile(file);
+          }}
+        />
+        <div className="rounded-full bg-primary/10 p-3">
+          <Download className="h-6 w-6 rotate-180 text-primary" />
+        </div>
+        <div>
+          <div className="font-semibold">Upload your first logo</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Drop or browse · SVG, PNG, JPG
+          </div>
+        </div>
+      </label>
+    </div>
+  );
+}
+
 function sourceFromBrand(brand: Brand | undefined): SourceLogo | null {
   if (!brand?.logo) return null;
-  // Only INLINE SVG markup (literally `<svg ...>`) goes into the svg
-  // field. Everything else — URLs, file paths, data URLs, raster
-  // images — goes into raster. The SVG `<image>` tag in the renderer
-  // handles all of those uniformly. (The async hydrator below will
-  // upgrade SVG URLs into the inline svg field once fetched, so the
-  // renderer can apply color filters properly.)
   const isInlineSvg = brand.logo.trim().startsWith('<svg');
   return {
     id: `brand-${brand.id}`,
@@ -485,7 +539,7 @@ async function fileToSourceLogo(file: File): Promise<SourceLogo> {
   const dataUrl = !isSvg ? await fileToDataUrl(file) : undefined;
   const dims = !isSvg ? await imageDimensions(dataUrl!) : { width: 512, height: 512 };
   return {
-    id: `upload-${Date.now()}`,
+    id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     kind: 'uploaded',
     original: {
       svg: text ?? undefined,

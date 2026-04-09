@@ -78,8 +78,24 @@ export function renderSvg({ source, spec, palette, width: _w, height: _h }: Rend
   }, spec.customLayout);
 
   const pad = Math.max(placement.bounds.width, placement.bounds.height) * SAFE_AREA_FACTOR[spec.safeArea];
-  const vbW = placement.bounds.width + pad * 2;
-  const vbH = placement.bounds.height + pad * 2;
+
+  // Slogan dimensions are computed up front so the viewBox can grow
+  // to accommodate it. Slogans render below or to the right of the
+  // logo composition; the renderer adds the slot to the bounds.
+  const sloganActive = !!(spec.slogan?.enabled && spec.slogan.text.trim());
+  const sloganHeight = sloganActive ? Math.max(placement.bounds.height * 0.18, 14) : 0;
+  const sloganGap = sloganActive ? sloganHeight * 0.6 : 0;
+  const sloganPosition = spec.slogan?.position ?? 'below';
+
+  let extraW = 0;
+  let extraH = 0;
+  if (sloganActive) {
+    if (sloganPosition === 'below') extraH = sloganGap + sloganHeight;
+    else extraW = placement.bounds.width * 0.6; // reserve room to the right
+  }
+
+  const vbW = placement.bounds.width + pad * 2 + extraW;
+  const vbH = placement.bounds.height + pad * 2 + extraH;
 
   const bgHex = backgroundHex(spec.background, palette);
   const bgRect =
@@ -120,10 +136,29 @@ export function renderSvg({ source, spec, palette, width: _w, height: _h }: Rend
     wordmarkSvg = `<text x="${wx}" y="${wy + wh * 0.78}" font-family="${escapeAttr(wordmarkFont)}" font-size="${wh}" font-weight="700" textLength="${ww}" lengthAdjust="spacingAndGlyphs" fill="${escapeAttr(fill)}">${escapeText(wordmarkText)}</text>`;
   }
 
+  // Slogan text. Positioned either below the composition (centered)
+  // or to the right of it (left-aligned, vertical-centered). Color
+  // tracks the wordmark fill so it stays consistent with the chosen
+  // color mode.
+  let sloganSvg = '';
+  if (sloganActive) {
+    const sloganFill = wordmarkFillForMode(spec);
+    const sloganFont = source.wordmark?.fontFamily ?? 'Inter, sans-serif';
+    if (sloganPosition === 'below') {
+      const sx = pad + placement.bounds.width / 2;
+      const sy = pad + placement.bounds.height + sloganGap + sloganHeight * 0.78;
+      sloganSvg = `<text x="${sx}" y="${sy}" font-family="${escapeAttr(sloganFont)}" font-size="${sloganHeight}" font-weight="500" text-anchor="middle" fill="${escapeAttr(sloganFill)}">${escapeText(spec.slogan!.text)}</text>`;
+    } else {
+      const sx = pad + placement.bounds.width + sloganGap;
+      const sy = pad + placement.bounds.height / 2 + sloganHeight * 0.35;
+      sloganSvg = `<text x="${sx}" y="${sy}" font-family="${escapeAttr(sloganFont)}" font-size="${sloganHeight}" font-weight="500" text-anchor="start" fill="${escapeAttr(sloganFill)}">${escapeText(spec.slogan!.text)}</text>`;
+    }
+  }
+
   // Output is sized as 100% so the SVG fills its container — the
   // caller's wrapper element decides the pixel size via CSS. The
   // viewBox preserves the composition's aspect ratio.
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${defs()}${bgRect}${iconSvg}${wordmarkSvg}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">${defs()}${bgRect}${iconSvg}${wordmarkSvg}${sloganSvg}</svg>`;
 }
 
 function defs(): string {

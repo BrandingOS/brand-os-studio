@@ -15,7 +15,9 @@ import type { PaletteContext, SourceLogo, VariantSpec } from '../engine/types';
 import { VariantTile } from './VariantTile';
 
 interface VariantGalleryProps {
-  source: SourceLogo;
+  /** All uploaded sources. Each variant carries a sourceId pointing
+   *  to whichever one it was generated from. */
+  sources: SourceLogo[];
   palette: PaletteContext;
   variants: VariantSpec[];
   pinnedIds: Set<string>;
@@ -71,7 +73,7 @@ function groupVariants(variants: VariantSpec[]): Group[] {
 }
 
 export function VariantGallery({
-  source,
+  sources,
   palette,
   variants,
   pinnedIds,
@@ -81,6 +83,14 @@ export function VariantGallery({
   onAddBlank,
 }: VariantGalleryProps) {
   const groups = useMemo(() => groupVariants(variants), [variants]);
+  // Build a quick lookup so each tile can find its source. Variants
+  // with an unknown sourceId are dropped — usually because the user
+  // removed the source after generating the variant, in which case
+  // we can't render the tile any more.
+  const sourceById = useMemo(
+    () => new Map(sources.map((s) => [s.id, s])),
+    [sources],
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-10 p-6 sm:p-8">
@@ -114,19 +124,23 @@ export function VariantGallery({
             </span>
           </header>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {g.items.map((v) => (
-              <VariantTile
-                key={v.id + g.key}
-                source={source}
-                spec={v}
-                palette={palette}
-                selected={selectedId === v.id}
-                pinned={pinnedIds.has(v.id)}
-                onSelect={() => onSelect(v.id)}
-                onTogglePin={() => onTogglePin(v.id)}
-                size="large"
-              />
-            ))}
+            {g.items.map((v) => {
+              const src = sourceById.get(v.sourceId);
+              if (!src) return null;
+              return (
+                <VariantTile
+                  key={v.id + g.key}
+                  source={src}
+                  spec={v}
+                  palette={palette}
+                  selected={selectedId === v.id}
+                  pinned={pinnedIds.has(v.id)}
+                  onSelect={() => onSelect(v.id)}
+                  onTogglePin={() => onTogglePin(v.id)}
+                  size="large"
+                />
+              );
+            })}
           </div>
         </section>
       ))}

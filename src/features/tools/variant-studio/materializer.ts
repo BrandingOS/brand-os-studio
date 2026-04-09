@@ -16,10 +16,15 @@ import type { VariantSessionPayload, VariantSpec } from './engine/types';
 
 export const variantStudioMaterializer: Materializer<VariantSessionPayload> = (session) => {
   const payload = session.payload;
-  const source = payload.source;
+  const sources = payload.sources ?? [];
   const palette = payload.palette;
+  // The first source is the canonical "brand logo" used by the brand
+  // record. Additional sources still have all their variants saved
+  // into logoAssets, just without dedicated identity slots.
+  const primarySource = sources[0] ?? null;
+  const sourceById = new Map(sources.map((s) => [s.id, s]));
 
-  const brandName = source?.wordmark?.text || 'My First Brand';
+  const brandName = primarySource?.wordmark?.text || 'My First Brand';
   const primaryColor = palette.brandColors[0]?.hex ?? '#0EA5E9';
   const secondaryColor = palette.brandColors[1]?.hex;
 
@@ -33,8 +38,9 @@ export const variantStudioMaterializer: Materializer<VariantSessionPayload> = (s
   const logoAssets: BrandLogoAssets = {};
   // Heuristic mapping: most-recent matches win each slot.
   for (const v of variantsToSave) {
-    if (!source) break;
-    const svg = renderSvg({ source, spec: v, palette, width: 1024, height: 1024 });
+    const src = sourceById.get(v.sourceId);
+    if (!src) continue;
+    const svg = renderSvg({ source: src, spec: v, palette, width: 1024, height: 1024 });
     const dataUrl = svgToDataUrl(svg);
     if (v.composition === 'icon-only' && !logoAssets.icon) logoAssets.icon = dataUrl;
     else if (v.composition === 'wordmark-only' && !logoAssets.wordmark) logoAssets.wordmark = dataUrl;
@@ -46,7 +52,9 @@ export const variantStudioMaterializer: Materializer<VariantSessionPayload> = (s
 
   const fullLogo =
     logoAssets.full ??
-    (source?.original.svg ? svgToDataUrl(source.original.svg) : source?.original.raster);
+    (primarySource?.original.svg
+      ? svgToDataUrl(primarySource.original.svg)
+      : primarySource?.original.raster);
 
   const patch: Partial<Brand> = {
     logo: fullLogo,
@@ -59,7 +67,7 @@ export const variantStudioMaterializer: Materializer<VariantSessionPayload> = (s
       logo: fullLogo,
       primaryColor,
       secondaryColor,
-      fonts: { primary: source?.wordmark?.fontFamily ?? 'Inter, sans-serif' },
+      fonts: { primary: primarySource?.wordmark?.fontFamily ?? 'Inter, sans-serif' },
       tone: 'Professional',
       audience: 'General',
     },

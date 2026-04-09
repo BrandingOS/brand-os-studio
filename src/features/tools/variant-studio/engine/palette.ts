@@ -60,9 +60,17 @@ export function paletteFromColors(hexes: string[]): PaletteContext {
 }
 
 export function addCustomColor(palette: PaletteContext, hex: string): PaletteContext {
-  if (palette.customColors.some((c) => c.hex.toLowerCase() === hex.toLowerCase())) {
-    return palette;
-  }
+  const lower = hex.toLowerCase();
+  // Reject if the color already exists ANYWHERE in the palette
+  // (brand, custom, or neutrals) — not just in customColors. Without
+  // this the user can shadow a brand color with a "custom" entry of
+  // the same hex, which then shows up twice in pickers.
+  const existsAnywhere =
+    palette.brandColors.some((c) => c.hex.toLowerCase() === lower) ||
+    palette.customColors.some((c) => c.hex.toLowerCase() === lower) ||
+    palette.neutrals.black.hex.toLowerCase() === lower ||
+    palette.neutrals.white.hex.toLowerCase() === lower;
+  if (existsAnywhere) return palette;
   return {
     ...palette,
     customColors: [
@@ -72,8 +80,29 @@ export function addCustomColor(palette: PaletteContext, hex: string): PaletteCon
   };
 }
 
+/**
+ * All colors available to the user, deduped by hex. Brand colors take
+ * precedence over custom colors over neutrals — so if the user adds a
+ * "custom" color that happens to equal a brand color, the brand entry
+ * is the one that survives. Used by every swatch picker in the UI to
+ * guarantee a color never appears twice.
+ */
 export function allPaletteColors(p: PaletteContext): ColorRef[] {
-  return [...p.brandColors, ...p.customColors, p.neutrals.white, p.neutrals.black];
+  const ordered = [
+    ...p.brandColors,
+    ...p.customColors,
+    p.neutrals.white,
+    p.neutrals.black,
+  ];
+  const seen = new Set<string>();
+  const out: ColorRef[] = [];
+  for (const c of ordered) {
+    const key = c.hex.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
 }
 
 // ─── Hex / contrast helpers (small, self-contained, no external dep) ───

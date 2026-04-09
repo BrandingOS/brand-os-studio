@@ -97,6 +97,17 @@ export interface Background {
 }
 
 /**
+ * A slogan is an optional secondary line rendered with the logo.
+ * `enabled` is independent from `text` so the user can write a slogan
+ * once and toggle it on/off across variants without losing it.
+ */
+export interface Slogan {
+  enabled: boolean;
+  text: string;
+  position: 'below' | 'right';
+}
+
+/**
  * The full description of a single generated variant.
  *
  * Variants are content-addressable — `id` is derived from a stable hash
@@ -105,6 +116,9 @@ export interface Background {
  */
 export interface VariantSpec {
   id: string;
+  /** Which source logo this variant is generated from. Required so
+   *  variants can coexist that use different uploaded logos. */
+  sourceId: string;
   composition: Composition;
   layout: Layout;
   customLayout?: CustomLayout;
@@ -112,6 +126,8 @@ export interface VariantSpec {
   colorMap: ColorMap;
   background: Background;
   safeArea: SafeArea;
+  /** Optional slogan rendered with the logo. */
+  slogan?: Slogan;
   /** Default export settings — overridable at export time. */
   format: ExportFormat;
   density: ExportDensity;
@@ -119,11 +135,27 @@ export interface VariantSpec {
   label: string;
 }
 
-/** A working session — what the user is currently building. */
+/**
+ * A working session — what the user is currently building.
+ *
+ * Multi-source: a session holds an array of source logos. The user
+ * can upload several (e.g. icon + full lockup + alternate) and pick
+ * which one each variant is generated from. `activeSourceId` is the
+ * one currently shown in the rail and used as the basis for the
+ * draft variant.
+ *
+ * Draft model: the user is always editing a `draft` variant in the
+ * rail. The draft is committed to `variants` (the gallery) when they
+ * click the "Add this variant" CTA. Clicking a tile in the gallery
+ * loads its spec back into the draft for re-editing.
+ */
 export interface VariantSessionPayload {
-  source: SourceLogo | null;
+  sources: SourceLogo[];
+  activeSourceId: string | null;
   palette: PaletteContext;
+  /** Committed variants — what shows in the gallery. */
   variants: VariantSpec[];
+  /** The currently-edited spec in the rail. */
+  draft: VariantSpec | null;
   pinned: string[];
-  selectedVariantId: string | null;
 }

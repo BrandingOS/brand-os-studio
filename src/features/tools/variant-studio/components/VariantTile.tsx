@@ -1,8 +1,11 @@
 /**
- * VariantTile — a single variant in the left-pane gallery.
+ * VariantTile — a single variant tile in the gallery.
  *
- * Renders a small SVG preview of the variant. Click selects, double-click
- * focuses the spec panel, the pin toggles inclusion in the export kit.
+ * The outer element is a div (not a button) so we can nest the pin
+ * control without producing invalid `<button>` inside `<button>` HTML.
+ * The browser was treating the inner pin click as a click on the
+ * outer button, then doing focus-scroll behaviour that made the page
+ * jump on every interaction.
  */
 import { useMemo } from 'react';
 import { Pin, PinOff } from 'lucide-react';
@@ -64,11 +67,18 @@ export function VariantTile({
       };
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       className={cn(
-        'group relative w-full rounded-xl border bg-card text-left transition-all',
+        'group relative w-full cursor-pointer rounded-xl border bg-card text-left transition-all',
         isLarge ? 'p-3' : 'p-2',
         selected
           ? 'border-primary shadow-md ring-2 ring-primary/20'
@@ -107,23 +117,28 @@ export function VariantTile({
           )}
         </div>
       </div>
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={-1}
+        aria-label={pinned ? 'Unpin' : 'Pin to export kit'}
         onClick={(e) => {
           e.stopPropagation();
           onTogglePin();
         }}
         className={cn(
-          'absolute rounded-md transition-opacity',
+          'absolute flex cursor-pointer items-center justify-center rounded-md transition-opacity',
           isLarge ? 'right-2.5 top-2.5 p-1.5' : 'right-1.5 top-1.5 p-1',
           pinned
             ? 'bg-primary text-primary-foreground opacity-100'
             : 'bg-background/90 text-muted-foreground opacity-0 group-hover:opacity-100',
         )}
-        aria-label={pinned ? 'Unpin' : 'Pin to export kit'}
       >
-        {pinned ? <Pin className={cn(isLarge ? 'h-3.5 w-3.5' : 'h-3 w-3')} /> : <PinOff className={cn(isLarge ? 'h-3.5 w-3.5' : 'h-3 w-3')} />}
-      </button>
-    </button>
+        {pinned ? (
+          <Pin className={cn(isLarge ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
+        ) : (
+          <PinOff className={cn(isLarge ? 'h-3.5 w-3.5' : 'h-3 w-3')} />
+        )}
+      </span>
+    </div>
   );
 }
