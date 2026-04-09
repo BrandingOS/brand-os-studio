@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Aurora } from '@/components/fancy/Aurora';
-import { EarlyAccessForm } from '@/components/EarlyAccessForm';
+import { MultiStepEarlyAccess } from '@/components/MultiStepEarlyAccess';
 
 /**
  * Final CTA — full aurora panel with massive headline and stacked email form.
@@ -50,11 +50,11 @@ export const FinalCTASection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: 0.3 }}
-              className="mt-10 max-w-md mx-auto"
+              className="mt-10"
             >
-              <EarlyAccessForm
+              <MultiStepEarlyAccess
                 variant="stacked"
-                buttonLabel="Request Early Access"
+                ctaLabel="Request Early Access"
               />
             </motion.div>
           </div>

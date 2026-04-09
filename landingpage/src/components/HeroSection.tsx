@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { Aurora } from '@/components/fancy/Aurora';
-import { EarlyAccessForm } from '@/components/EarlyAccessForm';
+import { MultiStepEarlyAccess } from '@/components/MultiStepEarlyAccess';
 
 const heroImage =
   'https://i.pinimg.com/1200x/18/ec/a2/18eca28a85c40aa0b255742cbe3a0656.jpg';
@@ -62,18 +62,15 @@ export const HeroSection = () => {
             everywhere.
           </motion.p>
 
-          {/* Early access form */}
+          {/* Early access — 3-step form, submits straight to Supabase */}
           <motion.div
             id="early-access"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-12 mx-auto max-w-md scroll-mt-32"
+            className="mt-12 scroll-mt-32"
           >
-            <EarlyAccessForm />
-            <p className="mt-3 text-xs text-fg-dim">
-              Be first in line. No spam — just one launch email.
-            </p>
+            <MultiStepEarlyAccess />
           </motion.div>
 
           {/* Secondary link */}
