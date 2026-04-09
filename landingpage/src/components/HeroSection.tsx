@@ -177,24 +177,27 @@ function BrandCoreOrbit() {
             <stop offset="100%" stopColor="hsl(var(--foreground))" stopOpacity="0" />
           </radialGradient>
 
-          {/* Hairline gradient for the connecting lines */}
-          <linearGradient id="hero-line" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="hsl(var(--foreground))" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="hsl(var(--foreground))" stopOpacity="0.20" />
-          </linearGradient>
-
-          {/* The arrowhead — sits at the core end of every line, pointing
-              inward to show flow INTO the brand core. */}
+          {/* Refined chevron arrowhead — open V instead of a filled
+              triangle. Sits at the core end of every connecting path,
+              pointing inward to show flow INTO the brand core. */}
           <marker
             id="hero-arrow"
-            viewBox="0 0 10 10"
-            refX="8"
-            refY="5"
-            markerWidth="5"
-            markerHeight="5"
-            orient="auto-start-reverse"
+            viewBox="0 0 12 12"
+            refX="10"
+            refY="6"
+            markerWidth="7"
+            markerHeight="7"
+            orient="auto"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--foreground))" fillOpacity="0.55" />
+            <path
+              d="M 1.5 1.5 L 10.5 6 L 1.5 10.5"
+              fill="none"
+              stroke="hsl(var(--foreground))"
+              strokeOpacity="0.62"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </marker>
         </defs>
 
@@ -224,32 +227,71 @@ function BrandCoreOrbit() {
           strokeWidth="1"
         />
 
-        {/* Connecting lines from each chip to the core, with an arrowhead
-            at the core end. Drawn in once on mount via framer-motion. */}
+        {/* Connecting paths from each chip to the core.
+            - Quadratic bezier with a perpendicular control-point offset,
+              all curving the SAME rotational direction so the composition
+              reads as gentle inward flow rather than a flat star.
+            - Stroke uses a soft solid hairline (no gradient mess) so the
+              curve quality reads cleanly.
+            - markerEnd places the refined chevron at the core end.
+            - Drawn in ONCE on mount via framer-motion pathLength. After
+              the animation, the composition sits perfectly still. */}
         {CHIPS.map((chip, i) => {
-          const outer = polarToSvg(chip.angle, SVG_RADIUS - 28);
-          const inner = polarToSvg(chip.angle, 70);
-          // Note: line goes FROM chip-side (x1) TO core-side (x2) so the
-          // marker-end arrowhead lands on the core.
+          const outer = polarToSvg(chip.angle, SVG_RADIUS - 30);
+          const inner = polarToSvg(chip.angle, 72);
+
+          // Perpendicular offset on the midpoint creates the curve.
+          // Using a consistent perpendicular sign so all six paths
+          // curl the same way — gentle clockwise flow into the core.
+          const dx = inner.x - outer.x;
+          const dy = inner.y - outer.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const perpX = -dy / len;
+          const perpY =  dx / len;
+          const curveAmount = 26;
+          const midX = (outer.x + inner.x) / 2 + perpX * curveAmount;
+          const midY = (outer.y + inner.y) / 2 + perpY * curveAmount;
+
+          const path = `M ${outer.x} ${outer.y} Q ${midX} ${midY} ${inner.x} ${inner.y}`;
+
           return (
-            <motion.line
-              key={chip.id}
-              x1={outer.x}
-              y1={outer.y}
-              x2={inner.x}
-              y2={inner.y}
-              stroke="url(#hero-line)"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              markerEnd="url(#hero-arrow)"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{
-                duration: 0.9,
-                delay: 0.5 + i * 0.08,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            />
+            <g key={chip.id}>
+              {/* Origin pip — small filled dot anchoring each curve to
+                  its chip. Subtle but it gives the line a real "source". */}
+              <motion.circle
+                cx={outer.x}
+                cy={outer.y}
+                r="2.6"
+                fill="hsl(var(--foreground))"
+                fillOpacity="0.45"
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: 0.4,
+                  delay: 0.55 + i * 0.08,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                style={{ transformOrigin: `${outer.x}px ${outer.y}px` }}
+              />
+
+              {/* The curving connector itself */}
+              <motion.path
+                d={path}
+                fill="none"
+                stroke="hsl(var(--foreground))"
+                strokeOpacity="0.42"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                markerEnd="url(#hero-arrow)"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{
+                  duration: 1.0,
+                  delay: 0.5 + i * 0.08,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              />
+            </g>
           );
         })}
 
