@@ -41,6 +41,7 @@ import IdentityPage from "./pages/dashboard/brand/[slug]/identity";
 import AssetsPage from "./pages/dashboard/brand/[slug]/assets";
 import SharePage from "./pages/dashboard/brand/[slug]/share";
 import BrandTemplatesPage from "./pages/dashboard/brand/[slug]/templates";
+import FeaturesIndexPage from "./pages/dashboard/features";
 import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
@@ -122,6 +123,11 @@ const App = () => (
           <Route path="/dashboard/templates" element={
             <ProtectedRoute>
               <TemplatesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/features" element={
+            <ProtectedRoute>
+              <FeaturesIndexPage />
             </ProtectedRoute>
           } />
           <Route path="/learn" element={

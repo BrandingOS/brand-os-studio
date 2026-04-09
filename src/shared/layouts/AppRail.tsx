@@ -43,6 +43,7 @@ import {
   FolderOpen,
   Palette,
   LayoutTemplate,
+  Compass,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -82,6 +83,10 @@ const workspaceItems: RailItem[] = [
     // showing brand items at that point and the active item is one of those.
   },
   { title: 'Learn', url: '/learn', icon: GraduationCap },
+  // Discoverable home for every feature in the product, including the
+  // ones that aren't (yet) linked from this rail. See
+  // src/pages/dashboard/features for the inventory.
+  { title: 'Features', url: '/dashboard/features', icon: Compass },
 ];
 
 /**
