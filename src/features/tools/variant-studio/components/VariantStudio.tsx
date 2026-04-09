@@ -58,7 +58,7 @@ import { BrandContextRail } from './BrandContextRail';
 import { VariantGallery } from './VariantGallery';
 import { DraftPreview } from './DraftPreview';
 
-const DEFAULT_SLOGAN: BrandSlogan = { text: '', alignment: 'center' };
+const DEFAULT_SLOGAN: BrandSlogan = { text: '', alignment: 'center', color: 'black' };
 
 const TOOL_SLUG = 'logo-variant-generator' as const;
 

@@ -108,6 +108,9 @@ export interface BrandSlogan {
   text: string;
   /** Horizontal alignment of the slogan below the logo. */
   alignment: 'left' | 'center' | 'right';
+  /** Slogan ink color. Three canonical options that work on the
+   *  widest range of backgrounds. */
+  color: 'black' | 'white' | 'gray';
 }
 
 /**

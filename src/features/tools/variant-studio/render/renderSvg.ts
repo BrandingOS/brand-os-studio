@@ -135,11 +135,13 @@ export function renderSvg({ source, spec, palette, slogan, width: _w, height: _h
   }
 
   // Slogan text — rendered below the logo, horizontally aligned per
-  // the brand-level alignment setting. Color tracks the wordmark
-  // fill so it stays consistent with the active color mode.
+  // the brand-level alignment setting. The slogan color is chosen at
+  // the brand level (black / white / gray) — three canonical options
+  // that cover the widest range of backgrounds.
   let sloganSvg = '';
   if (sloganActive && slogan) {
-    const sloganFill = wordmarkFillForMode(spec);
+    const sloganFill =
+      slogan.color === 'white' ? '#FFFFFF' : slogan.color === 'gray' ? '#6B7280' : '#000000';
     const sloganFont = source.wordmark?.fontFamily ?? 'Inter, sans-serif';
     const sy = pad + placement.bounds.height + sloganGap + sloganHeight * 0.78;
     let sx: number;

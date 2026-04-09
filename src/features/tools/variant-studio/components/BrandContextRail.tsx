@@ -3,30 +3,25 @@
  *
  * Sections, top to bottom:
  *
- *   1. LOGO VARIATIONS — multi-source upload row (was "Sources")
- *   2. BRAND — name + slogan (text + alignment). Slogan is BRAND-LEVEL
- *      (one slogan per session), not per-variant. Each variant decides
- *      via its `includeSlogan` flag whether to render it.
- *   3. BRAND COLORS — palette swatches + add custom (was "Colors")
+ *   1. LOGO VARIATIONS — multi-source upload row
+ *   2. BRAND COLORS — palette swatches + add custom. SOURCE OF TRUTH
+ *      for every other section that picks colors (Logo color,
+ *      Background) — those sections READ from this palette and never
+ *      offer their own "add" affordance, so the user only manages
+ *      colors in one place.
+ *   3. BRAND — name + slogan. Slogan is BRAND-LEVEL: text, alignment,
+ *      color (black/white/gray), AND the per-variant "include in this
+ *      variant" checkbox all live here together.
  *   4. MISSING FROM YOUR BRAND — only when there are missing archetypes
- *   5. LOGO COLOR — pick a brand color to recolor the logo (was "Apply
- *      color"). Brand colors + neutrals; clicking sets the draft to a
- *      custom-color variant of that hue.
+ *   5. LOGO COLOR — pick a brand color to recolor the logo. Reads
+ *      swatches from Brand Colors above. No add button here.
  *   6. BACKGROUND — visual chips. Each chip looks like the background
  *      it represents (transparent → checker, white → white, black →
  *      black, brand colors → solid colored chips).
- *   7. SLOGAN — per-variant include checkbox (the text + alignment
- *      live up in BRAND, not here).
- *   8. QUICK EXPORT — per-format buttons for the current draft.
+ *   7. QUICK EXPORT — per-format buttons for the current draft.
  *
  *   STICKY BOTTOM: "Add this variant" CTA — commits the draft to
  *   the gallery.
- *
- * Removed (per user request):
- *   - "Coverage" green pill
- *   - "Draft variant" header banner
- *   - "Color mode" dropdown
- *   - "Apply color" (replaced by Logo Color)
  */
 import { Lock, Plus, Type } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -118,7 +113,25 @@ export function BrandContextRail({
           />
         </Section>
 
-        {/* 2. BRAND (name + slogan text + slogan alignment) */}
+        {/* 2. BRAND COLORS — moved up: this is the single source of
+            truth for every color picker in the rail. Lower sections
+            (Logo color, Background) just READ from this palette;
+            they don't offer their own add buttons. */}
+        <Section label="Brand colors">
+          <div className="flex flex-wrap gap-1.5">
+            {colors.map((c) => (
+              <div
+                key={c.hex}
+                className="h-7 w-7 rounded-md border shadow-sm"
+                style={{ background: c.hex }}
+                title={`${c.label ?? c.source} · ${c.hex}`}
+              />
+            ))}
+            <CustomColorAdder onAdd={onAddCustomColor} />
+          </div>
+        </Section>
+
+        {/* 3. BRAND (name + slogan: text, alignment, color, include) */}
         <Section label="Brand">
           <div className="space-y-2">
             <input
@@ -143,7 +156,11 @@ export function BrandContextRail({
               </div>
             )}
 
-            {/* Slogan input + alignment — brand-level, not per-variant */}
+            {/* Slogan: text, alignment, color, AND the per-variant
+                include checkbox — all in one place. The checkbox
+                used to live in its own section at the bottom of
+                the rail; consolidating it here keeps the slogan
+                story self-contained. */}
             <div className="pt-1">
               <div className="mb-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
                 Slogan
@@ -167,22 +184,41 @@ export function BrandContextRail({
                   }
                 />
               </div>
+              <div className="mt-1.5">
+                <div className="mb-1 text-[9px] font-medium uppercase tracking-wide text-muted-foreground/70">
+                  Slogan color
+                </div>
+                <div className="flex gap-1.5">
+                  <SloganColorChip
+                    label="Black"
+                    swatch="#000000"
+                    active={slogan.color === 'black'}
+                    onClick={() => onChangeSlogan({ ...slogan, color: 'black' })}
+                  />
+                  <SloganColorChip
+                    label="White"
+                    swatch="#FFFFFF"
+                    active={slogan.color === 'white'}
+                    onClick={() => onChangeSlogan({ ...slogan, color: 'white' })}
+                  />
+                  <SloganColorChip
+                    label="Gray"
+                    swatch="#6B7280"
+                    active={slogan.color === 'gray'}
+                    onClick={() => onChangeSlogan({ ...slogan, color: 'gray' })}
+                  />
+                </div>
+              </div>
+              {draft && (
+                <label className="mt-2 flex cursor-pointer items-center gap-2 text-[11px] font-medium text-foreground">
+                  <Checkbox
+                    checked={!!draft.includeSlogan}
+                    onCheckedChange={(v) => onChangeDraft({ includeSlogan: !!v })}
+                  />
+                  Include the slogan in this variant
+                </label>
+              )}
             </div>
-          </div>
-        </Section>
-
-        {/* 3. BRAND COLORS — deduped via allPaletteColors */}
-        <Section label="Brand colors">
-          <div className="flex flex-wrap gap-1.5">
-            {colors.map((c) => (
-              <div
-                key={c.hex}
-                className="h-7 w-7 rounded-md border shadow-sm"
-                style={{ background: c.hex }}
-                title={`${c.label ?? c.source} · ${c.hex}`}
-              />
-            ))}
-            <CustomColorAdder onAdd={onAddCustomColor} />
           </div>
         </Section>
 
@@ -274,20 +310,7 @@ export function BrandContextRail({
           </Section>
         )}
 
-        {/* 7. SLOGAN — per-variant include checkbox only */}
-        {hasDraftAndSource && (
-          <Section label="Slogan">
-            <label className="flex cursor-pointer items-center gap-2 text-[11px] font-medium text-foreground">
-              <Checkbox
-                checked={!!draft!.includeSlogan}
-                onCheckedChange={(v) => onChangeDraft({ includeSlogan: !!v })}
-              />
-              Include the slogan in this variant
-            </label>
-          </Section>
-        )}
-
-        {/* 8. QUICK EXPORT */}
+        {/* 7. QUICK EXPORT */}
         {hasDraftAndSource && (
           <Section label="Quick export">
             <div className="grid grid-cols-2 gap-1.5">
@@ -533,6 +556,39 @@ function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+function SloganColorChip({
+  label,
+  swatch,
+  active,
+  onClick,
+}: {
+  label: string;
+  swatch: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={cn(
+        'flex flex-1 items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-medium transition-colors',
+        active
+          ? 'border-primary bg-primary/5 text-foreground'
+          : 'border-border text-muted-foreground hover:border-foreground/30',
+      )}
+    >
+      <span
+        className="h-3 w-3 rounded-full border"
+        style={{ background: swatch }}
+      />
+      {label}
+    </button>
   );
 }
 
