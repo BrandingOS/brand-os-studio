@@ -33,7 +33,14 @@ export function EarlyAccessDialog() {
               />
             </Dialog.Overlay>
 
-            {/* Modal panel */}
+            {/* Modal — fixed full-screen wrapper handles centering, the
+                inner motion.div ONLY handles entrance/exit animation.
+                This separation is critical: framer-motion animates the
+                inner element's `transform`, and if positioning is also
+                done via `transform: translate(-50%, -50%)`, the animated
+                transform overrides the centering. The modal then renders
+                with its top-left at the viewport center, extending
+                down-right (which is exactly the bug we just hit). */}
             <Dialog.Content
               asChild
               onOpenAutoFocus={(e) => {
@@ -41,17 +48,17 @@ export function EarlyAccessDialog() {
                 e.preventDefault();
               }}
             >
-              <motion.div
-                initial={{ opacity: 0, y: 28, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.96 }}
-                transition={{
-                  duration: 0.45,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="fixed left-1/2 top-1/2 z-[101] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 max-h-[90vh] overflow-y-auto"
-              >
-                <div className="relative surface shadow-elegant p-7 sm:p-10">
+              <div className="fixed inset-0 z-[101] grid place-items-center p-4 sm:p-6 overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 24, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 16, scale: 0.96 }}
+                  transition={{
+                    duration: 0.45,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="relative w-full max-w-xl max-h-[calc(100vh-3rem)] overflow-y-auto surface shadow-elegant p-7 sm:p-10"
+                >
                   {/* Close button */}
                   <Dialog.Close asChild>
                     <button
@@ -79,8 +86,8 @@ export function EarlyAccessDialog() {
                   <div className="mt-7">
                     <MultiStepEarlyAccess />
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
             </Dialog.Content>
           </Dialog.Portal>
         )}
