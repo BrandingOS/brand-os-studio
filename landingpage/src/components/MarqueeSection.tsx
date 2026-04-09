@@ -1,6 +1,6 @@
 /**
  * Marquee — value-prop strip with edge fades.
- * Sits between hero and pain-points as a "promise" line.
+ * Sits between hero and pain points as a "promise" line.
  */
 export const MarqueeSection = () => {
   const items = [
@@ -13,13 +13,13 @@ export const MarqueeSection = () => {
   ];
 
   return (
-    <section className="border-y border-border py-8 bg-bg-elevated/30">
+    <section className="py-8 border-y border-border bg-secondary/40">
       <div className="marquee">
         <div className="marquee-inner px-6">
           {[...items, ...items].map((item, i) => (
             <span key={i} className="marquee-item flex items-center gap-4">
               {item}
-              <span aria-hidden className="text-violet/60">
+              <span aria-hidden className="text-border">
                 ◆
               </span>
             </span>

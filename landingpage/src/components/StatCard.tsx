@@ -3,12 +3,17 @@ import type { StatData } from '@/types';
 import { Counter } from '@/components/fancy/Counter';
 import { revealItem } from '@/components/fancy/Reveal';
 
+/**
+ * Stat block — v5 Relume style.
+ *
+ * Massive number with animated counter, thin top divider, label below.
+ */
 export const StatCard = ({ value, label }: StatData) => (
-  <motion.div variants={revealItem} className="border-l border-violet/40 pl-6 md:pl-8">
-    <div className="font-display text-5xl md:text-7xl font-extrabold tracking-tight leading-none">
-      <Counter value={value} className="gradient-text" />
+  <motion.div variants={revealItem} className="border-t border-foreground pt-6">
+    <div className="font-display text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.95] text-foreground">
+      <Counter value={value} />
     </div>
-    <div className="mt-4 text-sm md:text-base text-fg-muted leading-relaxed max-w-xs">
+    <div className="mt-4 text-base md:text-lg text-muted-foreground leading-relaxed max-w-xs">
       {label}
     </div>
   </motion.div>

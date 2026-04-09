@@ -4,18 +4,18 @@ import { Reveal, RevealStagger } from '@/components/fancy/Reveal';
 
 export const StatisticsSection = () => {
   return (
-    <section className="section border-t border-border">
+    <section className="section bg-secondary/40 border-y border-border">
       <div className="container-tight">
-        <Reveal className="max-w-3xl">
-          <span className="eyebrow">Why it matters</span>
-          <h2 className="h-section mt-6 text-foreground">
-            Brand consistency —
+        <Reveal className="max-w-3xl mb-16 md:mb-24">
+          <span className="eyebrow">By the numbers</span>
+          <h2 className="h-section mt-6">
+            Brand consistency
             <br />
-            <span className="gradient-text-cyan">moves the numbers.</span>
+            moves the numbers.
           </h2>
         </Reveal>
 
-        <RevealStagger className="mt-16 grid gap-12 md:grid-cols-3">
+        <RevealStagger className="grid gap-12 md:gap-8 md:grid-cols-3">
           {stats.map((stat) => (
             <StatCard key={stat.label} {...stat} />
           ))}
