@@ -41,7 +41,6 @@ import {
   type KitItem,
 } from '../render/exportPipeline';
 import { BrandContextRail } from './BrandContextRail';
-import { EditBar } from './EditBar';
 import { VariantGallery } from './VariantGallery';
 
 const TOOL_SLUG = 'logo-variant-generator' as const;
@@ -282,7 +281,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     window.location.href = `/?signup=1&next=${next}`;
   }
 
-  // ── New layout: BrandContextRail + EditBar + VariantGallery ──
+  // ── Layout: one rail (brand context + edit) + gallery ────
 
   const left = (
     <BrandContextRail
@@ -293,15 +292,9 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       onPickFile={handlePickFile}
       onAddCustomColor={handleAddCustomColor}
       onGenerateMissing={handleGenerateMissing}
-    />
-  );
-
-  const topBar = (
-    <EditBar
-      spec={selectedVariant}
-      palette={palette}
+      selectedSpec={selectedVariant}
       pinnedCount={pinned.length}
-      onChange={updateSelectedSpec}
+      onChangeSpec={updateSelectedSpec}
       onExport={(format) => {
         const featureKey: keyof typeof PUBLIC_GATES =
           format === 'svg'
@@ -358,7 +351,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         ) : null
       }
       left={left}
-      topBar={topBar}
+      leftWidth={320}
       center={center}
     />
   );
