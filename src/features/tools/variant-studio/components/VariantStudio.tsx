@@ -40,6 +40,7 @@ import {
   createDraft,
 } from '../engine/generate';
 import type {
+  BrandSlogan,
   ExportFormat,
   SourceLogo,
   VariantSessionPayload,
@@ -55,6 +56,9 @@ import {
 } from '../render/exportPipeline';
 import { BrandContextRail } from './BrandContextRail';
 import { VariantGallery } from './VariantGallery';
+import { DraftPreview } from './DraftPreview';
+
+const DEFAULT_SLOGAN: BrandSlogan = { text: '', alignment: 'center' };
 
 const TOOL_SLUG = 'logo-variant-generator' as const;
 
@@ -94,6 +98,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       sources,
       activeSourceId: seedSource?.id ?? null,
       palette,
+      slogan: DEFAULT_SLOGAN,
       variants,
       draft,
       pinned: variants.slice(0, 3).map((v) => v.id),
@@ -107,18 +112,21 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
   });
 
   // ── One-time session migration ─────────────────────────────
-  // Old sessions had `source` (singular), `selectedVariantId`, and
-  // no `draft`. Promote those into the new shape on first load.
+  // Old sessions may lack `sources`, `slogan`, or `draft`. Promote
+  // those into the new shape on first load.
   useEffect(() => {
     const p = session.payload as unknown as Record<string, unknown>;
-    const looksOld = 'source' in p && !('sources' in p);
-    if (!looksOld) return;
-    const oldSource = (p.source as SourceLogo | null) ?? null;
-    patchPayload({
-      sources: oldSource ? [oldSource] : [],
-      activeSourceId: oldSource?.id ?? null,
-      draft: oldSource ? createDraft(oldSource, session.payload.palette) : null,
-    } as Partial<VariantSessionPayload>);
+    const patch: Partial<VariantSessionPayload> = {};
+    if ('source' in p && !('sources' in p)) {
+      const oldSource = (p.source as SourceLogo | null) ?? null;
+      patch.sources = oldSource ? [oldSource] : [];
+      patch.activeSourceId = oldSource?.id ?? null;
+      patch.draft = oldSource ? createDraft(oldSource, session.payload.palette) : null;
+    }
+    if (!('slogan' in p) || !p.slogan) {
+      patch.slogan = DEFAULT_SLOGAN;
+    }
+    if (Object.keys(patch).length > 0) patchPayload(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -198,8 +206,23 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.payload.sources?.length]);
 
-  const { sources = [], activeSourceId, palette, variants, draft, pinned } = session.payload;
+  const {
+    sources = [],
+    activeSourceId,
+    palette,
+    variants,
+    draft,
+    pinned,
+    slogan = DEFAULT_SLOGAN,
+  } = session.payload;
   const activeSource = sources.find((s) => s.id === activeSourceId) ?? sources[0] ?? null;
+
+  const handleChangeSlogan = useCallback(
+    (next: BrandSlogan) => {
+      patchPayload({ slogan: next });
+    },
+    [patchPayload],
+  );
 
   // ── Source CRUD ────────────────────────────────────────────
 
@@ -262,7 +285,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         colorMode: patch.colorMode ?? draft.colorMode,
         background: patch.background ?? draft.background,
         colorOverride: patch.colorMap ?? draft.colorMap,
-        slogan: patch.slogan ?? draft.slogan,
+        includeSlogan: patch.includeSlogan ?? draft.includeSlogan,
       });
       patchPayload({ draft: next });
     },
@@ -361,6 +384,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
           source: activeSource,
           spec: draft,
           palette,
+          slogan,
           width: 1024,
           height: 1024,
         });
@@ -374,7 +398,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         toast.error('Export failed');
       }
     },
-    [activeSource, draft, palette, brand],
+    [activeSource, draft, palette, slogan, brand],
   );
 
   const doExportKit = useCallback(async () => {
@@ -386,7 +410,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
         if (!src) return null;
         return {
           spec: v,
-          svg: renderSvg({ source: src, spec: v, palette, width: 1024, height: 1024 }),
+          svg: renderSvg({ source: src, spec: v, palette, slogan, width: 1024, height: 1024 }),
           filename: deriveFilename(brand?.slug ?? 'logo', v),
         };
       })
@@ -400,7 +424,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       console.error(err);
       toast.error('Kit export failed');
     }
-  }, [pinned, variants, sources, palette, brand]);
+  }, [pinned, variants, sources, palette, slogan, brand]);
 
   // ── Render ─────────────────────────────────────────────────
 
@@ -416,8 +440,10 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
       palette={palette}
       brandName={brand?.name ?? activeSource?.wordmark?.text ?? 'My brand'}
       variants={variants}
+      slogan={slogan}
       onAddCustomColor={handleAddCustomColor}
       onGenerateMissing={handleGenerateMissing}
+      onChangeSlogan={handleChangeSlogan}
       draft={draft}
       onChangeDraft={handleChangeDraft}
       onAddDraft={handleAddDraft}
@@ -436,18 +462,29 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
   const center = empty ? (
     <EmptyState onPickFile={handlePickSourceFile} />
   ) : (
-    <VariantGallery
-      sources={sources}
-      palette={palette}
-      variants={variants}
-      pinnedIds={new Set(pinned)}
-      selectedId={null}
-      onSelect={handleSelectGalleryTile}
-      onTogglePin={handleTogglePin}
-      onAddBlank={() => {
-        if (activeSource) patchPayload({ draft: createDraft(activeSource, palette) });
-      }}
-    />
+    <div className="mx-auto w-full max-w-6xl p-6 sm:p-8">
+      {draft && activeSource && (
+        <DraftPreview
+          source={activeSource}
+          draft={draft}
+          palette={palette}
+          slogan={slogan}
+        />
+      )}
+      <VariantGallery
+        sources={sources}
+        palette={palette}
+        slogan={slogan}
+        variants={variants}
+        pinnedIds={new Set(pinned)}
+        selectedId={null}
+        onSelect={handleSelectGalleryTile}
+        onTogglePin={handleTogglePin}
+        onAddBlank={() => {
+          if (activeSource) patchPayload({ draft: createDraft(activeSource, palette) });
+        }}
+      />
+    </div>
   );
 
   return (

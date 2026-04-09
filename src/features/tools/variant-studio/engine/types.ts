@@ -97,14 +97,17 @@ export interface Background {
 }
 
 /**
- * A slogan is an optional secondary line rendered with the logo.
- * `enabled` is independent from `text` so the user can write a slogan
- * once and toggle it on/off across variants without losing it.
+ * Brand-level slogan: a short tagline rendered below the logo. The
+ * text and alignment are defined ONCE at the brand level (in the
+ * BrandContextRail's Brand section). Each variant decides
+ * independently — via `VariantSpec.includeSlogan` — whether to
+ * actually render it. That way the user writes the slogan once and
+ * gets to choose which exports include it.
  */
-export interface Slogan {
-  enabled: boolean;
+export interface BrandSlogan {
   text: string;
-  position: 'below' | 'right';
+  /** Horizontal alignment of the slogan below the logo. */
+  alignment: 'left' | 'center' | 'right';
 }
 
 /**
@@ -126,8 +129,10 @@ export interface VariantSpec {
   colorMap: ColorMap;
   background: Background;
   safeArea: SafeArea;
-  /** Optional slogan rendered with the logo. */
-  slogan?: Slogan;
+  /** Whether to render the brand-level slogan with this variant.
+   *  The actual slogan text + alignment live on the session payload
+   *  (`VariantSessionPayload.slogan`), not on each variant. */
+  includeSlogan?: boolean;
   /** Default export settings — overridable at export time. */
   format: ExportFormat;
   density: ExportDensity;
@@ -153,6 +158,9 @@ export interface VariantSessionPayload {
   sources: SourceLogo[];
   activeSourceId: string | null;
   palette: PaletteContext;
+  /** Brand-level slogan. Defined once for the brand; each variant
+   *  decides via `includeSlogan` whether to render it. */
+  slogan: BrandSlogan;
   /** Committed variants — what shows in the gallery. */
   variants: VariantSpec[];
   /** The currently-edited spec in the rail. */

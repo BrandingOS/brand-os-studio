@@ -11,7 +11,7 @@
  */
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import type { PaletteContext, SourceLogo, VariantSpec } from '../engine/types';
+import type { BrandSlogan, PaletteContext, SourceLogo, VariantSpec } from '../engine/types';
 import { VariantTile } from './VariantTile';
 
 interface VariantGalleryProps {
@@ -19,6 +19,7 @@ interface VariantGalleryProps {
    *  to whichever one it was generated from. */
   sources: SourceLogo[];
   palette: PaletteContext;
+  slogan?: BrandSlogan;
   variants: VariantSpec[];
   pinnedIds: Set<string>;
   selectedId: string | null;
@@ -75,6 +76,7 @@ function groupVariants(variants: VariantSpec[]): Group[] {
 export function VariantGallery({
   sources,
   palette,
+  slogan,
   variants,
   pinnedIds,
   selectedId,
@@ -93,7 +95,7 @@ export function VariantGallery({
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 p-6 sm:p-8">
+    <div className="space-y-10">
       {/* Header strip — variant counts + add */}
       <div className="flex items-center justify-between">
         <div>
@@ -133,6 +135,7 @@ export function VariantGallery({
                   source={src}
                   spec={v}
                   palette={palette}
+                  slogan={slogan}
                   selected={selectedId === v.id}
                   pinned={pinnedIds.has(v.id)}
                   onSelect={() => onSelect(v.id)}

@@ -14,7 +14,6 @@ import type {
   Composition,
   Layout,
   PaletteContext,
-  Slogan,
   SourceLogo,
   VariantSpec,
 } from './types';
@@ -32,7 +31,7 @@ export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
     map: spec.colorMap.icon.hex + spec.colorMap.wordmark.hex,
     bg: `${spec.background.kind}:${spec.background.value ?? ''}`,
     sa: spec.safeArea,
-    sl: spec.slogan?.enabled ? `${spec.slogan.text}:${spec.slogan.position}` : '',
+    sl: spec.includeSlogan ? '1' : '0',
   });
   // Tiny non-cryptographic hash — deterministic and short.
   let h = 0;
@@ -51,7 +50,7 @@ export function variantId(spec: Omit<VariantSpec, 'id' | 'label'>): string {
  * call them out when the user has explicitly chosen a non-default.
  */
 export function variantLabel(
-  spec: Pick<VariantSpec, 'composition' | 'layout' | 'colorMode' | 'background'> & { slogan?: Slogan },
+  spec: Pick<VariantSpec, 'composition' | 'layout' | 'colorMode' | 'background' | 'includeSlogan'>,
 ): string {
   const parts: string[] = [];
   if (spec.composition !== 'lockup') parts.push(LABEL_COMPOSITION[spec.composition]);
@@ -60,7 +59,7 @@ export function variantLabel(
   }
   parts.push(LABEL_COLOR[spec.colorMode]);
   if (spec.background.kind !== 'transparent') parts.push(LABEL_BG[spec.background.kind]);
-  if (spec.slogan?.enabled && spec.slogan.text.trim()) parts.push('Slogan');
+  if (spec.includeSlogan) parts.push('Slogan');
   return parts.join(' · ');
 }
 
@@ -98,7 +97,7 @@ interface ResolveInput {
   colorMode?: ColorMode;
   background?: Background;
   colorOverride?: Partial<ColorMap>;
-  slogan?: Slogan;
+  includeSlogan?: boolean;
 }
 
 /**
@@ -120,13 +119,19 @@ export function resolveVariant(input: ResolveInput): VariantSpec {
     colorMode,
     colorMap,
     background,
-    slogan: input.slogan,
+    includeSlogan: input.includeSlogan ?? false,
     safeArea: 'standard',
     format: 'png',
     density: 2,
   };
   const id = variantId(draft);
-  const label = variantLabel({ composition, layout, colorMode, background, slogan: input.slogan });
+  const label = variantLabel({
+    composition,
+    layout,
+    colorMode,
+    background,
+    includeSlogan: input.includeSlogan,
+  });
   return { ...draft, id, label };
 }
 
@@ -186,9 +191,7 @@ export function renderKey(spec: VariantSpec, source: SourceLogo): string {
           ? 'inverse'
           : `${spec.colorMap.icon.hex}|${spec.colorMap.wordmark.hex}`.toLowerCase();
   const bg = `${spec.background.kind}:${(spec.background.value ?? '').toLowerCase()}`;
-  const slogan = spec.slogan?.enabled && spec.slogan.text.trim()
-    ? `${spec.slogan.text}|${spec.slogan.position}`
-    : '';
+  const slogan = spec.includeSlogan ? '1' : '0';
   return [spec.sourceId, composition, layout, colorSig, bg, spec.safeArea, slogan].join('::');
 }
 

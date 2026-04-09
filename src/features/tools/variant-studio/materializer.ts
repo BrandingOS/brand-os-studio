@@ -35,12 +35,13 @@ export const variantStudioMaterializer: Materializer<VariantSessionPayload> = (s
       ? payload.variants.filter((v) => payload.pinned.includes(v.id))
       : payload.variants;
 
+  const slogan = payload.slogan;
   const logoAssets: BrandLogoAssets = {};
   // Heuristic mapping: most-recent matches win each slot.
   for (const v of variantsToSave) {
     const src = sourceById.get(v.sourceId);
     if (!src) continue;
-    const svg = renderSvg({ source: src, spec: v, palette, width: 1024, height: 1024 });
+    const svg = renderSvg({ source: src, spec: v, palette, slogan, width: 1024, height: 1024 });
     const dataUrl = svgToDataUrl(svg);
     if (v.composition === 'icon-only' && !logoAssets.icon) logoAssets.icon = dataUrl;
     else if (v.composition === 'wordmark-only' && !logoAssets.wordmark) logoAssets.wordmark = dataUrl;

@@ -20,7 +20,7 @@
  *
  * This module is pure — string in, string out, no DOM.
  */
-import type { VariantSpec, SourceLogo } from '../engine/types';
+import type { BrandSlogan, VariantSpec, SourceLogo } from '../engine/types';
 import { computePlacement } from '../engine/layout';
 import { backgroundHex } from '../engine/generate';
 import type { PaletteContext } from '../engine/types';
@@ -29,6 +29,9 @@ interface RenderOptions {
   source: SourceLogo;
   spec: VariantSpec;
   palette: PaletteContext;
+  /** Brand-level slogan. Rendered only when `spec.includeSlogan` is
+   *  true AND the slogan text is non-empty. */
+  slogan?: BrandSlogan;
   /**
    * Hint for the SVG's intrinsic dimensions. The renderer uses these
    * to compute proportions, but the output `<svg>` is sized as
@@ -45,7 +48,7 @@ const SAFE_AREA_FACTOR: Record<VariantSpec['safeArea'], number> = {
   generous: 0.2,
 };
 
-export function renderSvg({ source, spec, palette, width: _w, height: _h }: RenderOptions): string {
+export function renderSvg({ source, spec, palette, slogan, width: _w, height: _h }: RenderOptions): string {
   // Is the source a monolithic logo (one image containing both icon
   // AND wordmark already baked together)? That's the common case for
   // uploaded brand logos. If so, we render the source as the entire
@@ -79,22 +82,17 @@ export function renderSvg({ source, spec, palette, width: _w, height: _h }: Rend
 
   const pad = Math.max(placement.bounds.width, placement.bounds.height) * SAFE_AREA_FACTOR[spec.safeArea];
 
-  // Slogan dimensions are computed up front so the viewBox can grow
-  // to accommodate it. Slogans render below or to the right of the
-  // logo composition; the renderer adds the slot to the bounds.
-  const sloganActive = !!(spec.slogan?.enabled && spec.slogan.text.trim());
+  // Slogan: brand-level text + alignment, per-variant include flag.
+  // Always rendered BELOW the logo (no side-of-logo placement); the
+  // user picks horizontal alignment (left/center/right). The viewBox
+  // grows vertically to fit the slogan slot.
+  const sloganActive = !!(spec.includeSlogan && slogan && slogan.text.trim());
   const sloganHeight = sloganActive ? Math.max(placement.bounds.height * 0.18, 14) : 0;
   const sloganGap = sloganActive ? sloganHeight * 0.6 : 0;
-  const sloganPosition = spec.slogan?.position ?? 'below';
+  const sloganAlignment: 'left' | 'center' | 'right' = slogan?.alignment ?? 'center';
 
-  let extraW = 0;
-  let extraH = 0;
-  if (sloganActive) {
-    if (sloganPosition === 'below') extraH = sloganGap + sloganHeight;
-    else extraW = placement.bounds.width * 0.6; // reserve room to the right
-  }
-
-  const vbW = placement.bounds.width + pad * 2 + extraW;
+  const extraH = sloganActive ? sloganGap + sloganHeight : 0;
+  const vbW = placement.bounds.width + pad * 2;
   const vbH = placement.bounds.height + pad * 2 + extraH;
 
   const bgHex = backgroundHex(spec.background, palette);
@@ -136,23 +134,27 @@ export function renderSvg({ source, spec, palette, width: _w, height: _h }: Rend
     wordmarkSvg = `<text x="${wx}" y="${wy + wh * 0.78}" font-family="${escapeAttr(wordmarkFont)}" font-size="${wh}" font-weight="700" textLength="${ww}" lengthAdjust="spacingAndGlyphs" fill="${escapeAttr(fill)}">${escapeText(wordmarkText)}</text>`;
   }
 
-  // Slogan text. Positioned either below the composition (centered)
-  // or to the right of it (left-aligned, vertical-centered). Color
-  // tracks the wordmark fill so it stays consistent with the chosen
-  // color mode.
+  // Slogan text — rendered below the logo, horizontally aligned per
+  // the brand-level alignment setting. Color tracks the wordmark
+  // fill so it stays consistent with the active color mode.
   let sloganSvg = '';
-  if (sloganActive) {
+  if (sloganActive && slogan) {
     const sloganFill = wordmarkFillForMode(spec);
     const sloganFont = source.wordmark?.fontFamily ?? 'Inter, sans-serif';
-    if (sloganPosition === 'below') {
-      const sx = pad + placement.bounds.width / 2;
-      const sy = pad + placement.bounds.height + sloganGap + sloganHeight * 0.78;
-      sloganSvg = `<text x="${sx}" y="${sy}" font-family="${escapeAttr(sloganFont)}" font-size="${sloganHeight}" font-weight="500" text-anchor="middle" fill="${escapeAttr(sloganFill)}">${escapeText(spec.slogan!.text)}</text>`;
+    const sy = pad + placement.bounds.height + sloganGap + sloganHeight * 0.78;
+    let sx: number;
+    let anchor: 'start' | 'middle' | 'end';
+    if (sloganAlignment === 'left') {
+      sx = pad;
+      anchor = 'start';
+    } else if (sloganAlignment === 'right') {
+      sx = pad + placement.bounds.width;
+      anchor = 'end';
     } else {
-      const sx = pad + placement.bounds.width + sloganGap;
-      const sy = pad + placement.bounds.height / 2 + sloganHeight * 0.35;
-      sloganSvg = `<text x="${sx}" y="${sy}" font-family="${escapeAttr(sloganFont)}" font-size="${sloganHeight}" font-weight="500" text-anchor="start" fill="${escapeAttr(sloganFill)}">${escapeText(spec.slogan!.text)}</text>`;
+      sx = pad + placement.bounds.width / 2;
+      anchor = 'middle';
     }
+    sloganSvg = `<text x="${sx}" y="${sy}" font-family="${escapeAttr(sloganFont)}" font-size="${sloganHeight}" font-weight="500" text-anchor="${anchor}" fill="${escapeAttr(sloganFill)}">${escapeText(slogan.text)}</text>`;
   }
 
   // Output is sized as 100% so the SVG fills its container — the

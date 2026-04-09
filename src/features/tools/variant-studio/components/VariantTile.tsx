@@ -10,13 +10,14 @@
 import { useMemo } from 'react';
 import { Pin, PinOff } from 'lucide-react';
 import { renderSvg } from '../render/renderSvg';
-import type { PaletteContext, SourceLogo, VariantSpec } from '../engine/types';
+import type { BrandSlogan, PaletteContext, SourceLogo, VariantSpec } from '../engine/types';
 import { cn } from '@/lib/utils';
 
 interface VariantTileProps {
   source: SourceLogo;
   spec: VariantSpec;
   palette: PaletteContext;
+  slogan?: BrandSlogan;
   selected: boolean;
   pinned: boolean;
   onSelect: () => void;
@@ -30,6 +31,7 @@ export function VariantTile({
   source,
   spec,
   palette,
+  slogan,
   selected,
   pinned,
   onSelect,
@@ -43,10 +45,11 @@ export function VariantTile({
         source,
         spec,
         palette,
+        slogan,
         width: isLarge ? 480 : 200,
         height: isLarge ? 320 : 130,
       }),
-    [source, spec, palette, isLarge],
+    [source, spec, palette, slogan, isLarge],
   );
 
   // Background swatch for the tile reflects the variant's spec bg.
