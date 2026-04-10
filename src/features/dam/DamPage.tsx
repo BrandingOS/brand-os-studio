@@ -17,6 +17,7 @@ import { AssetGrid } from './components/AssetGrid';
 import { AssetLightbox } from './components/AssetLightbox';
 import { storageService } from '@/shared/services/storage.supabase';
 import { activityService } from '@/shared/services/activityService';
+import { detectAssetType, detectCategory } from './utils';
 import type { Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
@@ -41,30 +42,6 @@ type AssetCategory = (typeof ASSET_CATEGORIES)[number];
 
 function isAssetCategory(value: string | null): value is AssetCategory {
   return value !== null && (ASSET_CATEGORIES as readonly string[]).includes(value);
-}
-
-// ---------------------------------------------------------------------------
-// Smart detection helpers
-// ---------------------------------------------------------------------------
-
-function detectAssetType(file: File): Asset['type'] {
-  if (file.type === 'image/svg+xml') return 'icon';
-  if (file.type.startsWith('image/')) return 'image';
-  if (file.type === 'application/pdf') return 'document';
-  if (file.type.includes('font')) return 'font';
-  return 'document';
-}
-
-function detectCategory(name: string, mime: string): Asset['category'] {
-  const lower = name.toLowerCase();
-  if (lower.includes('logo')) return 'logo';
-  if (lower.includes('icon') || lower.includes('favicon')) return 'icon';
-  if (lower.includes('mockup') || lower.includes('mock-up')) return 'mockup';
-  if (lower.includes('social') || lower.includes('instagram') || lower.includes('facebook') || lower.includes('twitter')) return 'social';
-  if (lower.includes('reference') || lower.includes('moodboard') || lower.includes('inspo')) return 'reference';
-  if (mime === 'image/svg+xml') return 'icon';
-  if (mime === 'application/pdf') return 'reference';
-  return 'photo';
 }
 
 function getImageDimensions(url: string): Promise<{ width: number; height: number } | undefined> {
