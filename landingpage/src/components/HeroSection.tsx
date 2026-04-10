@@ -3,7 +3,7 @@ import { useRef, useEffect, useState } from 'react';
 import { ArrowRight, Layout, Printer, Globe, Sparkles } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
-import heroImage from '@/assets/landing/hero-mockup.png';
+import heroImage from '@/assets/landing/hero-mockup.jpg';
 
 /** True when viewport is ≥ 768px (md breakpoint). */
 function useIsMd() {
