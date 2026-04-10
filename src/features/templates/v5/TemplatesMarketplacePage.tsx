@@ -1,237 +1,270 @@
 /**
- * Templates Marketplace — Canva-style category browser.
+ * Templates Marketplace — Canva-style visual template explorer.
  *
- * v5 PRD Phase 4. Mounted at /templates.
- *
- * Pulls categories from a self-contained taxonomy + counts from
- * brandkit/data/templates.ts (which already exists). On "Use", navigates to
- * either the brand picker (no brand) or the brandkit module for that template
- * type on the user's current/last brand.
+ * Hero heading, prominent search, category pills, and large visual
+ * category cards. Clean, easy to browse, click to open.
  */
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
-import { PageHeader } from '@/shared/ui/PageHeader';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useTemplateStore } from '@/shared/templates/store/templateStore';
+import { DomRenderer } from '@/shared/templates/renderers/DomRenderer';
+import { resolveTemplate } from '@/shared/templates/engine/resolve';
+import { cn } from '@/lib/utils';
 import {
+  Search,
   CreditCard,
-  Image as ImageIcon,
   Instagram,
   Facebook,
   Presentation,
   FileText,
-  Sparkles,
-  Search,
-  Layout,
+  ImageIcon,
   Wand2,
-  Star,
+  Sparkles,
+  Layout,
+  PenTool,
+  Box,
+  Plus,
+  type LucideIcon,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-interface TemplateCategory {
+// ─── Category definitions ─────────────────────────────────────────
+
+interface CategoryDef {
   id: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
+  color: string;
+  gradient: string;
   brandkitModule: string;
-  count: number;
   blurb: string;
 }
 
-const CATEGORIES: TemplateCategory[] = [
-  { id: 'all', label: 'All', icon: Sparkles, brandkitModule: '', count: 96, blurb: 'Everything in one place' },
-  { id: 'brand-guides', label: 'Brand Guides', icon: FileText, brandkitModule: 'brand-guides', count: 10, blurb: 'Beautiful guideline doc layouts' },
-  { id: 'business-cards', label: 'Business Cards', icon: CreditCard, brandkitModule: 'business-cards', count: 12, blurb: 'Print-ready card designs' },
-  { id: 'instagram-posts', label: 'Instagram Posts', icon: Instagram, brandkitModule: 'instagram-posts', count: 10, blurb: 'On-grid social templates' },
-  { id: 'instagram-stories', label: 'IG Stories', icon: Instagram, brandkitModule: 'instagram-stories', count: 10, blurb: 'Vertical, full-screen' },
-  { id: 'facebook-covers', label: 'Facebook Covers', icon: Facebook, brandkitModule: 'facebook-covers', count: 8, blurb: 'Wide banner templates' },
-  { id: 'profile-icons', label: 'Profile Icons', icon: ImageIcon, brandkitModule: 'profile-icons', count: 12, blurb: 'Avatar and PFP styles' },
-  { id: 'presentations', label: 'Presentations', icon: Presentation, brandkitModule: 'presentations', count: 12, blurb: 'Pitch and slide decks' },
-  { id: 'logo-presentations', label: 'Logo Decks', icon: Wand2, brandkitModule: 'logo-presentation', count: 6, blurb: 'Showcase a logo system' },
+const CATEGORIES: CategoryDef[] = [
+  { id: 'business-cards',    label: 'Business Cards',  icon: CreditCard,   color: '#f3e8ff', gradient: 'from-purple-200 to-purple-100',   brandkitModule: 'business-cards',  blurb: 'Print-ready professional cards' },
+  { id: 'presentations',     label: 'Presentation',    icon: Presentation, color: '#fce7f3', gradient: 'from-pink-200 to-pink-100',     brandkitModule: 'presentations',   blurb: 'Pitch decks & slide packs' },
+  { id: 'brand-guides',      label: 'Brand Guide',     icon: FileText,     color: '#dbeafe', gradient: 'from-blue-200 to-blue-100',     brandkitModule: 'brand-guides',    blurb: 'Guideline documents' },
+  { id: 'instagram-posts',   label: 'Instagram Post',  icon: Instagram,    color: '#fce7f3', gradient: 'from-rose-200 to-rose-100',     brandkitModule: 'instagram-posts', blurb: 'Square feed templates' },
+  { id: 'instagram-stories', label: 'Instagram Story',  icon: Instagram,    color: '#f3e8ff', gradient: 'from-violet-200 to-violet-100', brandkitModule: 'instagram-stories', blurb: 'Vertical story designs' },
+  { id: 'facebook-covers',   label: 'Facebook Cover',  icon: Facebook,     color: '#dbeafe', gradient: 'from-sky-200 to-sky-100',       brandkitModule: 'facebook-covers', blurb: 'Wide banner templates' },
+  { id: 'profile-icons',     label: 'Profile Icon',    icon: ImageIcon,    color: '#dcfce7', gradient: 'from-green-200 to-green-100',   brandkitModule: 'profile-icons',   blurb: 'Avatars & PFP styles' },
+  { id: 'mockups',           label: 'Mockup',          icon: Box,          color: '#fef3c7', gradient: 'from-amber-200 to-amber-100',   brandkitModule: 'mockups',         blurb: 'Product & device mockups' },
+  { id: 'invoices',          label: 'Invoice',         icon: FileText,     color: '#f1f5f9', gradient: 'from-slate-200 to-slate-100',   brandkitModule: 'invoices',        blurb: 'Professional billing' },
+  { id: 'logo-decks',        label: 'Logo Deck',       icon: Wand2,        color: '#fae8ff', gradient: 'from-fuchsia-200 to-fuchsia-100', brandkitModule: 'logo-presentation', blurb: 'Showcase a logo system' },
 ];
 
-/** Synthetic preview templates so the marketplace renders something pretty. */
-function generatePreviews(category: TemplateCategory) {
-  const palettes = [
-    ['#0f0f1a', '#7c3aed'],
-    ['#fef3c7', '#92400e'],
-    ['#1e293b', '#06b6d4'],
-    ['#fafaf9', '#171717'],
-    ['#fce7f3', '#be185d'],
-    ['#dcfce7', '#166534'],
-    ['#dbeafe', '#1d4ed8'],
-    ['#fed7aa', '#c2410c'],
-  ];
-  return Array.from({ length: Math.min(category.count, 8) }).map((_, i) => ({
-    id: `${category.id}-${i}`,
-    name: `${category.label} ${String(i + 1).padStart(2, '0')}`,
-    palette: palettes[i % palettes.length],
-    accent: i % 3 === 0,
-  }));
-}
+const CATEGORY_PILLS = [
+  { id: 'all',      label: 'All Templates', icon: Sparkles },
+  { id: 'business', label: 'Business',      icon: CreditCard },
+  { id: 'social',   label: 'Social Media',  icon: Instagram },
+  { id: 'branding', label: 'Branding',      icon: PenTool },
+  { id: 'print',    label: 'Print & Cards', icon: Layout },
+  { id: 'present',  label: 'Presentations', icon: Presentation },
+];
+
+const PILL_TO_CATS: Record<string, string[]> = {
+  all:      CATEGORIES.map(c => c.id),
+  business: ['business-cards', 'invoices', 'presentations'],
+  social:   ['instagram-posts', 'instagram-stories', 'facebook-covers', 'profile-icons'],
+  branding: ['brand-guides', 'logo-decks'],
+  print:    ['business-cards', 'mockups', 'invoices'],
+  present:  ['presentations', 'logo-decks'],
+};
 
 export default function TemplatesMarketplacePage() {
   const navigate = useNavigate();
   const brands = useBrandStore((s) => s.list);
-  const [activeCategory, setActiveCategory] = React.useState<string>('all');
+  const { all: allTemplates } = useTemplateStore();
+  const [activePill, setActivePill] = React.useState('all');
   const [search, setSearch] = React.useState('');
 
   const lastBrand = React.useMemo(
-    () =>
-      [...brands].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
+    () => [...brands].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
     [brands],
   );
 
-  const visibleCategories = activeCategory === 'all' ? CATEGORIES.filter((c) => c.id !== 'all') : CATEGORIES.filter((c) => c.id === activeCategory);
+  const variableTemplates = allTemplates();
 
-  const handleUse = (cat: TemplateCategory) => {
+  const visibleCategories = React.useMemo(() => {
+    const allowedIds = PILL_TO_CATS[activePill] || PILL_TO_CATS.all;
+    let cats = CATEGORIES.filter(c => allowedIds.includes(c.id));
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      cats = cats.filter(c =>
+        c.label.toLowerCase().includes(q) || c.blurb.toLowerCase().includes(q),
+      );
+    }
+    return cats;
+  }, [activePill, search]);
+
+  const handleCategoryClick = (cat: CategoryDef) => {
     if (!lastBrand) {
       navigate('/dashboard/brands');
       return;
     }
-    navigate(`/b/${lastBrand.slug}/brandkit/${cat.brandkitModule || cat.id}`);
+    navigate(`/b/${lastBrand.slug}/brandkit/${cat.brandkitModule}`);
   };
 
   return (
     <DashboardLayout>
-      <PageHeader
-        eyebrow="Templates"
-        title="Marketplace"
-        subtitle="Premium templates for every brand surface — pick one and make it yours."
-      />
+      <div className="space-y-8">
+        {/* ─── Hero ────────────────────────────────────────────── */}
+        <div className="text-center pt-4 pb-2">
+          <h1 className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground">
+            Templates
+          </h1>
+        </div>
 
-      {/* Featured collections banner */}
-      {activeCategory === 'all' && !search && (
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          {[
-            { name: 'Staff Picks', desc: 'Our favorite templates this month', color: 'from-violet-500 to-purple-600', icon: Star },
-            { name: 'Startup Kit', desc: 'Cards, deck, socials — launch ready', color: 'from-orange-500 to-red-500', icon: Sparkles },
-            { name: 'Agency Pack', desc: 'Everything for client deliverables', color: 'from-blue-500 to-cyan-500', icon: Layout },
-          ].map((pack) => {
-            const Icon = pack.icon;
+        {/* ─── Search Bar ──────────────────────────────────────── */}
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full h-14 rounded-2xl border border-border bg-card pl-12 pr-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm transition-shadow focus:shadow-md"
+            />
+          </div>
+        </div>
+
+        {/* ─── Category Pills ──────────────────────────────────── */}
+        <div className="flex justify-center gap-2 flex-wrap px-4">
+          {CATEGORY_PILLS.map((pill) => {
+            const Icon = pill.icon;
+            const active = activePill === pill.id;
             return (
               <button
-                key={pack.name}
-                type="button"
-                onClick={() => setActiveCategory('all')}
-                className="group relative overflow-hidden rounded-2xl border border-border text-left transition hover:shadow-lg hover:-translate-y-0.5"
-              >
-                <div className={`h-28 bg-gradient-to-br ${pack.color} flex items-center justify-center`}>
-                  <Icon className="h-10 w-10 text-white/80" />
-                </div>
-                <div className="p-4 bg-card">
-                  <h3 className="text-sm font-semibold">{pack.name}</h3>
-                  <p className="text-xs text-muted-foreground">{pack.desc}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Search bar */}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search templates…"
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
-          />
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Star className="h-3.5 w-3.5 text-primary" />
-          {CATEGORIES.reduce((s, c) => s + c.count, 0)} templates · {CATEGORIES.length - 1} categories
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-[220px_1fr]">
-        {/* Sidebar */}
-        <aside className="space-y-1">
-          {CATEGORIES.map((c) => {
-            const Icon = c.icon;
-            const active = activeCategory === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setActiveCategory(c.id)}
+                key={pill.id}
+                onClick={() => setActivePill(pill.id)}
                 className={cn(
-                  'group flex w-full items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-left transition',
+                  'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all',
                   active
-                    ? 'border-primary/40 bg-primary/10 text-foreground'
-                    : 'text-muted-foreground hover:bg-muted/30 hover:text-foreground',
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-card border border-border text-foreground hover:bg-muted/50 hover:border-primary/30',
                 )}
               >
-                <span className={cn('flex h-7 w-7 items-center justify-center rounded-md border border-border', active ? 'bg-primary/10' : 'bg-card')}>
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <span className="flex-1 text-sm font-medium">{c.label}</span>
-                <span className="text-[10px] text-muted-foreground">{c.count}</span>
+                <Icon className="h-4 w-4" />
+                {pill.label}
               </button>
             );
           })}
-        </aside>
+        </div>
 
-        {/* Main grid */}
-        <main className="space-y-10">
-          {visibleCategories.map((cat) => (
-            <section key={cat.id}>
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <h2 className="font-display text-lg font-semibold text-foreground">{cat.label}</h2>
-                  <p className="text-xs text-muted-foreground">{cat.blurb}</p>
-                </div>
+        {/* ─── Explore Templates ───────────────────────────────── */}
+        <div>
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground mb-5">
+            Explore templates
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {visibleCategories.map((cat) => {
+              const Icon = cat.icon;
+              return (
                 <button
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id)}
-                  className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                  key={cat.id}
+                  onClick={() => handleCategoryClick(cat)}
+                  className="group relative overflow-hidden rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-xl"
                 >
-                  See all {cat.count} →
+                  <div
+                    className={`aspect-[4/3] bg-gradient-to-br ${cat.gradient} flex items-end p-4`}
+                  >
+                    {/* Decorative icon */}
+                    <div className="absolute top-3 right-3 opacity-20 group-hover:opacity-30 transition-opacity">
+                      <Icon className="h-12 w-12" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground leading-tight">{cat.label}</h3>
+                    </div>
+                  </div>
                 </button>
+              );
+            })}
+
+            {/* Create your own */}
+            <button
+              onClick={() => navigate('/templates/builder')}
+              className="group relative overflow-hidden rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-xl border-2 border-dashed border-border hover:border-primary/40"
+            >
+              <div className="aspect-[4/3] flex flex-col items-center justify-center gap-2 p-4">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Plus className="h-5 w-5 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">Create your own</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                {generatePreviews(cat).map((tpl) => (
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Variable Templates (live preview) ───────────────── */}
+        {variableTemplates.length > 0 && lastBrand && (
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                  Smart templates
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Auto-adapt to your brand — powered by the variable engine
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/templates/builder')}
+                className="text-sm text-primary font-medium hover:underline"
+              >
+                Create template →
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {variableTemplates.map((tpl) => {
+                const resolved = resolveTemplate({ template: tpl, brand: lastBrand });
+                return (
                   <button
                     key={tpl.id}
-                    type="button"
-                    onClick={() => handleUse(cat)}
-                    className="group relative overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_24px_60px_-24px_hsl(var(--primary)/0.4)]"
+                    onClick={() => {
+                      const typeMap: Record<string, string> = {
+                        'business-card': 'business-cards',
+                        'social-post': 'instagram-posts',
+                        'social-story': 'instagram-stories',
+                        'social-cover': 'facebook-covers',
+                        'presentation': 'presentations',
+                        'brand-guide': 'brand-guides',
+                        'profile-icon': 'profile-icons',
+                        'invoice': 'invoices',
+                        'mockup': 'mockups',
+                      };
+                      const module = typeMap[tpl.meta.type] || tpl.meta.type;
+                      const cat = CATEGORIES.find(c => c.brandkitModule === module) || CATEGORIES[0];
+                      handleCategoryClick(cat);
+                    }}
+                    className="group relative overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
                   >
-                    <div
-                      className="aspect-[4/5] w-full"
-                      style={{
-                        background: `linear-gradient(135deg, ${tpl.palette[0]} 0%, ${tpl.palette[1]} 100%)`,
-                      }}
-                    >
-                      <div className="flex h-full flex-col items-center justify-center p-4">
-                        <div
-                          className="font-display text-2xl font-bold tracking-tight"
-                          style={{ color: tpl.palette[0] === '#0f0f1a' || tpl.palette[0] === '#1e293b' || tpl.palette[0] === '#171717' ? 'white' : tpl.palette[1] }}
-                        >
-                          Aa
-                        </div>
-                      </div>
+                    <div className="overflow-hidden rounded-t-xl">
+                      <DomRenderer template={resolved} />
                     </div>
-                    <div className="border-t border-border bg-card p-2.5">
-                      <div className="truncate text-[11px] font-semibold text-foreground">{tpl.name}</div>
-                      <div className="text-[10px] text-muted-foreground">{cat.label}</div>
+                    <div className="p-3 border-t border-border">
+                      <div className="text-xs font-semibold text-foreground truncate">{tpl.meta.name}</div>
+                      <div className="text-[10px] text-muted-foreground capitalize">{tpl.meta.type.replace(/-/g, ' ')}</div>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-primary/95 py-2 text-xs font-semibold text-primary-foreground opacity-0 transition group-hover:opacity-100">
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-primary/95 py-2.5 text-xs font-semibold text-primary-foreground opacity-0 transition-all group-hover:opacity-100 rounded-b-xl">
                       Use template
                     </div>
-                    {tpl.accent && (
-                      <div className="absolute right-2 top-2 rounded-full bg-background/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-foreground backdrop-blur">
-                        New
-                      </div>
-                    )}
                   </button>
-                ))}
-              </div>
-            </section>
-          ))}
-        </main>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Stats footer ────────────────────────────────────── */}
+        <div className="text-center pb-4">
+          <p className="text-xs text-muted-foreground">
+            {variableTemplates.length} smart templates · {CATEGORIES.length} categories · {variableTemplates.length > 0 ? 'Adapts to your brand automatically' : 'More templates coming soon'}
+          </p>
+        </div>
       </div>
     </DashboardLayout>
   );
