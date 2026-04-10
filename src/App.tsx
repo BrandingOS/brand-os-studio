@@ -339,6 +339,7 @@ const App = () => (
             <Route path="assets" element={<AssetsPage />} />
             <Route path="share" element={<SharePage />} />
             <Route path="guidelines" element={<GuidelinesHubPage />} />
+            <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
             <Route path="folders" element={<DamPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
