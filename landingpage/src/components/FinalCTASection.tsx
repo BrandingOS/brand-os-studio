@@ -13,7 +13,7 @@ export const FinalCTASection = () => {
   const { open } = useEarlyAccess();
 
   return (
-    <section className="section">
+    <section className="section bg-dot-grid">
       <div className="container-tight">
         <motion.div
           initial={{ opacity: 0, y: 60 }}

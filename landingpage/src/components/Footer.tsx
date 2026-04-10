@@ -27,7 +27,7 @@ export default function Footer() {
   const { open } = useEarlyAccess();
 
   return (
-    <footer className="mt-12 mb-12">
+    <footer className="mt-12 mb-12 bg-dot-grid">
       <div className="container-tight">
         <div className="strong-block px-6 sm:px-12 md:px-16 py-16 md:py-20">
           <div aria-hidden className="absolute inset-0 panel-grid opacity-40 pointer-events-none" />
