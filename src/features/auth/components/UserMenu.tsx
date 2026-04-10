@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   if (!user) return null;
@@ -76,21 +78,21 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/account')}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/plans')}>
           <CreditCard className="mr-2 h-4 w-4" />
           <span>Billing</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer">
+        <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/workspace')}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          className="cursor-pointer text-red-600 focus:text-red-600" 
+        <DropdownMenuItem
+          className="cursor-pointer text-red-600 focus:text-red-600"
           onClick={handleLogout}
           disabled={isLoggingOut}
         >

@@ -31,6 +31,9 @@ import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
 import CanvasGuidelinesPage from "./pages/dashboard/brand/[slug]/guidelines/canvas";
 import AccountSettingsPage from "./pages/settings/account";
 import PlansPage from "./pages/settings/plans";
+import WorkspaceSettingsPage from "./pages/settings/workspace";
+import MembersPage from "./pages/settings/members";
+import { SettingsLayout } from "./shared/layouts/SettingsLayout";
 import BrandDetailPage from "./pages/brand/[slug]";
 import BrandShowcasePage from "./pages/brand/[slug]/showcase";
 import ResetPasswordPage from "./pages/auth/reset-password";
@@ -347,16 +350,17 @@ const App = () => (
               <BrandKitModulePage />
             </ProtectedRoute>
           } />
-          <Route path="/settings/account" element={
+          <Route path="/settings" element={
             <ProtectedRoute>
-              <AccountSettingsPage />
+              <SettingsLayout />
             </ProtectedRoute>
-          } />
-          <Route path="/settings/plans" element={
-            <ProtectedRoute>
-              <PlansPage />
-            </ProtectedRoute>
-          } />
+          }>
+            <Route index element={<Navigate to="/settings/account" replace />} />
+            <Route path="account" element={<AccountSettingsPage />} />
+            <Route path="workspace" element={<WorkspaceSettingsPage />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="plans" element={<PlansPage />} />
+          </Route>
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />

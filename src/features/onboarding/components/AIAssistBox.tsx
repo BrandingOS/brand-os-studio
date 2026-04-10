@@ -18,7 +18,7 @@ export interface AIAssistBoxProps {
   placeholder?: string;
   /** A simulated parser that extracts structured data from free text.
    *  Each step provides its own parser so the extraction is domain-aware. */
-  parse: (text: string) => ParsedField[];
+  parse: (text: string) => ParsedField[] | Promise<ParsedField[]>;
   /** Called when the user confirms the parsed results */
   onApply: (fields: ParsedField[]) => void;
 }
@@ -37,15 +37,17 @@ export function AIAssistBox({
   const [isParsing, setIsParsing] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Simulate an async "AI" call (just runs the local parser after a short delay)
   const handleParse = useCallback(async () => {
     if (!text.trim()) return;
     setIsParsing(true);
-    // simulate network latency
-    await new Promise((r) => setTimeout(r, 600));
-    const result = parse(text);
-    setParsed(result);
-    setIsParsing(false);
+    try {
+      const result = await Promise.resolve(parse(text));
+      setParsed(result);
+    } catch {
+      setParsed([]);
+    } finally {
+      setIsParsing(false);
+    }
   }, [text, parse]);
 
   const handleApply = () => {

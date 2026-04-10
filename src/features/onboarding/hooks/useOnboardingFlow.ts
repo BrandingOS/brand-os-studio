@@ -11,91 +11,107 @@ export function useOnboardingFlow() {
   const { isAuthenticated } = useAuth();
 
   const createBrandFromAnswers = async (): Promise<void> => {
-    // Check if user is authenticated before creating brand
     if (!isAuthenticated) {
       navigate('/?auth=required');
       return;
     }
 
-    console.log('Creating brand from answers:', answers);
-    
-    const companyBasics = answers['company-basics'] || {};
-    const styleValues = answers['style-values'] || {};
-    const brandPersonality = answers['brand-personality'] || {};
-    const targetAudience = answers['target-audience'] || [];
-    const logoAssets = answers['logo-assets'] || {};
+    // Read from both new and legacy step IDs
+    const basics = answers['brand-basics'] || answers['company-basics'] || answers['brand-info'] || {};
+    const audience = answers['audience-market'] || answers['target-audience'] || {};
+    const personality = answers['brand-personality'] || answers['brand-profile'] || {};
+    const visuals = answers['visual-preferences'] || answers['style-values'] || {};
+    const logoAssets = answers['logo-assets'] || answers['upload-assets'] || {};
+
+    const brandName = basics.brandName || basics.name || 'Untitled Brand';
+    const primaryColor = visuals.customColors?.[0] || visuals.primaryColor || '#000000';
+    const secondaryColor = visuals.customColors?.[1] || visuals.secondaryColor;
+    const tone = personality.tone || 'Professional';
+    const audienceStr = typeof audience === 'string'
+      ? audience
+      : audience.description || (Array.isArray(audience) ? audience.join(', ') : 'General');
 
     try {
-      // First create the brand to get the brand ID
+      // Build comprehensive guidelines from wizard answers
+      const guidelines: Record<string, any> = {};
+
+      // Strategy from personality + basics
+      if (personality.values || personality.traits || basics.description) {
+        guidelines.strategy = {
+          mission: basics.description || '',
+          values: personality.values || [],
+          personality: personality.traits || [],
+          positioning: audience.pricePoint ? `${audience.pricePoint} market positioning` : '',
+          targetAudience: audienceStr,
+        };
+      }
+
+      // Color palette from visual preferences
+      if (primaryColor) {
+        guidelines.colorPalette = {
+          primary: { hex: primaryColor, name: 'Primary', rgb: '', cmyk: '', usage: 'Primary brand color' },
+          ...(secondaryColor ? {
+            secondary: { hex: secondaryColor, name: 'Secondary', rgb: '', cmyk: '', usage: 'Secondary brand color' },
+          } : {}),
+        };
+      }
+
+      // Voice and tone from personality
+      if (personality.tone || personality.voice) {
+        guidelines.voiceAndTone = {
+          voice: personality.voice || '',
+          toneAttributes: personality.tone ? [personality.tone] : [],
+        };
+      }
+
       const brandInput: CreateBrandInput = {
-        name: companyBasics.brandName || 'Untitled Brand',
-        primaryColor: styleValues.primaryColor || '#000000',
-        secondaryColor: styleValues.secondaryColor,
+        name: brandName,
+        primaryColor,
+        secondaryColor,
         fonts: {
-          primary: 'Inter',
-          secondary: 'Roboto',
+          primary: logoAssets.fonts?.primary || 'Inter',
+          secondary: logoAssets.fonts?.secondary || 'Roboto',
         },
-        tone: brandPersonality.tone || 'Professional',
-        audience: targetAudience.length > 0 ? targetAudience.join(', ') : 'General',
+        tone,
+        audience: audienceStr,
+        ...(Object.keys(guidelines).length > 0 ? { guidelines } : {}),
       };
 
-      console.log('Creating brand with input:', brandInput);
       const brand = await services.brands.create(brandInput);
-      console.log('Brand created successfully:', brand);
 
       // Upload logo assets to storage with proper folder structure
       const logoUploadPromises: Promise<any>[] = [];
-      
+
       const logoTypeMap: Record<string, 'primary' | 'black' | 'white' | 'vertical' | 'icon' | 'horizontal'> = {
-        primary: 'primary',
-        black: 'black',
-        white: 'white',
-        vertical: 'vertical',
-        icon: 'icon',
-        horizontal: 'horizontal',
+        primary: 'primary', black: 'black', white: 'white',
+        vertical: 'vertical', icon: 'icon', horizontal: 'horizontal',
       };
 
-      // Upload all logo variants
       for (const [key, logoData] of Object.entries(logoAssets)) {
         if (logoData && typeof logoData === 'object' && 'file' in logoData && logoData.file instanceof File && logoTypeMap[key]) {
           const uploadPromise = storageService.uploadLogo(
-            brand.id,
-            logoTypeMap[key],
-            logoData.file
-          ).then(result => {
-            console.log(`Uploaded ${key} logo:`, result.url);
-            return { type: key, url: result.url };
-          }).catch(error => {
-            console.error(`Failed to upload ${key} logo:`, error);
-            return null;
-          });
-          
+            brand.id, logoTypeMap[key], logoData.file,
+          ).then(result => ({ type: key, url: result.url }))
+           .catch(() => null);
           logoUploadPromises.push(uploadPromise);
         }
       }
 
-      // Wait for all uploads to complete
       const uploadResults = await Promise.all(logoUploadPromises);
       const primaryLogoResult = uploadResults.find(r => r?.type === 'primary');
 
-      // Update brand with primary logo URL if uploaded
       if (primaryLogoResult?.url) {
         await services.brands.update(brand.id, { logo: primaryLogoResult.url });
-        console.log('Updated brand with primary logo URL');
       }
 
-      reset(); // Clear onboarding data
+      reset();
 
-      // Land the new user directly in Identity, not on the brand overview.
-      // Identity is the most actionable next step (logo / colors / typography),
-      // and dropping users on a feature menu after a wizard is the exact
-      // pattern docs/ux-redesign/USER-FLOWS.md F1 was written to fix.
+      // Land the new user directly in Identity — the most actionable next step.
       setTimeout(() => {
         navigate(`/b/${brand.slug}/identity`);
       }, 100);
     } catch (error) {
       console.error('Failed to create brand:', error);
-      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   };
