@@ -1,25 +1,22 @@
 /**
  * Folders — per-brand asset library.
  *
- * Mounted at /dashboard/brand/:slug/folders (and the short-form
- * /b/:slug/folders). The legacy /dam path resolves to the same page via
- * a redirect for bookmark compatibility — internally everything points at
- * /folders. The component file keeps its DamPage name to avoid a noisy
- * rename, but the user-facing URL and nav label are both "Folders" now.
- *
- * v5 PRD Phase 3. Frontify DAM-style: drag-drop upload, categories, tags,
- * filters, grid + lightbox. Works against Brand.assets via useBrandStore;
- * no separate backend yet (file storage is a follow-up sprint).
+ * Mounted at /b/:slug/folders. Supports drag-drop upload (with Supabase
+ * storage fallback to data URLs), smart category detection, bulk
+ * operations, and activity logging.
  */
 import * as React from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { Button } from '@/components/ui/button';
 import { AssetUploadZone } from './components/AssetUploadZone';
 import { AssetFiltersBar } from './components/AssetFiltersBar';
 import { AssetGrid } from './components/AssetGrid';
 import { AssetLightbox } from './components/AssetLightbox';
+import { storageService } from '@/shared/services/storage.supabase';
+import { activityService } from '@/shared/services/activityService';
 import type { Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
@@ -33,6 +30,10 @@ import {
   Share2,
   Box,
   Bookmark,
+  CheckSquare,
+  Trash2,
+  Download,
+  X,
 } from 'lucide-react';
 
 const ASSET_CATEGORIES = ['all', 'logo', 'photo', 'icon', 'social', 'mockup', 'reference'] as const;
@@ -42,12 +43,64 @@ function isAssetCategory(value: string | null): value is AssetCategory {
   return value !== null && (ASSET_CATEGORIES as readonly string[]).includes(value);
 }
 
+// ---------------------------------------------------------------------------
+// Smart detection helpers
+// ---------------------------------------------------------------------------
+
+function detectAssetType(file: File): Asset['type'] {
+  if (file.type === 'image/svg+xml') return 'icon';
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type === 'application/pdf') return 'document';
+  if (file.type.includes('font')) return 'font';
+  return 'document';
+}
+
+function detectCategory(name: string, mime: string): Asset['category'] {
+  const lower = name.toLowerCase();
+  if (lower.includes('logo')) return 'logo';
+  if (lower.includes('icon') || lower.includes('favicon')) return 'icon';
+  if (lower.includes('mockup') || lower.includes('mock-up')) return 'mockup';
+  if (lower.includes('social') || lower.includes('instagram') || lower.includes('facebook') || lower.includes('twitter')) return 'social';
+  if (lower.includes('reference') || lower.includes('moodboard') || lower.includes('inspo')) return 'reference';
+  if (mime === 'image/svg+xml') return 'icon';
+  if (mime === 'application/pdf') return 'reference';
+  return 'photo';
+}
+
+function getImageDimensions(url: string): Promise<{ width: number; height: number } | undefined> {
+  return new Promise((resolve) => {
+    if (url.startsWith('data:') && !url.startsWith('data:image')) {
+      resolve(undefined);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(undefined);
+    img.src = url;
+  });
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result as string);
+    reader.onerror = rej;
+    reader.readAsDataURL(file);
+  });
+}
+
+function isSupabaseUrl(url: string): boolean {
+  return url.includes('supabase') && !url.startsWith('data:');
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
+
 export default function DamPage() {
   const { slug } = useParams<{ slug: string }>();
   const { current, loadBySlug, update } = useBrandStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  // Category is driven by the URL so the inner nav's href filter items can
-  // highlight the active one and the user can deep-link / bookmark a view.
   const categoryParam = searchParams.get('category');
   const category: AssetCategory = isAssetCategory(categoryParam) ? categoryParam : 'all';
   const setCategory = (next: AssetCategory) => {
@@ -60,12 +113,16 @@ export default function DamPage() {
   const [search, setSearch] = React.useState('');
   const [view, setView] = React.useState<'grid' | 'list'>('grid');
   const [activeAsset, setActiveAsset] = React.useState<Asset | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+
+  // Bulk selection
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (slug) loadBySlug(slug);
   }, [slug, loadBySlug]);
 
-  // Build the inner-nav config — href filter items mirroring asset categories.
   const innerNav = React.useMemo<InnerNavConfig | undefined>(
     () =>
       slug
@@ -117,34 +174,75 @@ export default function DamPage() {
     });
   }, [assets, category, search]);
 
+  // Upload with Supabase storage (fallback to data URL)
   const handleUpload = async (files: File[]) => {
     if (!current) return;
+    setUploading(true);
     const newAssets: Asset[] = [];
+
     for (const file of files) {
-      const dataUrl = await fileToDataUrl(file);
+      let url: string;
+      try {
+        const result = await storageService.uploadAsset(
+          current.id, file, `${crypto.randomUUID()}-${file.name}`,
+        );
+        url = result.url;
+      } catch {
+        url = await fileToDataUrl(file);
+      }
+
+      const dimensions = file.type.startsWith('image/') ? await getImageDimensions(url) : undefined;
+
       newAssets.push({
         id: crypto.randomUUID(),
         name: file.name,
-        type: file.type.startsWith('image/') ? 'image' : 'document',
-        category: 'photo',
+        type: detectAssetType(file),
+        category: detectCategory(file.name, file.type),
         source: 'upload',
-        url: dataUrl,
+        url,
         size: file.size,
         tags: [],
-        metadata: { originalName: file.name, format: file.type },
+        metadata: { originalName: file.name, format: file.type, dimensions },
         createdAt: new Date(),
       });
     }
+
     await update(current.id, { assets: [...assets, ...newAssets] });
+    setUploading(false);
     toast.success(`Uploaded ${newAssets.length} asset${newAssets.length === 1 ? '' : 's'}`);
+
+    activityService.log({
+      brandId: current.id,
+      brandName: current.name,
+      eventType: 'asset_uploaded',
+      title: `Uploaded ${newAssets.length} asset${newAssets.length === 1 ? '' : 's'}`,
+      description: newAssets.map((a) => a.name).join(', '),
+    });
   };
 
   const handleDelete = async (assetId: string) => {
     if (!current) return;
+    const asset = assets.find((a) => a.id === assetId);
     const next = assets.filter((a) => a.id !== assetId);
     await update(current.id, { assets: next });
+
+    // Clean up Supabase storage if applicable
+    if (asset?.url && isSupabaseUrl(asset.url)) {
+      try {
+        const pathMatch = asset.url.match(/brand-assets\/(.+)$/);
+        if (pathMatch) await storageService.deleteFile(pathMatch[1]);
+      } catch { /* best effort */ }
+    }
+
     toast.success('Asset deleted');
     setActiveAsset(null);
+
+    activityService.log({
+      brandId: current.id,
+      brandName: current.name,
+      eventType: 'asset_exported',
+      title: `Deleted asset: ${asset?.name || 'Unknown'}`,
+    });
   };
 
   const handleRename = async (assetId: string, name: string) => {
@@ -161,6 +259,73 @@ export default function DamPage() {
     await update(current.id, { assets: next });
   };
 
+  const handleRemoveTag = async (assetId: string, tag: string) => {
+    if (!current) return;
+    const next = assets.map((a) =>
+      a.id === assetId ? { ...a, tags: (a.tags ?? []).filter((t) => t !== tag) } : a,
+    );
+    await update(current.id, { assets: next });
+  };
+
+  const handleCategoryChange = async (assetId: string, newCategory: string) => {
+    if (!current) return;
+    const next = assets.map((a) =>
+      a.id === assetId ? { ...a, category: newCategory as Asset['category'] } : a,
+    );
+    await update(current.id, { assets: next });
+    // Update the active asset if it's the one being changed
+    if (activeAsset?.id === assetId) {
+      setActiveAsset({ ...activeAsset, category: newCategory as Asset['category'] });
+    }
+  };
+
+  // Bulk operations
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filtered.map((a) => a.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (!current || selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    const next = assets.filter((a) => !selectedIds.has(a.id));
+    await update(current.id, { assets: next });
+    setSelectedIds(new Set());
+    setSelectionMode(false);
+    toast.success(`Deleted ${count} asset${count === 1 ? '' : 's'}`);
+
+    activityService.log({
+      brandId: current.id,
+      brandName: current.name,
+      eventType: 'asset_exported',
+      title: `Bulk deleted ${count} asset${count === 1 ? '' : 's'}`,
+    });
+  };
+
+  const handleBulkDownload = () => {
+    // Download each selected asset individually (ZIP requires jszip import which is heavy)
+    const selected = assets.filter((a) => selectedIds.has(a.id));
+    for (const asset of selected) {
+      const link = document.createElement('a');
+      link.href = asset.url;
+      link.download = asset.name;
+      link.click();
+    }
+    toast.success(`Downloading ${selected.length} asset${selected.length === 1 ? '' : 's'}`);
+  };
+
   if (!current) {
     return <div className="p-8">Loading brand…</div>;
   }
@@ -170,11 +335,25 @@ export default function DamPage() {
       <PageHeader
         compact
         title="Folders"
-        subtitle={`${current.name}'s asset library — logos, photos, icons, mockups, and references.`}
+        subtitle={`${assets.length} asset${assets.length !== 1 ? 's' : ''} in ${current.name}'s library`}
+        actions={
+          <Button
+            variant={selectionMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setSelectionMode(!selectionMode);
+              if (selectionMode) deselectAll();
+            }}
+            className="gap-1.5"
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+            {selectionMode ? 'Done' : 'Select'}
+          </Button>
+        }
       />
 
       <div className="space-y-6">
-        <AssetUploadZone onUpload={handleUpload} />
+        <AssetUploadZone onUpload={handleUpload} uploading={uploading} />
 
         <AssetFiltersBar
           categories={[...ASSET_CATEGORIES]}
@@ -188,10 +367,35 @@ export default function DamPage() {
           filteredCount={filtered.length}
         />
 
+        {/* Bulk action bar */}
+        {selectionMode && selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={selectAll} className="text-xs">
+              Select All ({filtered.length})
+            </Button>
+            <Button variant="outline" size="sm" onClick={deselectAll} className="text-xs">
+              Deselect
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleBulkDownload} className="gap-1.5 text-xs">
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </Button>
+            <Button variant="destructive" size="sm" onClick={handleBulkDelete} className="gap-1.5 text-xs">
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
+        )}
+
         <AssetGrid
           assets={filtered}
           view={view}
           onOpen={setActiveAsset}
+          selectedIds={selectionMode ? selectedIds : undefined}
+          onToggleSelect={selectionMode ? toggleSelect : undefined}
+          selectionMode={selectionMode}
         />
 
         {activeAsset && (
@@ -201,18 +405,11 @@ export default function DamPage() {
             onDelete={() => handleDelete(activeAsset.id)}
             onRename={(name) => handleRename(activeAsset.id, name)}
             onAddTag={(tag) => handleAddTag(activeAsset.id, tag)}
+            onRemoveTag={(tag) => handleRemoveTag(activeAsset.id, tag)}
+            onCategoryChange={(cat) => handleCategoryChange(activeAsset.id, cat)}
           />
         )}
       </div>
     </>
   );
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.onload = () => res(reader.result as string);
-    reader.onerror = rej;
-    reader.readAsDataURL(file);
-  });
 }

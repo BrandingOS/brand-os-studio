@@ -1,6 +1,8 @@
 import * as React from 'react';
-import { X, Download, Trash2, Tag, FileText, Image as ImageIcon } from 'lucide-react';
+import { X, Download, Trash2, Tag, FileText, ChevronDown } from 'lucide-react';
 import type { Asset } from '@/shared/types/brand';
+
+const CATEGORIES = ['logo', 'photo', 'icon', 'social', 'mockup', 'reference'] as const;
 
 interface AssetLightboxProps {
   asset: Asset;
@@ -8,11 +10,14 @@ interface AssetLightboxProps {
   onDelete: () => void;
   onRename: (name: string) => void;
   onAddTag: (tag: string) => void;
+  onRemoveTag?: (tag: string) => void;
+  onCategoryChange?: (category: string) => void;
 }
 
-export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag }: AssetLightboxProps) {
+export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag, onRemoveTag, onCategoryChange }: AssetLightboxProps) {
   const [name, setName] = React.useState(asset.name);
   const [tagInput, setTagInput] = React.useState('');
+  const [showCategoryMenu, setShowCategoryMenu] = React.useState(false);
 
   React.useEffect(() => {
     setName(asset.name);
@@ -68,7 +73,7 @@ export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag }: 
                 className="w-full bg-transparent text-base font-semibold text-foreground focus:outline-none"
               />
               <p className="mt-0.5 text-[11px] text-muted-foreground">
-                {asset.type} · {asset.category} · {formatBytes(asset.size)}
+                {asset.type} · {formatBytes(asset.size)}
               </p>
             </div>
             <button
@@ -82,6 +87,44 @@ export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag }: 
           </header>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            {/* Category */}
+            <section>
+              <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Category
+              </h4>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryMenu(!showCategoryMenu)}
+                  className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/50 transition-colors w-full justify-between"
+                >
+                  <span className="capitalize">{asset.category}</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                </button>
+                {showCategoryMenu && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-border bg-card shadow-lg py-1">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          onCategoryChange?.(cat);
+                          setShowCategoryMenu(false);
+                        }}
+                        className={`w-full px-3 py-1.5 text-left text-xs capitalize transition-colors ${
+                          cat === asset.category
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-foreground hover:bg-muted/50'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
             {/* Metadata */}
             <section>
               <h4 className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -93,7 +136,7 @@ export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag }: 
                 {asset.metadata?.dimensions && (
                   <Row
                     label="Dimensions"
-                    value={`${asset.metadata.dimensions.width}×${asset.metadata.dimensions.height}`}
+                    value={`${asset.metadata.dimensions.width} × ${asset.metadata.dimensions.height}`}
                   />
                 )}
                 <Row label="Created" value={new Date(asset.createdAt).toLocaleDateString()} />
@@ -109,9 +152,19 @@ export function AssetLightbox({ asset, onClose, onDelete, onRename, onAddTag }: 
                 {(asset.tags ?? []).map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-foreground"
+                    className="group/tag inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] text-foreground"
                   >
                     {tag}
+                    {onRemoveTag && (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveTag(tag)}
+                        className="text-muted-foreground/50 hover:text-destructive transition-colors"
+                        aria-label={`Remove tag ${tag}`}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    )}
                   </span>
                 ))}
                 {(asset.tags ?? []).length === 0 && (
