@@ -3,8 +3,7 @@ import { useRef } from 'react';
 import { ArrowRight, Layout, Printer, Globe, Sparkles } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
-const heroImage =
-  'https://i.pinimg.com/1200x/18/ec/a2/18eca28a85c40aa0b255742cbe3a0656.jpg';
+import heroImage from '@/assets/landing/hero-mockup.png';
 
 /**
  * HeroSection — v5 (v1-inspired, amplified).
