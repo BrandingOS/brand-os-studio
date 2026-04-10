@@ -2,17 +2,15 @@
  * Interpolation Engine — replaces {{variable}} references with resolved values.
  */
 
-const VAR_REGEX = /\{\{([^}]+)\}\}/g;
-
 /** Check if a string contains any {{variable}} references */
 export function hasVariables(value: string): boolean {
-  return VAR_REGEX.test(value);
+  return /\{\{[^}]+\}\}/.test(value);
 }
 
 /** Replace all {{variable}} references in a string with resolved values */
 export function interpolateString(template: string, vars: Record<string, string>): string {
   if (!template || !template.includes('{{')) return template;
-  return template.replace(VAR_REGEX, (match, path: string) => {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, path: string) => {
     const trimmed = path.trim();
     return vars[trimmed] ?? match; // Keep original if not found
   });

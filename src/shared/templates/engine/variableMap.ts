@@ -104,5 +104,5 @@ function darken(hex: string, percent: number): string {
 
 function withOpacity(hex: string, opacity: number): string {
   const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0');
-  return hex.replace('#', '#').slice(0, 7) + alpha;
+  return hex.slice(0, 7) + alpha;
 }

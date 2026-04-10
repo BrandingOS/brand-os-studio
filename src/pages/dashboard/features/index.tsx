@@ -82,6 +82,37 @@ interface FeatureGroup {
 }
 
 /* ───────────────────────────────────────────────────────────────────── */
+/* Recent feature updates — changelog for what shipped recently           */
+/* ───────────────────────────────────────────────────────────────────── */
+
+interface RecentUpdate {
+  id: string;
+  feature: string;
+  description: string;
+  path?: string;
+  firstDate: string;
+  lastUpdate: string;
+  phase: string;
+  status: 'shipped' | 'beta' | 'in-progress';
+}
+
+const RECENT_UPDATES: RecentUpdate[] = [
+  { id: 'variable-templates', feature: 'Variable Template System', description: 'Core engine for auto-adaptive templates. Every design bound to brand variables.', path: '/templates', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase D', status: 'in-progress' },
+  { id: 'perf-phase12', feature: 'Performance & CI/CD', description: 'Bundle splitting (3.5MB→755KB), lazy loading, GitHub Actions pipeline, error boundaries.', path: '/dashboard/features', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase 12', status: 'shipped' },
+  { id: 'share-phase11', feature: 'Share Enhancements', description: 'Visibility toggle, embed code, brand portal link, 6-section share hub.', path: (s: string) => `/b/${s}/share`, firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 11', status: 'shipped' },
+  { id: 'learn-phase10', feature: 'Learn Hub', description: '8 lessons with real content, progress tracking, lesson reader.', path: '/learn', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 10', status: 'shipped' },
+  { id: 'analytics-phase9', feature: 'Analytics & Brand Health', description: 'Brand Health Score (SVG ring), WCAG contrast analysis, 12-item completeness checklist.', path: (s: string) => `/b/${s}/analytics`, firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 9', status: 'shipped' },
+  { id: 'dam-phase8', feature: 'DAM Upgrade', description: 'Real Supabase storage, smart category detection, bulk operations, lightbox enhancements.', path: (s: string) => `/b/${s}/folders`, firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 8', status: 'shipped' },
+  { id: 'marketplace-phase7', feature: 'Marketplace & Templates', description: 'Brand templates page, curated collections, saved templates store, featured packs.', path: '/templates', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 7', status: 'shipped' },
+  { id: 'collab-phase6', feature: 'Collaboration', description: 'Activity feed, notification bell, comments on guidelines + assets, team + approvals logging.', path: '/dashboard/activity', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 6', status: 'shipped' },
+  { id: 'settings-phase5', feature: 'Settings Hub', description: 'Settings layout with sidebar, workspace settings, members page, wired UserMenu links.', path: '/settings/account', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 5', status: 'shipped' },
+  { id: 'wizard-phase4', feature: 'Brand Wizard Enhancement', description: 'Full BrandGuidelines populated on creation from wizard answers.', path: '/onboarding', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 4', status: 'shipped' },
+  { id: 'ai-phase3', feature: 'AI Integration', description: 'Claude-powered onboarding parsers, AI logo suggestions, async AI assist.', path: '/dashboard/logo-maker', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 3', status: 'shipped' },
+  { id: 'url-phase2', feature: 'URL Migration', description: 'All internal navigation uses /b/:slug short-form (37 files migrated).', path: '/dashboard/features', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 2', status: 'shipped' },
+  { id: 'editor-phase1', feature: 'Editor Unification', description: 'EditorChrome + useAutoSave adopted across 5 editors.', path: '/dashboard/logo-maker', firstDate: '2026-04-10', lastUpdate: '2026-04-10', phase: 'Phase 1', status: 'shipped' },
+];
+
+/* ───────────────────────────────────────────────────────────────────── */
 /* Feature inventory — keep in sync with App.tsx routes                  */
 /* ───────────────────────────────────────────────────────────────────── */
 
@@ -93,25 +124,25 @@ const WORKSPACE_FEATURES: FeatureEntry[] = [
   { id: 'templates-w',   title: 'Guideline Templates', description: 'Cross-brand catalog of guideline document templates.',     icon: LayoutTemplate, href: '/dashboard/templates', status: 'orphan' },
   { id: 'templates-mp',  title: 'Templates Marketplace', description: 'BrandOS v5 marketplace of community templates.',         icon: Store,          href: '/templates',           status: 'orphan' },
   { id: 'marketplace',   title: 'Marketplace',         description: 'General-purpose marketplace surface.',                     icon: Store,          href: '/marketplace',         status: 'orphan' },
-  { id: 'activity',      title: 'Activity feed',       description: 'Standalone activity log. Folded into Home in the new IA.', icon: Activity,       href: '/dashboard/activity',  status: 'orphan' },
+  { id: 'activity',      title: 'Activity feed',       description: 'Real-time feed of all brand actions, filterable by type.', icon: Activity,       href: '/dashboard/activity',  status: 'linked' },
   { id: 'dashboard-v2',  title: 'Dashboard v2 landing', description: 'Experimental landing page (BrandOS v5 sprint).',          icon: Sparkles,       href: '/v2',                  status: 'experiment' },
 ];
 
 const ACCOUNT_FEATURES: FeatureEntry[] = [
   { id: 'account',  title: 'Account settings',   description: 'Profile, password, theme, language.',          icon: UserCog,    href: '/settings/account', status: 'linked' },
-  { id: 'plans',    title: 'Plans & billing',    description: 'Subscription tier and payment methods.',       icon: CreditCard, href: '/settings/plans',   status: 'orphan' },
+  { id: 'plans',    title: 'Plans & billing',    description: 'Subscription tier and payment methods.',       icon: CreditCard, href: '/settings/plans',   status: 'linked' },
 ];
 
 const BRAND_FEATURES: FeatureEntry[] = [
   { id: 'overview',     title: 'Overview',     description: 'Brand at-a-glance and jumping-off point.',         icon: Compass,    href: (s) => `/b/${s}`,             status: 'linked',  needsBrand: true },
   { id: 'setup',        title: 'Setup',        description: 'Edit logos, colors, and type with live preview.',  icon: Wrench,     href: (s) => `/b/${s}/edit`,        status: 'linked',  needsBrand: true },
-  { id: 'identity',     title: 'Identity',     description: 'Tabbed identity hub: logo, colors, type, voice.',  icon: Sparkles,   href: (s) => `/b/${s}/identity`,    status: 'orphan',  needsBrand: true },
+  { id: 'identity',     title: 'Identity',     description: 'Tabbed identity hub: logo, colors, type, voice.',  icon: Sparkles,   href: (s) => `/b/${s}/identity`,    status: 'linked',  needsBrand: true },
   { id: 'guidelines',   title: 'Guidelines',   description: 'The brand book — strategy through applications.', icon: BookOpen,   href: (s) => `/b/${s}/guidelines`,  status: 'linked',  needsBrand: true },
   { id: 'folders',      title: 'Folders',      description: 'Brand asset library — logos, photos, icons.',     icon: FolderOpen, href: (s) => `/b/${s}/folders`,     status: 'linked',  needsBrand: true },
   { id: 'kit',          title: 'Brand Kit',    description: 'Unified brand kit hub with bulk export.',         icon: Sparkles,   href: (s) => `/b/${s}/kit`,         status: 'linked',  needsBrand: true },
   { id: 'designs',      title: 'Designs',      description: 'Generated deliverables — print, social, screen.', icon: Palette,    href: (s) => `/b/${s}/assets`,      status: 'linked',  needsBrand: true },
   { id: 'b-templates',  title: 'Brand Templates', description: 'Templates saved to this brand. Coming soon.',  icon: LayoutTemplate, href: (s) => `/b/${s}/templates`, status: 'linked', needsBrand: true },
-  { id: 'share',        title: 'Share',        description: 'Outbox — public link, decks, exports.',           icon: Globe,      href: (s) => `/b/${s}/share`,       status: 'orphan',  needsBrand: true },
+  { id: 'share',        title: 'Share',        description: 'Visibility toggle, embed code, portal, decks, exports.', icon: Globe,      href: (s) => `/b/${s}/share`,       status: 'linked',  needsBrand: true },
   { id: 'b-settings',   title: 'Brand Settings', description: 'Per-brand configuration v2.',                   icon: Settings,   href: (s) => `/b/${s}/settings`,    status: 'orphan',  needsBrand: true },
 ];
 
@@ -122,7 +153,7 @@ const BRAND_DEEP_FEATURES: FeatureEntry[] = [
   { id: 'logo-presentation', title: 'Logo Presentation',     description: 'Logo concept presentation deck.',                  icon: Presentation,   href: (s) => `/b/${s}/logo-presentation`,   status: 'orphan', needsBrand: true },
   { id: 'presentations',    title: 'Presentations',          description: 'General presentation builder.',                    icon: Presentation,   href: (s) => `/b/${s}/presentations`,       status: 'orphan', needsBrand: true },
   { id: 'social-media',     title: 'Social Media',           description: 'Per-channel social asset generator.',              icon: ImageIcon,      href: (s) => `/b/${s}/social-media`,        status: 'orphan', needsBrand: true },
-  { id: 'analytics',        title: 'Analytics',              description: 'Per-brand analytics and engagement.',              icon: BarChart3,      href: (s) => `/b/${s}/analytics`,           status: 'orphan', needsBrand: true },
+  { id: 'analytics',        title: 'Analytics',              description: 'Brand Health Score, WCAG contrast, 12-item checklist.',  icon: BarChart3,      href: (s) => `/b/${s}/analytics`,           status: 'linked', needsBrand: true },
   { id: 'approvals',        title: 'Approvals',              description: 'Review queue for brand artifacts.',                icon: CheckSquare,    href: (s) => `/b/${s}/approvals`,           status: 'orphan', needsBrand: true },
   { id: 'design-editor',    title: 'Design Editor',          description: 'Fullscreen Fabric.js design editor.',              icon: Palette,        href: (s) => `/editor/design/${s}`,                       status: 'deep',   needsBrand: true },
 ];
@@ -259,6 +290,45 @@ export default function FeaturesIndexPage() {
       />
 
       <div className="space-y-10">
+        {/* Recent Updates — what shipped recently */}
+        <section>
+          <header className="mb-3">
+            <h2 className="text-base font-semibold tracking-tight text-foreground">
+              Recent updates
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              What shipped recently — {RECENT_UPDATES.filter(u => u.status === 'shipped').length} features shipped, {RECENT_UPDATES.filter(u => u.status === 'in-progress').length} in progress
+            </p>
+          </header>
+          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+            {RECENT_UPDATES.map((update) => (
+              <div
+                key={update.id}
+                className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 text-sm"
+              >
+                <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${update.status === 'shipped' ? 'bg-emerald-500' : update.status === 'beta' ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-semibold text-foreground">{update.feature}</span>
+                    <Badge variant="secondary" className="shrink-0 rounded-full border-0 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-[0.06em] bg-primary/10 text-primary">
+                      {update.phase}
+                    </Badge>
+                    <Badge variant="secondary" className={`shrink-0 rounded-full border-0 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-[0.06em] ${update.status === 'shipped' ? 'bg-emerald-500/10 text-emerald-600' : update.status === 'beta' ? 'bg-amber-500/10 text-amber-600' : 'bg-blue-500/10 text-blue-600'}`}>
+                      {update.status}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{update.description}</p>
+                  <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground/60">
+                    <span>First: {update.firstDate}</span>
+                    <span>Updated: {update.lastUpdate}</span>
+                    {update.path && <span className="text-primary/60">{typeof update.path === 'string' ? update.path : '(brand-scoped)'}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {groups.map((group) => (
           <section key={group.id}>
             <header className="mb-3">
