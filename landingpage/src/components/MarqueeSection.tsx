@@ -13,13 +13,13 @@ export const MarqueeSection = () => {
   ];
 
   return (
-    <section className="py-8 border-y border-border bg-secondary/40">
+    <section className="py-3 border-y border-border/60 bg-secondary/30">
       <div className="marquee">
-        <div className="marquee-inner px-6">
+        <div className="marquee-inner px-4">
           {[...items, ...items].map((item, i) => (
-            <span key={i} className="marquee-item flex items-center gap-4">
+            <span key={i} className="marquee-item text-xs text-muted-foreground flex items-center gap-3">
               {item}
-              <span aria-hidden className="text-border">
+              <span aria-hidden className="text-border/60 text-[8px]">
                 ◆
               </span>
             </span>

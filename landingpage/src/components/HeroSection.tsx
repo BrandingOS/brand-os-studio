@@ -76,9 +76,9 @@ export const HeroSection = () => {
           >
             <span className="hero-dot" />
             <span className="hero-line" />
-            <span className="hero-pill">Logo · Color · Type</span>
+            <span className="hero-pill">Set it up once</span>
             <span className="hero-line hero-line-grow" />
-            <span className="hero-pill">Slides · Posts · Print · Web</span>
+            <span className="hero-pill">Brand everything</span>
             <span className="hero-line" />
             <span className="hero-dot" />
           </motion.div>
@@ -90,8 +90,8 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.24, ease }}
             className="text-center max-w-lg mx-auto mt-12 text-base md:text-lg text-muted-foreground leading-relaxed"
           >
-            Set it up once.{' '}
-            <span className="text-accent-pop font-semibold">Brand everything.</span>
+            BrandOS connects your strategy, identity, and outputs into{' '}
+            <span className="text-accent-pop font-semibold">one source of truth</span>.
           </motion.p>
 
           {/* ── CTAs ─────────────────────────────────────────────── */}
