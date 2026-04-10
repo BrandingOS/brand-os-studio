@@ -62,6 +62,7 @@ const VariantStudioInAppPage = lazy(() => import('./pages/dashboard/brand/[slug]
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
+const TemplateBuilderPage = lazy(() => import('./features/templates/builder/TemplateBuilderPage'));
 const BrandPortalV2Page = lazy(() => import('./features/brand-portal/v2/BrandPortalV2Page'));
 const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelinesPage'));
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
@@ -270,6 +271,16 @@ const App = () => (
           <Route path="/templates" element={
             <ProtectedRoute>
               <TemplatesMarketplacePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/templates/builder" element={
+            <ProtectedRoute>
+              <TemplateBuilderPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/templates/builder/:templateId" element={
+            <ProtectedRoute>
+              <TemplateBuilderPage />
             </ProtectedRoute>
           } />
           <Route path="/marketplace" element={
