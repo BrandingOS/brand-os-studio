@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
-import { Eye, Edit, Save, Wrench, Image as ImageIcon, Palette, Type, Shapes, Sparkles } from 'lucide-react';
+import { useAutoSave, SaveStateIndicator } from '@/features/editor/core';
+import { Eye, Edit, Wrench, Image as ImageIcon, Palette, Type, Shapes, Sparkles } from 'lucide-react';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { useToast } from '@/hooks/use-toast';
 import { Brand } from '@/shared/types/brand';
 
 const SETUP_ANCHORS = ['logos', 'colors', 'typography', 'iconography'];
@@ -21,7 +21,6 @@ export default function BrandEditPage() {
   const { current: brand, loadBySlug, update, isLoading } = useBrandStore();
   const [previewMode, setPreviewMode] = useState(false);
   const [editedBrand, setEditedBrand] = useState<Brand | null>(null);
-  const { toast } = useToast();
   const activeAnchor = useActiveAnchor(SETUP_ANCHORS);
 
   const innerNav = useMemo<InnerNavConfig>(() => ({
@@ -97,27 +96,31 @@ export default function BrandEditPage() {
     }
   }, [brand]);
 
-  const handleSave = async () => {
-    if (!editedBrand || !brand) return;
-
-    try {
+  // Debounced auto-save via unified hook
+  const { saveState, markDirty, flush, retry } = useAutoSave({
+    value: editedBrand,
+    save: async (next) => {
+      if (!next || !brand) return;
       await update(brand.id, {
-        guidelines: editedBrand.guidelines,
-        fonts: editedBrand.fonts,
+        guidelines: next.guidelines,
+        fonts: next.fonts,
       });
+    },
+    debounceMs: 1500,
+    enabled: !!editedBrand && !!brand,
+  });
 
-      toast({
-        title: 'Changes saved',
-        description: 'Your brand has been updated successfully.'
-      });
-    } catch (error) {
-      toast({
-        title: 'Save failed',
-        description: 'Failed to save changes. Please try again.',
-        variant: 'destructive'
-      });
-    }
-  };
+  // Cmd+S → immediate flush
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        void flush();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [flush]);
 
   if (isLoading || !editedBrand) {
     return (
@@ -135,6 +138,7 @@ export default function BrandEditPage() {
         subtitle="Edit this brand's identity — logos, colors, type — with a live preview."
         actions={
           <>
+            <SaveStateIndicator state={saveState} onRetry={retry} />
             <Button
               variant="outline"
               size="sm"
@@ -151,10 +155,6 @@ export default function BrandEditPage() {
                   Preview Mode
                 </>
               )}
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              <Save className="h-3.5 w-3.5 mr-1.5" />
-              Save Changes
             </Button>
           </>
         }
@@ -173,12 +173,11 @@ export default function BrandEditPage() {
                 brandId={editedBrand.id}
                 logoSystem={editedBrand.guidelines?.logoSystem || {}}
                 onLogoSystemChange={(logoSystem) => {
-                  const updated = {
-                    ...editedBrand,
-                    guidelines: { ...(editedBrand.guidelines || {}), logoSystem },
-                  };
-                  setEditedBrand(updated);
-                  update(editedBrand.id, { guidelines: updated.guidelines });
+                  setEditedBrand((prev) => prev ? {
+                    ...prev,
+                    guidelines: { ...(prev.guidelines || {}), logoSystem },
+                  } : prev);
+                  markDirty();
                 }}
               />
             </section>
@@ -187,12 +186,11 @@ export default function BrandEditPage() {
               <ColorPaletteEditor
                 colorPalette={editedBrand.guidelines?.colorPalette || {}}
                 onColorPaletteChange={(colorPalette) => {
-                  const updated = {
-                    ...editedBrand,
-                    guidelines: { ...(editedBrand.guidelines || {}), colorPalette },
-                  };
-                  setEditedBrand(updated);
-                  update(editedBrand.id, { guidelines: updated.guidelines });
+                  setEditedBrand((prev) => prev ? {
+                    ...prev,
+                    guidelines: { ...(prev.guidelines || {}), colorPalette },
+                  } : prev);
+                  markDirty();
                 }}
               />
             </section>
@@ -205,8 +203,8 @@ export default function BrandEditPage() {
                     primary: fonts.primary || editedBrand.fonts?.primary || 'Inter',
                     secondary: fonts.secondary || editedBrand.fonts?.secondary || 'Inter',
                   };
-                  setEditedBrand({ ...editedBrand, fonts: updatedFonts });
-                  update(editedBrand.id, { fonts: updatedFonts });
+                  setEditedBrand((prev) => prev ? { ...prev, fonts: updatedFonts } : prev);
+                  markDirty();
                 }}
               />
             </section>

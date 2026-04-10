@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { SaveStateIndicator } from '@/features/editor/core';
+import type { EditorSaveState } from '@/features/editor/core';
 import { TemplateGallery } from './TemplateGallery';
 import { LogoFilesModule } from './LogoFilesModule';
 import { SettingsModule } from './SettingsModule';
@@ -19,9 +21,11 @@ interface BrandKitModuleViewProps {
   brand: Brand;
   slug: string;
   onBrandUpdate?: (patch: Partial<Brand>) => void;
+  saveState?: EditorSaveState;
+  onRetry?: () => void;
 }
 
-export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: BrandKitModuleViewProps) {
+export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate, saveState = 'idle', onRetry }: BrandKitModuleViewProps) {
   const navigate = useNavigate();
   const moduleConfig = getModuleConfig(moduleId);
 
@@ -69,14 +73,17 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate }: Bra
 
   return (
     <div className="space-y-6">
-      {/* Back navigation */}
-      <button
-        onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-      >
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-        Back to Brand Kit
-      </button>
+      {/* Back navigation + save indicator */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Brand Kit
+        </button>
+        <SaveStateIndicator state={saveState} onRetry={onRetry} />
+      </div>
 
       {/* Module Header (for template-based modules) */}
       {!['settings', 'logo-files', 'qr-code', 'animations', 'design-tool', 'color-system', 'brand-voice', 'brand-strategy', 'typography', 'assets'].includes(moduleId) && (

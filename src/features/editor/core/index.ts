@@ -11,6 +11,6 @@ export { EditorTopToolbar, EditorToolSidebar, EditorStatusBar } from './EditorTo
 export { EditorCanvas } from './EditorCanvas';
 
 // Shared chrome + save model (Stage 12 slice — adopt incrementally)
-export { EditorChrome } from './EditorChrome';
+export { EditorChrome, SaveStateIndicator } from './EditorChrome';
 export type { EditorSaveState } from './EditorChrome';
 export { useAutoSave } from './useAutoSave';

@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/shared/design-system';
+import { EditorChrome, useAutoSave } from '@/features/editor/core';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LogoCanvas } from './LogoCanvas';
 import { IconSelector } from './IconSelector';
@@ -24,40 +24,75 @@ import {
   RotateCcw,
   ZoomIn,
   ZoomOut,
-  Wand2,
 } from 'lucide-react';
+
+const DRAFT_KEY = 'logo-maker-draft';
 
 export function LogoMaker() {
   const [config, setConfig] = useState<LogoConfig>(DEFAULT_LOGO_CONFIG);
   const [darkBg, setDarkBg] = useState(false);
   const [zoom, setZoom] = useState(1);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    const draft = localStorage.getItem(DRAFT_KEY);
+    if (draft) {
+      try {
+        setConfig(JSON.parse(draft));
+      } catch { /* ignore corrupt draft */ }
+    }
+    setDraftLoaded(true);
+  }, []);
+
+  // Auto-save config to localStorage
+  const { saveState, markDirty, flush, retry } = useAutoSave({
+    value: config,
+    save: async (next) => {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+    },
+    debounceMs: 800,
+    enabled: draftLoaded,
+  });
+
+  // Cmd+S → immediate flush
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        void flush();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [flush]);
 
   const updateConfig = useCallback((updates: Partial<LogoConfig>) => {
     setConfig((prev) => ({ ...prev, ...updates }));
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   const resetConfig = useCallback(() => {
     setConfig(DEFAULT_LOGO_CONFIG);
-  }, []);
+    markDirty();
+  }, [markDirty]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]">
-      {/* Header */}
-      <div className="shrink-0 px-6 py-4 border-b border-border">
-        <PageHeader
-          title="Logo Maker"
-          description="Design a professional logo for your brand"
-          actions={
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={resetConfig} className="gap-1.5 text-muted-foreground">
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset
-              </Button>
-            </div>
-          }
-        />
-      </div>
+    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
+      {/* Editor Chrome */}
+      <EditorChrome
+        backTo="/dashboard"
+        title="Logo Maker"
+        saveState={saveState}
+        onRetry={retry}
+        actions={
+          <Button variant="ghost" size="sm" onClick={resetConfig} className="gap-1.5 text-muted-foreground">
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset
+          </Button>
+        }
+      />
 
       {/* Main 3-column layout */}
       <div className="flex-1 flex min-h-0">

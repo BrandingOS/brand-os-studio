@@ -30,12 +30,12 @@ time, and keep the old code paths working until they're replaced.
 
 | Editor | Location | Tech | Top bar | Save | Adopts core? |
 |---|---|---|---|---|---|
-| Design Editor | `src/features/editor/components/` | Fabric.js | Bespoke `EditorTopBar.tsx` | localStorage debounce | ❌ Not yet |
-| Guidelines Hub | `src/pages/.../guidelines` + `features/guidelines/` | DOM slides | Custom sticky header | Supabase API | ❌ Not yet |
+| Logo Maker | `src/features/logo-maker/` | Custom SVG | `EditorChrome` | `useAutoSave` → localStorage | ✅ Adopted |
+| BrandKit Module Editor | `src/features/brandkit/components/` | Form-based | `SaveStateIndicator` | `useAutoSave` → brandStore | ✅ Adopted |
+| Design Editor | `src/features/editor/components/` | Fabric.js | `EditorChrome` | `useAutoSave` → localStorage | ✅ Adopted |
+| Brand Edit | `src/pages/.../edit.tsx` | Form fields | `SaveStateIndicator` | `useAutoSave` → brandStore | ✅ Adopted |
+| Guidelines Canvas | `src/pages/.../guidelines/canvas.tsx` | DOM slides | `EditorChrome` | `useAutoSave` → Supabase | ✅ Adopted |
 | Brand Guides (EditorWorkspace) | `src/pages/.../brand-guides` | EditorWorkspace | Built-in | **Editable export baseline — OFF-LIMITS** | ❌ Frozen |
-| Brand Edit | `src/pages/.../edit.tsx` | Form fields | Sticky header | Per-change `useBrandStore.update` | ❌ Not yet |
-| BrandKit Module Editor | `src/features/brandkit/components/editor/` | Fabric.js | Custom toolbar | None | ❌ Not yet |
-| Logo Maker | `src/features/logo-maker/` | Custom SVG | Tabbed left panel | None until "Save to Brand" (Stage 4) | ❌ Not yet |
 
 > **`EditorWorkspace` and the editable export pipeline (`stable/editable-export-v1`,
 > `src/shared/services/export/vectorize/*`) are off-limits to this work** —

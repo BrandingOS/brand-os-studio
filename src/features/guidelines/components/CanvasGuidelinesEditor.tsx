@@ -9,7 +9,11 @@ import { SlideNavigator } from './SlideNavigator';
 import { brandToSlides } from '@/shared/utils/brand-to-slides';
 import { Loader2 } from 'lucide-react';
 
-export function CanvasGuidelinesEditor() {
+interface CanvasGuidelinesEditorProps {
+  onSlideEdit?: () => void;
+}
+
+export function CanvasGuidelinesEditor({ onSlideEdit }: CanvasGuidelinesEditorProps) {
   const { slug } = useParams();
   const { list: brands, loadAll } = useBrandStore();
   const {
@@ -94,6 +98,7 @@ export function CanvasGuidelinesEditor() {
 
   const handleSlideChange = (index: number) => {
     setCurrentSlideIndex(index);
+    onSlideEdit?.();
   };
 
   if (isLoading || !brand || !currentPresentation) {

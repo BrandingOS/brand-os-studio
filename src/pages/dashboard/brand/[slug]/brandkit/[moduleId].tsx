@@ -1,8 +1,10 @@
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BrandLayout } from '@/features/brand';
 import { BrandKitModuleView } from '@/features/brandkit';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useAutoSave } from '@/features/editor/core';
 import { ArrowLeft } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 
@@ -12,10 +14,36 @@ export default function BrandKitModulePage() {
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
 
-  const handleBrandUpdate = async (patch: Partial<Brand>) => {
-    if (!brand) return;
-    await updateBrand(brand.id, patch);
-  };
+  // Buffer patches and debounce saves
+  const [pendingPatch, setPendingPatch] = useState<Partial<Brand>>({});
+
+  const { saveState, markDirty, flush, retry } = useAutoSave({
+    value: pendingPatch,
+    save: async (patch) => {
+      if (!brand || Object.keys(patch).length === 0) return;
+      await updateBrand(brand.id, patch);
+      setPendingPatch({});
+    },
+    debounceMs: 1200,
+    enabled: !!brand,
+  });
+
+  const handleBrandUpdate = useCallback((patch: Partial<Brand>) => {
+    setPendingPatch((prev) => ({ ...prev, ...patch }));
+    markDirty();
+  }, [markDirty]);
+
+  // Cmd+S → immediate flush
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        void flush();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [flush]);
 
   if (isLoading) {
     return (
@@ -57,6 +85,8 @@ export default function BrandKitModulePage() {
         brand={brand}
         slug={slug!}
         onBrandUpdate={handleBrandUpdate}
+        saveState={saveState}
+        onRetry={retry}
       />
     </BrandLayout>
   );

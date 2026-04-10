@@ -52,7 +52,7 @@ const SAVE_LABEL: Record<EditorSaveState, string> = {
   error: 'Save failed',
 };
 
-function SaveStateIndicator({
+export function SaveStateIndicator({
   state,
   onRetry,
 }: {
