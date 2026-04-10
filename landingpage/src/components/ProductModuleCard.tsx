@@ -23,8 +23,8 @@ export const ProductModuleCard = ({
 }: ProductModuleCardProps) => {
   return (
     <motion.article
-      initial={{ opacity: 0, y: 28, scale: 0.97, filter: 'blur(4px)' }}
-      whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      initial={{ opacity: 0, y: 24, scale: 0.97 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, amount: 0.15 }}
       transition={{
         duration: 0.55,
