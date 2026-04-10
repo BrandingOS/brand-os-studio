@@ -48,18 +48,18 @@ export const ProductModulesSection = () => {
           </div>
         </Reveal>
 
-        {/* ── Feature grid ────────────────────────────────────────── */}
-        <Reveal y={24} duration={0.5}>
-          <div className="text-center mb-12">
-            <h3 className="h-section">
-              All-in-one branding{' '}
-              <span className="text-accent-pop">powerhouse.</span>
-            </h3>
-            <p className="mt-3 text-base text-muted-foreground max-w-2xl mx-auto">
-              Nine modules, one connected system.
-            </p>
-          </div>
-        </Reveal>
+        {/* ── Feature grid heading — no Reveal wrapper here because
+            the cards below have their own scroll-triggered motion.
+            A wrapper would create a "double load" feel. */}
+        <div className="text-center mb-12">
+          <h3 className="h-section">
+            All-in-one branding{' '}
+            <span className="text-accent-pop">powerhouse.</span>
+          </h3>
+          <p className="mt-3 text-base text-muted-foreground max-w-2xl mx-auto">
+            Nine modules, one connected system.
+          </p>
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {productModules.map((module, i) => (
