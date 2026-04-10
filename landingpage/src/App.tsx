@@ -17,9 +17,14 @@ function App() {
         <Navbar />
         <main>
           <HeroSection />
+          {/* Small compact marquee right under the hero — instant social
+              proof kicker before the user scrolls. The BIGGER marquee
+              (MarqueeSection) is moved further down as a divider between
+              the feature sections. */}
           <MarqueeSection />
           <PainPointsSection />
           <SetupSection />
+          <MarqueeSection />
           <ProductModulesSection />
           <StatisticsSection />
           <FinalCTASection />
