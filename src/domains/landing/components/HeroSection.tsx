@@ -1,28 +1,30 @@
 /**
- * HeroSection — main app landing, editorial split layout.
+ * HeroSection — main app landing, light editorial split.
  *
- * Reference: the FIX. LEARN. PREVENT. layout (Image #18).
+ * Same editorial split structure as before (left big word · center
+ * icon · right big word) but on a LIGHT cream surface instead of black,
+ * because the user said the dark version wasn't nice.
  *
- * Composition:
- *   ┌─────────────────────────────────────────────────────────────┐
- *   │            (●)─── STRATEGY ───●          ●─── OUTPUT ───(●) │
- *   │                                                              │
- *   │   BRAND ONCE.       [ BRAND ICON BADGE ]      USE FOREVER.  │
- *   │                                                              │
- *   │  (●)── Logo · Color · Type ──●     ●── Slides · Posts ──(●) │
- *   │                                                              │
- *   │              BrandOS connects ... one source of truth         │
- *   │                                                              │
- *   │                  [ Request Early Access ]                     │
- *   └─────────────────────────────────────────────────────────────┘
+ * Palette: warm cream surface (#FCFBF9-ish), near-black ink, single
+ * orange accent (the existing --accent-pop token = #F36123). Same three
+ * colors as the rest of the new landing.
  *
- * Palette: black surface, white text, single orange accent (the
- * existing --accent-pop token = #F36123).
+ * Layout
+ *   ┌────────────────────────────────────────────────────────────┐
+ *   │   ●─── Strategy ───●            ●─── Output ───●           │
+ *   │                                                              │
+ *   │   BRAND ONCE.    [ ✦ icon ]    USE FOREVER.                │
+ *   │                                                              │
+ *   │  ●── Logo · Color · Type ──●  ●── Slides · Posts · Web ──● │
+ *   │                                                              │
+ *   │      BrandOS connects strategy, identity, and outputs        │
+ *   │              into one source of truth.                        │
+ *   │                                                              │
+ *   │             [ Request Early Access → ]   [ See how → ]        │
+ *   └────────────────────────────────────────────────────────────┘
  *
- * The component still accepts the legacy props (onBrandNameChange,
- * onStartClick, brandName) so the parent Index.tsx doesn't need to
- * change, but the brand-name input is gone — the layout uses a single
- * primary CTA per the reference.
+ * Component-scoped <style> block, no global CSS edits, legacy props
+ * preserved so Index.tsx doesn't change.
  */
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -35,75 +37,73 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onStartClick }: HeroSectionProps) => {
   return (
-    <section className="hero-editorial relative overflow-hidden">
-      {/* Atmospheric backdrop — dot grid + soft warm vignette behind
-          the central icon, fading to pure black at the edges. */}
-      <div className="hero-editorial-bg" aria-hidden="true" />
+    <section className="hero-light relative overflow-hidden">
+      <div className="hero-light-bg" aria-hidden="true" />
 
       <div className="container-tight relative z-10">
-        <div className="mx-auto max-w-6xl pt-24 pb-16 md:pt-32 md:pb-20 text-center">
-          {/* ── Top tag row — two pills connected by dashed lines ─── */}
-          <div className="hero-tag-row" data-animate>
-            <span className="hero-tag-dot" />
-            <span className="hero-tag-line" />
-            <span className="hero-tag-pill">Strategy</span>
-            <span className="hero-tag-line hero-tag-line-grow" />
-            <span className="hero-tag-pill">Output</span>
-            <span className="hero-tag-line" />
-            <span className="hero-tag-dot" />
+        <div className="mx-auto max-w-6xl pt-24 pb-20 md:pt-32 md:pb-24 text-center">
+          {/* Top tag row */}
+          <div className="hero-light-tags" data-animate>
+            <span className="hero-light-dot" />
+            <span className="hero-light-line" />
+            <span className="hero-light-pill">Strategy</span>
+            <span className="hero-light-line hero-light-line-grow" />
+            <span className="hero-light-pill">Output</span>
+            <span className="hero-light-line" />
+            <span className="hero-light-dot" />
           </div>
 
-          {/* ── Hero text row — left | center icon | right ─────────── */}
-          <div className="hero-row mt-10 md:mt-12">
-            <h1 className="hero-word hero-word-left" data-animate>
+          {/* Headline row — left word | center icon | right word */}
+          <div className="hero-light-row mt-12 md:mt-14">
+            <h1 className="hero-light-word hero-light-word-left" data-animate>
               Brand
               <br />
               once.
             </h1>
 
-            <div className="hero-center" data-animate>
-              <div className="hero-center-badge">
+            <div className="hero-light-center" data-animate>
+              <div className="hero-light-badge">
                 <Sparkles className="h-9 w-9 md:h-11 md:w-11" />
               </div>
             </div>
 
-            <h1 className="hero-word hero-word-right" data-animate>
+            <h1 className="hero-light-word hero-light-word-right" data-animate>
               Use
               <br />
               forever.
             </h1>
           </div>
 
-          {/* ── Bottom tag row — two pills, dashed connectors ─────── */}
-          <div className="hero-tag-row mt-10 md:mt-12" data-animate>
-            <span className="hero-tag-dot" />
-            <span className="hero-tag-line" />
-            <span className="hero-tag-pill">Logo · Color · Type</span>
-            <span className="hero-tag-line hero-tag-line-grow" />
-            <span className="hero-tag-pill">Slides · Posts · Print · Web</span>
-            <span className="hero-tag-line" />
-            <span className="hero-tag-dot" />
+          {/* Bottom tag row */}
+          <div className="hero-light-tags mt-12 md:mt-14" data-animate>
+            <span className="hero-light-dot" />
+            <span className="hero-light-line" />
+            <span className="hero-light-pill">Logo · Color · Type</span>
+            <span className="hero-light-line hero-light-line-grow" />
+            <span className="hero-light-pill">Slides · Posts · Print · Web</span>
+            <span className="hero-light-line" />
+            <span className="hero-light-dot" />
           </div>
 
-          {/* ── Subtitle ──────────────────────────────────────────── */}
-          <p className="hero-subtitle mt-12 md:mt-14" data-animate>
+          {/* Subtitle */}
+          <p className="hero-light-subtitle mt-12 md:mt-14" data-animate>
             BrandOS connects your strategy, identity, and outputs into{" "}
-            <span className="hero-subtitle-em">one source of truth</span>.
+            <span className="hero-light-em">one source of truth</span>.
           </p>
 
-          {/* ── CTA row — single orange primary, ghost secondary ──── */}
-          <div className="hero-cta-row mt-8" data-animate>
+          {/* CTA row */}
+          <div className="hero-light-cta mt-8" data-animate>
             <Button
               type="button"
               onClick={onStartClick}
               variant="hero"
               shape="pill"
-              className="hero-primary-btn"
+              className="hero-light-primary"
             >
               Request Early Access
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-            <a href="#features" className="hero-secondary-link">
+            <a href="#features" className="hero-light-secondary">
               See how the system works
               <ArrowRight className="h-3.5 w-3.5" />
             </a>
@@ -111,38 +111,34 @@ export const HeroSection = ({ onStartClick }: HeroSectionProps) => {
         </div>
       </div>
 
-      {/* Component-scoped styles. Black / white / orange palette.
-          Light + dark variants — the section is dark by default but
-          legacy light surfaces still need to render OK if a parent
-          forces light mode. */}
-      <style>{HERO_STYLES}</style>
+      <style>{HERO_LIGHT_STYLES}</style>
     </section>
   );
 };
 
-const HERO_STYLES = `
-.hero-editorial {
-  background: hsl(0 0% 5%);          /* near-black */
-  color: hsl(0 0% 96%);
+const HERO_LIGHT_STYLES = `
+.hero-light {
+  background: #FCFBF9;          /* warm cream — matches v5 landing */
+  color: hsl(0 0% 8%);
   position: relative;
 }
 
-.hero-editorial-bg {
+.hero-light-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    /* warm vignette behind the center */
-    radial-gradient(ellipse 50% 45% at 50% 48%,
+    /* warm vignette behind the center, ties the icon to the orange */
+    radial-gradient(ellipse 55% 50% at 50% 50%,
       hsl(var(--accent-pop) / 0.10) 0%,
       hsl(var(--accent-pop) / 0.04) 35%,
       transparent 70%),
-    /* dot grid at low opacity */
-    radial-gradient(circle, hsl(0 0% 100% / 0.08) 1px, transparent 1.5px) 0 0 / 24px 24px;
+    /* dot grid in soft warm gray */
+    radial-gradient(circle, hsl(20 8% 75% / 0.55) 1px, transparent 1.4px) 0 0 / 24px 24px;
 }
 
 /* ── Tag row ──────────────────────────────────────────────────── */
-.hero-tag-row {
+.hero-light-tags {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -154,127 +150,138 @@ const HERO_STYLES = `
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: hsl(0 0% 70%);
+  color: hsl(0 0% 35%);
 }
-.hero-tag-pill {
+.hero-light-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem 0.85rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 9999px;
-  border: 1px solid hsl(0 0% 100% / 0.18);
-  background: hsl(0 0% 100% / 0.04);
-  backdrop-filter: blur(8px);
+  border: 1px solid hsl(0 0% 0% / 0.10);
+  background: #ffffff;
+  box-shadow: 0 2px 14px hsl(20 30% 30% / 0.05);
   white-space: nowrap;
   letter-spacing: 0.08em;
   flex-shrink: 0;
+  color: hsl(0 0% 12%);
 }
-.hero-tag-line {
+.hero-light-line {
   flex: 0 0 36px;
   height: 1px;
   background-image: linear-gradient(to right,
-    hsl(0 0% 100% / 0.30) 50%,
+    hsl(0 0% 0% / 0.18) 50%,
     transparent 50%);
   background-size: 6px 1px;
   background-repeat: repeat-x;
 }
-.hero-tag-line-grow {
-  flex: 1 1 auto;
-}
-.hero-tag-dot {
+.hero-light-line-grow { flex: 1 1 auto; }
+.hero-light-dot {
   display: inline-block;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: hsl(var(--accent-pop));
   flex-shrink: 0;
 }
 
-/* ── Hero text row ────────────────────────────────────────────── */
-.hero-row {
+/* ── Headline row ─────────────────────────────────────────────── */
+.hero-light-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.75rem;
   text-align: center;
 }
 @media (max-width: 720px) {
-  .hero-row {
+  .hero-light-row {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
 }
 
-.hero-word {
+.hero-light-word {
   font-family: var(--font-display, ui-sans-serif), system-ui, sans-serif;
-  font-size: clamp(2.75rem, 6vw, 5.25rem);
+  font-size: clamp(2.75rem, 6vw, 5.5rem);
   line-height: 0.92;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.045em;
   text-transform: uppercase;
-  color: hsl(0 0% 96%);
+  color: hsl(0 0% 8%);
   margin: 0;
 }
-.hero-word-left  { text-align: right;  justify-self: end; }
-.hero-word-right { text-align: left;   justify-self: start; }
+.hero-light-word-left  { text-align: right;  justify-self: end; }
+.hero-light-word-right { text-align: left;   justify-self: start; }
 @media (max-width: 720px) {
-  .hero-word-left, .hero-word-right { text-align: center; justify-self: center; }
+  .hero-light-word-left, .hero-light-word-right {
+    text-align: center; justify-self: center;
+  }
 }
 
-/* The center icon badge — square with a soft glow + accent border */
-.hero-center {
+/* Center icon badge — black on cream with orange-glow accent */
+.hero-light-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.hero-center-badge {
+.hero-light-badge {
   width: 96px;
   height: 96px;
   border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg,
-    hsl(0 0% 100% / 0.06),
-    hsl(0 0% 100% / 0.02));
-  border: 1px solid hsl(0 0% 100% / 0.18);
-  box-shadow:
-    0 0 0 6px hsl(0 0% 100% / 0.03),
-    0 24px 60px hsl(var(--accent-pop) / 0.25),
-    inset 0 1px 0 hsl(0 0% 100% / 0.10);
+  background: hsl(0 0% 8%);
   color: hsl(var(--accent-pop));
+  box-shadow:
+    0 0 0 6px hsl(0 0% 100% / 0.85),
+    0 0 0 7px hsl(20 6% 85%),
+    0 28px 60px hsl(var(--accent-pop) / 0.30),
+    0 18px 36px hsl(0 0% 0% / 0.08);
+  position: relative;
+}
+.hero-light-badge::after {
+  /* Tiny orange dot in the corner — makes the badge feel intentional */
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--accent-pop));
 }
 @media (min-width: 768px) {
-  .hero-center-badge { width: 120px; height: 120px; border-radius: 26px; }
+  .hero-light-badge { width: 120px; height: 120px; border-radius: 26px; }
 }
 
 /* ── Subtitle ─────────────────────────────────────────────────── */
-.hero-subtitle {
+.hero-light-subtitle {
   max-width: 42rem;
   margin-left: auto;
   margin-right: auto;
   font-size: 1rem;
-  line-height: 1.6;
-  color: hsl(0 0% 72%);
+  line-height: 1.65;
+  color: hsl(0 0% 30%);
 }
 @media (min-width: 640px) {
-  .hero-subtitle { font-size: 1.0625rem; }
+  .hero-light-subtitle { font-size: 1.0625rem; }
 }
-.hero-subtitle-em {
+.hero-light-em {
   color: hsl(var(--accent-pop));
   font-weight: 600;
 }
 
 /* ── CTA row ──────────────────────────────────────────────────── */
-.hero-cta-row {
+.hero-light-cta {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
 }
 @media (min-width: 640px) {
-  .hero-cta-row { flex-direction: row; justify-content: center; gap: 1.25rem; }
+  .hero-light-cta { flex-direction: row; justify-content: center; gap: 1.25rem; }
 }
-.hero-primary-btn {
+.hero-light-primary {
   background: hsl(var(--accent-pop)) !important;
   color: #fff !important;
   border: 1px solid hsl(var(--accent-pop)) !important;
@@ -284,21 +291,19 @@ const HERO_STYLES = `
   box-shadow: 0 14px 38px -10px hsl(var(--accent-pop) / 0.55);
   transition: transform 200ms ease, box-shadow 200ms ease;
 }
-.hero-primary-btn:hover {
+.hero-light-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 18px 44px -10px hsl(var(--accent-pop) / 0.65);
+  box-shadow: 0 18px 44px -10px hsl(var(--accent-pop) / 0.70);
 }
-.hero-secondary-link {
+.hero-light-secondary {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: hsl(0 0% 70%);
+  color: hsl(0 0% 35%);
   text-decoration: none;
   transition: color 200ms ease;
 }
-.hero-secondary-link:hover {
-  color: hsl(0 0% 96%);
-}
+.hero-light-secondary:hover { color: hsl(0 0% 8%); }
 `;
