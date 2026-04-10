@@ -87,9 +87,9 @@ export function MultiStepEarlyAccess() {
           : (role ?? undefined);
         await submitEarlyAccess({
           email: email.trim(),
+          name: name.trim() || undefined,
           role: finalRole,
           tester_interest: accessLevel ?? undefined,
-          use_case: name.trim() ? `name:${name.trim()}` : undefined,
         });
         setStatus('success');
       } catch (err) {
