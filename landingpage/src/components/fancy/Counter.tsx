@@ -25,7 +25,7 @@ function parseNumeric(value: string): { num: number; suffix: string } {
 
 export function Counter({ value, className = '' }: CounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-100px' });
+  const inView = useInView(ref, { once: true, margin: '-20px' });
 
   const { num: target, suffix } = parseNumeric(value);
 
