@@ -99,6 +99,35 @@ export default function TemplatesMarketplacePage() {
         subtitle="Premium templates for every brand surface — pick one and make it yours."
       />
 
+      {/* Featured collections banner */}
+      {activeCategory === 'all' && !search && (
+        <div className="mb-8 grid gap-4 md:grid-cols-3">
+          {[
+            { name: 'Staff Picks', desc: 'Our favorite templates this month', color: 'from-violet-500 to-purple-600', icon: Star },
+            { name: 'Startup Kit', desc: 'Cards, deck, socials — launch ready', color: 'from-orange-500 to-red-500', icon: Sparkles },
+            { name: 'Agency Pack', desc: 'Everything for client deliverables', color: 'from-blue-500 to-cyan-500', icon: Layout },
+          ].map((pack) => {
+            const Icon = pack.icon;
+            return (
+              <button
+                key={pack.name}
+                type="button"
+                onClick={() => setActiveCategory('all')}
+                className="group relative overflow-hidden rounded-2xl border border-border text-left transition hover:shadow-lg hover:-translate-y-0.5"
+              >
+                <div className={`h-28 bg-gradient-to-br ${pack.color} flex items-center justify-center`}>
+                  <Icon className="h-10 w-10 text-white/80" />
+                </div>
+                <div className="p-4 bg-card">
+                  <h3 className="text-sm font-semibold">{pack.name}</h3>
+                  <p className="text-xs text-muted-foreground">{pack.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Search bar */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="relative max-w-md flex-1">
