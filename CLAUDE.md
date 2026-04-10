@@ -1,4 +1,46 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # BrandOS — Architecture Guide
+
+## Build & Dev Commands
+
+### Main app (project root)
+```bash
+npm run dev          # Dev server on port 8080
+npm run build        # Production build
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm run test         # Vitest (single run)
+npm run test:watch   # Vitest in watch mode
+npm run test:coverage # Vitest with V8 coverage
+```
+
+### Landing page (`landingpage/`)
+```bash
+cd landingpage
+npm run dev          # Dev server (separate Vite instance)
+npm run build        # Production build → dist/
+npm run type-check   # tsc --noEmit
+```
+
+The landing page is a **completely separate Vite project** with its own `package.json`, `node_modules`, and Tailwind config. It shares no dependencies with the main app. Run `npm install` separately in each directory.
+
+### Test configuration
+Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/**/*.{test,spec}.{ts,tsx}`. Run a single test file: `npx vitest run src/path/to/file.test.ts`.
+
+## Two Projects in One Repo
+
+| | Main App (root) | Landing Page (`landingpage/`) |
+|---|---|---|
+| Purpose | Full BrandOS SPA | Public marketing site with early-access form |
+| Stack | Vite + React + React Router + Zustand + Supabase + Fabric.js | Vite + React (no router) + framer-motion + Supabase |
+| Port | 8080 | auto-assigned (typically 5173/5174) |
+| Deploy target | Cloudflare Pages (root dir: `.`) | Cloudflare Pages (root dir: `landingpage`) |
+| Path alias | `@/` → `./src/` | `@/` → `./src/` |
+
+There are also legacy landing page versions at `src/domains/landing` (v1) and `src/features/landing-v2` (v2) — these are dead code kept for reference. The live landing page is `landingpage/`.
 
 > **Read this first if you're planning UX or IA work**: `docs/ux-redesign/`
 > contains the canonical IA, page templates, user flows, and the
@@ -147,3 +189,15 @@ Uses Fabric.js. Each template type has a content definition in `CanvasEditor.tsx
 - Shade generation
 - Palette validation
 - Suggested neutrals/accents
+
+## Supabase
+
+Project ID: `ciojgoozobzbeglwdxcz`. Client configured in `src/integrations/supabase/client.ts` (main app) and `landingpage/src/lib/supabase.ts` (landing page).
+
+The landing page's `early_access` table uses RLS: anon INSERT-only, no SELECT — submissions go in but can't be read from the client.
+
+**Security constraint**: `VITE_ANTHROPIC_API_KEY` is currently inlined into the client bundle at build time. This MUST be moved behind a server proxy (Supabase Edge Function) before deploying the main app publicly. The landing page does not use this key and is safe to deploy as-is.
+
+## TypeScript Config
+
+`strictNullChecks` is OFF. `noImplicitAny` is OFF. Be aware when writing new code — nullable values won't cause compile errors but can still crash at runtime.
