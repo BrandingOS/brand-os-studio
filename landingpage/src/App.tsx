@@ -16,7 +16,7 @@ function App() {
       {/* bg-dot-grid on the outer wrapper so the pattern starts from
           the very top of the page, running BEHIND the navbar — not
           just inside the hero section. */}
-      <div className="min-h-screen bg-background bg-dot-grid animate-bg-pan text-foreground antialiased">
+      <div className="min-h-screen bg-background bg-dot-grid animate-bg-pan text-foreground antialiased overflow-x-hidden">
         <Navbar />
         <main>
           <HeroSection />

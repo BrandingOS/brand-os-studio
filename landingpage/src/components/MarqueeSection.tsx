@@ -13,7 +13,7 @@ export const MarqueeSection = () => {
   ];
 
   return (
-    <section className="py-3 border-y border-border/60 bg-secondary/30">
+    <section className="py-3 border-y border-border/60 bg-secondary/30 max-w-5xl mx-auto rounded-full overflow-hidden">
       <div className="marquee">
         <div className="marquee-inner px-4">
           {[...items, ...items].map((item, i) => (

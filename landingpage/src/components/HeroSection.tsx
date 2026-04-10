@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
 /**
@@ -44,7 +44,7 @@ export const HeroSection = () => {
           >
             <span className="hero-dot" />
             <span className="hero-line" />
-            <span className="hero-pill">Input</span>
+            <span className="hero-pill">Strategy</span>
             <span className="hero-line hero-line-grow" />
             <span className="hero-pill">Output</span>
             <span className="hero-line" />
@@ -56,15 +56,11 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.08, ease }}
-            className="hero-row"
+            className="hero-headline"
           >
-            <h1 className="hero-word hero-left">Brand<br />once.</h1>
-            <div className="hero-badge-wrap">
-              <div className="hero-badge">
-                <Sparkles className="h-8 w-8 md:h-10 md:w-10" />
-              </div>
-            </div>
-            <h1 className="hero-word hero-right">Use<br />forever.</h1>
+            <h1 className="hero-word">
+              Brand once.<br />Use forever.
+            </h1>
           </motion.div>
 
           {/* ── Bottom tag row ────────────────────────────────────── */}
@@ -145,49 +141,16 @@ const HERO_STYLES = `
   background: hsl(var(--accent-pop)); flex-shrink: 0;
 }
 
-/* ── Headline row ─────────────────────────────────────────────── */
-.hero-row {
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: center; gap: 1rem;
-  /* SAME margin top and bottom — symmetrical spacing around the row */
-  margin: 2.5rem auto; max-width: 50rem;
+/* ── Headline ─────────────────────────────────────────────────── */
+.hero-headline {
+  text-align: center;
+  margin: 2.5rem auto;
 }
-@media (max-width: 720px) {
-  .hero-row { grid-template-columns: 1fr; gap: 0.75rem; text-align: center; }
-}
-
 .hero-word {
   font-family: var(--font-display, ui-sans-serif), system-ui, sans-serif;
-  font-size: clamp(3rem, 7.5vw, 6.5rem);
-  line-height: 0.86; font-weight: 900;
-  letter-spacing: -0.05em; text-transform: uppercase;
+  font-size: clamp(2.75rem, 7vw, 6rem);
+  line-height: 0.92; font-weight: 900;
+  letter-spacing: -0.04em; text-transform: uppercase;
   color: hsl(var(--foreground)); margin: 0;
-}
-.hero-left  { text-align: right;  justify-self: end; }
-.hero-right { text-align: left;   justify-self: start; }
-@media (max-width: 720px) {
-  .hero-left, .hero-right { text-align: center; justify-self: center; }
-}
-
-/* Center badge */
-.hero-badge-wrap { display: flex; align-items: center; justify-content: center; }
-.hero-badge {
-  width: 88px; height: 88px; border-radius: 20px;
-  display: flex; align-items: center; justify-content: center;
-  background: hsl(var(--foreground));
-  color: hsl(var(--accent-pop));
-  box-shadow:
-    0 0 0 5px hsl(var(--background)),
-    0 0 0 6px hsl(var(--border)),
-    0 28px 60px hsl(var(--accent-pop) / 0.25);
-  position: relative; overflow: hidden;
-}
-.hero-badge::after {
-  content: ''; position: absolute; top: 7px; right: 7px;
-  width: 5px; height: 5px; border-radius: 50%;
-  background: hsl(var(--accent-pop));
-}
-@media (min-width: 768px) {
-  .hero-badge { width: 110px; height: 110px; border-radius: 24px; }
 }
 `;
