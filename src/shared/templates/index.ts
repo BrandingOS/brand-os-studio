@@ -23,6 +23,7 @@ export { resolveTemplate, buildVariableMap, interpolateString, hasVariables } fr
 
 // Renderers
 export { DomRenderer } from './renderers/DomRenderer';
+export { renderToFabric, extractFromFabric } from './renderers/FabricRenderer';
 
 // Store
 export { useTemplateStore } from './store/templateStore';

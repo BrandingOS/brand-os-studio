@@ -97,6 +97,8 @@ interface RecentUpdate {
 }
 
 const RECENT_UPDATES: RecentUpdate[] = [
+  { id: 'fabric-renderer', feature: 'Fabric.js Template Renderer', description: 'Converts variable templates to Fabric.js canvas objects for editing + high-res export. Round-trip extract support.', path: '/templates/builder', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase E', status: 'shipped' },
+  { id: 'quality-pass', feature: 'Quality Pass — 88 Tests', description: 'Comprehensive test suite: DAM utils, variable map, notifications, analytics, activity service.', path: '/dashboard/features', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Quality', status: 'shipped' },
   { id: 'template-builder', feature: 'Template Builder', description: 'Visual no-code template creation with variable binding, live brand preview, and element library.', path: '/templates/builder', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase D', status: 'shipped' },
   { id: 'variable-templates', feature: 'Variable Template System', description: 'Core engine for auto-adaptive templates. Every design bound to brand variables. 18 tests passing.', path: '/templates', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase A-C', status: 'shipped' },
   { id: 'perf-phase12', feature: 'Performance & CI/CD', description: 'Bundle splitting (3.5MB→755KB), lazy loading, GitHub Actions pipeline, error boundaries.', path: '/dashboard/features', firstDate: '2026-04-11', lastUpdate: '2026-04-11', phase: 'Phase 12', status: 'shipped' },
