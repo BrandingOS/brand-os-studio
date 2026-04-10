@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import type { ProductModuleData } from '@/types';
 
 interface ProductModuleCardProps extends ProductModuleData {
@@ -8,29 +7,21 @@ interface ProductModuleCardProps extends ProductModuleData {
 /**
  * ProductModuleCard — v5, light variant.
  *
- * Ported from main app: white card on a light surface. Photo leads
- * (16:10 letterbox, full-bleed object-cover, dark bed so the user's
- * orange-themed PNGs sit cleanly inside the white card frame). Below
- * the photo: orange icon chip, dark title, muted description. Hairline
- * orange accent at the bottom edge of the photo for the brand thread.
+ * NO scroll animation on the card itself. The cards are static from
+ * the moment they're in the DOM. The "reload twice" bug was caused by
+ * framer-motion whileInView firing, then a parent Reveal shifting
+ * layout, causing a visual double-appear. The fix: no scroll animation.
+ * The photo and the card design ARE the content — they don't need a
+ * staggered entrance on top of everything else. Hover effects kept.
  */
 export const ProductModuleCard = ({
   icon: Icon,
   title,
   description,
   image,
-  index,
 }: ProductModuleCardProps) => {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 24, scale: 0.97 }}
-      whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: true, amount: 0.15 }}
-      transition={{
-        duration: 0.55,
-        delay: index * 0.06,
-        ease: [0.22, 1, 0.36, 1],
-      }}
+    <article
       className="group relative overflow-hidden rounded-[var(--radius)] border border-border bg-[hsl(var(--card))] shadow-soft flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated hover:border-accent-pop/40">
         {/* Photo well — dark bed so orange-themed PNGs pop */}
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-[hsl(0_0%_5%)]">
@@ -56,6 +47,6 @@ export const ProductModuleCard = ({
             {description}
           </p>
         </div>
-    </motion.article>
+    </article>
   );
 };

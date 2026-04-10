@@ -29,7 +29,7 @@ export const painPoints: FeatureCardData[] = [
 
 export const stats: StatData[] = [
   { value: '80%', label: 'Brand Recognition Boost' },
-  { value: '10–20%', label: 'Revenue Growth through Consistency' },
+  { value: '20%', label: 'Revenue Growth through Consistency' },
   { value: '87%', label: 'Consumer Trust for Consistent Brands' },
 ];
 
