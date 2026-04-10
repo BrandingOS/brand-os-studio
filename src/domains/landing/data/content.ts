@@ -1,13 +1,17 @@
 import { FileStack, Layout, Download, Check, Palette, Upload, Wand2, Globe, Printer } from "lucide-react";
-import illusUploadCoreAssets from "@/assets/illus-upload-core-assets.webp";
-import illusAutoGenerate from "@/assets/illus-auto-generate.webp";
-import illusUseAnywhere from "@/assets/illus-use-anywhere.webp";
-import illusGuidelines from "@/assets/illus-guidelines.webp";
-import illusDesignStudio from "@/assets/illus-design-studio.webp";
-import illusPrintCollateral from "@/assets/illus-print-collateral.webp";
-import illusBrandExport from "@/assets/illus-brand-export.webp";
-import illusWebsiteBuilder from "@/assets/illus-website-builder.webp";
-import illusSmartAI from "@/assets/illus-smart-ai.webp";
+// User-supplied named photos. Each filename in src/assets/landing/ matches
+// the section it belongs to (kebab-case ASCII version of the user's
+// originals from /Downloads/brandsos/used-compressed). Replacing the
+// generic illustrations that were here before.
+import illusUploadCoreAssets from "@/assets/landing/upload-core-assets.png";
+import illusAutoGenerate from "@/assets/landing/auto-generate-everything.png";
+import illusUseAnywhere from "@/assets/landing/use-anywhere.png";
+import illusGuidelines from "@/assets/landing/live-brand-guidelines.png";
+import illusDesignStudio from "@/assets/landing/design-studio.png";
+import illusPrintCollateral from "@/assets/landing/print-collateral.png";
+import illusBrandExport from "@/assets/landing/brand-export.png";
+import illusWebsiteBuilder from "@/assets/landing/website-builder.png";
+import illusSmartAI from "@/assets/landing/smart-ai-assist.png";
 import type { FeatureCardData, StatData, ProductModuleData } from "../types";
 
 export const painPoints: FeatureCardData[] = [
