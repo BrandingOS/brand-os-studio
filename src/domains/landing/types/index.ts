@@ -1,5 +1,7 @@
+import type { LucideIcon } from 'lucide-react';
+
 export interface FeatureCardData {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   desc: string;
 }
@@ -10,12 +12,8 @@ export interface StatData {
 }
 
 export interface ProductModuleData {
-  icon: any;
+  icon: LucideIcon;
   title: string;
   description: string;
   image: string;
-}
-
-export interface BrandFormData {
-  brandName: string;
 }

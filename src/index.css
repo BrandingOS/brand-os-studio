@@ -61,6 +61,11 @@
     --dot-size: 22px;
     --accent-pop: 18 87% 54%; /* #F36123 */
 
+    --accent-pop-fg: 0 0% 100%;
+    --accent-pop-soft: 18 87% 95%;
+
+    --shadow-soft: 0 2px 8px -2px hsl(0 0% 0% / 0.04), 0 4px 16px -4px hsl(0 0% 0% / 0.06);
+    --shadow-elevated: 0 4px 16px -4px hsl(0 0% 0% / 0.08), 0 12px 32px -8px hsl(0 0% 0% / 0.10);
     --shadow-elegant: 0 8px 30px -10px hsl(0 0% 0% / 0.15);
     --shadow-glow: 0 12px 40px -10px hsl(0 0% 0% / 0.25);
 
@@ -160,8 +165,64 @@
       transition: all 0.4s;
     }
 
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-elevated { box-shadow: var(--shadow-elevated); }
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  /* ── Typography helpers ─────────────────────────────────────────── */
+
+  .font-display {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  .display {
+    @apply font-display font-extrabold tracking-tight;
+    font-size: clamp(2.25rem, 5vw, 4.25rem);
+    line-height: 1.02;
+  }
+
+  .h-section {
+    @apply font-display font-bold tracking-tight;
+    font-size: clamp(1.875rem, 3.6vw, 3.25rem);
+    line-height: 1.08;
+  }
+
+  .h-card {
+    @apply font-display font-bold tracking-tight;
+    font-size: clamp(1.375rem, 2vw, 1.75rem);
+    line-height: 1.2;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-foreground;
+  }
+  .eyebrow::before {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 2px;
+    background: linear-gradient(to right, hsl(var(--accent-pop)), hsl(var(--foreground)));
+  }
+
+  .eyebrow-light {
+    @apply inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.18em];
+    color: hsl(var(--panel-foreground));
+  }
+  .eyebrow-light::before {
+    content: '';
+    display: inline-block;
+    width: 32px;
+    height: 2px;
+    background: linear-gradient(to right, hsl(var(--accent-pop)), hsl(var(--panel-foreground)));
+  }
+
+  /* ── Color helpers ─────────────────────────────────────────────── */
+
+  .text-accent-pop { color: hsl(var(--accent-pop)); }
+  .bg-accent-pop { background-color: hsl(var(--accent-pop)); }
+  .border-accent-pop { border-color: hsl(var(--accent-pop)); }
 
   .section {
     @apply py-20 md:py-8; 
@@ -179,6 +240,8 @@
     border: 1px solid hsl(var(--border));
     border-radius: var(--radius);
     position: relative;
+    box-shadow: var(--shadow-soft);
+    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .card-soft::before {
     content: "";
@@ -188,8 +251,84 @@
     border-radius: inherit;
     pointer-events: none;
   }
+  .card-soft:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-4px);
+  }
 
-  .input-pill { border-radius: 9999px; }
+  .surface {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  .strong-block {
+    background: hsl(var(--panel));
+    color: hsl(var(--panel-foreground));
+    border-radius: calc(var(--radius) + 12px);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel-grid {
+    background-image:
+      linear-gradient(to right, hsl(0 0% 100% / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(0 0% 100% / 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  /* ── Buttons (v5) ───────────────────────────────────────────────── */
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-foreground text-background px-7 h-12 text-sm font-semibold transition-all duration-300;
+    box-shadow: var(--shadow-elegant);
+  }
+  .btn-primary:hover {
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-1px);
+    border: 1px solid hsl(var(--foreground));
+  }
+
+  .btn-primary-lg {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-foreground text-background px-9 h-14 text-base font-semibold transition-all duration-300;
+    box-shadow: var(--shadow-glow);
+  }
+  .btn-primary-lg:hover {
+    background: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop-fg));
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px -10px hsl(var(--accent-pop) / 0.5);
+  }
+
+  .btn-on-dark {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-background text-foreground px-9 h-14 text-base font-semibold transition-all duration-300;
+    box-shadow: var(--shadow-glow);
+  }
+  .btn-on-dark:hover {
+    background: hsl(var(--accent-pop));
+    color: hsl(var(--accent-pop-fg));
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px -10px hsl(var(--accent-pop) / 0.6);
+  }
+
+  .num-pill {
+    @apply inline-flex items-center justify-center h-11 w-11 rounded-full font-mono text-sm font-semibold;
+    background: hsl(var(--accent-pop) / 0.1);
+    border: 1px solid hsl(var(--accent-pop) / 0.3);
+    color: hsl(var(--accent-pop));
+  }
+
+  /* ── Inputs (v5) ────────────────────────────────────────────────── */
+
+  .input-pill {
+    @apply h-12 rounded-full border border-input bg-background px-5 text-sm placeholder:text-muted-foreground focus-visible:outline-none transition-all duration-200;
+  }
+  .input-pill:focus-visible {
+    border-color: hsl(var(--accent-pop));
+    box-shadow: 0 0 0 3px hsl(var(--accent-pop) / 0.15);
+  }
 
   .panel-dark { background: hsl(var(--panel)); color: hsl(var(--panel-foreground)); }
 
@@ -217,10 +356,25 @@
   }
   .feature-stroke { border: 1px solid hsl(var(--border) / 0.6); }
 
-  /* Simple marquee utilities */
-  .marquee { overflow: hidden; }
-  .marquee-inner { display: flex; gap: 3.5rem; white-space: nowrap; will-change: transform; animation: marquee 28s linear infinite; }
-  .marquee-item { font-size: 0.875rem; letter-spacing: 0.04em; color: hsl(var(--muted-foreground)); }
+  /* Marquee */
+  .marquee {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+  }
+  .marquee-inner {
+    display: flex;
+    gap: 2rem;
+    white-space: nowrap;
+    will-change: transform;
+    animation: marquee 38s linear infinite;
+  }
+  @media (min-width: 640px) {
+    .marquee-inner { gap: 4rem; }
+  }
+  .marquee-item {
+    @apply text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
 
   /* AppShellCanvaLayout Utilities */
   .chrome-bg {
@@ -259,6 +413,11 @@
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
+}
+
+@keyframes bg-pan {
+  0% { background-position: 0 0; }
+  100% { background-position: var(--dot-size) var(--dot-size); }
 }
 
 @keyframes ripple {

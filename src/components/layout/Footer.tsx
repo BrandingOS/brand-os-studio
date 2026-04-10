@@ -1,164 +1,94 @@
-import { Button } from "@/components/ui/button";
+import { Building2 } from 'lucide-react';
+import { useEarlyAccess } from '@/domains/landing/components/EarlyAccessProvider';
+
+const linkColumns = [
+  {
+    label: 'Product',
+    items: ['Overview', 'Guidelines', 'Design Studio', 'Templates'],
+  },
+  {
+    label: 'Resources',
+    items: ['Blog', 'Help Center', 'API', 'Changelog'],
+  },
+  {
+    label: 'Company',
+    items: ['About', 'Careers', 'Contact', 'Press'],
+  },
+];
 
 export default function Footer() {
+  const { open } = useEarlyAccess();
+
   return (
-    <footer className="mt-20">
+    <footer className="mt-12 mb-12 bg-dot-grid">
       <div className="container-tight">
-        {/* Floating dark widget (kept structure) */}
-        <div className="relative mx-auto max-w-5xl rounded-3xl px-8 py-12 text-center shadow-elegant">
-          {/* dark panel background (use design tokens) */}
+        <div className="strong-block px-6 sm:px-12 md:px-16 py-16 md:py-20">
+          <div aria-hidden className="absolute inset-0 panel-grid opacity-40 pointer-events-none" />
           <div
-            className="
-              absolute inset-0 rounded-3xl panel-dark feature-stroke
-              overflow-hidden
-            "
             aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(80% 60% at 0% 0%, hsl(0 0% 100% / 0.05) 0%, transparent 60%)',
+            }}
           />
 
-          {/* subtle grid + vignette */}
-          <div
-            className="
-              pointer-events-none absolute inset-0 rounded-3xl bg-grid opacity-35
-              [mask-image:radial-gradient(120%_95%_at_50%_50%,transparent_28%,black_78%)]
-            "
-            aria-hidden
-          />
+          <div className="relative grid gap-12 md:grid-cols-12">
+            <div className="md:col-span-5">
+              <a href="#" className="inline-flex items-center gap-2.5">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground">
+                  <Building2 className="h-4 w-4" />
+                </span>
+                <span className="font-display text-xl font-bold tracking-tight text-[hsl(var(--panel-foreground))]">
+                  Brand&nbsp;OS
+                </span>
+              </a>
+              <p className="mt-6 text-base text-white/55 max-w-sm leading-relaxed">
+                The brand workspace where founders and designers ship one
+                identity, used everywhere.
+              </p>
+              <button
+                type="button"
+                onClick={open}
+                className="btn-on-dark mt-8 h-12 px-6 text-sm"
+              >
+                Get Early Access
+              </button>
+            </div>
 
-          {/* soft corner highlight */}
-          <div
-            className="
-              pointer-events-none absolute inset-0 rounded-3xl
-              [background:radial-gradient(140%_100%_at_0%_0%,hsl(0_0%_100%/.08)_0%,transparent_50%)]
-            "
-            aria-hidden
-          />
-
-          {/* glass hairline */}
-          <div
-            className="
-              pointer-events-none absolute inset-0 rounded-3xl
-              ring-1 ring-white/5 dark:ring-black/10
-            "
-            aria-hidden
-          />
-
-          {/* content */}
-          <div className="relative flex flex-col items-center space-y-6">
-            <h3 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-white">
-              Your Brand. Everywhere. Always.
-            </h3>
-
-            {/* links grid (fixed structure, improved responsiveness) */}
             <nav
-              className="mt-6 grid w-full grid-cols-1 sm:grid-cols-3 gap-8 justify-items-center"
+              className="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8"
               aria-label="Footer"
             >
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Product</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="/dashboard"
-                    >
-                      Overview
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="/dashboard"
-                    >
-                      Guidelines
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="transition-colors hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20 rounded"
-                      href="/dashboard"
-                    >
-                      Design Studio
-                    </a>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Resources</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">Blog</span>
-                  </li>
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">Help Center</span>
-                  </li>
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">API</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="mb-3 text-sm font-medium text-white">Company</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">About</span>
-                  </li>
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">Careers</span>
-                  </li>
-                  <li>
-                    <span className="text-muted-foreground/50 cursor-default">Contact</span>
-                  </li>
-                </ul>
-              </div>
+              {linkColumns.map((col) => (
+                <div key={col.label}>
+                  <h4 className="text-xs font-semibold uppercase tracking-[0.16em] text-white mb-5">
+                    {col.label}
+                  </h4>
+                  <ul className="space-y-3">
+                    {col.items.map((item) => (
+                      <li key={item}>
+                        <span className="text-sm text-white/45 cursor-default">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </nav>
+          </div>
 
-            {/* lightweight pills */}
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                className="
-                  input-pill bg-transparent text-white/90 border border-white/20
-                  hover:bg-white/5 hover:border-white/35
-                  focus-visible:ring-2 focus-visible:ring-white/20
-                  transition-all duration-300
-                "
-              >
-                License
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="
-                  input-pill bg-transparent text-white/90 border border-white/20
-                  hover:bg-white/5 hover:border-white/35
-                  focus-visible:ring-2 focus-visible:ring-white/20
-                  transition-all duration-300
-                "
-              >
-                Changelog
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="
-                  input-pill bg-transparent text-white/90 border border-white/20
-                  hover:bg-white/5 hover:border-white/35
-                  focus-visible:ring-2 focus-visible:ring-white/20
-                  transition-all duration-300
-                "
-              >
-                Status
-              </Button>
+          <div className="relative mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <p className="text-xs text-white/45">
+              &copy; {new Date().getFullYear()} Brand OS. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6 text-xs text-white/45">
+              <span className="cursor-default">Privacy</span>
+              <span className="cursor-default">Terms</span>
+              <span className="cursor-default">Cookies</span>
             </div>
           </div>
-        </div>
-
-        {/* Copyright */}
-        <div className="py-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Brand OS. All rights reserved.
         </div>
       </div>
     </footer>

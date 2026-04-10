@@ -1,73 +1,86 @@
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Building2 } from "lucide-react";
-import { AuthModal } from '@/features/auth/components/AuthModal';
-import { UserMenu } from '@/features/auth/components/UserMenu';
+import { Sparkles } from 'lucide-react';
+import { useEarlyAccess } from '@/domains/landing/components/EarlyAccessProvider';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { UserMenu } from '@/features/auth/components/UserMenu';
+import { Button } from '@/components/ui/button';
 
 const navItems = [
-  { label: "Setup", href: "#setup" },
-  { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
+  { label: 'Why', href: '#pain' },
+  { label: 'How', href: '#setup' },
+  { label: 'Modules', href: '#features' },
 ];
 
 export default function Navbar() {
+  const { open } = useEarlyAccess();
   const { isAuthenticated } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   return (
-    <>
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
-    <header className="sticky top-4 z-40">
-      <div className="container-tight">
-        <div className="mx-auto max-w-4xl">
-          <div className="nav-glass flex items-center justify-between rounded-full px-4 py-2">
-            <div className="flex items-center gap-3" data-animate>
-              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                <Building2 className="h-5 w-5" />
-              </div>
-              <a href="#" className="font-display text-lg font-semibold">Brand OS</a>
-            </div>
+    <header className="sticky top-4 z-40 w-full pointer-events-none">
+      <div className="container-tight pointer-events-auto">
+        <div className="mx-auto max-w-5xl">
+          <div className="nav-glass flex items-center justify-between rounded-full px-4 sm:px-5 py-2">
+            <a href="#" className="flex items-center gap-2" aria-label="BrandOS">
+              <span className="navbar-logo-icon">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <span className="font-display text-base sm:text-lg font-bold tracking-tight">
+                BrandOS
+              </span>
+            </a>
 
-            <nav className="hidden md:flex items-center gap-6" aria-label="Primary" data-animate>
+            <nav className="hidden md:flex items-center gap-8" aria-label="Primary">
               {navItems.map((n) => (
-                <a key={n.label} href={n.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <a
+                  key={n.label}
+                  href={n.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
                   {n.label}
                 </a>
               ))}
             </nav>
 
-            <div className="hidden sm:flex items-center gap-3" data-animate>
+            <div className="flex items-center gap-3">
               {isAuthenticated ? (
                 <>
-                  <Button 
-                    variant="secondary" 
+                  <Button
+                    variant="secondary"
                     shape="pill"
                     onClick={() => window.location.href = '/dashboard'}
-                    className="font-medium"
+                    className="font-medium h-9 px-4 sm:px-5 text-xs"
                   >
                     Dashboard
                   </Button>
                   <UserMenu />
                 </>
               ) : (
-                <Button 
-                  variant="hero" 
-                  shape="pill" 
-                  className="cta-glow"
-                  onClick={() => setShowAuthModal(true)}
+                <button
+                  type="button"
+                  onClick={open}
+                  className="btn-primary h-9 px-4 sm:px-5 text-xs whitespace-nowrap"
                 >
-                  Sign In
-                </Button>
+                  Get Early Access
+                </button>
               )}
             </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        .navbar-logo-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, hsl(var(--accent-pop)), hsl(var(--accent-pop) / 0.75));
+          color: white;
+          box-shadow: 0 4px 14px hsl(var(--accent-pop) / 0.35);
+          flex-shrink: 0;
+        }
+      `}</style>
     </header>
-    </>
   );
 }

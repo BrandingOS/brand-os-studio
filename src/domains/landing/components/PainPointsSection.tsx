@@ -1,16 +1,32 @@
-import { painPoints } from "../data/content";
-import { FeatureCard } from "./FeatureCard";
+import { painPoints } from '@/domains/landing/data/content';
+import { FeatureCard } from '@/domains/landing/components/FeatureCard';
+import { Reveal } from '@/domains/landing/components/fancy/Reveal';
 
 export const PainPointsSection = () => {
   return (
-    <section id="pain" className="section">
+    <section id="pain" className="section relative">
       <div className="container-tight">
-        <h2 data-animate className="text-3xl font-semibold text-center">
-          Before Brand OS — Chaos. After — Control.
-        </h2>
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-end gap-10 md:grid-cols-12 mb-16 md:mb-20">
+          <Reveal className="md:col-span-7">
+            <span className="eyebrow">The problem</span>
+            <h2 className="h-section mt-6">
+              Before Brand&nbsp;OS — chaos.
+              <br />
+              After — control.
+            </h2>
+          </Reveal>
+          <Reveal delay={0.15} className="md:col-span-5">
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              Every brand on every channel demands the same logo, the same
+              colors, the same voice. Without a system, every asset is a
+              guess — and every guess drifts further from the brand.
+            </p>
+          </Reveal>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
           {painPoints.map((feature, index) => (
-            <FeatureCard key={index} {...feature} />
+            <FeatureCard key={feature.title} index={index} {...feature} />
           ))}
         </div>
       </div>
