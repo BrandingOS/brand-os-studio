@@ -17,6 +17,36 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React ecosystem
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // UI primitives (Radix + Shadcn)
+          'vendor-ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-select',
+            '@radix-ui/react-popover',
+          ],
+          // State & data
+          'vendor-data': ['zustand', '@tanstack/react-query', '@supabase/supabase-js'],
+          // Charts (only loaded on analytics pages)
+          'vendor-charts': ['recharts'],
+          // Animation
+          'vendor-motion': ['framer-motion'],
+          // Heavy export libs (lazy-loaded per feature)
+          'vendor-export': ['jspdf', 'jszip', 'html2canvas'],
+          // Date utilities
+          'vendor-date': ['date-fns'],
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

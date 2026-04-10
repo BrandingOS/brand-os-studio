@@ -7,45 +7,49 @@ import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
+import { PageSpinner } from "@/components/PageSpinner";
 import { CommandPaletteProvider } from "@/shared/search/CommandPaletteProvider";
 import { BrandAssistantProvider } from "@/features/ai/v5/BrandAssistantProvider";
 
-// Pages
+// Eager: only pages needed on first paint or critical to routing
 import IndexPage from "./pages/Index";
-import OnboardingPage from "./pages/onboarding";
-import BrandPreviewPage from "./pages/onboarding/preview";
-import DashboardRoute from "./pages/dashboard";
-import BrandsPage from "./pages/dashboard/brands";
-import ActivityPage from "./pages/dashboard/activity";
-import TemplatesPage from "./pages/dashboard/templates";
-import AdminBrandsPage from "./pages/dashboard/admin/brands";
-import AdminAnalyticsPage from "./pages/dashboard/admin/analytics";
-import BrandHomePage from "./pages/dashboard/brand/[slug]";
-import BrandEditPage from "./pages/dashboard/brand/[slug]/edit";
-import BrandKitModulePage from "./pages/dashboard/brand/[slug]/brandkit/[moduleId]";
-import BrandGuidesPage from "./pages/dashboard/brand/[slug]/brand-guides";
-import LogoPresentationPage from "./pages/dashboard/brand/[slug]/logo-presentation";
-import PresentationsPage from "./pages/dashboard/brand/[slug]/presentations";
-import SocialMediaPage from "./pages/dashboard/brand/[slug]/social-media";
-import GuidelinesHubPage from "./pages/dashboard/brand/[slug]/guidelines";
-import CanvasGuidelinesPage from "./pages/dashboard/brand/[slug]/guidelines/canvas";
-import AccountSettingsPage from "./pages/settings/account";
-import PlansPage from "./pages/settings/plans";
-import WorkspaceSettingsPage from "./pages/settings/workspace";
-import MembersPage from "./pages/settings/members";
-import { SettingsLayout } from "./shared/layouts/SettingsLayout";
-import BrandDetailPage from "./pages/brand/[slug]";
-import BrandShowcasePage from "./pages/brand/[slug]/showcase";
-import ResetPasswordPage from "./pages/auth/reset-password";
 import NotFound from "./pages/NotFound";
-import LogoMakerPage from "./pages/dashboard/logo-maker";
-import LearnPage from "./pages/learn";
-import IdentityPage from "./pages/dashboard/brand/[slug]/identity";
-import AssetsPage from "./pages/dashboard/brand/[slug]/assets";
-import SharePage from "./pages/dashboard/brand/[slug]/share";
-import BrandTemplatesPage from "./pages/dashboard/brand/[slug]/templates";
-import FeaturesIndexPage from "./pages/dashboard/features";
+import { SettingsLayout } from "./shared/layouts/SettingsLayout";
 import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
+
+// Lazy-loaded pages (split into separate chunks for faster initial load)
+const OnboardingPage = lazy(() => import("./pages/onboarding"));
+const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
+const DashboardRoute = lazy(() => import("./pages/dashboard"));
+const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
+const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
+const TemplatesPage = lazy(() => import("./pages/dashboard/templates"));
+const AdminBrandsPage = lazy(() => import("./pages/dashboard/admin/brands"));
+const AdminAnalyticsPage = lazy(() => import("./pages/dashboard/admin/analytics"));
+const BrandHomePage = lazy(() => import("./pages/dashboard/brand/[slug]"));
+const BrandEditPage = lazy(() => import("./pages/dashboard/brand/[slug]/edit"));
+const BrandKitModulePage = lazy(() => import("./pages/dashboard/brand/[slug]/brandkit/[moduleId]"));
+const BrandGuidesPage = lazy(() => import("./pages/dashboard/brand/[slug]/brand-guides"));
+const LogoPresentationPage = lazy(() => import("./pages/dashboard/brand/[slug]/logo-presentation"));
+const PresentationsPage = lazy(() => import("./pages/dashboard/brand/[slug]/presentations"));
+const SocialMediaPage = lazy(() => import("./pages/dashboard/brand/[slug]/social-media"));
+const GuidelinesHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines"));
+const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines/canvas"));
+const AccountSettingsPage = lazy(() => import("./pages/settings/account"));
+const PlansPage = lazy(() => import("./pages/settings/plans"));
+const WorkspaceSettingsPage = lazy(() => import("./pages/settings/workspace"));
+const MembersPage = lazy(() => import("./pages/settings/members"));
+const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
+const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
+const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
+const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
+const LearnPage = lazy(() => import("./pages/learn"));
+const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
+const AssetsPage = lazy(() => import("./pages/dashboard/brand/[slug]/assets"));
+const SharePage = lazy(() => import("./pages/dashboard/brand/[slug]/share"));
+const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/templates"));
+const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 // Tools platform — public + in-app routes for the Tools suite. Lazy-loaded
@@ -108,7 +112,7 @@ const App = () => (
           <BrandAssistantProvider>
           <Toaster />
           <ErrorBoundary>
-          <Suspense fallback={<div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+          <Suspense fallback={<PageSpinner />}>
           <Routes>
           <Route path="/" element={<IndexPage />} />
           <Route path="/v2" element={<DashboardV2Page />} />
