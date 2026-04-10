@@ -35,12 +35,12 @@ export const HeroSection = () => {
       <div className="container-tight relative z-10">
         <div className="mx-auto max-w-5xl pt-28 pb-16 md:pt-36 md:pb-20">
 
-          {/* ── Top tag row ──────────────────────────────────────── */}
+          {/* ── Top tag row — pulled LEFT for asymmetry ─────────── */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease }}
-            className="flex items-center justify-center max-w-[40rem] mx-auto gap-0"
+            className="flex items-center max-w-sm ml-0 md:ml-[8%] gap-0"
           >
             <span className="hero-dot" />
             <span className="hero-line" />
@@ -63,12 +63,12 @@ export const HeroSection = () => {
             </h1>
           </motion.div>
 
-          {/* ── Bottom tag row ────────────────────────────────────── */}
+          {/* ── Bottom tag row — pulled RIGHT for asymmetry ─────── */}
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.16, ease }}
-            className="flex items-center justify-center max-w-[40rem] mx-auto gap-0"
+            className="flex items-center max-w-sm ml-auto mr-0 md:mr-[8%] gap-0"
           >
             <span className="hero-dot" />
             <span className="hero-line" />
