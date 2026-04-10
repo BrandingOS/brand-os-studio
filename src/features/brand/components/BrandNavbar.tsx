@@ -10,7 +10,8 @@
  * Brand Context Rail owns that. The breadcrumb here is a derived label only.
  */
 import { useMemo } from 'react';
-import { Search, Bell, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Search, HelpCircle, ArrowLeft } from 'lucide-react';
+import { NotificationBell } from '@/shared/components/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -116,9 +117,7 @@ export function BrandNavbar({ brandName }: BrandNavbarProps) {
           <Button variant="ghost" size="icon" className="md:hidden" aria-label="Search">
             <Search className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Notifications">
-            <Bell className="h-4 w-4" />
-          </Button>
+          <NotificationBell />
           <Button variant="ghost" size="icon" aria-label="Help">
             <HelpCircle className="h-4 w-4" />
           </Button>

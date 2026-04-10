@@ -13,6 +13,7 @@
 import { useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -242,6 +243,7 @@ export default function AssetsPage() {
   }
 
   return (
+    <>
     <div className="space-y-6">
         <PageHeader
           compact
@@ -294,5 +296,14 @@ export default function AssetsPage() {
           </div>
         )}
     </div>
+
+      {brand && (
+        <CommentsPanel
+          brandId={brand.id}
+          pageKey="assets"
+          pageLabel="Assets"
+        />
+      )}
+    </>
   );
 }

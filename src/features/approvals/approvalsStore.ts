@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { activityService } from '@/shared/services/activityService';
 
 export type ApprovalKind = 'asset' | 'template' | 'block' | 'guideline';
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -58,6 +59,12 @@ export const useApprovalsStore = create<ApprovalsStore>()(
             submittedAt: Date.now(),
           };
           set((state) => ({ items: { ...state.items, [item.id]: item } }), false, 'approvals/submit');
+          activityService.log({
+            brandId: item.brandId,
+            eventType: 'approval_submitted',
+            title: `Approval requested: ${item.title}`,
+            description: `Submitted by ${item.submittedBy}`,
+          });
           return item;
         },
 
@@ -76,6 +83,16 @@ export const useApprovalsStore = create<ApprovalsStore>()(
             false,
             'approvals/approve',
           );
+          const item = get().items[id];
+          if (item) {
+            activityService.log({
+              brandId: item.brandId,
+              eventType: 'approval_approved',
+              title: `Approved: ${item.title}`,
+              description: comment || `Approved by ${reviewerName}`,
+              userName: reviewerName,
+            });
+          }
         },
 
         reject: (id, reviewerName, comment) => {
@@ -93,6 +110,16 @@ export const useApprovalsStore = create<ApprovalsStore>()(
             false,
             'approvals/reject',
           );
+          const item = get().items[id];
+          if (item) {
+            activityService.log({
+              brandId: item.brandId,
+              eventType: 'approval_rejected',
+              title: `Rejected: ${item.title}`,
+              description: comment || `Rejected by ${reviewerName}`,
+              userName: reviewerName,
+            });
+          }
         },
 
         remove: (id) => {

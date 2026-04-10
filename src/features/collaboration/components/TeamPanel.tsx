@@ -12,6 +12,9 @@ import {
 } from '@/components/ui/select';
 import { Users, UserPlus, Shield, Eye, Download, Trash2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
+import { activityService } from '@/shared/services/activityService';
+import { useNotificationsStore } from '@/shared/store/notificationsStore';
+import { useSessionStore } from '@/shared/store/sessionStore';
 
 type Role = 'Owner' | 'Editor' | 'Exporter' | 'Viewer';
 
@@ -44,11 +47,13 @@ function getInitials(name: string): string {
 }
 
 export function TeamPanel({ brandId, brandName }: TeamPanelProps) {
+  const user = useSessionStore((s) => s.user);
+  const { add: addNotification } = useNotificationsStore();
   const [members, setMembers] = useState<TeamMember[]>([
     {
       id: 'owner-1',
-      name: 'Dev User',
-      email: 'dev@brandos.local',
+      name: user?.name || user?.email?.split('@')[0] || 'You',
+      email: user?.email || 'you@brandos.local',
       role: 'Owner',
     },
   ]);
@@ -90,12 +95,36 @@ export function TeamPanel({ brandId, brandName }: TeamPanelProps) {
     setInviteRole('Viewer');
     setShowInviteForm(false);
     toast.success(`Invited ${email} as ${inviteRole}`);
+
+    activityService.log({
+      brandId,
+      brandName,
+      userName: user?.name,
+      eventType: 'member_invited',
+      title: `Invited ${displayName} as ${inviteRole}`,
+      description: email,
+    });
+    addNotification({
+      type: 'member_invited',
+      title: `${displayName} was invited`,
+      body: `Added as ${inviteRole} to ${brandName}`,
+      href: `/b/${brandId}`,
+      brandId,
+    });
   };
 
   const handleRemove = (member: TeamMember) => {
     if (member.role === 'Owner') return;
     setMembers((prev) => prev.filter((m) => m.id !== member.id));
     toast.success(`Removed ${member.name} from the team.`);
+
+    activityService.log({
+      brandId,
+      brandName,
+      userName: user?.name,
+      eventType: 'member_removed',
+      title: `Removed ${member.name} from team`,
+    });
   };
 
   return (

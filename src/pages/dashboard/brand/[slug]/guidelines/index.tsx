@@ -12,6 +12,7 @@
  */
 import * as React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import {
   BookOpen,
   Target,
@@ -292,6 +293,14 @@ export default function GuidelinesHubPage() {
             </Card>
           </section>
       </div>
+
+      {brand && (
+        <CommentsPanel
+          brandId={brand.id}
+          pageKey="guidelines"
+          pageLabel="Guidelines"
+        />
+      )}
     </>
   );
 }
