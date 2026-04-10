@@ -35,20 +35,22 @@ export const HeroSection = () => {
       <div className="container-tight relative z-10">
         <div className="mx-auto max-w-5xl pt-28 pb-16 md:pt-36 md:pb-20">
 
-          {/* ── Top tag row — pulled LEFT for asymmetry ─────────── */}
+          {/* ── Eyebrow pill ────────────────────────────────────── */}
           <motion.div
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease }}
-            className="flex items-center max-w-sm ml-0 md:ml-[8%] gap-0"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className="flex justify-center"
           >
-            <span className="hero-dot" />
-            <span className="hero-line" />
-            <span className="hero-pill">Strategy</span>
-            <span className="hero-line hero-line-grow" />
-            <span className="hero-pill">Output</span>
-            <span className="hero-line" />
-            <span className="hero-dot" />
+            <div className="glass-surface inline-flex items-center gap-2.5 rounded-full px-4 py-1.5 shadow-soft">
+              <span className="text-xs font-medium tracking-wide text-foreground">
+                Set it up once
+              </span>
+              <ArrowRight className="h-3 w-3 text-accent-pop" />
+              <span className="text-xs font-medium tracking-wide text-foreground">
+                Brand everything
+              </span>
+            </div>
           </motion.div>
 
           {/* ── Headline row ─────────────────────────────────────── */}
@@ -61,22 +63,6 @@ export const HeroSection = () => {
             <h1 className="hero-word">
               Brand once.<br />Use forever.
             </h1>
-          </motion.div>
-
-          {/* ── Bottom tag row — pulled RIGHT for asymmetry ─────── */}
-          <motion.div
-            initial={{ opacity: 0, x: 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.16, ease }}
-            className="flex items-center max-w-sm ml-auto mr-0 md:mr-[8%] gap-0"
-          >
-            <span className="hero-dot" />
-            <span className="hero-line" />
-            <span className="hero-pill">Set it up once</span>
-            <span className="hero-line hero-line-grow" />
-            <span className="hero-pill">Brand everything</span>
-            <span className="hero-line" />
-            <span className="hero-dot" />
           </motion.div>
 
           {/* ── Subtitle ─────────────────────────────────────────── */}
@@ -118,29 +104,6 @@ export const HeroSection = () => {
 };
 
 const HERO_STYLES = `
-/* ── Tag rows (top + bottom) ──────────────────────────────────── */
-.hero-pill {
-  display: inline-flex; align-items: center;
-  padding: 0.4rem 0.85rem; border-radius: 9999px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  box-shadow: var(--shadow-soft);
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.10em; text-transform: uppercase;
-  color: hsl(var(--foreground)); white-space: nowrap; flex-shrink: 0;
-}
-.hero-line {
-  flex: 0 0 28px; height: 1px;
-  background-image: linear-gradient(to right,
-    hsl(var(--foreground) / 0.20) 50%, transparent 50%);
-  background-size: 6px 1px; background-repeat: repeat-x;
-}
-.hero-line-grow { flex: 1 1 auto; }
-.hero-dot {
-  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-  background: hsl(var(--accent-pop)); flex-shrink: 0;
-}
-
 /* ── Headline ─────────────────────────────────────────────────── */
 .hero-headline {
   text-align: center;
