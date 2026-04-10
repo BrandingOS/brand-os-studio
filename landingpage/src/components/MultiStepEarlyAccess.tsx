@@ -40,9 +40,7 @@ const ROLES = [
 
 const ACCESS_OPTIONS = [
   { id: 'beta', icon: Beaker, label: 'Join early & give feedback' },
-  { id: 'founder', icon: Hammer, label: 'Help shape the product' },
   { id: 'notify', icon: Bell, label: "Notify me when it's ready" },
-  { id: 'later', icon: Coffee, label: "I'll check it out later" },
 ] as const;
 
 type Role = (typeof ROLES)[number]['id'];
