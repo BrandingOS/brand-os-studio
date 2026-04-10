@@ -1,5 +1,5 @@
+import { motion } from 'framer-motion';
 import type { ProductModuleData } from '@/types';
-import { RevealItem } from '@/components/fancy/Reveal';
 
 interface ProductModuleCardProps extends ProductModuleData {
   index: number;
@@ -22,8 +22,16 @@ export const ProductModuleCard = ({
   index,
 }: ProductModuleCardProps) => {
   return (
-    <RevealItem index={index} className="h-full">
-      <article className="group relative overflow-hidden rounded-[var(--radius)] border border-border bg-[hsl(var(--card))] shadow-soft flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated hover:border-accent-pop/40">
+    <motion.article
+      initial={{ opacity: 0, y: 28, scale: 0.97, filter: 'blur(4px)' }}
+      whileInView={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{
+        duration: 0.55,
+        delay: index * 0.06,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="group relative overflow-hidden rounded-[var(--radius)] border border-border bg-[hsl(var(--card))] shadow-soft flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated hover:border-accent-pop/40">
         {/* Photo well — dark bed so orange-themed PNGs pop */}
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-[hsl(0_0%_5%)]">
           <img
@@ -48,7 +56,6 @@ export const ProductModuleCard = ({
             {description}
           </p>
         </div>
-      </article>
-    </RevealItem>
+    </motion.article>
   );
 };
