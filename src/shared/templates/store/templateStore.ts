@@ -8,10 +8,14 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { TemplateDefinition, TemplateType } from '../types';
 import { BUSINESS_CARD_TEMPLATES } from '../data/business-cards';
+import { SOCIAL_MEDIA_TEMPLATES } from '../data/social-media';
+import { PRESENTATION_TEMPLATES } from '../data/presentations';
 
 // Built-in templates (shipped with the app)
 const BUILT_IN: TemplateDefinition[] = [
   ...BUSINESS_CARD_TEMPLATES,
+  ...SOCIAL_MEDIA_TEMPLATES,
+  ...PRESENTATION_TEMPLATES,
 ];
 
 interface TemplateFilters {
