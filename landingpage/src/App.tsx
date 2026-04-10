@@ -13,18 +13,16 @@ import { EarlyAccessDialog } from '@/components/EarlyAccessDialog';
 function App() {
   return (
     <EarlyAccessProvider>
-      <div className="min-h-screen bg-background text-foreground antialiased">
+      {/* bg-dot-grid on the outer wrapper so the pattern starts from
+          the very top of the page, running BEHIND the navbar — not
+          just inside the hero section. */}
+      <div className="min-h-screen bg-background bg-dot-grid animate-bg-pan text-foreground antialiased">
         <Navbar />
         <main>
           <HeroSection />
-          {/* Small compact marquee right under the hero — instant social
-              proof kicker before the user scrolls. The BIGGER marquee
-              (MarqueeSection) is moved further down as a divider between
-              the feature sections. */}
           <MarqueeSection />
           <PainPointsSection />
           <SetupSection />
-          <MarqueeSection />
           <ProductModulesSection />
           <StatisticsSection />
           <FinalCTASection />

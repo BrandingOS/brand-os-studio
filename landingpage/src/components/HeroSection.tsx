@@ -1,108 +1,107 @@
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef, useEffect, useState } from 'react';
-import { ArrowRight, Layout, Printer, Globe, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
-import heroImage from '@/assets/landing/hero-mockup.jpg';
-
-/** True when viewport is ≥ 768px (md breakpoint). */
-function useIsMd() {
-  const [isMd, setIsMd] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
-  );
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 768px)');
-    const handler = (e: MediaQueryListEvent) => setIsMd(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
-  return isMd;
-}
-
 /**
- * HeroSection — v5 (v1-inspired, amplified).
+ * HeroSection — v5, editorial split "Brand Once. Use Forever."
  *
- * Centered massive editorial display headline with a typing reveal,
- * subtitle, and ONE primary "Get Early Access" button that opens the
- * modal. Below: the hero product mockup framed by a soft surface, with
- * three floating glass tiles (Guidelines / Business Card / Website)
- * gently animating, all backed by twin ripple rings.
+ * Ported from the main-app hero the user approved (Image #32) with:
+ *  - Top pills: "Input" / "Output"
+ *  - Bottom pills: "Logo · Color · Type" / "Slides · Posts · Print · Web"
+ *  - Subtitle: "Set it up once. Brand everything."
+ *  - Balanced spacing: same gap above and below the headline row
+ *  - No product mockup — just text + pills + badge + subtitle + CTAs
+ *  - No bg-dot-grid on the section itself (moved to App.tsx outer wrapper
+ *    so the pattern starts behind the navbar)
  *
- * The hero image and tiles get a subtle scroll-driven parallax for
- * the cinematic feel. Parallax is reduced on mobile to avoid jank.
+ * Uses framer-motion entrance stagger + useEarlyAccess for the CTA.
  */
+const ease = [0.22, 1, 0.36, 1] as const;
+
 export const HeroSection = () => {
   const { open } = useEarlyAccess();
-  const sectionRef = useRef<HTMLElement>(null);
-  const isMd = useIsMd();
-
-  // Subtle scroll parallax — reduced on mobile to avoid jank
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end start'],
-  });
-  const imageY = useTransform(scrollYProgress, [0, 1], [0, isMd ? -120 : -40]);
-  const tilesY = useTransform(scrollYProgress, [0, 1], [0, isMd ? -60 : -20]);
 
   return (
-    <section
-      ref={sectionRef}
-      className="relative pt-20 md:pt-28 pb-24 md:pb-32 bg-dot-grid animate-bg-pan overflow-hidden"
-    >
-      <div className="container-tight">
-        {/* ── Top: hero text block ──────────────────────────────── */}
-        <div className="mx-auto text-center max-w-4xl">
-          {/* Eyebrow pill */}
+    <section className="relative overflow-hidden">
+      {/* Subtle warm glow behind center badge */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        aria-hidden="true"
+        style={{
+          background: 'radial-gradient(ellipse 44% 44% at 50% 50%, hsl(var(--accent-pop) / 0.09), transparent 70%)',
+        }}
+      />
+
+      <div className="container-tight relative z-10">
+        <div className="mx-auto max-w-5xl pt-28 pb-16 md:pt-36 md:pb-20">
+
+          {/* ── Top tag row ──────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="inline-flex"
+            transition={{ duration: 0.5, ease }}
+            className="flex items-center justify-center max-w-[40rem] mx-auto gap-0"
           >
-            <div className="glass-surface inline-flex items-center gap-2 rounded-full px-4 py-1.5 shadow-soft">
-              <Sparkles className="h-3.5 w-3.5 text-accent-pop" />
-              <span className="text-xs font-medium tracking-wide text-foreground">
-                One-time setup → Endless consistency
-              </span>
-            </div>
+            <span className="hero-dot" />
+            <span className="hero-line" />
+            <span className="hero-pill">Input</span>
+            <span className="hero-line hero-line-grow" />
+            <span className="hero-pill">Output</span>
+            <span className="hero-line" />
+            <span className="hero-dot" />
           </motion.div>
 
-          {/* Editorial headline — refined size */}
-          <motion.h1
+          {/* ── Headline row ─────────────────────────────────────── */}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
-            className="display-xl mt-8"
+            transition={{ duration: 0.6, delay: 0.08, ease }}
+            className="hero-row"
           >
-            The operating system
-            <br />
-            for your <span className="text-accent-pop">brand</span>.
-          </motion.h1>
+            <h1 className="hero-word hero-left">Brand<br />once.</h1>
+            <div className="hero-badge-wrap">
+              <div className="hero-badge">
+                <Sparkles className="h-8 w-8 md:h-10 md:w-10" />
+              </div>
+            </div>
+            <h1 className="hero-word hero-right">Use<br />forever.</h1>
+          </motion.div>
 
-          {/* Subtitle */}
+          {/* ── Bottom tag row ────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16, ease }}
+            className="flex items-center justify-center max-w-[40rem] mx-auto gap-0"
+          >
+            <span className="hero-dot" />
+            <span className="hero-line" />
+            <span className="hero-pill">Logo · Color · Type</span>
+            <span className="hero-line hero-line-grow" />
+            <span className="hero-pill">Slides · Posts · Print · Web</span>
+            <span className="hero-line" />
+            <span className="hero-dot" />
+          </motion.div>
+
+          {/* ── Subtitle ─────────────────────────────────────────── */}
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.14, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-8 mx-auto max-w-2xl text-lg md:text-xl text-muted-foreground leading-relaxed"
+            transition={{ duration: 0.5, delay: 0.24, ease }}
+            className="text-center max-w-lg mx-auto mt-12 text-base md:text-lg text-muted-foreground leading-relaxed"
           >
-            Strategy, identity, assets, and outputs — connected by one
-            source of truth. Build the system once. Generate everything
-            from it, forever.
+            Set it up once.{' '}
+            <span className="text-accent-pop font-semibold">Brand everything.</span>
           </motion.p>
 
-          {/* Primary CTA button — opens modal */}
+          {/* ── CTAs ─────────────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4"
+            transition={{ duration: 0.5, delay: 0.30, ease }}
+            className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <button
-              type="button"
-              onClick={open}
-              className="btn-primary-lg group"
-            >
+            <button type="button" onClick={open} className="btn-primary-lg group">
               Get Early Access
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
@@ -110,71 +109,85 @@ export const HeroSection = () => {
               href="#setup"
               className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              See how it works
+              See how the system works
               <ArrowRight className="h-3.5 w-3.5" />
             </a>
           </motion.div>
         </div>
-
-        {/* ── Bottom: hero mockup with ripple + floating tiles ──── */}
-        <motion.div
-          initial={{ opacity: 0, y: 50, scale: 0.97 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mt-20 md:mt-28 mx-auto max-w-5xl"
-        >
-          {/* Ripple background */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-48 w-48 md:h-72 md:w-72 rounded-full border border-border/60 animate-ripple-slow" />
-            <div
-              className="absolute h-64 w-64 md:h-96 md:w-96 rounded-full border border-border/40 animate-ripple-slow"
-              style={{ animationDelay: '1.5s' }}
-            />
-          </div>
-
-          {/* The framed product image with parallax */}
-          <motion.div
-            style={{ y: imageY }}
-            className="relative surface shadow-elegant overflow-hidden"
-          >
-            <img
-              src={heroImage}
-              alt="Brand OS dashboard preview"
-              loading="eager"
-              className="w-full aspect-[16/9] object-cover"
-            />
-          </motion.div>
-
-          {/* Floating glass tiles with parallax */}
-          <motion.div
-            style={{ y: tilesY }}
-            className="pointer-events-none absolute -right-2 -top-6 hidden md:block animate-float-tile"
-          >
-            <div className="float-tile">
-              <Layout className="h-4 w-4" />
-              <span className="text-xs font-medium">Guidelines</span>
-            </div>
-          </motion.div>
-          <motion.div
-            style={{ y: tilesY }}
-            className="pointer-events-none absolute left-4 -bottom-6 hidden md:block animate-float-tile"
-          >
-            <div className="float-tile" style={{ animationDelay: '600ms' }}>
-              <Printer className="h-4 w-4" />
-              <span className="text-xs font-medium">Business Card</span>
-            </div>
-          </motion.div>
-          <motion.div
-            style={{ y: tilesY }}
-            className="pointer-events-none absolute right-10 -bottom-2 hidden md:block animate-float-tile"
-          >
-            <div className="float-tile" style={{ animationDelay: '1200ms' }}>
-              <Globe className="h-4 w-4" />
-              <span className="text-xs font-medium">Website</span>
-            </div>
-          </motion.div>
-        </motion.div>
       </div>
+
+      <style>{HERO_STYLES}</style>
     </section>
   );
 };
+
+const HERO_STYLES = `
+/* ── Tag rows (top + bottom) ──────────────────────────────────── */
+.hero-pill {
+  display: inline-flex; align-items: center;
+  padding: 0.4rem 0.85rem; border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  box-shadow: var(--shadow-soft);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: hsl(var(--foreground)); white-space: nowrap; flex-shrink: 0;
+}
+.hero-line {
+  flex: 0 0 28px; height: 1px;
+  background-image: linear-gradient(to right,
+    hsl(var(--foreground) / 0.20) 50%, transparent 50%);
+  background-size: 6px 1px; background-repeat: repeat-x;
+}
+.hero-line-grow { flex: 1 1 auto; }
+.hero-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: hsl(var(--accent-pop)); flex-shrink: 0;
+}
+
+/* ── Headline row ─────────────────────────────────────────────── */
+.hero-row {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: 1rem;
+  /* SAME margin top and bottom — symmetrical spacing around the row */
+  margin: 2.5rem auto; max-width: 50rem;
+}
+@media (max-width: 720px) {
+  .hero-row { grid-template-columns: 1fr; gap: 0.75rem; text-align: center; }
+}
+
+.hero-word {
+  font-family: var(--font-display, ui-sans-serif), system-ui, sans-serif;
+  font-size: clamp(3rem, 7.5vw, 6.5rem);
+  line-height: 0.86; font-weight: 900;
+  letter-spacing: -0.05em; text-transform: uppercase;
+  color: hsl(var(--foreground)); margin: 0;
+}
+.hero-left  { text-align: right;  justify-self: end; }
+.hero-right { text-align: left;   justify-self: start; }
+@media (max-width: 720px) {
+  .hero-left, .hero-right { text-align: center; justify-self: center; }
+}
+
+/* Center badge */
+.hero-badge-wrap { display: flex; align-items: center; justify-content: center; }
+.hero-badge {
+  width: 88px; height: 88px; border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background: hsl(var(--foreground));
+  color: hsl(var(--accent-pop));
+  box-shadow:
+    0 0 0 5px hsl(var(--background)),
+    0 0 0 6px hsl(var(--border)),
+    0 28px 60px hsl(var(--accent-pop) / 0.25);
+  position: relative; overflow: hidden;
+}
+.hero-badge::after {
+  content: ''; position: absolute; top: 7px; right: 7px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: hsl(var(--accent-pop));
+}
+@media (min-width: 768px) {
+  .hero-badge { width: 110px; height: 110px; border-radius: 24px; }
+}
+`;
