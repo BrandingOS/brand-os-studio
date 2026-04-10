@@ -65,6 +65,22 @@ export const HeroSection = () => {
             </h1>
           </motion.div>
 
+          {/* ── Bottom tag row — different text from the eyebrow ──── */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.16, ease }}
+            className="flex items-center justify-center max-w-[42rem] mx-auto gap-0"
+          >
+            <span className="hero-dot" />
+            <span className="hero-line" />
+            <span className="hero-pill">Logo · Color · Type</span>
+            <span className="hero-line hero-line-grow" />
+            <span className="hero-pill">Slides · Posts · Print · Web</span>
+            <span className="hero-line" />
+            <span className="hero-dot" />
+          </motion.div>
+
           {/* ── Subtitle ─────────────────────────────────────────── */}
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -104,6 +120,29 @@ export const HeroSection = () => {
 };
 
 const HERO_STYLES = `
+/* ── Bottom tag row ───────────────────────────────────────────── */
+.hero-pill {
+  display: inline-flex; align-items: center;
+  padding: 0.4rem 0.85rem; border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  box-shadow: var(--shadow-soft);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase;
+  color: hsl(var(--foreground)); white-space: nowrap; flex-shrink: 0;
+}
+.hero-line {
+  flex: 0 0 28px; height: 1px;
+  background-image: linear-gradient(to right,
+    hsl(var(--foreground) / 0.20) 50%, transparent 50%);
+  background-size: 6px 1px; background-repeat: repeat-x;
+}
+.hero-line-grow { flex: 1 1 auto; }
+.hero-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: hsl(var(--accent-pop)); flex-shrink: 0;
+}
+
 /* ── Headline ─────────────────────────────────────────────────── */
 .hero-headline {
   text-align: center;
