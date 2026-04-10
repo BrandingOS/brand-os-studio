@@ -99,7 +99,7 @@ function brandItems(slug: string): RailItem[] {
   return [
     {
       title: 'Overview',
-      url: `/dashboard/brand/${slug}`,
+      url: `/b/${slug}`,
       icon: LayoutDashboard,
       exact: true,
     },
@@ -108,20 +108,20 @@ function brandItems(slug: string): RailItem[] {
       // brand record itself is edited. It maps to the existing brand-edit
       // page, which is the canonical brand-record editor.
       title: 'Setup',
-      url: `/dashboard/brand/${slug}/edit`,
+      url: `/b/${slug}/edit`,
       icon: Wrench,
       matchPrefixes: [
-        `/dashboard/brand/${slug}/edit`,
-        `/dashboard/brand/${slug}/identity`,
+        `/b/${slug}/edit`,
+        `/b/${slug}/identity`,
       ],
     },
     {
       title: 'Guidelines',
-      url: `/dashboard/brand/${slug}/guidelines`,
+      url: `/b/${slug}/guidelines`,
       icon: BookOpen,
       matchPrefixes: [
-        `/dashboard/brand/${slug}/guidelines`,
-        `/dashboard/brand/${slug}/brand-guides`,
+        `/b/${slug}/guidelines`,
+        `/b/${slug}/brand-guides`,
       ],
     },
     {
@@ -129,39 +129,39 @@ function brandItems(slug: string): RailItem[] {
       // legacy /dam URL still resolves via a redirect, so old bookmarks
       // light up this nav item too via matchPrefixes.
       title: 'Folders',
-      url: `/dashboard/brand/${slug}/folders`,
+      url: `/b/${slug}/folders`,
       icon: FolderOpen,
       matchPrefixes: [
-        `/dashboard/brand/${slug}/folders`,
-        `/dashboard/brand/${slug}/dam`,
+        `/b/${slug}/folders`,
+        `/b/${slug}/dam`,
       ],
     },
     {
       title: 'Brand Kit',
-      url: `/dashboard/brand/${slug}/kit`,
+      url: `/b/${slug}/kit`,
       icon: Sparkles,
       matchPrefixes: [
-        `/dashboard/brand/${slug}/kit`,
-        `/dashboard/brand/${slug}/brandkit`,
+        `/b/${slug}/kit`,
+        `/b/${slug}/brandkit`,
       ],
     },
     {
       // "Designs" = generated design outputs (cards, social posts, etc).
       // These already live in the Assets hub, so Designs lands there.
       title: 'Designs',
-      url: `/dashboard/brand/${slug}/assets`,
+      url: `/b/${slug}/assets`,
       icon: Palette,
       matchPrefixes: [
-        `/dashboard/brand/${slug}/assets`,
-        `/dashboard/brand/${slug}/social-media`,
-        `/dashboard/brand/${slug}/presentations`,
+        `/b/${slug}/assets`,
+        `/b/${slug}/social-media`,
+        `/b/${slug}/presentations`,
       ],
     },
     {
       // Brand-scoped templates (different from the workspace marketplace).
       // Mounted as a stub page until the brand templates feature ships.
       title: 'Templates',
-      url: `/dashboard/brand/${slug}/templates`,
+      url: `/b/${slug}/templates`,
       icon: LayoutTemplate,
     },
   ];
@@ -214,17 +214,22 @@ export function AppRail({ brandSlug }: AppRailProps) {
    */
   const handleSwitchBrand = (newSlug: string) => {
     if (!brandSlug) {
-      navigate(`/dashboard/brand/${newSlug}`);
+      navigate(`/b/${newSlug}`);
       return;
     }
     if (newSlug === brandSlug) return;
-    const prefix = `/dashboard/brand/${brandSlug}`;
-    const tail = location.pathname.startsWith(prefix)
-      ? location.pathname.slice(prefix.length).replace(/^\/+/, '')
-      : '';
+    // Match both short-form and legacy prefix
+    const shortPrefix = `/b/${brandSlug}`;
+    const longPrefix = `/dashboard/brand/${brandSlug}`;
+    let tail = '';
+    if (location.pathname.startsWith(shortPrefix)) {
+      tail = location.pathname.slice(shortPrefix.length).replace(/^\/+/, '');
+    } else if (location.pathname.startsWith(longPrefix)) {
+      tail = location.pathname.slice(longPrefix.length).replace(/^\/+/, '');
+    }
     const target = tail
-      ? `/dashboard/brand/${newSlug}/${tail}${location.search || ''}`
-      : `/dashboard/brand/${newSlug}`;
+      ? `/b/${newSlug}/${tail}${location.search || ''}`
+      : `/b/${newSlug}`;
     navigate(target);
   };
 

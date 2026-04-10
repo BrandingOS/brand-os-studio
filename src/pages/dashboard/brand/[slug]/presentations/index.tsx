@@ -109,7 +109,7 @@ export default function PresentationsPage() {
         {/* Top bar */}
         <div className="h-14 border-b border-white/[0.06] flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(`/dashboard/brand/${slug}`)} className="text-sm text-white/30 hover:text-white/60 transition-colors">
+            <button onClick={() => navigate(`/b/${slug}`)} className="text-sm text-white/30 hover:text-white/60 transition-colors">
               ← Back
             </button>
             <span className="text-white/10">|</span>

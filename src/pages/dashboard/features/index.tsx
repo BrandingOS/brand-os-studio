@@ -103,27 +103,27 @@ const ACCOUNT_FEATURES: FeatureEntry[] = [
 ];
 
 const BRAND_FEATURES: FeatureEntry[] = [
-  { id: 'overview',     title: 'Overview',     description: 'Brand at-a-glance and jumping-off point.',         icon: Compass,    href: (s) => `/dashboard/brand/${s}`,             status: 'linked',  needsBrand: true },
-  { id: 'setup',        title: 'Setup',        description: 'Edit logos, colors, and type with live preview.',  icon: Wrench,     href: (s) => `/dashboard/brand/${s}/edit`,        status: 'linked',  needsBrand: true },
-  { id: 'identity',     title: 'Identity',     description: 'Tabbed identity hub: logo, colors, type, voice.',  icon: Sparkles,   href: (s) => `/dashboard/brand/${s}/identity`,    status: 'orphan',  needsBrand: true },
-  { id: 'guidelines',   title: 'Guidelines',   description: 'The brand book — strategy through applications.', icon: BookOpen,   href: (s) => `/dashboard/brand/${s}/guidelines`,  status: 'linked',  needsBrand: true },
-  { id: 'folders',      title: 'Folders',      description: 'Brand asset library — logos, photos, icons.',     icon: FolderOpen, href: (s) => `/dashboard/brand/${s}/folders`,     status: 'linked',  needsBrand: true },
-  { id: 'kit',          title: 'Brand Kit',    description: 'Unified brand kit hub with bulk export.',         icon: Sparkles,   href: (s) => `/dashboard/brand/${s}/kit`,         status: 'linked',  needsBrand: true },
-  { id: 'designs',      title: 'Designs',      description: 'Generated deliverables — print, social, screen.', icon: Palette,    href: (s) => `/dashboard/brand/${s}/assets`,      status: 'linked',  needsBrand: true },
-  { id: 'b-templates',  title: 'Brand Templates', description: 'Templates saved to this brand. Coming soon.',  icon: LayoutTemplate, href: (s) => `/dashboard/brand/${s}/templates`, status: 'linked', needsBrand: true },
-  { id: 'share',        title: 'Share',        description: 'Outbox — public link, decks, exports.',           icon: Globe,      href: (s) => `/dashboard/brand/${s}/share`,       status: 'orphan',  needsBrand: true },
-  { id: 'b-settings',   title: 'Brand Settings', description: 'Per-brand configuration v2.',                   icon: Settings,   href: (s) => `/dashboard/brand/${s}/settings`,    status: 'orphan',  needsBrand: true },
+  { id: 'overview',     title: 'Overview',     description: 'Brand at-a-glance and jumping-off point.',         icon: Compass,    href: (s) => `/b/${s}`,             status: 'linked',  needsBrand: true },
+  { id: 'setup',        title: 'Setup',        description: 'Edit logos, colors, and type with live preview.',  icon: Wrench,     href: (s) => `/b/${s}/edit`,        status: 'linked',  needsBrand: true },
+  { id: 'identity',     title: 'Identity',     description: 'Tabbed identity hub: logo, colors, type, voice.',  icon: Sparkles,   href: (s) => `/b/${s}/identity`,    status: 'orphan',  needsBrand: true },
+  { id: 'guidelines',   title: 'Guidelines',   description: 'The brand book — strategy through applications.', icon: BookOpen,   href: (s) => `/b/${s}/guidelines`,  status: 'linked',  needsBrand: true },
+  { id: 'folders',      title: 'Folders',      description: 'Brand asset library — logos, photos, icons.',     icon: FolderOpen, href: (s) => `/b/${s}/folders`,     status: 'linked',  needsBrand: true },
+  { id: 'kit',          title: 'Brand Kit',    description: 'Unified brand kit hub with bulk export.',         icon: Sparkles,   href: (s) => `/b/${s}/kit`,         status: 'linked',  needsBrand: true },
+  { id: 'designs',      title: 'Designs',      description: 'Generated deliverables — print, social, screen.', icon: Palette,    href: (s) => `/b/${s}/assets`,      status: 'linked',  needsBrand: true },
+  { id: 'b-templates',  title: 'Brand Templates', description: 'Templates saved to this brand. Coming soon.',  icon: LayoutTemplate, href: (s) => `/b/${s}/templates`, status: 'linked', needsBrand: true },
+  { id: 'share',        title: 'Share',        description: 'Outbox — public link, decks, exports.',           icon: Globe,      href: (s) => `/b/${s}/share`,       status: 'orphan',  needsBrand: true },
+  { id: 'b-settings',   title: 'Brand Settings', description: 'Per-brand configuration v2.',                   icon: Settings,   href: (s) => `/b/${s}/settings`,    status: 'orphan',  needsBrand: true },
 ];
 
 const BRAND_DEEP_FEATURES: FeatureEntry[] = [
-  { id: 'brand-guides',     title: 'Brand Guides editor',    description: 'Fullscreen slide editor. Off-limits — stable export baseline.', icon: PenTool,     href: (s) => `/dashboard/brand/${s}/brand-guides`,        status: 'deep',   needsBrand: true },
-  { id: 'guidelines-canvas', title: 'Guidelines Canvas',     description: 'Fullscreen DOM-slide guidelines canvas.',          icon: PenTool,        href: (s) => `/dashboard/brand/${s}/guidelines/canvas`,   status: 'deep',   needsBrand: true },
-  { id: 'guidelines-blocks', title: 'Guidelines Blocks',     description: 'Block-based guidelines builder.',                  icon: Layers,         href: (s) => `/dashboard/brand/${s}/guidelines/blocks`,   status: 'deep',   needsBrand: true },
-  { id: 'logo-presentation', title: 'Logo Presentation',     description: 'Logo concept presentation deck.',                  icon: Presentation,   href: (s) => `/dashboard/brand/${s}/logo-presentation`,   status: 'orphan', needsBrand: true },
-  { id: 'presentations',    title: 'Presentations',          description: 'General presentation builder.',                    icon: Presentation,   href: (s) => `/dashboard/brand/${s}/presentations`,       status: 'orphan', needsBrand: true },
-  { id: 'social-media',     title: 'Social Media',           description: 'Per-channel social asset generator.',              icon: ImageIcon,      href: (s) => `/dashboard/brand/${s}/social-media`,        status: 'orphan', needsBrand: true },
-  { id: 'analytics',        title: 'Analytics',              description: 'Per-brand analytics and engagement.',              icon: BarChart3,      href: (s) => `/dashboard/brand/${s}/analytics`,           status: 'orphan', needsBrand: true },
-  { id: 'approvals',        title: 'Approvals',              description: 'Review queue for brand artifacts.',                icon: CheckSquare,    href: (s) => `/dashboard/brand/${s}/approvals`,           status: 'orphan', needsBrand: true },
+  { id: 'brand-guides',     title: 'Brand Guides editor',    description: 'Fullscreen slide editor. Off-limits — stable export baseline.', icon: PenTool,     href: (s) => `/b/${s}/brand-guides`,        status: 'deep',   needsBrand: true },
+  { id: 'guidelines-canvas', title: 'Guidelines Canvas',     description: 'Fullscreen DOM-slide guidelines canvas.',          icon: PenTool,        href: (s) => `/b/${s}/guidelines/canvas`,   status: 'deep',   needsBrand: true },
+  { id: 'guidelines-blocks', title: 'Guidelines Blocks',     description: 'Block-based guidelines builder.',                  icon: Layers,         href: (s) => `/b/${s}/guidelines/blocks`,   status: 'deep',   needsBrand: true },
+  { id: 'logo-presentation', title: 'Logo Presentation',     description: 'Logo concept presentation deck.',                  icon: Presentation,   href: (s) => `/b/${s}/logo-presentation`,   status: 'orphan', needsBrand: true },
+  { id: 'presentations',    title: 'Presentations',          description: 'General presentation builder.',                    icon: Presentation,   href: (s) => `/b/${s}/presentations`,       status: 'orphan', needsBrand: true },
+  { id: 'social-media',     title: 'Social Media',           description: 'Per-channel social asset generator.',              icon: ImageIcon,      href: (s) => `/b/${s}/social-media`,        status: 'orphan', needsBrand: true },
+  { id: 'analytics',        title: 'Analytics',              description: 'Per-brand analytics and engagement.',              icon: BarChart3,      href: (s) => `/b/${s}/analytics`,           status: 'orphan', needsBrand: true },
+  { id: 'approvals',        title: 'Approvals',              description: 'Review queue for brand artifacts.',                icon: CheckSquare,    href: (s) => `/b/${s}/approvals`,           status: 'orphan', needsBrand: true },
   { id: 'design-editor',    title: 'Design Editor',          description: 'Fullscreen Fabric.js design editor.',              icon: Palette,        href: (s) => `/editor/design/${s}`,                       status: 'deep',   needsBrand: true },
 ];
 

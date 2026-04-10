@@ -22,7 +22,7 @@ export default function BrandGuidesPage() {
         <div className="text-center">
           <h3 className="text-lg font-semibold text-white mb-2">Brand Not Found</h3>
           <p className="text-white/50">{error || 'Could not load brand.'}</p>
-          <button onClick={() => navigate(`/dashboard/brand/${slug}`)} className="mt-4 text-sm text-white/40 hover:text-white">
+          <button onClick={() => navigate(`/b/${slug}`)} className="mt-4 text-sm text-white/40 hover:text-white">
             Go back
           </button>
         </div>
@@ -36,7 +36,7 @@ export default function BrandGuidesPage() {
     <EditorWorkspace
       brand={brand}
       slides={slides}
-      onClose={() => navigate(`/dashboard/brand/${slug}`)}
+      onClose={() => navigate(`/b/${slug}`)}
       editorKey={`brand-guides-${brand.id}`}
     />
   );

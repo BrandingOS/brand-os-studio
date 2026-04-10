@@ -39,7 +39,7 @@ export function CanvaTopBar({ brandName, brandSlug, onSave, onPreview }: CanvaTo
     <header className="h-14 bg-white border-b border-[var(--topbar-border)] flex items-center justify-between px-3 sticky top-0 z-10 rounded-t-2xl">
       <div className="flex items-center gap-2">
         <button
-          onClick={() => navigate(brandSlug ? `/dashboard/brand/${brandSlug}` : '/dashboard')}
+          onClick={() => navigate(brandSlug ? `/b/${brandSlug}` : '/dashboard')}
           className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />

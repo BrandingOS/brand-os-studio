@@ -81,7 +81,7 @@ export default function IdentityPage() {
           id,
           label: TAB_META[id].label,
           icon: TAB_META[id].icon,
-          href: `/dashboard/brand/${slug}/identity?tab=${id}`,
+          href: `/b/${slug}/identity?tab=${id}`,
         })),
       },
     ],
@@ -151,7 +151,7 @@ export default function IdentityPage() {
                 </p>
               </div>
               <Button asChild size="sm">
-                <Link to={`/dashboard/brand/${brand.slug}/tools/variant-studio`}>
+                <Link to={`/b/${brand.slug}/tools/variant-studio`}>
                   Open studio
                 </Link>
               </Button>

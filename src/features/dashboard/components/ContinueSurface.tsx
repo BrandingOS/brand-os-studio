@@ -59,7 +59,7 @@ export function ContinueSurface({ brands }: ContinueSurfaceProps) {
 
   return (
     <Card
-      onClick={() => navigate(`/dashboard/brand/${mostRecent.slug}`)}
+      onClick={() => navigate(`/b/${mostRecent.slug}`)}
       className="group relative overflow-hidden p-6 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5 bg-gradient-to-br from-background to-muted/40"
     >
       <div className="absolute top-0 left-0 w-1 h-full bg-primary" />

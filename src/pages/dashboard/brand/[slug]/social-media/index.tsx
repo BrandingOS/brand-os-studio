@@ -63,7 +63,7 @@ export default function SocialMediaPage() {
           setSelectedSize(size);
           setSlides(buildSocialSlides(brand, size, store.settings.template));
         }}
-        onClose={() => navigate(`/dashboard/brand/${slug}`)}
+        onClose={() => navigate(`/b/${slug}`)}
       />
     );
   }

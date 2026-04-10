@@ -76,7 +76,7 @@ function BrandKitRedirect() {
 function DamRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
-  return <Navigate to={`/dashboard/brand/${slug}/folders${search}`} replace />;
+  return <Navigate to={`/b/${slug}/folders${search}`} replace />;
 }
 
 const queryClient = new QueryClient();

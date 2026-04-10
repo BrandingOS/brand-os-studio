@@ -48,16 +48,18 @@ interface BrandNavItem {
 const brandNavItems: BrandNavItem[] = [
   {
     title: "Overview",
-    url: "/dashboard/brand/:slug",
+    url: "/b/:slug",
     icon: LayoutDashboard,
-    matchPaths: [],
+    matchPaths: ["/dashboard/brand/:slug"],
     exact: true,
   },
   {
     title: "Brand Kit",
-    url: "/dashboard/brand/:slug/kit",
+    url: "/b/:slug/kit",
     icon: Sparkles,
     matchPaths: [
+      "/b/:slug/kit",
+      "/b/:slug/brandkit",
       "/dashboard/brand/:slug/kit",
       "/dashboard/brand/:slug/brandkit",
       "/dashboard/brand/:slug/settings",
@@ -65,18 +67,20 @@ const brandNavItems: BrandNavItem[] = [
   },
   {
     title: "Identity",
-    url: "/dashboard/brand/:slug/identity",
+    url: "/b/:slug/identity",
     icon: PenTool,
     matchPaths: [
+      "/b/:slug/identity",
       "/dashboard/brand/:slug/identity",
       "/dashboard/brand/:slug/edit",
     ],
   },
   {
     title: "Assets",
-    url: "/dashboard/brand/:slug/assets",
+    url: "/b/:slug/assets",
     icon: Briefcase,
     matchPaths: [
+      "/b/:slug/assets",
       "/dashboard/brand/:slug/assets",
       "/dashboard/brand/:slug/folders",
       "/dashboard/brand/:slug/dam",
@@ -86,18 +90,20 @@ const brandNavItems: BrandNavItem[] = [
   },
   {
     title: "Guidelines",
-    url: "/dashboard/brand/:slug/guidelines",
+    url: "/b/:slug/guidelines",
     icon: BookOpen,
     matchPaths: [
+      "/b/:slug/guidelines",
       "/dashboard/brand/:slug/guidelines",
       "/dashboard/brand/:slug/brand-guides",
     ],
   },
   {
     title: "Share",
-    url: "/dashboard/brand/:slug/share",
+    url: "/b/:slug/share",
     icon: Share2,
     matchPaths: [
+      "/b/:slug/share",
       "/dashboard/brand/:slug/share",
       "/dashboard/brand/:slug/logo-presentation",
     ],
@@ -115,13 +121,17 @@ export function BrandSidebar() {
   const isActive = (item: BrandNavItem) => {
     const url = buildUrl(item.url);
     if (item.exact) {
-      return location.pathname === url;
+      // Match the canonical short-form URL and any legacy matchPaths exactly
+      return location.pathname === url
+        || item.matchPaths.some((m) => location.pathname === buildUrl(m));
     }
     // Match exactly OR as a path prefix (so /identity, /identity/logo, etc all match).
-    return item.matchPaths.some((m) => {
-      const built = buildUrl(m);
-      return location.pathname === built || location.pathname.startsWith(`${built}/`);
-    });
+    return location.pathname === url
+      || location.pathname.startsWith(`${url}/`)
+      || item.matchPaths.some((m) => {
+        const built = buildUrl(m);
+        return location.pathname === built || location.pathname.startsWith(`${built}/`);
+      });
   };
 
   const getNavClass = (item: BrandNavItem) =>
@@ -163,7 +173,7 @@ export function BrandSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
-                    to={buildUrl('/dashboard/brand/:slug/brandkit/settings')}
+                    to={buildUrl('/b/:slug/brandkit/settings')}
                     className="hover:bg-muted/50 text-muted-foreground hover:text-foreground flex items-center gap-3 px-3 py-2 rounded-lg transition-all"
                   >
                     <Settings className="h-4 w-4 shrink-0" />

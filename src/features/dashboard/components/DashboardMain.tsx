@@ -171,7 +171,7 @@ function _LegacyDashboardMain() {
                 </p>
               </div>
               <Button 
-                onClick={() => navigate(`/dashboard/brand/${brands[0].slug}/brandkit`)}
+                onClick={() => navigate(`/b/${brands[0].slug}/brandkit`)}
                 className="flex items-center gap-2"
                 size="lg"
               >
@@ -274,7 +274,7 @@ function _LegacyDashboardMain() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/dashboard/brand/${brand.slug}/edit`);
+                          navigate(`/b/${brand.slug}/edit`);
                         }}
                         className="text-xs"
                       >
@@ -286,7 +286,7 @@ function _LegacyDashboardMain() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/dashboard/brand/${brand.slug}/brandkit`);
+                          navigate(`/b/${brand.slug}/brandkit`);
                         }}
                         className="text-xs"
                       >

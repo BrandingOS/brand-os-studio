@@ -91,7 +91,7 @@ export function useOnboardingFlow() {
       // and dropping users on a feature menu after a wizard is the exact
       // pattern docs/ux-redesign/USER-FLOWS.md F1 was written to fix.
       setTimeout(() => {
-        navigate(`/dashboard/brand/${brand.slug}/identity`);
+        navigate(`/b/${brand.slug}/identity`);
       }, 100);
     } catch (error) {
       console.error('Failed to create brand:', error);

@@ -99,7 +99,7 @@ export default function GuidelinesHubPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/dashboard/brand/${slug}/brand-guides`)}
+              onClick={() => navigate(`/b/${slug}/brand-guides`)}
             >
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               Slide Editor
@@ -138,7 +138,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/identity?tab=strategy`)}
+                  onClick={() => navigate(`/b/${slug}/identity?tab=strategy`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
@@ -162,7 +162,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/identity?tab=logo`)}
+                  onClick={() => navigate(`/b/${slug}/identity?tab=logo`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
@@ -193,7 +193,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/identity?tab=colors`)}
+                  onClick={() => navigate(`/b/${slug}/identity?tab=colors`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
@@ -224,7 +224,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/identity?tab=typography`)}
+                  onClick={() => navigate(`/b/${slug}/identity?tab=typography`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
@@ -252,7 +252,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/identity?tab=voice`)}
+                  onClick={() => navigate(`/b/${slug}/identity?tab=voice`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
@@ -276,7 +276,7 @@ export default function GuidelinesHubPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => navigate(`/dashboard/brand/${slug}/assets`)}
+                  onClick={() => navigate(`/b/${slug}/assets`)}
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Open Designs

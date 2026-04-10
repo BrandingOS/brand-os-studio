@@ -122,7 +122,7 @@ export default function SharePage() {
         <Card
           id="section-logo-deck"
           className="scroll-mt-24 p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
-          onClick={() => navigate(`/dashboard/brand/${slug}/logo-presentation`)}
+          onClick={() => navigate(`/b/${slug}/logo-presentation`)}
         >
           <div className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
@@ -141,7 +141,7 @@ export default function SharePage() {
         <Card
           id="section-guidelines-export"
           className="scroll-mt-24 p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
-          onClick={() => navigate(`/dashboard/brand/${slug}/guidelines`)}
+          onClick={() => navigate(`/b/${slug}/guidelines`)}
         >
           <div className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shrink-0">

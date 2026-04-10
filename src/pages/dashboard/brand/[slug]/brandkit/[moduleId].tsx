@@ -66,7 +66,7 @@ export default function BrandKitModulePage() {
             <h3 className="text-lg font-semibold mb-2">Module Not Found</h3>
             <p className="text-muted-foreground mb-4">{error || 'Could not load module.'}</p>
             <button
-              onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
+              onClick={() => navigate(`/b/${slug}/brandkit`)}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:underline mx-auto"
             >
               <ArrowLeft className="h-4 w-4" />

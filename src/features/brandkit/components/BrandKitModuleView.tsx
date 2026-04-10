@@ -34,7 +34,7 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate, saveS
       <div className="text-center py-16">
         <p className="text-muted-foreground">Module not found.</p>
         <button
-          onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
+          onClick={() => navigate(`/b/${slug}/brandkit`)}
           className="mt-4 px-4 py-2 text-sm font-medium text-primary hover:underline"
         >
           Back to Brand Kit
@@ -76,7 +76,7 @@ export function BrandKitModuleView({ moduleId, brand, slug, onBrandUpdate, saveS
       {/* Back navigation + save indicator */}
       <div className="flex items-center justify-between">
         <button
-          onClick={() => navigate(`/dashboard/brand/${slug}/brandkit`)}
+          onClick={() => navigate(`/b/${slug}/brandkit`)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
         >
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />

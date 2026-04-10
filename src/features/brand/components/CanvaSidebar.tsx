@@ -32,19 +32,19 @@ export function CanvaSidebar({ brandSlug }: CanvaSidebarProps) {
     {
       icon: Sparkles,
       label: 'Brand',
-      href: `/dashboard/brand/${brandSlug}`,
+      href: `/b/${brandSlug}`,
       tooltip: 'Brand Overview'
     },
     {
       icon: FileText,
       label: 'Guidelines',
-      href: `/dashboard/brand/${brandSlug}/guidelines/canvas`,
+      href: `/b/${brandSlug}/guidelines/canvas`,
       tooltip: 'Brand Guidelines'
     },
     {
       icon: FolderOpen,
       label: 'Assets',
-      href: `/dashboard/brand/${brandSlug}/brandkit`,
+      href: `/b/${brandSlug}/brandkit`,
       tooltip: 'Brand Assets'
     },
     {
@@ -56,13 +56,13 @@ export function CanvaSidebar({ brandSlug }: CanvaSidebarProps) {
     {
       icon: Palette,
       label: 'Colors',
-      href: `/dashboard/brand/${brandSlug}/edit`,
+      href: `/b/${brandSlug}/edit`,
       tooltip: 'Brand Colors'
     },
     {
       icon: Download,
       label: 'Export',
-      href: `/dashboard/brand/${brandSlug}/guidelines`,
+      href: `/b/${brandSlug}/guidelines`,
       tooltip: 'Export Guidelines'
     }
   ];

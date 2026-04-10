@@ -53,7 +53,7 @@ export default function ClaimPage() {
         }
         setStatus('done');
         toast.success(`Claimed your work into "${brand.name}"`);
-        navigate(`/dashboard/brand/${brand.slug}/identity?tab=logo&claimed=1`);
+        navigate(`/b/${brand.slug}/identity?tab=logo&claimed=1`);
       } catch (err) {
         console.error('[claim] failed', err);
         if (!cancelled) {

@@ -268,7 +268,7 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     <div className="h-screen flex flex-col bg-background">
       {/* Editor Chrome — unified top bar */}
       <EditorChrome
-        backTo={`/dashboard/brand/${brand.slug || brandId}`}
+        backTo={`/b/${brand.slug || brandId}`}
         breadcrumb={[brand.name, 'Design']}
         title={
           <input

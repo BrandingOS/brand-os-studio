@@ -121,7 +121,7 @@ export default function BrandHomePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/dashboard/brand/${slug}/edit`)}
+            onClick={() => navigate(`/b/${slug}/edit`)}
           >
             <Edit3 className="h-3.5 w-3.5 mr-1.5" />
             Edit brand
@@ -165,7 +165,7 @@ export default function BrandHomePage() {
               return (
                 <button
                   key={link.path}
-                  onClick={() => navigate(`/dashboard/brand/${slug}/${link.path}`)}
+                  onClick={() => navigate(`/b/${slug}/${link.path}`)}
                   className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:shadow-sm"
                 >
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

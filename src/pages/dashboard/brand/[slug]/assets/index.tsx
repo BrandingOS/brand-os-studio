@@ -210,11 +210,11 @@ export default function AssetsPage() {
                 id: 'filters',
                 label: 'Categories',
                 items: [
-                  { id: 'all',     label: 'All',     icon: LayoutGrid, href: `/dashboard/brand/${slug}/assets` },
-                  { id: 'print',   label: 'Print',   icon: Printer,    href: `/dashboard/brand/${slug}/assets?category=print` },
-                  { id: 'social',  label: 'Social',  icon: Megaphone,  href: `/dashboard/brand/${slug}/assets?category=social` },
-                  { id: 'screen',  label: 'Screen',  icon: MonitorPlay, href: `/dashboard/brand/${slug}/assets?category=screen` },
-                  { id: 'utility', label: 'Utility', icon: Wrench,     href: `/dashboard/brand/${slug}/assets?category=utility` },
+                  { id: 'all',     label: 'All',     icon: LayoutGrid, href: `/b/${slug}/assets` },
+                  { id: 'print',   label: 'Print',   icon: Printer,    href: `/b/${slug}/assets?category=print` },
+                  { id: 'social',  label: 'Social',  icon: Megaphone,  href: `/b/${slug}/assets?category=social` },
+                  { id: 'screen',  label: 'Screen',  icon: MonitorPlay, href: `/b/${slug}/assets?category=screen` },
+                  { id: 'utility', label: 'Utility', icon: Wrench,     href: `/b/${slug}/assets?category=utility` },
                 ],
               },
             ],
@@ -271,7 +271,7 @@ export default function AssetsPage() {
           {visibleAssets.map((card) => (
             <Card
               key={card.path}
-              onClick={() => navigate(`/dashboard/brand/${slug}/${card.path}`)}
+              onClick={() => navigate(`/b/${slug}/${card.path}`)}
               className="group relative overflow-hidden p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
             >
               <div

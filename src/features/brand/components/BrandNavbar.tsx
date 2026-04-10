@@ -28,7 +28,7 @@ interface BrandNavbarProps {
  */
 function resolveSectionLabel(pathname: string, slug: string | undefined): string {
   if (!slug) return 'Brand';
-  const prefix = `/dashboard/brand/${slug}`;
+  const prefix = `/b/${slug}`;
   if (!pathname.startsWith(prefix)) return 'Brand';
   const tail = pathname.slice(prefix.length).replace(/^\/+/, '');
   if (!tail) return 'Overview';

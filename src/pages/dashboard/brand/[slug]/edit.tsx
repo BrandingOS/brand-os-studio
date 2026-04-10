@@ -43,7 +43,7 @@ export default function BrandEditPage() {
         id: 'related',
         label: 'Related',
         items: [
-          { id: 'identity', label: 'Identity tabs', icon: Sparkles, href: `/dashboard/brand/${slug}/identity` },
+          { id: 'identity', label: 'Identity tabs', icon: Sparkles, href: `/b/${slug}/identity` },
         ],
       },
     ],

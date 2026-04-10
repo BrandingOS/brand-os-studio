@@ -57,7 +57,7 @@ export function RecentAssetsRow({ brands }: RecentAssetsRowProps) {
             // so users can tell which brand each asset belongs to.
             subtitle={brand.name}
             title={`${asset.name} · ${brand.name}`}
-            onClick={() => navigate(`/dashboard/brand/${brand.slug}/folders`)}
+            onClick={() => navigate(`/b/${brand.slug}/folders`)}
           />
         ))}
       </div>

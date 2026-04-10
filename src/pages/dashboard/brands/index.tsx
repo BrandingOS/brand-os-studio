@@ -87,7 +87,7 @@ export default function BrandsPage() {
                       variant="ghost"
                       size="icon"
                       title="Edit Brand"
-                      onClick={() => navigate(`/dashboard/brand/${brand.slug}/edit`)}
+                      onClick={() => navigate(`/b/${brand.slug}/edit`)}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -95,13 +95,13 @@ export default function BrandsPage() {
                       variant="ghost"
                       size="icon"
                       title="Brand Kit"
-                      onClick={() => navigate(`/dashboard/brand/${brand.slug}/brandkit`)}
+                      onClick={() => navigate(`/b/${brand.slug}/brandkit`)}
                     >
                       <Folder className="w-4 h-4" />
                     </Button>
                     <Button
                       className="gap-2"
-                      onClick={() => navigate(`/dashboard/brand/${brand.slug}`)}
+                      onClick={() => navigate(`/b/${brand.slug}`)}
                     >
                       Open
                       <ArrowRight className="w-4 h-4" />

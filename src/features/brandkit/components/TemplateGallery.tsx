@@ -71,7 +71,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   // Quick download: capture the card's rendered design directly
   const handleQuickDownload = useCallback((template: BrandKitTemplate) => {
     if (template.type === 'brand-guides') {
-      navigate(`/dashboard/brand/${slug}/guidelines`);
+      navigate(`/b/${slug}/guidelines`);
       return;
     }
     // Find the card element by template id and capture it
@@ -87,7 +87,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   // Open editor modal
   const handleOpenEditor = useCallback((template: BrandKitTemplate) => {
     if (template.type === 'brand-guides') {
-      navigate(`/dashboard/brand/${slug}/guidelines`);
+      navigate(`/b/${slug}/guidelines`);
       return;
     }
     setEditTemplate(template);

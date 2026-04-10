@@ -89,7 +89,7 @@ export function BrandKitInnerNav({ slug, activeAnchor }: BrandKitInnerNavProps) 
 
   // Deep editors (route to legacy brandkit module pages)
   const editors: NavItem[] = [
-    { id: 'brand-guides', label: 'Brand Guides', icon: BookOpen, href: `/dashboard/brand/${slug}/brand-guides` },
+    { id: 'brand-guides', label: 'Brand Guides', icon: BookOpen, href: `/b/${slug}/brand-guides` },
     { id: 'profile-icons', label: 'Profile Icons', icon: Smile, href: `/b/${slug}/brandkit/profile-icons` },
     { id: 'business-cards', label: 'Business Cards', icon: CreditCard, href: `/b/${slug}/brandkit/business-cards` },
     { id: 'facebook-covers', label: 'Facebook Covers', icon: Facebook, href: `/b/${slug}/brandkit/facebook-covers` },

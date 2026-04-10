@@ -27,7 +27,7 @@ export function BrandKitHub({ brand, slug }: BrandKitHubProps) {
       <PageHeader
         breadcrumb={[
           { label: 'Brands', to: '/dashboard/brands' },
-          { label: brand.name, to: `/dashboard/brand/${slug}` },
+          { label: brand.name, to: `/b/${slug}` },
         ]}
         title="Brand Kit"
         subtitle={
@@ -47,7 +47,7 @@ export function BrandKitHub({ brand, slug }: BrandKitHubProps) {
           return (
             <button
               key={module.id}
-              onClick={() => !isDisabled && navigate(`/dashboard/brand/${slug}/brandkit/${module.id}`)}
+              onClick={() => !isDisabled && navigate(`/b/${slug}/brandkit/${module.id}`)}
               disabled={isDisabled}
               className={`group relative rounded-2xl p-5 text-left transition-all overflow-hidden ${
                 isDisabled

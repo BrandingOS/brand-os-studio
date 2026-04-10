@@ -480,7 +480,7 @@ export function VariantStudio({ mode, brand, backTo, initialSource }: VariantStu
 
   return (
     <ToolShell
-      backTo={backTo ?? (brand ? `/dashboard/brand/${brand.slug}/identity?tab=logo` : '/tools')}
+      backTo={backTo ?? (brand ? `/b/${brand.slug}/identity?tab=logo` : '/tools')}
       breadcrumb={brand ? [brand.name, 'Identity', 'Logo'] : ['Tools']}
       title={meta.name}
       actions={

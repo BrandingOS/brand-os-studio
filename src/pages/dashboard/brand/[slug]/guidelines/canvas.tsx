@@ -54,7 +54,7 @@ export default function CanvasGuidelinesPage() {
   return (
     <div className="min-h-screen chrome-bg">
       <EditorChrome
-        backTo={`/dashboard/brand/${slug}/guidelines`}
+        backTo={`/b/${slug}/guidelines`}
         breadcrumb={[brand?.name ?? 'Brand', 'Guidelines']}
         title="Slide Editor"
         saveState={saveState}

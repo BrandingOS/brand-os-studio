@@ -34,7 +34,7 @@ export default function VariantStudioPage() {
     <VariantStudio
       mode="in-app"
       brand={brand}
-      backTo={`/dashboard/brand/${brand.slug}/identity?tab=logo`}
+      backTo={`/b/${brand.slug}/identity?tab=logo`}
     />
   );
 }
