@@ -57,7 +57,7 @@ export function EarlyAccessDialog() {
                     duration: 0.28,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="relative w-full max-w-xl max-h-[calc(100vh-3rem)] overflow-y-auto surface shadow-elegant p-7 sm:p-10"
+                  className="relative w-full max-w-xl max-h-[calc(100vh-3rem)] overflow-y-auto surface shadow-elegant p-5 sm:p-7 md:p-10"
                 >
                   {/* Close button */}
                   <Dialog.Close asChild>

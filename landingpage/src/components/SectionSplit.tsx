@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef, type ReactNode } from 'react';
+import { useRef, useEffect, useState, type ReactNode } from 'react';
 
 interface SectionSplitProps {
   index: number;
@@ -27,11 +27,21 @@ export default function SectionSplit({
   const reverse = index % 2 === 1;
   const ref = useRef<HTMLDivElement>(null);
 
+  const [isMd, setIsMd] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMd(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ['start end', 'end start'],
   });
-  const photoY = useTransform(scrollYProgress, [0, 1], [40, -40]);
+  const photoY = useTransform(scrollYProgress, [0, 1], isMd ? [40, -40] : [12, -12]);
 
   const textX = reverse ? 30 : -30;
 
@@ -48,7 +58,7 @@ export default function SectionSplit({
         <div className="num-pill mb-8">
           {String(index + 1).padStart(2, '0')}
         </div>
-        <h3 className="font-display font-bold tracking-tight text-4xl md:text-5xl leading-[1.05]">
+        <h3 className="font-display font-bold tracking-tight text-3xl sm:text-4xl md:text-5xl leading-[1.05]">
           {title}
         </h3>
         <p className="mt-5 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-md">

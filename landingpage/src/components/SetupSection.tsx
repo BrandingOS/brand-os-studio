@@ -19,7 +19,7 @@ export const SetupSection = () => {
           </p>
         </Reveal>
 
-        <div className="space-y-28 md:space-y-40">
+        <div className="space-y-16 md:space-y-40">
           {setupSteps.map((step, index) => (
             <SectionSplit
               key={step.title}

@@ -324,10 +324,13 @@
   }
   .marquee-inner {
     display: flex;
-    gap: 4rem;
+    gap: 2rem;
     white-space: nowrap;
     will-change: transform;
     animation: marquee 38s linear infinite;
+  }
+  @media (min-width: 640px) {
+    .marquee-inner { gap: 4rem; }
   }
   .marquee-item {
     @apply text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground;

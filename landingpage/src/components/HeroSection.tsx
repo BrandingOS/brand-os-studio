@@ -1,9 +1,23 @@
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { ArrowRight, Layout, Printer, Globe, Sparkles } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
 import heroImage from '@/assets/landing/hero-mockup.png';
+
+/** True when viewport is ≥ 768px (md breakpoint). */
+function useIsMd() {
+  const [isMd, setIsMd] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)');
+    const handler = (e: MediaQueryListEvent) => setIsMd(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  return isMd;
+}
 
 /**
  * HeroSection — v5 (v1-inspired, amplified).
@@ -15,19 +29,20 @@ import heroImage from '@/assets/landing/hero-mockup.png';
  * gently animating, all backed by twin ripple rings.
  *
  * The hero image and tiles get a subtle scroll-driven parallax for
- * the cinematic feel.
+ * the cinematic feel. Parallax is reduced on mobile to avoid jank.
  */
 export const HeroSection = () => {
   const { open } = useEarlyAccess();
   const sectionRef = useRef<HTMLElement>(null);
+  const isMd = useIsMd();
 
-  // Subtle scroll parallax — image translates up as user scrolls down
+  // Subtle scroll parallax — reduced on mobile to avoid jank
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end start'],
   });
-  const imageY = useTransform(scrollYProgress, [0, 1], [0, -120]);
-  const tilesY = useTransform(scrollYProgress, [0, 1], [0, -60]);
+  const imageY = useTransform(scrollYProgress, [0, 1], [0, isMd ? -120 : -40]);
+  const tilesY = useTransform(scrollYProgress, [0, 1], [0, isMd ? -60 : -20]);
 
   return (
     <section
@@ -110,9 +125,9 @@ export const HeroSection = () => {
         >
           {/* Ripple background */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-72 w-72 rounded-full border border-border/60 animate-ripple-slow" />
+            <div className="h-48 w-48 md:h-72 md:w-72 rounded-full border border-border/60 animate-ripple-slow" />
             <div
-              className="absolute h-96 w-96 rounded-full border border-border/40 animate-ripple-slow"
+              className="absolute h-64 w-64 md:h-96 md:w-96 rounded-full border border-border/40 animate-ripple-slow"
               style={{ animationDelay: '1.5s' }}
             />
           </div>
