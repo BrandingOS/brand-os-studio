@@ -110,7 +110,13 @@
 
 @layer base {
   * { @apply border-border; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    /* Pin the document to a light color-scheme so browser UI (scrollbars,
+       form controls) and dark-mode extensions don't try to auto-invert. */
+    color-scheme: light;
+  }
+  html.dark { color-scheme: dark; }
   body { @apply bg-background text-foreground; font-feature-settings: "ss01" on, "liga" on; }
   
   /* Brand Editor Specific Styles */

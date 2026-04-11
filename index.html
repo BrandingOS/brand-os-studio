@@ -6,6 +6,12 @@
     <title>Brand OS — One Setup. Infinite Branded Possibilities.</title>
     <meta name="description" content="Set up your brand once. Auto-apply to every asset—guidelines, designs, print, exports, and a website." />
     <meta name="author" content="Brand OS" />
+    <!-- Explicitly declare the page as light-only. This tells the browser
+         (and dark-mode extensions like Dark Reader) not to auto-invert the
+         page, which was causing the UI to flicker between light and dark
+         when the extension and our own styles disagreed on every scroll. -->
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#ffffff" />
     <link rel="canonical" href="/" />
 
     <!-- Fonts -->
