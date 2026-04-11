@@ -4,6 +4,7 @@ import { OptimizedDesignCanvas } from './OptimizedDesignCanvas';
 import { ToolPanel } from './ToolPanel';
 import { PropertiesPanel } from './PropertiesPanel';
 import { EditorChrome, useAutoSave } from '@/features/editor/core';
+import { ContextToolbar } from './ContextToolbar';
 import { EditorBottomBar } from './EditorBottomBar';
 import { ExportDialog } from '@/shared/components/ExportDialog';
 import { Button } from '@/components/ui/button';
@@ -308,9 +309,16 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
         }
       />
 
+      {/* Context Toolbar — text/shape formatting */}
+      <ContextToolbar
+        selectedObject={selectedObject}
+        fabricCanvas={fabricCanvas}
+        brand={brand}
+      />
+
       {/* Main Editor Layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Tool Panel */}
+        {/* Left Tool Panel (Canva-style icon rail) */}
         <ToolPanel
           brand={brand}
           onToolSelect={handleToolSelect}
@@ -318,14 +326,16 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
           onAddImage={handleAddImage}
         />
 
-        {/* Center Canvas - The main performance-critical component */}
-        <OptimizedDesignCanvas
-          brand={brand}
-          selectedTool={selectedTool}
-          onSelectionChange={handleSelectionChange}
-          onCanvasReady={handleCanvasReady}
-          onActionsReady={handleCanvasActionsReady}
-        />
+        {/* Center Canvas */}
+        <div className="flex-1 min-w-0">
+          <OptimizedDesignCanvas
+            brand={brand}
+            selectedTool={selectedTool}
+            onSelectionChange={handleSelectionChange}
+            onCanvasReady={handleCanvasReady}
+            onActionsReady={handleCanvasActionsReady}
+          />
+        </div>
 
         {/* Right Properties Panel */}
         <PropertiesPanel
@@ -337,10 +347,12 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
         />
       </div>
 
-      {/* Bottom Bar */}
+      {/* Bottom Bar — zoom slider, grid, fullscreen */}
       <EditorBottomBar
         brand={brand}
         selectedObject={selectedObject}
+        zoom={zoom}
+        onZoomChange={handleZoomChange}
       />
 
       {/* Export Dialog */}
