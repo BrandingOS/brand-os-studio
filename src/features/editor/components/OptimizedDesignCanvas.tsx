@@ -48,6 +48,15 @@ export function OptimizedDesignCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const [zoom, setZoom] = useState(1);
+
+  // Store callbacks in refs so canvas init effect doesn't re-run
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const onCanvasReadyRef = useRef(onCanvasReady);
+  const onActionsReadyRef = useRef(onActionsReady);
+  const saveStateRef = useRef<(canvas?: FabricCanvas) => void>(() => {});
+  useEffect(() => { onSelectionChangeRef.current = onSelectionChange; }, [onSelectionChange]);
+  useEffect(() => { onCanvasReadyRef.current = onCanvasReady; }, [onCanvasReady]);
+  useEffect(() => { onActionsReadyRef.current = onActionsReady; }, [onActionsReady]);
   
   // Optimized history management with compression and limits
   const historyRef = useRef<{
@@ -105,6 +114,7 @@ export function OptimizedDesignCanvas({
       }
     }, 300);
   }, [onActionsReady]);
+  useEffect(() => { saveStateRef.current = saveState; }, [saveState]);
 
   // Optimized undo function
   const undo = useCallback(() => {
@@ -294,37 +304,29 @@ export function OptimizedDesignCanvas({
       width,
       height,
       backgroundColor: '#ffffff',
-      // Performance optimizations
       preserveObjectStacking: true,
-      renderOnAddRemove: false,
+      renderOnAddRemove: true,
       skipTargetFind: false,
       perPixelTargetFind: true,
       enableRetinaScaling: true,
-      imageSmoothingEnabled: true,
     });
-
-    // Enable object caching for better performance
-    canvas.set('objectCaching', true);
-    canvas.set('statefullCache', true);
 
     // Optimized event listeners with proper cleanup
     const selectionHandler = (e: any) => {
       const selected = e.selected?.[0] || e.target || null;
-      onSelectionChange(selected);
+      onSelectionChangeRef.current(selected);
     };
 
     const modificationHandler = () => {
-      // Use requestAnimationFrame to batch render calls
       requestAnimationFrame(() => {
         canvas.renderAll();
-        saveState(canvas);
+        saveStateRef.current(canvas);
       });
     };
 
-    // Add event listeners
     canvas.on('selection:created', selectionHandler);
     canvas.on('selection:updated', selectionHandler);
-    canvas.on('selection:cleared', () => onSelectionChange(null));
+    canvas.on('selection:cleared', () => onSelectionChangeRef.current(null));
     canvas.on('object:modified', modificationHandler);
     canvas.on('object:added', modificationHandler);
     canvas.on('object:removed', modificationHandler);
@@ -340,11 +342,10 @@ export function OptimizedDesignCanvas({
     historyRef.current.currentIndex = 0;
 
     fabricCanvasRef.current = canvas;
-    onCanvasReady(canvas);
+    onCanvasReadyRef.current(canvas);
 
-    // Initialize actions
-    if (onActionsReady) {
-      onActionsReady({
+    if (onActionsReadyRef.current) {
+      onActionsReadyRef.current({
         undo,
         redo,
         canUndo: false,
@@ -353,7 +354,6 @@ export function OptimizedDesignCanvas({
     }
 
     return () => {
-      // Cleanup
       canvas.off('selection:created', selectionHandler);
       canvas.off('selection:updated', selectionHandler);
       canvas.off('selection:cleared');
@@ -361,15 +361,17 @@ export function OptimizedDesignCanvas({
       canvas.off('object:added', modificationHandler);
       canvas.off('object:removed', modificationHandler);
       canvas.off('after:render');
-      
+
       if (historyRef.current.debounceTimer) {
         clearTimeout(historyRef.current.debounceTimer);
       }
-      
+
       canvas.dispose();
       fabricCanvasRef.current = null;
     };
-  }, [width, height, onSelectionChange, onCanvasReady, onActionsReady, saveState, undo, redo]);
+    // Only init canvas once — use refs for callbacks so deps don't cause re-init
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width, height]);
 
   // Optimized object creation functions with memoization
   const addText = useCallback(() => {
