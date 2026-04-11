@@ -132,14 +132,11 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     setSelectedObject(object);
   }, 16); // ~60fps
 
-  // Optimized tool selection with immediate feedback
+  // Tool selection — set tool, let canvas effect handle it, then reset
   const handleToolSelect = useCallback((tool: string) => {
     setSelectedTool(tool);
-
-    // Optimistic UI update
-    requestAnimationFrame(() => {
-      setSelectedTool(null);
-    });
+    // Reset after a short delay so the canvas useEffect has time to fire
+    setTimeout(() => setSelectedTool(null), 100);
   }, []);
 
   // Image handling

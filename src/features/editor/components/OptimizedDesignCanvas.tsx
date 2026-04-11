@@ -451,25 +451,36 @@ export function OptimizedDesignCanvas({
     }
   }, [saveState]);
 
-  // Handle tool selection with optimization
+  // Handle tool selection — add object when tool changes
   useEffect(() => {
     if (!selectedTool) return;
 
-    // Use requestAnimationFrame for smooth tool activation
-    requestAnimationFrame(() => {
-      switch (selectedTool) {
-        case 'text':
-          addText();
-          break;
-        case 'rectangle':
-          addShape('rectangle');
-          break;
-        case 'circle':
-          addShape('circle');
-          break;
-      }
-    });
+    switch (selectedTool) {
+      case 'text':
+        addText();
+        break;
+      case 'rectangle':
+      case 'line':
+      case 'triangle':
+      case 'star':
+      case 'hexagon':
+        addShape('rectangle');
+        break;
+      case 'circle':
+        addShape('circle');
+        break;
+    }
   }, [selectedTool, addText, addShape]);
+
+  // Listen for addImage custom events from parent
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const url = (e as CustomEvent).detail?.imageUrl;
+      if (url) addImage(url);
+    };
+    window.addEventListener('addImage', handler);
+    return () => window.removeEventListener('addImage', handler);
+  }, [addImage]);
 
   // Optimized zoom with smooth transitions
   const handleZoom = useCallback((newZoom: number) => {
