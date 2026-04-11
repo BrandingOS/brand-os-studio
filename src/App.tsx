@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
-import { ThemeProvider } from "next-themes";
-import { lazy, Suspense } from "react";
+import { ThemeProvider, useTheme } from "next-themes";
+import { lazy, Suspense, useEffect } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { PageSpinner } from "@/components/PageSpinner";
@@ -89,6 +89,23 @@ function DamRedirect() {
 
 const queryClient = new QueryClient();
 
+// Bridges the global `brandos:toggle-theme` event (dispatched from the
+// command palette / non-React callsites) into next-themes' setTheme so the
+// provider's internal state stays in sync. Mutating documentElement
+// directly causes the next render to flip the theme back.
+function ThemeToggleBridge() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  useEffect(() => {
+    const onToggle = () => {
+      const current = theme === 'system' ? resolvedTheme : theme;
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    };
+    window.addEventListener('brandos:toggle-theme', onToggle);
+    return () => window.removeEventListener('brandos:toggle-theme', onToggle);
+  }, [theme, resolvedTheme, setTheme]);
+  return null;
+}
+
 const App = () => (
   // ThemeProvider config notes:
   // - enableSystem={false}: ignore the OS preference and stick to the
@@ -105,6 +122,7 @@ const App = () => (
     enableSystem={false}
     disableTransitionOnChange
   >
+  <ThemeToggleBridge />
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

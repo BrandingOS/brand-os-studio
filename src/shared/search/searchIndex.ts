@@ -50,10 +50,10 @@ const QUICK_ACTIONS: SearchItem[] = [
   { id: 'action:create-brand', kind: 'create', title: 'Create new brand', subtitle: 'Start the brand wizard', group: 'Actions', icon: 'create', href: '/onboarding', keywords: ['new', 'create', 'brand', 'wizard'] },
   { id: 'action:open-assistant', kind: 'ai', title: 'Open AI Brand Assistant', subtitle: 'Ask anything about your brand', group: 'Actions', icon: 'ai', action: () => window.dispatchEvent(new CustomEvent('brandos:open-assistant')), keywords: ['ai', 'assistant', 'chat', 'help'] },
   { id: 'action:toggle-theme', kind: 'action', title: 'Toggle theme', subtitle: 'Switch between dark and light', group: 'Actions', icon: 'action', action: () => {
-    const root = document.documentElement;
-    const isDark = root.classList.contains('dark');
-    root.classList.toggle('dark', !isDark);
-    try { localStorage.setItem('theme', isDark ? 'light' : 'dark'); } catch { /* noop */ }
+    // Don't poke the DOM/localStorage directly — that fights next-themes'
+    // internal state and causes the page to flip back on the next render.
+    // Dispatch an event; ThemeToggleBridge in App.tsx handles it via setTheme.
+    window.dispatchEvent(new CustomEvent('brandos:toggle-theme'));
   }, keywords: ['theme', 'dark', 'light', 'toggle'] },
 ];
 
