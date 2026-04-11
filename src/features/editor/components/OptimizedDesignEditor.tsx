@@ -43,7 +43,6 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
   const [selectedObject, setSelectedObject] = useState<any>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState('Untitled Design');
   const [showExport, setShowExport] = useState(false);
 
@@ -103,34 +102,22 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     markDirty();
   }, [markDirty]);
 
-  // Optimized canvas ready handler with async loading
+  // Canvas ready handler — load saved design if any
   const handleCanvasReady = useCallback(async (canvas: FabricCanvas) => {
     setFabricCanvas(canvas);
     fabricRef.current = canvas;
-    setIsLoading(true);
 
     try {
-      // Load saved design asynchronously
       const savedDesign = localStorage.getItem(`design_${brandId}`);
       if (savedDesign) {
-        await new Promise<void>((resolve, reject) => {
-          try {
-            canvas.loadFromJSON(savedDesign, () => {
-              canvas.renderAll();
-              toast.success('Previous design loaded');
-              resolve();
-            });
-          } catch (error: any) {
-            console.error('Error loading saved design:', error);
-            reject(error);
-          }
-        });
+        // Fabric v6: loadFromJSON returns a Promise
+        await canvas.loadFromJSON(savedDesign);
+        canvas.renderAll();
       }
     } catch (error) {
-      console.error('Failed to load design:', error);
-      toast.error('Failed to load previous design');
-    } finally {
-      setIsLoading(false);
+      console.error('Failed to load saved design:', error);
+      // Clear corrupt data so it doesn't hang again
+      localStorage.removeItem(`design_${brandId}`);
     }
 
     // Set up auto-save via unified hook
@@ -155,23 +142,11 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     });
   }, []);
 
-  // Async image handling with progress
-  const handleAddImage = useCallback(async (imageUrl: string) => {
+  // Image handling
+  const handleAddImage = useCallback((imageUrl: string) => {
     if (!fabricCanvas) return;
-
-    setIsLoading(true);
-    try {
-      // Dispatch custom event for canvas to handle
-      const event = new CustomEvent('addImage', {
-        detail: { imageUrl }
-      });
-      window.dispatchEvent(event);
-    } catch (error) {
-      toast.error('Failed to add image');
-      console.error('Image add error:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    const event = new CustomEvent('addImage', { detail: { imageUrl } });
+    window.dispatchEvent(event);
   }, [fabricCanvas]);
 
   // Optimized object operations
@@ -252,18 +227,6 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
       }
     };
   }, [fabricCanvas]);
-
-  // Loading state UI
-  if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading editor...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-screen flex flex-col bg-background">
