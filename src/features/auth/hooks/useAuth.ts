@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -21,13 +21,12 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
 });
 
 export const useAuth = () => {
-  const [isAdmin, setIsAdmin] = useState(false);
   const sessionStore = useSessionStore();
   const onboardingStore = useOnboardingStore();
   const workspaceStore = useWorkspaceStore();
   const navigate = useNavigate();
 
-  const { user, isAuthenticated, isLoading, signIn, signOut, setLoading, switchToAuthenticated } = sessionStore;
+  const { user, isAuthenticated, isAdmin, isLoading, signIn, signOut, setLoading, setAdmin, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
 
   // Check if current user is admin
@@ -39,11 +38,11 @@ export const useAuth = () => {
         .eq('user_id', userId)
         .eq('role', 'admin')
         .single();
-      
-      setIsAdmin(!error && data?.role === 'admin');
+
+      setAdmin(!error && data?.role === 'admin');
     } catch (error) {
       console.error('Error checking admin role:', error);
-      setIsAdmin(false);
+      setAdmin(false);
     }
   };
 
@@ -64,14 +63,11 @@ export const useAuth = () => {
           reconfigureForAuth(true);
           signIn(mappedUser);
           console.log('[useAuth] User logged in:', session.user.email);
-          // Check admin role, load workspaces, and load onboarding data
-          setTimeout(() => {
-            if (isMounted) {
-              checkAdminRole(session.user.id);
-              workspaceStore.loadAll().catch(console.error);
-              loadFromSupabase().catch(console.error);
-            }
-          }, 0);
+          // Await admin check so isAdmin is set before loading finishes
+          await checkAdminRole(session.user.id);
+          workspaceStore.loadAll().catch(console.error);
+          loadFromSupabase().catch(console.error);
+          migrateLocalStorageToSupabase().catch(console.error);
         } else {
           console.log('[useAuth] No active session');
           reconfigureForAuth(false);
@@ -107,20 +103,15 @@ export const useAuth = () => {
           console.log('[useAuth] User signed in:', session.user.email);
 
           // Load workspace, check admin, sync onboarding, migrate data
-          setTimeout(() => {
-            if (isMounted) {
-              checkAdminRole(session.user.id);
-              workspaceStore.loadAll().catch(console.error);
-              syncToSupabase().catch(console.error);
-              migrateLocalStorageToSupabase().catch(console.error);
-            }
-          }, 0);
+          checkAdminRole(session.user.id);
+          workspaceStore.loadAll().catch(console.error);
+          syncToSupabase().catch(console.error);
+          migrateLocalStorageToSupabase().catch(console.error);
         } else if (event === 'SIGNED_OUT') {
           console.log('[useAuth] User signed out');
           reconfigureForAuth(false);
           workspaceStore.reset();
           signOut();
-          setIsAdmin(false);
         }
       }
     );

@@ -3,9 +3,11 @@ import { devtools } from 'zustand/middleware';
 import type { User, AuthState } from '../types/user';
 
 interface SessionStore extends AuthState {
+  isAdmin: boolean;
   signIn: (user: User) => void;
   signOut: () => void;
   setLoading: (loading: boolean) => void;
+  setAdmin: (isAdmin: boolean) => void;
   switchToGuest: () => void;
   switchToAuthenticated: () => void;
   previousMode?: 'user' | 'guest';
@@ -17,6 +19,7 @@ export const useSessionStore = create<SessionStore>()(
       user: undefined,
       mode: 'guest',
       isAuthenticated: false,
+      isAdmin: false,
       isLoading: true, // Start as loading during auth check
       
       signIn: (user: User) => 
@@ -28,17 +31,21 @@ export const useSessionStore = create<SessionStore>()(
           previousMode: state.mode 
         }), false, 'signIn'),
       
-      signOut: () => 
-        set((state) => ({ 
-          user: undefined, 
-          mode: 'guest', 
+      signOut: () =>
+        set((state) => ({
+          user: undefined,
+          mode: 'guest',
           isAuthenticated: false,
+          isAdmin: false,
           isLoading: false,
-          previousMode: state.mode 
+          previousMode: state.mode
         }), false, 'signOut'),
       
-      setLoading: (isLoading: boolean) => 
+      setLoading: (isLoading: boolean) =>
         set({ isLoading }, false, 'setLoading'),
+
+      setAdmin: (isAdmin: boolean) =>
+        set({ isAdmin }, false, 'setAdmin'),
       
       switchToGuest: () => 
         set((state) => ({ 
