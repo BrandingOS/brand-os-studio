@@ -43,6 +43,7 @@ const MembersPage = lazy(() => import("./pages/settings/members"));
 const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
+const LoginPage = lazy(() => import("./pages/auth/login"));
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
@@ -398,6 +399,8 @@ const App = () => (
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFound />} />
           </Routes>

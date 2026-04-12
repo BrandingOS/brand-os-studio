@@ -110,7 +110,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
           <div className="p-6 pt-0">
             {mode !== 'forgot' && (
               <>
-                {/* Social Login Buttons */}
+                {/* Social Login Buttons — only show if providers are configured */}
+                {/* Google and Facebook OAuth require setup in Supabase Dashboard > Auth > Providers */}
+                {/* Uncomment when configured:
                 <div className="space-y-3 mb-6">
                   <Button
                     type="button"
@@ -142,6 +144,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                     </span>
                   </div>
                 </div>
+                */}
               </>
             )}
 

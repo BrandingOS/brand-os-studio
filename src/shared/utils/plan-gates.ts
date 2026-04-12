@@ -13,7 +13,7 @@ const PLAN_FEATURES = {
     canCustomDomain: false,
     canCollaborate: true,
   },
-  enterprise: {
+  agency: {
     maxBrands: Infinity,
     canExportZip: true,
     canShowcase: true,
@@ -26,7 +26,9 @@ type PlanKey = keyof typeof PLAN_FEATURES;
 type FeatureKey = keyof (typeof PLAN_FEATURES)['free'];
 
 export function canAccess(plan: string, feature: FeatureKey): boolean {
-  const key = (plan in PLAN_FEATURES ? plan : 'free') as PlanKey;
+  // Support legacy 'enterprise' key
+  const normalized = plan === 'enterprise' ? 'agency' : plan;
+  const key = (normalized in PLAN_FEATURES ? normalized : 'free') as PlanKey;
   const value = PLAN_FEATURES[key][feature];
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value > 0;
@@ -34,7 +36,8 @@ export function canAccess(plan: string, feature: FeatureKey): boolean {
 }
 
 export function getPlanLimits(plan: string): (typeof PLAN_FEATURES)['free'] {
-  const key = (plan in PLAN_FEATURES ? plan : 'free') as PlanKey;
+  const normalized = plan === 'enterprise' ? 'agency' : plan;
+  const key = (normalized in PLAN_FEATURES ? normalized : 'free') as PlanKey;
   return PLAN_FEATURES[key];
 }
 

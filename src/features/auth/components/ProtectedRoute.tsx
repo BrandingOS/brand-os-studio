@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
-export function ProtectedRoute({ children, redirectTo = '/' }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
   const authBypass = import.meta.env.VITE_AUTH_BYPASS === 'true';
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();

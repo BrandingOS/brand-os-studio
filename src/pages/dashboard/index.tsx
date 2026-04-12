@@ -10,12 +10,13 @@ export default function DashboardRoute() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
-    // After loading completes, check if user needs to authenticate
-    if (!isLoading && mode === 'user' && !isAuthenticated) {
-      console.log('[DashboardRoute] User not authenticated, showing auth modal');
+    // After loading completes, show auth modal if user is not authenticated
+    // and auth bypass is not enabled (staging environment)
+    const authBypass = import.meta.env.VITE_AUTH_BYPASS === 'true';
+    if (!isLoading && !isAuthenticated && !authBypass) {
       setShowAuthModal(true);
     }
-  }, [mode, isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading]);
 
   // Show loading state while auth initializes
   if (isLoading) {

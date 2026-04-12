@@ -17,29 +17,49 @@ import { SERVICE_KEYS } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { LocalUploadService } from './adapters/upload/LocalUploadService';
+import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
+import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
+import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
+import { SupabaseCommentsService } from './adapters/database/SupabaseCommentsService';
+import { SupabaseApprovalsService } from './adapters/database/SupabaseApprovalsService';
+import { SupabaseNotificationsService } from './adapters/database/SupabaseNotificationsService';
+import { SupabaseActivityService } from './adapters/database/SupabaseActivityService';
 
 export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
-  // In dev mode, always use local storage.
-  // In production with auth, this would be swapped for SupabaseBrandsService.
+  // Start with local storage; reconfigureForAuth swaps to Supabase on login.
   container.register(SERVICE_KEYS.BRANDS, () => new LocalBrandsService());
 
   // ─── Design Storage ────────────────────────────────────────
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
 
   // ─── Upload Service ────────────────────────────────────────
-  // Local impl compresses to data URL. Swap to SupabaseUploadService in prod.
   container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
 }
 
 /**
  * Reconfigure services when auth state changes.
- * Called from AuthProvider when user logs in/out.
+ * Called from useAuth when user logs in/out.
+ *
+ * - Authenticated: swap to Supabase-backed services
+ * - Unauthenticated: revert to localStorage services
  */
 export function reconfigureForAuth(isAuthenticated: boolean): void {
-  if (isAuthenticated && !import.meta.env.DEV) {
-    // In production authenticated mode, swap to Supabase services
-    // container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
-    // For now, keep local until Supabase is fully configured
+  // Clear singleton caches so next get() creates a fresh instance
+  container.reset();
+
+  if (isAuthenticated) {
+    container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
+    container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
+    container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
+    container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
+    container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
+    container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
+    container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
+    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
+    container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
+  } else {
+    // Revert to local implementations for guest mode
+    bootServices();
   }
 }
