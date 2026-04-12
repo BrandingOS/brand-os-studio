@@ -65,17 +65,18 @@ export const useAuth = () => {
           console.log('[useAuth] User logged in:', session.user.email);
           // Await admin check so isAdmin is set before loading finishes
           await checkAdminRole(session.user.id);
+          setLoading(false);
           workspaceStore.loadAll().catch(console.error);
           loadFromSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
         } else {
           console.log('[useAuth] No active session');
           reconfigureForAuth(false);
-          signOut();
+          signOut(); // signOut sets isLoading: false
         }
       } catch (error) {
         console.error('Error getting session:', error);
-        signOut(); // Ensure guest mode even on error
+        signOut();
       }
     };
 
@@ -98,12 +99,13 @@ export const useAuth = () => {
           reconfigureForAuth(true);
           signIn(mappedUser);
 
-          // Clear localStorage brands when real user logs in to prevent conflicts
           localStorage.removeItem('brandos:brands');
           console.log('[useAuth] User signed in:', session.user.email);
 
-          // Load workspace, check admin, sync onboarding, migrate data
-          checkAdminRole(session.user.id);
+          // Await admin check, then mark loading done
+          checkAdminRole(session.user.id).then(() => {
+            if (isMounted) setLoading(false);
+          });
           workspaceStore.loadAll().catch(console.error);
           syncToSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);

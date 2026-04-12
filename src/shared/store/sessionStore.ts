@@ -22,13 +22,14 @@ export const useSessionStore = create<SessionStore>()(
       isAdmin: false,
       isLoading: true, // Start as loading during auth check
       
-      signIn: (user: User) => 
-        set((state) => ({ 
-          user, 
-          mode: 'user', 
+      signIn: (user: User) =>
+        set((state) => ({
+          user,
+          mode: 'user',
           isAuthenticated: true,
-          isLoading: false,
-          previousMode: state.mode 
+          // NOTE: isLoading stays true — caller must call setLoading(false)
+          // after admin check and other async setup completes
+          previousMode: state.mode
         }), false, 'signIn'),
       
       signOut: () =>
