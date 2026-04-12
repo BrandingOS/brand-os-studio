@@ -31,6 +31,8 @@ dist-ssr
 qa-screenshots/
 audit-*.png
 test-screenshots/
+# Root-level screenshots (drop zone for ad-hoc captures)
+/*.png
 
 # Local research / reference assets — not part of the product
 new-version/
