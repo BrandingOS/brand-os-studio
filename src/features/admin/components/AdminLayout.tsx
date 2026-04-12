@@ -10,18 +10,21 @@ import {
   Activity,
   Shield,
   ArrowLeft,
-  Sparkles,
+  UserPlus,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect } from 'react';
 
 const NAV_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
+  { to: '/admin/early-access', icon: UserPlus, label: 'Early Access' },
   { to: '/admin/users', icon: Users, label: 'Users' },
   { to: '/admin/brands', icon: Palette, label: 'Brands' },
   { to: '/admin/workspaces', icon: Building2, label: 'Workspaces' },
   { to: '/admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
   { to: '/admin/activity', icon: Activity, label: 'Activity' },
+  { to: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 export function AdminLayout() {
