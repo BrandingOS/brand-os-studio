@@ -9,14 +9,15 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, redirectTo = '/' }: ProtectedRouteProps) {
+  const authBypass = import.meta.env.VITE_AUTH_BYPASS === 'true';
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authBypass && !isLoading && !isAuthenticated) {
       navigate(redirectTo);
     }
-  }, [isAuthenticated, isLoading, navigate, redirectTo]);
+  }, [authBypass, isAuthenticated, isLoading, navigate, redirectTo]);
 
   if (isLoading) {
     return (
@@ -29,7 +30,7 @@ export function ProtectedRoute({ children, redirectTo = '/' }: ProtectedRoutePro
     );
   }
 
-  if (!isAuthenticated) {
+  if (!authBypass && !isAuthenticated) {
     return null;
   }
 
