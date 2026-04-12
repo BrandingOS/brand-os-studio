@@ -5,6 +5,7 @@ import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useWorkspaceStore } from '@/shared/store/workspaceStore';
 import { reconfigureForAuth } from '@/core/boot';
+import { migrateLocalStorageToSupabase } from '@/shared/utils/localStorage-migration';
 import { toast } from 'sonner';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '@/shared/types/user';
@@ -119,12 +120,13 @@ export const useAuth = () => {
           localStorage.removeItem('brandos:brands');
           console.log('[useAuth] User signed in:', session.user.email);
 
-          // Load workspace, check admin, sync onboarding
+          // Load workspace, check admin, sync onboarding, migrate data
           setTimeout(() => {
             if (isMounted) {
               checkAdminRole(session.user.id);
               workspaceStore.loadAll().catch(console.error);
               syncToSupabase().catch(console.error);
+              migrateLocalStorageToSupabase().catch(console.error);
             }
           }, 0);
         } else if (event === 'SIGNED_OUT') {
