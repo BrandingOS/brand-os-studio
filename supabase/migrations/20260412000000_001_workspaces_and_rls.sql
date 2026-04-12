@@ -6,6 +6,230 @@
 -- table with Row-Level Security policies.
 -- ============================================================================
 
+-- ─── 0. Profiles Table + Auth Trigger ───────────────────────────────────────
+-- The profiles table mirrors auth.users with public-facing fields.
+-- It's created automatically when a new user signs up via the trigger.
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id          UUID PRIMARY KEY,
+  email       TEXT NOT NULL,
+  full_name   TEXT,
+  avatar_url  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "profiles_select_own"
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (id = auth.uid());
+
+CREATE POLICY "profiles_select_by_member"
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (true);  -- Any authenticated user can see profiles (needed for member lists)
+
+CREATE POLICY "profiles_update_own"
+  ON public.profiles FOR UPDATE
+  TO authenticated
+  USING (id = auth.uid());
+
+-- Trigger to auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, avatar_url)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    NEW.raw_user_meta_data->>'avatar_url'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    full_name = COALESCE(EXCLUDED.full_name, public.profiles.full_name),
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+    updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Backfill profiles for existing auth users
+INSERT INTO public.profiles (id, email, full_name, avatar_url)
+SELECT
+  id,
+  email,
+  COALESCE(raw_user_meta_data->>'name', raw_user_meta_data->>'full_name', split_part(email, '@', 1)),
+  raw_user_meta_data->>'avatar_url'
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TRIGGER trg_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ─── 0b. User Roles Table ───────────────────────────────────────────────────
+
+DO $$ BEGIN
+  CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL,
+  role        public.app_role NOT NULL DEFAULT 'user',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "user_roles_select_own"
+  ON public.user_roles FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
+
+-- Helper function for role checking (used by existing code)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role public.app_role)
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  );
+$$;
+
+-- ─── 0c. Guideline Presentations + Slides (if not yet created) ──────────────
+-- These may have been created by an earlier migration on a previous project.
+-- Using IF NOT EXISTS to be safe.
+
+CREATE TABLE IF NOT EXISTS public.guideline_presentations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id UUID NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  title TEXT NOT NULL DEFAULT 'Brand Guidelines',
+  description TEXT,
+  version TEXT DEFAULT '1.0',
+  layout_type TEXT DEFAULT 'canvas',
+  theme_settings JSONB DEFAULT '{}'::jsonb,
+  slides JSONB DEFAULT '[]'::jsonb,
+  slide_order TEXT[] DEFAULT '{}',
+  export_settings JSONB DEFAULT '{}'::jsonb,
+  is_published BOOLEAN DEFAULT false,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.guideline_slides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  presentation_id UUID NOT NULL REFERENCES public.guideline_presentations(id) ON DELETE CASCADE,
+  slide_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  subtitle TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  content JSONB DEFAULT '{}'::jsonb,
+  is_enabled BOOLEAN DEFAULT true,
+  is_locked BOOLEAN DEFAULT false,
+  background_color TEXT,
+  text_color TEXT,
+  custom_styles JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes (IF NOT EXISTS not available for indexes, use DO block)
+DO $$ BEGIN
+  CREATE INDEX idx_guideline_presentations_brand_id ON public.guideline_presentations(brand_id);
+EXCEPTION WHEN duplicate_table THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE INDEX idx_guideline_presentations_user_id ON public.guideline_presentations(user_id);
+EXCEPTION WHEN duplicate_table THEN NULL; END $$;
+DO $$ BEGIN
+  CREATE INDEX idx_guideline_slides_presentation_id ON public.guideline_slides(presentation_id);
+EXCEPTION WHEN duplicate_table THEN NULL; END $$;
+
+ALTER TABLE public.guideline_presentations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guideline_slides ENABLE ROW LEVEL SECURITY;
+
+-- Slug column and infrastructure on brands (may already exist)
+DO $$ BEGIN
+  ALTER TABLE public.brands ADD COLUMN slug TEXT;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+CREATE OR REPLACE FUNCTION public.generate_brand_slug(brand_name TEXT, brand_id UUID DEFAULT NULL)
+RETURNS TEXT AS $$
+DECLARE
+    base_slug TEXT;
+    final_slug TEXT;
+    counter INTEGER := 1;
+BEGIN
+    base_slug := lower(trim(regexp_replace(brand_name, '[^a-zA-Z0-9\s]', '', 'g')));
+    base_slug := regexp_replace(base_slug, '\s+', '_', 'g');
+    final_slug := base_slug;
+    WHILE EXISTS (
+        SELECT 1 FROM public.brands
+        WHERE slug = final_slug
+        AND (brand_id IS NULL OR id != brand_id)
+    ) LOOP
+        counter := counter + 1;
+        final_slug := base_slug || '_' || counter;
+    END LOOP;
+    RETURN final_slug;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.set_brand_slug()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.slug IS NULL OR (OLD.name IS DISTINCT FROM NEW.name) THEN
+        NEW.slug := public.generate_brand_slug(NEW.name, NEW.id);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS brands_set_slug ON public.brands;
+CREATE TRIGGER brands_set_slug
+    BEFORE INSERT OR UPDATE ON public.brands
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_brand_slug();
+
+-- Populate existing brands with slugs
+UPDATE public.brands
+SET slug = public.generate_brand_slug(name, id)
+WHERE slug IS NULL;
+
+-- Make slug NOT NULL + UNIQUE after populating
+DO $$ BEGIN
+  ALTER TABLE public.brands ADD CONSTRAINT brands_slug_unique UNIQUE (slug);
+EXCEPTION WHEN duplicate_table THEN NULL; WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.brands ALTER COLUMN slug SET NOT NULL;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+-- Storage bucket (may already exist)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('brand-assets', 'brand-assets', false)
+ON CONFLICT (id) DO NOTHING;
+
 -- ─── 1. Workspace Role Enum ─────────────────────────────────────────────────
 -- Enum ordering matters: owner < admin < editor < exporter < viewer
 -- This allows role comparison via <= for hierarchical access checks.
