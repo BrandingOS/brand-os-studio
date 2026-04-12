@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import { Search, HelpCircle, ArrowLeft } from 'lucide-react';
 import { NotificationBell } from '@/shared/components/NotificationBell';
+import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -121,6 +122,7 @@ export function BrandNavbar({ brandName }: BrandNavbarProps) {
           <Button variant="ghost" size="icon" aria-label="Help">
             <HelpCircle className="h-4 w-4" />
           </Button>
+          <UserMenu />
         </div>
       </div>
     </header>

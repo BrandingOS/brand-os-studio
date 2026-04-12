@@ -53,7 +53,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { UserMenu } from '@/features/auth/components/UserMenu';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { cn } from '@/lib/utils';
 
@@ -387,9 +386,6 @@ export function AppRail({ brandSlug }: AppRailProps) {
           <Settings className="h-5 w-5" strokeWidth={1.75} />
           <span className="text-[10px] font-medium leading-tight">Settings</span>
         </NavLink>
-        <div className="pt-1">
-          <UserMenu />
-        </div>
       </div>
     </aside>
   );
