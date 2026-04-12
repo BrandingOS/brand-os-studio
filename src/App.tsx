@@ -17,6 +17,7 @@ import IndexPage from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { SettingsLayout } from "./shared/layouts/SettingsLayout";
 import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
+import { AdminLayout } from "./features/admin/components/AdminLayout";
 
 // Lazy-loaded pages (split into separate chunks for faster initial load)
 const OnboardingPage = lazy(() => import("./pages/onboarding"));
@@ -44,6 +45,15 @@ const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
+
+// Admin dashboard
+const AdminOverview = lazy(() => import("./features/admin/pages/AdminOverview"));
+const AdminUsersPage = lazy(() => import("./features/admin/pages/AdminUsers"));
+const AdminBrandsPage2 = lazy(() => import("./features/admin/pages/AdminBrands"));
+const AdminWorkspacesPage = lazy(() => import("./features/admin/pages/AdminWorkspaces"));
+const AdminSubscriptionsPage = lazy(() => import("./features/admin/pages/AdminSubscriptions"));
+const AdminActivityPage2 = lazy(() => import("./features/admin/pages/AdminActivity"));
+
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
@@ -402,6 +412,17 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+
+          {/* ─── Admin Dashboard ─────────────────────────────────────── */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="brands" element={<AdminBrandsPage2 />} />
+            <Route path="workspaces" element={<AdminWorkspacesPage />} />
+            <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+            <Route path="activity" element={<AdminActivityPage2 />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

@@ -12,11 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '../hooks/useAuth';
-import { User, Settings, LogOut, CreditCard } from 'lucide-react';
+import { User, Settings, LogOut, CreditCard, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function UserMenu() {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -78,6 +78,12 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/admin')}>
+            <Shield className="mr-2 h-4 w-4 text-red-500" />
+            <span className="text-red-500 font-medium">Admin Panel</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/account')}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
