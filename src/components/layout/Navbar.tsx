@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useEarlyAccess } from '@/domains/landing/components/EarlyAccessProvider';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { UserMenu } from '@/features/auth/components/UserMenu';
+import { AuthModal } from '@/features/auth/components/AuthModal';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -13,6 +15,8 @@ const navItems = [
 export default function Navbar() {
   const { open } = useEarlyAccess();
   const { isAuthenticated } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
   return (
     <header className="sticky top-4 z-40 w-full pointer-events-none">
@@ -54,13 +58,22 @@ export default function Navbar() {
                   <UserMenu />
                 </>
               ) : (
-                <button
-                  type="button"
-                  onClick={open}
-                  className="btn-primary h-9 px-4 sm:px-5 text-xs whitespace-nowrap"
-                >
-                  Get Early Access
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('login'); setShowAuth(true); }}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('register'); setShowAuth(true); }}
+                    className="btn-primary h-9 px-4 sm:px-5 text-xs whitespace-nowrap"
+                  >
+                    Get Started
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -81,6 +94,12 @@ export default function Navbar() {
           flex-shrink: 0;
         }
       `}</style>
+
+      <AuthModal
+        isOpen={showAuth}
+        onClose={() => setShowAuth(false)}
+        defaultMode={authMode}
+      />
     </header>
   );
 }
