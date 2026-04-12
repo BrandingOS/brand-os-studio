@@ -130,6 +130,174 @@ export interface IDesignStorage {
   deleteDesign(brandId: string, designId: string): Promise<void>;
 }
 
+// ─── Comments Service ──────────────────────────────────────────
+
+export interface CommentData {
+  id: string;
+  threadId: string;
+  brandId: string;
+  pageKey: string;
+  anchor?: string;
+  authorId: string;
+  authorName: string;
+  authorEmail?: string;
+  body: string;
+  mentions?: string[];
+  parentId?: string;
+  resolved?: boolean;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface CreateCommentInput {
+  threadId: string;
+  brandId: string;
+  pageKey: string;
+  anchor?: string;
+  authorName: string;
+  authorEmail?: string;
+  body: string;
+  mentions?: string[];
+  parentId?: string;
+}
+
+export interface ICommentsService {
+  listForPage(brandId: string, pageKey: string): Promise<CommentData[]>;
+  create(input: CreateCommentInput): Promise<CommentData>;
+  resolve(threadId: string): Promise<void>;
+  reopen(threadId: string): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+// ─── Approvals Service ─────────────────────────────────────────
+
+export type ApprovalKind = 'asset' | 'template' | 'block' | 'guideline';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ApprovalData {
+  id: string;
+  brandId: string;
+  kind: ApprovalKind;
+  refId: string;
+  title: string;
+  subtitle?: string;
+  thumbnailUrl?: string;
+  status: ApprovalStatus;
+  submittedBy: string;
+  submittedByName?: string;
+  reviewedBy?: string;
+  reviewedByName?: string;
+  reviewedAt?: number;
+  comment?: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+export interface CreateApprovalInput {
+  brandId: string;
+  kind: ApprovalKind;
+  refId: string;
+  title: string;
+  subtitle?: string;
+  thumbnailUrl?: string;
+  submittedByName?: string;
+}
+
+export interface IApprovalsService {
+  list(brandId: string): Promise<ApprovalData[]>;
+  submit(input: CreateApprovalInput): Promise<ApprovalData>;
+  approve(id: string, reviewerName: string, comment?: string): Promise<void>;
+  reject(id: string, reviewerName: string, comment?: string): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+// ─── Notifications Service ─────────────────────────────────────
+
+export type NotificationType =
+  | 'comment_reply'
+  | 'comment_mention'
+  | 'approval_requested'
+  | 'approval_approved'
+  | 'approval_rejected'
+  | 'member_invited'
+  | 'brand_shared'
+  | 'system';
+
+export interface NotificationData {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  href?: string;
+  brandId?: string;
+  read: boolean;
+  createdAt: number;
+}
+
+export interface CreateNotificationInput {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body?: string;
+  href?: string;
+  brandId?: string;
+}
+
+export interface INotificationsService {
+  list(): Promise<NotificationData[]>;
+  create(input: CreateNotificationInput): Promise<NotificationData>;
+  markRead(id: string): Promise<void>;
+  markAllRead(): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+
+// ─── Activity Service ──────────────────────────────────────────
+
+export type ActivityEventType =
+  | 'brand_created'
+  | 'brand_updated'
+  | 'asset_uploaded'
+  | 'asset_exported'
+  | 'guideline_updated'
+  | 'guideline_published'
+  | 'comment_posted'
+  | 'comment_resolved'
+  | 'approval_submitted'
+  | 'approval_approved'
+  | 'approval_rejected'
+  | 'member_invited'
+  | 'member_joined'
+  | 'member_removed';
+
+export interface ActivityEventData {
+  id: string;
+  brandId?: string;
+  brandName?: string;
+  userId?: string;
+  userName?: string;
+  eventType: ActivityEventType;
+  title: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: number;
+}
+
+export interface CreateActivityInput {
+  brandId?: string;
+  brandName?: string;
+  userName?: string;
+  eventType: ActivityEventType;
+  title: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface IActivityService {
+  log(event: CreateActivityInput): Promise<void>;
+  list(options?: { brandId?: string; limit?: number }): Promise<ActivityEventData[]>;
+}
+
 // ─── Service Keys ──────────────────────────────────────────────
 // Type-safe keys for the ServiceContainer
 
@@ -137,6 +305,10 @@ export const SERVICE_KEYS = {
   BRANDS: 'brands',
   WORKSPACES: 'workspaces',
   ASSETS: 'assets',
+  COMMENTS: 'comments',
+  APPROVALS: 'approvals',
+  NOTIFICATIONS: 'notifications',
+  ACTIVITY: 'activity',
   STORAGE: 'storage',
   DESIGN_STORAGE: 'designStorage',
   UPLOAD: 'upload',

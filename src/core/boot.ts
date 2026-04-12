@@ -20,6 +20,10 @@ import { LocalUploadService } from './adapters/upload/LocalUploadService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
+import { SupabaseCommentsService } from './adapters/database/SupabaseCommentsService';
+import { SupabaseApprovalsService } from './adapters/database/SupabaseApprovalsService';
+import { SupabaseNotificationsService } from './adapters/database/SupabaseNotificationsService';
+import { SupabaseActivityService } from './adapters/database/SupabaseActivityService';
 
 export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
@@ -48,6 +52,10 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
     container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
     container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
+    container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
+    container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
+    container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
+    container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
     container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
   } else {
