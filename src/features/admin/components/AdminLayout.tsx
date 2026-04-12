@@ -14,7 +14,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 const NAV_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, label: 'Overview', end: true },
@@ -30,14 +30,24 @@ const NAV_ITEMS = [
 export function AdminLayout() {
   const { isAdmin, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [adminChecked, setAdminChecked] = useState(false);
+
+  // Wait for auth to finish loading, then give admin check time to resolve
+  useEffect(() => {
+    if (!isLoading) {
+      // Admin role check is async — wait a tick before evaluating
+      const timer = setTimeout(() => setAdminChecked(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+    if (adminChecked && !isAdmin && !isLoading) {
       navigate('/dashboard', { replace: true });
     }
-  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+  }, [adminChecked, isAdmin, isLoading, navigate]);
 
-  if (isLoading) {
+  if (isLoading || !adminChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
