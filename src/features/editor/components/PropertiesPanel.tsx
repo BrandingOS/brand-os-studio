@@ -282,12 +282,58 @@ export function PropertiesPanel({
         {isImage && (
           <div className="space-y-3">
             <h3 className="font-medium text-sm">Image</h3>
-            <Button variant="outline" className="w-full">
-              Replace Image
-            </Button>
-            <Button variant="outline" className="w-full">
-              Crop Image
-            </Button>
+            <label className="block">
+              <Button variant="outline" className="w-full" asChild>
+                <span>Replace Image</span>
+              </Button>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    const url = reader.result as string;
+                    window.dispatchEvent(new CustomEvent('addImage', { detail: { imageUrl: url } }));
+                    if (fabricCanvas) {
+                      fabricCanvas.remove(selectedObject);
+                      fabricCanvas.renderAll();
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <div>
+              <Label className="text-xs">Flip</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    selectedObject.set('flipX', !selectedObject.flipX);
+                    fabricCanvas?.renderAll();
+                  }}
+                >
+                  Horizontal
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    selectedObject.set('flipY', !selectedObject.flipY);
+                    fabricCanvas?.renderAll();
+                  }}
+                >
+                  Vertical
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

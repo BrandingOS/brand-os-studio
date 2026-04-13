@@ -4,7 +4,7 @@
  * 56px icon strip on the left with expandable 280px panel.
  * Tabs: Templates, Elements, Text, Brand, Uploads, Share
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Brand } from '@/shared/types/brand';
@@ -16,6 +16,7 @@ import {
   Share2, Download, Link2, Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { DESIGN_TEMPLATES, type DesignTemplate } from '../data/templates';
 
 type PanelTab = 'templates' | 'elements' | 'text' | 'brand' | 'uploads' | 'share' | null;
 
@@ -50,10 +51,10 @@ const SHAPES = [
 ];
 
 const TEXT_PRESETS = [
-  { label: 'Add a heading',    size: 36, weight: '700' },
-  { label: 'Add a subheading', size: 24, weight: '600' },
-  { label: 'Add body text',    size: 16, weight: '400' },
-  { label: 'Add a caption',    size: 12, weight: '400' },
+  { label: 'Add a heading',    size: 48, weight: '700', tool: 'text:heading' },
+  { label: 'Add a subheading', size: 32, weight: '600', tool: 'text:subheading' },
+  { label: 'Add body text',    size: 18, weight: '400', tool: 'text:body' },
+  { label: 'Add a caption',    size: 13, weight: '400', tool: 'text:caption' },
 ];
 
 export function ToolPanel({ brand, onToolSelect, selectedTool, onAddImage }: ToolPanelProps) {
@@ -194,7 +195,7 @@ export function ToolPanel({ brand, onToolSelect, selectedTool, onAddImage }: Too
                     {TEXT_PRESETS.map((preset) => (
                       <button
                         key={preset.label}
-                        onClick={() => onToolSelect('text')}
+                        onClick={() => onToolSelect(preset.tool)}
                         className="w-full text-left px-3 py-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/30 transition-all"
                       >
                         <span style={{ fontSize: Math.min(preset.size, 24), fontWeight: preset.weight }}>
@@ -318,17 +319,93 @@ export function ToolPanel({ brand, onToolSelect, selectedTool, onAddImage }: Too
             )}
 
             {activeTab === 'templates' && (
-              <div className="space-y-4 text-center py-6">
-                <LayoutTemplate className="h-8 w-8 mx-auto text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">Browse the marketplace for ready-made templates.</p>
-                <Button variant="outline" size="sm" onClick={() => window.location.href = '/templates'} className="w-full">
-                  Browse Templates
-                </Button>
-              </div>
+              <TemplatesGrid searchQuery={searchQuery} />
             )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Templates Grid ──────────────────────────────────────────────
+const CATEGORY_LABELS: Record<string, string> = {
+  social: 'Social Media',
+  presentation: 'Presentations',
+  marketing: 'Marketing',
+  card: 'Cards & Invites',
+};
+
+function TemplatesGrid({ searchQuery }: { searchQuery: string }) {
+  const filtered = useMemo(() => {
+    if (!searchQuery) return DESIGN_TEMPLATES;
+    const q = searchQuery.toLowerCase();
+    return DESIGN_TEMPLATES.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.category.includes(q),
+    );
+  }, [searchQuery]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, DesignTemplate[]> = {};
+    for (const t of filtered) {
+      (map[t.category] ??= []).push(t);
+    }
+    return map;
+  }, [filtered]);
+
+  const loadTemplate = (tpl: DesignTemplate) => {
+    window.dispatchEvent(
+      new CustomEvent('loadTemplate', { detail: { json: tpl.json } }),
+    );
+  };
+
+  if (filtered.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <LayoutTemplate className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+        <p className="text-sm text-muted-foreground">No templates found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {Object.entries(grouped).map(([cat, templates]) => (
+        <div key={cat}>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+            {CATEGORY_LABELS[cat] || cat}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {templates.map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => loadTemplate(tpl)}
+                className="group relative rounded-lg border border-border overflow-hidden hover:border-primary/50 hover:shadow-md transition-all text-left"
+              >
+                {/* Color preview thumbnail */}
+                <div
+                  className="aspect-[4/3] flex items-center justify-center"
+                  style={{ backgroundColor: tpl.accent }}
+                >
+                  <span className="text-white text-[10px] font-bold opacity-80 px-2 text-center leading-tight">
+                    {tpl.name}
+                  </span>
+                </div>
+                <div className="px-2 py-1.5 bg-background">
+                  <span className="text-[10px] font-medium truncate block">{tpl.name}</span>
+                  <span className="text-[9px] text-muted-foreground">{tpl.width}×{tpl.height}</span>
+                </div>
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="bg-primary text-primary-foreground text-[10px] font-semibold px-3 py-1 rounded-full shadow">
+                    Use Template
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

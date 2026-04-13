@@ -31,10 +31,15 @@ export function LayersPanel({ fabricCanvas, selectedObject, onSelectionChange }:
       const newLayers = objects.map((obj: any, index: number) => ({
         id: obj.id || `layer-${index}`,
         type: obj.type || 'object',
-        name: obj.type === 'textbox' ? obj.text?.slice(0, 20) || 'Text' : 
+        name: obj.type === 'textbox' || obj.type === 'i-text' ? obj.text?.slice(0, 20) || 'Text' :
               obj.type === 'image' ? 'Image' :
               obj.type === 'rect' ? 'Rectangle' :
               obj.type === 'circle' ? 'Circle' :
+              obj.type === 'triangle' ? 'Triangle' :
+              obj.type === 'polygon' ? 'Polygon' :
+              obj.type === 'path' ? 'Shape' :
+              obj.type === 'line' ? 'Line' :
+              obj.type === 'group' ? 'Group' :
               `Layer ${index + 1}`,
         visible: obj.visible !== false,
         locked: !obj.selectable,

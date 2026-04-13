@@ -4,13 +4,14 @@
  * Appears between EditorChrome and canvas when an object is selected.
  * Shows different controls based on object type (text vs shape vs image).
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Minus, Plus, Palette, Type as TypeIcon,
-  ChevronDown, Pipette,
+  ChevronDown, Pipette, FlipHorizontal, FlipVertical,
+  Sun, Contrast, Droplets, SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,11 +27,16 @@ const FONT_OPTIONS = [
   'Oswald', 'Nunito', 'Source Sans Pro', 'Ubuntu', 'Cabin',
 ];
 
+const SHAPE_TYPES = ['rect', 'circle', 'path', 'polygon', 'triangle', 'line', 'ellipse', 'polyline'];
+
 export function ContextToolbar({ selectedObject, fabricCanvas, brand }: ContextToolbarProps) {
   if (!selectedObject || !fabricCanvas) return null;
 
-  const isText = selectedObject.type === 'textbox' || selectedObject.type === 'i-text' || selectedObject.type === 'text';
-  const isShape = selectedObject.type === 'rect' || selectedObject.type === 'circle' || selectedObject.type === 'path';
+  const objType = selectedObject.type || '';
+  const isText = objType === 'textbox' || objType === 'i-text' || objType === 'text';
+  const isShape = SHAPE_TYPES.includes(objType);
+  const isImage = objType === 'image';
+  const isMultiSelect = objType === 'activeselection' || objType === 'activeSelection';
 
   const update = useCallback((prop: string, value: unknown) => {
     selectedObject.set(prop, value);
@@ -239,8 +245,34 @@ export function ContextToolbar({ selectedObject, fabricCanvas, brand }: ContextT
         </>
       )}
 
+      {/* Multi-select alignment */}
+      {isMultiSelect && (
+        <AlignmentControls selectedObject={selectedObject} fabricCanvas={fabricCanvas} />
+      )}
+
+      {/* Image Controls */}
+      {isImage && (
+        <ImageToolbarControls selectedObject={selectedObject} fabricCanvas={fabricCanvas} />
+      )}
+
+      {/* Opacity (all objects) */}
+      {!isText && !isShape && !isImage && (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground font-medium">Opacity</span>
+          <input
+            type="range"
+            value={Math.round((selectedObject.opacity ?? 1) * 100)}
+            onChange={(e) => update('opacity', Number(e.target.value) / 100)}
+            className="w-20 h-1.5 accent-primary"
+            min={0}
+            max={100}
+          />
+          <span className="text-xs text-muted-foreground w-8">{Math.round((selectedObject.opacity ?? 1) * 100)}%</span>
+        </div>
+      )}
+
       {/* Brand quick-apply (always visible when brand is available) */}
-      {brand && (
+      {brand && (isText || isShape) && (
         <div className="ml-auto flex items-center gap-1">
           {brand.primaryColor && (
             <button
@@ -261,5 +293,190 @@ export function ContextToolbar({ selectedObject, fabricCanvas, brand }: ContextT
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Image toolbar controls ──────────────────────────────────────
+function ImageToolbarControls({ selectedObject, fabricCanvas }: { selectedObject: any; fabricCanvas: any }) {
+  const [showFilters, setShowFilters] = useState(false);
+
+  const flipH = () => {
+    selectedObject.set('flipX', !selectedObject.flipX);
+    fabricCanvas.renderAll();
+    fabricCanvas.fire('object:modified', { target: selectedObject });
+  };
+
+  const flipV = () => {
+    selectedObject.set('flipY', !selectedObject.flipY);
+    fabricCanvas.renderAll();
+    fabricCanvas.fire('object:modified', { target: selectedObject });
+  };
+
+  const setOpacity = (val: number) => {
+    selectedObject.set('opacity', val / 100);
+    fabricCanvas.renderAll();
+    fabricCanvas.fire('object:modified', { target: selectedObject });
+  };
+
+  const applyFilter = async (filterType: string) => {
+    try {
+      const fabric = await import('fabric');
+      const filters = (fabric as any).Image?.filters || (fabric as any).filters;
+      if (!filters) return;
+
+      // Clear existing filters
+      selectedObject.filters = [];
+
+      if (filterType !== 'none') {
+        let filter: any;
+        switch (filterType) {
+          case 'grayscale':
+            filter = new filters.Grayscale();
+            break;
+          case 'sepia':
+            filter = new filters.Sepia();
+            break;
+          case 'brightness':
+            filter = new filters.Brightness({ brightness: 0.15 });
+            break;
+          case 'contrast':
+            filter = new filters.Contrast({ contrast: 0.2 });
+            break;
+          case 'blur':
+            filter = new filters.Blur({ blur: 0.3 });
+            break;
+          case 'invert':
+            filter = new filters.Invert();
+            break;
+          case 'noise':
+            filter = new filters.Noise({ noise: 100 });
+            break;
+          case 'pixelate':
+            filter = new filters.Pixelate({ blocksize: 6 });
+            break;
+        }
+        if (filter) selectedObject.filters.push(filter);
+      }
+
+      selectedObject.applyFilters();
+      fabricCanvas.renderAll();
+      fabricCanvas.fire('object:modified', { target: selectedObject });
+    } catch (err) {
+      console.error('Filter error:', err);
+    }
+  };
+
+  return (
+    <>
+      {/* Flip */}
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={flipH} title="Flip horizontal">
+        <FlipHorizontal className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={flipV} title="Flip vertical">
+        <FlipVertical className="h-3.5 w-3.5" />
+      </Button>
+
+      <div className="w-px h-5 bg-border mx-1" />
+
+      {/* Opacity */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground font-medium">Opacity</span>
+        <input
+          type="range"
+          value={Math.round((selectedObject.opacity ?? 1) * 100)}
+          onChange={(e) => setOpacity(Number(e.target.value))}
+          className="w-16 h-1.5 accent-primary"
+          min={0}
+          max={100}
+        />
+        <span className="text-xs text-muted-foreground w-8">{Math.round((selectedObject.opacity ?? 1) * 100)}%</span>
+      </div>
+
+      <div className="w-px h-5 bg-border mx-1" />
+
+      {/* Filters dropdown */}
+      <div className="relative">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn('h-8 gap-1 text-xs', showFilters && 'bg-muted')}
+          onClick={() => setShowFilters(!showFilters)}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filters
+          <ChevronDown className="h-3 w-3" />
+        </Button>
+        {showFilters && (
+          <div className="absolute top-full left-0 mt-1 bg-popover border border-border rounded-lg shadow-lg p-1 z-50 min-w-[140px]">
+            {['none', 'grayscale', 'sepia', 'brightness', 'contrast', 'blur', 'invert', 'noise', 'pixelate'].map((f) => (
+              <button
+                key={f}
+                onClick={() => { applyFilter(f); setShowFilters(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs rounded hover:bg-muted/50 capitalize"
+              >
+                {f === 'none' ? 'No Filter' : f}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Alignment controls for multi-selection ─────────────────────
+function AlignmentControls({ selectedObject, fabricCanvas }: { selectedObject: any; fabricCanvas: any }) {
+  const align = (direction: string) => {
+    const objects = selectedObject.getObjects?.() || [];
+    if (objects.length < 2) return;
+
+    const bounds = selectedObject.getBoundingRect();
+
+    objects.forEach((obj: any) => {
+      const objBounds = obj.getBoundingRect();
+      switch (direction) {
+        case 'left':
+          obj.set('left', obj.left - objBounds.left + bounds.left);
+          break;
+        case 'center-h':
+          obj.set('left', obj.left - objBounds.left + bounds.left + (bounds.width - objBounds.width) / 2);
+          break;
+        case 'right':
+          obj.set('left', obj.left - objBounds.left + bounds.left + bounds.width - objBounds.width);
+          break;
+        case 'top':
+          obj.set('top', obj.top - objBounds.top + bounds.top);
+          break;
+        case 'center-v':
+          obj.set('top', obj.top - objBounds.top + bounds.top + (bounds.height - objBounds.height) / 2);
+          break;
+        case 'bottom':
+          obj.set('top', obj.top - objBounds.top + bounds.top + bounds.height - objBounds.height);
+          break;
+      }
+      obj.setCoords();
+    });
+
+    fabricCanvas.renderAll();
+    fabricCanvas.fire('object:modified', { target: selectedObject });
+  };
+
+  return (
+    <>
+      <span className="text-[10px] text-muted-foreground font-medium">Align</span>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => align('left')} title="Align left">
+        <AlignLeft className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => align('center-h')} title="Align center">
+        <AlignCenter className="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => align('right')} title="Align right">
+        <AlignRight className="h-3.5 w-3.5" />
+      </Button>
+      <div className="w-px h-5 bg-border mx-1" />
+      <span className="text-[10px] text-muted-foreground font-medium">
+        {selectedObject.getObjects?.()?.length || 0} objects
+      </span>
+    </>
   );
 }
