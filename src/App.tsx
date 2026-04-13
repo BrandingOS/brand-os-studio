@@ -66,6 +66,7 @@ const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/tem
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
+const StandaloneEditorPage = lazy(() => import('./pages/editor/index'));
 // Tools platform — public + in-app routes for the Tools suite. Lazy-loaded
 // because the variant-studio bundle pulls in jspdf/jszip and isn't needed
 // on the main dashboard path.
@@ -265,6 +266,7 @@ const App = () => (
               <CanvasGuidelinesPage />
             </ProtectedRoute>
           } />
+          <Route path="/editor" element={<StandaloneEditorPage />} />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
 
           {/*

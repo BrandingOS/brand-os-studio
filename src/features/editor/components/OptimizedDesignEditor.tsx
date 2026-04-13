@@ -3,6 +3,7 @@ import { Canvas as FabricCanvas } from 'fabric';
 import { OptimizedDesignCanvas } from './OptimizedDesignCanvas';
 import { ToolPanel } from './ToolPanel';
 import { PropertiesPanel } from './PropertiesPanel';
+import { LayersPanel } from './LayersPanel';
 import { EditorChrome, useAutoSave } from '@/features/editor/core';
 import { ContextToolbar } from './ContextToolbar';
 import { EditorBottomBar } from './EditorBottomBar';
@@ -45,6 +46,9 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
   const [zoom, setZoom] = useState(1);
   const [fileName, setFileName] = useState('Untitled Design');
   const [showExport, setShowExport] = useState(false);
+  const [showLayers, setShowLayers] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 });
 
   // Performance refs
   const canvasActionsRef = useRef<{
@@ -132,12 +136,41 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     setSelectedObject(object);
   }, 16); // ~60fps
 
+  // Drawing mode toggle
+  const handleDrawingToggle = useCallback((enabled: boolean) => {
+    setIsDrawingMode(enabled);
+    if (fabricCanvas) {
+      fabricCanvas.isDrawingMode = enabled;
+      if (enabled) {
+        fabricCanvas.freeDrawingBrush.width = 3;
+        fabricCanvas.freeDrawingBrush.color = brand.primaryColor || '#000000';
+      }
+      fabricCanvas.renderAll();
+    }
+  }, [fabricCanvas, brand.primaryColor]);
+
+  // Canvas resize
+  const handleCanvasSizeChange = useCallback((width: number, height: number) => {
+    setCanvasSize({ width, height });
+    if (fabricCanvas) {
+      fabricCanvas.setDimensions({ width, height });
+      fabricCanvas.renderAll();
+    }
+  }, [fabricCanvas]);
+
   // Tool selection — set tool, let canvas effect handle it, then reset
   const handleToolSelect = useCallback((tool: string) => {
+    // If drawing mode is on and we select a non-drawing tool, turn it off
+    if (isDrawingMode && tool !== 'draw') {
+      handleDrawingToggle(false);
+    }
+    if (tool === 'draw') {
+      handleDrawingToggle(!isDrawingMode);
+      return;
+    }
     setSelectedTool(tool);
-    // Reset after a short delay so the canvas useEffect has time to fire
     setTimeout(() => setSelectedTool(null), 100);
-  }, []);
+  }, [isDrawingMode, handleDrawingToggle]);
 
   // Image handling
   const handleAddImage = useCallback((imageUrl: string) => {
@@ -212,6 +245,13 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     canUndo: canvasActionsRef.current?.canUndo || false,
     canRedo: canvasActionsRef.current?.canRedo || false,
   }), [canvasActionsRef.current?.canUndo, canvasActionsRef.current?.canRedo]);
+
+  // Listen for export event from Share tab
+  useEffect(() => {
+    const handleExport = () => setShowExport(true);
+    window.addEventListener('editor:export', handleExport);
+    return () => window.removeEventListener('editor:export', handleExport);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -297,22 +337,36 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
           />
         </div>
 
-        {/* Right Properties Panel */}
-        <PropertiesPanel
-          selectedObject={selectedObject}
-          brand={brand}
-          fabricCanvas={fabricCanvas}
-          onDeleteObject={handleDeleteObject}
-          onDuplicateObject={handleDuplicateObject}
-        />
+        {/* Right Panel — Properties or Layers */}
+        {showLayers ? (
+          <LayersPanel
+            fabricCanvas={fabricCanvas}
+            selectedObject={selectedObject}
+            onSelectionChange={handleSelectionChange}
+          />
+        ) : (
+          <PropertiesPanel
+            selectedObject={selectedObject}
+            brand={brand}
+            fabricCanvas={fabricCanvas}
+            onDeleteObject={handleDeleteObject}
+            onDuplicateObject={handleDuplicateObject}
+          />
+        )}
       </div>
 
-      {/* Bottom Bar — zoom slider, grid, fullscreen */}
+      {/* Bottom Bar */}
       <EditorBottomBar
         brand={brand}
         selectedObject={selectedObject}
         zoom={zoom}
         onZoomChange={handleZoomChange}
+        showLayers={showLayers}
+        onToggleLayers={() => setShowLayers(!showLayers)}
+        canvasWidth={canvasSize.width}
+        canvasHeight={canvasSize.height}
+        onCanvasSizeChange={handleCanvasSizeChange}
+        isDrawingMode={isDrawingMode}
       />
 
       {/* Export Dialog */}
