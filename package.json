@@ -57,6 +57,7 @@
     "framer-motion": "^12.38.0",
     "gif.js": "^0.2.0",
     "html2canvas": "^1.4.1",
+    "imagetracerjs": "^1.2.6",
     "input-otp": "^1.4.2",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",

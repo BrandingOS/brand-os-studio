@@ -57,6 +57,7 @@ const AdminActivityPage2 = lazy(() => import("./features/admin/pages/AdminActivi
 const AdminSettingsPage = lazy(() => import("./features/admin/pages/AdminSettings"));
 
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
+const LogoToSvgPage = lazy(() => import("./features/tools/logo-to-svg/LogoToSvgPage"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
 const AssetsPage = lazy(() => import("./pages/dashboard/brand/[slug]/assets"));
@@ -284,6 +285,7 @@ const App = () => (
           */}
           <Route path="/tools" element={<ToolsDirectoryPage />} />
           <Route path="/tools/logo-variant-generator" element={<PublicVariantStudioPage />} />
+          <Route path="/tools/logo-to-svg" element={<LogoToSvgPage />} />
           <Route path="/claim" element={<ClaimPage />} />
           <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
             <ProtectedRoute>
