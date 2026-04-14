@@ -1,4 +1,3 @@
-Using workdir /Users/home/Projects/brand-os-studio
 export type Json =
   | string
   | number
