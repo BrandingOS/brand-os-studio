@@ -25,9 +25,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, PanelLeftClose, PanelLeft, Share2, Settings, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatPanel } from '@/features/ai-design/components/ChatPanel';
-import { InfiniteCanvas } from '@/features/ai-design/components/InfiniteCanvas';
+import { TldrawCanvas } from '@/features/ai-design/components/TldrawCanvas';
 import { EntryOverlay } from '@/features/ai-design/components/EntryOverlay';
-import { BottomToolbar } from '@/features/ai-design/components/BottomToolbar';
 import { ChatFab } from '@/features/ai-design/components/ChatFab';
 import { useAiDesignStore } from '@/features/ai-design/hooks/useAiDesignStore';
 import { runAgent } from '@/features/ai-design/lib/aiAgent';
@@ -190,16 +189,7 @@ export default function AiDesignPage() {
 
         {/* Canvas column — fills remaining width and height. */}
         <div className="flex-1 min-w-0 relative">
-          <InfiniteCanvas
-            nodes={nodes}
-            brand={brand}
-            selectedId={selectedNodeId}
-            onSelect={selectNode}
-            onMove={moveNode}
-            showGrid={!isEmpty}
-          />
-
-          {!isEmpty && <BottomToolbar />}
+          {!isEmpty && <TldrawCanvas nodes={nodes} brand={brand} />}
           {!isEmpty && !chatOpen && <ChatFab onToggleChat={() => setChatOpen(true)} />}
 
           {isEmpty && !isThinking && (
