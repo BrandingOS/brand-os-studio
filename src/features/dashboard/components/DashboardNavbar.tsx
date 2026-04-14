@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { UserMenu } from '@/features/auth/components/UserMenu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -190,7 +191,7 @@ export function DashboardNavbar() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Settings + User now live in AppRail bottom slot. */}
+          <UserMenu />
         </div>
       </div>
     </header>

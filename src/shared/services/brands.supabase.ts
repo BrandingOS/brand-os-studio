@@ -1,32 +1,49 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
-import type { BrandsService } from './brands.service';
+import type { IBrandsService } from '@/core/types/services';
+import { demoBrandIdentity } from '@/data/demo';
+import { raqmBrand } from '@/data/brands/raqm';
+import { skamBrand } from '@/data/brands/skam';
+import { vectorBrand } from '@/data/brands/vector';
 
-export class SupabaseBrandsService implements BrandsService {
-  async list(): Promise<Brand[]> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+/**
+ * Seed brands are always available regardless of database state.
+ * They appear as read-only examples for all users.
+ */
+const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, demoBrandIdentity];
+const SEED_BRAND_IDS = new Set(SEED_BRANDS.map((b) => b.id));
 
-    const { data, error } = await supabase
+export class SupabaseBrandsService implements IBrandsService {
+  async list(workspaceId?: string): Promise<Brand[]> {
+    let query = supabase
       .from('brands')
       .select('*')
-      .or(`user_id.eq.${user.id},id.eq.550e8400-e29b-41d4-a716-446655440000`)
       .order('created_at', { ascending: false });
 
+    if (workspaceId) {
+      query = query.eq('workspace_id', workspaceId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
-    
-    return data.map(this.mapFromDatabase);
+
+    const dbBrands = (data ?? []).map(this.mapFromDatabase);
+    const dbBrandIds = new Set(dbBrands.map((b) => b.id));
+
+    // Merge: DB brands first, then seed brands that aren't overridden
+    const seeds = SEED_BRANDS.filter((b) => !dbBrandIds.has(b.id));
+    return [...dbBrands, ...seeds];
   }
 
   async getById(id: string): Promise<Brand | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    // Check seed brands first
+    const seed = SEED_BRANDS.find((b) => b.id === id);
+    if (seed) return seed;
 
     const { data, error } = await supabase
       .from('brands')
       .select('*')
       .eq('id', id)
-      .or(`user_id.eq.${user.id},id.eq.550e8400-e29b-41d4-a716-446655440000`)
       .maybeSingle();
 
     if (error) throw error;
@@ -34,14 +51,14 @@ export class SupabaseBrandsService implements BrandsService {
   }
 
   async getBySlug(slug: string): Promise<Brand | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    // Check seed brands first
+    const seed = SEED_BRANDS.find((b) => b.slug === slug);
+    if (seed) return seed;
 
     const { data, error } = await supabase
       .from('brands')
       .select('*')
       .eq('slug', slug)
-      .or(`user_id.eq.${user.id},id.eq.550e8400-e29b-41d4-a716-446655440000`)
       .maybeSingle();
 
     if (error) throw error;
@@ -52,10 +69,9 @@ export class SupabaseBrandsService implements BrandsService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
-    const brandData = {
+    const brandData: Record<string, unknown> = {
       user_id: user.id,
       name: input.name,
-      slug: input.slug || this.generateSlug(input.name),
       logo_url: input.logo,
       primary_color: input.primaryColor,
       secondary_color: input.secondaryColor,
@@ -63,6 +79,9 @@ export class SupabaseBrandsService implements BrandsService {
       tone: input.tone,
       audience: input.audience,
     };
+
+    if (input.slug) brandData.slug = input.slug;
+    if (input.workspaceId) brandData.workspace_id = input.workspaceId;
 
     const { data, error } = await supabase
       .from('brands')
@@ -75,23 +94,32 @@ export class SupabaseBrandsService implements BrandsService {
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<Brand> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    // Seed brands can't be updated in Supabase — return the patched seed locally
+    if (SEED_BRAND_IDS.has(id)) {
+      const seed = SEED_BRANDS.find((b) => b.id === id);
+      if (seed) return { ...seed, ...patch, updatedAt: new Date() };
+    }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
+
     if (patch.name !== undefined) updateData.name = patch.name;
     if (patch.logo !== undefined) updateData.logo_url = patch.logo;
+    if (patch.logoAssets !== undefined) updateData.logo_assets = patch.logoAssets;
     if (patch.primaryColor !== undefined) updateData.primary_color = patch.primaryColor;
     if (patch.secondaryColor !== undefined) updateData.secondary_color = patch.secondaryColor;
     if (patch.fonts !== undefined) updateData.fonts = patch.fonts;
     if (patch.tone !== undefined) updateData.tone = patch.tone;
     if (patch.audience !== undefined) updateData.audience = patch.audience;
+    if (patch.strategy !== undefined) updateData.strategy = patch.strategy;
+    if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
+    if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
+    if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
+    if (patch.customDomain !== undefined) updateData.custom_domain = patch.customDomain;
 
     const { data, error } = await supabase
       .from('brands')
       .update(updateData)
       .eq('id', id)
-      .eq('user_id', user.id)
       .select()
       .single();
 
@@ -100,24 +128,15 @@ export class SupabaseBrandsService implements BrandsService {
   }
 
   async delete(id: string): Promise<void> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    // Seed brands can't be deleted
+    if (SEED_BRAND_IDS.has(id)) return;
 
     const { error } = await supabase
       .from('brands')
       .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
+      .eq('id', id);
 
     if (error) throw error;
-  }
-
-  private generateSlug(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .replace(/\s+/g, '_');
   }
 
   private mapFromDatabase(data: any): Brand {
@@ -126,16 +145,20 @@ export class SupabaseBrandsService implements BrandsService {
       slug: data.slug,
       name: data.name,
       logo: data.logo_url,
+      logoAssets: data.logo_assets || undefined,
       primaryColor: data.primary_color,
       secondaryColor: data.secondary_color,
-      fonts: data.fonts,
-      tone: data.tone,
-      audience: data.audience,
-      assets: [], // TODO: Load from storage when needed
+      fonts: data.fonts || { primary: 'Inter' },
+      tone: data.tone || '',
+      audience: data.audience || '',
+      strategy: data.strategy || undefined,
+      guidelines: data.guidelines || undefined,
+      isPublic: data.is_public || false,
+      publicUrl: data.public_url || undefined,
+      customDomain: data.custom_domain || undefined,
+      assets: [],
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
   }
 }
-
-export const supabaseBrandsService = new SupabaseBrandsService();

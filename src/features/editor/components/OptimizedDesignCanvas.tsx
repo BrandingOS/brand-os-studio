@@ -1,7 +1,27 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Canvas as FabricCanvas, Circle, Rect, Textbox, FabricImage, ActiveSelection } from 'fabric';
+import { Canvas as FabricCanvas, Circle, Rect, Textbox, FabricImage, ActiveSelection, Line, Triangle, Polygon, Path, Ellipse, Group } from 'fabric';
 import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
+
+// ─── Shape geometry helpers ─────────────────────────────────────────
+function starPoints(cx: number, cy: number, spikes: number, outerR: number, innerR: number) {
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (Math.PI / spikes) * i - Math.PI / 2;
+    pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+  }
+  return pts;
+}
+
+function regularPolygonPoints(cx: number, cy: number, sides: number, radius: number) {
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i < sides; i++) {
+    const angle = (2 * Math.PI / sides) * i - Math.PI / 2;
+    pts.push({ x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+  }
+  return pts;
+}
 
 interface DesignCanvasProps {
   brand: Brand;
@@ -193,28 +213,30 @@ export function OptimizedDesignCanvas({
       // Use requestAnimationFrame for smooth pasting
       requestAnimationFrame(() => {
         let object;
-        
+        const offset = { left: (objectData.left || 0) + 20, top: (objectData.top || 0) + 20 };
+
         switch (objectData.type) {
           case 'textbox':
-            object = new Textbox(objectData.text, {
-              ...objectData,
-              left: objectData.left + 20,
-              top: objectData.top + 20,
-            });
+          case 'i-text':
+            object = new Textbox(objectData.text, { ...objectData, ...offset });
             break;
           case 'rect':
-            object = new Rect({
-              ...objectData,
-              left: objectData.left + 20,
-              top: objectData.top + 20,
-            });
+            object = new Rect({ ...objectData, ...offset });
             break;
           case 'circle':
-            object = new Circle({
-              ...objectData,
-              left: objectData.left + 20,
-              top: objectData.top + 20,
-            });
+            object = new Circle({ ...objectData, ...offset });
+            break;
+          case 'triangle':
+            object = new Triangle({ ...objectData, ...offset });
+            break;
+          case 'polygon':
+            object = new Polygon(objectData.points || [], { ...objectData, ...offset });
+            break;
+          case 'path':
+            object = new Path(objectData.path, { ...objectData, ...offset });
+            break;
+          case 'line':
+            object = new Line(objectData.points || [0,0,100,0], { ...objectData, ...offset });
             break;
           default:
             return;
@@ -373,56 +395,93 @@ export function OptimizedDesignCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, height]);
 
-  // Optimized object creation functions with memoization
-  const addText = useCallback(() => {
+  // ─── Object creation ────────────────────────────────────────────
+  const addToCanvas = useCallback((obj: any, label: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+    canvas.add(obj);
+    canvas.setActiveObject(obj);
+    canvas.renderAll();
+    saveState();
+    toast.success(`${label} added`);
+  }, [saveState]);
 
-    const text = new Textbox('Add your text here', {
+  const addText = useCallback((preset?: { size: number; weight: string; text: string }) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const text = new Textbox(preset?.text || 'Add your text here', {
       left: 100,
       top: 100,
-      fontFamily: brand.fonts?.primary || 'Arial',
+      fontFamily: brand.fonts?.primary || 'Inter',
       fill: brand.primaryColor || '#000000',
-      fontSize: 24,
+      fontSize: preset?.size || 24,
+      fontWeight: preset?.weight || '400',
       width: 300,
     });
+    addToCanvas(text, 'Text');
+  }, [brand, addToCanvas]);
 
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    canvas.renderAll();
-    saveState();
-    toast.success('Text added');
-  }, [brand, saveState]);
-
-  const addShape = useCallback((shape: 'rectangle' | 'circle') => {
+  const addShape = useCallback((shape: string) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
+    const color = brand.primaryColor || '#6366f1';
+    const cx = 75, cy = 75;
 
-    let object;
-    
-    if (shape === 'rectangle') {
-      object = new Rect({
-        left: 100,
-        top: 100,
-        fill: brand.primaryColor || '#000000',
-        width: 150,
-        height: 100,
-      });
-    } else {
-      object = new Circle({
-        left: 100,
-        top: 100,
-        fill: brand.primaryColor || '#000000',
-        radius: 75,
-      });
+    switch (shape) {
+      case 'rectangle': {
+        addToCanvas(new Rect({ left: 100, top: 100, fill: color, width: 150, height: 100 }), 'Rectangle');
+        break;
+      }
+      case 'circle': {
+        addToCanvas(new Circle({ left: 100, top: 100, fill: color, radius: 75 }), 'Circle');
+        break;
+      }
+      case 'line': {
+        addToCanvas(new Line([50, 200, 350, 200], { stroke: color, strokeWidth: 3, left: 100, top: 100 }), 'Line');
+        break;
+      }
+      case 'triangle': {
+        addToCanvas(new Triangle({ left: 100, top: 100, fill: color, width: 150, height: 130 }), 'Triangle');
+        break;
+      }
+      case 'star': {
+        const pts = starPoints(cx, cy, 5, 75, 35);
+        addToCanvas(new Polygon(pts, { left: 100, top: 100, fill: color }), 'Star');
+        break;
+      }
+      case 'hexagon': {
+        const pts = regularPolygonPoints(cx, cy, 6, 75);
+        addToCanvas(new Polygon(pts, { left: 100, top: 100, fill: color }), 'Hexagon');
+        break;
+      }
+      case 'diamond': {
+        const pts = [{ x: cx, y: 0 }, { x: cx * 2, y: cy }, { x: cx, y: cy * 2 }, { x: 0, y: cy }];
+        addToCanvas(new Polygon(pts, { left: 100, top: 100, fill: color }), 'Diamond');
+        break;
+      }
+      case 'heart': {
+        const heartPath = 'M 75 20 C 75 20 60 0 40 0 C 15 0 0 18 0 40 C 0 70 37 90 75 120 C 113 90 150 70 150 40 C 150 18 135 0 110 0 C 90 0 75 20 75 20 Z';
+        addToCanvas(new Path(heartPath, { left: 100, top: 100, fill: color, scaleX: 1, scaleY: 1 }), 'Heart');
+        break;
+      }
+      case 'arrow': {
+        const arrowPath = 'M 0 50 L 120 50 L 120 30 L 170 60 L 120 90 L 120 70 L 0 70 Z';
+        addToCanvas(new Path(arrowPath, { left: 100, top: 100, fill: color }), 'Arrow');
+        break;
+      }
+      case 'rounded': {
+        addToCanvas(new Rect({ left: 100, top: 100, fill: color, width: 180, height: 80, rx: 20, ry: 20 }), 'Rounded Rect');
+        break;
+      }
+      case 'callout': {
+        const calloutPath = 'M 10 0 L 190 0 Q 200 0 200 10 L 200 100 Q 200 110 190 110 L 80 110 L 50 140 L 60 110 L 10 110 Q 0 110 0 100 L 0 10 Q 0 0 10 0 Z';
+        addToCanvas(new Path(calloutPath, { left: 100, top: 100, fill: color }), 'Callout');
+        break;
+      }
+      default:
+        addToCanvas(new Rect({ left: 100, top: 100, fill: color, width: 150, height: 100 }), 'Shape');
     }
-
-    canvas.add(object);
-    canvas.setActiveObject(object);
-    canvas.renderAll();
-    saveState();
-    toast.success(`${shape} added`);
-  }, [brand, saveState]);
+  }, [brand, addToCanvas]);
 
   // Async image loading with progress indication
   const addImage = useCallback(async (imageUrl: string) => {
@@ -457,19 +516,34 @@ export function OptimizedDesignCanvas({
   useEffect(() => {
     if (!selectedTool) return;
 
+    // Text presets: "text:heading", "text:subheading", etc.
+    if (selectedTool.startsWith('text:')) {
+      const presets: Record<string, { size: number; weight: string; text: string }> = {
+        'text:heading':    { size: 48, weight: '700', text: 'Add a heading' },
+        'text:subheading': { size: 32, weight: '600', text: 'Add a subheading' },
+        'text:body':       { size: 18, weight: '400', text: 'Add body text here. Edit this to write your own content.' },
+        'text:caption':    { size: 13, weight: '400', text: 'Caption text' },
+      };
+      addText(presets[selectedTool]);
+      return;
+    }
+
     switch (selectedTool) {
       case 'text':
         addText();
         break;
       case 'rectangle':
+      case 'circle':
       case 'line':
       case 'triangle':
       case 'star':
       case 'hexagon':
-        addShape('rectangle');
-        break;
-      case 'circle':
-        addShape('circle');
+      case 'diamond':
+      case 'heart':
+      case 'arrow':
+      case 'rounded':
+      case 'callout':
+        addShape(selectedTool);
         break;
     }
   }, [selectedTool, addText, addShape]);
@@ -483,6 +557,29 @@ export function OptimizedDesignCanvas({
     window.addEventListener('addImage', handler);
     return () => window.removeEventListener('addImage', handler);
   }, [addImage]);
+
+  // Listen for template load events
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const canvas = fabricCanvasRef.current;
+      if (!canvas) return;
+      const { json } = (e as CustomEvent).detail || {};
+      if (!json) return;
+      try {
+        // Clear canvas and load template
+        canvas.clear();
+        await canvas.loadFromJSON(json);
+        canvas.renderAll();
+        saveState();
+        toast.success('Template loaded');
+      } catch (err) {
+        console.error('Template load error:', err);
+        toast.error('Failed to load template');
+      }
+    };
+    window.addEventListener('loadTemplate', handler);
+    return () => window.removeEventListener('loadTemplate', handler);
+  }, [saveState]);
 
   // Optimized zoom with smooth transitions
   const handleZoom = useCallback((newZoom: number) => {

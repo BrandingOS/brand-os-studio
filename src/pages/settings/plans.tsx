@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { Card } from '@/shared/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { Check, Crown, Briefcase, Zap } from 'lucide-react';
+import { useWorkspaceStore } from '@/shared/store/workspaceStore';
+import { billingService, type PlanKey } from '@/shared/services/billing';
+import { Check, Crown, Briefcase, Zap, Loader2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 const PLANS = [
   {
-    key: 'free' as const,
+    key: 'free' as PlanKey,
     name: 'Free',
     price: '$0',
     period: '/month',
@@ -21,7 +24,7 @@ const PLANS = [
     ],
   },
   {
-    key: 'pro' as const,
+    key: 'pro' as PlanKey,
     name: 'Pro',
     price: '$19',
     period: '/month',
@@ -38,7 +41,7 @@ const PLANS = [
     ],
   },
   {
-    key: 'enterprise' as const,
+    key: 'agency' as PlanKey,
     name: 'Agency',
     price: '$49',
     period: '/month',
@@ -55,27 +58,61 @@ const PLANS = [
   },
 ] as const;
 
-const PLAN_ORDER = { free: 0, pro: 1, enterprise: 2 } as const;
+const PLAN_ORDER: Record<string, number> = { free: 0, pro: 1, agency: 2 };
 
 export default function PlansPage() {
-  const { user, signIn } = useSessionStore();
+  const { user } = useSessionStore();
+  const workspace = useWorkspaceStore((s) => s.current);
+  const [loading, setLoading] = useState<string | null>(null);
   const currentPlan = user?.plan || 'free';
 
-  const handlePlanChange = (newPlan: 'free' | 'pro' | 'enterprise') => {
-    if (!user || newPlan === currentPlan) return;
-    const planLabel = PLANS.find((p) => p.key === newPlan)?.name || newPlan;
-    signIn({ ...user, plan: newPlan, updatedAt: new Date() });
-    toast.success(`Plan updated to ${planLabel}!`);
+  const handleUpgrade = async (planKey: PlanKey) => {
+    if (!workspace?.id) {
+      toast.error('No workspace found. Please log in first.');
+      return;
+    }
+    if (planKey === 'free') return;
+
+    setLoading(planKey);
+    try {
+      const url = await billingService.createCheckout(workspace.id, planKey);
+      window.location.href = url;
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast.error(error.message || 'Failed to start checkout. Please try again.');
+    } finally {
+      setLoading(null);
+    }
   };
 
-  const getButtonConfig = (planKey: 'free' | 'pro' | 'enterprise') => {
+  const handleManageBilling = async () => {
+    if (!workspace?.id) return;
+    setLoading('manage');
+    try {
+      const url = await billingService.openPortal(workspace.id);
+      window.location.href = url;
+    } catch (error: any) {
+      console.error('Portal error:', error);
+      toast.error(error.message || 'Failed to open billing portal.');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const getButtonConfig = (planKey: PlanKey) => {
+    const planOrder = PLAN_ORDER[planKey] ?? 0;
+    const currentOrder = PLAN_ORDER[currentPlan] ?? 0;
+
     if (planKey === currentPlan) {
-      return { label: 'Current Plan', disabled: true, variant: 'outline' as const };
+      return { label: 'Current Plan', disabled: true, variant: 'outline' as const, action: () => {} };
     }
-    if (PLAN_ORDER[planKey] > PLAN_ORDER[currentPlan]) {
-      return { label: 'Upgrade', disabled: false, variant: 'default' as const };
+    if (planKey === 'free' && currentOrder > 0) {
+      return { label: 'Manage Billing', disabled: false, variant: 'secondary' as const, action: handleManageBilling };
     }
-    return { label: 'Downgrade', disabled: false, variant: 'secondary' as const };
+    if (planOrder > currentOrder) {
+      return { label: 'Upgrade', disabled: false, variant: 'default' as const, action: () => handleUpgrade(planKey) };
+    }
+    return { label: 'Manage Billing', disabled: false, variant: 'secondary' as const, action: handleManageBilling };
   };
 
   return (
@@ -94,6 +131,7 @@ export default function PlansPage() {
         {PLANS.map((plan) => {
           const Icon = plan.icon;
           const btn = getButtonConfig(plan.key);
+          const isLoading = loading === plan.key;
           return (
             <Card
               key={plan.key}
@@ -123,20 +161,46 @@ export default function PlansPage() {
               </ul>
               <Button
                 variant={btn.variant}
-                disabled={btn.disabled}
-                className="mt-6 w-full"
-                onClick={() => handlePlanChange(plan.key)}
+                disabled={btn.disabled || isLoading}
+                className="mt-6 w-full gap-2"
+                onClick={btn.action}
               >
-                {btn.label}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Redirecting...
+                  </>
+                ) : (
+                  <>
+                    {btn.label}
+                    {!btn.disabled && btn.label !== 'Current Plan' && (
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    )}
+                  </>
+                )}
               </Button>
             </Card>
           );
         })}
       </div>
 
-      <p className="text-center text-sm text-muted-foreground">
-        Billing will be available when Stripe is integrated. Plan changes are stored locally for now.
-      </p>
+      {PLAN_ORDER[currentPlan] > 0 && (
+        <div className="text-center">
+          <Button
+            variant="ghost"
+            className="gap-2 text-muted-foreground"
+            onClick={handleManageBilling}
+            disabled={loading === 'manage'}
+          >
+            {loading === 'manage' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ExternalLink className="h-4 w-4" />
+            )}
+            Manage Billing & Invoices
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -279,6 +279,7 @@ export interface Asset {
 export interface CreateBrandInput {
   name: string;
   slug?: string; // Optional, will be auto-generated if not provided
+  workspaceId?: string; // Workspace to create brand in (uses personal workspace if omitted)
   logo?: string;
   primaryColor: string;
   secondaryColor?: string;

@@ -4,7 +4,7 @@ export interface User {
   name: string;
   avatar?: string;
   role?: 'admin' | 'user';
-  plan: 'free' | 'pro' | 'enterprise';
+  plan: 'free' | 'pro' | 'agency';
   createdAt: Date;
   updatedAt: Date;
 }

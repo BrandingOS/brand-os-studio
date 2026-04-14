@@ -17,6 +17,7 @@ import IndexPage from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { SettingsLayout } from "./shared/layouts/SettingsLayout";
 import { BrandRouteLayout } from "./shared/layouts/BrandRouteLayout";
+import { AdminLayout } from "./features/admin/components/AdminLayout";
 
 // Lazy-loaded pages (split into separate chunks for faster initial load)
 const OnboardingPage = lazy(() => import("./pages/onboarding"));
@@ -43,7 +44,20 @@ const MembersPage = lazy(() => import("./pages/settings/members"));
 const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
+const LoginPage = lazy(() => import("./pages/auth/login"));
+
+// Admin dashboard
+const AdminOverview = lazy(() => import("./features/admin/pages/AdminOverview"));
+const AdminEarlyAccessPage = lazy(() => import("./features/admin/pages/AdminEarlyAccess"));
+const AdminUsersPage = lazy(() => import("./features/admin/pages/AdminUsers"));
+const AdminBrandsPage2 = lazy(() => import("./features/admin/pages/AdminBrands"));
+const AdminWorkspacesPage = lazy(() => import("./features/admin/pages/AdminWorkspaces"));
+const AdminSubscriptionsPage = lazy(() => import("./features/admin/pages/AdminSubscriptions"));
+const AdminActivityPage2 = lazy(() => import("./features/admin/pages/AdminActivity"));
+const AdminSettingsPage = lazy(() => import("./features/admin/pages/AdminSettings"));
+
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
+const LogoToSvgPage = lazy(() => import("./features/tools/logo-to-svg/LogoToSvgPage"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
 const AssetsPage = lazy(() => import("./pages/dashboard/brand/[slug]/assets"));
@@ -52,6 +66,7 @@ const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/tem
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
+const StandaloneEditorPage = lazy(() => import('./pages/editor/index'));
 // Tools platform — public + in-app routes for the Tools suite. Lazy-loaded
 // because the variant-studio bundle pulls in jspdf/jszip and isn't needed
 // on the main dashboard path.
@@ -251,6 +266,7 @@ const App = () => (
               <CanvasGuidelinesPage />
             </ProtectedRoute>
           } />
+          <Route path="/editor" element={<StandaloneEditorPage />} />
           <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
 
           {/*
@@ -271,6 +287,7 @@ const App = () => (
           */}
           <Route path="/tools" element={<ToolsDirectoryPage />} />
           <Route path="/tools/logo-variant-generator" element={<PublicVariantStudioPage />} />
+          <Route path="/tools/logo-to-svg" element={<LogoToSvgPage />} />
           <Route path="/claim" element={<ClaimPage />} />
           <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
             <ProtectedRoute>
@@ -398,7 +415,22 @@ const App = () => (
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+
+          {/* ─── Admin Dashboard ─────────────────────────────────────── */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="early-access" element={<AdminEarlyAccessPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="brands" element={<AdminBrandsPage2 />} />
+            <Route path="workspaces" element={<AdminWorkspacesPage />} />
+            <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+            <Route path="activity" element={<AdminActivityPage2 />} />
+            <Route path="settings" element={<AdminSettingsPage />} />
+          </Route>
+
           <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

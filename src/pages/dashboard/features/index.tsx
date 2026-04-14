@@ -127,6 +127,7 @@ const WORKSPACE_FEATURES: FeatureEntry[] = [
   { id: 'templates-w',   title: 'Guideline Templates', description: 'Cross-brand catalog of guideline document templates.',     icon: LayoutTemplate, href: '/dashboard/templates', status: 'orphan' },
   { id: 'templates-mp',  title: 'Templates Marketplace', description: 'BrandOS v5 marketplace of community templates.',         icon: Store,          href: '/templates',           status: 'orphan' },
   { id: 'marketplace',   title: 'Marketplace',         description: 'General-purpose marketplace surface.',                     icon: Store,          href: '/marketplace',         status: 'orphan' },
+  { id: 'editor',        title: 'Design Editor',       description: 'Canva-style design editor — shapes, templates, text, images, filters, layers.',  icon: PenTool,        href: '/editor',              status: 'linked' },
   { id: 'activity',      title: 'Activity feed',       description: 'Real-time feed of all brand actions, filterable by type.', icon: Activity,       href: '/dashboard/activity',  status: 'linked' },
   { id: 'dashboard-v2',  title: 'Dashboard v2 landing', description: 'Experimental landing page (BrandOS v5 sprint).',          icon: Sparkles,       href: '/v2',                  status: 'experiment' },
 ];
