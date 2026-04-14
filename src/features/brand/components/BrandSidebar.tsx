@@ -18,6 +18,7 @@ import {
   BookOpen,
   Share2,
   Sparkles,
+  Wand2,
 } from 'lucide-react';
 
 /**
@@ -96,6 +97,15 @@ const brandNavItems: BrandNavItem[] = [
       "/b/:slug/guidelines",
       "/dashboard/brand/:slug/guidelines",
       "/dashboard/brand/:slug/brand-guides",
+    ],
+  },
+  {
+    title: "AI Design",
+    url: "/b/:slug/ai-design",
+    icon: Wand2,
+    matchPaths: [
+      "/b/:slug/ai-design",
+      "/dashboard/brand/:slug/ai-design",
     ],
   },
   {

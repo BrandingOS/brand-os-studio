@@ -144,6 +144,7 @@ const BRAND_FEATURES: FeatureEntry[] = [
   { id: 'guidelines',   title: 'Guidelines',   description: 'The brand book — strategy through applications.', icon: BookOpen,   href: (s) => `/b/${s}/guidelines`,  status: 'linked',  needsBrand: true },
   { id: 'folders',      title: 'Folders',      description: 'Brand asset library — logos, photos, icons.',     icon: FolderOpen, href: (s) => `/b/${s}/folders`,     status: 'linked',  needsBrand: true },
   { id: 'kit',          title: 'Brand Kit',    description: 'Unified brand kit hub with bulk export.',         icon: Sparkles,   href: (s) => `/b/${s}/kit`,         status: 'linked',  needsBrand: true },
+  { id: 'ai-design',    title: 'AI Design',    description: 'Lovart-style brand-aware design agent on an infinite canvas.', icon: Wand2, href: (s) => `/b/${s}/ai-design`, status: 'linked', needsBrand: true },
   { id: 'designs',      title: 'Designs',      description: 'Generated deliverables — print, social, screen.', icon: Palette,    href: (s) => `/b/${s}/assets`,      status: 'linked',  needsBrand: true },
   { id: 'b-templates',  title: 'Brand Templates', description: 'Templates saved to this brand. Coming soon.',  icon: LayoutTemplate, href: (s) => `/b/${s}/templates`, status: 'linked', needsBrand: true },
   { id: 'share',        title: 'Share',        description: 'Visibility toggle, embed code, portal, decks, exports.', icon: Globe,      href: (s) => `/b/${s}/share`,       status: 'linked',  needsBrand: true },
