@@ -22,12 +22,13 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
+  showGrid?: boolean;
 }
 
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 4;
 
-export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: Props) {
+export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove, showGrid = true }: Props) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(0.5);
@@ -163,10 +164,12 @@ export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: P
       onPointerLeave={onPointerUpViewport}
       className="relative w-full h-full overflow-hidden select-none"
       style={{
-        backgroundColor: '#f5f6f8',
-        backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.18) ${dotSize}px, transparent ${dotSize}px)`,
-        backgroundSize: `${dotGap}px ${dotGap}px`,
-        backgroundPosition: `${bgPosX}px ${bgPosY}px`,
+        backgroundColor: showGrid ? '#f5f6f8' : '#ffffff',
+        backgroundImage: showGrid
+          ? `radial-gradient(circle, rgba(0,0,0,0.18) ${dotSize}px, transparent ${dotSize}px)`
+          : 'none',
+        backgroundSize: showGrid ? `${dotGap}px ${dotGap}px` : undefined,
+        backgroundPosition: showGrid ? `${bgPosX}px ${bgPosY}px` : undefined,
         cursor: panRef.current ? 'grabbing' : 'default',
       }}
     >
@@ -195,7 +198,7 @@ export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: P
       </div>
 
       {/* Empty state */}
-      {nodes.length === 0 && (
+      {nodes.length === 0 && showGrid && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-muted-foreground">
           <MousePointer2 className="h-6 w-6 mb-2 opacity-40" />
           <p className="text-sm opacity-60">
@@ -205,7 +208,8 @@ export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: P
       )}
 
       {/* Zoom controls */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-1 bg-background border rounded-full shadow-md px-1 py-1">
+      {showGrid && (
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-background border rounded-full shadow-md px-1 py-1">
         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={zoomOut}>
           <Minus className="h-4 w-4" />
         </Button>
@@ -219,6 +223,7 @@ export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: P
           <Maximize2 className="h-4 w-4" />
         </Button>
       </div>
+      )}
     </div>
   );
 }

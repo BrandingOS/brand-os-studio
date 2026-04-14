@@ -27,6 +27,8 @@ import { toast } from 'sonner';
 import { ChatPanel } from '@/features/ai-design/components/ChatPanel';
 import { InfiniteCanvas } from '@/features/ai-design/components/InfiniteCanvas';
 import { EntryOverlay } from '@/features/ai-design/components/EntryOverlay';
+import { BottomToolbar } from '@/features/ai-design/components/BottomToolbar';
+import { ChatFab } from '@/features/ai-design/components/ChatFab';
 import { useAiDesignStore } from '@/features/ai-design/hooks/useAiDesignStore';
 import { runAgent } from '@/features/ai-design/lib/aiAgent';
 import type { ChatMessage } from '@/features/ai-design/types';
@@ -194,7 +196,11 @@ export default function AiDesignPage() {
             selectedId={selectedNodeId}
             onSelect={selectNode}
             onMove={moveNode}
+            showGrid={!isEmpty}
           />
+
+          {!isEmpty && <BottomToolbar />}
+          {!isEmpty && !chatOpen && <ChatFab onToggleChat={() => setChatOpen(true)} />}
 
           {isEmpty && !isThinking && (
             <EntryOverlay

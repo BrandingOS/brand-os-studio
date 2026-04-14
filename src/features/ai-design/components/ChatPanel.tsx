@@ -57,7 +57,7 @@ export function ChatPanel({ messages, isThinking, activeSkill, onSkillChange, on
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && !isThinking && (
           <div className="text-center text-muted-foreground text-sm pt-6">
-            <p className="mb-3 font-medium">Try these brand skills</p>
+            <p className="mb-3 font-medium">Try these Skills</p>
             <div className="flex flex-wrap gap-1.5 justify-center">
               {SKILLS.map((s) => {
                 const Icon = s.icon;

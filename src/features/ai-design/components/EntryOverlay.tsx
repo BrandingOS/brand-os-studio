@@ -38,17 +38,8 @@ export function EntryOverlay({ brand, activeSkill, onSkillChange, onSubmit }: Pr
   };
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center px-6 pointer-events-none">
-      {/* A soft vignette so the hero pops without hiding the dot grid. */}
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.5) 40%, rgba(255,255,255,0) 75%)',
-        }}
-      />
-      <div className="relative w-full max-w-2xl flex flex-col items-center gap-7 pointer-events-auto">
+    <div className="absolute inset-0 z-10 flex items-center justify-center px-6 bg-white overflow-y-auto">
+      <div className="relative w-full max-w-2xl flex flex-col items-center gap-7 py-10">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="inline-flex flex-wrap items-center justify-center gap-3 text-3xl sm:text-4xl font-semibold tracking-tight">
             <span>Design is easier with</span>
@@ -111,6 +102,31 @@ export function EntryOverlay({ brand, activeSkill, onSkillChange, onSubmit }: Pr
         </div>
 
         <SkillPills active={activeSkill} onSelect={onSkillChange} />
+
+        {/* Recent Projects row — stub placeholders for now */}
+        <div className="w-full mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold">Recent Projects</h3>
+            <button className="text-xs text-muted-foreground hover:text-foreground">See All ›</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <button
+              onClick={() => onSubmit('Start a new blank project')}
+              className="aspect-square rounded-xl border-2 border-dashed hover:border-primary/60 hover:bg-muted/40 flex items-center justify-center transition"
+              title="New project"
+            >
+              <Plus className="h-5 w-5 text-muted-foreground" />
+            </button>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="aspect-square rounded-xl bg-muted/50 border flex items-end p-2"
+              >
+                <span className="text-[10px] text-muted-foreground">Untitled</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
