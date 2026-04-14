@@ -19,6 +19,7 @@ import {
   Share2,
   Sparkles,
   Wand2,
+  Palette,
 } from 'lucide-react';
 
 /**
@@ -106,6 +107,15 @@ const brandNavItems: BrandNavItem[] = [
     matchPaths: [
       "/b/:slug/ai-design",
       "/dashboard/brand/:slug/ai-design",
+    ],
+  },
+  {
+    title: "Design with AI",
+    url: "/b/:slug/design-ai",
+    icon: Palette,
+    matchPaths: [
+      "/b/:slug/design-ai",
+      "/dashboard/brand/:slug/design-ai",
     ],
   },
   {

@@ -65,6 +65,7 @@ const SharePage = lazy(() => import("./pages/dashboard/brand/[slug]/share"));
 const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/templates"));
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
+const DesignWithAiPage = lazy(() => import("./pages/dashboard/brand/[slug]/design-ai"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const StandaloneEditorPage = lazy(() => import('./pages/editor/index'));
@@ -236,6 +237,12 @@ const App = () => (
               <AiDesignPage />
             </ProtectedRoute>
           } />
+          {/* Design with AI — canvas-first design surface (fullscreen, no brand shell). */}
+          <Route path="/dashboard/brand/:slug/design-ai" element={
+            <ProtectedRoute>
+              <DesignWithAiPage />
+            </ProtectedRoute>
+          } />
           {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
@@ -392,6 +399,12 @@ const App = () => (
           <Route path="/b/:slug/ai-design" element={
             <ProtectedRoute>
               <AiDesignPage />
+            </ProtectedRoute>
+          } />
+          {/* Design with AI — short form. */}
+          <Route path="/b/:slug/design-ai" element={
+            <ProtectedRoute>
+              <DesignWithAiPage />
             </ProtectedRoute>
           } />
           <Route path="/b/:slug/brandkit" element={
