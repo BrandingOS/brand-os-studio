@@ -15,9 +15,11 @@ interface Props {
   onSkillChange: (id: SkillId | null) => void;
   onSend: (text: string) => void;
   suggestions?: string[];
+  /** When true, skip the internal header row (caller provides its own). */
+  hideHeader?: boolean;
 }
 
-export function ChatPanel({ messages, isThinking, activeSkill, onSkillChange, onSend, suggestions }: Props) {
+export function ChatPanel({ messages, isThinking, activeSkill, onSkillChange, onSend, suggestions, hideHeader }: Props) {
   const [value, setValue] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -42,13 +44,15 @@ export function ChatPanel({ messages, isThinking, activeSkill, onSkillChange, on
   };
 
   return (
-    <aside className="flex flex-col h-full border-r bg-background">
-      <div className="px-4 py-3 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">AI Design Agent</span>
+    <aside className="flex flex-col h-full bg-background">
+      {!hideHeader && (
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">AI Design Agent</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && !isThinking && (

@@ -67,25 +67,32 @@ export function InfiniteCanvas({ nodes, brand, selectedId, onSelect, onMove }: P
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
-  // ─── Zoom (Cmd/Ctrl + wheel, centered on cursor) ──────────────────────
+  // ─── Wheel (Figma convention) ─────────────────────────────────────────
+  //   plain scroll      → pan (trackpad gestures feel natural)
+  //   ctrl/meta scroll  → zoom centered on cursor (browser pinch sends this)
   const onWheel = useCallback(
     (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return; // free scroll for now
-      e.preventDefault();
+      e.preventDefault(); // always: we never let the page scroll behind us
       const vp = viewportRef.current;
       if (!vp) return;
-      const rect = vp.getBoundingClientRect();
-      const cursorX = e.clientX - rect.left;
-      const cursorY = e.clientY - rect.top;
 
-      setZoom((z) => {
-        const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * (1 - e.deltaY * 0.0015)));
-        // Adjust pan so the point under the cursor stays fixed.
-        const worldX = (cursorX - pan.x) / z;
-        const worldY = (cursorY - pan.y) / z;
-        setPan({ x: cursorX - worldX * next, y: cursorY - worldY * next });
-        return next;
-      });
+      if (e.ctrlKey || e.metaKey) {
+        const rect = vp.getBoundingClientRect();
+        const cursorX = e.clientX - rect.left;
+        const cursorY = e.clientY - rect.top;
+        setZoom((z) => {
+          const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * (1 - e.deltaY * 0.01)));
+          const worldX = (cursorX - pan.x) / z;
+          const worldY = (cursorY - pan.y) / z;
+          setPan({ x: cursorX - worldX * next, y: cursorY - worldY * next });
+          return next;
+        });
+      } else {
+        // Pan. Shift+wheel swaps axes (handy with a mouse wheel).
+        const dx = e.shiftKey ? e.deltaY : e.deltaX;
+        const dy = e.shiftKey ? 0 : e.deltaY;
+        setPan((p) => ({ x: p.x - dx, y: p.y - dy }));
+      }
     },
     [pan.x, pan.y],
   );

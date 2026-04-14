@@ -225,12 +225,17 @@ const App = () => (
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="ai-design" element={<AiDesignPage />} />
             <Route path="folders" element={<DamPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>
+          {/* AI Design is fullscreen (Lovart/Luma-style) — flat route, no brand shell. */}
+          <Route path="/dashboard/brand/:slug/ai-design" element={
+            <ProtectedRoute>
+              <AiDesignPage />
+            </ProtectedRoute>
+          } />
           {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
@@ -378,12 +383,17 @@ const App = () => (
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="ai-design" element={<AiDesignPage />} />
             <Route path="folders" element={<DamPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>
+          {/* AI Design fullscreen — short form. */}
+          <Route path="/b/:slug/ai-design" element={
+            <ProtectedRoute>
+              <AiDesignPage />
+            </ProtectedRoute>
+          } />
           <Route path="/b/:slug/brandkit" element={
             <ProtectedRoute>
               <BrandKitRedirect />

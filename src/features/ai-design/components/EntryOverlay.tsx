@@ -1,6 +1,9 @@
 /**
- * Phase 1 entry — Lovart-style hero: centered brand logo + title + prompt
- * input + skill pills. Submitting transitions to the split workspace.
+ * EntryOverlay — Lovart-home style welcome panel floating over the canvas.
+ *
+ * Unlike the earlier `EntryScreen`, this does NOT replace the canvas — the
+ * canvas stays mounted behind it so the workspace geometry never shifts
+ * when the user submits their first prompt. The overlay just fades out.
  */
 import { useState, KeyboardEvent } from 'react';
 import type { Brand } from '@/shared/types/brand';
@@ -16,7 +19,7 @@ interface Props {
   onSubmit: (text: string) => void;
 }
 
-export function EntryScreen({ brand, activeSkill, onSkillChange, onSubmit }: Props) {
+export function EntryOverlay({ brand, activeSkill, onSkillChange, onSubmit }: Props) {
   const [value, setValue] = useState('');
   const logo = brand?.logoAssets?.icon ?? brand?.logoAssets?.full ?? brand?.logo;
   const name = brand?.name ?? 'your brand';
@@ -35,19 +38,23 @@ export function EntryScreen({ brand, activeSkill, onSkillChange, onSubmit }: Pro
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center px-6 py-16 overflow-auto">
-      <div className="w-full max-w-2xl flex flex-col items-center gap-8">
-        {/* Hero headline */}
+    <div className="absolute inset-0 z-10 flex items-center justify-center px-6 pointer-events-none">
+      {/* A soft vignette so the hero pops without hiding the dot grid. */}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.5) 40%, rgba(255,255,255,0) 75%)',
+        }}
+      />
+      <div className="relative w-full max-w-2xl flex flex-col items-center gap-7 pointer-events-auto">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="inline-flex items-center gap-3 text-3xl sm:text-4xl font-semibold tracking-tight">
+          <div className="inline-flex flex-wrap items-center justify-center gap-3 text-3xl sm:text-4xl font-semibold tracking-tight">
             <span>Design is easier with</span>
             <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 shadow-sm">
               {logo ? (
-                <img
-                  src={logo}
-                  alt={name}
-                  className="h-7 w-7 rounded-full object-contain"
-                />
+                <img src={logo} alt={name} className="h-7 w-7 rounded-full object-contain" />
               ) : (
                 <span
                   className="h-7 w-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
@@ -59,19 +66,18 @@ export function EntryScreen({ brand, activeSkill, onSkillChange, onSubmit }: Pro
               <span className="text-xl font-semibold">{name}</span>
             </span>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             The AI design agent that knows your brand and gets the job done.
           </p>
         </div>
 
-        {/* Prompt input */}
-        <div className="w-full rounded-2xl border bg-background shadow-sm focus-within:shadow-md focus-within:ring-1 focus-within:ring-primary/40 transition">
+        <div className="w-full rounded-2xl border bg-background shadow-lg focus-within:ring-2 focus-within:ring-primary/30 transition">
           <textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKey}
             placeholder={`Ask the agent to make a high-converting ad for ${name}…`}
-            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] outline-none placeholder:text-muted-foreground min-h-[88px]"
+            className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15px] outline-none placeholder:text-muted-foreground min-h-[84px]"
             rows={3}
             autoFocus
           />
@@ -104,7 +110,6 @@ export function EntryScreen({ brand, activeSkill, onSkillChange, onSubmit }: Pro
           </div>
         </div>
 
-        {/* Skill pills */}
         <SkillPills active={activeSkill} onSelect={onSkillChange} />
       </div>
     </div>
