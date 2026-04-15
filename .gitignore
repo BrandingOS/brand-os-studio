@@ -39,3 +39,8 @@ new-version/
 
 # Local-only Product OS / internal control center — never commit
 /product-os/
+
+# Remotion
+remotion/node_modules
+remotion/out
+
