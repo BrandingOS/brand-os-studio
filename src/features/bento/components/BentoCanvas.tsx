@@ -1,10 +1,12 @@
-import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { Brand } from '@/shared/types/brand';
-import type { BentoDesign, BentoTile } from '../types';
+import type { BentoDesign, BentoTile, TileKind } from '../types';
 import { getTemplate } from '../templates';
 import { resolveSize } from '../sizes';
 import { TileRenderer } from './TileRenderer';
 import { useBentoStore } from '../store';
+import { Plus, X, Type, Image as ImageIcon, Palette as PaletteIcon, Shapes } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 export interface BentoCanvasHandle {
   /** The DOM element rendering the artboard at export resolution. */
@@ -47,6 +49,8 @@ export const BentoCanvas = forwardRef<BentoCanvasHandle, Props>(function BentoCa
 
   const updateGeometry = useBentoStore((s) => s.updateTileGeometry);
   const beginInteraction = useBentoStore((s) => s.beginInteraction);
+  const addTileAt = useBentoStore((s) => s.addTileAt);
+  const deleteTile = useBentoStore((s) => s.deleteTile);
 
   const { width, height } = resolveSize(design.sizeId, design.customSize);
   const template = getTemplate(design.templateId);
@@ -85,6 +89,26 @@ export const BentoCanvas = forwardRef<BentoCanvasHandle, Props>(function BentoCa
   const cellHeight = (height - paddingPx * 2 - gapPx * (rows - 1)) / rows;
   const trackW = cellWidth + gapPx;
   const trackH = cellHeight + gapPx;
+
+  // Empty-cell map: which (row, col) slots are NOT covered by any tile.
+  const emptyCells = useMemo(() => {
+    if (!interactive) return [] as Array<{ row: number; col: number }>;
+    const covered = new Set<string>();
+    for (const t of design.tiles) {
+      for (let r = t.row; r < t.row + t.rowSpan; r++) {
+        for (let c = t.col; c < t.col + t.colSpan; c++) {
+          covered.add(`${r},${c}`);
+        }
+      }
+    }
+    const out: Array<{ row: number; col: number }> = [];
+    for (let r = 1; r <= rows; r++) {
+      for (let c = 1; c <= cols; c++) {
+        if (!covered.has(`${r},${c}`)) out.push({ row: r, col: c });
+      }
+    }
+    return out;
+  }, [design.tiles, rows, cols, interactive]);
 
   // ─── Resize drag handling ─────────────────────────────────────────────
   const startResize = useCallback((e: React.PointerEvent, tile: BentoTile, dir: HandleDir) => {
@@ -234,11 +258,30 @@ export const BentoCanvas = forwardRef<BentoCanvasHandle, Props>(function BentoCa
                 <TileRenderer tile={tile} brand={brand} tileWidth={approxTileW} tileHeight={approxTileH} />
 
                 {showHandles && (
-                  <ResizeHandles tile={tile} onStart={startResize} scale={scale} artboardMinSide={minSide} />
+                  <>
+                    <ResizeHandles tile={tile} onStart={startResize} scale={scale} artboardMinSide={minSide} />
+                    <DeleteButton
+                      onDelete={() => deleteTile(tile.id)}
+                      scale={scale}
+                      artboardMinSide={minSide}
+                    />
+                  </>
                 )}
               </div>
             );
           })}
+
+          {/* Empty-cell "add block" placeholders — one per uncovered grid cell. */}
+          {emptyCells.map(({ row, col }) => (
+            <EmptyCellPlaceholder
+              key={`empty-${row}-${col}`}
+              row={row}
+              col={col}
+              radiusPx={globalRadiusPx}
+              artboardMinSide={minSide}
+              onAdd={(kind) => addTileAt(kind, { row, col }, brand)}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -262,6 +305,146 @@ function shadowFor(level: number, minSide: number): string {
   const y = [0, 2, 6, 14][level] * (minSide / 1080);
   const a = [0, 0.08, 0.12, 0.18][level];
   return `0 ${y}px ${blur}px rgba(0,0,0,${a})`;
+}
+
+// ─── Delete button (top-right of hovered/selected tile) ─────────────
+function DeleteButton({
+  onDelete,
+  scale,
+  artboardMinSide,
+}: {
+  onDelete: () => void;
+  scale: number;
+  artboardMinSide: number;
+}) {
+  const size = Math.max(22, artboardMinSide * 0.025) / Math.max(scale, 0.3);
+  const inset = Math.max(6, artboardMinSide * 0.008) / Math.max(scale, 0.3);
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+      onPointerDown={(e) => e.stopPropagation()}
+      title="Delete tile"
+      style={{
+        position: 'absolute',
+        top: inset,
+        right: inset,
+        width: size,
+        height: size,
+        borderRadius: 9999,
+        background: 'rgba(15, 23, 42, 0.85)',
+        color: '#FFFFFF',
+        border: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        zIndex: 11,
+        backdropFilter: 'blur(4px)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      }}
+    >
+      <X style={{ width: size * 0.55, height: size * 0.55 }} strokeWidth={2.5} />
+    </button>
+  );
+}
+
+// ─── Empty-cell "add block" placeholder ──────────────────────────────
+function EmptyCellPlaceholder({
+  row,
+  col,
+  radiusPx,
+  artboardMinSide,
+  onAdd,
+}: {
+  row: number;
+  col: number;
+  radiusPx: number;
+  artboardMinSide: number;
+  onAdd: (kind: TileKind) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const iconSize = Math.max(20, artboardMinSide * 0.04);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        gridRow: `${row} / span 1`,
+        gridColumn: `${col} / span 1`,
+        borderRadius: radiusPx,
+        border: `${Math.max(2, artboardMinSide * 0.003)}px dashed ${hovered ? 'rgba(99, 102, 241, 0.7)' : 'rgba(148, 163, 184, 0.4)'}`,
+        background: hovered ? 'rgba(99, 102, 241, 0.06)' : 'transparent',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 120ms ease',
+        cursor: 'pointer',
+        position: 'relative',
+      }}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              width: iconSize * 1.8,
+              height: iconSize * 1.8,
+              borderRadius: 9999,
+              background: hovered ? '#6366F1' : 'rgba(148, 163, 184, 0.35)',
+              color: '#FFFFFF',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: hovered ? '0 4px 16px rgba(99,102,241,0.45)' : 'none',
+              transition: 'all 150ms ease',
+            }}
+            title="Add block"
+          >
+            <Plus style={{ width: iconSize, height: iconSize }} strokeWidth={2.5} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="center" className="min-w-[160px]">
+          <DropdownMenuItem onClick={() => onAdd('text')}>
+            <Type className="h-3.5 w-3.5 mr-2" /> Text
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('color')}>
+            <PaletteIcon className="h-3.5 w-3.5 mr-2" /> Color
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('gradient')}>
+            <Shapes className="h-3.5 w-3.5 mr-2" /> Gradient
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('logo')}>
+            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Logo
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('typography')}>
+            <Type className="h-3.5 w-3.5 mr-2" /> Typography
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('voice-quote')}>
+            <Type className="h-3.5 w-3.5 mr-2" /> Voice / Quote
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('asset-image')}>
+            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Brand image
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('user-image')}>
+            <ImageIcon className="h-3.5 w-3.5 mr-2" /> Upload / Stock
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('pattern')}>
+            <Shapes className="h-3.5 w-3.5 mr-2" /> Pattern
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAdd('stat')}>
+            <Type className="h-3.5 w-3.5 mr-2" /> Stat
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 // ─── Resize handles overlay ──────────────────────────────────────────

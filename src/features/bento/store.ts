@@ -29,6 +29,7 @@ interface BentoState {
   beginInteraction: () => void;
   deleteTile: (id: string) => void;
   addTile: (kind: TileKind, brand: Brand | null | undefined) => void;
+  addTileAt: (kind: TileKind, pos: { row: number; col: number; rowSpan?: number; colSpan?: number }, brand: Brand | null | undefined) => void;
   duplicateTile: (id: string, brand: Brand | null | undefined) => void;
   setTileKind: (id: string, kind: TileKind, brand: Brand | null | undefined) => void;
   undo: () => void;
@@ -232,6 +233,38 @@ export const useBentoStore = create<BentoState>((set, get) => ({
     const synthetic = generateTiles({
       brand,
       template: { id: 'synth', name: 'synth', cols: 1, rows: 1, tiles: [{ id: uid(), row: 1, col: 1, rowSpan: 1, colSpan: 1, kind }] },
+    });
+    const newTile: BentoTile = { ...synthetic[0], id: uid() };
+    set({
+      ...history,
+      selectedTileId: newTile.id,
+      design: {
+        ...prev,
+        tiles: [...prev.tiles, newTile],
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  addTileAt: (kind, pos, brand) => {
+    const prev = get().design;
+    const history = pushHistory(get());
+    const synthetic = generateTiles({
+      brand,
+      template: {
+        id: 'synth',
+        name: 'synth',
+        cols: 1,
+        rows: 1,
+        tiles: [{
+          id: uid(),
+          row: pos.row,
+          col: pos.col,
+          rowSpan: pos.rowSpan ?? 1,
+          colSpan: pos.colSpan ?? 1,
+          kind,
+        }],
+      },
     });
     const newTile: BentoTile = { ...synthetic[0], id: uid() };
     set({
