@@ -1,6 +1,7 @@
 import { unsplashProvider } from './unsplash';
 import { pexelsProvider } from './pexels';
 import { pixabayProvider } from './pixabay';
+import { giphyProvider } from './giphy';
 import type { StockPhoto, StockPhotoProvider } from './types';
 
 export type { StockPhoto, StockPhotoProvider, ProviderId, SearchResult } from './types';
@@ -9,6 +10,7 @@ export const ALL_PROVIDERS: StockPhotoProvider[] = [
   unsplashProvider,
   pexelsProvider,
   pixabayProvider,
+  giphyProvider,
 ];
 
 export function getConfiguredProviders(): StockPhotoProvider[] {

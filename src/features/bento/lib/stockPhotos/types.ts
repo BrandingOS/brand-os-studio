@@ -8,7 +8,7 @@
  * when an env key is missing.
  */
 
-export type ProviderId = 'unsplash' | 'pexels' | 'pixabay';
+export type ProviderId = 'unsplash' | 'pexels' | 'pixabay' | 'giphy';
 
 export interface StockPhoto {
   id: string;

@@ -8,6 +8,7 @@ import { BentoTopBar } from './components/BentoTopBar';
 import { TemplateRail } from './components/TemplateRail';
 import { TileInspector } from './components/TileInspector';
 import { ImageUploadPrompt, type PendingUpload } from './components/ImageUploadPrompt';
+import { MediaPicker, type MediaPickResult } from './components/MediaPicker';
 import { resolveSize } from './sizes';
 import { fetchPhotoAsDataUrl, type StockPhoto } from './lib/stockPhotos';
 
@@ -36,10 +37,9 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
   const init = useBentoStore((s) => s.init);
 
   const canvasRef = useRef<BentoCanvasHandle>(null);
-  const hiddenInputRef = useRef<HTMLInputElement>(null);
-  const pendingTileRef = useRef<string | null>(null);
 
   const [pending, setPending] = useState<PendingUpload | null>(null);
+  const [mediaOpen, setMediaOpen] = useState<{ tileId: string | null } | null>(null);
 
   // Init on brand change.
   useEffect(() => {
@@ -80,11 +80,6 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
     }
   }, []);
 
-  const handleManualPick = useCallback((tileId: string) => {
-    pendingTileRef.current = tileId;
-    hiddenInputRef.current?.click();
-  }, []);
-
   const handleStockPick = useCallback(async (tileId: string, photo: StockPhoto) => {
     try {
       toast.loading(`Fetching from ${photo.provider}…`, { id: 'stock' });
@@ -102,20 +97,43 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
     }
   }, []);
 
-  const handleManualFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    const tileId = pendingTileRef.current;
-    pendingTileRef.current = null;
-    if (!file || !tileId) return;
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      if (!dataUrl) return;
-      setPending({ tileId, dataUrl, fileName: file.name, fileSize: file.size });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Image upload failed');
+  /** Unified handler for the MediaPicker dialog. */
+  const handleMediaPick = useCallback(async (tileId: string | null, result: MediaPickResult) => {
+    setMediaOpen(null);
+
+    // If no tile was in focus, spawn a new user-image tile and target that.
+    let targetTileId = tileId;
+    if (!targetTileId) {
+      // Find first empty cell; otherwise append.
+      const state = useBentoStore.getState();
+      state.addTile('user-image', brand ?? null);
+      const tiles = useBentoStore.getState().design.tiles;
+      targetTileId = tiles[tiles.length - 1]?.id ?? null;
+      if (!targetTileId) return;
     }
-  }, []);
+
+    if (result.kind === 'asset') {
+      // Directly apply brand asset — no upload prompt needed.
+      updateTile(targetTileId, { kind: 'asset-image', content: { assetId: result.asset.id } });
+      toast.success('Asset applied');
+      return;
+    }
+
+    if (result.kind === 'file') {
+      try {
+        const dataUrl = await readFileAsDataUrl(result.file);
+        if (!dataUrl) return;
+        setPending({ tileId: targetTileId, dataUrl, fileName: result.file.name, fileSize: result.file.size });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Upload failed');
+      }
+      return;
+    }
+
+    if (result.kind === 'stock') {
+      void handleStockPick(targetTileId, result.photo);
+    }
+  }, [brand, updateTile, handleStockPick]);
 
   const handleConfirmUpload = useCallback(async ({ saveToBrand, assetName }: { saveToBrand: boolean; assetName: string }) => {
     if (!pending) return;
@@ -202,6 +220,7 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
         onExport={handleExport}
         onSave={brand ? handleSave : undefined}
         canSave={!!brand}
+        onOpenMedia={() => setMediaOpen({ tileId: null })}
         extraLeft={extraLeft}
       />
       <div className="flex-1 min-h-0 flex">
@@ -217,24 +236,23 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
         <TileInspector
           tile={selectedTile}
           brand={brand}
-          onUploadClick={handleManualPick}
-          onStockPick={handleStockPick}
+          onOpenMedia={(tileId) => setMediaOpen({ tileId: tileId || null })}
         />
       </div>
-
-      <input
-        ref={hiddenInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleManualFile}
-      />
 
       <ImageUploadPrompt
         pending={pending}
         onClose={() => setPending(null)}
         onConfirm={handleConfirmUpload}
         brandSaveDisabled={!brand}
+      />
+
+      <MediaPicker
+        open={!!mediaOpen}
+        onClose={() => setMediaOpen(null)}
+        brand={brand}
+        defaultQuery={brand?.name ?? brand?.tone}
+        onPick={(result) => void handleMediaPick(mediaOpen?.tileId ?? null, result)}
       />
     </div>
   );

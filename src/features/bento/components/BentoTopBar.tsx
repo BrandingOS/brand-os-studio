@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Undo2, Redo2, Shuffle, Download, LayoutGrid, Save } from 'lucide-react';
+import { ArrowLeft, Undo2, Redo2, Shuffle, Download, LayoutGrid, Save, Images } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useBentoStore } from '../store';
@@ -16,6 +16,7 @@ interface Props {
   onExport: () => void;
   onSave?: () => void;
   canSave?: boolean;
+  onOpenMedia?: () => void;
   extraLeft?: React.ReactNode;
 }
 
@@ -24,7 +25,7 @@ interface Props {
  * workspace/brand topbars elsewhere in the app (flat bottom border,
  * muted ghost icons, primary action on the right).
  */
-export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onExport, onSave, canSave, extraLeft }: Props) {
+export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onExport, onSave, canSave, onOpenMedia, extraLeft }: Props) {
   const navigate = useNavigate();
   const design = useBentoStore((s) => s.design);
   const undo = useBentoStore((s) => s.undo);
@@ -79,6 +80,12 @@ export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onEx
           <Redo2 className="h-4 w-4" />
         </Button>
         <div className="h-5 w-px bg-border mx-1" />
+        {onOpenMedia && (
+          <Button size="sm" variant="outline" className="h-9 gap-1.5" onClick={onOpenMedia} title="Media picker">
+            <Images className="h-3.5 w-3.5" />
+            Media
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" variant="outline" className="h-9 gap-1.5">

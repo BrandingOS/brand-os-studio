@@ -8,9 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
 import { Copy, Trash2, Plus, AlignLeft, AlignCenter, AlignRight, Images } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { StockPhotoSearch } from './StockPhotoSearch';
-import { getConfiguredProviders, type StockPhoto } from '../lib/stockPhotos';
 
 const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
   { value: 'logo', label: 'Logo' },
@@ -28,12 +25,10 @@ const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
 interface Props {
   tile: BentoTile | null;
   brand: Brand | null | undefined;
-  onUploadClick: (tileId: string) => void;
-  onStockPick: (tileId: string, photo: StockPhoto) => void;
+  onOpenMedia: (tileId: string) => void;
 }
 
-export function TileInspector({ tile, brand, onUploadClick, onStockPick }: Props) {
-  const hasStockProviders = getConfiguredProviders().length > 0;
+export function TileInspector({ tile, brand, onOpenMedia }: Props) {
   const setKind = useBentoStore((s) => s.setTileKind);
   const updateContent = useBentoStore((s) => s.updateTileContent);
   const updateStyle = useBentoStore((s) => s.updateTileStyle);
@@ -63,21 +58,10 @@ export function TileInspector({ tile, brand, onUploadClick, onStockPick }: Props
               ))}
             </div>
           </div>
-          {hasStockProviders && (
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Stock photos</div>
-              <StockPhotoSearch
-                initialQuery={brand?.name ?? brand?.tone}
-                onPick={(photo) => {
-                  addTile('user-image', brand);
-                  // Find the newly-added tile id from the store after addTile.
-                  const state = useBentoStore.getState();
-                  const newest = state.design.tiles[state.design.tiles.length - 1];
-                  if (newest) onStockPick(newest.id, photo);
-                }}
-              />
-            </div>
-          )}
+          <Button variant="default" size="sm" className="w-full h-9 gap-1.5" onClick={() => onOpenMedia('')}>
+            <Images className="h-3.5 w-3.5" />
+            Browse media library
+          </Button>
         </div>
       </aside>
     );
@@ -217,27 +201,10 @@ export function TileInspector({ tile, brand, onUploadClick, onStockPick }: Props
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onUploadClick(tile.id)}>
-                  Upload
-                </Button>
-                {hasStockProviders && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                        <Images className="h-3.5 w-3.5" />
-                        Stock
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent side="left" align="start" className="w-[360px] p-3 max-h-[520px] overflow-y-auto">
-                      <StockPhotoSearch
-                        initialQuery={brand?.name ?? brand?.tone}
-                        onPick={(photo) => onStockPick(tile.id, photo)}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </div>
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => onOpenMedia(tile.id)}>
+                <Images className="h-3.5 w-3.5" />
+                Browse media
+              </Button>
             </div>
           )}
 
@@ -248,27 +215,10 @@ export function TileInspector({ tile, brand, onUploadClick, onStockPick }: Props
                   <img src={tile.content.dataUrl} alt="" className="w-full h-full object-cover" />
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-1.5">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onUploadClick(tile.id)}>
-                  {tile.content.dataUrl ? 'Replace' : 'Upload'}
-                </Button>
-                {hasStockProviders && (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                        <Images className="h-3.5 w-3.5" />
-                        Stock
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent side="left" align="start" className="w-[360px] p-3 max-h-[520px] overflow-y-auto">
-                      <StockPhotoSearch
-                        initialQuery={brand?.name ?? brand?.tone}
-                        onPick={(photo) => onStockPick(tile.id, photo)}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </div>
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => onOpenMedia(tile.id)}>
+                <Images className="h-3.5 w-3.5" />
+                {tile.content.dataUrl ? 'Replace media' : 'Browse media'}
+              </Button>
             </>
           )}
 
