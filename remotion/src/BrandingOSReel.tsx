@@ -63,15 +63,21 @@ const LogoMark: React.FC<{ size: number }> = ({ size }) => {
         }}
       />
       <svg
-        width={size * 0.5}
-        height={size * 0.5}
-        viewBox="0 0 100 100"
-        style={{ opacity: shine, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.18))' }}
+        width={size * 0.55}
+        height={size * 0.55}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#fff"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ opacity: shine, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.22))' }}
       >
-        <path
-          d="M50 6 C 53 34, 66 47, 94 50 C 66 53, 53 66, 50 94 C 47 66, 34 53, 6 50 C 34 47, 47 34, 50 6 Z"
-          fill="#fff"
-        />
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+        <path d="M20 3v4" />
+        <path d="M22 5h-4" />
+        <path d="M4 17v2" />
+        <path d="M5 18H3" />
       </svg>
     </div>
   );
@@ -169,7 +175,7 @@ const CARDS: CardDef[] = [
     x: 80,
     y: 900,
     w: 460,
-    h: 260,
+    h: 290,
     preview: SocialPreview,
     fromAnchor: { x: 310, y: 860 },
     delay: 46,
@@ -177,11 +183,11 @@ const CARDS: CardDef[] = [
   {
     id: 'mockups',
     title: 'Mockups & Print',
-    sub: 'Collateral · Packaging',
+    sub: 'Digital · Collateral · Packaging',
     x: 580,
     y: 1100,
     w: 420,
-    h: 260,
+    h: 300,
     preview: MockupPreview,
     fromAnchor: { x: 790, y: 1050 },
     delay: 62,
@@ -499,115 +505,268 @@ function SocialPreview() {
     { bg: `linear-gradient(135deg, ${ORANGE}, #FFA45C)`, label: '' },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, width: '100%' }}>
-      {tiles.map((t, i) => (
+    <div style={{ display: 'flex', gap: 12, width: '100%', alignItems: 'center' }}>
+      {/* Widget A — feed grid */}
+      <div style={{ flex: 1.4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: 10, color: MUTED, fontWeight: 500, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+          Feed · 1:1
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+          {tiles.map((t, i) => (
+            <div
+              key={i}
+              style={{
+                aspectRatio: '1 / 1',
+                borderRadius: 8,
+                background: t.bg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: t.dark ? INK : '#fff',
+                fontWeight: 700,
+                fontSize: 16,
+                letterSpacing: -0.4,
+                border: `1px solid ${BORDER}`,
+                boxShadow: '0 3px 8px rgba(0,0,0,0.05)',
+              }}
+            >
+              {t.label}
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* Widget B — story / reel */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+        <div style={{ fontSize: 10, color: MUTED, fontWeight: 500, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+          Story · 9:16
+        </div>
         <div
-          key={i}
           style={{
-            aspectRatio: '1 / 1',
-            borderRadius: 10,
-            background: t.bg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: t.dark ? INK : '#fff',
-            fontWeight: 700,
-            fontSize: 22,
-            letterSpacing: -0.5,
+            width: 78,
+            height: 138,
+            borderRadius: 12,
+            background: `linear-gradient(165deg, ${ORANGE_DEEP}, ${ORANGE} 55%, ${ORANGE_SOFT})`,
+            position: 'relative',
+            overflow: 'hidden',
             border: `1px solid ${BORDER}`,
-            boxShadow: '0 4px 10px rgba(0,0,0,0.05)',
+            boxShadow: '0 8px 18px rgba(232,83,10,0.25)',
+            padding: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
           }}
         >
-          {t.label}
+          {/* progress bars */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            <div style={{ flex: 1, height: 2, background: '#fff', borderRadius: 1, opacity: 0.95 }} />
+            <div style={{ flex: 1, height: 2, background: '#fff', borderRadius: 1, opacity: 0.4 }} />
+            <div style={{ flex: 1, height: 2, background: '#fff', borderRadius: 1, opacity: 0.4 }} />
+          </div>
+          {/* play glyph */}
+          <div
+            style={{
+              alignSelf: 'center',
+              width: 26,
+              height: 26,
+              borderRadius: 13,
+              background: 'rgba(255,255,255,0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: `8px solid ${ORANGE_DEEP}`,
+                borderTop: '5px solid transparent',
+                borderBottom: '5px solid transparent',
+                marginLeft: 2,
+              }}
+            />
+          </div>
+          {/* caption bar */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ height: 4, background: 'rgba(255,255,255,0.95)', borderRadius: 2, width: '70%' }} />
+            <div style={{ height: 3, background: 'rgba(255,255,255,0.7)', borderRadius: 2, width: '50%' }} />
+          </div>
         </div>
-      ))}
+      </div>
     </div>
   );
 }
 
 function MockupPreview() {
   return (
-    <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-      {/* Phone */}
-      <div
-        style={{
-          width: 70,
-          height: 130,
-          borderRadius: 14,
-          background: '#0E0E10',
-          padding: 4,
-          boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
-        }}
-      >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+      {/* Widget A — Digital mockup row */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ fontSize: 9, color: MUTED, fontWeight: 500, letterSpacing: 0.4, textTransform: 'uppercase', width: 50 }}>
+          Digital
+        </div>
+        {/* Phone with sparkle */}
         <div
           style={{
-            width: '100%',
-            height: '100%',
-            borderRadius: 10,
-            background: `linear-gradient(160deg, ${ORANGE}, ${ORANGE_DEEP})`,
+            width: 56,
+            height: 102,
+            borderRadius: 12,
+            background: '#0E0E10',
+            padding: 3,
+            boxShadow: '0 8px 18px rgba(0,0,0,0.18)',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: 9,
+              background: `linear-gradient(160deg, ${ORANGE}, ${ORANGE_DEEP})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg
+              width={22}
+              height={22}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#fff"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+              <path d="M20 3v4" />
+              <path d="M22 5h-4" />
+              <path d="M4 17v2" />
+              <path d="M5 18H3" />
+            </svg>
+          </div>
+        </div>
+        {/* Laptop */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flex: 1 }}>
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 150,
+              height: 80,
+              borderRadius: 8,
+              background: '#0E0E10',
+              padding: 4,
+              boxShadow: '0 6px 14px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: 4,
+                background: '#FAFAF6',
+                padding: 5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+              }}
+            >
+              <div style={{ height: 4, width: '40%', background: '#111', borderRadius: 2 }} />
+              <div style={{ height: 3, background: '#E5E5DD', borderRadius: 2 }} />
+              <div style={{ height: 3, background: '#E5E5DD', borderRadius: 2, width: '70%' }} />
+              <div style={{ marginTop: 'auto', height: 10, width: 32, background: ORANGE, borderRadius: 3 }} />
+            </div>
+          </div>
+          <div style={{ width: '90%', height: 4, background: '#222', borderRadius: '0 0 6px 6px' }} />
+        </div>
+      </div>
+
+      {/* Widget B — Print collateral row */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ fontSize: 9, color: MUTED, fontWeight: 500, letterSpacing: 0.4, textTransform: 'uppercase', width: 50 }}>
+          Print
+        </div>
+        {/* Business card */}
+        <div
+          style={{
+            width: 76,
+            height: 46,
+            borderRadius: 6,
+            background: '#FAFAF6',
+            border: `1px solid ${BORDER}`,
+            padding: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            boxShadow: '0 4px 10px rgba(0,0,0,0.06)',
+          }}
+        >
+          <div style={{ height: 5, width: 24, background: ORANGE, borderRadius: 2 }} />
+          <div style={{ height: 3, background: '#E5E5DD', borderRadius: 2, width: '85%' }} />
+          <div style={{ height: 3, background: '#E5E5DD', borderRadius: 2, width: '60%' }} />
+        </div>
+        {/* Tote bag */}
+        <div
+          style={{
+            width: 56,
+            height: 60,
+            borderRadius: '4px 4px 8px 8px',
+            background: '#FAFAF6',
+            border: `1px solid ${BORDER}`,
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.06)',
           }}
         >
-          <svg width={28} height={28} viewBox="0 0 100 100">
-            <path
-              d="M50 6 C 53 34, 66 47, 94 50 C 66 53, 53 66, 50 94 C 47 66, 34 53, 6 50 C 34 47, 47 34, 50 6 Z"
-              fill="#fff"
-            />
-          </svg>
+          {/* handles */}
+          <div style={{ position: 'absolute', top: -8, left: 12, width: 10, height: 10, borderRadius: '50% 50% 0 0', border: `1.5px solid ${INK_SOFT}`, borderBottom: 'none' }} />
+          <div style={{ position: 'absolute', top: -8, right: 12, width: 10, height: 10, borderRadius: '50% 50% 0 0', border: `1.5px solid ${INK_SOFT}`, borderBottom: 'none' }} />
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: ORANGE,
+            }}
+          />
         </div>
-      </div>
-      {/* Card stack */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Packaging box */}
         <div
           style={{
-            width: 110,
+            width: 50,
             height: 64,
-            borderRadius: 8,
-            background: '#FAFAF6',
-            border: `1px solid ${BORDER}`,
-            padding: 8,
+            borderRadius: 4,
+            background: `linear-gradient(160deg, ${ORANGE_SOFT}, ${ORANGE})`,
+            padding: 6,
+            boxShadow: '0 6px 14px rgba(232,83,10,0.25)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
+            justifyContent: 'space-between',
           }}
         >
-          <div style={{ height: 6, width: 30, background: ORANGE, borderRadius: 2 }} />
-          <div style={{ height: 4, background: '#E5E5DD', borderRadius: 2, width: '80%' }} />
-          <div style={{ height: 4, background: '#E5E5DD', borderRadius: 2, width: '60%' }} />
+          <div style={{ width: 14, height: 3, background: '#fff', borderRadius: 2, opacity: 0.9 }} />
+          <div style={{ width: 22, height: 3, background: '#fff', borderRadius: 2, opacity: 0.7 }} />
         </div>
+        {/* Poster */}
         <div
           style={{
-            width: 110,
+            width: 46,
             height: 64,
-            borderRadius: 8,
+            borderRadius: 4,
             background: '#0E0E10',
-            border: `1px solid ${BORDER}`,
-            padding: 8,
+            padding: 6,
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
-            color: '#fff',
+            justifyContent: 'flex-end',
+            gap: 3,
+            boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
           }}
         >
-          <div style={{ height: 6, width: 30, background: ORANGE, borderRadius: 2 }} />
-          <div style={{ height: 4, background: '#3a3a40', borderRadius: 2, width: '70%' }} />
-          <div style={{ height: 4, background: '#3a3a40', borderRadius: 2, width: '50%' }} />
+          <div style={{ height: 4, width: '70%', background: ORANGE, borderRadius: 2 }} />
+          <div style={{ height: 3, background: '#3a3a40', borderRadius: 2 }} />
+          <div style={{ height: 3, background: '#3a3a40', borderRadius: 2, width: '60%' }} />
         </div>
-      </div>
-      {/* Box */}
-      <div
-        style={{
-          width: 60,
-          height: 80,
-          borderRadius: 6,
-          background: `linear-gradient(160deg, ${ORANGE_SOFT}, ${ORANGE})`,
-          padding: 6,
-          boxShadow: '0 8px 18px rgba(232,83,10,0.25)',
-        }}
-      >
-        <div style={{ width: 16, height: 4, background: '#fff', borderRadius: 2, opacity: 0.85 }} />
       </div>
     </div>
   );
