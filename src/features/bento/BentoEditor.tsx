@@ -9,6 +9,7 @@ import { TemplateRail } from './components/TemplateRail';
 import { TileInspector } from './components/TileInspector';
 import { ImageUploadPrompt, type PendingUpload } from './components/ImageUploadPrompt';
 import { resolveSize } from './sizes';
+import { fetchPhotoAsDataUrl, type StockPhoto } from './lib/stockPhotos';
 
 interface Props {
   brand: Brand | null | undefined;
@@ -82,6 +83,23 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
   const handleManualPick = useCallback((tileId: string) => {
     pendingTileRef.current = tileId;
     hiddenInputRef.current?.click();
+  }, []);
+
+  const handleStockPick = useCallback(async (tileId: string, photo: StockPhoto) => {
+    try {
+      toast.loading(`Fetching from ${photo.provider}…`, { id: 'stock' });
+      const dataUrl = await fetchPhotoAsDataUrl(photo);
+      toast.dismiss('stock');
+      setPending({
+        tileId,
+        dataUrl,
+        fileName: `${photo.provider}-${photo.id}-by-${photo.author.replace(/\s+/g, '-')}.jpg`,
+        fileSize: 0,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to fetch photo', { id: 'stock' });
+    }
   }, []);
 
   const handleManualFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,7 +214,12 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
           onSelectTile={selectTile}
           onImageDropped={handleImageDropped}
         />
-        <TileInspector tile={selectedTile} brand={brand} onUploadClick={handleManualPick} />
+        <TileInspector
+          tile={selectedTile}
+          brand={brand}
+          onUploadClick={handleManualPick}
+          onStockPick={handleStockPick}
+        />
       </div>
 
       <input

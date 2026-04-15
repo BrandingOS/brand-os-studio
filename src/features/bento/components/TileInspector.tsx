@@ -7,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { cn } from '@/lib/utils';
-import { Copy, Trash2, Plus, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Copy, Trash2, Plus, AlignLeft, AlignCenter, AlignRight, Images } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { StockPhotoSearch } from './StockPhotoSearch';
+import { getConfiguredProviders, type StockPhoto } from '../lib/stockPhotos';
 
 const KIND_OPTIONS: Array<{ value: TileKind; label: string }> = [
   { value: 'logo', label: 'Logo' },
@@ -26,9 +29,11 @@ interface Props {
   tile: BentoTile | null;
   brand: Brand | null | undefined;
   onUploadClick: (tileId: string) => void;
+  onStockPick: (tileId: string, photo: StockPhoto) => void;
 }
 
-export function TileInspector({ tile, brand, onUploadClick }: Props) {
+export function TileInspector({ tile, brand, onUploadClick, onStockPick }: Props) {
+  const hasStockProviders = getConfiguredProviders().length > 0;
   const setKind = useBentoStore((s) => s.setTileKind);
   const updateContent = useBentoStore((s) => s.updateTileContent);
   const updateStyle = useBentoStore((s) => s.updateTileStyle);
@@ -44,7 +49,7 @@ export function TileInspector({ tile, brand, onUploadClick }: Props) {
         </div>
         <div className="p-4 space-y-4">
           <div className="text-sm text-muted-foreground">
-            Click a tile to edit it, or drag an image onto a tile to add a photo.
+            Click a tile to edit it, drag an image, or search stock photos below.
           </div>
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Add tile</div>
@@ -58,6 +63,21 @@ export function TileInspector({ tile, brand, onUploadClick }: Props) {
               ))}
             </div>
           </div>
+          {hasStockProviders && (
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Stock photos</div>
+              <StockPhotoSearch
+                initialQuery={brand?.name ?? brand?.tone}
+                onPick={(photo) => {
+                  addTile('user-image', brand);
+                  // Find the newly-added tile id from the store after addTile.
+                  const state = useBentoStore.getState();
+                  const newest = state.design.tiles[state.design.tiles.length - 1];
+                  if (newest) onStockPick(newest.id, photo);
+                }}
+              />
+            </div>
+          )}
         </div>
       </aside>
     );
@@ -179,22 +199,45 @@ export function TileInspector({ tile, brand, onUploadClick }: Props) {
           )}
 
           {tile.kind === 'asset-image' && (
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Brand assets</div>
-              {images.length === 0 ? (
-                <div className="text-xs text-muted-foreground">No image assets yet.</div>
-              ) : (
-                <div className="grid grid-cols-3 gap-1.5">
-                  {images.map((a) => (
-                    <button key={a.id} type="button"
-                      onClick={() => updateContent(tile.id, { assetId: a.id })}
-                      className={cn('aspect-square rounded overflow-hidden border-2',
-                        tile.content.assetId === a.id ? 'border-primary' : 'border-transparent hover:border-muted-foreground/30')}>
-                      <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="space-y-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Brand assets</div>
+                {images.length === 0 ? (
+                  <div className="text-xs text-muted-foreground">No image assets yet.</div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {images.map((a) => (
+                      <button key={a.id} type="button"
+                        onClick={() => updateContent(tile.id, { assetId: a.id })}
+                        className={cn('aspect-square rounded overflow-hidden border-2',
+                          tile.content.assetId === a.id ? 'border-primary' : 'border-transparent hover:border-muted-foreground/30')}>
+                        <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onUploadClick(tile.id)}>
+                  Upload
+                </Button>
+                {hasStockProviders && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                        <Images className="h-3.5 w-3.5" />
+                        Stock
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="left" align="start" className="w-[360px] p-3 max-h-[520px] overflow-y-auto">
+                      <StockPhotoSearch
+                        initialQuery={brand?.name ?? brand?.tone}
+                        onPick={(photo) => onStockPick(tile.id, photo)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </div>
           )}
 
@@ -205,9 +248,27 @@ export function TileInspector({ tile, brand, onUploadClick }: Props) {
                   <img src={tile.content.dataUrl} alt="" className="w-full h-full object-cover" />
                 </div>
               )}
-              <Button variant="outline" size="sm" className="w-full" onClick={() => onUploadClick(tile.id)}>
-                {tile.content.dataUrl ? 'Replace image' : 'Upload image'}
-              </Button>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onUploadClick(tile.id)}>
+                  {tile.content.dataUrl ? 'Replace' : 'Upload'}
+                </Button>
+                {hasStockProviders && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                        <Images className="h-3.5 w-3.5" />
+                        Stock
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent side="left" align="start" className="w-[360px] p-3 max-h-[520px] overflow-y-auto">
+                      <StockPhotoSearch
+                        initialQuery={brand?.name ?? brand?.tone}
+                        onPick={(photo) => onStockPick(tile.id, photo)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             </>
           )}
 
