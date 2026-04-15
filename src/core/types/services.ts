@@ -312,4 +312,6 @@ export const SERVICE_KEYS = {
   STORAGE: 'storage',
   DESIGN_STORAGE: 'designStorage',
   UPLOAD: 'upload',
+  /** Brand Consistency engine — generated outputs persistence. */
+  BRAND_CONSISTENCY: 'brandConsistency',
 } as const;

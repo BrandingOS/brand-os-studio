@@ -66,6 +66,7 @@ const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/tem
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
 const DesignWithAiPage = lazy(() => import("./pages/dashboard/brand/[slug]/design-ai"));
+const ConsistencyStudioPage = lazy(() => import("./pages/dashboard/brand/[slug]/studio"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const StandaloneEditorPage = lazy(() => import('./pages/editor/index'));
@@ -227,6 +228,7 @@ const App = () => (
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
             <Route path="folders" element={<DamPage />} />
+            <Route path="studio" element={<ConsistencyStudioPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
@@ -391,6 +393,7 @@ const App = () => (
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
             <Route path="folders" element={<DamPage />} />
+            <Route path="studio" element={<ConsistencyStudioPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />

@@ -44,6 +44,7 @@ import {
   Palette,
   LayoutTemplate,
   Compass,
+  Wand2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -143,6 +144,14 @@ function brandItems(slug: string): RailItem[] {
         `/b/${slug}/kit`,
         `/b/${slug}/brandkit`,
       ],
+    },
+    {
+      // AI Consistency Studio — generates a complete branded ecosystem
+      // (social, web, guidelines, mockups, decks, ads) from one brand
+      // source, all rendered inside the brand token system.
+      title: 'Studio',
+      url: `/b/${slug}/studio`,
+      icon: Wand2,
     },
     {
       // "Designs" = generated design outputs (cards, social posts, etc).

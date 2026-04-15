@@ -17,6 +17,7 @@ import { SERVICE_KEYS } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { LocalUploadService } from './adapters/upload/LocalUploadService';
+import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -35,6 +36,11 @@ export function bootServices(): void {
 
   // ─── Upload Service ────────────────────────────────────────
   container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
+
+  // ─── Brand Consistency Service ─────────────────────────────
+  // LocalStorage-backed for now; a Supabase impl can be slotted in
+  // later behind the same `IBrandConsistencyService` interface.
+  container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
 }
 
 /**
@@ -58,6 +64,7 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
     container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
+    container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
   } else {
     // Revert to local implementations for guest mode
     bootServices();
