@@ -121,6 +121,16 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                     <FaGoogle className="w-4 h-4" />
                     Continue with Google
                   </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-11 gap-3"
+                    onClick={() => handleSocialLogin('facebook')}
+                    disabled={isLoading}
+                  >
+                    <FaFacebook className="w-4 h-4 text-[#1877F2]" />
+                    Continue with Facebook
+                  </Button>
                 </div>
 
                 <div className="relative mb-6">
