@@ -47,6 +47,30 @@ export interface TileContent {
   align?: 'left' | 'center' | 'right';
   /** Scale multiplier for large text tiles. */
   textSize?: 'sm' | 'md' | 'lg' | 'xl';
+  /** Custom font size in % of minSide (overrides textSize when set). */
+  fontSizePct?: number;
+  /** Font weight override (300–900). */
+  fontWeight?: number;
+  /** Image fit mode (for asset-image / user-image / logo). */
+  fit?: 'cover' | 'contain' | 'fill';
+  /** Image zoom (1 = no zoom, >1 zooms in). */
+  zoom?: number;
+  /** Image position offset (% of tile). */
+  offsetX?: number;
+  offsetY?: number;
+}
+
+/** Per-tile geometry/style overrides that apply on top of global settings. */
+export interface TileStyle {
+  /** Override corner radius (percent of minSide). Undefined = use global. */
+  radius?: number;
+  /** Per-tile opacity 0-1. */
+  opacity?: number;
+  /** Border width in percent of minSide. */
+  borderWidth?: number;
+  borderColor?: string;
+  /** Shadow depth 0-3. */
+  shadow?: 0 | 1 | 2 | 3;
 }
 
 export interface BentoTile {
@@ -58,6 +82,7 @@ export interface BentoTile {
   colSpan: number;
   kind: TileKind;
   content: TileContent;
+  style?: TileStyle;
 }
 
 export interface BentoTemplate {
@@ -103,6 +128,11 @@ export interface BentoDesign {
   gap: number;
   /** Corner radius, percent of smaller artboard dim. */
   radius: number;
+  /** Outer edge padding (space between tiles and artboard edge). */
+  padding: number;
+  /** Total grid columns/rows — copied from template but resizing may edit. */
+  cols?: number;
+  rows?: number;
   /** Optional saved title. */
   title?: string;
   /** Optional public flag (Part 4). */

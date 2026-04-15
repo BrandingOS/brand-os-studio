@@ -5,22 +5,24 @@ import type { BentoTile } from '../types';
 interface Props {
   tile: BentoTile;
   brand: Brand | null | undefined;
-  /** Approx pixel size of this tile — used to pick font sizes. */
   tileWidth: number;
   tileHeight: number;
 }
 
-/** Per-kind tile content. Styling is inline so export via html2canvas is reliable. */
+/** Per-kind tile content. Inline styling so html2canvas export is reliable. */
 export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
   const { kind, content } = tile;
   const minSide = Math.min(tileWidth, tileHeight);
+  const fontWeight = content.fontWeight ?? 600;
 
   switch (kind) {
     case 'color': {
       const hex = content.color ?? '#CCCCCC';
       return (
         <div style={{ ...fill(hex), color: readableOn(hex), ...padBox(minSide) }}>
-          <div style={{ fontSize: minSide * 0.09, fontWeight: 600, opacity: 0.88 }}>{hex.toUpperCase()}</div>
+          <div style={{ fontSize: fontSizeFor(content, 9, minSide), fontWeight, opacity: 0.88 }}>
+            {hex.toUpperCase()}
+          </div>
         </div>
       );
     }
@@ -29,8 +31,7 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       const g = content.gradient ?? { from: '#6366F1', to: '#EC4899', angle: 45 };
       return (
         <div style={{
-          width: '100%',
-          height: '100%',
+          width: '100%', height: '100%',
           background: `linear-gradient(${g.angle ?? 45}deg, ${g.from}, ${g.to})`,
         }} />
       );
@@ -40,18 +41,16 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       const variant = content.logoVariant ?? 'full';
       const src = pickLogoSrc(brand, variant);
       const bg = content.bg ?? '#FFFFFF';
+      const fit = content.fit ?? 'contain';
       return (
-        <div style={{ ...fill(bg), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: minSide * 0.12 }}>
+        <div style={{ ...fill(bg), display: 'flex', alignItems: 'center', justifyContent: 'center', padding: fit === 'contain' ? minSide * 0.12 : 0, overflow: 'hidden' }}>
           {src ? (
-            <img src={src} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            <img src={src} alt="logo" style={imageStyle(content, fit)} />
           ) : (
             <div style={{
-              fontSize: minSide * 0.16,
-              fontWeight: 700,
-              color: readableOn(bg),
+              fontSize: minSide * 0.16, fontWeight: 700, color: readableOn(bg),
               fontFamily: brand?.fonts?.primary ?? 'Inter',
-              letterSpacing: '-0.02em',
-              textAlign: 'center',
+              letterSpacing: '-0.02em', textAlign: 'center',
             }}>
               {brand?.name ?? 'Brand'}
             </div>
@@ -66,12 +65,13 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       const sample = content.text ?? 'Aa';
       return (
         <div style={{ ...fill('#F8FAFC'), color: fg, padding: minSide * 0.1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: minSide * 0.08, opacity: 0.5, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>
-            Typography
-          </div>
-          <div style={{ fontFamily: font, fontSize: minSide * 0.38, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}>
-            {sample}
-          </div>
+          <div style={{ fontSize: minSide * 0.08, opacity: 0.5, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600 }}>Type</div>
+          <div style={{
+            fontFamily: font,
+            fontSize: fontSizeFor(content, 38, minSide),
+            fontWeight: content.fontWeight ?? 700,
+            lineHeight: 1, letterSpacing: '-0.03em',
+          }}>{sample}</div>
           <div style={{ fontSize: minSide * 0.07, opacity: 0.65, fontFamily: font }}>{font}</div>
         </div>
       );
@@ -79,21 +79,20 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
 
     case 'voice-quote': {
       const font = content.fontFamily ?? brand?.fonts?.primary ?? 'Inter';
-      const bg = brand?.primaryColor ?? '#0F172A';
-      const fg = readableOn(bg);
+      const bg = content.bg ?? brand?.primaryColor ?? '#0F172A';
+      const fg = content.fg ?? readableOn(bg);
       const txt = content.text ?? 'Your brand voice.';
+      const baseSize = Math.max(0.08, Math.min(0.18, 2.4 / Math.max(14, txt.length))) * 100;
       return (
         <div style={{ ...fill(bg), color: fg, padding: minSide * 0.1, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{
             fontFamily: font,
-            fontSize: minSide * Math.max(0.08, Math.min(0.18, 2.4 / Math.max(14, txt.length))),
-            fontWeight: 600,
-            lineHeight: 1.2,
-            letterSpacing: '-0.01em',
+            fontSize: fontSizeFor(content, baseSize, minSide),
+            fontWeight,
+            lineHeight: 1.2, letterSpacing: '-0.01em',
             textAlign: content.align ?? 'left',
-          }}>
-            "{txt}"
-          </div>
+            width: '100%',
+          }}>"{txt}"</div>
         </div>
       );
     }
@@ -105,7 +104,7 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       }
       return (
         <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-          <img src={asset.url} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={asset.url} alt={asset.name} style={imageStyle(content, content.fit ?? 'cover')} />
         </div>
       );
     }
@@ -116,23 +115,25 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       }
       return (
         <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-          <img src={content.dataUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src={content.dataUrl} alt="" style={imageStyle(content, content.fit ?? 'cover')} />
         </div>
       );
     }
 
-    case 'pattern': {
+    case 'pattern':
       return <PatternFill content={content} size={minSide} />;
-    }
 
     case 'stat': {
       const fg = content.fg ?? brand?.primaryColor ?? '#0F172A';
       const font = content.fontFamily ?? brand?.fonts?.primary ?? 'Inter';
       return (
         <div style={{ ...fill('#FFFFFF'), color: fg, padding: minSide * 0.1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: minSide * 0.02 }}>
-          <div style={{ fontFamily: font, fontSize: minSide * 0.36, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.04em' }}>
-            {content.text ?? '—'}
-          </div>
+          <div style={{
+            fontFamily: font,
+            fontSize: fontSizeFor(content, 36, minSide),
+            fontWeight: content.fontWeight ?? 800,
+            lineHeight: 1, letterSpacing: '-0.04em',
+          }}>{content.text ?? '—'}</div>
           <div style={{ fontSize: minSide * 0.08, opacity: 0.6, fontWeight: 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {content.label ?? ''}
           </div>
@@ -145,9 +146,12 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
       const bg = content.bg ?? '#FFFFFF';
       return (
         <div style={{ ...fill(bg), color: fg, padding: minSide * 0.1, display: 'flex', alignItems: 'center', justifyContent: content.align ?? 'center' }}>
-          <div style={{ fontFamily: content.fontFamily ?? 'Inter', fontSize: minSide * 0.12, fontWeight: 600 }}>
-            {content.text ?? ''}
-          </div>
+          <div style={{
+            fontFamily: content.fontFamily ?? 'Inter',
+            fontSize: fontSizeFor(content, 12, minSide),
+            fontWeight,
+            textAlign: content.align ?? 'center',
+          }}>{content.text ?? ''}</div>
         </div>
       );
     }
@@ -158,12 +162,26 @@ export function TileRenderer({ tile, brand, tileWidth, tileHeight }: Props) {
   }
 }
 
-function fill(bg: string): CSSProperties {
-  return { width: '100%', height: '100%', background: bg };
+function fontSizeFor(content: BentoTile['content'], defaultPct: number, minSide: number): number {
+  return minSide * ((content.fontSizePct ?? defaultPct) / 100);
 }
-function padBox(minSide: number): CSSProperties {
-  return { padding: minSide * 0.1, display: 'flex', alignItems: 'flex-end' };
+
+function imageStyle(content: BentoTile['content'], fit: 'cover' | 'contain' | 'fill'): CSSProperties {
+  const zoom = content.zoom ?? 1;
+  const ox = content.offsetX ?? 50;
+  const oy = content.offsetY ?? 50;
+  return {
+    width: '100%',
+    height: '100%',
+    objectFit: fit,
+    objectPosition: `${ox}% ${oy}%`,
+    transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+    transformOrigin: `${ox}% ${oy}%`,
+  };
 }
+
+function fill(bg: string): CSSProperties { return { width: '100%', height: '100%', background: bg }; }
+function padBox(minSide: number): CSSProperties { return { padding: minSide * 0.1, display: 'flex', alignItems: 'flex-end' }; }
 
 function pickLogoSrc(brand: Brand | null | undefined, variant: string): string | undefined {
   if (!brand) return undefined;
@@ -176,7 +194,6 @@ function pickLogoSrc(brand: Brand | null | undefined, variant: string): string |
 }
 
 function readableOn(hex: string): string {
-  // YIQ contrast heuristic.
   const c = hex.replace('#', '');
   const r = parseInt(c.slice(0, 2), 16) || 0;
   const g = parseInt(c.slice(2, 4), 16) || 0;
@@ -191,21 +208,13 @@ function PatternFill({ content, size }: { content: BentoTile['content']; size: n
   const kind = content.patternKind ?? 'dots';
   const cell = size * 0.08;
   let backgroundImage = '';
-  if (kind === 'dots') {
-    backgroundImage = `radial-gradient(${fg} 18%, transparent 22%)`;
-  } else if (kind === 'stripes') {
-    backgroundImage = `repeating-linear-gradient(45deg, ${fg} 0, ${fg} ${cell / 4}px, ${bg} ${cell / 4}px, ${bg} ${cell}px)`;
-  } else if (kind === 'checker') {
-    backgroundImage = `conic-gradient(${fg} 25%, ${bg} 0 50%, ${fg} 0 75%, ${bg} 0)`;
-  } else if (kind === 'circles') {
-    backgroundImage = `radial-gradient(circle at 30% 30%, ${fg} 18%, transparent 19%), radial-gradient(circle at 70% 70%, ${fg} 14%, transparent 15%)`;
-  }
+  if (kind === 'dots') backgroundImage = `radial-gradient(${fg} 18%, transparent 22%)`;
+  else if (kind === 'stripes') backgroundImage = `repeating-linear-gradient(45deg, ${fg} 0, ${fg} ${cell / 4}px, ${bg} ${cell / 4}px, ${bg} ${cell}px)`;
+  else if (kind === 'checker') backgroundImage = `conic-gradient(${fg} 25%, ${bg} 0 50%, ${fg} 0 75%, ${bg} 0)`;
+  else if (kind === 'circles') backgroundImage = `radial-gradient(circle at 30% 30%, ${fg} 18%, transparent 19%), radial-gradient(circle at 70% 70%, ${fg} 14%, transparent 15%)`;
   return (
     <div style={{
-      width: '100%',
-      height: '100%',
-      background: bg,
-      backgroundImage,
+      width: '100%', height: '100%', background: bg, backgroundImage,
       backgroundSize: kind === 'stripes' ? `${cell * 2}px ${cell * 2}px` : `${cell}px ${cell}px`,
     }} />
   );

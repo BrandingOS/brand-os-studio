@@ -1,16 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Undo2, Redo2, Shuffle, Download, LayoutGrid, Save, Share2 } from 'lucide-react';
+import { ArrowLeft, Undo2, Redo2, Shuffle, Download, LayoutGrid, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { useBentoStore } from '../store';
 import { SizePicker } from './SizePicker';
+import { LayoutPopover } from './LayoutPopover';
 import type { Brand } from '@/shared/types/brand';
 import type { SizePresetId } from '../types';
 
 interface Props {
   brand?: Brand | null;
-  /** Where the "back" button goes. */
   backTo: string;
   backLabel?: string;
   onShuffle: (mode: 'content' | 'layout+content') => void;
@@ -20,6 +19,11 @@ interface Props {
   extraLeft?: React.ReactNode;
 }
 
+/**
+ * Bento editor topbar. Height `h-14`, same chrome conventions as the
+ * workspace/brand topbars elsewhere in the app (flat bottom border,
+ * muted ghost icons, primary action on the right).
+ */
 export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onExport, onSave, canSave, extraLeft }: Props) {
   const navigate = useNavigate();
   const design = useBentoStore((s) => s.design);
@@ -31,35 +35,42 @@ export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onEx
   const setBackground = useBentoStore((s) => s.setBackground);
 
   return (
-    <header className="h-14 shrink-0 border-b flex items-center justify-between px-3 bg-white/95 backdrop-blur z-20 gap-2">
-      <div className="flex items-center gap-2 min-w-0">
+    <header className="h-14 shrink-0 border-b flex items-center justify-between px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/75 z-20 gap-3">
+      {/* Left cluster: back + title + extras */}
+      <div className="flex items-center gap-3 min-w-0">
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => navigate(backTo)} title={backLabel}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div className="h-5 w-px bg-border" />
-        <div className="flex items-center gap-2 px-1 min-w-0">
-          <LayoutGrid className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold truncate">Bento Grid</span>
-          {brand && (
-            <span className="text-xs text-muted-foreground truncate hidden sm:inline">· {brand.name}</span>
-          )}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+            <LayoutGrid className="h-3.5 w-3.5" />
+          </div>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="text-sm font-semibold truncate">Bento</span>
+            {brand && (
+              <span className="text-[11px] text-muted-foreground truncate">{brand.name}</span>
+            )}
+          </div>
         </div>
-        {extraLeft && <div className="ml-2">{extraLeft}</div>}
+        {extraLeft && <div className="ml-1">{extraLeft}</div>}
       </div>
 
+      {/* Center cluster: size + background + layout */}
       <div className="flex items-center gap-2">
         <SizePicker value={design.sizeId as SizePresetId} onChange={(id, custom) => setSize(id, custom)} />
-        <div className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground">BG</label>
-          <Input
+        <label className="relative inline-flex items-center h-8 w-10 rounded-md border cursor-pointer overflow-hidden" title="Background color">
+          <input
             type="color"
             value={design.backgroundColor}
             onChange={(e) => setBackground(e.target.value)}
-            className="h-8 w-9 p-0.5 cursor-pointer"
+            className="absolute inset-0 opacity-0 cursor-pointer"
           />
-        </div>
+          <span className="w-full h-full" style={{ background: design.backgroundColor }} />
+        </label>
+        <LayoutPopover />
       </div>
 
+      {/* Right cluster: history + actions */}
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" className="h-9 w-9" disabled={!canUndo} onClick={undo} title="Undo (⌘Z)">
           <Undo2 className="h-4 w-4" />
@@ -94,6 +105,3 @@ export function BentoTopBar({ brand, backTo, backLabel = 'Back', onShuffle, onEx
     </header>
   );
 }
-
-// Share icon is exported for future wiring — silences unused import warnings.
-void Share2;

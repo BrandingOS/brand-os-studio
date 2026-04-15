@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Brand } from '@/shared/types/brand';
-import type { BentoDesign, BentoTile, SizePresetId, TileContent, TileKind } from './types';
+import type { BentoDesign, BentoTile, SizePresetId, TileContent, TileKind, TileStyle } from './types';
 import { TEMPLATES, getTemplate } from './templates';
 import { generateTiles } from './shuffle';
 
@@ -18,10 +18,18 @@ interface BentoState {
   setBackground: (hex: string) => void;
   setGap: (pct: number) => void;
   setRadius: (pct: number) => void;
+  setPadding: (pct: number) => void;
+  setGridSize: (cols: number, rows: number) => void;
   shuffle: (brand: Brand | null | undefined, mode: 'content' | 'layout+content') => void;
   selectTile: (id: string | null) => void;
   updateTile: (id: string, patch: Partial<BentoTile>) => void;
   updateTileContent: (id: string, patch: Partial<TileContent>) => void;
+  updateTileStyle: (id: string, patch: Partial<TileStyle>) => void;
+  updateTileGeometry: (id: string, geom: { row: number; col: number; rowSpan: number; colSpan: number }, opts?: { skipHistory?: boolean }) => void;
+  beginInteraction: () => void;
+  deleteTile: (id: string) => void;
+  addTile: (kind: TileKind, brand: Brand | null | undefined) => void;
+  duplicateTile: (id: string, brand: Brand | null | undefined) => void;
   setTileKind: (id: string, kind: TileKind, brand: Brand | null | undefined) => void;
   undo: () => void;
   redo: () => void;
@@ -42,6 +50,9 @@ function makeDefaultDesign(brand: Brand | null | undefined, overrides?: Partial<
     backgroundColor: overrides?.backgroundColor ?? '#FFFFFF',
     gap: overrides?.gap ?? 1.2,
     radius: overrides?.radius ?? 2.0,
+    padding: overrides?.padding ?? 1.2,
+    cols: overrides?.cols ?? tpl.cols,
+    rows: overrides?.rows ?? tpl.rows,
     title: overrides?.title,
     isPublic: overrides?.isPublic ?? false,
     createdAt: overrides?.createdAt ?? new Date().toISOString(),
@@ -78,6 +89,8 @@ export const useBentoStore = create<BentoState>((set, get) => ({
       design: {
         ...prev,
         templateId,
+        cols: tpl.cols,
+        rows: tpl.rows,
         tiles: generateTiles({ brand, template: tpl, preserveTiles: prev.tiles }),
         updatedAt: new Date().toISOString(),
       },
@@ -103,6 +116,15 @@ export const useBentoStore = create<BentoState>((set, get) => ({
 
   setRadius: (pct) => {
     set({ design: { ...get().design, radius: pct, updatedAt: new Date().toISOString() } });
+  },
+
+  setPadding: (pct) => {
+    set({ design: { ...get().design, padding: pct, updatedAt: new Date().toISOString() } });
+  },
+
+  setGridSize: (cols, rows) => {
+    const history = pushHistory(get());
+    set({ ...history, design: { ...get().design, cols, rows, updatedAt: new Date().toISOString() } });
   },
 
   shuffle: (brand, mode) => {
@@ -150,6 +172,96 @@ export const useBentoStore = create<BentoState>((set, get) => ({
         tiles: prev.tiles.map((t) =>
           t.id === id ? { ...t, content: { ...t.content, ...patch } } : t,
         ),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  updateTileStyle: (id, patch) => {
+    const prev = get().design;
+    const history = pushHistory(get());
+    set({
+      ...history,
+      design: {
+        ...prev,
+        tiles: prev.tiles.map((t) =>
+          t.id === id ? { ...t, style: { ...t.style, ...patch } } : t,
+        ),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  updateTileGeometry: (id, geom, opts) => {
+    const prev = get().design;
+    const history = opts?.skipHistory ? {} : pushHistory(get());
+    set({
+      ...history,
+      design: {
+        ...prev,
+        tiles: prev.tiles.map((t) => (t.id === id ? { ...t, ...geom } : t)),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  beginInteraction: () => {
+    // Snapshot current state so a resize/drag gets one undoable entry.
+    set(pushHistory(get()));
+  },
+
+  deleteTile: (id) => {
+    const prev = get().design;
+    if (prev.tiles.length <= 1) return;
+    const history = pushHistory(get());
+    set({
+      ...history,
+      selectedTileId: null,
+      design: {
+        ...prev,
+        tiles: prev.tiles.filter((t) => t.id !== id),
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  addTile: (kind, brand) => {
+    const prev = get().design;
+    const history = pushHistory(get());
+    // Find first empty-ish cell by trying 1,1 with span 1x1.
+    const synthetic = generateTiles({
+      brand,
+      template: { id: 'synth', name: 'synth', cols: 1, rows: 1, tiles: [{ id: uid(), row: 1, col: 1, rowSpan: 1, colSpan: 1, kind }] },
+    });
+    const newTile: BentoTile = { ...synthetic[0], id: uid() };
+    set({
+      ...history,
+      selectedTileId: newTile.id,
+      design: {
+        ...prev,
+        tiles: [...prev.tiles, newTile],
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  },
+
+  duplicateTile: (id, _brand) => {
+    const prev = get().design;
+    const source = prev.tiles.find((t) => t.id === id);
+    if (!source) return;
+    const history = pushHistory(get());
+    const newTile: BentoTile = {
+      ...source,
+      id: uid(),
+      row: Math.min(source.row + 1, (prev.rows ?? 99)),
+      col: Math.min(source.col + 1, (prev.cols ?? 99)),
+    };
+    set({
+      ...history,
+      selectedTileId: newTile.id,
+      design: {
+        ...prev,
+        tiles: [...prev.tiles, newTile],
         updatedAt: new Date().toISOString(),
       },
     });

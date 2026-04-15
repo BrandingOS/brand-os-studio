@@ -72,6 +72,7 @@ export default function PublicBentoPage() {
         selectedTileId={null}
         onSelectTile={() => {}}
         onImageDropped={() => {}}
+        interactive={false}
       />
     </div>
   );
