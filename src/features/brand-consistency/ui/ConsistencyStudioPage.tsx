@@ -1,43 +1,29 @@
 /**
- * Brand Consistency Studio
- * ─────────────────────────────────────────────────────────────────────────
- * The user-facing page for the AI Brand Consistency Generation feature.
+ * Brand Consistency Studio — clean composer.
  *
- * Flow:
- *   1. Brand summary card shows the EXACT token system that will be used.
- *   2. The user writes an optional campaign brief and tone variant.
- *   3. The user picks any subset of output types.
- *   4. Generate button kicks the orchestrator. Each output renders live
- *      in its template, with regenerate / download / delete per card.
- *
- * Persistence is per-brand via `IBrandConsistencyService` (localStorage
- * today — Supabase later behind the same interface).
+ * One textarea, one row of chips, one button. Results stream in below.
+ * Everything else (token summary, completeness, settings) is collapsed
+ * into a single compact strip so the UI stays focused.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
-import { PageHeader } from '@/shared/ui/PageHeader';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Sparkles, Wand2, Trash2, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Trash2, AlertCircle, CornerDownLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 import { useService } from '@/core/hooks/useService';
 import { SERVICE_KEYS } from '@/core/types/services';
 
 import { resolveBrandTokens } from '../engine/brandTokens';
-import { OUTPUT_SPECS, type OutputTypeId, OUTPUT_SPEC_LIST } from '../registry/outputSpecs';
+import { OUTPUT_SPEC_LIST, type OutputTypeId } from '../registry/outputSpecs';
 import { BrandConsistencyOrchestrator } from '../engine/orchestrator';
 import { AnthropicConsistencyProvider } from '../providers/anthropicProvider';
 import type { GeneratedOutput, IBrandConsistencyService } from '../services/types';
-import { OutputTypePicker } from './OutputTypePicker';
 import { OutputCard } from './OutputCard';
-import { BrandTokenSummary } from './BrandTokenSummary';
 
 const DEFAULT_SELECTION: OutputTypeId[] = [
   'social_post_square',
@@ -55,10 +41,10 @@ export default function ConsistencyStudioPage() {
   useBrandPageConfig({ brandName: brand?.name });
 
   const [brief, setBrief] = useState('');
-  const [toneVariant, setToneVariant] = useState('');
   const [selected, setSelected] = useState<Set<OutputTypeId>>(() => new Set(DEFAULT_SELECTION));
   const [outputs, setOutputs] = useState<GeneratedOutput[]>([]);
   const [generating, setGenerating] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const provider = useMemo(() => new AnthropicConsistencyProvider(), []);
   const orchestrator = useMemo(
@@ -66,15 +52,11 @@ export default function ConsistencyStudioPage() {
     [provider, storage],
   );
 
-  // Load persisted outputs for this brand.
   useEffect(() => {
     if (!brand?.id) return;
-    storage.list(brand.id).then(setOutputs).catch((err) => {
-      console.warn('Failed to load outputs', err);
-    });
+    storage.list(brand.id).then(setOutputs).catch(() => {});
   }, [brand?.id, storage]);
 
-  // Subscribe to orchestrator events for live status streaming.
   useEffect(() => {
     return orchestrator.on((event) => {
       setOutputs((prev) => {
@@ -90,20 +72,21 @@ export default function ConsistencyStudioPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
   if (error || !brand) {
     return (
       <div className="text-center py-16">
-        <p className="text-muted-foreground">{error ?? 'Brand not found.'}</p>
+        <p className="text-sm text-muted-foreground">{error ?? 'Brand not found.'}</p>
       </div>
     );
   }
 
   const tokens = resolveBrandTokens(brand);
   const isAIConfigured = provider.available;
+  const isThin = tokens.completeness.score < 0.5;
 
   const toggle = (id: OutputTypeId) => {
     setSelected((prev) => {
@@ -116,11 +99,11 @@ export default function ConsistencyStudioPage() {
 
   const handleGenerate = async () => {
     if (selected.size === 0) {
-      toast.error('Pick at least one output type');
+      toast.error('Pick at least one output');
       return;
     }
     if (!brand.primaryColor) {
-      toast.error('Set a primary color in Brand Setup before generating');
+      toast.error('Set a primary color in Brand Setup first');
       return;
     }
     setGenerating(true);
@@ -129,12 +112,13 @@ export default function ConsistencyStudioPage() {
         brand,
         outputs: Array.from(selected),
         campaignBrief: brief.trim() || undefined,
-        toneVariant: toneVariant.trim() || undefined,
       });
-      toast.success(`Generated ${selected.size} ${selected.size === 1 ? 'output' : 'outputs'}`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Generation failed — see console');
+      // Auto-scroll to results so the user sees them stream in.
+      requestAnimationFrame(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    } catch {
+      toast.error('Generation failed');
     } finally {
       setGenerating(false);
     }
@@ -142,9 +126,8 @@ export default function ConsistencyStudioPage() {
 
   const handleRegenerate = async (output: GeneratedOutput) => {
     try {
-      await orchestrator.regenerate(brand, output, { brief, toneVariant });
-    } catch (err) {
-      console.error(err);
+      await orchestrator.regenerate(brand, output, { brief });
+    } catch {
       toast.error('Regenerate failed');
     }
   };
@@ -156,140 +139,181 @@ export default function ConsistencyStudioPage() {
 
   const handleClearAll = async () => {
     if (outputs.length === 0) return;
-    if (!confirm(`Delete all ${outputs.length} generated outputs for this brand?`)) return;
+    if (!confirm(`Clear ${outputs.length} outputs?`)) return;
     await storage.clear(brand.id);
     setOutputs([]);
+  };
+
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleGenerate();
+    }
   };
 
   const sortedOutputs = [...outputs].sort((a, b) => b.updatedAt - a.updatedAt);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        compact
-        title="AI Consistency Studio"
-        actions={
-          <>
-            {outputs.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={handleClearAll}>
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Clear all
-              </Button>
-            )}
-          </>
-        }
-      />
-
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Wand2 className="h-5 w-5 text-primary" />
-          One brand. Every surface.
+    <div className="mx-auto max-w-5xl space-y-10 pb-16">
+      {/* ─── Hero ─────────────────────────────────────────────────── */}
+      <section className="pt-2 text-center">
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground">
+          <Sparkles className="h-3 w-3" />
+          {isAIConfigured ? 'AI engine ready' : 'Local fallback (no API key)'}
+          <span className="opacity-50">·</span>
+          <BrandChip tokens={tokens} />
+        </div>
+        <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+          Generate inside <span className="text-primary">{brand.name}</span>
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Generate a complete branded ecosystem from <span className="font-semibold text-foreground">{brand.name}</span> — every output renders inside the same token system, so they all belong to the same identity.
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          One brief. Every surface. All rendered inside your brand system.
         </p>
-      </div>
+      </section>
 
-      <BrandTokenSummary tokens={tokens} isAIConfigured={isAIConfigured} />
-
-      {tokens.completeness.score < 0.5 && (
-        <Card className="p-4 border-yellow-500/40 bg-yellow-50/60 dark:bg-yellow-950/20">
-          <div className="flex gap-3">
-            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5 shrink-0" />
-            <div className="text-sm">
-              <div className="font-medium">Brand data is thin</div>
-              <div className="text-muted-foreground text-xs mt-0.5">
-                Outputs will render with sensible defaults, but quality jumps when you fill in: {tokens.completeness.missing.join(', ')}.
-              </div>
-            </div>
+      {/* ─── Composer ─────────────────────────────────────────────── */}
+      <section className="rounded-2xl border bg-card shadow-sm">
+        <div className="relative">
+          <Textarea
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder={`Describe what you want — e.g. "Launch our new pricing for design teams." Or leave empty for a general brand piece.`}
+            rows={3}
+            className="min-h-[88px] resize-none border-0 bg-transparent text-base shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+          <div className="pointer-events-none absolute bottom-2 right-3 hidden items-center gap-1 text-[10px] text-muted-foreground sm:flex">
+            <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">⌘</kbd>
+            <kbd className="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">↵</kbd>
           </div>
-        </Card>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <Card className="p-5">
-          <div className="text-sm font-semibold mb-3">Direction (optional)</div>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="brief" className="text-xs">Campaign brief</Label>
-              <Textarea
-                id="brief"
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                placeholder="e.g. Spring product launch focused on speed and reliability."
-                rows={3}
-                className="text-sm resize-none"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tone" className="text-xs">Tone variant</Label>
-              <Input
-                id="tone"
-                value={toneVariant}
-                onChange={(e) => setToneVariant(e.target.value)}
-                placeholder="e.g. quietly confident; lean into urgency"
-                className="text-sm"
-              />
-              <p className="text-[11px] text-muted-foreground">A flavor inside the brand voice — not a pivot.</p>
-            </div>
-            <div className="pt-2">
-              <Button
-                onClick={handleGenerate}
-                disabled={generating || selected.size === 0}
-                className="w-full"
-                size="lg"
-              >
-                {generating ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating {selected.size}…</>
-                ) : (
-                  <><Sparkles className="h-4 w-4 mr-2" /> Generate {selected.size} {selected.size === 1 ? 'output' : 'outputs'}</>
-                )}
-              </Button>
-              {!isAIConfigured && (
-                <p className="text-[11px] text-muted-foreground mt-2 text-center">
-                  No API key — outputs will use deterministic local copy.
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-
-        <OutputTypePicker
-          selected={selected}
-          onToggle={toggle}
-          onSelectAll={() => setSelected(new Set(OUTPUT_SPEC_LIST.map((s) => s.id)))}
-          onClearAll={() => setSelected(new Set())}
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Generated outputs</h2>
-          {outputs.length > 0 && (
-            <Badge variant="secondary" className="text-[11px]">{outputs.length}</Badge>
-          )}
         </div>
 
-        {outputs.length === 0 ? (
-          <Card className="p-12 text-center border-dashed">
-            <Wand2 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <div className="text-sm font-medium">Nothing generated yet</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              Pick output types above and hit Generate. Everything will render inside <span className="font-medium">{brand.name}</span>'s system.
-            </div>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {sortedOutputs.map((output) => (
-              <OutputCard
-                key={output.id}
-                output={output}
-                brand={brand}
-                onRegenerate={handleRegenerate}
-                onDelete={handleDelete}
-              />
-            ))}
+        <div className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2.5">
+          {OUTPUT_SPEC_LIST.map((spec) => {
+            const active = selected.has(spec.id);
+            const Icon = spec.icon;
+            return (
+              <button
+                key={spec.id}
+                type="button"
+                onClick={() => toggle(spec.id)}
+                title={spec.description}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all',
+                  active
+                    ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                    : 'border-border bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {spec.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t bg-muted/30 px-3 py-2.5">
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set(OUTPUT_SPEC_LIST.map((s) => s.id)))}
+              className="hover:text-foreground"
+            >
+              All
+            </button>
+            <span className="opacity-40">·</span>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="hover:text-foreground"
+            >
+              None
+            </button>
+            <span className="opacity-40">·</span>
+            <span>{selected.size} selected</span>
           </div>
+          <Button onClick={handleGenerate} disabled={generating || selected.size === 0} size="sm" className="gap-1.5">
+            {generating ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating</>
+            ) : (
+              <><Wand2 className="h-3.5 w-3.5" /> Generate <CornerDownLeft className="ml-0.5 h-3 w-3 opacity-60" /></>
+            )}
+          </Button>
+        </div>
+      </section>
+
+      {/* ─── Thin-data warning (only when relevant) ───────────────── */}
+      {isThin && (
+        <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-50/60 px-3 py-2 text-xs dark:bg-yellow-950/20">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-yellow-600 dark:text-yellow-500" />
+          <div className="text-muted-foreground">
+            <span className="font-medium text-foreground">Brand data is thin.</span> Outputs render with defaults — fill in {tokens.completeness.missing.slice(0, 3).join(', ')} for sharper results.
+          </div>
+        </div>
+      )}
+
+      {/* ─── Results ──────────────────────────────────────────────── */}
+      <section ref={resultsRef} className="scroll-mt-6">
+        {outputs.length === 0 ? (
+          <EmptyState brandName={brand.name} />
+        ) : (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <div className="text-sm font-semibold">
+                Results <span className="font-normal text-muted-foreground">· {outputs.length}</span>
+              </div>
+              <button
+                onClick={handleClearAll}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Trash2 className="h-3 w-3" /> Clear all
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {sortedOutputs.map((output) => (
+                <OutputCard
+                  key={output.id}
+                  output={output}
+                  brand={brand}
+                  onRegenerate={handleRegenerate}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          </>
         )}
+      </section>
+    </div>
+  );
+}
+
+/** Tiny inline brand identity chip — logo/swatches + name. */
+function BrandChip({ tokens }: { tokens: ReturnType<typeof resolveBrandTokens> }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="flex">
+        {[tokens.colors.primary, tokens.colors.secondary, tokens.colors.accent].map((c, i) => (
+          <span
+            key={i}
+            className="h-2 w-2 rounded-full border border-background"
+            style={{ background: c, marginLeft: i ? -3 : 0 }}
+          />
+        ))}
+      </span>
+      <span className="font-medium text-foreground">{tokens.brandName}</span>
+    </span>
+  );
+}
+
+function EmptyState({ brandName }: { brandName: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed bg-muted/20 py-16 text-center">
+      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+        <Wand2 className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="text-sm font-medium">Nothing generated yet</div>
+      <div className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">
+        Describe what you want and hit generate. Everything renders inside <span className="font-medium text-foreground">{brandName}</span>.
       </div>
     </div>
   );
