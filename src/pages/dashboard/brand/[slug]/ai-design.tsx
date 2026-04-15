@@ -189,7 +189,7 @@ export default function AiDesignPage() {
 
         {/* Canvas column — fills remaining width and height. */}
         <div className="flex-1 min-w-0 relative">
-          {!isEmpty && <TldrawCanvas nodes={nodes} brand={brand} />}
+          <TldrawCanvas nodes={nodes} brand={brand} />
           {!isEmpty && !chatOpen && <ChatFab onToggleChat={() => setChatOpen(true)} />}
 
           {isEmpty && !isThinking && (
