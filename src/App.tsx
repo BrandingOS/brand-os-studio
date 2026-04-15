@@ -45,6 +45,8 @@ const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
+const PrivacyPage = lazy(() => import("./pages/legal/PrivacyPage"));
+const AccountDeletionPage = lazy(() => import("./pages/legal/AccountDeletionPage"));
 
 // Admin dashboard
 const AdminOverview = lazy(() => import("./features/admin/pages/AdminOverview"));
@@ -152,6 +154,8 @@ const App = () => (
           <Suspense fallback={<PageSpinner />}>
           <Routes>
           <Route path="/" element={<IndexPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/account-deletion" element={<AccountDeletionPage />} />
           <Route path="/v2" element={<DashboardV2Page />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
