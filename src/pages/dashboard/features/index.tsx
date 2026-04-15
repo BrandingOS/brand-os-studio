@@ -128,6 +128,7 @@ const WORKSPACE_FEATURES: FeatureEntry[] = [
   { id: 'templates-mp',  title: 'Templates Marketplace', description: 'BrandOS v5 marketplace of community templates.',         icon: Store,          href: '/templates',           status: 'orphan' },
   { id: 'marketplace',   title: 'Marketplace',         description: 'General-purpose marketplace surface.',                     icon: Store,          href: '/marketplace',         status: 'orphan' },
   { id: 'editor',        title: 'Design Editor',       description: 'Canva-style design editor — shapes, templates, text, images, filters, layers.',  icon: PenTool,        href: '/editor',              status: 'linked' },
+  { id: 'bento-tool',    title: 'Bento Grid',          description: 'Bento-style collage generator. Templates, shuffle, multi-size export — standalone or brand-powered.',  icon: Layers,         href: '/tools/bento',         status: 'linked' },
   { id: 'activity',      title: 'Activity feed',       description: 'Real-time feed of all brand actions, filterable by type.', icon: Activity,       href: '/dashboard/activity',  status: 'linked' },
   { id: 'dashboard-v2',  title: 'Dashboard v2 landing', description: 'Experimental landing page (BrandOS v5 sprint).',          icon: Sparkles,       href: '/v2',                  status: 'experiment' },
 ];
@@ -146,6 +147,7 @@ const BRAND_FEATURES: FeatureEntry[] = [
   { id: 'kit',          title: 'Brand Kit',    description: 'Unified brand kit hub with bulk export.',         icon: Sparkles,   href: (s) => `/b/${s}/kit`,         status: 'linked',  needsBrand: true },
   { id: 'ai-design',    title: 'AI Design',    description: 'Lovart-style brand-aware design agent on an infinite canvas.', icon: Wand2, href: (s) => `/b/${s}/ai-design`, status: 'linked', needsBrand: true },
   { id: 'design-ai',    title: 'Design with AI', description: 'Canvas-first design tool — direct manipulation with AI prompt bar.', icon: Palette, href: (s) => `/b/${s}/design-ai`, status: 'linked', needsBrand: true },
+  { id: 'bento',        title: 'Bento Grid',   description: 'Bentogrids.com-style collage from brand colors, logo, voice, and assets. Shuffle + multi-size export.', icon: Layers, href: (s) => `/b/${s}/bento`, status: 'linked', needsBrand: true },
   { id: 'designs',      title: 'Designs',      description: 'Generated deliverables — print, social, screen.', icon: Palette,    href: (s) => `/b/${s}/assets`,      status: 'linked',  needsBrand: true },
   { id: 'b-templates',  title: 'Brand Templates', description: 'Templates saved to this brand. Coming soon.',  icon: LayoutTemplate, href: (s) => `/b/${s}/templates`, status: 'linked', needsBrand: true },
   { id: 'share',        title: 'Share',        description: 'Visibility toggle, embed code, portal, decks, exports.', icon: Globe,      href: (s) => `/b/${s}/share`,       status: 'linked',  needsBrand: true },

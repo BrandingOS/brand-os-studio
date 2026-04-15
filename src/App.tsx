@@ -68,6 +68,9 @@ const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/tem
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
 const DesignWithAiPage = lazy(() => import("./pages/dashboard/brand/[slug]/design-ai"));
+const BrandBentoPage = lazy(() => import("./pages/dashboard/brand/[slug]/bento"));
+const StandaloneBentoPage = lazy(() => import("./pages/dashboard/tools/bento"));
+const PublicBentoPage = lazy(() => import("./pages/brand/[slug]/bento/[bentoId]"));
 const ConsistencyStudioPage = lazy(() => import("./pages/dashboard/brand/[slug]/studio"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
@@ -414,6 +417,25 @@ const App = () => (
               <DesignWithAiPage />
             </ProtectedRoute>
           } />
+          {/* Bento Grid — brand-scoped, fullscreen. */}
+          <Route path="/b/:slug/bento" element={
+            <ProtectedRoute>
+              <BrandBentoPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/bento" element={
+            <ProtectedRoute>
+              <BrandBentoPage />
+            </ProtectedRoute>
+          } />
+          {/* Bento Grid — standalone (no brand required). */}
+          <Route path="/tools/bento" element={
+            <ProtectedRoute>
+              <StandaloneBentoPage />
+            </ProtectedRoute>
+          } />
+          {/* Public Bento — unauthenticated read-only view. */}
+          <Route path="/brand/:slug/bento/:bentoId" element={<PublicBentoPage />} />
           <Route path="/b/:slug/brandkit" element={
             <ProtectedRoute>
               <BrandKitRedirect />

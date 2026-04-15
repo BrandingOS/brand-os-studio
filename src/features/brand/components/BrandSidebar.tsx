@@ -20,6 +20,7 @@ import {
   Sparkles,
   Wand2,
   Palette,
+  LayoutGrid,
 } from 'lucide-react';
 
 /**
@@ -116,6 +117,15 @@ const brandNavItems: BrandNavItem[] = [
     matchPaths: [
       "/b/:slug/design-ai",
       "/dashboard/brand/:slug/design-ai",
+    ],
+  },
+  {
+    title: "Bento",
+    url: "/b/:slug/bento",
+    icon: LayoutGrid,
+    matchPaths: [
+      "/b/:slug/bento",
+      "/dashboard/brand/:slug/bento",
     ],
   },
   {
