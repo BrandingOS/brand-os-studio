@@ -4,13 +4,18 @@ import { Card } from '@/shared/ui/Card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { adminService, type AdminStats, type AdminUser, type EarlyAccessEntry } from '../services/adminService';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { PLAN_PRICING } from '@/shared/utils/plan-gates';
+import { platformRoleLabel, platformRoleBadgeVariant } from '@/shared/types/user';
+import type { PlatformRole } from '@/shared/types/user';
 import {
   Users, Palette, Building2, CreditCard, TrendingUp, Loader2,
-  UserPlus, Clock, CheckCircle2, ArrowRight, Mail,
+  UserPlus, Clock, CheckCircle2, ArrowRight, Mail, DollarSign, BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminOverview() {
+  const { isSuperAdmin, platformRole } = useAuth();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentUsers, setRecentUsers] = useState<AdminUser[]>([]);
   const [recentEarlyAccess, setRecentEarlyAccess] = useState<EarlyAccessEntry[]>([]);
@@ -41,6 +46,10 @@ export default function AdminOverview() {
 
   if (!stats) return null;
 
+  const mrr =
+    (stats.totalSubscriptions.pro * PLAN_PRICING.pro) +
+    (stats.totalSubscriptions.agency * PLAN_PRICING.agency);
+
   const statCards = [
     { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-500' },
     { label: 'Total Brands', value: stats.totalBrands, icon: Palette, color: 'text-purple-500' },
@@ -50,10 +59,12 @@ export default function AdminOverview() {
     { label: 'Pending Review', value: stats.earlyAccess.pending, icon: Clock, color: 'text-yellow-500' },
   ];
 
+  const greeting = isSuperAdmin ? 'Welcome back, Super Admin' : 'Welcome back, Admin';
+
   return (
     <div className="p-6 lg:p-8 space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold">{greeting}</h1>
         <p className="text-muted-foreground mt-1">Platform overview and management</p>
       </div>
 
@@ -72,22 +83,41 @@ export default function AdminOverview() {
         ))}
       </div>
 
-      {/* Subscription + Quick Actions row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* MRR + Subscriptions + Quick Actions row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* MRR Card */}
         <Card className="p-5">
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
-            <CreditCard className="h-5 w-5" /> Subscriptions
+            <DollarSign className="h-5 w-5 text-green-500" /> Monthly Recurring Revenue
+          </h2>
+          <p className="text-4xl font-bold text-green-600">${mrr.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            {stats.totalSubscriptions.pro} Pro x ${PLAN_PRICING.pro} + {stats.totalSubscriptions.agency} Agency x ${PLAN_PRICING.agency}
+          </p>
+        </Card>
+
+        {/* Subscription Breakdown */}
+        <Card className="p-5">
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Subscription Breakdown
           </h2>
           <div className="grid grid-cols-3 gap-4">
-            {Object.entries(stats.totalSubscriptions).map(([plan, count]) => (
-              <div key={plan} className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-xs text-muted-foreground capitalize">{plan}</p>
-              </div>
-            ))}
+            <div className="text-center p-3 rounded-lg bg-muted/50">
+              <p className="text-2xl font-bold">{stats.totalSubscriptions.free}</p>
+              <p className="text-xs text-muted-foreground">Free</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+              <p className="text-2xl font-bold text-blue-600">{stats.totalSubscriptions.pro}</p>
+              <p className="text-xs text-muted-foreground">Pro</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-purple-50 dark:bg-purple-950/20">
+              <p className="text-2xl font-bold text-purple-600">{stats.totalSubscriptions.agency}</p>
+              <p className="text-xs text-muted-foreground">Agency</p>
+            </div>
           </div>
         </Card>
 
+        {/* Quick Actions */}
         <Card className="p-5">
           <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -119,11 +149,11 @@ export default function AdminOverview() {
               </Link>
             </Button>
             <Button variant="outline" className="justify-start gap-2 h-auto py-3" asChild>
-              <Link to="/admin/subscriptions">
+              <Link to="/admin/settings">
                 <CreditCard className="h-4 w-4 text-green-500" />
                 <div className="text-left">
-                  <p className="text-sm font-medium">Billing</p>
-                  <p className="text-xs text-muted-foreground">Manage plans</p>
+                  <p className="text-sm font-medium">Settings</p>
+                  <p className="text-xs text-muted-foreground">Platform config</p>
                 </div>
               </Link>
             </Button>
@@ -155,6 +185,9 @@ export default function AdminOverview() {
                   <p className="text-sm font-medium truncate">{user.fullName || user.email}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
+                <Badge variant={platformRoleBadgeVariant((user.role || 'user') as PlatformRole) as any} className="text-xs">
+                  {platformRoleLabel((user.role || 'user') as PlatformRole)}
+                </Badge>
                 <span className="text-xs text-muted-foreground">
                   {new Date(user.createdAt).toLocaleDateString()}
                 </span>
