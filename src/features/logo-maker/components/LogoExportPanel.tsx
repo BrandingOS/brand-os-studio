@@ -115,13 +115,23 @@ export function LogoExportPanel({ config, canvasRef }: LogoExportPanelProps) {
         return;
       }
 
-      const patch: Partial<Brand> = {
-        logo: dataUrl,
-        logoAssets: {
-          ...(brand.logoAssets || {}),
-          full: dataUrl,
-        },
-      };
+      // Convert the data-URL PNG into a File so it flows through the
+      // unified v3 pipeline (stageLogoAssignment → BrandAsset +
+      // logoSystem.primary ref + legacy logo/logoAssets mirrors all in
+      // one atomic store write). This keeps Logo Maker's "Save to
+      // Brand" in sync with the single source of truth.
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'logo.png', { type: 'image/png' });
+      const { stageLogoAssignment } = await import('@/shared/assets/assetOperations');
+      const { patch } = stageLogoAssignment(brand, {
+        url: dataUrl,
+        kind: 'logo',
+        name: `${brand.name} Logo`,
+        role: 'primary',
+        width: 1024,
+        height: 1024,
+        file: { size: file.size, mime: 'image/png' },
+      });
 
       await updateBrand(brand.id, patch);
       toast.success(`Logo saved to ${brand.name}`);

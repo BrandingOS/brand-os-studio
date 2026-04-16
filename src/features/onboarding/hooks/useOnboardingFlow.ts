@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { services } from '@/shared/services/registry';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { storageService } from '@/shared/services/storage.supabase';
-import type { CreateBrandInput } from '@/shared/types/brand';
+import type { CreateBrandInput, Brand } from '@/shared/types/brand';
+import type { LogoRole } from '@/shared/types/brandAssets';
+import { stageLogoAssignment } from '@/shared/assets/assetOperations';
+import { compressLogo } from '@/shared/utils/imageUpload';
 
 export function useOnboardingFlow() {
   const navigate = useNavigate();
@@ -79,29 +82,84 @@ export function useOnboardingFlow() {
 
       const brand = await services.brands.create(brandInput);
 
-      // Upload logo assets to storage with proper folder structure
-      const logoUploadPromises: Promise<any>[] = [];
-
-      const logoTypeMap: Record<string, 'primary' | 'black' | 'white' | 'vertical' | 'icon' | 'horizontal'> = {
-        primary: 'primary', black: 'black', white: 'white',
-        vertical: 'vertical', icon: 'icon', horizontal: 'horizontal',
+      // Route every uploaded logo through the v3 unified pipeline so
+      // the new brand starts life with a canonical logoSystem + a
+      // single, de-duplicated brandAssets[] list. Accumulates patches
+      // locally and applies one merged update.
+      //
+      // Onboarding slot → v3 LogoRole mapping. Slots without a clean
+      // v3 role (horizontal/vertical) are applied as `secondary` so
+      // no upload is silently dropped.
+      const ROLE_MAP: Record<string, LogoRole> = {
+        primary: 'primary',
+        black: 'mono.black',
+        white: 'mono.white',
+        icon: 'iconmark',
+        horizontal: 'horizontal',
+        vertical: 'stacked',
       };
 
+      let workingBrand: Brand = brand;
       for (const [key, logoData] of Object.entries(logoAssets)) {
-        if (logoData && typeof logoData === 'object' && 'file' in logoData && logoData.file instanceof File && logoTypeMap[key]) {
-          const uploadPromise = storageService.uploadLogo(
-            brand.id, logoTypeMap[key], logoData.file,
-          ).then(result => ({ type: key, url: result.url }))
-           .catch(() => null);
-          logoUploadPromises.push(uploadPromise);
+        if (
+          !logoData ||
+          typeof logoData !== 'object' ||
+          !('file' in logoData) ||
+          !(logoData.file instanceof File)
+        ) continue;
+        const role = ROLE_MAP[key];
+        if (!role) continue;
+
+        try {
+          // Compress to a stable data URL (blob: URLs die on reload).
+          const dataUrl = await compressLogo(logoData.file);
+          const { patch } = stageLogoAssignment(workingBrand, {
+            url: dataUrl,
+            kind: 'logo',
+            name: `${brandName} — ${key}`,
+            role,
+            originalName: logoData.file.name,
+            file: { size: logoData.file.size, mime: logoData.file.type },
+          });
+          workingBrand = { ...workingBrand, ...patch };
+        } catch (err) {
+          console.error(`[onboarding] logo ${key} compression failed`, err);
         }
       }
 
-      const uploadResults = await Promise.all(logoUploadPromises);
-      const primaryLogoResult = uploadResults.find(r => r?.type === 'primary');
+      // Apply the merged v3 patch (brandAssets + logoSystem + legacy
+      // mirrors) in a single write.
+      const hasAssets = workingBrand.brandAssets && workingBrand.brandAssets.length > 0;
+      if (hasAssets) {
+        await services.brands.update(brand.id, {
+          brandAssets: workingBrand.brandAssets,
+          logoSystem: workingBrand.logoSystem,
+          logo: workingBrand.logo,
+          logoAssets: workingBrand.logoAssets,
+        });
+      }
 
-      if (primaryLogoResult?.url) {
-        await services.brands.update(brand.id, { logo: primaryLogoResult.url });
+      // Best-effort mirror to Supabase Storage for users on the paid
+      // stack — produces durable public URLs. Errors are non-fatal;
+      // the data-URL-backed v3 assets already work.
+      for (const [key, logoData] of Object.entries(logoAssets)) {
+        if (
+          logoData &&
+          typeof logoData === 'object' &&
+          'file' in logoData &&
+          logoData.file instanceof File &&
+          ROLE_MAP[key]
+        ) {
+          try {
+            await storageService.uploadLogo(
+              brand.id,
+              key as 'primary' | 'black' | 'white' | 'icon' | 'horizontal' | 'vertical',
+              logoData.file,
+            );
+          } catch {
+            // Non-fatal — v3 assets already saved above.
+          }
+        }
       }
 
       reset();

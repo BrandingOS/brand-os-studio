@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Upload, Link, Code, Image, FileText, Trash2, Download, ExternalLink, Plus, Search, Filter, Eye } from 'lucide-react';
 import type { Brand, Asset } from '@/shared/types/brand';
+import type { BrandAssetKind } from '@/shared/types/brandAssets';
 import { toast } from 'sonner';
+import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 
 interface AssetManagerModuleProps {
   brand: Brand;
@@ -35,6 +37,9 @@ export function AssetManagerModule({ brand, onUpdate }: AssetManagerModuleProps)
   // Add asset form state
   const [newAsset, setNewAsset] = useState({ name: '', url: '', type: 'image' as Asset['type'], category: 'photo' as Asset['category'], tags: '' });
 
+  // v3 unified upload — writes BrandAsset to brandAssets[] atomically.
+  const { upload: uploadV3 } = useAssetUpload(brand.id);
+
   const assets = brand.assets || [];
 
   const filteredAssets = assets.filter(a => {
@@ -51,47 +56,44 @@ export function AssetManagerModule({ brand, onUpdate }: AssetManagerModuleProps)
     if (!file) return;
     e.target.value = '';
 
-    const { validateUploadFile, compressAsset } = await import('@/shared/utils/imageUpload');
-    const validation = validateUploadFile(file, { maxSizeMB: 10 });
-    if (!validation.valid) { toast.error(validation.error); return; }
+    // v3 pipeline handles validation, compression, dedupe, store write.
+    const kind: BrandAssetKind = file.type.startsWith('image/') ? 'image' : 'document';
+    const v3Asset = await uploadV3(file, {
+      kind,
+      maxSizeMB: 10,
+      acceptedTypes: [file.type.startsWith('image/') ? 'image/' : ''],
+      silent: true,
+    });
 
-    try {
-      toast.loading('Processing file...');
-      let dataUrl: string;
-      if (file.type.startsWith('image/')) {
-        dataUrl = await compressAsset(file);
-      } else {
-        // Non-image files: read as data URL directly (documents, etc.)
-        dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsDataURL(file);
-        });
-      }
-      toast.dismiss();
+    if (!v3Asset) return; // useAssetUpload already surfaced the error toast
 
-      const asset: Asset = {
-        id: `asset_${Date.now()}`,
-        name: file.name.replace(/\.[^.]+$/, ''),
-        type: file.type.startsWith('image/') ? 'image' : 'document',
-        category: 'photo',
-        source: 'upload',
-        url: dataUrl,
-        size: file.size,
-        tags: [],
-        metadata: { originalName: file.name, format: file.name.split('.').pop()?.toUpperCase() },
-        createdAt: new Date(),
-      };
-      onUpdate?.({ assets: [...assets, asset] });
-      toast.success(`Uploaded "${asset.name}"`);
-      setAddMode(null);
-    } catch (err) {
-      toast.dismiss();
-      const msg = err instanceof Error ? err.message : 'Upload failed';
-      toast.error(msg);
-    }
-  }, [assets, onUpdate]);
+    // Also append to the legacy `assets[]` array so the v2 UI list here
+    // keeps rendering the new entry until PR3 switches this component
+    // to read from `brandAssets[]`. The v3 asset URL is fetched from
+    // formats (prefer best available format).
+    const url =
+      v3Asset.formats.svg?.url ??
+      v3Asset.formats.png?.url ??
+      v3Asset.formats.webp?.url ??
+      v3Asset.formats.jpg?.url ??
+      v3Asset.formats.pdf?.url ??
+      '';
+    const asset: Asset = {
+      id: v3Asset.id,
+      name: file.name.replace(/\.[^.]+$/, ''),
+      type: kind === 'image' ? 'image' : 'document',
+      category: 'photo',
+      source: 'upload',
+      url,
+      size: file.size,
+      tags: [],
+      metadata: { originalName: file.name, format: file.name.split('.').pop()?.toUpperCase() },
+      createdAt: new Date(),
+    };
+    onUpdate?.({ assets: [...assets, asset] });
+    toast.success(`Uploaded "${asset.name}"`);
+    setAddMode(null);
+  }, [assets, onUpdate, uploadV3]);
 
   const handleAddUrl = useCallback(() => {
     if (!newAsset.url || !newAsset.name) { toast.error('Name and URL required'); return; }

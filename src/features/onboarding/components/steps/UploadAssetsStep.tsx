@@ -24,11 +24,19 @@ export function UploadAssetsStep({ value = {}, stepId }: UploadAssetsStepProps) 
     setAnswer(stepId, { ...value, [field]: newValue });
   };
 
+  // Compress to a stable data URL so previews survive navigation and
+  // brand finalization can reuse the same bytes without re-reading.
+  const acceptFile = async (key: string, file: File) => {
+    const { compressLogo } = await import('@/shared/utils/imageUpload');
+    const url = await compressLogo(file).catch(() => '');
+    if (!url) return;
+    updateField(key, { file, url, name: file.name, size: file.size });
+  };
+
   const handleFileUpload = (key: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    updateField(key, { file, url, name: file.name, size: file.size });
+    void acceptFile(key, file);
   };
 
   const handleDrop = (key: string, event: React.DragEvent) => {
@@ -36,13 +44,11 @@ export function UploadAssetsStep({ value = {}, stepId }: UploadAssetsStepProps) 
     setDragOver(null);
     const file = event.dataTransfer.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    updateField(key, { file, url, name: file.name, size: file.size });
+    void acceptFile(key, file);
   };
 
   const handleRemove = (key: string) => {
     const newValue = { ...value };
-    if (newValue[key]?.url) URL.revokeObjectURL(newValue[key].url);
     delete newValue[key];
     setAnswer(stepId, newValue);
   };

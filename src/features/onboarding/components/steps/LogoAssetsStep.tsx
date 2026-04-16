@@ -76,27 +76,26 @@ export function LogoAssetsStep({ value = {}, stepId }: LogoAssetsStepProps) {
   const { setAnswer } = useOnboardingStore();
   const [dragOver, setDragOver] = useState<string | null>(null);
 
+  // Compress to a data URL so previews persist across steps and the
+  // final brand-creation flow can reuse the bytes without re-reading.
+  const acceptFile = async (logoType: string, file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const { compressLogo } = await import('@/shared/utils/imageUpload');
+    const url = await compressLogo(file).catch(() => '');
+    if (!url) return;
+    setAnswer(stepId, {
+      ...value,
+      [logoType]: { file, url, name: file.name, size: file.size },
+    });
+  };
+
   const handleFileUpload = (logoType: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setAnswer(stepId, {
-        ...value,
-        [logoType]: {
-          file,
-          url,
-          name: file.name,
-          size: file.size,
-        },
-      });
-    }
+    if (file) void acceptFile(logoType, file);
   };
 
   const handleRemove = (logoType: string) => {
     const newValue = { ...value };
-    if (newValue[logoType]?.url) {
-      URL.revokeObjectURL(newValue[logoType].url);
-    }
     delete newValue[logoType];
     setAnswer(stepId, newValue);
   };
@@ -104,20 +103,8 @@ export function LogoAssetsStep({ value = {}, stepId }: LogoAssetsStepProps) {
   const handleDrop = (logoType: string, event: React.DragEvent) => {
     event.preventDefault();
     setDragOver(null);
-    
     const file = event.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setAnswer(stepId, {
-        ...value,
-        [logoType]: {
-          file,
-          url,
-          name: file.name,
-          size: file.size,
-        },
-      });
-    }
+    if (file) void acceptFile(logoType, file);
   };
 
   const primaryLogo = logoTypes.find(type => type.isPrimary);
