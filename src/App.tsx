@@ -238,6 +238,7 @@ const App = () => (
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
+            <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
             <Route path="folders" element={<DamPage />} />
             <Route path="studio" element={<ConsistencyStudioPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
@@ -262,6 +263,7 @@ const App = () => (
               <BrandKitRedirect />
             </ProtectedRoute>
           } />
+          {/* Legacy standalone module route — kept for backward compat */}
           <Route path="/dashboard/brand/:slug/brandkit/:moduleId" element={
             <ProtectedRoute>
               <BrandKitModulePage />
@@ -411,6 +413,7 @@ const App = () => (
             <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
+            <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
             <Route path="folders" element={<DamPage />} />
             <Route path="studio" element={<ConsistencyStudioPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
