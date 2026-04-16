@@ -79,7 +79,8 @@ export default function ResetPasswordPage() {
       if (error) throw error;
 
       toast.success('Password updated successfully!');
-      navigate('/dashboard');
+      // Full reload to cleanly reset auth state after password change
+      window.location.href = '/dashboard';
     } catch (error: any) {
       console.error('[ResetPassword] Error:', error);
       toast.error(error.message || 'Failed to update password');
