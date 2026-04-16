@@ -8,6 +8,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import {
   LayoutTemplate, Shapes, Type, Palette, Upload, Search,
   Square, Circle, Minus, Triangle, Star, Hexagon,
@@ -224,14 +225,14 @@ export function ToolPanel({ brand, onToolSelect, selectedTool, onAddImage }: Too
                   </div>
                 </div>
 
-                {brand.logo && (
+                {hasLogo(brand) && (
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Logo</p>
                     <button
-                      onClick={() => onAddImage(brand.logo!)}
+                      onClick={() => onAddImage(logoUrl(brand)!)}
                       className="w-full p-4 rounded-lg border border-border hover:border-primary/40 transition-colors bg-background"
                     >
-                      <img src={brand.logo} alt="Brand logo" className="h-12 mx-auto object-contain" />
+                      <img src={logoUrl(brand)} alt="Brand logo" className="h-12 mx-auto object-contain" />
                     </button>
                   </div>
                 )}

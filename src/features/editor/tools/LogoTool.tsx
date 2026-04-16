@@ -6,6 +6,7 @@ import { services } from '@/shared/services/registry';
 import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import { compressLogo } from '@/shared/utils/imageUpload';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 
 interface LogoToolProps {
   brandId: string;
@@ -108,7 +109,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
       </div>
 
       {/* Current Logo */}
-      {brand.logo && (
+      {hasLogo(brand) && (
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium">Current Logo</h3>
@@ -125,7 +126,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
           </div>
           <div className="flex justify-center p-8 bg-muted rounded-lg">
             <img
-              src={brand.logo}
+              src={logoUrl(brand)}
               alt="Brand Logo"
               className="max-w-full max-h-32 object-contain"
             />
@@ -136,7 +137,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
       {/* Upload Area */}
       <Card className="p-4">
         <h3 className="font-medium mb-3">
-          {brand.logo ? 'Replace Logo' : 'Upload Logo'}
+          {hasLogo(brand) ? 'Replace Logo' : 'Upload Logo'}
         </h3>
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${

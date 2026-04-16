@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import {
   Wrench,
   BookOpen,
@@ -134,9 +135,9 @@ export default function BrandHomePage() {
         <section id="section-glance" className="scroll-mt-24">
         <Card className="p-6">
           <div className="flex items-start gap-5">
-            {brand.logo ? (
+            {hasLogo(brand) ? (
               <div className="h-16 w-16 rounded-xl bg-muted/30 flex items-center justify-center p-2 ring-1 ring-border shrink-0">
-                <img src={brand.logo} alt="" className="max-h-full max-w-full object-contain" />
+                <img src={logoUrl(brand)} alt="" className="max-h-full max-w-full object-contain" />
               </div>
             ) : (
               <div

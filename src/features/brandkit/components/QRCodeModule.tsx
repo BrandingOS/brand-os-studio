@@ -3,6 +3,7 @@ import { Download, FileDown } from 'lucide-react';
 import QRCode from 'qrcode';
 import { BrandLogo } from './renderers/BrandLogo';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
 import { downloadResult } from '@/shared/services/export';
 
@@ -59,7 +60,7 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
       ctx.drawImage(img, 0, 0, 1024, 1024);
 
       // Logo overlay in center
-      if (brand.logo) {
+      if (hasLogo(brand)) {
         const logoImg = new Image();
         logoImg.crossOrigin = 'anonymous';
         logoImg.onload = () => {
@@ -76,7 +77,7 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
           downloadCanvas(canvas);
         };
         logoImg.onerror = () => downloadCanvas(canvas);
-        logoImg.src = brand.logo;
+        logoImg.src = logoUrl(brand)!;
       } else {
         downloadCanvas(canvas);
       }
@@ -204,9 +205,9 @@ export function QRCodeModule({ brand }: QRCodeModuleProps) {
               <div className="w-full h-full relative">
                 <img src={qrDataUrl} alt="QR Code" className="w-full h-full object-contain" />
                 {/* Logo overlay */}
-                {brand.logo && (
+                {hasLogo(brand) && (
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[18%] h-[18%] bg-white rounded-lg flex items-center justify-center shadow-sm p-1">
-                    <img src={brand.logo} alt="" className="w-full h-full object-contain" />
+                    <img src={logoUrl(brand)} alt="" className="w-full h-full object-contain" />
                   </div>
                 )}
               </div>

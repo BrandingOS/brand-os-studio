@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowUpRight, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 
 interface BrandsGridV5Props {
   brands: Brand[];
@@ -91,9 +92,9 @@ function BrandCardV5({ brand }: { brand: Brand }) {
 
       <header className="relative flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          {brand.logo ? (
+          {hasLogo(brand) ? (
             <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-background p-1.5">
-              <img src={brand.logo} alt={brand.name} className="max-h-full max-w-full object-contain" />
+              <img src={logoUrl(brand)} alt={brand.name} className="max-h-full max-w-full object-contain" />
             </div>
           ) : (
             <div

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import type { BentoTile } from '../types';
 
 interface Props {
@@ -185,12 +186,11 @@ function padBox(minSide: number): CSSProperties { return { padding: minSide * 0.
 
 function pickLogoSrc(brand: Brand | null | undefined, variant: string): string | undefined {
   if (!brand) return undefined;
-  const la = brand.logoAssets ?? {};
-  if (variant === 'icon') return la.icon ?? la.full ?? brand.logo;
-  if (variant === 'wordmark') return la.wordmark ?? la.full ?? brand.logo;
-  if (variant === 'dark') return la.dark ?? la.full ?? brand.logo;
-  if (variant === 'light') return la.light ?? la.full ?? brand.logo;
-  return la.full ?? brand.logo;
+  if (variant === 'icon') return logoUrl(brand, 'iconmark') ?? logoUrl(brand);
+  if (variant === 'wordmark') return logoUrl(brand, 'wordmark') ?? logoUrl(brand);
+  if (variant === 'dark') return logoUrl(brand, 'mono.black') ?? logoUrl(brand);
+  if (variant === 'light') return logoUrl(brand, 'mono.white') ?? logoUrl(brand);
+  return logoUrl(brand);
 }
 
 function readableOn(hex: string): string {

@@ -9,6 +9,7 @@
  * engines, and these v2 utilities. No off-limits paths touched.
  */
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { generateLogoVariants } from '@/shared/color/brandRules';
 import { generateBrandGuidePdf } from './brandGuidePdf';
 import { generateFavicons, generateIcoFromFavicons } from './favicon';
@@ -209,7 +210,7 @@ export async function exportBrandKitZip(brand: Brand, onProgress?: ProgressFn): 
 
   // ── FAVICONS ───────────────────────────────────────────────────
   report(64, 'Generating favicons');
-  const faviconUrl = brand.logoAssets?.icon || brand.logo;
+  const faviconUrl = logoUrl(brand, 'iconmark') || logoUrl(brand);
   if (faviconUrl) {
     try {
       const favicons = await generateFavicons(faviconUrl);

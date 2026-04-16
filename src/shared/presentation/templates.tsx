@@ -10,6 +10,7 @@
  */
 import type { SlideData } from '@/shared/editor';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import type { PresentationStyle } from './styles';
 import { getStyleById } from './styles';
 import { makeSlide as factoryMakeSlide } from './slideFactory';
@@ -98,7 +99,7 @@ function buildBrandGuideSlides(brand: Brand, style: PresentationStyle, overrides
       style,
       title: brand.name,
       subtitle: 'Brand Guidelines',
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('overview', 'Brand Overview', SectionDividerPage, {
       style,
@@ -110,7 +111,7 @@ function buildBrandGuideSlides(brand: Brand, style: PresentationStyle, overrides
       title: 'Mission & Vision',
       subtitle: strategy?.mission || `${brand.name} exists to make a meaningful impact.`,
       body: strategy?.vision || 'Our vision is to lead with purpose and create lasting value.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('values', 'Core Values', ThreeColumnPage, {
       style,
@@ -131,7 +132,7 @@ function buildBrandGuideSlides(brand: Brand, style: PresentationStyle, overrides
       title: 'Logo Usage',
       subtitle: 'Primary Logo',
       body: 'The primary logo should be used in all official communications. Maintain clear space equal to the height of the logomark on all sides.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('color-section', 'Color System', SectionDividerPage, {
       style,
@@ -180,7 +181,7 @@ function buildBrandGuideSlides(brand: Brand, style: PresentationStyle, overrides
       style,
       title: 'Thank You',
       subtitle: `${brand.name} Brand Guidelines  --  ${new Date().getFullYear()}`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }
@@ -193,7 +194,7 @@ function buildCompanyProfileSlides(brand: Brand, style: PresentationStyle, overr
       style,
       title: brand.name,
       subtitle: 'Company Profile',
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('about', 'About Us', SectionDividerPage, {
       style,
@@ -260,7 +261,7 @@ function buildCompanyProfileSlides(brand: Brand, style: PresentationStyle, overr
       style,
       title: "Let's Work Together",
       subtitle: brand.name,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
       contactInfo: { website: `${brand.slug}.com`, email: `hello@${brand.slug}.com` },
     }, overrides),
   ];
@@ -271,7 +272,7 @@ function buildCompanyProfileSlides(brand: Brand, style: PresentationStyle, overr
 function buildBrandPresentationSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
   return [
     makeSlide('cover', 'Cover', CoverPage, {
-      style, title: brand.name, subtitle: 'Brand Presentation', logoUrl: brand.logo,
+      style, title: brand.name, subtitle: 'Brand Presentation', logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('why', 'Why', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'Why We Exist',
@@ -322,7 +323,7 @@ function buildBrandPresentationSlides(brand: Brand, style: PresentationStyle, ov
       quoteAuthor: 'Happy Customer',
     }, overrides),
     makeSlide('closing', 'Next Steps', ClosingPage, {
-      style, title: "Let's Build Together", subtitle: brand.name, logoUrl: brand.logo,
+      style, title: "Let's Build Together", subtitle: brand.name, logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }
@@ -332,7 +333,7 @@ function buildBrandPresentationSlides(brand: Brand, style: PresentationStyle, ov
 function buildPitchDeckSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
   return [
     makeSlide('cover', 'Cover', CoverPage, {
-      style, title: brand.name, subtitle: 'Investor Presentation', logoUrl: brand.logo,
+      style, title: brand.name, subtitle: 'Investor Presentation', logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('problem', 'Problem', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'The Problem',
@@ -384,7 +385,7 @@ function buildPitchDeckSlides(brand: Brand, style: PresentationStyle, overrides?
       body: 'We are raising $3M to accelerate product development, expand our go-to-market team, and capture the market window.',
     }, overrides),
     makeSlide('closing', 'Thank You', ClosingPage, {
-      style, title: "Let's Talk", subtitle: brand.name, logoUrl: brand.logo,
+      style, title: "Let's Talk", subtitle: brand.name, logoUrl: logoUrl(brand),
       contactInfo: { email: `founders@${brand.slug}.com` },
     }, overrides),
   ];
@@ -395,7 +396,7 @@ function buildPitchDeckSlides(brand: Brand, style: PresentationStyle, overrides?
 function buildLogoShowcaseSlides(brand: Brand, style: PresentationStyle, overrides?: SlideOverridesMap): SlideData[] {
   return [
     makeSlide('cover', 'Cover', CoverPage, {
-      style, title: brand.name, subtitle: 'Logo Design', logoUrl: brand.logo,
+      style, title: brand.name, subtitle: 'Logo Design', logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('brief', 'The Brief', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'The Brief',
@@ -412,7 +413,7 @@ function buildLogoShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       style,
       title: brand.name,
       subtitle: 'Primary Logo',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('variations', 'Variations', ThreeColumnPage, {
       style,
@@ -442,10 +443,10 @@ function buildLogoShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       style,
       title: 'In Context',
       body: 'The logo works across all touchpoints  --  from digital interfaces to physical signage.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('closing', 'Thank You', ClosingPage, {
-      style, title: 'Thank You', subtitle: `${brand.name} Logo Design`, logoUrl: brand.logo,
+      style, title: 'Thank You', subtitle: `${brand.name} Logo Design`, logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }
@@ -461,7 +462,7 @@ function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle, over
       style,
       title: tagline,
       subtitle: `${brand.name} -- ${brand.tone || 'Studio'}`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
 
     // 2. Intro section divider
@@ -478,7 +479,7 @@ function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle, over
       title: brand.name,
       subtitle: brand.guidelines?.strategy?.positioning || `An independent ${brand.tone || 'design'} studio.`,
       body: brand.guidelines?.strategy?.mission || `${brand.name} is a multidisciplinary studio creating thoughtful work for clients who value craft, restraint, and longevity.`,
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
 
     // 4. Services divider
@@ -532,19 +533,19 @@ function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle, over
       style,
       title: 'Budapest',
       subtitle: 'Residential -- 2024',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('project-2', 'Project II', FullBleedImagePage, {
       style,
       title: 'Hamburg',
       subtitle: 'Commercial -- 2024',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('project-3', 'Project III', FullBleedImagePage, {
       style,
       title: 'Valencia',
       subtitle: 'Hospitality -- 2023',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
 
     // 12. Stats — by the numbers
@@ -579,7 +580,7 @@ function buildStudioPortfolioSlides(brand: Brand, style: PresentationStyle, over
       style,
       title: 'Make Something',
       subtitle: brand.name,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
       contactInfo: {
         email: `hello@${brand.slug}.com`,
         website: `${brand.slug}.com`,
@@ -596,7 +597,7 @@ function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       style,
       title: `${brand.name} -- UI/UX`,
       subtitle: 'Product Design Case Study',
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('overview', 'Overview', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'Project Overview',
@@ -607,7 +608,7 @@ function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       title: 'Designing a better experience',
       subtitle: 'Role: Product Designer  ·  Duration: 8 weeks  ·  Team: 4',
       body: 'A complete redesign focused on clarity, speed, and accessibility — built around the way real users actually work.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('challenge', 'Challenge', SectionDividerPage, {
       style, sectionNumber: '02', sectionLabel: 'The Challenge',
@@ -646,7 +647,7 @@ function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       sectionLabel: 'Phase 1',
       title: 'Low-fidelity wireframes',
       body: 'Rapid sketches and Figma wireframes used to test layout, hierarchy, and information architecture before any visual polish.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('design-system', 'Design System', SectionDividerPage, {
       style, sectionNumber: '04', sectionLabel: 'Design System',
@@ -665,14 +666,14 @@ function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       style,
       title: 'High-fidelity designs',
       subtitle: 'Pixel-perfect screens ready for engineering',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('flow', 'User Flow', TwoColumnReversePage, {
       style,
       sectionLabel: 'Flow',
       title: 'A clearer path',
       body: 'The redesigned onboarding flow reduces 14 steps to 6, with progressive disclosure of complexity. Users now reach value 3.2x faster.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('results', 'Results', SectionDividerPage, {
       style, sectionNumber: '05', sectionLabel: 'Results',
@@ -697,7 +698,7 @@ function buildUiUxShowcaseSlides(brand: Brand, style: PresentationStyle, overrid
       style,
       title: 'Thank You',
       subtitle: `${brand.name} -- Product Design`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }
@@ -710,7 +711,7 @@ function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       style,
       title: `${brand.name} Dashboard`,
       subtitle: 'Product Showcase',
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('intro-divider', 'Introduction', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'Introduction',
@@ -721,13 +722,13 @@ function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       title: `Meet ${brand.name}`,
       subtitle: 'A modern dashboard built for clarity at any scale',
       body: 'Real-time analytics, customizable widgets, role-based views, and an interface that gets out of the way so teams can focus on decisions.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('overview', 'Dashboard Overview', FullBleedImagePage, {
       style,
       title: 'Single source of truth',
       subtitle: 'Everything that matters, in one view',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('kpis', 'Key Metrics', StatsPage, {
       style,
@@ -758,7 +759,7 @@ function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       sectionLabel: 'Analytics',
       title: 'Deep visibility',
       body: 'From high-level trends to row-level detail in a single click. Drill down without losing context, then bring teammates in via shareable views.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('integrations', 'Integrations', ListPage, {
       style,
@@ -776,7 +777,7 @@ function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       sectionLabel: 'On the go',
       title: 'Native mobile experience',
       body: 'iOS and Android apps with offline support, push alerts, and the same dashboard fidelity as the web — optimized for thumbs.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('users-divider', 'Built For', SectionDividerPage, {
       style, sectionNumber: '03', sectionLabel: 'Built For',
@@ -811,7 +812,7 @@ function buildDashboardShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       style,
       title: 'Get Started',
       subtitle: `${brand.name} Dashboard`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
       contactInfo: { website: `${brand.slug}.com`, email: `hello@${brand.slug}.com` },
     }, overrides),
   ];
@@ -825,7 +826,7 @@ function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       style,
       title: brand.name,
       subtitle: 'Mobile App Design',
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('intro-divider', 'Concept', SectionDividerPage, {
       style, sectionNumber: '01', sectionLabel: 'The Concept',
@@ -836,13 +837,13 @@ function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       title: brand.name,
       subtitle: brand.tagline || 'Designed for daily use',
       body: 'A focused mobile experience that respects your time, your data, and your attention. Built mobile-first, optimized for one-handed use.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('hero-screen', 'Hero', FullBleedImagePage, {
       style,
       title: 'The home screen',
       subtitle: 'First impression — and last',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('flows-divider', 'Flows', SectionDividerPage, {
       style, sectionNumber: '02', sectionLabel: 'Key Flows',
@@ -862,7 +863,7 @@ function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       sectionLabel: 'System',
       title: 'A focused system',
       body: 'Custom typography, generous tap targets, dark + light themes, dynamic type support, and motion that feels native on iOS and Android.',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('features', 'Features', ListPage, {
       style,
@@ -879,7 +880,7 @@ function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       style,
       title: 'Screen library',
       subtitle: 'Every screen designed end-to-end',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('metrics', 'Metrics', StatsPage, {
       style,
@@ -896,7 +897,7 @@ function buildMobileAppShowcaseSlides(brand: Brand, style: PresentationStyle, ov
       style,
       title: 'Available Now',
       subtitle: `${brand.name} for iOS and Android`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }
@@ -909,7 +910,7 @@ function buildCaseStudySlides(brand: Brand, style: PresentationStyle, overrides?
       style,
       title: 'Case Study',
       subtitle: brand.name,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
     makeSlide('summary', 'Executive Summary', TwoColumnPage, {
       style,
@@ -945,7 +946,7 @@ function buildCaseStudySlides(brand: Brand, style: PresentationStyle, overrides?
       style,
       title: 'A redesigned experience',
       subtitle: 'Faster, clearer, more confident',
-      imageUrl: brand.logo,
+      imageUrl: logoUrl(brand),
     }, overrides),
     makeSlide('details', 'Solution Details', ListPage, {
       style,
@@ -991,7 +992,7 @@ function buildCaseStudySlides(brand: Brand, style: PresentationStyle, overrides?
       style,
       title: 'Thank You',
       subtitle: `${brand.name} -- Case Study`,
-      logoUrl: brand.logo,
+      logoUrl: logoUrl(brand),
     }, overrides),
   ];
 }

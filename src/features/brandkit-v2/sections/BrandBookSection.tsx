@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { Download, BookOpen, Layers, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { generateBrandGuidePdf } from '../brandGuidePdf';
 import { downloadBlob } from '../downloaders';
 import { SectionHeader } from '../SectionHeader';
@@ -62,8 +63,8 @@ export function BrandBookSection({ brand, slug }: BrandBookSectionProps) {
               className="flex aspect-[3/4] flex-col items-center justify-center p-8 text-center"
               style={{ backgroundColor: primary }}
             >
-              {brand.logo ? (
-                <img src={brand.logo} alt={brand.name} className="mb-6 max-h-16 max-w-[60%] object-contain" />
+              {logoUrl(brand) ? (
+                <img src={logoUrl(brand)} alt={brand.name} className="mb-6 max-h-16 max-w-[60%] object-contain" />
               ) : null}
               <h3 className="font-display text-3xl font-bold leading-tight text-white">{brand.name}</h3>
               <p className="mt-2 text-xs text-white/80">{brand.tone}</p>
@@ -73,7 +74,7 @@ export function BrandBookSection({ brand, slug }: BrandBookSectionProps) {
                 Page 2 · Logo
               </div>
               <div className="flex h-16 items-center justify-center rounded-md bg-muted/30">
-                {brand.logo && <img src={brand.logo} alt="" className="max-h-10 max-w-[80%] object-contain" />}
+                {logoUrl(brand) && <img src={logoUrl(brand)} alt="" className="max-h-10 max-w-[80%] object-contain" />}
               </div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 Page 3 · Color

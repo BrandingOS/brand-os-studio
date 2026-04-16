@@ -8,6 +8,7 @@ import { Upload, Plus, X, Trash2, ChevronRight, ChevronUp, ChevronDown, Palette,
 import { PaletteGenerator } from './PaletteGenerator';
 import type { LogoPresentationData, LogoConcept, PresentationTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { AIAssistantBox, type AIExtractedField } from '@/features/ai/components/AIAssistantBox';
 import { useLogoPresentationDocsStore } from '../docsStore';
 import { toast } from 'sonner';
@@ -544,7 +545,7 @@ export function LogoPresentationSetup({ brand, initialDraft, onStart, onClose, t
     // Fill in missing logos with brand logo
     const filledConcepts = concepts.map(c => ({
       ...c,
-      logoUrl: c.logoUrl || brand.logo || '',
+      logoUrl: c.logoUrl || logoUrl(brand) || '',
       rationale: c.rationale || `A distinctive mark that captures ${brand.name}'s identity.`,
       whyItWorks: c.whyItWorks.filter(Boolean).length > 0 ? c.whyItWorks.filter(Boolean) : ['Distinctive and memorable', 'Scalable across applications', 'Aligned with brand positioning'],
     }));

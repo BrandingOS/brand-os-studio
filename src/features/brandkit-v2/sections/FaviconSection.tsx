@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { Edit3, Download, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { generateFavicons, generateIcoFromFavicons, type FaviconAsset } from '../favicon';
 import { downloadBlob } from '../downloaders';
 import { SectionHeader } from '../SectionHeader';
@@ -17,7 +18,7 @@ interface FaviconSectionProps {
 }
 
 export function FaviconSection({ brand, slug }: FaviconSectionProps) {
-  const source = brand.logoAssets?.icon || brand.logo;
+  const source = logoUrl(brand, 'iconmark') || logoUrl(brand);
   const [favicons, setFavicons] = React.useState<FaviconAsset[] | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);

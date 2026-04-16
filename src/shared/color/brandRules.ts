@@ -1,4 +1,5 @@
 import type { Brand, BrandLogoAssets } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 
 // ─── Color Utilities ───────────────────────────────────────────
 
@@ -172,7 +173,7 @@ const BLACK_FILTER = 'brightness(0)';
  * resolution from `brand.logoAssets`.
  */
 export function generateLogoVariants(brand: Brand): LogoVariant[] {
-  const logoSrc = brand.logo || '';
+  const logoSrc = logoUrl(brand) || '';
   if (!logoSrc) return [];
 
   const analysis = analyzeBrandColors(brand);
@@ -777,9 +778,9 @@ export interface ProfileIconConfig {
 
 export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
   const p = brand.primaryColor;
-  const hasLogo = !!brand.logo;
+  const brandHasLogo = hasLogo(brand);
 
-  if (!hasLogo) {
+  if (!brandHasLogo) {
     return [{
       logoSrc: '',
       bgColor: p,
@@ -792,7 +793,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
   const configs: ProfileIconConfig[] = [
     // Brand color bg + white logo
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: p,
       logoFilter: 'brightness(0) invert(1)',
       padding: '20%',
@@ -802,7 +803,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
     },
     // White bg + color logo
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: '#FFFFFF',
       padding: '20%',
       shape: 'circle',
@@ -810,7 +811,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
     },
     // Dark bg + white logo
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: '#0A0A0F',
       logoFilter: 'brightness(0) invert(1)',
       padding: '20%',
@@ -819,7 +820,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
     },
     // Brand color bg + white logo (square)
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: p,
       logoFilter: 'brightness(0) invert(1)',
       padding: '20%',
@@ -828,7 +829,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
     },
     // White bg (square)
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: '#FFFFFF',
       padding: '20%',
       shape: 'rounded-square',
@@ -836,7 +837,7 @@ export function getProfileIconConfig(brand: Brand): ProfileIconConfig[] {
     },
     // Dark bg (square)
     {
-      logoSrc: brand.logo!,
+      logoSrc: logoUrl(brand)!,
       bgColor: '#0A0A0F',
       logoFilter: 'brightness(0) invert(1)',
       padding: '20%',
@@ -866,7 +867,7 @@ export function validateBrand(brand: Brand): BrandValidationResult {
   const issues: BrandIssue[] = [];
 
   // Logo checks
-  if (!brand.logo) {
+  if (!hasLogo(brand)) {
     issues.push({ severity: 'warning', field: 'logo', message: 'No logo uploaded — using text fallback' });
   }
 
@@ -915,7 +916,7 @@ export function validateBrand(brand: Brand): BrandValidationResult {
 // ─── Safe Logo Selection ───────────────────────────────────────
 
 export function getSafeLogoForBackground(brand: Brand, bgColor: string): { filter?: string; warning?: string } {
-  if (!brand.logo) return {};
+  if (!hasLogo(brand)) return {};
 
   const bgIsLight = isLightColor(bgColor);
   const brandColorLuminance = relativeLuminance(brand.primaryColor);

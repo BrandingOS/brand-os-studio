@@ -24,7 +24,9 @@ import {
   ImageIcon,
   Loader2,
   Upload,
+  ExternalLink,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   generateLogoVariants,
   analyzeBrandColors,
@@ -33,6 +35,7 @@ import {
   type BrandColorAnalysis,
 } from '../engine/brandRules';
 import type { Brand } from '@/shared/types/brand';
+import { hasLogo } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
 
 interface LogoFilesModuleProps {
@@ -812,7 +815,7 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
   }, [brand, allVariants, downloadSize]);
 
   // Empty state — no logo uploaded
-  if (!brand.logo) {
+  if (!hasLogo(brand)) {
     return (
       <div className="space-y-6">
         <div>
@@ -828,9 +831,16 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
           <div>
             <p className="font-medium">No logo yet</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add a logo in Brand Settings to generate a full brand-aware variant system.
+              Add a logo in Identity to generate a full brand-aware variant system.
             </p>
           </div>
+          <Link
+            to={`/dashboard/brand/${brand.slug}/identity?tab=logo`}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Edit in Identity
+          </Link>
         </div>
       </div>
     );

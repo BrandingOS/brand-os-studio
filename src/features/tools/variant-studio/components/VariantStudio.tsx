@@ -27,6 +27,7 @@ import { TOOL_REGISTRY } from '../../core';
 import { Button } from '@/components/ui/button';
 import { Download, Sparkles } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import {
   emptyPalette,
   paletteFromBrand,
@@ -544,14 +545,16 @@ function EmptyState({ onPickFile }: { onPickFile: (file: File) => void }) {
 }
 
 function sourceFromBrand(brand: Brand | undefined): SourceLogo | null {
-  if (!brand?.logo) return null;
-  const isInlineSvg = brand.logo.trim().startsWith('<svg');
+  if (!brand) return null;
+  const logo = logoUrl(brand);
+  if (!logo) return null;
+  const isInlineSvg = logo.trim().startsWith('<svg');
   return {
     id: `brand-${brand.id}`,
     kind: 'brand-asset',
     original: {
-      svg: isInlineSvg ? brand.logo : undefined,
-      raster: isInlineSvg ? undefined : brand.logo,
+      svg: isInlineSvg ? logo : undefined,
+      raster: isInlineSvg ? undefined : logo,
       width: 512,
       height: 512,
     },

@@ -9,6 +9,7 @@ import { CanvasEditor } from './editor/CanvasEditor';
 import { getTemplatesForModule, filterTemplatesByCategory } from '../data/templates';
 import type { BrandKitModuleConfig, BrandKitTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
 
 interface TemplateGalleryProps {
@@ -105,7 +106,7 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
         ...brand,
         primaryColor: overrides.primaryColor || brand.primaryColor,
         secondaryColor: overrides.secondaryColor || brand.secondaryColor,
-        logo: overrides.showLogo === false ? undefined : brand.logo,
+        logo: overrides.showLogo === false ? undefined : logoUrl(brand),
       };
       return renderTemplateDesign(template, modifiedBrand);
     };

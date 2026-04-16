@@ -6,6 +6,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useEffect } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
@@ -61,9 +62,9 @@ export default function BrandsPage() {
 
                   {/* Brand info in the middle */}
                   <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
-                    {brand.logo ? (
+                    {hasLogo(brand) ? (
                       <img
-                        src={brand.logo}
+                        src={logoUrl(brand)}
                         alt={brand.name}
                         className="w-10 h-10 object-contain rounded shrink-0"
                       />

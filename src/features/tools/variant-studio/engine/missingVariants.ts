@@ -11,6 +11,7 @@
 import type { Brand } from '@/shared/types/brand';
 import type { PaletteContext, SourceLogo, VariantSpec } from './types';
 import { resolveVariant } from './generate';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 
 export interface ArchetypeRecipe {
   key: string;
@@ -133,11 +134,11 @@ export function findMissingVariants(
 export function brandCompleteness(brand: Brand): { filled: number; total: number } {
   const a = brand.logoAssets ?? {};
   const filled =
-    Number(!!brand.logo) +
-    Number(!!a.icon) +
-    Number(!!a.wordmark) +
+    Number(hasLogo(brand)) +
+    Number(!!logoUrl(brand, 'iconmark')) +
+    Number(!!logoUrl(brand, 'wordmark')) +
     Number(!!a.alternate) +
-    Number(!!a.dark) +
-    Number(!!a.light);
+    Number(!!logoUrl(brand, 'mono.black')) +
+    Number(!!logoUrl(brand, 'mono.white'));
   return { filled, total: ARCHETYPE.length };
 }

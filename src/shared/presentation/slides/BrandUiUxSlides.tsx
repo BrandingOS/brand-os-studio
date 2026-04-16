@@ -18,6 +18,7 @@
  */
 import type { SlideData, SlideRenderProps } from '@/shared/editor';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import type { LogoPresentationData } from '@/features/logo-presentation/types';
 import type { PresentationStyle } from '../styles';
 import type { SlideOverridesMap } from '../templates';
@@ -851,7 +852,7 @@ function ctxFromLogoData(data: LogoPresentationData): BrandUiContext {
 function ctxFromBrandStyle(brand: Brand, style: PresentationStyle): BrandUiContext {
   return {
     brandName: brand.name,
-    logoUrl: brand.logo,
+    logoUrl: logoUrl(brand),
     primaryColor: brand.primaryColor,
     secondaryColor: brand.secondaryColor || brand.primaryColor,
     accentColor: style.bgAccent === 'brand' ? brand.primaryColor : style.bgAccent,

@@ -26,6 +26,7 @@ import { AddSlidePanel } from '@/shared/presentation/AddSlidePanel';
 import { getStyleById } from '@/shared/presentation/styles';
 import type { LogoPresentationData, LogoConcept } from '@/features/logo-presentation/types';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
 
 /**
@@ -35,7 +36,7 @@ import { toast } from 'sonner';
 function buildPresentationData(brand: Brand, doc: LogoPresentationDoc): LogoPresentationData {
   const filledConcepts: LogoConcept[] = doc.concepts.map(c => ({
     ...c,
-    logoUrl: c.logoUrl || brand.logo || '',
+    logoUrl: c.logoUrl || logoUrl(brand) || '',
     rationale: c.rationale || `A distinctive mark that captures ${brand.name}'s identity.`,
     whyItWorks: c.whyItWorks.filter(Boolean).length > 0
       ? c.whyItWorks.filter(Boolean)

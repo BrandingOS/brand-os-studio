@@ -10,6 +10,7 @@
 import * as React from 'react';
 import { useParams } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { ArrowRight, Download, Mail, Sparkles, Palette as PaletteIcon, Type, Megaphone, Layers } from 'lucide-react';
 
 export default function BrandPortalV2Page() {
@@ -51,9 +52,9 @@ export default function BrandPortalV2Page() {
           <div className="flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <div className="mb-6 flex items-center gap-4">
-                {brand.logo ? (
+                {logoUrl(brand) ? (
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-background p-2.5">
-                    <img src={brand.logo} alt={brand.name} className="max-h-full max-w-full object-contain" />
+                    <img src={logoUrl(brand)} alt={brand.name} className="max-h-full max-w-full object-contain" />
                   </div>
                 ) : (
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-2xl" style={{ backgroundColor: primary }}>

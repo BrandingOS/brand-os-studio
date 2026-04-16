@@ -1,6 +1,7 @@
 import { HomeV5 } from '../v5/HomeV5';
 import { useNavigate } from 'react-router-dom';
 import { useDashboard } from '../hooks/useDashboard';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { AdminPanel } from './AdminPanel';
 import { ContinueSurface } from './ContinueSurface';
 import { Button } from '@/components/ui/button';
@@ -215,9 +216,9 @@ function _LegacyDashboardMain() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      {brand.logo ? (
+                      {logoUrl(brand) ? (
                         <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center p-1.5 shadow-sm">
-                          <img src={brand.logo} alt={brand.name} className="max-w-full max-h-full object-contain" />
+                          <img src={logoUrl(brand)} alt={brand.name} className="max-w-full max-h-full object-contain" />
                         </div>
                       ) : (
                         <div className="w-10 h-10 rounded-xl border-2 border-white shadow-sm flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: brand.primaryColor }}>

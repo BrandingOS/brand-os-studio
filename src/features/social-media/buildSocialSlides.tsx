@@ -4,6 +4,7 @@
  */
 import type { SlideData, SlideRenderProps } from '@/shared/editor';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import type { SocialMediaSize } from './types';
 import { getStyleById } from '@/shared/presentation/styles';
 import {
@@ -33,7 +34,7 @@ export function buildSocialSlides(brand: Brand, size: SocialMediaSize, styleId =
           brand={rp.brand}
           title={brand.name}
           subtitle={brand.tagline || `${brand.tone || 'Modern'} & memorable`}
-          logoUrl={brand.logo}
+          logoUrl={logoUrl(brand)}
           orientation={rp.orientation}
           aspectRatioValue={rp.aspectRatioValue}
           settings={rp.settings}
@@ -50,7 +51,7 @@ export function buildSocialSlides(brand: Brand, size: SocialMediaSize, styleId =
           brand={rp.brand}
           title={brand.name}
           subtitle={brand.tagline}
-          imageUrl={brand.logo}
+          imageUrl={logoUrl(brand)}
           orientation={rp.orientation}
           aspectRatioValue={rp.aspectRatioValue}
           settings={rp.settings}
@@ -69,7 +70,7 @@ export function buildSocialSlides(brand: Brand, size: SocialMediaSize, styleId =
           title={brand.name}
           subtitle={brand.tagline || 'Coming soon'}
           body={brand.guidelines?.strategy?.mission || 'Our story, told beautifully.'}
-          imageUrl={brand.logo}
+          imageUrl={logoUrl(brand)}
           orientation={rp.orientation}
           aspectRatioValue={rp.aspectRatioValue}
           settings={rp.settings}

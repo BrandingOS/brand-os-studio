@@ -3,6 +3,7 @@
  * that the interpolation engine can resolve {{variables}} against.
  */
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 
 /**
  * Build a flat variable map from a Brand object.
@@ -21,11 +22,11 @@ export function buildVariableMap(brand: Brand): Record<string, string> {
   // Identity
   map['brand.name'] = brand.name || '';
   map['brand.logo'] = brand.logo || '';
-  map['brand.logo.full'] = brand.logoAssets?.full || brand.logo || '';
-  map['brand.logo.icon'] = brand.logoAssets?.icon || '';
-  map['brand.logo.wordmark'] = brand.logoAssets?.wordmark || '';
-  map['brand.logo.dark'] = brand.logoAssets?.dark || '';
-  map['brand.logo.light'] = brand.logoAssets?.light || '';
+  map['brand.logo.full'] = logoUrl(brand) || '';
+  map['brand.logo.icon'] = logoUrl(brand, 'iconmark') || '';
+  map['brand.logo.wordmark'] = logoUrl(brand, 'wordmark') || '';
+  map['brand.logo.dark'] = logoUrl(brand, 'mono.black') || '';
+  map['brand.logo.light'] = logoUrl(brand, 'mono.white') || '';
   map['brand.logo.alternate'] = brand.logoAssets?.alternate || '';
 
   // Colors
