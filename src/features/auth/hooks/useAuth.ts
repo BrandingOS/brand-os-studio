@@ -26,12 +26,13 @@ export const useAuth = () => {
   const workspaceStore = useWorkspaceStore();
   const navigate = useNavigate();
 
-  const { user, isAuthenticated, isAdmin, isLoading, signIn, signOut, setLoading, setAdmin, switchToAuthenticated } = sessionStore;
+  const { user, isAuthenticated, isAdmin, isLoading, signIn, signOut, setLoading, setPlatformRole, switchToAuthenticated } = sessionStore;
+  const { platformRole, isSuperAdmin, isModerator } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
 
-  // Check if current user is admin. Uses a timeout so a missing/slow
-  // user_roles table never blocks the entire app from loading.
-  const checkAdminRole = async (userId: string) => {
+  // Check platform role (super_admin / admin / moderator / user).
+  // Uses a timeout so a missing/slow user_roles table never blocks loading.
+  const checkPlatformRole = async (userId: string) => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 3000);
@@ -40,15 +41,56 @@ export const useAuth = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .eq('role', 'admin')
         .single()
         .abortSignal(controller.signal);
 
       clearTimeout(timeout);
-      setAdmin(!error && data?.role === 'admin');
+      if (!error && data?.role) {
+        setPlatformRole(data.role as any);
+      } else {
+        setPlatformRole('user');
+      }
     } catch {
-      // Table missing, network slow, or aborted — not admin, move on.
-      setAdmin(false);
+      setPlatformRole('user');
+    }
+  };
+
+  // Check if user account is suspended or banned
+  const checkAccountStatus = async (userId: string): Promise<boolean> => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('status, suspension_reason')
+        .eq('id', userId)
+        .single();
+
+      if (data?.status === 'suspended') {
+        await supabase.auth.signOut();
+        toast.error(data.suspension_reason
+          ? `Your account has been suspended: ${data.suspension_reason}`
+          : 'Your account has been suspended. Contact support for assistance.');
+        return false;
+      }
+      if (data?.status === 'banned') {
+        await supabase.auth.signOut();
+        toast.error('Your account has been banned. Contact support for assistance.');
+        return false;
+      }
+      return true;
+    } catch {
+      return true; // Allow access if check fails
+    }
+  };
+
+  // Update last_sign_in timestamp
+  const updateLastSignIn = async (userId: string) => {
+    try {
+      await supabase
+        .from('profiles')
+        .update({ last_sign_in: new Date().toISOString() })
+        .eq('id', userId);
+    } catch {
+      // Non-critical, ignore
     }
   };
 
@@ -65,12 +107,16 @@ export const useAuth = () => {
         if (!isMounted) return;
 
         if (session?.user) {
+          // Check account status before allowing access
+          const allowed = await checkAccountStatus(session.user.id);
+          if (!allowed || !isMounted) return;
+
           const mappedUser = mapSupabaseUser(session.user);
           reconfigureForAuth(true);
           signIn(mappedUser);
-          // Admin check is best-effort — never block loading on it
-          await checkAdminRole(session.user.id).catch(() => {});
+          await checkPlatformRole(session.user.id).catch(() => {});
           if (isMounted) setLoading(false);
+          updateLastSignIn(session.user.id);
           workspaceStore.loadAll().catch(console.error);
           loadFromSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
@@ -106,20 +152,25 @@ export const useAuth = () => {
         }
         
         if (event === 'SIGNED_IN' && session?.user) {
-          const mappedUser = mapSupabaseUser(session.user);
-          reconfigureForAuth(true);
-          signIn(mappedUser);
+          // Check account status before allowing access
+          checkAccountStatus(session.user.id).then((allowed) => {
+            if (!allowed || !isMounted) return;
 
-          localStorage.removeItem('brandos:brands');
-          console.log('[useAuth] User signed in:', session.user.email);
+            const mappedUser = mapSupabaseUser(session.user!);
+            reconfigureForAuth(true);
+            signIn(mappedUser);
 
-          // Await admin check, then mark loading done
-          checkAdminRole(session.user.id).then(() => {
-            if (isMounted) setLoading(false);
+            localStorage.removeItem('brandos:brands');
+            console.log('[useAuth] User signed in:', session.user!.email);
+
+            checkPlatformRole(session.user!.id).then(() => {
+              if (isMounted) setLoading(false);
+            });
+            updateLastSignIn(session.user!.id);
+            workspaceStore.loadAll().catch(console.error);
+            syncToSupabase().catch(console.error);
+            migrateLocalStorageToSupabase().catch(console.error);
           });
-          workspaceStore.loadAll().catch(console.error);
-          syncToSupabase().catch(console.error);
-          migrateLocalStorageToSupabase().catch(console.error);
         } else if (event === 'PASSWORD_RECOVERY') {
           console.log('[useAuth] Password recovery — redirecting to reset page');
           navigate('/auth/reset-password');
@@ -220,6 +271,9 @@ export const useAuth = () => {
     isAuthenticated,
     isLoading,
     isAdmin,
+    isSuperAdmin,
+    isModerator,
+    platformRole,
     login,
     register,
     loginWithGoogle,

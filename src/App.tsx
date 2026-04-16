@@ -57,6 +57,10 @@ const AdminWorkspacesPage = lazy(() => import("./features/admin/pages/AdminWorks
 const AdminSubscriptionsPage = lazy(() => import("./features/admin/pages/AdminSubscriptions"));
 const AdminActivityPage2 = lazy(() => import("./features/admin/pages/AdminActivity"));
 const AdminSettingsPage = lazy(() => import("./features/admin/pages/AdminSettings"));
+const AdminUserDetailPage = lazy(() => import("./features/admin/pages/AdminUserDetail"));
+const AdminReportsPage = lazy(() => import("./features/admin/pages/AdminReports"));
+const AdminFeatureFlagsPage = lazy(() => import("./features/admin/pages/AdminFeatureFlags"));
+const AdminAnnouncementsPage = lazy(() => import("./features/admin/pages/AdminAnnouncements"));
 
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
 const LogoToSvgPage = lazy(() => import("./features/tools/logo-to-svg/LogoToSvgPage"));
@@ -519,9 +523,13 @@ const App = () => (
             <Route index element={<AdminOverview />} />
             <Route path="early-access" element={<AdminEarlyAccessPage />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="users/:userId" element={<AdminUserDetailPage />} />
             <Route path="brands" element={<AdminBrandsPage2 />} />
             <Route path="workspaces" element={<AdminWorkspacesPage />} />
             <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
+            <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="announcements" element={<AdminAnnouncementsPage />} />
+            <Route path="feature-flags" element={<AdminFeatureFlagsPage />} />
             <Route path="activity" element={<AdminActivityPage2 />} />
             <Route path="settings" element={<AdminSettingsPage />} />
           </Route>

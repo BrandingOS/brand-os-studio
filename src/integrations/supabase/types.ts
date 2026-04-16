@@ -61,6 +61,56 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          body: string
+          type: string
+          audience: string
+          is_active: boolean
+          starts_at: string | null
+          expires_at: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          body: string
+          type?: string
+          audience?: string
+          is_active?: boolean
+          starts_at?: string | null
+          expires_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          body?: string
+          type?: string
+          audience?: string
+          is_active?: boolean
+          starts_at?: string | null
+          expires_at?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approvals: {
         Row: {
           brand_id: string
@@ -638,29 +688,70 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_config: {
+        Row: {
+          key: string
+          value: Json
+          updated_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value: Json
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: Json
+          updated_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          admin_notes: string | null
           avatar_url: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
+          last_sign_in: string | null
+          status: string
+          suspension_reason: string | null
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
           avatar_url?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
+          last_sign_in?: string | null
+          status?: string
+          suspension_reason?: string | null
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
+          last_sign_in?: string | null
+          status?: string
+          suspension_reason?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -888,9 +979,21 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_super_admin: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      is_admin_or_above: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
+      is_moderator_or_above: {
+        Args: Record<string, never>
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "super_admin" | "admin" | "moderator" | "user"
       workspace_role: "owner" | "admin" | "editor" | "exporter" | "viewer"
     }
     CompositeTypes: {
@@ -1019,7 +1122,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["super_admin", "admin", "moderator", "user"],
       workspace_role: ["owner", "admin", "editor", "exporter", "viewer"],
     },
   },
