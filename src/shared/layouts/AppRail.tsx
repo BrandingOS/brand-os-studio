@@ -38,18 +38,22 @@ import {
   Check,
   Sparkles,
   LayoutDashboard,
-  Wrench,
   BookOpen,
   FolderOpen,
   Palette,
   LayoutTemplate,
   Compass,
   Wand2,
-  LayoutGrid,
   LayoutPanelLeft,
-  PenTool,
   Instagram,
-  Share2,
+  Image as ImageIcon,
+  Type,
+  MessageCircle,
+  Target,
+  Library,
+  Layers,
+  CheckCircle,
+  Presentation,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -112,47 +116,93 @@ function brandItems(slug: string): RailItem[] {
       exact: true,
     },
 
-    // ── BRAND IDENTITY — defining the brand ───────────────────
+    // ── BRAND CORE — the brand's identity system ──────────────
     {
-      title: 'Setup',
+      title: 'Identity',
       url: `/b/${slug}/identity`,
-      icon: Wrench,
-      group: 'Identity',
+      icon: Sparkles,
+      group: 'Brand Core',
       matchPrefixes: [`/b/${slug}/edit`, `/b/${slug}/identity`],
     },
     {
-      title: 'Brand Kit',
+      title: 'Logo',
+      url: `/b/${slug}/identity?tab=logo`,
+      icon: ImageIcon,
+      group: 'Brand Core',
+    },
+    {
+      title: 'Colors',
+      url: `/b/${slug}/identity?tab=colors`,
+      icon: Palette,
+      group: 'Brand Core',
+    },
+    {
+      title: 'Typography',
+      url: `/b/${slug}/identity?tab=typography`,
+      icon: Type,
+      group: 'Brand Core',
+    },
+    {
+      title: 'Voice',
+      url: `/b/${slug}/identity?tab=voice`,
+      icon: MessageCircle,
+      group: 'Brand Core',
+    },
+    {
+      title: 'Strategy',
+      url: `/b/${slug}/identity?tab=strategy`,
+      icon: Target,
+      group: 'Brand Core',
+    },
+
+    // ── ASSETS — brand assets & outputs ───────────────────────
+    {
+      title: 'Library',
       url: `/b/${slug}/kit`,
-      icon: Sparkles,
-      group: 'Identity',
+      icon: Library,
+      group: 'Assets',
       matchPrefixes: [`/b/${slug}/kit`, `/b/${slug}/brandkit`],
     },
     {
-      title: 'Guidelines',
-      url: `/b/${slug}/guidelines`,
-      icon: BookOpen,
-      group: 'Identity',
-      matchPrefixes: [`/b/${slug}/guidelines`, `/b/${slug}/brand-guides`],
+      title: 'Folders',
+      url: `/b/${slug}/folders`,
+      icon: FolderOpen,
+      group: 'Assets',
+      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
+    },
+    {
+      title: 'Designs',
+      url: `/b/${slug}/assets`,
+      icon: Layers,
+      group: 'Assets',
+      matchPrefixes: [`/b/${slug}/assets`],
+    },
+    {
+      title: 'Approved',
+      url: `/b/${slug}/approvals`,
+      icon: CheckCircle,
+      group: 'Assets',
+    },
+
+    // ── CREATE — tools for making things ──────────────────────
+    {
+      title: 'Templates',
+      url: `/b/${slug}/templates`,
+      icon: LayoutTemplate,
+      group: 'Create',
     },
     {
       title: 'Board',
       url: `/b/${slug}/brand-board`,
       icon: LayoutPanelLeft,
-      group: 'Identity',
-    },
-
-    // ── CREATE — tools for making things ──────────────────────
-    {
-      title: 'Editor',
-      url: `/editor/design/${slug}`,
-      icon: PenTool,
       group: 'Create',
     },
     {
-      title: 'Studio',
-      url: `/b/${slug}/studio`,
-      icon: Wand2,
+      title: 'Guidelines',
+      url: `/b/${slug}/guidelines`,
+      icon: BookOpen,
       group: 'Create',
+      matchPrefixes: [`/b/${slug}/guidelines`, `/b/${slug}/brand-guides`],
     },
     {
       title: 'Social',
@@ -162,38 +212,16 @@ function brandItems(slug: string): RailItem[] {
       matchPrefixes: [`/b/${slug}/social-media`],
     },
     {
-      title: 'Templates',
-      url: `/b/${slug}/templates`,
-      icon: LayoutTemplate,
+      title: 'Presents',
+      url: `/b/${slug}/presentations`,
+      icon: Presentation,
       group: 'Create',
     },
-
-    // ── CONTENT — what's been created ─────────────────────────
     {
-      title: 'Designs',
-      url: `/b/${slug}/assets`,
-      icon: Palette,
-      group: 'Content',
-      matchPrefixes: [`/b/${slug}/assets`, `/b/${slug}/presentations`],
-    },
-    {
-      title: 'Folders',
-      url: `/b/${slug}/folders`,
-      icon: FolderOpen,
-      group: 'Content',
-      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
-    },
-    {
-      title: 'Bento',
-      url: `/b/${slug}/bento`,
-      icon: LayoutGrid,
-      group: 'Content',
-    },
-    {
-      title: 'Share',
-      url: `/b/${slug}/share`,
-      icon: Share2,
-      group: 'Content',
+      title: 'AI Studio',
+      url: `/b/${slug}/studio`,
+      icon: Wand2,
+      group: 'Create',
     },
   ];
 }
@@ -232,8 +260,16 @@ export function AppRail({ brandSlug }: AppRailProps) {
   );
 
   const isItemActive = (item: RailItem) => {
-    if (item.exact) return location.pathname === item.url;
-    if (location.pathname === item.url || location.pathname.startsWith(`${item.url}/`)) return true;
+    // Handle URLs with query params (e.g. /identity?tab=colors)
+    const [itemPath, itemQuery] = item.url.split('?');
+    if (item.exact) return location.pathname === itemPath && (!itemQuery || location.search.includes(itemQuery));
+
+    // If this item has a ?tab= param, check both path AND query match
+    if (itemQuery) {
+      return location.pathname === itemPath && location.search.includes(itemQuery);
+    }
+
+    if (location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`)) return true;
     return (item.matchPrefixes ?? []).some((p) => location.pathname.startsWith(p));
   };
 
