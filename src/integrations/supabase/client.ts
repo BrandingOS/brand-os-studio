@@ -8,12 +8,48 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://ciojgoozobzbeglwdxcz.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpb2pnb296b2J6YmVnbHdkeGN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ4ODgsImV4cCI6MjA5MTMyMDg4OH0.qwfviBXKJh1i2-vyUYtCIdUXMZM5ICBJtBTEmqDYbng";
 
+// Safe localStorage wrapper that handles quota exceeded errors.
+// When storage is full, it clears non-essential items and retries.
+const safeStorage: Storage = {
+  get length() { return localStorage.length; },
+  clear() { localStorage.clear(); },
+  key(index: number) { return localStorage.key(index); },
+  getItem(key: string) { return localStorage.getItem(key); },
+  removeItem(key: string) { localStorage.removeItem(key); },
+  setItem(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // QuotaExceededError — clear non-auth items and retry
+      const authKeys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-')) authKeys.push(k);
+      }
+      // Remove everything except Supabase auth keys
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && !k.startsWith('sb-')) keysToRemove.push(k);
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // Still full — clear everything and retry
+        localStorage.clear();
+        localStorage.setItem(key, value);
+      }
+    }
+  },
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: safeStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
