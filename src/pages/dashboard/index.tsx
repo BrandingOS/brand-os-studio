@@ -5,20 +5,17 @@ import { useSessionStore } from '@/shared/store/sessionStore';
 import { AuthModal } from '@/features/auth/components/AuthModal';
 import { Loader2 } from 'lucide-react';
 
-const AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true';
-
 export default function DashboardRoute() {
   const { isAuthenticated, isLoading } = useSessionStore();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
-    if (!AUTH_BYPASS && !isLoading && !isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       setShowAuthModal(true);
     }
   }, [isAuthenticated, isLoading]);
 
-  // Bypass mode OR authenticated: render dashboard immediately
-  if (AUTH_BYPASS || isAuthenticated) {
+  if (isAuthenticated) {
     return (
       <DashboardLayout>
         <DashboardMain />
@@ -26,7 +23,6 @@ export default function DashboardRoute() {
     );
   }
 
-  // Still loading real auth
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
