@@ -120,6 +120,9 @@ export const useAuth = () => {
           workspaceStore.loadAll().catch(console.error);
           syncToSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
+        } else if (event === 'PASSWORD_RECOVERY') {
+          console.log('[useAuth] Password recovery — redirecting to reset page');
+          navigate('/auth/reset-password');
         } else if (event === 'SIGNED_OUT') {
           console.log('[useAuth] User signed out');
           reconfigureForAuth(false);
