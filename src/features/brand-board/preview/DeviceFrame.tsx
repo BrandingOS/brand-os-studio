@@ -1,8 +1,7 @@
 import React from 'react';
-import type { DeviceMode } from '../store/useBrandBoardStore';
 
 interface DeviceFrameProps {
-  device: DeviceMode;
+  device: 'desktop' | 'tablet' | 'mobile';
   children: React.ReactNode;
 }
 

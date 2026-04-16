@@ -2,8 +2,6 @@ import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Undo2 as Undo,
-  Redo2 as Redo,
   Shuffle,
   Save,
   Monitor,
@@ -15,13 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useBrandBoardStore } from './store/useBrandBoardStore';
-import { shuffleEverything } from './engine/shuffle';
 import { ColorsPanel } from './panels/ColorsPanel';
 import { TypographyPanel } from './panels/TypographyPanel';
 import { UIStylingPanel } from './panels/UIStylingPanel';
 import { ConceptSwitcher } from './panels/ConceptSwitcher';
 import { BrandPreview } from './preview/BrandPreview';
-import type { ShadowIntensity, Spacing, DeviceMode } from './store/useBrandBoardStore';
 
 export default function BrandBoardPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -32,12 +28,10 @@ export default function BrandBoardPage() {
   const updateBrand = useBrandStore((s) => s.update);
 
   const draft = useBrandBoardStore((s) => s.draft);
-  const device = useBrandBoardStore((s) => s.device);
-  const setDevice = useBrandBoardStore((s) => s.setDevice);
-  const setColors = useBrandBoardStore((s) => s.setColors);
-  const setTypography = useBrandBoardStore((s) => s.setTypography);
-  const setUIStyle = useBrandBoardStore((s) => s.setUIStyle);
-  const setBrandName = useBrandBoardStore((s) => s.setBrandName);
+  const previewDevice = useBrandBoardStore((s) => s.previewDevice);
+  const setPreviewDevice = useBrandBoardStore((s) => s.setPreviewDevice);
+  const initFromBrand = useBrandBoardStore((s) => s.initFromBrand);
+  const shuffleAll = useBrandBoardStore((s) => s.shuffleAll);
 
   // Load brand on mount
   useEffect(() => {
@@ -46,40 +40,8 @@ export default function BrandBoardPage() {
 
   // Init draft from brand
   useEffect(() => {
-    if (brand) {
-      setBrandName(brand.name);
-      setColors({
-        primary: brand.primaryColor || '#6366f1',
-        secondary: brand.secondaryColor || '#8b5cf6',
-      });
-      if (brand.fonts) {
-        setTypography({
-          heading: brand.fonts.primary || 'Inter',
-          body: brand.fonts.secondary || 'Inter',
-        });
-      }
-    }
-  }, [brand?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Shuffle all
-  const handleShuffleAll = () => {
-    const result = shuffleEverything(draft.colors.primary);
-    setColors({
-      primary: result.colors.primary,
-      secondary: result.colors.secondary,
-      accent: result.colors.accent,
-      neutrals: result.colors.neutrals,
-    });
-    setTypography({
-      heading: result.typography.heading,
-      body: result.typography.body,
-    });
-    setUIStyle({
-      borderRadius: result.uiStyle.borderRadius,
-      shadowIntensity: result.uiStyle.shadowIntensity as ShadowIntensity,
-      spacing: result.uiStyle.spacing as Spacing,
-    });
-  };
+    if (brand) initFromBrand(brand);
+  }, [brand?.id]);
 
   // Keyboard: SPACE to shuffle
   useEffect(() => {
@@ -91,12 +53,12 @@ export default function BrandBoardPage() {
         )
       ) {
         e.preventDefault();
-        handleShuffleAll();
+        useBrandBoardStore.getState().shuffleAll();
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }); // intentionally no deps — always uses latest handleShuffleAll
+  }, []);
 
   // Save back to brand store
   const handleSave = async () => {
@@ -117,23 +79,15 @@ export default function BrandBoardPage() {
       {/* Top bar */}
       <header className="h-14 border-b flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
           </Button>
           <Separator orientation="vertical" className="h-6" />
-          <span className="font-semibold">{brand?.name ?? 'Brand Board'}</span>
+          <span className="font-semibold">{draft.brandName}</span>
           <ConceptSwitcher />
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShuffleAll}
-          >
+          <Button variant="outline" size="sm" onClick={shuffleAll}>
             <Shuffle className="h-4 w-4 mr-1" /> Shuffle All
           </Button>
           <Button size="sm" onClick={handleSave}>
@@ -160,30 +114,21 @@ export default function BrandBoardPage() {
       {/* Bottom bar */}
       <div className="h-12 border-t flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
-          <kbd className="px-2 py-0.5 text-xs bg-muted rounded font-mono">
-            SPACE
-          </kbd>
-          <span className="text-sm text-muted-foreground">
-            Shuffle everything
-          </span>
+          <kbd className="px-2 py-0.5 text-xs bg-muted rounded font-mono">SPACE</kbd>
+          <span className="text-sm text-muted-foreground">Shuffle everything</span>
         </div>
-        {/* Device toggle */}
         <div className="flex items-center gap-1">
-          {(['desktop', 'tablet', 'mobile'] as DeviceMode[]).map((d) => (
+          {(['desktop', 'tablet', 'mobile'] as const).map((d) => (
             <Button
               key={d}
-              variant={device === d ? 'default' : 'ghost'}
+              variant={previewDevice === d ? 'default' : 'ghost'}
               size="sm"
               className="h-8 w-8 p-0"
-              onClick={() => setDevice(d)}
+              onClick={() => setPreviewDevice(d)}
             >
-              {d === 'desktop' ? (
-                <Monitor className="h-4 w-4" />
-              ) : d === 'tablet' ? (
-                <Tablet className="h-4 w-4" />
-              ) : (
-                <Smartphone className="h-4 w-4" />
-              )}
+              {d === 'desktop' ? <Monitor className="h-4 w-4" /> :
+               d === 'tablet' ? <Tablet className="h-4 w-4" /> :
+               <Smartphone className="h-4 w-4" />}
             </Button>
           ))}
         </div>

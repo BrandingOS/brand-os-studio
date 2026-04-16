@@ -13,7 +13,9 @@ const TEMPLATE_MAP = {
 } as const;
 
 export function BrandPreview() {
-  const { draft, previewDevice: device, previewTemplate: template } = useBrandBoardStore();
+  const draft = useBrandBoardStore((s) => s.draft);
+  const device = useBrandBoardStore((s) => s.previewDevice);
+  const template = useBrandBoardStore((s) => s.previewTemplate);
 
   const vars: Record<string, string> = {
     '--bb-primary': draft.colors.primary,
