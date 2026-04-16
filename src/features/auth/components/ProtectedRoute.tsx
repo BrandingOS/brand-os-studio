@@ -8,16 +8,22 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
+const AUTH_BYPASS = import.meta.env.VITE_AUTH_BYPASS === 'true';
+
 export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
-  const authBypass = import.meta.env.VITE_AUTH_BYPASS === 'true';
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!authBypass && !isLoading && !isAuthenticated) {
+    if (!AUTH_BYPASS && !isLoading && !isAuthenticated) {
       navigate(redirectTo);
     }
-  }, [authBypass, isAuthenticated, isLoading, navigate, redirectTo]);
+  }, [isAuthenticated, isLoading, navigate, redirectTo]);
+
+  // Bypass mode: skip everything, render children immediately
+  if (AUTH_BYPASS) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
@@ -30,7 +36,7 @@ export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRou
     );
   }
 
-  if (!authBypass && !isAuthenticated) {
+  if (!isAuthenticated) {
     return null;
   }
 
