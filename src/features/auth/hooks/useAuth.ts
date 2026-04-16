@@ -29,19 +29,25 @@ export const useAuth = () => {
   const { user, isAuthenticated, isAdmin, isLoading, signIn, signOut, setLoading, setAdmin, switchToAuthenticated } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
 
-  // Check if current user is admin
+  // Check if current user is admin. Uses a timeout so a missing/slow
+  // user_roles table never blocks the entire app from loading.
   const checkAdminRole = async (userId: string) => {
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
-        .single();
+        .single()
+        .abortSignal(controller.signal);
 
+      clearTimeout(timeout);
       setAdmin(!error && data?.role === 'admin');
-    } catch (error) {
-      console.error('Error checking admin role:', error);
+    } catch {
+      // Table missing, network slow, or aborted — not admin, move on.
       setAdmin(false);
     }
   };
@@ -62,15 +68,13 @@ export const useAuth = () => {
           const mappedUser = mapSupabaseUser(session.user);
           reconfigureForAuth(true);
           signIn(mappedUser);
-          console.log('[useAuth] User logged in:', session.user.email);
-          // Await admin check so isAdmin is set before loading finishes
-          await checkAdminRole(session.user.id);
-          setLoading(false);
+          // Admin check is best-effort — never block loading on it
+          await checkAdminRole(session.user.id).catch(() => {});
+          if (isMounted) setLoading(false);
           workspaceStore.loadAll().catch(console.error);
           loadFromSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
         } else {
-          console.log('[useAuth] No active session');
           reconfigureForAuth(false);
           signOut(); // signOut sets isLoading: false
         }
@@ -81,6 +85,13 @@ export const useAuth = () => {
     };
 
     getInitialSession();
+
+    // Safety net: if the auth check takes >5s, release loading so the UI isn't stuck.
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && useSessionStore.getState().isLoading) {
+        setLoading(false);
+      }
+    }, 5000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -120,6 +131,7 @@ export const useAuth = () => {
 
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, [signIn, signOut, setLoading]);

@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 import { Mail, Lock, User, Eye, EyeOff, UserCheck, Loader2 } from 'lucide-react';
 import { FaGoogle } from 'react-icons/fa';
-import { useAuth } from '../hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
 
@@ -21,6 +21,7 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(defaultMode);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,30 +29,40 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     confirmPassword: ''
   });
 
-  // Sync internal mode with prop when it changes (fixes stale state on reopen)
+  // Sync internal mode with prop when modal opens
   useEffect(() => {
     if (isOpen) {
       setMode(defaultMode);
+      setSubmitting(false);
     }
   }, [isOpen, defaultMode]);
 
-  const { login, register, loginWithGoogle, resetPassword, isLoading } = useAuth();
   const { switchToGuest } = useSessionStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
 
+    setSubmitting(true);
     try {
       if (mode === 'login') {
         if (!formData.email || !formData.password) {
           toast.error('Please enter your email and password');
           return;
         }
-        const result = await login(formData.email, formData.password);
 
-        if (!result?.session) {
-          toast.error('Login failed — please check your email and password');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (!data?.session) {
+          toast.error('Login failed — no session created. Please try again.');
           return;
         }
 
@@ -71,7 +82,15 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
           toast.error('Passwords do not match');
           return;
         }
-        await register(formData.email, formData.password, formData.name);
+
+        const { error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: { data: { name: formData.name || formData.email.split('@')[0] } },
+        });
+
+        if (error) throw error;
+
         toast.success('Account created! Please check your email to verify your account.');
         onClose();
         navigate('/dashboard');
@@ -80,13 +99,18 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
           toast.error('Please enter your email address');
           return;
         }
-        await resetPassword(formData.email);
+
+        const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        });
+
+        if (error) throw error;
+
         toast.success('Password reset email sent! Check your inbox.');
         setMode('login');
       }
     } catch (error: any) {
       const msg = error?.message || 'An error occurred';
-      // Surface common Supabase errors clearly
       if (msg.includes('Invalid login credentials')) {
         toast.error('Invalid email or password. Please try again.');
       } else if (msg.includes('Email not confirmed')) {
@@ -98,13 +122,21 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
       } else {
         toast.error(msg);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
-      await loginWithGoogle();
-      // OAuth redirects the page — no need for toast/navigate here
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/dashboard` },
+      });
+      if (error) throw error;
+      // OAuth redirects the browser — page will navigate away
     } catch (error: any) {
       const msg = error?.message || 'Google sign-in failed';
       if (msg.includes('provider is not enabled')) {
@@ -112,6 +144,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
       } else {
         toast.error(msg);
       }
+      setSubmitting(false);
     }
   };
 
@@ -151,9 +184,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                     variant="outline"
                     className="w-full h-11 gap-3"
                     onClick={handleGoogleLogin}
-                    disabled={isLoading}
+                    disabled={submitting}
                   >
-                    {isLoading ? (
+                    {submitting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <FaGoogle className="w-4 h-4" />
@@ -257,9 +290,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
               <Button
                 type="submit"
                 className="w-full h-11 mt-6"
-                disabled={isLoading}
+                disabled={submitting}
               >
-                {isLoading ? (
+                {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     {mode === 'login' ? 'Signing in...' :
@@ -289,7 +322,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                 variant="secondary"
                 className="w-full h-11 gap-2"
                 onClick={handleGuestMode}
-                disabled={isLoading}
+                disabled={submitting}
               >
                 <UserCheck className="w-4 h-4" />
                 Continue as Guest
