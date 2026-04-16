@@ -289,8 +289,16 @@ const App = () => (
               <CanvasGuidelinesPage />
             </ProtectedRoute>
           } />
-          <Route path="/editor" element={<StandaloneEditorPage />} />
-          <Route path="/editor/design/:slug" element={<DesignEditorPage />} />
+          <Route path="/editor" element={
+            <ProtectedRoute>
+              <StandaloneEditorPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/editor/design/:slug" element={
+            <ProtectedRoute>
+              <DesignEditorPage />
+            </ProtectedRoute>
+          } />
 
           {/*
             ─────────────────────────────────────────────────────────────
@@ -503,7 +511,11 @@ const App = () => (
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
           {/* ─── Admin Dashboard ─────────────────────────────────────── */}
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="/admin" element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
             <Route index element={<AdminOverview />} />
             <Route path="early-access" element={<AdminEarlyAccessPage />} />
             <Route path="users" element={<AdminUsersPage />} />

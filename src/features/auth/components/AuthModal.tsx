@@ -307,27 +307,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
               </Button>
             </form>
 
-            {/* Guest Mode Button */}
-            <div className="mt-4">
-              <div className="relative mb-4">
-                <Separator />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="bg-background px-3 text-sm text-muted-foreground">
-                    or
-                  </span>
-                </div>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full h-11 gap-2"
-                onClick={handleGuestMode}
-                disabled={submitting}
-              >
-                <UserCheck className="w-4 h-4" />
-                Continue as Guest
-              </Button>
-            </div>
+            {/* Guest mode removed — all users must authenticate */}
 
             {/* Footer Links */}
             <div className="mt-6 text-center text-sm">

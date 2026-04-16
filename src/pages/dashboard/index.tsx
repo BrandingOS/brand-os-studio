@@ -1,27 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 import { DashboardMain } from '@/features/dashboard/components/DashboardMain';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { AuthModal } from '@/features/auth/components/AuthModal';
 import { Loader2 } from 'lucide-react';
 
 export default function DashboardRoute() {
   const { isAuthenticated, isLoading } = useSessionStore();
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      setShowAuthModal(true);
+      navigate('/login', { replace: true });
     }
-  }, [isAuthenticated, isLoading]);
-
-  if (isAuthenticated) {
-    return (
-      <DashboardLayout>
-        <DashboardMain />
-      </DashboardLayout>
-    );
-  }
+  }, [isAuthenticated, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -34,17 +26,13 @@ export default function DashboardRoute() {
     );
   }
 
-  // Not authenticated — show dashboard behind auth modal
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <>
-      <DashboardLayout>
-        <DashboardMain />
-      </DashboardLayout>
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        defaultMode="login"
-      />
-    </>
+    <DashboardLayout>
+      <DashboardMain />
+    </DashboardLayout>
   );
 }
