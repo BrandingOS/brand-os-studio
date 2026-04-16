@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,34 +16,31 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isValidLink, setIsValidLink] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event from Supabase auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsValidLink(true);
         setChecking(false);
+        if (session?.user?.email) setUserEmail(session.user.email);
       }
     });
 
-    // Check if we already have a valid session (token was auto-processed
-    // by the Supabase client from the URL hash before this component mounted).
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsValidLink(true);
+        if (session.user?.email) setUserEmail(session.user.email);
       }
       setChecking(false);
     });
 
-    // Also detect recovery token in hash directly — covers the case where
-    // the PASSWORD_RECOVERY event already fired before this listener registered.
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
       setIsValidLink(true);
       setChecking(false);
     }
 
-    // Timeout — if no event fires within 5s, link is invalid
     const timeout = setTimeout(() => {
       setChecking(false);
     }, 5000);
@@ -70,12 +67,21 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
+      // Verify we have a valid session before attempting update
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Session expired. Please request a new reset link.');
+        navigate('/login');
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
       toast.success('Password updated successfully!');
       navigate('/dashboard');
     } catch (error: any) {
+      console.error('[ResetPassword] Error:', error);
       toast.error(error.message || 'Failed to update password');
     } finally {
       setIsLoading(false);
@@ -116,18 +122,43 @@ export default function ResetPasswordPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-xl font-display">Reset Your Password</CardTitle>
           <CardDescription>
-            Enter your new password below
+            {userEmail
+              ? <>Set a new password for <span className="font-medium text-foreground">{userEmail}</span></>
+              : 'Enter your new password below'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
+            {/* Hidden email field for password managers */}
+            {userEmail && (
+              <input
+                type="email"
+                name="username"
+                autoComplete="username"
+                value={userEmail}
+                readOnly
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+            )}
+
+            {userEmail && (
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2.5 text-sm text-muted-foreground">
+                <Mail className="w-4 h-4 shrink-0" />
+                <span className="truncate">{userEmail}</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="password"
+                  name="new-password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   placeholder="Enter new password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -153,7 +184,9 @@ export default function ResetPasswordPage() {
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
+                  name="confirm-password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -169,7 +202,9 @@ export default function ResetPasswordPage() {
               className="w-full h-11 mt-6"
               disabled={isLoading}
             >
-              {isLoading ? 'Updating...' : 'Update Password'}
+              {isLoading ? (
+                <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
+              ) : 'Update Password'}
             </Button>
           </form>
         </CardContent>
