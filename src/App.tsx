@@ -63,6 +63,9 @@ const AdminFeatureFlagsPage = lazy(() => import("./features/admin/pages/AdminFea
 const AdminAnnouncementsPage = lazy(() => import("./features/admin/pages/AdminAnnouncements"));
 
 const LogoMakerPage = lazy(() => import("./pages/dashboard/logo-maker"));
+// Public 6-screen Logo Maker flow (docs/logo-maker/LOGO_MAKER_SPEC.md).
+// Coexists with /dashboard/logo-maker above until Phase 4 merges them.
+import { logoMakerFlowRoutes } from "./features/logo-maker/flow";
 const LogoToSvgPage = lazy(() => import("./features/tools/logo-to-svg/LogoToSvgPage"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
@@ -166,6 +169,7 @@ const App = () => (
           <Route path="/account-deletion" element={<AccountDeletionPage />} />
           <Route path="/v2" element={<DashboardV2Page />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
+          {logoMakerFlowRoutes}
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/dashboard/brands" element={
