@@ -5,6 +5,7 @@ import { demoBrandIdentity } from '@/data/demo';
 import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
+import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 
 /**
  * Seed brands are always available regardless of database state.
@@ -32,13 +33,13 @@ export class SupabaseBrandsService implements IBrandsService {
 
     // Merge: DB brands first, then seed brands that aren't overridden
     const seeds = SEED_BRANDS.filter((b) => !dbBrandIds.has(b.id));
-    return [...dbBrands, ...seeds];
+    return migrateBrands([...dbBrands, ...seeds]);
   }
 
   async getById(id: string): Promise<Brand | null> {
     // Check seed brands first
     const seed = SEED_BRANDS.find((b) => b.id === id);
-    if (seed) return seed;
+    if (seed) return migrateBrandToCurrent(seed);
 
     const { data, error } = await supabase
       .from('brands')
@@ -47,13 +48,13 @@ export class SupabaseBrandsService implements IBrandsService {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? this.mapFromDatabase(data) : null;
+    return data ? migrateBrandToCurrent(this.mapFromDatabase(data)) : null;
   }
 
   async getBySlug(slug: string): Promise<Brand | null> {
     // Check seed brands first
     const seed = SEED_BRANDS.find((b) => b.slug === slug);
-    if (seed) return seed;
+    if (seed) return migrateBrandToCurrent(seed);
 
     const { data, error } = await supabase
       .from('brands')
@@ -62,7 +63,7 @@ export class SupabaseBrandsService implements IBrandsService {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? this.mapFromDatabase(data) : null;
+    return data ? migrateBrandToCurrent(this.mapFromDatabase(data)) : null;
   }
 
   async create(input: CreateBrandInput): Promise<Brand> {

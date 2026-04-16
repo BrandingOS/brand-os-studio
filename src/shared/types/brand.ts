@@ -1,20 +1,49 @@
+import type {
+  BrandAsset,
+  ColorSystem,
+  LogoSystemRefs,
+  TypographySystem,
+} from './brandAssets';
+
 export interface Brand {
   id: string;
   slug: string;
   name: string;
+
+  // ─── v3 unified fields ─────────────────────────────────────────────
+  /** Schema version — present on migrated brands. Absent = pre-v3 legacy. */
+  schemaVersion?: number;
+  /** Canonical logo system — references into `assets[]` by id. */
+  logoSystem?: LogoSystemRefs;
+  /** Canonical color system — collapses primaryColor + guidelines.colorPalette. */
+  colorSystem?: ColorSystem;
+  /** Canonical typography — collapses fonts + guidelines.typography. */
+  typography?: TypographySystem;
+  /** Canonical brand asset library. Includes logos, images, fonts, docs. */
+  brandAssets?: BrandAsset[];
+
+  // ─── Legacy fields (read-only from v3 onward) ──────────────────────
+  // Kept for back-compat with existing consumers; new writes should target
+  // the v3 fields above. Derived getters may populate these at read time.
+  /** @deprecated use logoSystem.primary via useBrandLogo('primary') */
   logo?: string;
-  /** Multi-asset logo system — different logo variants for different contexts */
+  /** @deprecated use logoSystem */
   logoAssets?: BrandLogoAssets;
+  /** @deprecated use colorSystem.primary.hex */
   primaryColor: string;
+  /** @deprecated use colorSystem.secondary?.hex */
   secondaryColor?: string;
+  /** @deprecated use typography.primary.family */
   fonts: {
     primary: string;
     secondary?: string;
   };
+
   tone: string;
   audience: string;
   strategy?: string;
   guidelines?: BrandGuidelines;
+  /** @deprecated use brandAssets (v3) */
   assets: Asset[];
   isPublic?: boolean;
   publicUrl?: string;

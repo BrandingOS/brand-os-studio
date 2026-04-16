@@ -1,0 +1,343 @@
+/**
+ * Brand schema migration — v2 (legacy scattered fields) → v3 (unified
+ * asset-ID references). Idempotent: runs on every brand load and is a
+ * no-op when `brand.schemaVersion >= 3`.
+ *
+ * The migration:
+ *  1. Collects every URL from the three legacy logo locations
+ *     (`brand.logo`, `brand.logoAssets.*`, `brand.guidelines.logoSystem.*.url`)
+ *     plus existing `brand.assets[]` entries.
+ *  2. De-duplicates by URL (same URL → same BrandAsset entry).
+ *  3. Emits a `brandAssets[]` and populates `logoSystem` with refs.
+ *  4. Collapses `primaryColor`/`secondaryColor` + `guidelines.colorPalette`
+ *     into `colorSystem`.
+ *  5. Collapses `fonts` + `guidelines.typography` into `typography`.
+ *  6. Sets `schemaVersion = 3`.
+ *
+ * Legacy fields are LEFT IN PLACE — existing consumers keep working.
+ * New code should read through the v3 fields or the `useBrandLogo` hook.
+ */
+import type { Brand, BrandLogoAssets, LogoSystem, Asset } from '@/shared/types/brand';
+import type {
+  BrandAsset,
+  LogoRef,
+  LogoSystemRefs,
+  ColorSystem,
+  ColorToken,
+  TypographySystem,
+  FontToken,
+  LogoRole,
+  AssetFormat,
+} from '@/shared/types/brandAssets';
+import { BRAND_SCHEMA_VERSION } from '@/shared/types/brandAssets';
+
+/** Guess an asset format from its URL / data URL prefix. */
+function detectFormat(url: string): AssetFormat {
+  if (!url) return 'png';
+  const lower = url.toLowerCase();
+  if (lower.startsWith('data:image/svg')) return 'svg';
+  if (lower.startsWith('data:image/png')) return 'png';
+  if (lower.startsWith('data:image/webp')) return 'webp';
+  if (lower.startsWith('data:image/jpeg') || lower.startsWith('data:image/jpg')) return 'jpg';
+  if (lower.startsWith('data:application/pdf')) return 'pdf';
+  if (lower.endsWith('.svg')) return 'svg';
+  if (lower.endsWith('.webp')) return 'webp';
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'jpg';
+  return 'png';
+}
+
+/** Stable asset id for a given URL — same URL always yields the same id. */
+function urlHash(url: string): string {
+  // Simple, fast FNV-1a 32-bit for dedupe / id generation. Not crypto.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < url.length; i++) {
+    h ^= url.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+/**
+ * Upsert an asset into the accumulator keyed by URL. Returns the asset id.
+ * If the URL already exists, the existing id is returned.
+ */
+function upsertLogoAsset(
+  acc: Map<string, BrandAsset>,
+  url: string | undefined,
+  role: LogoRole,
+  name: string,
+): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  const existing = acc.get(url);
+  if (existing) {
+    // Already seen — prefer the first role assignment.
+    return existing.id;
+  }
+  const id = `asset-${urlHash(url)}`;
+  const format = detectFormat(url);
+  const now = new Date().toISOString();
+  const asset: BrandAsset = {
+    id,
+    kind: 'logo',
+    role: `logo.${role}`,
+    name,
+    formats: {
+      [format]: { url, size: 0 },
+    },
+    metadata: {
+      createdAt: now,
+      version: 1,
+      contentHash: urlHash(url),
+    },
+  };
+  acc.set(url, asset);
+  return id;
+}
+
+function logoRef(assetId: string | undefined, extra?: Partial<LogoRef>): LogoRef | undefined {
+  if (!assetId) return undefined;
+  return { assetId, ...extra };
+}
+
+function hexToRgb(hex: string): string | undefined {
+  if (!hex) return undefined;
+  const m = hex.replace('#', '').match(/^([0-9a-f]{6})$/i);
+  if (!m) return undefined;
+  const n = parseInt(m[1], 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+}
+
+function buildColorSystem(brand: Brand): ColorSystem | undefined {
+  const gp = brand.guidelines?.colorPalette;
+  const primary: ColorToken | undefined = gp?.primary
+    ? {
+        hex: gp.primary.hex,
+        name: gp.primary.name,
+        rgb: gp.primary.rgb,
+        cmyk: gp.primary.cmyk,
+        pantone: gp.primary.pantone,
+        usage: gp.primary.usage,
+      }
+    : brand.primaryColor
+    ? { hex: brand.primaryColor, rgb: hexToRgb(brand.primaryColor) }
+    : undefined;
+
+  if (!primary) return undefined;
+
+  const secondary: ColorToken | undefined = gp?.secondary
+    ? {
+        hex: gp.secondary.hex,
+        name: gp.secondary.name,
+        rgb: gp.secondary.rgb,
+        cmyk: gp.secondary.cmyk,
+        pantone: gp.secondary.pantone,
+        usage: gp.secondary.usage,
+      }
+    : brand.secondaryColor
+    ? { hex: brand.secondaryColor, rgb: hexToRgb(brand.secondaryColor) }
+    : undefined;
+
+  const accent: ColorToken | undefined = gp?.accent
+    ? {
+        hex: gp.accent.hex,
+        name: gp.accent.name,
+        rgb: gp.accent.rgb,
+        cmyk: gp.accent.cmyk,
+        pantone: gp.accent.pantone,
+        usage: gp.accent.usage,
+      }
+    : undefined;
+
+  const neutrals: ColorToken[] | undefined = gp?.neutral?.map((n) => ({
+    hex: n.hex,
+    name: n.name,
+    rgb: n.rgb,
+    cmyk: n.cmyk,
+    usage: n.usage,
+  }));
+
+  const semantic = gp?.semantic
+    ? {
+        success: { hex: gp.semantic.success.hex, name: gp.semantic.success.name },
+        warning: { hex: gp.semantic.warning.hex, name: gp.semantic.warning.name },
+        error: { hex: gp.semantic.error.hex, name: gp.semantic.error.name },
+        info: { hex: gp.semantic.info.hex, name: gp.semantic.info.name },
+      }
+    : undefined;
+
+  return { primary, secondary, accent, neutrals, semantic };
+}
+
+function buildTypographySystem(brand: Brand): TypographySystem | undefined {
+  const gt = brand.guidelines?.typography;
+  const primary: FontToken | undefined = gt?.primary
+    ? {
+        family: gt.primary.family,
+        weights: gt.primary.weights,
+        fallbacks: gt.primary.fallbacks,
+        url: gt.primary.url,
+        usage: gt.primary.usage,
+      }
+    : brand.fonts?.primary
+    ? { family: brand.fonts.primary }
+    : undefined;
+
+  if (!primary) return undefined;
+
+  const secondary: FontToken | undefined = gt?.secondary
+    ? {
+        family: gt.secondary.family,
+        weights: gt.secondary.weights,
+        fallbacks: gt.secondary.fallbacks,
+        url: gt.secondary.url,
+        usage: gt.secondary.usage,
+      }
+    : brand.fonts?.secondary
+    ? { family: brand.fonts.secondary }
+    : undefined;
+
+  return {
+    primary,
+    secondary,
+    scale: gt?.scale,
+  };
+}
+
+function buildLogoSystemAndAssets(brand: Brand): {
+  logoSystem: LogoSystemRefs | undefined;
+  brandAssets: BrandAsset[];
+} {
+  const acc = new Map<string, BrandAsset>();
+
+  // Seed acc with any existing v2 Asset entries (so logo URLs matching
+  // an asset reuse the same id instead of creating a duplicate).
+  const existingByUrl = new Map<string, string>();
+  for (const a of brand.assets ?? []) {
+    if (a?.url) existingByUrl.set(a.url, a.id);
+  }
+
+  const legacyAssets: BrandLogoAssets | undefined = brand.logoAssets;
+  const legacySystem: LogoSystem | undefined = brand.guidelines?.logoSystem;
+
+  // Priority: guidelines.logoSystem (richest) → logoAssets → logo.
+  const primaryUrl =
+    legacySystem?.primary?.url ?? legacyAssets?.full ?? brand.logo;
+  const secondaryUrl = legacySystem?.secondary?.url ?? legacyAssets?.alternate;
+  const wordmarkUrl = legacySystem?.wordmark?.url ?? legacyAssets?.wordmark;
+  const iconmarkUrl = legacySystem?.iconmark?.url ?? legacyAssets?.icon;
+  const blackUrl = legacySystem?.blackVersion?.url ?? legacyAssets?.dark;
+  const whiteUrl = legacySystem?.whiteVersion?.url ?? legacyAssets?.light;
+
+  const primaryId = upsertLogoAsset(acc, primaryUrl, 'primary', `${brand.name} — Primary`);
+  const secondaryId = upsertLogoAsset(acc, secondaryUrl, 'secondary', `${brand.name} — Secondary`);
+  const wordmarkId = upsertLogoAsset(acc, wordmarkUrl, 'wordmark', `${brand.name} — Wordmark`);
+  const iconmarkId = upsertLogoAsset(acc, iconmarkUrl, 'iconmark', `${brand.name} — Icon`);
+  const blackId = upsertLogoAsset(acc, blackUrl, 'mono.black', `${brand.name} — Black`);
+  const whiteId = upsertLogoAsset(acc, whiteUrl, 'mono.white', `${brand.name} — White`);
+
+  const hasAny =
+    primaryId || secondaryId || wordmarkId || iconmarkId || blackId || whiteId;
+
+  const logoSystem: LogoSystemRefs | undefined = hasAny
+    ? {
+        primary: logoRef(primaryId, {
+          description: legacySystem?.primary?.description,
+          usage: legacySystem?.primary?.usage,
+        }),
+        secondary: logoRef(secondaryId, {
+          description: legacySystem?.secondary?.description,
+          usage: legacySystem?.secondary?.usage,
+        }),
+        wordmark: logoRef(wordmarkId, {
+          description: legacySystem?.wordmark?.description,
+          usage: legacySystem?.wordmark?.usage,
+        }),
+        iconmark: logoRef(iconmarkId, {
+          description: legacySystem?.iconmark?.description,
+          usage: legacySystem?.iconmark?.usage,
+        }),
+        mono: {
+          black: logoRef(blackId, {
+            description: legacySystem?.blackVersion?.description,
+            usage: legacySystem?.blackVersion?.usage,
+          }),
+          white: logoRef(whiteId, {
+            description: legacySystem?.whiteVersion?.description,
+            usage: legacySystem?.whiteVersion?.usage,
+          }),
+        },
+        clearSpace: legacySystem?.clearSpace,
+        minSize: legacySystem?.minSize,
+        usage: legacySystem?.usage,
+      }
+    : undefined;
+
+  // Carry over non-logo v2 assets (images, docs, icons) as BrandAsset entries.
+  const extraAssets: BrandAsset[] = (brand.assets ?? [])
+    .filter((a): a is Asset => !!a && !!a.url && a.type !== 'logo')
+    .map((a) => {
+      const format = detectFormat(a.url);
+      return {
+        id: `asset-${urlHash(a.url)}`,
+        kind: (a.type === 'font'
+          ? 'font'
+          : a.type === 'document'
+          ? 'document'
+          : a.type === 'icon'
+          ? 'icon'
+          : 'image') as BrandAsset['kind'],
+        name: a.name,
+        role: a.category,
+        formats: { [format]: { url: a.url, size: a.size ?? 0 } },
+        tags: a.tags,
+        metadata: {
+          createdAt:
+            a.createdAt instanceof Date ? a.createdAt.toISOString() : new Date().toISOString(),
+          version: 1,
+          width: a.metadata?.dimensions?.width,
+          height: a.metadata?.dimensions?.height,
+          originalName: a.metadata?.originalName,
+          contentHash: urlHash(a.url),
+        },
+      };
+    });
+
+  // Dedupe extras against logo assets by id.
+  const logoIds = new Set([...acc.values()].map((x) => x.id));
+  const extras = extraAssets.filter((x) => !logoIds.has(x.id));
+
+  return {
+    logoSystem,
+    brandAssets: [...acc.values(), ...extras],
+  };
+}
+
+/**
+ * Migrate a Brand to the current schema version. Idempotent — safe to
+ * run on already-migrated brands. Does NOT mutate the input.
+ */
+export function migrateBrandToCurrent(brand: Brand): Brand {
+  if (!brand) return brand;
+  if ((brand.schemaVersion ?? 0) >= BRAND_SCHEMA_VERSION) {
+    return brand;
+  }
+
+  const { logoSystem, brandAssets } = buildLogoSystemAndAssets(brand);
+  const colorSystem = buildColorSystem(brand);
+  const typography = buildTypographySystem(brand);
+
+  return {
+    ...brand,
+    schemaVersion: BRAND_SCHEMA_VERSION,
+    logoSystem: brand.logoSystem ?? logoSystem,
+    colorSystem: brand.colorSystem ?? colorSystem,
+    typography: brand.typography ?? typography,
+    brandAssets: brand.brandAssets ?? brandAssets,
+  };
+}
+
+/** Migrate a list of brands. Non-mutating. */
+export function migrateBrands(list: Brand[]): Brand[] {
+  return list.map(migrateBrandToCurrent);
+}

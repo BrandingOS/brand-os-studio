@@ -4,6 +4,7 @@ import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
 import { safeLocalStorageSet } from '@/shared/utils/imageUpload';
+import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 
 export interface BrandsService {
   list(): Promise<Brand[]>;
@@ -43,17 +44,19 @@ export class LocalBrandsService implements BrandsService {
   }
 
   async list(): Promise<Brand[]> {
-    return this.getAllBrands();
+    return migrateBrands(this.getAllBrands());
   }
 
   async getById(id: string): Promise<Brand | null> {
     const brands = this.getAllBrands();
-    return brands.find(b => b.id === id) || null;
+    const found = brands.find(b => b.id === id);
+    return found ? migrateBrandToCurrent(found) : null;
   }
 
   async getBySlug(slug: string): Promise<Brand | null> {
     const brands = this.getAllBrands();
-    return brands.find(b => b.slug === slug) || null;
+    const found = brands.find(b => b.slug === slug);
+    return found ? migrateBrandToCurrent(found) : null;
   }
 
   async create(input: CreateBrandInput): Promise<Brand> {
