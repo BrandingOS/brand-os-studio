@@ -58,11 +58,11 @@ export function buildBrandCard(brand: Brand | undefined | null): BrandCardResult
 
   // Logo variants that actually exist.
   const logoKeys: Array<'full' | 'icon' | 'wordmark' | 'dark' | 'light'> = [];
-  if (brand.logoAssets?.full || brand.logo) logoKeys.push('full');
-  if (brand.logoAssets?.icon) logoKeys.push('icon');
-  if (brand.logoAssets?.wordmark) logoKeys.push('wordmark');
-  if (brand.logoAssets?.dark) logoKeys.push('dark');
-  if (brand.logoAssets?.light) logoKeys.push('light');
+  if (logoUrl(brand)) logoKeys.push('full');
+  if (logoUrl(brand, 'iconmark')) logoKeys.push('icon');
+  if (logoUrl(brand, 'wordmark')) logoKeys.push('wordmark');
+  if (logoUrl(brand, 'mono.black')) logoKeys.push('dark');
+  if (logoUrl(brand, 'mono.white')) logoKeys.push('light');
 
   const colors: Record<string, string> = {};
   if (brand.primaryColor) colors.primary = brand.primaryColor;

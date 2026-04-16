@@ -4,6 +4,7 @@ import { CategoryFilter } from './CategoryFilter';
 import { BrandLogo } from './renderers/BrandLogo';
 import { ANIMATIONS } from '../data/templates';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import type { AnimationConfig } from '../types';
 import { toast } from 'sonner';
 import { ExportDialog } from '@/shared/components/ExportDialog';
@@ -166,9 +167,9 @@ type LogoAssetOption = 'auto' | 'full' | 'icon' | 'wordmark' | 'alternate';
 function LogoAssetSelector({ brand, value, onChange }: { brand: Brand; value: LogoAssetOption; onChange: (v: LogoAssetOption) => void }) {
   const options: { value: LogoAssetOption; label: string; available: boolean }[] = [
     { value: 'auto', label: 'Auto (Best fit)', available: true },
-    { value: 'full', label: 'Full Logo', available: !!(brand.logoAssets?.full || brand.logo) },
-    { value: 'icon', label: 'Icon Only', available: !!(brand.logoAssets?.icon) },
-    { value: 'wordmark', label: 'Wordmark Only', available: !!(brand.logoAssets?.wordmark) },
+    { value: 'full', label: 'Full Logo', available: hasLogo(brand) },
+    { value: 'icon', label: 'Icon Only', available: hasLogo(brand, 'iconmark') },
+    { value: 'wordmark', label: 'Wordmark Only', available: hasLogo(brand, 'wordmark') },
     { value: 'alternate', label: 'Alternate', available: !!(brand.logoAssets?.alternate) },
   ];
 
@@ -193,14 +194,13 @@ function LogoAssetSelector({ brand, value, onChange }: { brand: Brand; value: Lo
 }
 
 function getLogoSrcForAnimation(brand: Brand, assetOption: LogoAssetOption): string | undefined {
-  const assets = brand.logoAssets;
   switch (assetOption) {
-    case 'full': return assets?.full || brand.logo;
-    case 'icon': return assets?.icon || brand.logo;
-    case 'wordmark': return assets?.wordmark || brand.logo;
-    case 'alternate': return assets?.alternate || brand.logo;
+    case 'full': return logoUrl(brand);
+    case 'icon': return logoUrl(brand, 'iconmark') ?? logoUrl(brand);
+    case 'wordmark': return logoUrl(brand, 'wordmark') ?? logoUrl(brand);
+    case 'alternate': return brand.logoAssets?.alternate ?? logoUrl(brand);
     case 'auto':
-    default: return brand.logo;
+    default: return logoUrl(brand);
   }
 }
 

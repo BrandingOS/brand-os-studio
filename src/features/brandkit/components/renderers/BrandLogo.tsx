@@ -1,4 +1,5 @@
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { getSafeLogoForBackground, isLightColor } from '../../engine/brandRules';
 
 /**
@@ -33,28 +34,26 @@ const sizeMap = {
 };
 
 function getLogoSrc(brand: Brand, variant: LogoVariant, bgColor?: string): string | null {
-  const assets = brand.logoAssets;
-
-  // For dark backgrounds, prefer light version
   if (bgColor && !isLightColor(bgColor)) {
-    if (assets?.light) return assets.light;
+    const light = logoUrl(brand, 'mono.white');
+    if (light) return light;
   }
-  // For light backgrounds, prefer dark version
   if (bgColor && isLightColor(bgColor)) {
-    if (assets?.dark) return assets.dark;
+    const dark = logoUrl(brand, 'mono.black');
+    if (dark) return dark;
   }
 
   switch (variant) {
     case 'full':
-      return assets?.full || brand.logo || null;
+      return logoUrl(brand) ?? null;
     case 'icon':
-      return assets?.icon || brand.logo || null;
+      return logoUrl(brand, 'iconmark') ?? logoUrl(brand) ?? null;
     case 'wordmark':
-      return assets?.wordmark || null;
+      return logoUrl(brand, 'wordmark') ?? null;
     case 'auto':
-      return assets?.full || brand.logo || null;
+      return logoUrl(brand) ?? null;
     default:
-      return brand.logo || null;
+      return logoUrl(brand) ?? null;
   }
 }
 
@@ -64,20 +63,12 @@ export function BrandLogo({ brand, variant = 'full', color, size = 'md', classNa
 
   // Monogram — always renders as a letter/icon badge
   if (variant === 'monogram') {
-    const iconSrc = brand.logoAssets?.icon;
+    const iconSrc = logoUrl(brand, 'iconmark') ?? logoUrl(brand);
     if (iconSrc) {
       const monoFilter = bgColor && !isLightColor(bgColor) ? 'brightness(0) invert(1)' : undefined;
       return (
         <div className={`rounded flex items-center justify-center ${s.mono} ${className}`} style={{ backgroundColor: c }}>
           <img src={iconSrc} alt="" className="w-[65%] h-[65%] object-contain" style={{ filter: monoFilter || 'brightness(0) invert(1)' }} />
-        </div>
-      );
-    }
-    if (brand.logo) {
-      const monoFilter = bgColor && !isLightColor(bgColor) ? 'brightness(0) invert(1)' : undefined;
-      return (
-        <div className={`rounded flex items-center justify-center ${s.mono} ${className}`} style={{ backgroundColor: c }}>
-          <img src={brand.logo} alt="" className="w-[65%] h-[65%] object-contain" style={{ filter: monoFilter || 'brightness(0) invert(1)' }} />
         </div>
       );
     }
