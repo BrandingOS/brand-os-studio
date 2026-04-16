@@ -18,6 +18,7 @@
  * renderer resolves handles to real values at render time.
  */
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 
 export interface BrandHandles {
   /** `@slug` — root handle; all other handles are relative. */
@@ -113,11 +114,11 @@ export function resolveHandle(brand: Brand | undefined | null, handle: string): 
     if (key === 'secondary') return brand.fonts?.secondary;
   }
   if (group === 'logo') {
-    if (key === 'full') return brand.logoAssets?.full ?? brand.logo;
-    if (key === 'icon') return brand.logoAssets?.icon;
-    if (key === 'wordmark') return brand.logoAssets?.wordmark;
-    if (key === 'dark') return brand.logoAssets?.dark;
-    if (key === 'light') return brand.logoAssets?.light;
+    if (key === 'full') return logoUrl(brand, 'primary');
+    if (key === 'icon') return logoUrl(brand, 'iconmark');
+    if (key === 'wordmark') return logoUrl(brand, 'wordmark');
+    if (key === 'dark') return logoUrl(brand, 'mono.black');
+    if (key === 'light') return logoUrl(brand, 'mono.white');
   }
   return undefined;
 }

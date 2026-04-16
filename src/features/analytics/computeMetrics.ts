@@ -4,6 +4,7 @@
  */
 import { checkContrast } from '@/shared/color/colorEngine';
 import type { Brand } from '@/shared/types/brand';
+import { hasLogo } from '@/shared/brand/logoUrl';
 
 export interface ContrastCheck {
   label: string;
@@ -37,7 +38,7 @@ export function computeMetrics(brand: Brand | null, activityCount: number): Anal
   if (!brand) return EMPTY;
 
   const checklist = [
-    { label: 'Logo uploaded', done: !!(brand.logo || brand.logoAssets?.full) },
+    { label: 'Logo uploaded', done: hasLogo(brand) },
     { label: 'Primary color set', done: !!brand.primaryColor },
     { label: 'Secondary color set', done: !!brand.secondaryColor },
     { label: 'Tone defined', done: !!brand.tone && brand.tone.length > 3 },
@@ -64,7 +65,7 @@ export function computeMetrics(brand: Brand | null, activityCount: number): Anal
     contrastResults.push({ label: 'Primary on secondary', fg: brand.primaryColor, bg: brand.secondaryColor, ratio: c.ratio, level: c.aaa ? 'AAA' : c.aa ? 'AA' : 'Fail' });
   }
 
-  const idScore = [brand.logo || brand.logoAssets?.full, brand.primaryColor, brand.secondaryColor, brand.fonts?.primary].filter(Boolean).length * 25;
+  const idScore = [hasLogo(brand), brand.primaryColor, brand.secondaryColor, brand.fonts?.primary].filter(Boolean).length * 25;
   const stScore = [brand.tone && brand.tone.length > 3, brand.audience && brand.audience.length > 3, brand.guidelines?.strategy?.mission, brand.guidelines?.strategy?.values?.length].filter(Boolean).length * 25;
   const ctScore = Math.min(100, (brand.assets?.length ?? 0) * 10);
   const axScore = contrastResults.length > 0 ? Math.round((contrastResults.filter((c) => c.level !== 'Fail').length / contrastResults.length) * 100) : 50;

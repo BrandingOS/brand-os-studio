@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { PageHeader } from '@/shared/ui/PageHeader';
@@ -171,10 +172,10 @@ export default function GuidelinesHubPage() {
               }
             />
             <Card className="p-6">
-              {brand.logo || brand.logoAssets?.full ? (
+              {logoUrl(brand) ? (
                 <div className="flex items-center justify-center bg-muted/30 rounded-lg p-8 min-h-[180px]">
                   <img
-                    src={brand.logoAssets?.full || brand.logo}
+                    src={logoUrl(brand)}
                     alt={`${brand.name} logo`}
                     className="max-h-32 max-w-full object-contain"
                   />

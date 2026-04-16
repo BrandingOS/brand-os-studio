@@ -6,6 +6,7 @@
  * is configured. Behind a feature flag.
  */
 import type { AssistantProvider, AssistantReply, AssistantSendInput } from '../types';
+import { hasLogo } from '@/shared/brand/logoUrl';
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
@@ -63,7 +64,7 @@ function answerForBrand(input: AssistantSendInput): string {
   }
 
   if (/logo/.test(text)) {
-    const has = brand.logo || brand.logoAssets?.full ? 'has' : 'does not have';
+    const has = hasLogo(brand) ? 'has' : 'does not have';
     return `${brand.name} ${has} a logo on file. Open **Identity → Logo** to upload variants (full, icon, dark, light) — variants are what let the logo work in every context.`;
   }
 

@@ -8,6 +8,7 @@
  * Does NOT touch the off-limits export/vectorize/* or EditorWorkspace.
  */
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import { hexToCmyk, formatCmyk, formatRgb, hexToRgb } from './cmykApprox';
 
 const PAGE_W = 210; // A4 mm
@@ -61,9 +62,9 @@ export async function generateBrandGuidePdf(brand: Brand): Promise<Blob> {
 
   // Logo on cover — placed on a white plate so it always reads against
   // any brand-color background.
-  if (brand.logo || brand.logoAssets?.full) {
+  if (logoUrl(brand)) {
     try {
-      const img = await loadImage(brand.logoAssets?.full || brand.logo || '');
+      const img = await loadImage(logoUrl(brand) ?? '');
       const pngData = imageToPng(img, 1500);
       const ratio = img.width / img.height;
       const logoW = 70;
@@ -125,9 +126,9 @@ export async function generateBrandGuidePdf(brand: Brand): Promise<Blob> {
   );
 
   // Primary logo on background
-  if (brand.logo || brand.logoAssets?.full) {
+  if (logoUrl(brand)) {
     try {
-      const img = await loadImage(brand.logoAssets?.full || brand.logo || '');
+      const img = await loadImage(logoUrl(brand) ?? '');
       const pngData = imageToPng(img, 1500);
       const ratio = img.width / img.height;
       pdf.setFillColor(250, 250, 250);

@@ -11,6 +11,7 @@
  * randomizing per-call.
  */
 import type { Brand } from '@/shared/types/brand';
+import { hasLogo } from '@/shared/brand/logoUrl';
 import {
   hexToHsl,
   hslToHex,
@@ -218,7 +219,7 @@ function descriptorsFromAudience(audience?: string): string[] {
 
 function computeCompleteness(brand: Brand): { score: number; missing: string[] } {
   const checks: Array<[string, boolean]> = [
-    ['logo', Boolean(brand.logo || brand.logoAssets?.full || brand.logoAssets?.icon)],
+    ['logo', hasLogo(brand) || hasLogo(brand, 'iconmark')],
     ['primary color', Boolean(brand.primaryColor)],
     ['secondary color', Boolean(brand.secondaryColor)],
     ['primary font', Boolean(brand.fonts?.primary)],

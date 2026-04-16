@@ -11,6 +11,7 @@
 
 import React from 'react';
 import type { Brand } from '@/shared/types/brand';
+import { logoUrl } from '@/shared/brand/logoUrl';
 import type { PresentationStyle } from './styles';
 import type { PresentationSettings } from './types';
 
@@ -105,7 +106,7 @@ const useSpacing = (s: PresentationStyle, settings?: PresentationSettings) => {
 };
 
 const Logo: React.FC<{ url?: string; brand: Brand; sizeCqi?: number; className?: string; invert?: boolean }> = ({ url, brand, sizeCqi = 4, className = '', invert }) => {
-  const src = url || brand.logo || brand.logoAssets?.full || brand.logoAssets?.icon;
+  const src = url || logoUrl(brand) || logoUrl(brand, 'iconmark');
   if (!src) return null;
   return (
     <img

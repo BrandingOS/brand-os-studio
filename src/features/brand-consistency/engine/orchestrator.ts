@@ -14,6 +14,7 @@
  */
 
 import type { Brand } from '@/shared/types/brand';
+import { hasLogo } from '@/shared/brand/logoUrl';
 import { resolveBrandTokens, serializeTokens } from './brandTokens';
 import { getOutputSpec, type OutputTypeId } from '../registry/outputSpecs';
 import type { IAiContentProvider } from '../providers/types';
@@ -42,7 +43,7 @@ function uid(): string {
 
 function missingBrandFields(brand: Brand, requires: string[]): string[] {
   const have: Record<string, boolean> = {
-    logo: Boolean(brand.logo || brand.logoAssets?.full || brand.logoAssets?.icon),
+    logo: hasLogo(brand) || hasLogo(brand, 'iconmark'),
     primaryColor: Boolean(brand.primaryColor),
     fonts: Boolean(brand.fonts?.primary),
     tone: Boolean(brand.tone),
