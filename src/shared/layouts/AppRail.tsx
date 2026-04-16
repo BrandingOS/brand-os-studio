@@ -48,6 +48,8 @@ import {
   LayoutGrid,
   LayoutPanelLeft,
   PenTool,
+  Instagram,
+  Share2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -68,6 +70,8 @@ interface RailItem {
   exact?: boolean;
   /** Extra path prefixes that should also activate this item. */
   matchPrefixes?: string[];
+  /** Section group label — rendered as a small header before the first item in each group. */
+  group?: string;
 }
 
 /**
@@ -100,96 +104,96 @@ const workspaceItems: RailItem[] = [
  */
 function brandItems(slug: string): RailItem[] {
   return [
+    // ── Top-level ──────────────────────────────────────────────
     {
       title: 'Overview',
       url: `/b/${slug}`,
       icon: LayoutDashboard,
       exact: true,
     },
+
+    // ── BRAND IDENTITY — defining the brand ───────────────────
     {
-      // The user calls this "Setup" / "Brand Setup" — the place where the
-      // brand record itself is edited. It maps to the existing brand-edit
-      // page, which is the canonical brand-record editor.
       title: 'Setup',
       url: `/b/${slug}/identity`,
       icon: Wrench,
-      matchPrefixes: [
-        `/b/${slug}/edit`,
-        `/b/${slug}/identity`,
-      ],
-    },
-    {
-      title: 'Guidelines',
-      url: `/b/${slug}/guidelines`,
-      icon: BookOpen,
-      matchPrefixes: [
-        `/b/${slug}/guidelines`,
-        `/b/${slug}/brand-guides`,
-      ],
-    },
-    {
-      // "Folders" is the brand's asset library. Lives at /folders; the
-      // legacy /dam URL still resolves via a redirect, so old bookmarks
-      // light up this nav item too via matchPrefixes.
-      title: 'Folders',
-      url: `/b/${slug}/folders`,
-      icon: FolderOpen,
-      matchPrefixes: [
-        `/b/${slug}/folders`,
-        `/b/${slug}/dam`,
-      ],
+      group: 'Brand Identity',
+      matchPrefixes: [`/b/${slug}/edit`, `/b/${slug}/identity`],
     },
     {
       title: 'Brand Kit',
       url: `/b/${slug}/kit`,
       icon: Sparkles,
-      matchPrefixes: [
-        `/b/${slug}/kit`,
-        `/b/${slug}/brandkit`,
-      ],
+      group: 'Brand Identity',
+      matchPrefixes: [`/b/${slug}/kit`, `/b/${slug}/brandkit`],
     },
     {
-      // AI Consistency Studio — generates a complete branded ecosystem
-      // (social, web, guidelines, mockups, decks, ads) from one brand
-      // source, all rendered inside the brand token system.
-      title: 'Studio',
-      url: `/b/${slug}/studio`,
-      icon: Wand2,
-    },
-    {
-      // "Designs" = generated design outputs (cards, social posts, etc).
-      // These already live in the Assets hub, so Designs lands there.
-      title: 'Designs',
-      url: `/b/${slug}/assets`,
-      icon: Palette,
-      matchPrefixes: [
-        `/b/${slug}/assets`,
-        `/b/${slug}/social-media`,
-        `/b/${slug}/presentations`,
-      ],
-    },
-    {
-      // Brand-scoped templates (different from the workspace marketplace).
-      title: 'Templates',
-      url: `/b/${slug}/templates`,
-      icon: LayoutTemplate,
+      title: 'Guidelines',
+      url: `/b/${slug}/guidelines`,
+      icon: BookOpen,
+      group: 'Brand Identity',
+      matchPrefixes: [`/b/${slug}/guidelines`, `/b/${slug}/brand-guides`],
     },
     {
       title: 'Board',
       url: `/b/${slug}/brand-board`,
       icon: LayoutPanelLeft,
+      group: 'Brand Identity',
     },
+
+    // ── CREATE — tools for making things ──────────────────────
     {
-      // Bento Grid — visual brand showcase layout builder.
-      title: 'Bento',
-      url: `/b/${slug}/bento`,
-      icon: LayoutGrid,
-    },
-    {
-      // Design Editor — canvas-based design tool for the brand.
       title: 'Editor',
       url: `/editor/design/${slug}`,
       icon: PenTool,
+      group: 'Create',
+    },
+    {
+      title: 'Studio',
+      url: `/b/${slug}/studio`,
+      icon: Wand2,
+      group: 'Create',
+    },
+    {
+      title: 'Social',
+      url: `/b/${slug}/social-media`,
+      icon: Instagram,
+      group: 'Create',
+      matchPrefixes: [`/b/${slug}/social-media`],
+    },
+    {
+      title: 'Templates',
+      url: `/b/${slug}/templates`,
+      icon: LayoutTemplate,
+      group: 'Create',
+    },
+
+    // ── CONTENT — what's been created ─────────────────────────
+    {
+      title: 'Designs',
+      url: `/b/${slug}/assets`,
+      icon: Palette,
+      group: 'Content',
+      matchPrefixes: [`/b/${slug}/assets`, `/b/${slug}/presentations`],
+    },
+    {
+      title: 'Folders',
+      url: `/b/${slug}/folders`,
+      icon: FolderOpen,
+      group: 'Content',
+      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
+    },
+    {
+      title: 'Bento',
+      url: `/b/${slug}/bento`,
+      icon: LayoutGrid,
+      group: 'Content',
+    },
+    {
+      title: 'Share',
+      url: `/b/${slug}/share`,
+      icon: Share2,
+      group: 'Content',
     },
   ];
 }
@@ -370,33 +374,47 @@ export function AppRail({ brandSlug }: AppRailProps) {
       </div>
 
       {/* MAIN — scope-aware nav (workspace items OR brand items) --------- */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-1">
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = isItemActive(item);
-          return (
-            <NavLink
-              key={item.title}
-              to={item.url}
-              end={item.exact}
-              className={cn(
-                'group relative flex flex-col items-center gap-1 rounded-xl px-1 py-2.5 transition-colors',
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-              )}
-            >
-              {active && (
-                <span
-                  aria-hidden
-                  className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-primary"
-                />
-              )}
-              <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.75} />
-              <span className="text-[10px] font-medium leading-tight">{item.title}</span>
-            </NavLink>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-0.5">
+        {(() => {
+          let lastGroup = '';
+          return items.map((item) => {
+            const Icon = item.icon;
+            const active = isItemActive(item);
+            const showGroupLabel = !!item.group && item.group !== lastGroup;
+            if (item.group) lastGroup = item.group;
+
+            return (
+              <div key={item.title}>
+                {showGroupLabel && (
+                  <div className="px-1 pt-3 pb-1.5">
+                    <span className="text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground/50">
+                      {item.group}
+                    </span>
+                  </div>
+                )}
+                <NavLink
+                  to={item.url}
+                  end={item.exact}
+                  className={cn(
+                    'group relative flex flex-col items-center gap-1 rounded-xl px-1 py-2 transition-colors',
+                    active
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  )}
+                >
+                  {active && (
+                    <span
+                      aria-hidden
+                      className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-primary"
+                    />
+                  )}
+                  <Icon className="h-4.5 w-4.5" strokeWidth={active ? 2.25 : 1.75} />
+                  <span className="text-[9px] font-medium leading-tight">{item.title}</span>
+                </NavLink>
+              </div>
+            );
+          });
+        })()}
       </nav>
 
       {/* FOOT — settings + user ------------------------------------------- */}
