@@ -10,8 +10,10 @@ import { Canvas } from '../components/editor/Canvas';
 import { ToolsPanel } from '../components/editor/ToolsPanel';
 import { PropertiesPanel } from '../components/editor/PropertiesPanel';
 import { PreviewChips, type PreviewBg } from '../components/editor/PreviewChips';
+import { MobileEditorFallback } from '../components/editor/MobileFallback';
 import { useEditorHistory } from '../hooks/useEditorHistory';
 import { useEditorShortcuts, type ToolId } from '../hooks/useEditorShortcuts';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { addCircle, addLine, addRect, addText, loadSVGIntoCanvas } from '../utils/fabric-setup';
 import { useLogoMakerStore } from '../state/useLogoMakerStore';
 
@@ -22,6 +24,7 @@ export default function EditorScreen() {
   const navigate = useNavigate();
   const { logoId = 'blank' } = useParams();
 
+  const isMobile = useIsMobile();
   const [canvas, setCanvas] = useState<FabricCanvas | null>(null);
   const [tool, setTool] = useState<ToolId>('select');
   const [previewBg, setPreviewBg] = useState<PreviewBg>('primary');
@@ -112,6 +115,8 @@ export default function EditorScreen() {
     onFit: fit,
     onHundred: hundred,
   });
+
+  if (isMobile) return <MobileEditorFallback />;
 
   return (
     <div className="flex flex-col h-screen bg-background">

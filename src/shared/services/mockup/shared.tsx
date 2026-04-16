@@ -31,8 +31,6 @@ export function LogoSlot({
       <g>
         <foreignObject x={x} y={y} width={width} height={height}>
           <div
-            // eslint-disable-next-line react/no-unknown-property
-            xmlns="http://www.w3.org/1999/xhtml"
             style={{
               width: '100%',
               height: '100%',
