@@ -14,6 +14,7 @@
  */
 import { Outlet } from 'react-router-dom';
 import { BrandLayout } from '@/features/brand/components/BrandLayout';
+import { BrandSettingsProvider } from '@/shared/brand-settings';
 import { useBrandPageConfigStore } from './brandPageConfig';
 
 export function BrandRouteLayout() {
@@ -22,8 +23,10 @@ export function BrandRouteLayout() {
   const innerNav = useBrandPageConfigStore((s) => s.innerNav);
 
   return (
-    <BrandLayout brandName={brandName} maxWidth={maxWidth} innerNav={innerNav}>
-      <Outlet />
-    </BrandLayout>
+    <BrandSettingsProvider>
+      <BrandLayout brandName={brandName} maxWidth={maxWidth} innerNav={innerNav}>
+        <Outlet />
+      </BrandLayout>
+    </BrandSettingsProvider>
   );
 }
