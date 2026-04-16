@@ -18,10 +18,7 @@ export default function ResetPasswordPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Supabase sends recovery tokens via hash fragment or handles them
-    // automatically via onAuthStateChange. We listen for the
-    // PASSWORD_RECOVERY event which fires when the user clicks the
-    // reset link and Supabase processes the token.
+    // Listen for PASSWORD_RECOVERY event from Supabase auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsValidLink(true);
@@ -29,7 +26,8 @@ export default function ResetPasswordPage() {
       }
     });
 
-    // Also check if we already have a session (token was auto-processed)
+    // Check if we already have a valid session (token was auto-processed
+    // by the Supabase client from the URL hash before this component mounted).
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setIsValidLink(true);
@@ -37,10 +35,18 @@ export default function ResetPasswordPage() {
       setChecking(false);
     });
 
-    // Timeout — if no event fires within 3s, link is invalid
+    // Also detect recovery token in hash directly — covers the case where
+    // the PASSWORD_RECOVERY event already fired before this listener registered.
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setIsValidLink(true);
+      setChecking(false);
+    }
+
+    // Timeout — if no event fires within 5s, link is invalid
     const timeout = setTimeout(() => {
       setChecking(false);
-    }, 3000);
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();
