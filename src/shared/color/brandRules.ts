@@ -158,6 +158,8 @@ export interface LogoVariant {
   priority?: number;
   /** Which color strategy this variant is optimized for. 'all' = universal. */
   strategy?: BrandColorStrategy | 'all';
+  /** Fingerprint for deduplication: identifies visually-identical variants */
+  visualFingerprint?: string;
 }
 
 const WHITE_FILTER = 'brightness(0) invert(1)';
@@ -751,6 +753,11 @@ export function generateLogoVariants(brand: Brand): LogoVariant[] {
     priority: 4,
     strategy: 'all',
   });
+
+  // Compute visual fingerprints for deduplication
+  for (const v of variants) {
+    v.visualFingerprint = `${v.logoSrc}|${v.logoFilter ?? 'none'}`;
+  }
 
   return variants;
 }

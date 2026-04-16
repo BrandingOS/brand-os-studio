@@ -34,6 +34,8 @@ import {
   type LogoVariantGroup,
   type BrandColorAnalysis,
 } from '../engine/brandRules';
+import { collapseVariants } from '@/shared/color/collapseVariants';
+import { LogoVariantCard } from '@/features/brandkit-v2/sections/LogoVariantCard';
 import type { Brand } from '@/shared/types/brand';
 import { hasLogo } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
@@ -765,6 +767,7 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
   const [usageFilter, setUsageFilter] = useState<UsageFilter>('all');
   const [downloadSize, setDownloadSize] = useState(2048);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [viewMode, setViewMode] = useState<'grouped' | 'all'>('grouped');
 
   const analysis = useMemo(() => analyzeBrandColors(brand), [brand]);
   const allVariants = useMemo(() => generateLogoVariants(brand), [brand]);
@@ -794,6 +797,30 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
     }
     return byGroup;
   }, [filteredVariants]);
+
+  const collapsedGroups = useMemo(
+    () => collapseVariants(filteredVariants),
+    [filteredVariants],
+  );
+
+  const handleGroupedDownload = useCallback(
+    (variantId: string) => {
+      const variant = allVariants.find(v => v.id === variantId);
+      if (!variant) return;
+      const slug = brand.slug || brand.name.toLowerCase().replace(/\s+/g, '-');
+      const baseName = `${slug}-${variant.id}`;
+      rasterizeVariant(variant, downloadSize)
+        .then(blob => {
+          triggerDownload(blob, `${baseName}-${downloadSize}.png`);
+          toast.success(`Downloaded ${variant.name} (${downloadSize}px PNG)`);
+        })
+        .catch(err => {
+          console.error(err);
+          toast.error('Download failed');
+        });
+    },
+    [allVariants, brand, downloadSize],
+  );
 
   const handleBulkDownload = useCallback(async () => {
     if (allVariants.length === 0) return;
@@ -895,8 +922,8 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
           ))}
         </div>
 
-        {/* Usage chips */}
-        <div className="flex flex-wrap gap-1">
+        {/* Usage chips + view toggle */}
+        <div className="flex flex-wrap items-center gap-1">
           {USAGE_FILTERS.map((u) => {
             const Icon = u.icon;
             return (
@@ -914,6 +941,18 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
               </button>
             );
           })}
+          <span className="mx-1.5 h-4 w-px bg-border" />
+          <button
+            onClick={() => setViewMode(viewMode === 'grouped' ? 'all' : 'grouped')}
+            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all ${
+              viewMode === 'grouped'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <Grid3x3 className="h-3 w-3" />
+            {viewMode === 'grouped' ? 'Grouped' : `All (${filteredVariants.length})`}
+          </button>
         </div>
       </div>
 
@@ -933,6 +972,21 @@ export function LogoFilesModule({ brand }: LogoFilesModuleProps) {
           >
             Clear filters
           </button>
+        </div>
+      ) : viewMode === 'grouped' ? (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            {collapsedGroups.length} unique logos — click a background swatch to preview on different surfaces.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {collapsedGroups.map((group) => (
+              <LogoVariantCard
+                key={group.fingerprint}
+                group={group}
+                onDownload={handleGroupedDownload}
+              />
+            ))}
+          </div>
         </div>
       ) : groupFilter === 'all' ? (
         <div className="space-y-8">
