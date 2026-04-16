@@ -140,7 +140,7 @@ const ACCOUNT_FEATURES: FeatureEntry[] = [
 
 const BRAND_FEATURES: FeatureEntry[] = [
   { id: 'overview',     title: 'Overview',     description: 'Brand at-a-glance and jumping-off point.',         icon: Compass,    href: (s) => `/b/${s}`,             status: 'linked',  needsBrand: true },
-  { id: 'setup',        title: 'Setup',        description: 'Edit logos, colors, and type with live preview.',  icon: Wrench,     href: (s) => `/b/${s}/edit`,        status: 'linked',  needsBrand: true },
+  { id: 'setup',        title: 'Setup',        description: 'Edit logos, colors, and type with live preview.',  icon: Wrench,     href: (s) => `/b/${s}/identity`,    status: 'linked',  needsBrand: true },
   { id: 'identity',     title: 'Identity',     description: 'Tabbed identity hub: logo, colors, type, voice.',  icon: Sparkles,   href: (s) => `/b/${s}/identity`,    status: 'linked',  needsBrand: true },
   { id: 'guidelines',   title: 'Guidelines',   description: 'The brand book — strategy through applications.', icon: BookOpen,   href: (s) => `/b/${s}/guidelines`,  status: 'linked',  needsBrand: true },
   { id: 'folders',      title: 'Folders',      description: 'Brand asset library — logos, photos, icons.',     icon: FolderOpen, href: (s) => `/b/${s}/folders`,     status: 'linked',  needsBrand: true },

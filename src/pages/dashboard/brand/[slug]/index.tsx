@@ -35,6 +35,8 @@ import {
   Sparkles,
   Palette,
   LayoutTemplate,
+  Wand2,
+  LayoutGrid,
   ArrowRight,
   Edit3,
   LayoutDashboard,
@@ -51,12 +53,14 @@ interface QuickLink {
 }
 
 const QUICK_LINKS: QuickLink[] = [
-  { label: 'Setup',      description: 'Edit logos, colors, type',     path: 'edit',       icon: Wrench },
-  { label: 'Brand Kit',  description: 'The unified brand system',     path: 'kit',        icon: Sparkles },
-  { label: 'Guidelines', description: 'The brand book',               path: 'guidelines', icon: BookOpen },
-  { label: 'Folders',    description: 'Asset library',                path: 'folders',    icon: FolderOpen },
-  { label: 'Designs',    description: 'Generated deliverables',       path: 'assets',     icon: Palette },
-  { label: 'Templates',  description: 'Brand-scoped templates',       path: 'templates',  icon: LayoutTemplate },
+  { label: 'Setup',         description: 'Edit logos, colors, type',       path: 'identity',   icon: Wrench },
+  { label: 'Brand Kit',     description: 'The unified brand system',       path: 'kit',        icon: Sparkles },
+  { label: 'Guidelines',    description: 'The brand book',                 path: 'guidelines', icon: BookOpen },
+  { label: 'Designs',       description: 'Generated deliverables',         path: 'assets',     icon: Palette },
+  { label: 'Templates',     description: 'Brand-scoped templates',         path: 'templates',  icon: LayoutTemplate },
+  { label: 'AI Design',     description: 'Infinite canvas with AI',        path: 'ai-design',  icon: Wand2 },
+  { label: 'Bento Grid',    description: 'Visual brand showcase',          path: 'bento',      icon: LayoutGrid },
+  { label: 'Folders',       description: 'Asset library',                  path: 'folders',    icon: FolderOpen },
 ];
 
 const OVERVIEW_ANCHORS = ['glance', 'jump', 'identity', 'sharing'];
@@ -122,7 +126,7 @@ export default function BrandHomePage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate(`/b/${slug}/edit`)}
+            onClick={() => navigate(`/b/${slug}/identity`)}
           >
             <Edit3 className="h-3.5 w-3.5 mr-1.5" />
             Edit brand

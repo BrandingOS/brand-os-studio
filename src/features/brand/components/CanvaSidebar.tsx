@@ -44,7 +44,7 @@ export function CanvaSidebar({ brandSlug }: CanvaSidebarProps) {
     {
       icon: FolderOpen,
       label: 'Assets',
-      href: `/b/${brandSlug}/brandkit`,
+      href: `/b/${brandSlug}/kit`,
       tooltip: 'Brand Assets'
     },
     {
@@ -56,7 +56,7 @@ export function CanvaSidebar({ brandSlug }: CanvaSidebarProps) {
     {
       icon: Palette,
       label: 'Colors',
-      href: `/b/${brandSlug}/edit`,
+      href: `/b/${brandSlug}/identity`,
       tooltip: 'Brand Colors'
     },
     {

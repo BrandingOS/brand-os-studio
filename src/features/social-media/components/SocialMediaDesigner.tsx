@@ -174,8 +174,7 @@ export function SocialMediaDesigner({ brand }: SocialMediaDesignerProps) {
   const [exportTemplateName, setExportTemplateName] = useState('');
 
   const handleTemplateClick = (template: SocialTemplate) => {
-    // TODO: Open template in editor
-    console.log('Open template:', template.id);
+    toast.info(`Opening "${template.name}" — editor integration coming soon.`);
   };
 
   const handleExportTemplate = (e: React.MouseEvent, template: SocialTemplate) => {
@@ -440,7 +439,7 @@ function AIDesignGenerator({ brand }: { brand: Brand }) {
                 key={template.id}
                 template={template}
                 brand={brand}
-                onClick={() => console.log('Edit:', template.id)}
+                onClick={() => toast.info(`Opening "${template.name}" — editor integration coming soon.`)}
               />
             ))}
           </div>

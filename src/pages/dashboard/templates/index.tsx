@@ -166,8 +166,8 @@ export default function TemplatesPage() {
                 </div>
                 <Button
                   onClick={() => {
-                    toast.success('Template applied', {
-                      description: `"${selectedTemplate.name}" has been applied to your brand.`,
+                    toast.info('Apply to Brand — coming soon.', {
+                      description: `Template application will be available in a future update.`,
                     });
                   }}
                   className="gap-2 w-fit"

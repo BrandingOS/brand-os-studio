@@ -18,33 +18,24 @@ import {
   BookOpen,
   Share2,
   Sparkles,
-  Wand2,
-  Palette,
-  LayoutGrid,
 } from 'lucide-react';
 
 /**
- * Brand-scope navigation — five sections.
+ * Brand-scope navigation — canonical five sections + Brand Kit.
  *
- * Designed per docs/ux-redesign/ARCHITECTURE.md §3. Replaces the previous
- * 7-item nav + 18-item brandkit submenu. Each section has a primary URL plus
- * a `matchPaths` predicate that highlights the section when the user is on
- * any legacy URL belonging to that section. This lets the new IA land
- * without breaking bookmarks or rewriting every existing page in one pass.
+ * Designed per docs/ux-redesign/ARCHITECTURE.md §3:
+ *   Overview · Identity · Assets · Guidelines · Share
+ * Plus Brand Kit as a unified brand system hub.
  *
- * Stages 8–11 progressively replace the section landing pages with their
- * real, fleshed-out content (Identity tabs, Assets categories, etc).
+ * Fullscreen tools (AI Design, Design with AI, Bento) are accessible from
+ * the Overview page and via direct URL, but don't appear in the sidebar
+ * to keep the IA focused.
  */
 interface BrandNavItem {
   title: string;
   url: string;
   icon: React.ElementType;
-  /**
-   * Substrings of `location.pathname` that should highlight this section.
-   * `:slug` is replaced at runtime.
-   */
   matchPaths: string[];
-  /** When true, only an exact pathname match counts as active (for Overview). */
   exact?: boolean;
 }
 
@@ -57,6 +48,16 @@ const brandNavItems: BrandNavItem[] = [
     exact: true,
   },
   {
+    title: "Identity",
+    url: "/b/:slug/identity",
+    icon: PenTool,
+    matchPaths: [
+      "/b/:slug/identity",
+      "/dashboard/brand/:slug/identity",
+      "/dashboard/brand/:slug/edit",
+    ],
+  },
+  {
     title: "Brand Kit",
     url: "/b/:slug/kit",
     icon: Sparkles,
@@ -65,17 +66,6 @@ const brandNavItems: BrandNavItem[] = [
       "/b/:slug/brandkit",
       "/dashboard/brand/:slug/kit",
       "/dashboard/brand/:slug/brandkit",
-      "/dashboard/brand/:slug/settings",
-    ],
-  },
-  {
-    title: "Identity",
-    url: "/b/:slug/identity",
-    icon: PenTool,
-    matchPaths: [
-      "/b/:slug/identity",
-      "/dashboard/brand/:slug/identity",
-      "/dashboard/brand/:slug/edit",
     ],
   },
   {
@@ -102,33 +92,6 @@ const brandNavItems: BrandNavItem[] = [
     ],
   },
   {
-    title: "AI Design",
-    url: "/b/:slug/ai-design",
-    icon: Wand2,
-    matchPaths: [
-      "/b/:slug/ai-design",
-      "/dashboard/brand/:slug/ai-design",
-    ],
-  },
-  {
-    title: "Design with AI",
-    url: "/b/:slug/design-ai",
-    icon: Palette,
-    matchPaths: [
-      "/b/:slug/design-ai",
-      "/dashboard/brand/:slug/design-ai",
-    ],
-  },
-  {
-    title: "Bento",
-    url: "/b/:slug/bento",
-    icon: LayoutGrid,
-    matchPaths: [
-      "/b/:slug/bento",
-      "/dashboard/brand/:slug/bento",
-    ],
-  },
-  {
     title: "Share",
     url: "/b/:slug/share",
     icon: Share2,
@@ -151,11 +114,9 @@ export function BrandSidebar() {
   const isActive = (item: BrandNavItem) => {
     const url = buildUrl(item.url);
     if (item.exact) {
-      // Match the canonical short-form URL and any legacy matchPaths exactly
       return location.pathname === url
         || item.matchPaths.some((m) => location.pathname === buildUrl(m));
     }
-    // Match exactly OR as a path prefix (so /identity, /identity/logo, etc all match).
     return location.pathname === url
       || location.pathname.startsWith(`${url}/`)
       || item.matchPaths.some((m) => {
@@ -203,7 +164,7 @@ export function BrandSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink
-                    to={buildUrl('/b/:slug/brandkit/settings')}
+                    to={buildUrl('/b/:slug/settings')}
                     className="hover:bg-muted/50 text-muted-foreground hover:text-foreground flex items-center gap-3 px-3 py-2 rounded-lg transition-all"
                   >
                     <Settings className="h-4 w-4 shrink-0" />

@@ -136,7 +136,7 @@ export function LogoExportPanel({ config, canvasRef }: LogoExportPanelProps) {
       await updateBrand(brand.id, patch);
       toast.success(`Logo saved to ${brand.name}`);
       setSaveDialogOpen(false);
-      navigate(`/b/${brand.slug}/edit`);
+      navigate(`/b/${brand.slug}/identity`);
     } catch (err) {
       console.error('Save to brand failed:', err);
       toast.error('Failed to save logo. Try again.');

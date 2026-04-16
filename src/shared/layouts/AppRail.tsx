@@ -108,7 +108,7 @@ function brandItems(slug: string): RailItem[] {
       // brand record itself is edited. It maps to the existing brand-edit
       // page, which is the canonical brand-record editor.
       title: 'Setup',
-      url: `/b/${slug}/edit`,
+      url: `/b/${slug}/identity`,
       icon: Wrench,
       matchPrefixes: [
         `/b/${slug}/edit`,

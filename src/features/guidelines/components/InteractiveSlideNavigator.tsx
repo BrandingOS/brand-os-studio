@@ -74,13 +74,17 @@ export const InteractiveSlideNavigator: React.FC<InteractiveSlideNavigatorProps>
   };
 
   const handleDuplicateSlide = (slide: GuidelineSlide) => {
-    // Implementation would be in parent component
-    console.log('Duplicate slide:', slide.id);
+    const newSlide: GuidelineSlide = {
+      ...slide,
+      id: `${slide.id}-copy-${Date.now()}`,
+      title: `${slide.title} (Copy)`,
+      order: slide.order + 0.5,
+    };
+    onSlideUpdate(newSlide.id, newSlide);
   };
 
   const handleDeleteSlide = (slideId: string) => {
-    // Implementation would be in parent component
-    console.log('Delete slide:', slideId);
+    onSlideUpdate(slideId, { enabled: false });
   };
 
   const getSlideIcon = (type: string) => {

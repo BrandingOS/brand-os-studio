@@ -1,23 +1,21 @@
 import { useCallback } from 'react';
 import { useGuidelinesStore } from '../store/guidelinesStore';
+import { toast } from 'sonner';
 import type { GuidelineSettings, GuidelineSlide } from '../types/guidelines';
 
 export const useGuidelinesEditor = () => {
   const store = useGuidelinesStore();
 
   const exportGuidelines = useCallback(async (format: 'pdf' | 'png' | 'jpg') => {
-    // TODO: Implement export functionality
-    console.log('Exporting guidelines as', format);
+    toast.info(`Export as ${format.toUpperCase()} — coming soon.`);
   }, []);
 
   const saveAsTemplate = useCallback(async (templateName: string) => {
-    // TODO: Implement save as template functionality
-    console.log('Saving as template:', templateName);
+    toast.info(`Save "${templateName}" as template — coming soon.`);
   }, []);
 
   const generateSlideFromAI = useCallback(async (slideType: string, prompt: string) => {
-    // TODO: Implement AI generation functionality
-    console.log('Generating slide:', slideType, prompt);
+    toast.info(`AI slide generation — coming soon.`);
   }, []);
 
   const previewSlide = useCallback((slideId: string) => {

@@ -12,6 +12,7 @@
  */
 import * as React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import {
   BookOpen,
@@ -106,7 +107,7 @@ export default function GuidelinesHubPage() {
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
               Slide Editor
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={() => toast.info('PDF export — coming soon.')}>
               <Download className="h-3.5 w-3.5 mr-1.5" />
               Download PDF
             </Button>

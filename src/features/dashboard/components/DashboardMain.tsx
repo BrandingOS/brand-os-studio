@@ -275,7 +275,7 @@ function _LegacyDashboardMain() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/b/${brand.slug}/edit`);
+                          navigate(`/b/${brand.slug}/identity`);
                         }}
                         className="text-xs"
                       >

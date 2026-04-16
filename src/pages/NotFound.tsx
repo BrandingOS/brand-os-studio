@@ -1,17 +1,11 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    console.error(
-      "404 Error: User attempted to access non-existent route:",
-      location.pathname
-    );
-  }, [location.pathname]);
+  // 404 is a normal navigation event, not an error.
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
@@ -21,12 +15,15 @@ const NotFound = () => {
         <p className="mt-2 text-muted-foreground">
           The page <code className="px-1.5 py-0.5 rounded bg-muted text-sm">{location.pathname}</code> doesn't exist or has been moved.
         </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Button variant="default" onClick={() => navigate("/dashboard")}>
             Go to Dashboard
           </Button>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            Go to Home
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+          <Button variant="ghost" onClick={() => navigate("/")}>
+            Home
           </Button>
         </div>
       </div>

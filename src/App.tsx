@@ -417,6 +417,34 @@ const App = () => (
               <DesignWithAiPage />
             </ProtectedRoute>
           } />
+          {/* Short-form aliases for brand-scoped fullscreen pages
+              (social-media, presentations, brand-guides, logo-presentation).
+              These were only reachable via the long-form /dashboard/brand/:slug/... URLs. */}
+          <Route path="/b/:slug/social-media" element={
+            <ProtectedRoute>
+              <SocialMediaPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/presentations" element={
+            <ProtectedRoute>
+              <PresentationsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/brand-guides" element={
+            <ProtectedRoute>
+              <BrandGuidesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/logo-presentation" element={
+            <ProtectedRoute>
+              <LogoPresentationPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guidelines/canvas" element={
+            <ProtectedRoute>
+              <CanvasGuidelinesPage />
+            </ProtectedRoute>
+          } />
           {/* Bento Grid — brand-scoped, fullscreen. */}
           <Route path="/b/:slug/bento" element={
             <ProtectedRoute>

@@ -180,11 +180,11 @@ function OverviewTab({ brand }: { brand: any }) {
         <div className="space-y-3">
           <div>
             <p className="text-sm font-medium text-muted-foreground">Tone</p>
-            <p className="capitalize">{brand.tone}</p>
+            <p className="capitalize">{brand.tone || 'Not set'}</p>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">Target Audience</p>
-            <p className="capitalize">{brand.audience}</p>
+            <p className="capitalize">{brand.audience || 'Not set'}</p>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">Created</p>

@@ -13,17 +13,24 @@ export function useBrandPreview() {
   const [editedData, setEditedData] = useState<Partial<CreateBrandInput>>({});
 
   // Get brand data from either onboarding answers or current brand
+  // Read from both new and legacy step IDs (same logic as useOnboardingFlow)
+  const basics = answers['brand-basics'] || answers['company-basics'] || answers['brand-info'] || {};
+  const audience = answers['audience-market'] || answers['target-audience'] || {};
+  const personality = answers['brand-personality'] || answers['brand-profile'] || {};
+  const visuals = answers['visual-preferences'] || answers['style-values'] || {};
+  const logoAssets = answers['logo-assets'] || answers['upload-assets'] || {};
+
   const brandData = currentBrand || {
-    name: answers['brand-name'] || 'Untitled Brand',
-    logo: answers['logo-upload'],
-    primaryColor: answers['primary-color'] || '#000000',
-    secondaryColor: answers['secondary-color'],
+    name: basics.brandName || basics.name || 'Untitled Brand',
+    logo: logoAssets.primary?.url,
+    primaryColor: visuals.customColors?.[0] || visuals.primaryColor || '#000000',
+    secondaryColor: visuals.customColors?.[1] || visuals.secondaryColor,
     fonts: {
-      primary: answers['primary-font'] || 'Inter',
-      secondary: answers['secondary-font'],
+      primary: logoAssets.fonts?.primary || 'Inter',
+      secondary: logoAssets.fonts?.secondary,
     },
-    tone: answers['tone'] || 'Professional',
-    audience: answers['audience'] || 'General',
+    tone: personality.tone || 'Professional',
+    audience: audience.description || (typeof audience === 'string' ? audience : 'General'),
   };
 
   const previewData = isEditing ? { ...brandData, ...editedData } : brandData;
@@ -62,7 +69,6 @@ export function useBrandPreview() {
       setEditedData({});
     } catch (error) {
       console.error('Failed to save brand:', error);
-      alert('Failed to save brand. Please try again.');
     }
   };
 

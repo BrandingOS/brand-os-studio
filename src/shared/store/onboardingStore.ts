@@ -154,7 +154,6 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
 
       reset: () => {
-        console.log('Resetting onboarding store');
         
         // Clear from Supabase for authenticated users
         const { mode } = useSessionStore.getState();

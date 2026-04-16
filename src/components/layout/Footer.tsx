@@ -35,7 +35,7 @@ export default function Footer() {
 
           <div className="relative grid gap-12 md:grid-cols-12">
             <div className="md:col-span-5">
-              <a href="#" className="inline-flex items-center gap-2.5">
+              <a href="/" className="inline-flex items-center gap-2.5">
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-background text-foreground">
                   <Building2 className="h-4 w-4" />
                 </span>
@@ -84,7 +84,7 @@ export default function Footer() {
               &copy; {new Date().getFullYear()} Brand OS. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-xs text-white/45">
-              <span className="cursor-default">Privacy</span>
+              <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy</a>
               <span className="cursor-default">Terms</span>
               <span className="cursor-default">Cookies</span>
             </div>
