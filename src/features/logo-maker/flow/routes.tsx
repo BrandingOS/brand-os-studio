@@ -9,6 +9,7 @@ const EditorScreen = lazy(() => import('./screens/04-editor'));
 const BrandKitScreen = lazy(() => import('./screens/05-brand-kit'));
 const CompleteScreen = lazy(() => import('./screens/06-complete'));
 const UploadScreen = lazy(() => import('./screens/upload'));
+const VariantStudioScreen = lazy(() => import('./screens/variant-studio'));
 
 const Fallback = <div className="p-8 text-muted-foreground">Loading…</div>;
 const wrap = (node: React.ReactNode) => <Suspense fallback={Fallback}>{node}</Suspense>;
@@ -21,6 +22,7 @@ export const logoMakerFlowRoutes = (
     <Route path="generate" element={wrap(<GenerateScreen />)} />
     <Route path="upload" element={wrap(<UploadScreen />)} />
     <Route path="editor/:logoId" element={wrap(<EditorScreen />)} />
+    <Route path="variants/:logoId" element={wrap(<VariantStudioScreen />)} />
     <Route path="brand-kit/:logoId" element={wrap(<BrandKitScreen />)} />
     <Route path="complete/:brandId" element={wrap(<CompleteScreen />)} />
   </Route>

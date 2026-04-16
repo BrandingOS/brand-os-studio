@@ -149,8 +149,8 @@ export default function EditorScreen() {
             </Button>
             <div className="w-px h-5 bg-border mx-1" />
             <Button asChild size="sm" className="gap-2">
-              <Link to={`/logo-maker/brand-kit/${logoId}`}>
-                Build brand kit
+              <Link to={`/logo-maker/variants/${logoId}`}>
+                Generate variants
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </Button>
