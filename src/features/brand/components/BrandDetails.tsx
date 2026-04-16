@@ -8,6 +8,7 @@ import { Button } from '@/shared/components/Button';
 import { Card } from '@/shared/components/Card';
 import { Section } from '@/shared/components/Section';
 import { ArrowLeft, Edit, Plus, Download, ExternalLink, Upload, Settings, FileText, Palette, Type, Loader2 } from 'lucide-react';
+import { useBrandSettingsSafe } from '@/shared/brand-settings';
 
 interface BrandDetailsProps {
   brandSlug: string;
@@ -25,6 +26,7 @@ export function BrandDetails({ brandSlug }: BrandDetailsProps) {
   const navigate = useNavigate();
   const { current: brand, loadBySlug, isLoading, error } = useBrandStore();
   const [activeTab, setActiveTab] = useState('overview');
+  const settings = useBrandSettingsSafe();
 
   useEffect(() => {
     loadBySlug(brandSlug);
@@ -58,7 +60,23 @@ export function BrandDetails({ brandSlug }: BrandDetailsProps) {
       case 'overview':
         return <OverviewTab brand={brand} />;
       case 'info':
-        return <BrandEditor brand={brand} />;
+        return (
+          <>
+            {settings && (
+              <div className="mb-4">
+                <Button
+                  variant="outline"
+                  onClick={() => settings.openSettingsTab('general')}
+                  className="flex items-center gap-2"
+                >
+                  <Settings className="h-4 w-4" />
+                  Edit in Brand Settings
+                </Button>
+              </div>
+            )}
+            <BrandEditor brand={brand} />
+          </>
+        );
       case 'guidelines':
         return <GuidelinesTab brand={brand} />;
       case 'assets':

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Upload, Trash2, Download } from 'lucide-react';
+import { Image, Upload, Trash2, Download, Settings } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { services } from '@/shared/services/registry';
@@ -7,6 +7,7 @@ import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import { compressLogo } from '@/shared/utils/imageUpload';
 import type { Brand } from '@/shared/types/brand';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
+import { useBrandSettingsSafe } from '@/shared/brand-settings';
 
 interface LogoToolProps {
   brandId: string;
@@ -16,6 +17,7 @@ export function LogoTool({ brandId }: LogoToolProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const settings = useBrandSettingsSafe();
 
   const { updateBrand } = useBrandUpdate();
 
@@ -107,6 +109,13 @@ export function LogoTool({ brandId }: LogoToolProps) {
         <Image className="h-5 w-5" />
         <h2 className="text-xl font-semibold">Logo Management</h2>
       </div>
+
+      {settings && (
+        <Button size="sm" variant="outline" onClick={() => settings.openSettingsTab('general')} className="mb-4">
+          <Settings className="h-3.5 w-3.5 mr-1" />
+          Edit in Brand Settings
+        </Button>
+      )}
 
       {/* Current Logo */}
       {hasLogo(brand) && (

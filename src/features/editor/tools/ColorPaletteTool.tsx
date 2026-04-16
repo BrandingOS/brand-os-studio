@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Palette, Check, AlertTriangle, Lightbulb } from 'lucide-react';
+import { Palette, Check, AlertTriangle, Lightbulb, Settings } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
@@ -7,6 +7,7 @@ import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import { services } from '@/shared/services/registry';
 import { analyzeContrast, contrastMatrix, suggestAccessibleColor, type ContrastResult } from '@/shared/utils/color-utils';
 import type { Brand } from '@/shared/types/brand';
+import { useBrandSettingsSafe } from '@/shared/brand-settings';
 
 interface ColorPaletteToolProps {
   brandId: string;
@@ -34,6 +35,7 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { updateBrandSilent } = useBrandUpdate();
+  const settings = useBrandSettingsSafe();
 
   useEffect(() => { loadBrand(); }, [brandId]);
 
@@ -105,6 +107,13 @@ export function ColorPaletteTool({ brandId }: ColorPaletteToolProps) {
         <Palette className="h-5 w-5" />
         <h2 className="text-xl font-semibold">Color Palette</h2>
       </div>
+
+      {settings && (
+        <Button size="sm" variant="outline" onClick={() => settings.openSettingsTab('colors')} className="mb-4">
+          <Settings className="h-3.5 w-3.5 mr-1" />
+          Edit in Brand Settings
+        </Button>
+      )}
 
       {/* Primary Color */}
       <Card className="p-4">

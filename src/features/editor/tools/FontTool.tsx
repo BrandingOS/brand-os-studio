@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Type, Check } from 'lucide-react';
+import { Type, Check, Settings } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { services } from '@/shared/services/registry';
 import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import type { Brand } from '@/shared/types/brand';
+import { useBrandSettingsSafe } from '@/shared/brand-settings';
 
 interface FontToolProps {
   brandId: string;
@@ -50,6 +51,7 @@ export function FontTool({ brandId }: FontToolProps) {
   const [primaryFont, setPrimaryFont] = useState('Inter');
   const [secondaryFont, setSecondaryFont] = useState('Inter');
   const [isSaving, setIsSaving] = useState(false);
+  const settings = useBrandSettingsSafe();
 
   useEffect(() => {
     loadBrand();
@@ -121,6 +123,13 @@ export function FontTool({ brandId }: FontToolProps) {
         <Type className="h-5 w-5" />
         <h2 className="text-xl font-semibold">Typography</h2>
       </div>
+
+      {settings && (
+        <Button size="sm" variant="outline" onClick={() => settings.openSettingsTab('typography')} className="mb-4">
+          <Settings className="h-3.5 w-3.5 mr-1" />
+          Edit in Brand Settings
+        </Button>
+      )}
 
       {/* Primary Font */}
       <Card className="p-4">

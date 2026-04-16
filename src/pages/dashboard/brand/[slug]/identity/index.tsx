@@ -19,7 +19,7 @@ import { PageHeader } from '@/shared/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Pencil } from 'lucide-react';
 import { LogoFilesModule } from '@/features/brandkit/components/LogoFilesModule';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { BrandVoiceModule } from '@/features/brandkit/components/BrandVoiceModul
 import { BrandStrategyModule } from '@/features/brandkit/components/BrandStrategyModule';
 import type { Brand } from '@/shared/types/brand';
 import { Image as ImageIcon, Palette, Type, MessageCircle, Target } from 'lucide-react';
+import { useBrandSettings } from '@/shared/brand-settings';
 
 const TABS = ['logo', 'colors', 'typography', 'voice', 'strategy'] as const;
 type TabId = (typeof TABS)[number];
@@ -89,6 +90,8 @@ export default function IdentityPage() {
 
   useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
 
+  const { openSettingsTab } = useBrandSettings();
+
   // ColorSystemModule is the only identity module that needs an updater.
   // Mirror the pattern used by BrandKitModuleView.
   const handleBrandUpdate = useCallback(
@@ -137,6 +140,16 @@ export default function IdentityPage() {
           </TabsList>
 
           <TabsContent value="logo" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Logo</h2>
+                <p className="text-sm text-muted-foreground">Your brand's logo files and variants.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => openSettingsTab('general')}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
             {/* Variant Studio entry — the missing-variants generator. The
                 studio mounts inside the editor scope (its own h-12 shell)
                 so this is a navigation, not an inline embed. */}
@@ -159,19 +172,59 @@ export default function IdentityPage() {
             <LogoFilesModule brand={brand} />
           </TabsContent>
 
-          <TabsContent value="colors" className="mt-6">
+          <TabsContent value="colors" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Colors</h2>
+                <p className="text-sm text-muted-foreground">Brand color system and palettes.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => openSettingsTab('colors')}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
             <ColorSystemModule brand={brand} onUpdate={handleBrandUpdate} />
           </TabsContent>
 
-          <TabsContent value="typography" className="mt-6">
+          <TabsContent value="typography" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Typography</h2>
+                <p className="text-sm text-muted-foreground">Font families and type scale.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => openSettingsTab('typography')}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
             <TypographyModule brand={brand} />
           </TabsContent>
 
-          <TabsContent value="voice" className="mt-6">
+          <TabsContent value="voice" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Voice</h2>
+                <p className="text-sm text-muted-foreground">Brand tone and communication style.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => openSettingsTab('voice')}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
             <BrandVoiceModule brand={brand} />
           </TabsContent>
 
-          <TabsContent value="strategy" className="mt-6">
+          <TabsContent value="strategy" className="mt-6 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold">Strategy</h2>
+                <p className="text-sm text-muted-foreground">Vision, mission, values, and positioning.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => openSettingsTab('strategy')}>
+                <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                Edit
+              </Button>
+            </div>
             <BrandStrategyModule brand={brand} />
           </TabsContent>
         </Tabs>

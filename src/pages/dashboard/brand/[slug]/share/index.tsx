@@ -20,6 +20,7 @@ import {
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { useActiveAnchor, type InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { activityService } from '@/shared/services/activityService';
+import { useBrandSettings } from '@/shared/brand-settings';
 
 const SHARE_ANCHORS = ['visibility', 'showcase', 'embed', 'portal', 'logo-deck', 'guidelines-export'];
 
@@ -29,6 +30,7 @@ export default function SharePage() {
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const { update } = useBrandStore();
   const [toggling, setToggling] = useState(false);
+  const { openSettingsTab } = useBrandSettings();
 
   const showcaseUrl = `${window.location.origin}/brand/${slug}/showcase`;
   const portalUrl = `${window.location.origin}/p/${slug}`;
@@ -117,6 +119,12 @@ export default function SharePage() {
             {isPublic ? <><EyeOff className="h-3.5 w-3.5" />Make Private</> : <><Eye className="h-3.5 w-3.5" />Make Public</>}
           </Button>
         </div>
+        <button
+          onClick={() => openSettingsTab('sharing')}
+          className="text-xs text-primary hover:underline mt-3"
+        >
+          More sharing options in Brand Settings &rarr;
+        </button>
       </Card>
 
       {/* Public Showcase */}

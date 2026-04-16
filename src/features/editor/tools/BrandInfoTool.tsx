@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, X, Plus } from 'lucide-react';
+import { FileText, X, Plus, Settings } from 'lucide-react';
 import { Button } from '@/shared/ui/Button';
 import { Card } from '@/shared/ui/Card';
 import { Input } from '@/shared/ui/Input';
 import { services } from '@/shared/services/registry';
 import { useBrandUpdate } from '@/shared/hooks/useBrandUpdate';
 import type { Brand, BrandStrategy } from '@/shared/types/brand';
+import { useBrandSettingsSafe } from '@/shared/brand-settings';
 
 interface BrandInfoToolProps {
   brandId: string;
@@ -15,6 +16,7 @@ export function BrandInfoTool({ brandId }: BrandInfoToolProps) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { updateBrandSilent } = useBrandUpdate();
+  const settings = useBrandSettingsSafe();
 
   const [vision, setVision] = useState('');
   const [mission, setMission] = useState('');
@@ -128,6 +130,13 @@ export function BrandInfoTool({ brandId }: BrandInfoToolProps) {
         <FileText className="h-5 w-5" />
         <h2 className="text-xl font-semibold">Brand Strategy</h2>
       </div>
+
+      {settings && (
+        <Button size="sm" variant="outline" onClick={() => settings.openSettingsTab('strategy')} className="mb-4">
+          <Settings className="h-3.5 w-3.5 mr-1" />
+          Edit in Brand Settings
+        </Button>
+      )}
 
       {/* Brand Vision */}
       <Card className="p-4">
