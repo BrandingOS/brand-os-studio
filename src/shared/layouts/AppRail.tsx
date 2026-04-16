@@ -45,6 +45,8 @@ import {
   LayoutTemplate,
   Compass,
   Wand2,
+  LayoutGrid,
+  PenTool,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -167,10 +169,21 @@ function brandItems(slug: string): RailItem[] {
     },
     {
       // Brand-scoped templates (different from the workspace marketplace).
-      // Mounted as a stub page until the brand templates feature ships.
       title: 'Templates',
       url: `/b/${slug}/templates`,
       icon: LayoutTemplate,
+    },
+    {
+      // Bento Grid — visual brand showcase layout builder.
+      title: 'Bento',
+      url: `/b/${slug}/bento`,
+      icon: LayoutGrid,
+    },
+    {
+      // Design Editor — canvas-based design tool for the brand.
+      title: 'Editor',
+      url: `/editor/design/${slug}`,
+      icon: PenTool,
     },
   ];
 }
