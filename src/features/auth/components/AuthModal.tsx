@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, User, Eye, EyeOff, UserCheck } from 'lucide-react';
-import { FaGoogle, FaFacebook } from 'react-icons/fa';
+import { Mail, Lock, User, Eye, EyeOff, UserCheck, Loader2 } from 'lucide-react';
+import { FaGoogle } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
@@ -28,27 +28,45 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     confirmPassword: ''
   });
 
-  const { login, register, loginWithGoogle, loginWithFacebook, resetPassword, isLoading } = useAuth();
+  // Sync internal mode with prop when it changes (fixes stale state on reopen)
+  useEffect(() => {
+    if (isOpen) {
+      setMode(defaultMode);
+    }
+  }, [isOpen, defaultMode]);
+
+  const { login, register, loginWithGoogle, resetPassword, isLoading } = useAuth();
   const { switchToGuest } = useSessionStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       if (mode === 'login') {
-        const result = await login(formData.email, formData.password);
-        console.log('[AuthModal] Login result:', result);
-        
-        if (!result?.session) {
-          toast.error('Login failed - no session created');
+        if (!formData.email || !formData.password) {
+          toast.error('Please enter your email and password');
           return;
         }
-        
+        const result = await login(formData.email, formData.password);
+
+        if (!result?.session) {
+          toast.error('Login failed — please check your email and password');
+          return;
+        }
+
         toast.success('Welcome back!');
         onClose();
         navigate('/dashboard');
       } else if (mode === 'register') {
+        if (!formData.email || !formData.password) {
+          toast.error('Please fill in all required fields');
+          return;
+        }
+        if (formData.password.length < 6) {
+          toast.error('Password must be at least 6 characters');
+          return;
+        }
         if (formData.password !== formData.confirmPassword) {
           toast.error('Passwords do not match');
           return;
@@ -58,25 +76,42 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
         onClose();
         navigate('/dashboard');
       } else if (mode === 'forgot') {
+        if (!formData.email) {
+          toast.error('Please enter your email address');
+          return;
+        }
         await resetPassword(formData.email);
-        toast.success('Password reset email sent!');
+        toast.success('Password reset email sent! Check your inbox.');
         setMode('login');
       }
     } catch (error: any) {
-      console.error('[AuthModal] Error:', error);
-      toast.error(error.message || 'An error occurred');
+      const msg = error?.message || 'An error occurred';
+      // Surface common Supabase errors clearly
+      if (msg.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password. Please try again.');
+      } else if (msg.includes('Email not confirmed')) {
+        toast.error('Please verify your email before signing in. Check your inbox.');
+      } else if (msg.includes('User already registered')) {
+        toast.error('An account with this email already exists. Try signing in instead.');
+      } else if (msg.includes('rate limit') || msg.includes('too many requests')) {
+        toast.error('Too many attempts. Please wait a moment and try again.');
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'facebook') => {
+  const handleGoogleLogin = async () => {
     try {
-      if (provider === 'google') {
-        await loginWithGoogle();
-      } else {
-        await loginWithFacebook();
-      }
+      await loginWithGoogle();
+      // OAuth redirects the page — no need for toast/navigate here
     } catch (error: any) {
-      toast.error(error.message || 'Social login failed');
+      const msg = error?.message || 'Google sign-in failed';
+      if (msg.includes('provider is not enabled')) {
+        toast.error('Google sign-in is not configured yet. Please use email/password.');
+      } else {
+        toast.error(msg);
+      }
     }
   };
 
@@ -115,21 +150,15 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                     type="button"
                     variant="outline"
                     className="w-full h-11 gap-3"
-                    onClick={() => handleSocialLogin('google')}
+                    onClick={handleGoogleLogin}
                     disabled={isLoading}
                   >
-                    <FaGoogle className="w-4 h-4" />
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FaGoogle className="w-4 h-4" />
+                    )}
                     Continue with Google
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-11 gap-3"
-                    onClick={() => handleSocialLogin('facebook')}
-                    disabled={isLoading}
-                  >
-                    <FaFacebook className="w-4 h-4 text-[#1877F2]" />
-                    Continue with Facebook
                   </Button>
                 </div>
 
@@ -171,7 +200,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                   <Input
                     id="email"
                     type="email"
-                    placeholder="admin@brandos.com"
+                    placeholder="you@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="pl-10"
@@ -230,38 +259,46 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                 className="w-full h-11 mt-6"
                 disabled={isLoading}
               >
-                {isLoading ? 'Loading...' : 
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {mode === 'login' ? 'Signing in...' :
+                     mode === 'register' ? 'Creating account...' :
+                     'Sending email...'}
+                  </>
+                ) : (
                   mode === 'login' ? 'Sign In' :
                   mode === 'register' ? 'Create Account' :
                   'Send Reset Email'
-                 }
-               </Button>
-             </form>
+                )}
+              </Button>
+            </form>
 
-             {/* Guest Mode Button */}
-             <div className="mt-4">
-               <div className="relative mb-4">
-                 <Separator />
-                 <div className="absolute inset-0 flex items-center justify-center">
-                   <span className="bg-background px-3 text-sm text-muted-foreground">
-                     or
-                   </span>
-                 </div>
-               </div>
-               <Button
-                 type="button"
-                 variant="secondary"
-                 className="w-full h-11 gap-2"
-                 onClick={handleGuestMode}
-                 disabled={isLoading}
-               >
-                 <UserCheck className="w-4 h-4" />
-                 Continue as Guest
-               </Button>
-             </div>
+            {/* Guest Mode Button */}
+            <div className="mt-4">
+              <div className="relative mb-4">
+                <Separator />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="bg-background px-3 text-sm text-muted-foreground">
+                    or
+                  </span>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full h-11 gap-2"
+                onClick={handleGuestMode}
+                disabled={isLoading}
+              >
+                <UserCheck className="w-4 h-4" />
+                Continue as Guest
+              </Button>
+            </div>
 
-             {/* Footer Links */}
-             <div className="mt-6 text-center text-sm">{mode === 'login' && (
+            {/* Footer Links */}
+            <div className="mt-6 text-center text-sm">
+              {mode === 'login' && (
                 <>
                   <button
                     type="button"

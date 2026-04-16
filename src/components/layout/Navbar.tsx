@@ -62,7 +62,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     onClick={() => { setAuthMode('login'); setShowAuth(true); }}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     Sign In
                   </button>

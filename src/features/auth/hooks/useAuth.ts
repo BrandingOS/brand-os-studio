@@ -176,22 +176,7 @@ export const useAuth = () => {
     }
   };
 
-  const loginWithFacebook = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'facebook',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-      
-      if (error) throw error;
-      return data;
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Facebook OAuth was removed — only Google + email/password supported.
 
   const logout = async () => {
     setLoading(true);
@@ -223,7 +208,6 @@ export const useAuth = () => {
     login,
     register,
     loginWithGoogle,
-    loginWithFacebook,
     logout,
     resetPassword
   };
