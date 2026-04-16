@@ -152,41 +152,13 @@ function hslStringToHex(hsl: string): string {
 
 export function ColorsPanel() {
   const draft = useBrandBoardStore((s) => s.draft);
-  const setColors = useBrandBoardStore((s) => s.setColors);
+  const setColor = useBrandBoardStore((s) => s.setColor);
+  const setNeutrals = useBrandBoardStore((s) => s.setNeutrals);
+  const addColor = useBrandBoardStore((s) => s.addColor);
+  const shuffleColors = useBrandBoardStore((s) => s.shuffleColors);
+  const toggleDarkMode = useBrandBoardStore((s) => s.toggleDarkMode);
 
   const { primary, secondary, accent } = draft.colors;
-
-  // Build extra accent colors list (beyond the core 3)
-  // For now we track extra accents via the store's colors object
-  // We store them as accent2, accent3 etc. but the store only has primary/secondary/accent
-  // So we just show the 3 core colors as cards
-
-  const handleShuffleColors = () => {
-    const { shuffleColorScheme } = require('../engine/shuffle');
-    const scheme = shuffleColorScheme(primary);
-    setColors({
-      primary: scheme.primary,
-      secondary: scheme.secondary,
-      accent: scheme.accent,
-      neutrals: scheme.neutrals,
-    });
-  };
-
-  const handleToggleDarkMode = () => {
-    const { background, foreground } = draft.colors;
-    // Simple toggle: swap background and foreground
-    if (background === '#ffffff' || background.toLowerCase() === '#fff') {
-      setColors({
-        background: '#111827',
-        foreground: '#f9fafb',
-      });
-    } else {
-      setColors({
-        background: '#ffffff',
-        foreground: '#111827',
-      });
-    }
-  };
 
   // Auto-generate neutrals from primary hue
   const neutrals = draft.colors.neutrals.length > 0
@@ -202,7 +174,7 @@ export function ColorsPanel() {
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
-            onClick={handleToggleDarkMode}
+            onClick={toggleDarkMode}
             title="Toggle dark mode"
           >
             {draft.colors.background === '#ffffff' || draft.colors.background.toLowerCase() === '#fff' ? (
@@ -215,7 +187,7 @@ export function ColorsPanel() {
             variant="ghost"
             size="sm"
             className="h-7 w-7 p-0"
-            onClick={handleShuffleColors}
+            onClick={shuffleColors}
             title="Shuffle colors"
           >
             <Shuffle className="h-3.5 w-3.5" />
@@ -230,23 +202,23 @@ export function ColorsPanel() {
           label={colorName(primary)}
           badge="Main"
           onChange={(hex) => {
-            const neutrals = generateNeutrals(hueFromHex(hex));
-            setColors({ primary: hex, neutrals });
+            setColor('primary', hex);
+            setNeutrals(generateNeutrals(hueFromHex(hex)));
           }}
         />
         <ColorCard
           color={secondary}
           label={colorName(secondary)}
           removable
-          onChange={(hex) => setColors({ secondary: hex })}
-          onRemove={() => setColors({ secondary: '#94a3b8' })}
+          onChange={(hex) => setColor('secondary', hex)}
+          onRemove={() => setColor('secondary', '#94a3b8')}
         />
         <ColorCard
           color={accent}
           label={colorName(accent)}
           removable
-          onChange={(hex) => setColors({ accent: hex })}
-          onRemove={() => setColors({ accent: '#f59e0b' })}
+          onChange={(hex) => setColor('accent', hex)}
+          onRemove={() => setColor('accent', '#f59e0b')}
         />
         {/* Add color button */}
         <button
@@ -254,8 +226,7 @@ export function ColorsPanel() {
           className="aspect-[3/4] min-h-[120px] rounded-xl border-2 border-dashed border-border/60 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
           onClick={() => {
             const hex = hslStringToHex(randomAccent());
-            // Rotate into accent slot as a simple add behavior
-            setColors({ accent: hex });
+            addColor(hex);
           }}
         >
           <Plus className="h-5 w-5" />

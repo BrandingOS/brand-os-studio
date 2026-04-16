@@ -1,8 +1,10 @@
 import { Shuffle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBrandBoardStore, type ShadowIntensity, type Spacing } from '../store/useBrandBoardStore';
+import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { SHADOW_MAP } from '../engine/uiPresets';
-import { shuffleUIStyle } from '../engine/shuffle';
+
+type ShadowIntensity = 'none' | 'subtle' | 'medium' | 'bold';
+type Spacing = 'compact' | 'comfortable' | 'spacious';
 
 const SHADOW_OPTIONS: { value: ShadowIntensity; label: string }[] = [
   { value: 'none', label: 'None' },
@@ -19,17 +21,15 @@ const SPACING_OPTIONS: { value: Spacing; label: string }[] = [
 
 export function UIStylingPanel() {
   const draft = useBrandBoardStore((s) => s.draft);
-  const setUIStyle = useBrandBoardStore((s) => s.setUIStyle);
+  const setBorderRadius = useBrandBoardStore((s) => s.setBorderRadius);
+  const setShadowIntensity = useBrandBoardStore((s) => s.setShadowIntensity);
+  const setSpacing = useBrandBoardStore((s) => s.setSpacing);
+  const shuffleUI = useBrandBoardStore((s) => s.shuffleUI);
 
   const { borderRadius, shadowIntensity, spacing } = draft.uiStyle;
 
   const handleShuffle = () => {
-    const preset = shuffleUIStyle();
-    setUIStyle({
-      borderRadius: preset.borderRadius,
-      shadowIntensity: preset.shadowIntensity as ShadowIntensity,
-      spacing: preset.spacing as Spacing,
-    });
+    shuffleUI();
   };
 
   return (
@@ -63,7 +63,7 @@ export function UIStylingPanel() {
           max={24}
           step={2}
           value={borderRadius}
-          onChange={(e) => setUIStyle({ borderRadius: Number(e.target.value) })}
+          onChange={(e) => setBorderRadius(Number(e.target.value))}
           className="w-full accent-primary h-1.5"
         />
       </div>
@@ -83,7 +83,7 @@ export function UIStylingPanel() {
                   ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                   : 'border-border/60 hover:border-border'
               }`}
-              onClick={() => setUIStyle({ shadowIntensity: opt.value })}
+              onClick={() => setShadowIntensity(opt.value)}
             >
               <div
                 className="w-8 h-6 rounded bg-background border border-border/40"
@@ -113,7 +113,7 @@ export function UIStylingPanel() {
                   ? 'bg-primary text-primary-foreground font-medium'
                   : 'bg-background hover:bg-muted/60 text-muted-foreground'
               }`}
-              onClick={() => setUIStyle({ spacing: opt.value })}
+              onClick={() => setSpacing(opt.value)}
             >
               {opt.label}
             </button>

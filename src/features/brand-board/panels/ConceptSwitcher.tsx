@@ -1,48 +1,27 @@
 import { useState } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBrandBoardStore, type BrandBoardDraft } from '../store/useBrandBoardStore';
-
-interface SavedConcept {
-  id: number;
-  label: string;
-  draft: BrandBoardDraft;
-}
+import { useBrandBoardStore } from '../store/useBrandBoardStore';
 
 const MAX_CONCEPTS = 5;
 
 export function ConceptSwitcher() {
-  const draft = useBrandBoardStore((s) => s.draft);
-  const setDraft = useBrandBoardStore((s) => s.setDraft);
-  const setColors = useBrandBoardStore((s) => s.setColors);
-  const setTypography = useBrandBoardStore((s) => s.setTypography);
-  const setUIStyle = useBrandBoardStore((s) => s.setUIStyle);
-  const setBrandName = useBrandBoardStore((s) => s.setBrandName);
+  const concepts = useBrandBoardStore((s) => s.concepts);
+  const activeConcept = useBrandBoardStore((s) => s.activeConcept);
+  const saveConcept = useBrandBoardStore((s) => s.saveConcept);
+  const loadConcept = useBrandBoardStore((s) => s.loadConcept);
+  const deleteConcept = useBrandBoardStore((s) => s.deleteConcept);
 
-  const [concepts, setConcepts] = useState<SavedConcept[]>([]);
-  const [activeId, setActiveId] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
 
-  const loadConcept = (concept: SavedConcept) => {
-    const d = concept.draft;
-    setBrandName(d.brandName);
-    setColors(d.colors);
-    setTypography(d.typography);
-    setUIStyle(d.uiStyle);
-    setActiveId(concept.id);
+  const handleSave = () => {
+    if (concepts.length >= MAX_CONCEPTS) return;
+    saveConcept();
     setOpen(false);
   };
 
-  const saveConcept = () => {
-    if (concepts.length >= MAX_CONCEPTS) return;
-    const id = Date.now();
-    const newConcept: SavedConcept = {
-      id,
-      label: `Concept ${concepts.length + 1}`,
-      draft: JSON.parse(JSON.stringify(draft)),
-    };
-    setConcepts((prev) => [...prev, newConcept]);
-    setActiveId(id);
+  const handleLoad = (index: number) => {
+    loadConcept(index);
     setOpen(false);
   };
 
@@ -54,8 +33,8 @@ export function ConceptSwitcher() {
         className="text-xs gap-1.5"
         onClick={() => setOpen(!open)}
       >
-        {activeId
-          ? concepts.find((c) => c.id === activeId)?.label ?? 'Concepts'
+        {activeConcept >= 0 && activeConcept < concepts.length
+          ? concepts[activeConcept].name
           : 'Concepts'}
         <span className="text-muted-foreground">
           ({concepts.length}/{MAX_CONCEPTS})
@@ -69,20 +48,30 @@ export function ConceptSwitcher() {
               No saved concepts yet
             </p>
           )}
-          {concepts.map((c) => (
+          {concepts.map((c, i) => (
             <button
-              key={c.id}
+              key={i}
               type="button"
               className={`w-full text-left text-sm px-3 py-2 hover:bg-muted/60 transition-colors flex items-center gap-2 ${
-                c.id === activeId ? 'bg-primary/5 text-primary font-medium' : ''
+                i === activeConcept ? 'bg-primary/5 text-primary font-medium' : ''
               }`}
-              onClick={() => loadConcept(c)}
+              onClick={() => handleLoad(i)}
             >
               <div
                 className="w-3 h-3 rounded-full shrink-0"
                 style={{ backgroundColor: c.draft.colors.primary }}
               />
-              {c.label}
+              <span className="flex-1 truncate">{c.name}</span>
+              <span
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteConcept(i);
+                }}
+                className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+              >
+                <Trash2 className="h-3 w-3" />
+              </span>
             </button>
           ))}
           {concepts.length < MAX_CONCEPTS && (
@@ -93,7 +82,7 @@ export function ConceptSwitcher() {
               <button
                 type="button"
                 className="w-full text-left text-sm px-3 py-2 hover:bg-muted/60 transition-colors flex items-center gap-2 text-muted-foreground"
-                onClick={saveConcept}
+                onClick={handleSave}
               >
                 <Save className="h-3.5 w-3.5" />
                 Save current as concept

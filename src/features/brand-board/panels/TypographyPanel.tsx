@@ -3,7 +3,6 @@ import { Shuffle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { FONT_PAIRINGS } from '../engine/fontPairings';
-import { shuffleFontPairing } from '../engine/shuffle';
 import { loadFontFamily } from '@/shared/design-system/fonts';
 
 type Weight = 'light' | 'regular' | 'bold';
@@ -100,8 +99,10 @@ function FontCard({ label, fontFamily, onSelect }: FontCardProps) {
 
 export function TypographyPanel() {
   const draft = useBrandBoardStore((s) => s.draft);
-  const setTypography = useBrandBoardStore((s) => s.setTypography);
-  const [weight, setWeight] = useState<Weight>('regular');
+  const setFont = useBrandBoardStore((s) => s.setFont);
+  const storeSetWeight = useBrandBoardStore((s) => s.setWeight);
+  const shuffleTypography = useBrandBoardStore((s) => s.shuffleTypography);
+  const [weight, setWeight] = useState<Weight>(draft.typography.weight ?? 'regular');
 
   // Load fonts when they change
   useEffect(() => {
@@ -110,14 +111,12 @@ export function TypographyPanel() {
   }, [draft.typography.heading, draft.typography.body]);
 
   const handleShuffle = () => {
-    const pairing = shuffleFontPairing();
-    setTypography({ heading: pairing.heading, body: pairing.body });
+    shuffleTypography();
   };
 
   const handleSetWeight = (w: Weight) => {
     setWeight(w);
-    // Weight is a display-only concept for the preview; stored implicitly
-    // through CSS font-weight in the preview components.
+    storeSetWeight(w);
   };
 
   return (
@@ -157,12 +156,12 @@ export function TypographyPanel() {
         <FontCard
           label="Heading"
           fontFamily={draft.typography.heading}
-          onSelect={(f) => setTypography({ heading: f })}
+          onSelect={(f) => setFont('heading', f)}
         />
         <FontCard
           label="Body"
           fontFamily={draft.typography.body}
-          onSelect={(f) => setTypography({ body: f })}
+          onSelect={(f) => setFont('body', f)}
         />
       </div>
     </section>
