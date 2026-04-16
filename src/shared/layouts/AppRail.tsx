@@ -117,28 +117,28 @@ function brandItems(slug: string): RailItem[] {
       title: 'Setup',
       url: `/b/${slug}/identity`,
       icon: Wrench,
-      group: 'Brand Identity',
+      group: 'Identity',
       matchPrefixes: [`/b/${slug}/edit`, `/b/${slug}/identity`],
     },
     {
       title: 'Brand Kit',
       url: `/b/${slug}/kit`,
       icon: Sparkles,
-      group: 'Brand Identity',
+      group: 'Identity',
       matchPrefixes: [`/b/${slug}/kit`, `/b/${slug}/brandkit`],
     },
     {
       title: 'Guidelines',
       url: `/b/${slug}/guidelines`,
       icon: BookOpen,
-      group: 'Brand Identity',
+      group: 'Identity',
       matchPrefixes: [`/b/${slug}/guidelines`, `/b/${slug}/brand-guides`],
     },
     {
       title: 'Board',
       url: `/b/${slug}/brand-board`,
       icon: LayoutPanelLeft,
-      group: 'Brand Identity',
+      group: 'Identity',
     },
 
     // ── CREATE — tools for making things ──────────────────────
