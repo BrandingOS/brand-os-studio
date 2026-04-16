@@ -46,6 +46,7 @@ import {
   Compass,
   Wand2,
   LayoutGrid,
+  LayoutPanelLeft,
   PenTool,
 } from 'lucide-react';
 import {
@@ -172,6 +173,11 @@ function brandItems(slug: string): RailItem[] {
       title: 'Templates',
       url: `/b/${slug}/templates`,
       icon: LayoutTemplate,
+    },
+    {
+      title: 'Board',
+      url: `/b/${slug}/brand-board`,
+      icon: LayoutPanelLeft,
     },
     {
       // Bento Grid — visual brand showcase layout builder.

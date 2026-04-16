@@ -76,6 +76,7 @@ const BrandBentoPage = lazy(() => import("./pages/dashboard/brand/[slug]/bento")
 const StandaloneBentoPage = lazy(() => import("./pages/dashboard/tools/bento"));
 const PublicBentoPage = lazy(() => import("./pages/brand/[slug]/bento/[bentoId]"));
 const ConsistencyStudioPage = lazy(() => import("./pages/dashboard/brand/[slug]/studio"));
+const BrandBoardPage = lazy(() => import("./features/brand-board/BrandBoardPage"));
 
 const DesignEditorPage = lazy(() => import('./pages/editor/design'));
 const StandaloneEditorPage = lazy(() => import('./pages/editor/index'));
@@ -458,6 +459,17 @@ const App = () => (
           <Route path="/b/:slug/guidelines/canvas" element={
             <ProtectedRoute>
               <CanvasGuidelinesPage />
+            </ProtectedRoute>
+          } />
+          {/* Brand Board — fullscreen brand identity explorer. */}
+          <Route path="/b/:slug/brand-board" element={
+            <ProtectedRoute>
+              <BrandBoardPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/brand-board" element={
+            <ProtectedRoute>
+              <BrandBoardPage />
             </ProtectedRoute>
           } />
           {/* Bento Grid — brand-scoped, fullscreen. */}
