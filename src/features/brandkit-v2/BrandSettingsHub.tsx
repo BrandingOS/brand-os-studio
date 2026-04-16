@@ -30,6 +30,8 @@ import {
 import { toast } from 'sonner';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { cn } from '@/lib/utils';
+import { useAssetUpload } from '@/shared/assets/useAssetUpload';
+import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 
 interface FormState {
   name: string;
@@ -57,15 +59,6 @@ const FONT_PRESETS = [
   'Poppins',
 ];
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export interface BrandSettingsHubProps {
   /** When true, renders without the outer card shell so it can sit inside another card. */
   bare?: boolean;
@@ -74,14 +67,17 @@ export interface BrandSettingsHubProps {
 export function BrandSettingsHub({ bare = false }: BrandSettingsHubProps) {
   const current = useBrandStore((s) => s.current);
   const updateBrand = useBrandStore((s) => s.update);
+  const { upload: uploadLogo, removeRole } = useAssetUpload(current?.id);
 
   const [form, setForm] = React.useState<FormState | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
 
-  // Hydrate when brand loads / changes
+  // Hydrate when brand loads / changes — always read logo via v3 resolver
+  // so we stay in sync whether the brand is migrated or still legacy.
   React.useEffect(() => {
     if (!current) return;
+    const resolvedLogo = resolveBrandLogo(current, 'primary')?.url ?? current.logo ?? '';
     setForm({
       name: current.name ?? '',
       tone: current.tone ?? '',
@@ -90,7 +86,7 @@ export function BrandSettingsHub({ bare = false }: BrandSettingsHubProps) {
       secondaryColor: current.secondaryColor ?? '',
       fontPrimary: current.fonts?.primary ?? 'Inter',
       fontSecondary: current.fonts?.secondary ?? '',
-      logo: current.logo ?? '',
+      logo: resolvedLogo,
     });
     setDirty(false);
   }, [current]);
@@ -108,9 +104,20 @@ export function BrandSettingsHub({ bare = false }: BrandSettingsHubProps) {
     setDirty(true);
   };
 
+  // v3 upload: writes BrandAsset + logoSystem.primary ref atomically
+  // through the store. No separate save step — the UI just reflects
+  // the new logo on the next render.
   const handleLogoUpload = async (file: File) => {
-    const dataUrl = await fileToDataUrl(file);
-    set('logo', dataUrl);
+    const asset = await uploadLogo(file, { role: 'primary', silent: true });
+    if (asset) {
+      const next = asset.formats.svg?.url ?? asset.formats.png?.url ?? asset.formats.webp?.url;
+      if (next) set('logo', next);
+    }
+  };
+
+  const handleLogoClear = async () => {
+    set('logo', '');
+    await removeRole('primary');
   };
 
   const handleSave = async () => {
@@ -118,9 +125,11 @@ export function BrandSettingsHub({ bare = false }: BrandSettingsHubProps) {
     setSaving(true);
     const id = toast.loading('Saving brand…');
     try {
+      // Logo writes are handled by useAssetUpload directly — don't
+      // include `logo` here or we'd overwrite the v3 ref with the
+      // resolved URL and break the single-source-of-truth invariant.
       await updateBrand(current.id, {
         name: form.name.trim() || current.name,
-        logo: form.logo || undefined,
         primaryColor: form.primaryColor,
         secondaryColor: form.secondaryColor || undefined,
         fonts: {
@@ -157,7 +166,7 @@ export function BrandSettingsHub({ bare = false }: BrandSettingsHubProps) {
               brandName={form.name || current.name}
               primary={form.primaryColor}
               onUpload={handleLogoUpload}
-              onClear={() => set('logo', '')}
+              onClear={handleLogoClear}
             />
           </div>
 

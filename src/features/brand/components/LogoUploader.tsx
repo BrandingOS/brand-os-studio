@@ -6,6 +6,23 @@ import { toast } from 'sonner';
 import { AssetPicker } from '@/shared/ui/AssetPicker';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { Asset } from '@/shared/types/brand';
+import type { LogoRole } from '@/shared/types/brandAssets';
+import { useAssetUpload } from '@/shared/assets/useAssetUpload';
+
+/**
+ * Map this uploader's slot keys to canonical v3 LogoRole values.
+ * Slots with `null` are v2-only (kept for UI completeness, migrated
+ * on read by `migrateSchema` without a hard role mapping).
+ */
+const SLOT_TO_V3_ROLE: Record<string, LogoRole | null> = {
+  primary: 'primary',
+  logotype: 'wordmark',
+  brandmark: null, // ambiguous with `icon` — skip v3 write, let migration handle
+  submark: 'secondary',
+  black: 'mono.black',
+  white: 'mono.white',
+  icon: 'iconmark',
+};
 
 interface LogoUploaderProps {
   brandId: string;
@@ -107,13 +124,18 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
   const [uploading, setUploading] = useState<string | null>(null);
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  // Read the active brand from the store so AssetPicker can show its asset
-  // library. We don't refetch here — the page above already loaded the
-  // brand and seeded the store.
   const currentBrand = useBrandStore((s) => s.current);
 
-  // Adopt an existing brand asset into a logo slot. Mirrors the upload
-  // shape so the rest of LogoUploader doesn't care which path filled it.
+  // v3 upload pipeline — writes BrandAsset + logoSystem ref atomically
+  // to the store. The callback below still fires so the parent page's
+  // local `guidelines.logoSystem` state stays in sync until PR3
+  // consolidates the editor.
+  const { upload: uploadLogoV3 } = useAssetUpload(brandId);
+
+  // Adopt an existing brand asset into a logo slot. We update the v2
+  // guidelines.logoSystem shape via the callback. The v3 brandAssets[]
+  // entry already exists (that's where this asset came from), so no
+  // v3 write is needed here — just point any mapped role at it.
   const handlePickAsset = (logoType: string, asset: Asset) => {
     if (!asset.url) return;
     onLogoSystemChange({
@@ -139,10 +161,33 @@ export function LogoUploader({ brandId, logoSystem, onLogoSystemChange }: LogoUp
 
     try {
       setUploading(logoType);
-      toast.loading('Compressing image...');
-      const dataUrl = await compressLogo(file);
-      toast.dismiss();
+      const v3Role = SLOT_TO_V3_ROLE[logoType];
+      let dataUrl: string;
 
+      if (v3Role) {
+        // v3 path — unified upload. Writes BrandAsset + logoSystem ref
+        // + legacy back-compat mirrors in a single atomic store update.
+        const asset = await uploadLogoV3(file, { role: v3Role, silent: true });
+        if (!asset) {
+          setUploading(null);
+          return;
+        }
+        dataUrl =
+          asset.formats.svg?.url ??
+          asset.formats.png?.url ??
+          asset.formats.webp?.url ??
+          asset.formats.jpg?.url ??
+          '';
+      } else {
+        // v2-only slot (brandmark) — compress and hand to parent.
+        toast.loading('Compressing image...');
+        dataUrl = await compressLogo(file);
+        toast.dismiss();
+      }
+
+      // Always also call the v2 callback so the parent's
+      // `guidelines.logoSystem` local state stays in sync with what
+      // the user sees in this slot.
       onLogoSystemChange({
         ...logoSystem,
         [logoType]: {
