@@ -21,6 +21,7 @@ import { AdminLayout } from "./features/admin/components/AdminLayout";
 
 // Lazy-loaded pages (split into separate chunks for faster initial load)
 const OnboardingPage = lazy(() => import("./pages/onboarding"));
+const OnboardingBrandPage = lazy(() => import("./pages/onboarding-brand"));
 const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
@@ -169,6 +170,7 @@ const App = () => (
           <Route path="/account-deletion" element={<AccountDeletionPage />} />
           <Route path="/v2" element={<DashboardV2Page />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/onboarding-brand" element={<OnboardingBrandPage />} />
           {logoMakerFlowRoutes}
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
