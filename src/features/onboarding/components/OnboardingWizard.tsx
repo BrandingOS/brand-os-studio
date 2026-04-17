@@ -235,10 +235,19 @@ export function OnboardingWizard() {
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<OnboardingFlow | null>(null);
 
-  // Lets the user bail out of onboarding. Signed-in users land on the
-  // dashboard; anonymous users land on the marketing home.
+  // Lets the user bail out of onboarding. Uses browser history so they land
+  // back where they came from (landing page, dashboard, a specific brand —
+  // whatever). Only falls back to a default if there's no history to pop
+  // (e.g. they opened /onboarding directly from a bookmark).
+  //
+  // Wizard steps don't push history entries (internal state, same URL), so
+  // navigate(-1) always escapes /onboarding rather than just undoing a step.
   const handleExit = useCallback(() => {
-    navigate(isAuthenticated ? '/dashboard' : '/');
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(isAuthenticated ? '/dashboard' : '/');
+    }
   }, [navigate, isAuthenticated]);
 
   // ----- Flow selection -----
@@ -291,9 +300,10 @@ export function OnboardingWizard() {
                 size="sm"
                 onClick={handleExit}
                 className="justify-self-start gap-1.5"
+                aria-label="Back"
               >
                 <ArrowLeft className="w-4 h-4" />
-                {isAuthenticated ? 'Dashboard' : 'Home'}
+                Back
               </Button>
               <h1 className="text-lg sm:text-xl font-semibold text-center">
                 Brand Identity Setup
