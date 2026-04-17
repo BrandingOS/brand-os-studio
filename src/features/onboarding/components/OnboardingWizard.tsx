@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useOnboardingFlow } from '../hooks/useOnboardingFlow';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -26,6 +27,7 @@ import {
   Globe,
   FileUp,
   UserCircle,
+  X,
 } from 'lucide-react';
 import type { StepDef } from '@/shared/types/onboarding';
 
@@ -227,10 +229,17 @@ export function OnboardingWizard() {
   const { createBrandFromAnswers } = useOnboardingFlow();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isCreatingBrand, setIsCreatingBrand] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<OnboardingFlow | null>(null);
+
+  // Lets the user bail out of onboarding. Signed-in users land on the
+  // dashboard; anonymous users land on the marketing home.
+  const handleExit = useCallback(() => {
+    navigate(isAuthenticated ? '/dashboard' : '/');
+  }, [navigate, isAuthenticated]);
 
   // ----- Flow selection -----
   const handleFlowSelect = useCallback(
@@ -276,8 +285,20 @@ export function OnboardingWizard() {
       <Section container={false} className="h-screen overflow-hidden bg-background">
         <div className="h-full flex flex-col">
           <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur shrink-0">
-            <div className="max-w-5xl mx-auto px-4 py-3 text-center">
-              <h1 className="text-lg sm:text-xl font-semibold">Brand Identity Setup</h1>
+            <div className="max-w-5xl mx-auto px-4 py-3 grid grid-cols-3 items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExit}
+                className="justify-self-start gap-1.5"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {isAuthenticated ? 'Dashboard' : 'Home'}
+              </Button>
+              <h1 className="text-lg sm:text-xl font-semibold text-center">
+                Brand Identity Setup
+              </h1>
+              <div />
             </div>
           </header>
           <main className="flex-1 overflow-auto">
@@ -358,8 +379,20 @@ export function OnboardingWizard() {
           <div className="max-w-5xl mx-auto px-4 py-3">
             {/* Meta row */}
             <div className="grid grid-cols-3 items-center">
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                Step {currentStepIndex + 1} of {steps.length}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExit}
+                  className="h-8 px-2 gap-1 text-muted-foreground hover:text-foreground"
+                  aria-label="Exit onboarding"
+                >
+                  <X className="w-4 h-4" />
+                  <span className="hidden sm:inline">Exit</span>
+                </Button>
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  Step {currentStepIndex + 1} of {steps.length}
+                </span>
               </div>
               <div className="text-center">
                 <h1 className="text-lg sm:text-xl font-semibold">Brand Identity Brief</h1>
