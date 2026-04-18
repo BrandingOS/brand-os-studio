@@ -14,22 +14,27 @@ import {
   LayoutDashboard,
   Settings,
   PenTool,
-  Briefcase,
-  BookOpen,
+  LayoutTemplate,
+  Wand2,
+  CalendarDays,
+  FolderTree,
   Share2,
-  Sparkles,
 } from 'lucide-react';
 
 /**
- * Brand-scope navigation — canonical five sections + Brand Kit.
+ * Brand-scope navigation — seven sections.
  *
- * Designed per docs/ux-redesign/ARCHITECTURE.md §3:
- *   Overview · Identity · Assets · Guidelines · Share
- * Plus Brand Kit as a unified brand system hub.
+ * Per docs/ux-redesign/ARCHITECTURE.md §3 (revised 2026-04):
+ *   Overview · Identity · Templates · Design · Content · Folders · Share
  *
- * Fullscreen tools (AI Design, Design with AI, Bento) are accessible from
- * the Overview page and via direct URL, but don't appear in the sidebar
- * to keep the IA focused.
+ * Sub-navigation within each section is done as in-page tabs (via
+ * ?tab= search params), not expanded sidebar groups — keeps the
+ * sidebar scannable as the feature surface grows.
+ *
+ * Fullscreen tools (AI Design, Bento, Brand Board, Social Media editor,
+ * Variant Studio, Analytics, Approvals) are reached from inside the
+ * relevant section pages and via direct URLs; they don't have their own
+ * sidebar entries.
  */
 interface BrandNavItem {
   title: string;
@@ -55,40 +60,61 @@ const brandNavItems: BrandNavItem[] = [
       "/b/:slug/identity",
       "/dashboard/brand/:slug/identity",
       "/dashboard/brand/:slug/edit",
+      "/b/:slug/edit",
     ],
   },
   {
-    title: "Brand Kit",
-    url: "/b/:slug/kit",
-    icon: Sparkles,
+    title: "Templates",
+    url: "/b/:slug/templates",
+    icon: LayoutTemplate,
     matchPaths: [
-      "/b/:slug/kit",
-      "/b/:slug/brandkit",
-      "/dashboard/brand/:slug/kit",
-      "/dashboard/brand/:slug/brandkit",
-    ],
-  },
-  {
-    title: "Assets",
-    url: "/b/:slug/assets",
-    icon: Briefcase,
-    matchPaths: [
+      "/b/:slug/templates",
+      "/dashboard/brand/:slug/templates",
       "/b/:slug/assets",
       "/dashboard/brand/:slug/assets",
-      "/dashboard/brand/:slug/folders",
-      "/dashboard/brand/:slug/dam",
-      "/dashboard/brand/:slug/social-media",
-      "/dashboard/brand/:slug/presentations",
+      "/b/:slug/kit",
+      "/dashboard/brand/:slug/kit",
+      "/b/:slug/brandkit",
+      "/dashboard/brand/:slug/brandkit",
+      "/b/:slug/brand-board",
+      "/dashboard/brand/:slug/brand-board",
+      "/b/:slug/bento",
+      "/dashboard/brand/:slug/bento",
     ],
   },
   {
-    title: "Guidelines",
-    url: "/b/:slug/guidelines",
-    icon: BookOpen,
+    title: "Design",
+    url: "/b/:slug/design",
+    icon: Wand2,
     matchPaths: [
-      "/b/:slug/guidelines",
-      "/dashboard/brand/:slug/guidelines",
-      "/dashboard/brand/:slug/brand-guides",
+      "/b/:slug/design",
+      "/dashboard/brand/:slug/design",
+      "/b/:slug/ai-design",
+      "/dashboard/brand/:slug/ai-design",
+      "/b/:slug/design-ai",
+      "/dashboard/brand/:slug/design-ai",
+    ],
+  },
+  {
+    title: "Content",
+    url: "/b/:slug/content",
+    icon: CalendarDays,
+    matchPaths: [
+      "/b/:slug/content",
+      "/dashboard/brand/:slug/content",
+      "/b/:slug/social-media",
+      "/dashboard/brand/:slug/social-media",
+    ],
+  },
+  {
+    title: "Folders",
+    url: "/b/:slug/folders",
+    icon: FolderTree,
+    matchPaths: [
+      "/b/:slug/folders",
+      "/dashboard/brand/:slug/folders",
+      "/dashboard/brand/:slug/dam",
+      "/b/:slug/dam",
     ],
   },
   {
@@ -98,7 +124,12 @@ const brandNavItems: BrandNavItem[] = [
     matchPaths: [
       "/b/:slug/share",
       "/dashboard/brand/:slug/share",
+      "/b/:slug/guidelines",
+      "/dashboard/brand/:slug/guidelines",
       "/dashboard/brand/:slug/logo-presentation",
+      "/b/:slug/logo-presentation",
+      "/dashboard/brand/:slug/brand-guides",
+      "/b/:slug/brand-guides",
     ],
   },
 ];

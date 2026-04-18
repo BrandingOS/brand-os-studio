@@ -70,9 +70,10 @@ import { logoMakerFlowRoutes } from "./features/logo-maker/flow";
 const LogoToSvgPage = lazy(() => import("./features/tools/logo-to-svg/LogoToSvgPage"));
 const LearnPage = lazy(() => import("./pages/learn"));
 const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"));
-const AssetsPage = lazy(() => import("./pages/dashboard/brand/[slug]/assets"));
 const SharePage = lazy(() => import("./pages/dashboard/brand/[slug]/share"));
 const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/templates"));
+const DesignLaunchpadPage = lazy(() => import("./pages/dashboard/brand/[slug]/design"));
+const ContentHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/content"));
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
 const DesignWithAiPage = lazy(() => import("./pages/dashboard/brand/[slug]/design-ai"));
@@ -118,6 +119,15 @@ function DamRedirect() {
   const { search } = useLocation();
   return <Navigate to={`/b/${slug}/folders${search}`} replace />;
 }
+
+/** /b/:slug/assets → /b/:slug/templates. The Assets deliverable catalog
+ *  folded into Templates (see docs/ux-redesign/ARCHITECTURE.md §3 revised). */
+function AssetsRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/b/${slug}/templates${search}`} replace />;
+}
+
 
 const queryClient = new QueryClient();
 
@@ -240,14 +250,17 @@ const App = () => (
             <Route index element={<BrandHomePage />} />
             <Route path="edit" element={<BrandEditPage />} />
             <Route path="identity" element={<IdentityPage />} />
-            <Route path="assets" element={<AssetsPage />} />
+            <Route path="design" element={<DesignLaunchpadPage />} />
+            <Route path="content" element={<ContentHubPage />} />
             <Route path="share" element={<SharePage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
-            <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
             <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
             <Route path="folders" element={<DamPage />} />
             <Route path="studio" element={<ConsistencyStudioPage />} />
+            {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
+            <Route path="assets" element={<AssetsRedirect />} />
+            <Route path="guidelines" element={<GuidelinesHubPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
@@ -415,14 +428,17 @@ const App = () => (
             <Route index element={<BrandHomePage />} />
             <Route path="edit" element={<BrandEditPage />} />
             <Route path="identity" element={<IdentityPage />} />
-            <Route path="assets" element={<AssetsPage />} />
+            <Route path="design" element={<DesignLaunchpadPage />} />
+            <Route path="content" element={<ContentHubPage />} />
             <Route path="share" element={<SharePage />} />
-            <Route path="guidelines" element={<GuidelinesHubPage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
             <Route path="kit" element={<BrandKitV2Page />} />
             <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
             <Route path="folders" element={<DamPage />} />
             <Route path="studio" element={<ConsistencyStudioPage />} />
+            {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
+            <Route path="assets" element={<AssetsRedirect />} />
+            <Route path="guidelines" element={<GuidelinesHubPage />} />
             {/* Legacy /dam path — child redirect into the new /folders home,
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />

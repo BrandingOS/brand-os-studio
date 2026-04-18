@@ -6,11 +6,13 @@
  * operations, and activity logging.
  */
 import * as React from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AssetUploadZone } from './components/AssetUploadZone';
 import { AssetFiltersBar } from './components/AssetFiltersBar';
 import { AssetGrid } from './components/AssetGrid';
@@ -35,6 +37,8 @@ import {
   Trash2,
   Download,
   X,
+  PenTool,
+  Sparkles,
 } from 'lucide-react';
 
 const ASSET_CATEGORIES = ['all', 'logo', 'photo', 'icon', 'social', 'mockup', 'reference'] as const;
@@ -74,8 +78,16 @@ function isSupabaseUrl(url: string): boolean {
 // Page component
 // ---------------------------------------------------------------------------
 
+type FolderTab = 'assets' | 'designs';
+const FOLDER_TABS: FolderTab[] = ['assets', 'designs'];
+
+function isFolderTab(v: string | null): v is FolderTab {
+  return v !== null && (FOLDER_TABS as string[]).includes(v);
+}
+
 export default function DamPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { current, loadBySlug, update } = useBrandStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -84,6 +96,15 @@ export default function DamPage() {
     const params = new URLSearchParams(searchParams);
     if (next === 'all') params.delete('category');
     else params.set('category', next);
+    setSearchParams(params, { replace: true });
+  };
+
+  const tabParam = searchParams.get('tab');
+  const activeTab: FolderTab = isFolderTab(tabParam) ? tabParam : 'assets';
+  const setTab = (next: FolderTab) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'assets') params.delete('tab');
+    else params.set('tab', next);
     setSearchParams(params, { replace: true });
   };
 
@@ -108,6 +129,14 @@ export default function DamPage() {
             icon: FolderOpen,
             storageKey: 'brandos:folders-nav-open',
             groups: [
+              {
+                id: 'tabs',
+                label: 'View',
+                items: [
+                  { id: 'assets',  label: 'Assets',  icon: FolderOpen, href: `/b/${slug}/folders` },
+                  { id: 'designs', label: 'Designs', icon: PenTool,    href: `/b/${slug}/folders?tab=designs` },
+                ],
+              },
               {
                 id: 'filters',
                 label: 'Categories',
@@ -314,21 +343,56 @@ export default function DamPage() {
         title="Folders"
         subtitle={`${assets.length} asset${assets.length !== 1 ? 's' : ''} in ${current.name}'s library`}
         actions={
-          <Button
-            variant={selectionMode ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setSelectionMode(!selectionMode);
-              if (selectionMode) deselectAll();
-            }}
-            className="gap-1.5"
-          >
-            <CheckSquare className="h-3.5 w-3.5" />
-            {selectionMode ? 'Done' : 'Select'}
-          </Button>
+          activeTab === 'assets' ? (
+            <Button
+              variant={selectionMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                if (selectionMode) deselectAll();
+              }}
+              className="gap-1.5"
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              {selectionMode ? 'Done' : 'Select'}
+            </Button>
+          ) : undefined
         }
       />
 
+      <Tabs value={activeTab} onValueChange={(v) => isFolderTab(v) && setTab(v)} className="w-full mb-6">
+        <TabsList className="grid grid-cols-2 w-full max-w-xs">
+          <TabsTrigger value="assets" className="gap-2">
+            <FolderOpen className="w-4 h-4" />
+            <span>Assets</span>
+          </TabsTrigger>
+          <TabsTrigger value="designs" className="gap-2">
+            <PenTool className="w-4 h-4" />
+            <span>Designs</span>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {activeTab === 'designs' && (
+        <Card className="p-10 text-center bg-muted/20">
+          <PenTool className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-sm font-medium mb-1">No saved designs yet</p>
+          <p className="text-xs text-muted-foreground mb-4">
+            Canvas designs you create will be listed here once saving is wired up.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/b/${slug}/design`)}>
+              Start a design
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate(`/b/${slug}/templates`)} className="gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Browse templates
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'assets' && (
       <div className="space-y-6">
         <AssetUploadZone onUpload={handleUpload} uploading={uploading} />
 
@@ -387,6 +451,7 @@ export default function DamPage() {
           />
         )}
       </div>
+      )}
     </>
   );
 }

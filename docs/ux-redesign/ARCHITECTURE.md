@@ -96,20 +96,44 @@ Today's split between `/settings/account` and `/settings/plans` is renamed and l
 
 ## 3. Brand Scope
 
-Inside a brand, the sidebar lists **five sections**. Not seven. Not nineteen. Five.
+> **2026-04 revision:** the original "five sections" rule proved too tight as
+> the product grew (Brand Board, Bento, Social Media, AI Design, Folders,
+> Templates, Content Calendar all shipped after the original doc). The brand
+> sidebar now lists **seven sections**. Sub-navigation stays as *in-page tabs*
+> (via `?tab=`), not expandable sidebar groups, so the sidebar itself stays
+> scannable. The original 5-item IA is preserved below the current diagram
+> for historical context.
+
+Inside a brand, the sidebar lists **seven sections**:
 
 ```
-─ {Brand Name} ▼ ──   (← brand switcher dropdown lives in topbar; this is the section nav)
-  ◇ Overview          /b/:slug
-  ◇ Identity          /b/:slug/identity      (← merged: edit + brandkit identity bits)
-  ◇ Assets            /b/:slug/assets        (← brandkit deliverables: cards, social, etc.)
-  ◇ Guidelines        /b/:slug/guidelines    (← the published doc — was "Brand Guides" + "Guidelines Editor")
-  ◇ Share             /b/:slug/share         (← exports, public showcase, links)
+─ {Brand Name} ▼ ──
+  ◇ Overview          /b/:slug             tabs: Recent · Search · Templates
+  ◇ Identity          /b/:slug/identity    tabs: Logo · Colors · Typography · Voice · Strategy
+  ◇ Templates         /b/:slug/templates   tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility
+  ◇ Design            /b/:slug/design      tabs: Blank Canvas · AI Design · Recent
+  ◇ Content           /b/:slug/content     tabs: Calendar · Posts · Drafts
+  ◇ Folders           /b/:slug/folders     tabs: Assets · Designs
+  ◇ Share             /b/:slug/share       tabs: Guidelines · Showcase · Exports
 ─────────────
   ◇ Brand settings    /b/:slug/settings
 ```
 
-### 3.1 The five sections, justified
+**Why seven and not five:**
+- Assets (the deliverable catalog) merged *into* Templates — one hub to browse starters.
+- Guidelines moved from a top-level section to a tab inside Share (it's a publishable artifact, not a scope of its own). The `/b/:slug/guidelines` URL still works as the reader/hub.
+- Design is a new launchpad for the canvas editor, AI Design, and other create surfaces that used to be hidden fullscreen routes.
+- Content surfaces the social-media planner and a (v1 local-only) Content Calendar.
+- Folders picks up a Designs tab alongside the existing Assets DAM.
+- Fullscreen-only routes (AI Design, Bento, Brand Board, Social Media editor, Variant Studio, Analytics, Approvals) remain reachable from inside their section pages and via direct URL; they don't need their own sidebar entry.
+
+**Historical (v1) five-section IA — kept for reference, no longer active:**
+
+```
+  ◇ Overview · Identity · Assets · Guidelines · Share
+```
+
+### 3.1 The seven sections, justified
 
 #### Overview (`/b/:slug`)
 A glanceable home: brand at-a-glance card, completeness checklist, recent edits, "what's next".
