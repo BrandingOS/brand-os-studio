@@ -38,22 +38,12 @@ import {
   Check,
   Sparkles,
   LayoutDashboard,
-  BookOpen,
-  FolderOpen,
-  Palette,
+  FolderTree,
   LayoutTemplate,
   Compass,
   Wand2,
-  LayoutPanelLeft,
-  Instagram,
-  Image as ImageIcon,
-  Type,
-  MessageCircle,
-  Target,
-  Library,
-  Layers,
-  CheckCircle,
-  Presentation,
+  CalendarDays,
+  Share2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -103,125 +93,75 @@ const workspaceItems: RailItem[] = [
 /**
  * Brand-mode items (the brand scope).
  *
- * Built per-slug so each NavLink targets the correct brand. The list is the
- * primary navigation INSIDE the brand workspace — there is no second rail.
+ * Seven top-level sections only. Sub-navigation (Identity tabs, Templates
+ * categories, Share tabs, etc.) does NOT render here — it lives inside
+ * each page as `?tab=` and surfaces in the InnerNavRail ("Sections" panel)
+ * when that page is active. Keeps the rail scannable as the product grows.
+ *
+ * Fullscreen tools (Brand Board, Bento, AI Design, Social Media editor,
+ * Variant Studio, Analytics, Approvals, Consistency Studio) are reached
+ * from the section they belong to (mostly Templates / Design) and via
+ * direct URL — no rail entry.
  */
 function brandItems(slug: string): RailItem[] {
   return [
-    // ── Top-level ──────────────────────────────────────────────
     {
       title: 'Overview',
       url: `/b/${slug}`,
       icon: LayoutDashboard,
       exact: true,
     },
-
-    // ── BRAND CORE — the brand's identity system ──────────────
     {
       title: 'Identity',
       url: `/b/${slug}/identity`,
       icon: Sparkles,
-      group: 'Brand',
       matchPrefixes: [`/b/${slug}/edit`, `/b/${slug}/identity`],
     },
-    {
-      title: 'Logo',
-      url: `/b/${slug}/identity?tab=logo`,
-      icon: ImageIcon,
-      group: 'Brand',
-    },
-    {
-      title: 'Colors',
-      url: `/b/${slug}/identity?tab=colors`,
-      icon: Palette,
-      group: 'Brand',
-    },
-    {
-      title: 'Typography',
-      url: `/b/${slug}/identity?tab=typography`,
-      icon: Type,
-      group: 'Brand',
-    },
-    {
-      title: 'Voice',
-      url: `/b/${slug}/identity?tab=voice`,
-      icon: MessageCircle,
-      group: 'Brand',
-    },
-    {
-      title: 'Strategy',
-      url: `/b/${slug}/identity?tab=strategy`,
-      icon: Target,
-      group: 'Brand',
-    },
-
-    // ── ASSETS — brand assets & outputs ───────────────────────
-    {
-      title: 'Library',
-      url: `/b/${slug}/kit`,
-      icon: Library,
-      group: 'Assets',
-      matchPrefixes: [`/b/${slug}/kit`, `/b/${slug}/brandkit`],
-    },
-    {
-      title: 'Folders',
-      url: `/b/${slug}/folders`,
-      icon: FolderOpen,
-      group: 'Assets',
-      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
-    },
-    {
-      title: 'Designs',
-      url: `/b/${slug}/assets`,
-      icon: Layers,
-      group: 'Assets',
-      matchPrefixes: [`/b/${slug}/assets`],
-    },
-    {
-      title: 'Approved',
-      url: `/b/${slug}/approvals`,
-      icon: CheckCircle,
-      group: 'Assets',
-    },
-
-    // ── CREATE — tools for making things ──────────────────────
     {
       title: 'Templates',
       url: `/b/${slug}/templates`,
       icon: LayoutTemplate,
-      group: 'Create',
+      matchPrefixes: [
+        `/b/${slug}/templates`,
+        `/b/${slug}/assets`,
+        `/b/${slug}/kit`,
+        `/b/${slug}/brandkit`,
+        `/b/${slug}/brand-board`,
+        `/b/${slug}/bento`,
+      ],
     },
     {
-      title: 'Board',
-      url: `/b/${slug}/brand-board`,
-      icon: LayoutPanelLeft,
-      group: 'Create',
-    },
-    {
-      title: 'Guidelines',
-      url: `/b/${slug}/guidelines`,
-      icon: BookOpen,
-      group: 'Create',
-      matchPrefixes: [`/b/${slug}/guidelines`, `/b/${slug}/brand-guides`],
-    },
-    {
-      title: 'Social',
-      url: `/b/${slug}/social-media`,
-      icon: Instagram,
-      group: 'Create',
-      matchPrefixes: [`/b/${slug}/social-media`],
-    },
-    {
-      title: 'Presents',
-      url: `/b/${slug}/presentations`,
-      icon: Presentation,
-      group: 'Create',
-    },
-    {
-      title: 'AI Studio',
-      url: `/b/${slug}/studio`,
+      title: 'Design',
+      url: `/b/${slug}/design`,
       icon: Wand2,
-      group: 'Create',
+      matchPrefixes: [
+        `/b/${slug}/design`,
+        `/b/${slug}/ai-design`,
+        `/b/${slug}/design-ai`,
+      ],
+    },
+    {
+      title: 'Content',
+      url: `/b/${slug}/content`,
+      icon: CalendarDays,
+      matchPrefixes: [`/b/${slug}/content`, `/b/${slug}/social-media`],
+    },
+    {
+      title: 'Folders',
+      url: `/b/${slug}/folders`,
+      icon: FolderTree,
+      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
+    },
+    {
+      title: 'Share',
+      url: `/b/${slug}/share`,
+      icon: Share2,
+      matchPrefixes: [
+        `/b/${slug}/share`,
+        `/b/${slug}/guidelines`,
+        `/b/${slug}/brand-guides`,
+        `/b/${slug}/logo-presentation`,
+      ],
     },
   ];
 }
