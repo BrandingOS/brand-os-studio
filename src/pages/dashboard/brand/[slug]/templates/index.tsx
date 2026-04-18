@@ -14,13 +14,11 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useSavedTemplatesStore } from '@/shared/store/savedTemplatesStore';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import {
   LayoutTemplate,
-  ExternalLink,
   LayoutGrid,
   Printer,
   Megaphone,
@@ -258,13 +256,6 @@ export default function BrandTemplatesPage() {
                   href: c.id === 'all' ? `/b/${slug}/templates` : `/b/${slug}/templates?tab=${c.id}`,
                 })),
               },
-              {
-                id: 'related',
-                label: 'Related',
-                items: [
-                  { id: 'marketplace', label: 'Full Marketplace', icon: ExternalLink, href: '/templates' },
-                ],
-              },
             ],
           }
         : undefined,
@@ -283,12 +274,6 @@ export default function BrandTemplatesPage() {
         compact
         title="Templates"
         subtitle="Branded starters for every deliverable — brand board, guidelines, bento, social, print, screen, utility."
-        actions={
-          <Button variant="outline" size="sm" onClick={() => navigate('/templates')} className="gap-1.5">
-            <ExternalLink className="h-3.5 w-3.5" />
-            Browse Marketplace
-          </Button>
-        }
       />
 
       <Tabs value={activeCategory} onValueChange={handleCategoryChange} className="w-full">
