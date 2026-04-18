@@ -9,7 +9,7 @@
  * The social editor itself lives fullscreen at /b/:slug/social-media —
  * Posts tab launches into it with the picker pre-opened.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   useParams,
   useNavigate,
@@ -32,7 +32,6 @@ import {
   Youtube,
   Twitter,
   Layers,
-  ArrowRight,
   Plus,
 } from 'lucide-react';
 
@@ -43,23 +42,41 @@ function isTab(v: string | null): v is TabId {
   return v !== null && (TABS as string[]).includes(v);
 }
 
+type Platform = 'instagram' | 'facebook' | 'twitter' | 'linkedin' | 'tiktok' | 'youtube';
+
 interface PostFormat {
   title: string;
-  description: string;
+  platform: Platform;
+  format: string;
+  width: number;
+  height: number;
   icon: React.ElementType;
   accent: string;
-  // The social editor reads the picker internally; linking to the root page
-  // lets users pick any format. Keeping this simple for v1.
 }
 
 const POST_FORMATS: PostFormat[] = [
-  { title: 'Instagram post',   description: 'Square feed post (1080×1080).',     icon: Instagram, accent: 'from-pink-500 to-rose-600' },
-  { title: 'Instagram story',  description: 'Vertical story (1080×1920).',       icon: Instagram, accent: 'from-fuchsia-500 to-pink-600' },
-  { title: 'Facebook cover',   description: 'Page cover image (820×312).',       icon: Facebook,  accent: 'from-blue-500 to-indigo-600' },
-  { title: 'LinkedIn post',    description: 'Feed post for LinkedIn.',           icon: Linkedin,  accent: 'from-sky-600 to-blue-700' },
-  { title: 'Twitter / X post', description: 'Image post for X timelines.',       icon: Twitter,   accent: 'from-sky-400 to-blue-500' },
-  { title: 'YouTube thumbnail',description: 'Video thumbnail (1280×720).',       icon: Youtube,   accent: 'from-red-500 to-rose-600' },
-  { title: 'TikTok',           description: 'Vertical 9:16 for TikTok.',         icon: Layers,    accent: 'from-zinc-800 to-zinc-900' },
+  { title: 'Instagram Post',        platform: 'instagram', format: 'post',  width: 1080, height: 1080, icon: Instagram, accent: 'from-pink-500 to-rose-600' },
+  { title: 'Instagram Story',       platform: 'instagram', format: 'story', width: 1080, height: 1920, icon: Instagram, accent: 'from-fuchsia-500 to-pink-600' },
+  { title: 'Instagram Reel Cover',  platform: 'instagram', format: 'reel',  width: 1080, height: 1920, icon: Instagram, accent: 'from-rose-500 to-pink-600' },
+  { title: 'Facebook Post',         platform: 'facebook',  format: 'post',  width: 1200, height: 630,  icon: Facebook,  accent: 'from-blue-500 to-indigo-600' },
+  { title: 'Facebook Cover',        platform: 'facebook',  format: 'cover', width: 1640, height: 624,  icon: Facebook,  accent: 'from-blue-600 to-sky-700' },
+  { title: 'LinkedIn Post',         platform: 'linkedin',  format: 'post',  width: 1200, height: 627,  icon: Linkedin,  accent: 'from-sky-600 to-blue-700' },
+  { title: 'LinkedIn Cover',        platform: 'linkedin',  format: 'cover', width: 1584, height: 396,  icon: Linkedin,  accent: 'from-sky-700 to-indigo-700' },
+  { title: 'Twitter / X Post',      platform: 'twitter',   format: 'post',  width: 1200, height: 675,  icon: Twitter,   accent: 'from-sky-400 to-blue-500' },
+  { title: 'Twitter / X Banner',    platform: 'twitter',   format: 'cover', width: 1500, height: 500,  icon: Twitter,   accent: 'from-sky-500 to-cyan-600' },
+  { title: 'YouTube Thumbnail',     platform: 'youtube',   format: 'post',  width: 1280, height: 720,  icon: Youtube,   accent: 'from-red-500 to-rose-600' },
+  { title: 'YouTube Channel Art',   platform: 'youtube',   format: 'cover', width: 2560, height: 1440, icon: Youtube,   accent: 'from-red-600 to-rose-700' },
+  { title: 'TikTok Cover',          platform: 'tiktok',    format: 'post',  width: 1080, height: 1920, icon: Layers,    accent: 'from-zinc-800 to-zinc-900' },
+];
+
+const PLATFORM_FILTERS: { id: Platform | 'all'; label: string; icon: React.ElementType }[] = [
+  { id: 'all',       label: 'All',       icon: Megaphone },
+  { id: 'instagram', label: 'Instagram', icon: Instagram },
+  { id: 'facebook',  label: 'Facebook',  icon: Facebook },
+  { id: 'twitter',   label: 'Twitter/X', icon: Twitter },
+  { id: 'linkedin',  label: 'LinkedIn',  icon: Linkedin },
+  { id: 'tiktok',    label: 'TikTok',    icon: Layers },
+  { id: 'youtube',   label: 'YouTube',   icon: Youtube },
 ];
 
 export default function ContentHubPage() {
@@ -131,16 +148,6 @@ export default function ContentHubPage() {
         compact
         title="Content"
         subtitle="Plan, create, and schedule social media posts."
-        actions={
-          <Button
-            size="sm"
-            onClick={() => navigate(`/b/${slug}/social-media`)}
-            className="gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New post
-          </Button>
-        }
       />
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -160,8 +167,20 @@ export default function ContentHubPage() {
         </TabsList>
       </Tabs>
 
-      {activeTab === 'calendar' && <CalendarPlaceholder onCreate={() => navigate(`/b/${slug}/social-media`)} />}
-      {activeTab === 'posts' && <PostsGrid slug={slug} onSelect={(_format) => navigate(`/b/${slug}/social-media`)} />}
+      {activeTab === 'calendar' && (
+        <CalendarPlaceholder
+          onCreate={() =>
+            navigate(`/b/${slug}/social-media?platform=instagram&format=post`)
+          }
+        />
+      )}
+      {activeTab === 'posts' && (
+        <PostsGrid
+          onSelect={(f) =>
+            navigate(`/b/${slug}/social-media?platform=${f.platform}&format=${f.format}`)
+          }
+        />
+      )}
       {activeTab === 'drafts' && <DraftsEmpty onBrowse={() => navigate(`/b/${slug}/folders`)} />}
     </div>
   );
@@ -218,39 +237,68 @@ function CalendarPlaceholder({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function PostsGrid({
-  slug: _slug,
-  onSelect,
-}: {
-  slug: string;
-  onSelect: (format: PostFormat) => void;
-}) {
+function PostsGrid({ onSelect }: { onSelect: (format: PostFormat) => void }) {
+  const [platform, setPlatform] = useState<Platform | 'all'>('all');
+
+  const visible = useMemo(
+    () => (platform === 'all' ? POST_FORMATS : POST_FORMATS.filter((f) => f.platform === platform)),
+    [platform],
+  );
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {POST_FORMATS.map((f) => {
-        const Icon = f.icon;
-        return (
-          <Card
-            key={f.title}
-            onClick={() => onSelect(f)}
-            className="group relative overflow-hidden p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
-          >
-            <div
-              className={`absolute -top-10 -right-10 w-28 h-28 rounded-full bg-gradient-to-br ${f.accent} opacity-10 group-hover:opacity-20 transition-opacity`}
-            />
-            <div
-              className={`relative w-11 h-11 rounded-xl bg-gradient-to-br ${f.accent} flex items-center justify-center mb-3`}
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {PLATFORM_FILTERS.map((p) => {
+          const Icon = p.icon;
+          const active = platform === p.id;
+          return (
+            <button
+              key={p.id}
+              onClick={() => setPlatform(p.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors border ${
+                active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-muted-foreground border-border hover:bg-muted/60 hover:text-foreground'
+              }`}
             >
-              <Icon className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="relative text-base font-semibold mb-1">{f.title}</h3>
-            <p className="relative text-xs text-muted-foreground">{f.description}</p>
-            <div className="relative mt-3 flex items-center text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-              Create <ArrowRight className="h-3 w-3 ml-1" />
-            </div>
-          </Card>
-        );
-      })}
+              <Icon className="h-4 w-4" />
+              {p.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {visible.map((f) => {
+          const Icon = f.icon;
+          const ratio = f.width / f.height;
+          const isPortrait = ratio < 0.9;
+          const isLandscape = ratio > 1.5;
+          // Compact visual aspect so the grid reads evenly.
+          const thumbClass = isPortrait
+            ? 'aspect-[3/4]'
+            : isLandscape
+              ? 'aspect-[16/9]'
+              : 'aspect-square';
+          return (
+            <Card
+              key={`${f.platform}-${f.format}`}
+              onClick={() => onSelect(f)}
+              className="group p-3 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all"
+            >
+              <div
+                className={`${thumbClass} rounded-lg bg-gradient-to-br ${f.accent} flex items-center justify-center mb-3 overflow-hidden`}
+              >
+                <Icon className="h-8 w-8 text-white/90" />
+              </div>
+              <h3 className="text-sm font-semibold truncate">{f.title}</h3>
+              <p className="text-xs text-muted-foreground">
+                {f.width} × {f.height}
+              </p>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
