@@ -11,6 +11,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useTemplateStore } from '@/shared/templates/store/templateStore';
 import { DomRenderer } from '@/shared/templates/renderers/DomRenderer';
 import { resolveTemplate } from '@/shared/templates/engine/resolve';
+import { BrandChooserDialog, type BrandChoice } from '@/features/brand/components/BrandChooserDialog';
 import { cn } from '@/lib/utils';
 import {
   Search,
@@ -79,6 +80,13 @@ export default function TemplatesMarketplacePage() {
   const [activePill, setActivePill] = React.useState('all');
   const [search, setSearch] = React.useState('');
 
+  /**
+   * Pending category — set when the user clicks a template. The brand chooser
+   * opens, and once they pick a destination we route there with this category
+   * in hand. Null means no chooser is open.
+   */
+  const [pendingCategory, setPendingCategory] = React.useState<CategoryDef | null>(null);
+
   const lastBrand = React.useMemo(
     () => [...brands].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
     [brands],
@@ -98,12 +106,30 @@ export default function TemplatesMarketplacePage() {
     return cats;
   }, [activePill, search]);
 
-  const handleCategoryClick = (cat: CategoryDef) => {
-    if (!lastBrand) {
-      navigate('/dashboard/brands');
+  // Open the chooser; actual navigation happens in handleBrandChoice.
+  const handleCategoryClick = (cat: CategoryDef) => setPendingCategory(cat);
+
+  const handleBrandChoice = (choice: BrandChoice) => {
+    const cat = pendingCategory;
+    setPendingCategory(null);
+    if (!cat) return;
+
+    if (choice.kind === 'brand') {
+      navigate(`/b/${choice.brand.slug}/brandkit/${cat.brandkitModule}`);
       return;
     }
-    navigate(`/b/${lastBrand.slug}/brandkit/${cat.brandkitModule}`);
+    if (choice.kind === 'standalone') {
+      // No brand yet — open the standalone editor. Users can assign to a
+      // brand later via the editor's "Save to brand" menu.
+      navigate(`/editor?category=${cat.brandkitModule}`);
+      return;
+    }
+    if (choice.kind === 'new') {
+      // Use a `?then=` param so the onboarding flow can round-trip back
+      // into this template once a brand is created.
+      navigate(`/onboarding-brand?then=${encodeURIComponent(`brandkit/${cat.brandkitModule}`)}`);
+      return;
+    }
   };
 
   return (
@@ -266,6 +292,14 @@ export default function TemplatesMarketplacePage() {
           </p>
         </div>
       </div>
+
+      <BrandChooserDialog
+        open={pendingCategory !== null}
+        onOpenChange={(open) => !open && setPendingCategory(null)}
+        onChoose={handleBrandChoice}
+        title={pendingCategory ? `Open "${pendingCategory.label}" in…` : 'Choose a brand'}
+        description="Templates live inside a brand so they pick up your colors, fonts, and voice. Start without a brand if you just want a quick design."
+      />
     </DashboardLayout>
   );
 }
