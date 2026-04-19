@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { AppRail } from '@/shared/layouts/AppRail';
 import { useBrandBoardStore } from './store/useBrandBoardStore';
+import { LogosPanel } from './panels/LogosPanel';
 import { ColorsPanel } from './panels/ColorsPanel';
 import { TypographyPanel } from './panels/TypographyPanel';
 import { UIStylingPanel } from './panels/UIStylingPanel';
@@ -130,6 +131,7 @@ export default function BrandBoardPage() {
         <div className="flex-1 flex overflow-hidden gap-0">
           {/* Left panel — controls, no hard border; just whitespace + subtle shadow */}
           <div className="w-[440px] overflow-y-auto px-6 pt-2 pb-10 space-y-10 shrink-0">
+            <LogosPanel />
             <ColorsPanel />
             <TypographyPanel />
             <UIStylingPanel />

@@ -102,7 +102,7 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
       style={{
         background: color,
         color: fg,
-        aspectRatio: '3 / 5',
+        aspectRatio: '1 / 1',
         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
       }}
     >
@@ -213,7 +213,7 @@ function NeutralsCard({
     <div
       className="relative rounded-[20px] overflow-hidden bg-white group"
       style={{
-        aspectRatio: '3 / 5',
+        aspectRatio: '1 / 1',
         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
       }}
     >
@@ -249,7 +249,7 @@ function AddColorCard({ onAdd }: { onAdd: () => void }) {
       onClick={onAdd}
       className="rounded-[20px] bg-white/60 hover:bg-white flex items-center justify-center transition-all"
       style={{
-        aspectRatio: '3 / 5',
+        aspectRatio: '1 / 1',
         boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.04)',
       }}
       aria-label="Add color"
