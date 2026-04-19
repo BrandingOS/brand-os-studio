@@ -130,7 +130,7 @@ export default function BrandBoardPage() {
         {/* Split panels */}
         <div className="flex-1 flex overflow-hidden gap-0">
           {/* Left panel — controls, no hard border; just whitespace + subtle shadow */}
-          <div className="w-[440px] overflow-y-auto px-6 pt-2 pb-10 space-y-10 shrink-0">
+          <div className="w-[380px] overflow-y-auto px-5 pt-2 pb-10 space-y-6 shrink-0">
             <LogosPanel />
             <ColorsPanel />
             <TypographyPanel />

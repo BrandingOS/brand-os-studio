@@ -112,13 +112,13 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
         onClick={() => inputRef.current?.click()}
         aria-label={`Pick ${name}`}
       />
-      <div className="relative p-3 flex flex-col h-full pointer-events-none">
-        <div className="flex items-start justify-between gap-2">
-          <span className="text-[13px] font-semibold tracking-tight">{name}</span>
-          <div className="flex items-center gap-1 pointer-events-auto">
+      <div className="relative p-2.5 flex flex-col h-full pointer-events-none">
+        <div className="flex items-start justify-between gap-1.5">
+          <span className="text-[12px] font-semibold tracking-tight truncate">{name}</span>
+          <div className="flex items-center gap-1 pointer-events-auto shrink-0">
             {badge && (
               <span
-                className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full"
+                className="text-[8px] font-bold uppercase tracking-[0.08em] px-1.5 py-0.5 rounded-full"
                 style={{ background: 'rgba(255,255,255,0.22)', color: fg }}
               >
                 {badge}
@@ -131,7 +131,7 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
                   e.stopPropagation();
                   onToggleLock();
                 }}
-                className={`h-6 w-6 rounded-full flex items-center justify-center transition-all ${
+                className={`h-5 w-5 rounded-full flex items-center justify-center transition-all ${
                   locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                 }`}
                 style={{
@@ -141,14 +141,14 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
                 aria-label={locked ? `Unlock ${name}` : `Lock ${name}`}
                 title={locked ? 'Unlock — shuffle will change this color' : 'Lock — shuffle will keep this color'}
               >
-                {locked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
+                {locked ? <Lock className="h-2.5 w-2.5" /> : <LockOpen className="h-2.5 w-2.5" />}
               </button>
             )}
           </div>
         </div>
         <div className="flex-1" />
         <div className="pointer-events-auto">
-          <div className="text-[13px] font-mono font-semibold tracking-wide mb-2 uppercase">
+          <div className="text-[11px] font-mono font-semibold tracking-wide mb-1.5 uppercase">
             {color.replace('#', '')}
           </div>
           <input
@@ -161,31 +161,22 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
             style={{ opacity: 0.85 }}
             onClick={(e) => e.stopPropagation()}
           />
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex gap-0.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-1 w-1 rounded-full"
-                  style={{ background: fg, opacity: 0.35 }}
-                />
-              ))}
-            </div>
-            {removable && onRemove && (
+          {removable && onRemove && (
+            <div className="flex justify-end mt-1">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();
                 }}
-                className="h-5 w-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-4 w-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ background: 'rgba(0,0,0,0.25)' }}
                 aria-label="Remove color"
               >
-                <X className="h-3 w-3" style={{ color: fg }} />
+                <X className="h-2.5 w-2.5" style={{ color: fg }} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       <input
@@ -217,23 +208,23 @@ function NeutralsCard({
         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
       }}
     >
-      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
-        <span className="text-[13px] font-semibold tracking-tight text-foreground">
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between">
+        <span className="text-[12px] font-semibold tracking-tight text-foreground">
           Neutrals
         </span>
         <button
           type="button"
           onClick={onToggleLock}
-          className={`h-6 w-6 rounded-full flex items-center justify-center transition-all bg-black/10 hover:bg-black/20 ${
+          className={`h-5 w-5 rounded-full flex items-center justify-center transition-all bg-black/10 hover:bg-black/20 ${
             locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
           aria-label={locked ? 'Unlock neutrals' : 'Lock neutrals'}
           title={locked ? 'Unlock — shuffle will regenerate neutrals' : 'Lock — shuffle will keep these neutrals'}
         >
-          {locked ? <Lock className="h-3 w-3 text-foreground" /> : <LockOpen className="h-3 w-3 text-foreground" />}
+          {locked ? <Lock className="h-2.5 w-2.5 text-foreground" /> : <LockOpen className="h-2.5 w-2.5 text-foreground" />}
         </button>
       </div>
-      <div className="absolute inset-0 flex flex-col pt-10">
+      <div className="absolute inset-0 flex flex-col pt-8">
         {neutrals.slice(0, 6).map((n, i) => (
           <div key={i} className="flex-1" style={{ background: n }} />
         ))}
@@ -266,11 +257,11 @@ function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string })
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
+      className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
     >
-      <Shuffle className="h-3.5 w-3.5" />
+      <Shuffle className="h-3 w-3" />
       <span>Shuffle</span>
-      <kbd className="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-neutral-100 rounded text-muted-foreground">
+      <kbd className="ml-0.5 px-1 py-0.5 text-[9px] font-mono bg-neutral-100 rounded text-muted-foreground">
         {hint}
       </kbd>
     </button>
@@ -301,25 +292,25 @@ export function ColorsPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">Colors</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold tracking-tight text-foreground">Colors</h3>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-full bg-white p-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)]">
             <button
               type="button"
               onClick={() => isLight || toggleDarkMode()}
-              className={`px-2.5 py-1 rounded-full transition-colors ${isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-2 py-1 rounded-full transition-colors ${isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label="Light mode"
             >
-              <Sun className="h-3.5 w-3.5" />
+              <Sun className="h-3 w-3" />
             </button>
             <button
               type="button"
               onClick={() => !isLight || toggleDarkMode()}
-              className={`px-2.5 py-1 rounded-full transition-colors ${!isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+              className={`px-2 py-1 rounded-full transition-colors ${!isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label="Dark mode"
             >
-              <Moon className="h-3.5 w-3.5" />
+              <Moon className="h-3 w-3" />
             </button>
           </div>
           <ShuffleButton onClick={shuffleColors} hint="C" />

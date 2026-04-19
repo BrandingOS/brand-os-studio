@@ -30,11 +30,11 @@ function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string })
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
+      className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
     >
-      <Shuffle className="h-3.5 w-3.5" />
+      <Shuffle className="h-3 w-3" />
       <span>Shuffle</span>
-      <kbd className="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-neutral-100 rounded text-muted-foreground">
+      <kbd className="ml-0.5 px-1 py-0.5 text-[9px] font-mono bg-neutral-100 rounded text-muted-foreground">
         {hint}
       </kbd>
     </button>
@@ -53,8 +53,8 @@ export function UIStylingPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">UI Styling</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold tracking-tight text-foreground">UI Styling</h3>
         <ShuffleButton onClick={shuffleUI} hint="U" />
       </div>
 

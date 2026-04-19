@@ -44,34 +44,27 @@ function LogoTile({
     <button
       type="button"
       onClick={onClick}
-      className="group relative rounded-[20px] overflow-hidden text-left"
+      title={slot.label}
+      className="group relative rounded-2xl overflow-hidden text-left"
       style={{
         background: dark ? '#0f0f12' : '#ffffff',
         aspectRatio: '1 / 1',
-        boxShadow:
-          '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 16px -10px rgba(0,0,0,0.10)',
       }}
     >
-      <span
-        className="absolute top-3 left-3 text-[10px] font-semibold uppercase tracking-[0.14em]"
-        style={{ color: dark ? 'rgba(255,255,255,0.55)' : 'rgba(15,15,18,0.45)' }}
-      >
-        {slot.label}
-      </span>
-
-      <div className="absolute inset-0 flex items-center justify-center p-6">
+      <div className="absolute inset-0 flex items-center justify-center p-3">
         {url ? (
           <img
             src={url}
             alt={slot.label}
-            className="max-h-[70%] max-w-[85%] object-contain"
+            className="max-h-[70%] max-w-[80%] object-contain"
             style={{
               filter: dark && slot.role === 'mono.white' ? 'brightness(0) invert(1)' : undefined,
             }}
           />
         ) : fallbackInitial ? (
           <span
-            className="text-3xl font-bold tracking-tight"
+            className="text-xl font-bold tracking-tight"
             style={{
               color: dark ? '#ffffff' : (fallbackColor ?? '#0f0f12'),
               fontFamily: 'var(--bb-font-heading, Inter), sans-serif',
@@ -80,9 +73,18 @@ function LogoTile({
             {fallbackInitial}
           </span>
         ) : (
-          <Plus className="h-5 w-5" style={{ color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,15,18,0.25)' }} />
+          <Plus
+            className="h-4 w-4"
+            style={{ color: dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,15,18,0.25)' }}
+          />
         )}
       </div>
+      <span
+        className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-semibold uppercase tracking-[0.12em]"
+        style={{ color: dark ? 'rgba(255,255,255,0.45)' : 'rgba(15,15,18,0.40)' }}
+      >
+        {slot.label}
+      </span>
     </button>
   );
 }
@@ -108,19 +110,19 @@ export function LogosPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">Logos</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold tracking-tight text-foreground">Logos</h3>
         <button
           type="button"
           onClick={goToVariantStudio}
-          className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
+          className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[12px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
         >
-          <Wand2 className="h-3.5 w-3.5" />
+          <Wand2 className="h-3 w-3" />
           <span>Variants</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         {tiles.map(({ slot, url }) => (
           <LogoTile
             key={slot.role}
