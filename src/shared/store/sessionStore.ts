@@ -37,6 +37,12 @@ export const useSessionStore = create<SessionStore>()(
           user,
           mode: 'user',
           isAuthenticated: true,
+          // Flip loading → false atomically with isAuth. If we don't, there's
+          // a window where isAuth goes true but isLoading is still true, and
+          // any component that redirects on `!isLoading && !isAuthenticated`
+          // (DashboardRoute, ProtectedRoute) will briefly redirect on the
+          // false→false transition if the safety timeout fires before signIn.
+          isLoading: false,
           previousMode: state.mode
         }), false, 'signIn'),
 

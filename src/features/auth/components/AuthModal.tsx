@@ -37,7 +37,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     }
   }, [isOpen, defaultMode]);
 
-  const { switchToGuest } = useSessionStore();
+  const { switchToGuest, signIn: storeSignIn } = useSessionStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,10 +61,26 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
           throw error;
         }
 
-        if (!data?.session) {
+        if (!data?.session || !data.user) {
           toast.error('Login failed — no session created. Please try again.');
           return;
         }
+
+        // Seed the session store synchronously so /dashboard's guard sees
+        // isAuthenticated: true immediately. Otherwise we race Supabase's
+        // onAuthStateChange listener and briefly flip through (isLoading:
+        // false, isAuthenticated: false) — which redirects the user right
+        // back to /login. onAuthStateChange will fire shortly after and
+        // re-run the same update idempotently.
+        storeSignIn({
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+          avatar: data.user.user_metadata?.avatar_url,
+          plan: 'free',
+          createdAt: new Date(data.user.created_at),
+          updatedAt: new Date(data.user.updated_at || data.user.created_at),
+        });
 
         toast.success('Welcome back!');
         onClose();

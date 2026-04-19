@@ -107,15 +107,20 @@ export const useAuth = () => {
         if (!isMounted) return;
 
         if (session?.user) {
-          // Check account status before allowing access
-          const allowed = await checkAccountStatus(session.user.id);
-          if (!allowed || !isMounted) return;
-
+          // Flip auth state FIRST so guards see isAuthenticated: true before
+          // any `!isLoading && !isAuthenticated` redirect can fire. If we
+          // awaited checkAccountStatus first, the 5s safety timeout could
+          // set isLoading: false while isAuthenticated is still false,
+          // which kicks the user back to /login. The account-status check
+          // still runs — if the user is suspended it calls supabase.auth.
+          // signOut() which fires the SIGNED_OUT handler and resets state.
           const mappedUser = mapSupabaseUser(session.user);
           reconfigureForAuth(true);
           signIn(mappedUser);
           await checkPlatformRole(session.user.id).catch(() => {});
           if (isMounted) setLoading(false);
+
+          checkAccountStatus(session.user.id).catch(() => true);
           updateLastSignIn(session.user.id);
           workspaceStore.loadAll().catch(console.error);
           loadFromSupabase().catch(console.error);
@@ -152,25 +157,24 @@ export const useAuth = () => {
         }
         
         if (event === 'SIGNED_IN' && session?.user) {
-          // Check account status before allowing access
-          checkAccountStatus(session.user.id).then((allowed) => {
-            if (!allowed || !isMounted) return;
+          // Flip auth state FIRST — see getInitialSession above for why.
+          const mappedUser = mapSupabaseUser(session.user);
+          reconfigureForAuth(true);
+          signIn(mappedUser);
 
-            const mappedUser = mapSupabaseUser(session.user!);
-            reconfigureForAuth(true);
-            signIn(mappedUser);
+          localStorage.removeItem('brandos:brands');
+          console.log('[useAuth] User signed in:', session.user.email);
 
-            localStorage.removeItem('brandos:brands');
-            console.log('[useAuth] User signed in:', session.user!.email);
-
-            checkPlatformRole(session.user!.id).then(() => {
-              if (isMounted) setLoading(false);
-            });
-            updateLastSignIn(session.user!.id);
-            workspaceStore.loadAll().catch(console.error);
-            syncToSupabase().catch(console.error);
-            migrateLocalStorageToSupabase().catch(console.error);
+          checkPlatformRole(session.user.id).then(() => {
+            if (isMounted) setLoading(false);
           });
+          // Fire-and-forget: if the user is suspended/banned, this will call
+          // supabase.auth.signOut() which re-enters this handler as SIGNED_OUT.
+          checkAccountStatus(session.user.id).catch(() => true);
+          updateLastSignIn(session.user.id);
+          workspaceStore.loadAll().catch(console.error);
+          syncToSupabase().catch(console.error);
+          migrateLocalStorageToSupabase().catch(console.error);
         } else if (event === 'PASSWORD_RECOVERY') {
           console.log('[useAuth] Password recovery — redirecting to reset page');
           navigate('/auth/reset-password');
