@@ -98,8 +98,13 @@ function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, on
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm group"
-      style={{ background: color, color: fg, aspectRatio: '3 / 5' }}
+      className="relative rounded-[20px] overflow-hidden group"
+      style={{
+        background: color,
+        color: fg,
+        aspectRatio: '3 / 5',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
+      }}
     >
       <button
         type="button"
@@ -206,8 +211,11 @@ function NeutralsCard({
 }) {
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm bg-white group"
-      style={{ aspectRatio: '3 / 5' }}
+      className="relative rounded-[20px] overflow-hidden bg-white group"
+      style={{
+        aspectRatio: '3 / 5',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
+      }}
     >
       <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
         <span className="text-[13px] font-semibold tracking-tight text-foreground">
@@ -239,10 +247,16 @@ function AddColorCard({ onAdd }: { onAdd: () => void }) {
     <button
       type="button"
       onClick={onAdd}
-      className="rounded-2xl border-2 border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 flex items-center justify-center transition-colors"
-      style={{ aspectRatio: '3 / 5' }}
+      className="rounded-[20px] bg-white/60 hover:bg-white flex items-center justify-center transition-all"
+      style={{
+        aspectRatio: '3 / 5',
+        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.04)',
+      }}
+      aria-label="Add color"
     >
-      <Plus className="h-6 w-6 text-muted-foreground" />
+      <div className="h-9 w-9 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05),0_4px_12px_-6px_rgba(0,0,0,0.08)] flex items-center justify-center">
+        <Plus className="h-4 w-4 text-foreground/60" />
+      </div>
     </button>
   );
 }
@@ -252,11 +266,11 @@ function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string })
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+      className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
     >
       <Shuffle className="h-3.5 w-3.5" />
       <span>Shuffle</span>
-      <kbd className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted/70 rounded text-muted-foreground">
+      <kbd className="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-neutral-100 rounded text-muted-foreground">
         {hint}
       </kbd>
     </button>
@@ -287,14 +301,14 @@ export function ColorsPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold tracking-tight text-foreground">Colors</h3>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">Colors</h3>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border/60 overflow-hidden">
+          <div className="inline-flex rounded-full bg-white p-0.5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)]">
             <button
               type="button"
               onClick={() => isLight || toggleDarkMode()}
-              className={`px-2.5 py-1.5 ${isLight ? 'bg-background text-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'}`}
+              className={`px-2.5 py-1 rounded-full transition-colors ${isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label="Light mode"
             >
               <Sun className="h-3.5 w-3.5" />
@@ -302,7 +316,7 @@ export function ColorsPanel() {
             <button
               type="button"
               onClick={() => !isLight || toggleDarkMode()}
-              className={`px-2.5 py-1.5 ${!isLight ? 'bg-background text-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'}`}
+              className={`px-2.5 py-1 rounded-full transition-colors ${!isLight ? 'bg-neutral-900 text-white' : 'text-muted-foreground hover:text-foreground'}`}
               aria-label="Dark mode"
             >
               <Moon className="h-3.5 w-3.5" />

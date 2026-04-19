@@ -30,11 +30,11 @@ function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string })
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+      className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
     >
       <Shuffle className="h-3.5 w-3.5" />
       <span>Shuffle</span>
-      <kbd className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted/70 rounded text-muted-foreground">
+      <kbd className="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-neutral-100 rounded text-muted-foreground">
         {hint}
       </kbd>
     </button>
@@ -53,15 +53,18 @@ export function UIStylingPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold tracking-tight text-foreground">UI Styling</h3>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">UI Styling</h3>
         <ShuffleButton onClick={shuffleUI} hint="U" />
       </div>
 
       <div className="space-y-3">
         {/* ── Buttons & Forms ─────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border/60 bg-card p-5">
-          <div className="text-[11px] font-semibold text-muted-foreground mb-3">
+        <div
+          className="rounded-[20px] bg-white p-5"
+          style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)' }}
+        >
+          <div className="text-[11px] font-semibold text-muted-foreground/80 mb-3 tracking-wide">
             Buttons &amp; Forms
           </div>
 
@@ -148,8 +151,11 @@ export function UIStylingPanel() {
         </div>
 
         {/* ── Cards & Images ──────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border/60 bg-card p-5">
-          <div className="text-[11px] font-semibold text-muted-foreground mb-3">
+        <div
+          className="rounded-[20px] bg-white p-5"
+          style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)' }}
+        >
+          <div className="text-[11px] font-semibold text-muted-foreground/80 mb-3 tracking-wide">
             Cards &amp; Images
           </div>
 

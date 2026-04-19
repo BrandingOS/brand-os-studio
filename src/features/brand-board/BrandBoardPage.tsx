@@ -77,59 +77,86 @@ export default function BrandBoardPage() {
   };
 
   return (
-    <div className="h-screen flex bg-background overflow-hidden">
+    <div
+      className="h-screen flex overflow-hidden"
+      style={{ background: 'var(--bb-shell-bg, #faf9f6)' }}
+    >
       {/* Global app rail — lets the user switch brands / jump to workspace
           without leaving the Brand Board. Mirrors other in-shell pages. */}
       <AppRail brandSlug={slug} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar */}
-        <header className="h-14 border-b flex items-center justify-between px-4 shrink-0">
+        {/* Top bar — borderless; separated from the canvas by whitespace only */}
+        <header className="h-16 flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Back
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(-1)}
+              className="rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
             </Button>
-            <Separator orientation="vertical" className="h-6" />
-            <span className="font-semibold">{draft.brandName}</span>
-            <span className="text-xs text-muted-foreground">· Brand Board</span>
+            <Separator orientation="vertical" className="h-4 opacity-50" />
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold tracking-tight">{draft.brandName}</span>
+              <span className="text-xs text-muted-foreground tracking-wide uppercase">
+                · Brand Board
+              </span>
+            </div>
             <ConceptSwitcher />
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={shuffleAll}>
-              <Shuffle className="h-4 w-4 mr-1" /> Shuffle All
-            </Button>
-            <Button size="sm" onClick={handleSave}>
-              <Save className="h-4 w-4 mr-1" /> Save
-            </Button>
+            <button
+              type="button"
+              onClick={shuffleAll}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05),0_4px_16px_-8px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_24px_-8px_rgba(0,0,0,0.12)] transition-shadow"
+            >
+              <Shuffle className="h-3.5 w-3.5" />
+              Shuffle all
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </button>
           </div>
         </header>
 
         {/* Split panels */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left panel — controls */}
-          <div className="w-[420px] border-r overflow-y-auto p-5 space-y-8 shrink-0">
+        <div className="flex-1 flex overflow-hidden gap-0">
+          {/* Left panel — controls, no hard border; just whitespace + subtle shadow */}
+          <div className="w-[440px] overflow-y-auto px-6 pt-2 pb-10 space-y-10 shrink-0">
             <ColorsPanel />
             <TypographyPanel />
             <UIStylingPanel />
           </div>
 
-          {/* Right panel — preview */}
-          <div className="flex-1 overflow-y-auto bg-neutral-50 dark:bg-neutral-900">
+          {/* Right panel — preview on a warm canvas background */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ background: 'var(--bb-canvas-bg, #f2f0eb)' }}
+          >
             <BrandPreview />
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="h-12 border-t flex items-center justify-between px-4 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">Shuffle:</span>
+        {/* Bottom bar — borderless, quiet */}
+        <div className="h-12 flex items-center justify-between px-6 shrink-0">
+          <div className="flex items-center gap-4">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/70">
+              Shuffle
+            </span>
             <Hint hint="SPACE">All</Hint>
             <Hint hint="C">Colors</Hint>
             <Hint hint="T">Type</Hint>
             <Hint hint="U">UI</Hint>
           </div>
-          <div className="text-xs text-muted-foreground">
-            Click the lock on any color to keep it through shuffles.
+          <div className="text-[11px] text-muted-foreground/70">
+            Lock a color to keep it through shuffles.
           </div>
         </div>
       </div>
@@ -140,8 +167,10 @@ export default function BrandBoardPage() {
 function Hint({ hint, children }: { hint: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-1.5">
-      <kbd className="px-1.5 py-0.5 text-[10px] bg-muted rounded font-mono">{hint}</kbd>
-      <span className="text-xs text-muted-foreground">{children}</span>
+      <kbd className="px-1.5 py-0.5 text-[10px] bg-white/70 rounded-md font-mono text-foreground/70 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.04)]">
+        {hint}
+      </kbd>
+      <span className="text-xs text-muted-foreground/80">{children}</span>
     </div>
   );
 }

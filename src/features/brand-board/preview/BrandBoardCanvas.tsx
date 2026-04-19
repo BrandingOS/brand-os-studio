@@ -62,9 +62,9 @@ export function BrandBoardCanvas() {
   );
 
   return (
-    <div className="min-h-full flex items-center justify-center p-8">
+    <div className="min-h-full flex items-center justify-center p-10">
       <div
-        className="relative overflow-hidden shadow-2xl"
+        className="relative overflow-hidden"
         style={{
           width: CANVAS_W,
           height: CANVAS_H,
@@ -72,8 +72,10 @@ export function BrandBoardCanvas() {
           aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
           background: 'var(--bb-bg)',
           color: 'var(--bb-fg)',
-          borderRadius: 12,
+          borderRadius: 20,
           fontFamily: 'var(--bb-font-body)',
+          boxShadow:
+            '0 1px 2px rgba(0,0,0,0.04), 0 24px 64px -24px rgba(0,0,0,0.18), 0 40px 120px -40px rgba(0,0,0,0.12)',
           ...vars,
         }}
       >

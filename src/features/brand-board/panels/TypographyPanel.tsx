@@ -63,13 +63,16 @@ function FontCard({ label, fontFamily, onSelect }: FontCardProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full rounded-2xl border border-border/60 bg-card p-5 text-left hover:border-border transition-colors"
+        className="w-full rounded-[20px] bg-white p-5 text-left transition-shadow"
+        style={{
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.10)',
+        }}
       >
-        <div className="text-[11px] font-semibold text-muted-foreground mb-3">
+        <div className="text-[11px] font-semibold text-muted-foreground/80 mb-3 tracking-wide">
           {label}
         </div>
         <div
-          className="text-3xl font-semibold truncate mb-4"
+          className="text-[28px] font-semibold truncate mb-4 tracking-tight"
           style={{ fontFamily: `'${fontFamily}', sans-serif` }}
         >
           {fontFamily}
@@ -77,7 +80,7 @@ function FontCard({ label, fontFamily, onSelect }: FontCardProps) {
         <div className="flex items-center gap-2">
           <div className="h-4 w-4 rounded-full bg-gradient-to-br from-red-500 via-yellow-400 to-green-500 shrink-0" />
           <span className="text-xs font-medium text-muted-foreground">Google</span>
-          <span className="text-xs text-muted-foreground/50">|</span>
+          <span className="text-xs text-muted-foreground/50">·</span>
           <span className="text-xs font-medium text-muted-foreground">Free</span>
         </div>
       </button>
@@ -148,7 +151,7 @@ function WeightSelect({ value, onChange }: { value: Weight; onChange: (w: Weight
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm hover:bg-muted/50 transition-colors"
+        className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
       >
         <span className="text-muted-foreground">{current.label}</span>
         <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -185,11 +188,11 @@ function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string })
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+      className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[13px] font-medium shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_-6px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.05),0_6px_16px_-6px_rgba(0,0,0,0.12)] transition-shadow"
     >
       <Shuffle className="h-3.5 w-3.5" />
       <span>Shuffle</span>
-      <kbd className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted/70 rounded text-muted-foreground">
+      <kbd className="ml-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-neutral-100 rounded text-muted-foreground">
         {hint}
       </kbd>
     </button>
@@ -211,8 +214,8 @@ export function TypographyPanel() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold tracking-tight text-foreground">Typography</h3>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-[22px] font-semibold tracking-tight text-foreground">Typography</h3>
         <div className="flex items-center gap-2">
           <WeightSelect value={draft.typography.weight} onChange={storeSetWeight} />
           <ShuffleButton onClick={shuffleTypography} hint="T" />
