@@ -1,42 +1,32 @@
 /**
- * LogosPanel — shows every logo slot the brand has, with two sources.
+ * LogosPanel — every logo slot the brand has, each with the canonical
+ * AssetSourcePopover for changing it.
  *
- * Clicking a tile opens a small menu:
- *   • Upload from computer  → native file picker
- *   • Pick from Folders     → brand AssetPicker (reads currentBrand.assets)
- *
- * Either path writes the resulting URL to the matching logoSystem slot
- * and the tile refreshes. User never leaves Brand Board.
+ * Click a tile → inline popover with Upload from device + a scrollable
+ * Brand Assets grid. Either source writes the resulting URL to the
+ * matching logoSystem slot. User never leaves Brand Board.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Plus, Wand2, Loader2, Upload as UploadIcon, FolderOpen } from 'lucide-react';
+import { Plus, Wand2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import { storageService } from '@/shared/services/storage.supabase';
-import { AssetPicker } from '@/shared/upload/AssetPicker';
-import type { Asset } from '@/shared/types/brand';
+import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
 import type { LogoRole } from '@/shared/types/brandAssets';
 
 interface LogoSlot {
   role: LogoRole;
   label: string;
-  /** dark = place on dark background, light = place on light background */
   surface: 'light' | 'dark';
 }
 
 const SLOTS: LogoSlot[] = [
-  { role: 'primary',    label: 'Primary',   surface: 'light' },
-  { role: 'iconmark',   label: 'Mark',      surface: 'light' },
-  { role: 'horizontal', label: 'Wordmark',  surface: 'light' },
-  { role: 'mono.white', label: 'Inverse',   surface: 'dark' },
+  { role: 'primary',    label: 'Primary',  surface: 'light' },
+  { role: 'iconmark',   label: 'Mark',     surface: 'light' },
+  { role: 'horizontal', label: 'Wordmark', surface: 'light' },
+  { role: 'mono.white', label: 'Inverse',  surface: 'dark' },
 ];
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -48,60 +38,35 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-/**
- * A single logo slot tile. Renders the current logo (or a fallback) and
- * exposes a dropdown menu so the user can upload from their computer OR
- * pick an existing asset from the brand's Folders.
- */
 function LogoTile({
   slot,
   url,
-  onUploadFile,
-  onPickFromFolders,
   uploading,
   fallbackInitial,
   fallbackColor,
+  onPickSource,
 }: {
   slot: LogoSlot;
   url?: string;
-  onUploadFile: (file: File) => void;
-  onPickFromFolders: () => void;
   uploading: boolean;
   fallbackInitial?: string;
   fallbackColor?: string;
+  onPickSource: (source: AssetSource) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
   const dark = slot.surface === 'dark';
-  return (
-    <div
-      className="group relative rounded-2xl overflow-hidden"
+
+  const trigger = (
+    <button
+      type="button"
+      title={`Change ${slot.label} logo`}
+      aria-label={`Change ${slot.label} logo`}
+      className="relative rounded-2xl overflow-hidden text-left"
       style={{
         background: dark ? '#0f0f12' : '#ffffff',
         aspectRatio: '1 / 1',
         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 16px -10px rgba(0,0,0,0.10)',
       }}
     >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            title={`Change ${slot.label} logo`}
-            className="absolute inset-0 cursor-pointer"
-            aria-label={`Change ${slot.label} logo`}
-          />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-52">
-          <DropdownMenuItem onSelect={() => inputRef.current?.click()}>
-            <UploadIcon className="h-3.5 w-3.5 mr-2" />
-            Upload from computer
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onPickFromFolders}>
-            <FolderOpen className="h-3.5 w-3.5 mr-2" />
-            Pick from Folders
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <div className="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
         {uploading ? (
           <Loader2
@@ -140,19 +105,15 @@ function LogoTile({
       >
         {slot.label}
       </span>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/png,image/jpeg,image/svg+xml,image/webp"
-        className="sr-only"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onUploadFile(file);
-          e.target.value = ''; // allow re-upload of same filename
-        }}
-        tabIndex={-1}
-      />
-    </div>
+    </button>
+  );
+
+  return (
+    <AssetSourcePopover
+      trigger={trigger}
+      categories={['logo', 'icon', 'reference']}
+      onPick={onPickSource}
+    />
   );
 }
 
@@ -163,7 +124,6 @@ export function LogosPanel() {
   const updateBrand = useBrandStore((s) => s.update);
 
   const [uploading, setUploading] = useState<LogoRole | null>(null);
-  const [pickingFor, setPickingFor] = useState<LogoRole | null>(null);
 
   const tiles = useMemo(() => {
     if (!currentBrand) return SLOTS.map((s) => ({ slot: s, url: undefined as string | undefined }));
@@ -176,7 +136,7 @@ export function LogosPanel() {
   const initial = currentBrand?.name?.charAt(0).toUpperCase() ?? 'B';
   const primaryColor = currentBrand?.primaryColor;
 
-  /** Apply a resolved logo URL into the matching logoSystem slot. */
+  /** Write a resolved URL into the matching logoSystem slot. */
   const applyLogo = async (role: LogoRole, url: string) => {
     if (!currentBrand) return;
     const patch: Record<string, any> = {
@@ -202,36 +162,30 @@ export function LogosPanel() {
     toast.success(`${SLOTS.find((s) => s.role === role)?.label ?? 'Logo'} updated`);
   };
 
-  /** Handle a file dropped in via the OS picker — upload, then apply. */
-  const handleUploadFile = async (role: LogoRole, file: File) => {
+  const handlePick = async (role: LogoRole, source: AssetSource) => {
     if (!currentBrand) return;
     setUploading(role);
     try {
+      if (source.kind === 'asset') {
+        await applyLogo(role, source.asset.url);
+        return;
+      }
+      // file: upload (with data URL fallback), then apply
       let url: string;
       try {
         const result = await storageService.uploadAsset(
           currentBrand.id,
-          file,
-          `brand-board/${role}-${Date.now()}-${file.name}`,
+          source.file,
+          `brand-board/${role}-${Date.now()}-${source.file.name}`,
         );
         url = result.url;
       } catch {
-        url = await fileToDataUrl(file);
+        url = await fileToDataUrl(source.file);
       }
       await applyLogo(role, url);
     } catch (e) {
-      console.error('[LogosPanel] upload failed', e);
-      toast.error('Upload failed. Try another file.');
-    } finally {
-      setUploading(null);
-    }
-  };
-
-  /** Handle an asset picked from the brand Folders. */
-  const handlePickAsset = async (role: LogoRole, asset: Asset) => {
-    setUploading(role);
-    try {
-      await applyLogo(role, asset.url);
+      console.error('[LogosPanel] pick failed', e);
+      toast.error('Could not update logo. Try a different file.');
     } finally {
       setUploading(null);
     }
@@ -260,27 +214,12 @@ export function LogosPanel() {
             slot={slot}
             url={url}
             uploading={uploading === slot.role}
-            onUploadFile={(file) => handleUploadFile(slot.role, file)}
-            onPickFromFolders={() => setPickingFor(slot.role)}
             fallbackInitial={slot.role === 'primary' || slot.role === 'iconmark' ? initial : undefined}
             fallbackColor={primaryColor}
+            onPickSource={(source) => handlePick(slot.role, source)}
           />
         ))}
       </div>
-
-      {/* Shared asset picker — scopes to image-like assets so the user
-          isn't flipping through fonts or docs when picking a logo. */}
-      <AssetPicker
-        open={pickingFor !== null}
-        onClose={() => setPickingFor(null)}
-        onSelect={(asset) => {
-          if (pickingFor) handlePickAsset(pickingFor, asset);
-          setPickingFor(null);
-        }}
-        categories={['logo', 'icon', 'reference']}
-        types={['image']}
-        title="Pick a logo from Folders"
-      />
     </section>
   );
 }
