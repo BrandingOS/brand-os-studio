@@ -280,6 +280,19 @@ export function AppRail({ brandSlug }: AppRailProps) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent side="right" align="start" className="w-64">
+              <DropdownMenuItem
+                onSelect={() => navigate('/dashboard')}
+                className="flex items-center gap-2.5 cursor-pointer"
+              >
+                <div className="w-7 h-7 rounded shrink-0 flex items-center justify-center bg-muted">
+                  <Home className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Dashboard</p>
+                  <p className="text-[11px] text-muted-foreground">Back to workspace home</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Switch brand
               </DropdownMenuLabel>
