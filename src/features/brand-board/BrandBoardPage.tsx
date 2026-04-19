@@ -1,13 +1,6 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Shuffle,
-  Save,
-  Monitor,
-  Tablet,
-  Smartphone,
-} from 'lucide-react';
+import { ArrowLeft, Shuffle, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -28,8 +21,6 @@ export default function BrandBoardPage() {
   const updateBrand = useBrandStore((s) => s.update);
 
   const draft = useBrandBoardStore((s) => s.draft);
-  const previewDevice = useBrandBoardStore((s) => s.previewDevice);
-  const setPreviewDevice = useBrandBoardStore((s) => s.setPreviewDevice);
   const initFromBrand = useBrandBoardStore((s) => s.initFromBrand);
   const shuffleAll = useBrandBoardStore((s) => s.shuffleAll);
 
@@ -117,20 +108,8 @@ export default function BrandBoardPage() {
           <kbd className="px-2 py-0.5 text-xs bg-muted rounded font-mono">SPACE</kbd>
           <span className="text-sm text-muted-foreground">Shuffle everything</span>
         </div>
-        <div className="flex items-center gap-1">
-          {(['desktop', 'tablet', 'mobile'] as const).map((d) => (
-            <Button
-              key={d}
-              variant={previewDevice === d ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setPreviewDevice(d)}
-            >
-              {d === 'desktop' ? <Monitor className="h-4 w-4" /> :
-               d === 'tablet' ? <Tablet className="h-4 w-4" /> :
-               <Smartphone className="h-4 w-4" />}
-            </Button>
-          ))}
+        <div className="text-xs text-muted-foreground">
+          Live preview updates as you edit colors, fonts, and styling.
         </div>
       </div>
     </div>
