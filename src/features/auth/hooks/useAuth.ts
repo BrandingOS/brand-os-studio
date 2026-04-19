@@ -137,12 +137,21 @@ export const useAuth = () => {
 
     getInitialSession();
 
-    // Safety net: if the auth check takes >5s, release loading so the UI isn't stuck.
+    // Safety net: if the auth check takes too long, release loading so the
+    // UI isn't stuck on the "Initializing…" spinner. Crucially, we only
+    // release loading when the user is NOT authenticated — if signIn() has
+    // already fired, isLoading is already false and we leave the state
+    // alone. Without that guard, a slow getSession() would race this
+    // timeout and bounce a real authenticated user back to /login. 15s
+    // gives the Supabase region (eu-central-1) plenty of headroom.
     const safetyTimeout = setTimeout(() => {
-      if (isMounted && useSessionStore.getState().isLoading) {
+      if (!isMounted) return;
+      const state = useSessionStore.getState();
+      if (state.isLoading && !state.isAuthenticated) {
+        console.warn('[useAuth] Safety timeout fired — no session after 15s');
         setLoading(false);
       }
-    }, 5000);
+    }, 15000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
