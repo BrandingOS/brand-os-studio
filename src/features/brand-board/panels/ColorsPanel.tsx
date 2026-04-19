@@ -1,109 +1,162 @@
-import { useRef } from 'react';
+/**
+ * ColorsPanel — Relume-style color controls for Brand Board.
+ *
+ * Tall cards per color (name, hex, lightness slider), a dedicated
+ * Neutrals card showing the shade strip, and an add (+) tile. Shuffle
+ * keyboard hint rendered as a kbd badge.
+ */
+import { useMemo, useRef } from 'react';
 import { Sun, Moon, Shuffle, Plus, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { generateNeutrals } from '../engine/shuffle';
 
-/** Derive a simple color name from a hex value based on its hue. */
-function colorName(hex: string): string {
+// ---- color utilities -------------------------------------------------------
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const sanitized = hex.replace('#', '');
   const r = parseInt(sanitized.substring(0, 2), 16) / 255;
   const g = parseInt(sanitized.substring(2, 4), 16) / 255;
   const b = parseInt(sanitized.substring(4, 6), 16) / 255;
-
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const l = (max + min) / 2;
-
-  if (max === min) return l > 0.5 ? 'White' : 'Black';
-
+  if (max === min) return { h: 0, s: 0, l };
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  if (s < 0.1) return l > 0.5 ? 'Light Gray' : 'Dark Gray';
-
   let h = 0;
   if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
   else if (max === g) h = ((b - r) / d + 2) / 6;
   else h = ((r - g) / d + 4) / 6;
-
-  const hue = h * 360;
-  if (hue < 15) return 'Red';
-  if (hue < 40) return 'Orange';
-  if (hue < 65) return 'Yellow';
-  if (hue < 150) return 'Green';
-  if (hue < 195) return 'Teal';
-  if (hue < 255) return 'Blue';
-  if (hue < 285) return 'Purple';
-  if (hue < 330) return 'Pink';
-  return 'Red';
+  return { h: h * 360, s, l };
 }
 
-/** Parse hue from hex for neutral generation. */
-function hueFromHex(hex: string): number {
-  const sanitized = hex.replace('#', '');
-  const r = parseInt(sanitized.substring(0, 2), 16) / 255;
-  const g = parseInt(sanitized.substring(2, 4), 16) / 255;
-  const b = parseInt(sanitized.substring(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  if (max === min) return 0;
-  let h = 0;
-  const d = max - min;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return h * 360;
+function hslToHex(h: number, s: number, l: number): string {
+  const hue = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (hue < 60) { r = c; g = x; }
+  else if (hue < 120) { r = x; g = c; }
+  else if (hue < 180) { g = c; b = x; }
+  else if (hue < 240) { g = x; b = c; }
+  else if (hue < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  const toHex = (v: number) => {
+    const val = Math.round((v + m) * 255).toString(16);
+    return val.length === 1 ? '0' + val : val;
+  };
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
+
+function readableOn(hex: string): '#ffffff' | '#0a0a0f' {
+  const { l } = hexToHsl(hex);
+  return l > 0.55 ? '#0a0a0f' : '#ffffff';
+}
+
+/** Pantone-ish color name lookup keyed on hue. */
+function namedColor(hex: string): string {
+  const { h, s, l } = hexToHsl(hex);
+  if (s < 0.08) return l > 0.9 ? 'Snow' : l > 0.5 ? 'Ash' : l > 0.2 ? 'Slate' : 'Onyx';
+  if (h < 10)  return l < 0.45 ? 'Crimson' : 'Roman';
+  if (h < 25)  return 'Coral';
+  if (h < 45)  return 'Apricot';
+  if (h < 65)  return 'Citron';
+  if (h < 100) return 'Lime';
+  if (h < 150) return 'Salem';
+  if (h < 190) return 'Teal';
+  if (h < 225) return 'Azure';
+  if (h < 255) return 'Royal Blue';
+  if (h < 280) return 'Indigo';
+  if (h < 310) return 'Violet';
+  if (h < 340) return 'Magenta';
+  return 'Rose';
+}
+
+// ---- sub-components --------------------------------------------------------
 
 interface ColorCardProps {
   color: string;
-  label: string;
   badge?: string;
   removable?: boolean;
   onChange: (hex: string) => void;
   onRemove?: () => void;
 }
 
-function ColorCard({ color, label, badge, removable, onChange, onRemove }: ColorCardProps) {
+function ColorCard({ color, badge, removable, onChange, onRemove }: ColorCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const fg = readableOn(color);
+  const { h, s, l } = useMemo(() => hexToHsl(color), [color]);
+  const name = useMemo(() => namedColor(color), [color]);
+
+  const handleLightness = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = Number(e.target.value) / 100;
+    onChange(hslToHex(h, s, next));
+  };
 
   return (
-    <button
-      type="button"
-      className="group relative rounded-xl overflow-hidden border border-border/60 hover:ring-2 hover:ring-primary/30 transition-all text-left"
-      onClick={() => inputRef.current?.click()}
+    <div
+      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm group"
+      style={{ background: color, color: fg, aspectRatio: '3 / 5' }}
     >
-      <div
-        className="aspect-[3/4] w-full min-h-[120px]"
-        style={{ backgroundColor: color }}
+      <button
+        type="button"
+        className="absolute inset-0 cursor-pointer"
+        onClick={() => inputRef.current?.click()}
+        aria-label={`Pick ${name}`}
       />
-      <div className="absolute inset-0 flex flex-col justify-between p-2.5">
+      <div className="relative p-3 flex flex-col h-full pointer-events-none">
         <div className="flex items-start justify-between">
-          <span className="text-[11px] font-medium text-white drop-shadow-sm">
-            {label}
-          </span>
+          <span className="text-[13px] font-semibold tracking-tight">{name}</span>
           {badge && (
-            <span className="text-[9px] font-semibold uppercase tracking-wider bg-white/25 backdrop-blur-sm text-white px-1.5 py-0.5 rounded-full">
+            <span
+              className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.22)', color: fg }}
+            >
               {badge}
             </span>
           )}
         </div>
-        <div className="flex items-end justify-between">
-          <span className="text-[11px] font-mono text-white/80 drop-shadow-sm">
-            {color.toUpperCase()}
-          </span>
-          {removable && (
-            <span
-              role="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove?.();
-              }}
-              className="opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center hover:bg-black/50"
-            >
-              <X className="h-3 w-3 text-white" />
-            </span>
-          )}
+        <div className="flex-1" />
+        <div className="pointer-events-auto">
+          <div className="text-[13px] font-mono font-semibold tracking-wide mb-2 uppercase">
+            {color.replace('#', '')}
+          </div>
+          <input
+            type="range"
+            min={10}
+            max={90}
+            value={Math.round(l * 100)}
+            onChange={handleLightness}
+            className="w-full h-1 cursor-pointer accent-white"
+            style={{ opacity: 0.85 }}
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex gap-0.5">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-1 w-1 rounded-full"
+                  style={{ background: fg, opacity: 0.35 }}
+                />
+              ))}
+            </div>
+            {removable && onRemove && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                className="h-5 w-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: 'rgba(0,0,0,0.25)' }}
+                aria-label="Remove color"
+              >
+                <X className="h-3 w-3" style={{ color: fg }} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <input
@@ -114,41 +167,60 @@ function ColorCard({ color, label, badge, removable, onChange, onRemove }: Color
         className="sr-only"
         tabIndex={-1}
       />
+    </div>
+  );
+}
+
+function NeutralsCard({ neutrals }: { neutrals: string[] }) {
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm bg-white"
+      style={{ aspectRatio: '3 / 5' }}
+    >
+      <div className="absolute top-3 left-3 right-3 z-10">
+        <span className="text-[13px] font-semibold tracking-tight text-foreground">
+          Neutrals
+        </span>
+      </div>
+      <div className="absolute inset-0 flex flex-col pt-10">
+        {neutrals.slice(0, 6).map((n, i) => (
+          <div key={i} className="flex-1" style={{ background: n }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddColorCard({ onAdd }: { onAdd: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onAdd}
+      className="rounded-2xl border-2 border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 flex items-center justify-center transition-colors"
+      style={{ aspectRatio: '3 / 5' }}
+    >
+      <Plus className="h-6 w-6 text-muted-foreground" />
     </button>
   );
 }
 
-function randomAccent(): string {
-  const hue = Math.floor(Math.random() * 360);
-  return `hsl(${hue}, 65%, 55%)`;
+function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+    >
+      <Shuffle className="h-3.5 w-3.5" />
+      <span>Shuffle</span>
+      <kbd className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted/70 rounded text-muted-foreground">
+        {hint}
+      </kbd>
+    </button>
+  );
 }
 
-function hslStringToHex(hsl: string): string {
-  // Parse hsl(h, s%, l%)
-  const match = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-  if (!match) return '#888888';
-  const h = parseInt(match[1]);
-  const s = parseInt(match[2]) / 100;
-  const l = parseInt(match[3]) / 100;
-
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
-  const m = l - c / 2;
-
-  let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; }
-  else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; b = x; }
-  else if (h < 240) { g = x; b = c; }
-  else if (h < 300) { r = x; b = c; }
-  else { r = c; b = x; }
-
-  const toHex = (v: number) => {
-    const hex = Math.round((v + m) * 255).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  };
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
+// ---- main ------------------------------------------------------------------
 
 export function ColorsPanel() {
   const draft = useBrandBoardStore((s) => s.draft);
@@ -159,96 +231,69 @@ export function ColorsPanel() {
   const toggleDarkMode = useBrandBoardStore((s) => s.toggleDarkMode);
 
   const { primary, secondary, accent } = draft.colors;
+  const { h: primaryHue } = hexToHsl(primary);
+  const neutrals =
+    draft.colors.neutrals.length > 0 ? draft.colors.neutrals : generateNeutrals(primaryHue);
 
-  // Auto-generate neutrals from primary hue
-  const neutrals = draft.colors.neutrals.length > 0
-    ? draft.colors.neutrals
-    : generateNeutrals(hueFromHex(primary));
+  const isLight =
+    draft.colors.background === '#ffffff' ||
+    draft.colors.background.toLowerCase() === '#fff';
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-foreground">Colors</h3>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={toggleDarkMode}
-            title="Toggle dark mode"
-          >
-            {draft.colors.background === '#ffffff' || draft.colors.background.toLowerCase() === '#fff' ? (
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold tracking-tight text-foreground">Colors</h3>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-lg border border-border/60 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => isLight || toggleDarkMode()}
+              className={`px-2.5 py-1.5 ${isLight ? 'bg-background text-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'}`}
+              aria-label="Light mode"
+            >
               <Sun className="h-3.5 w-3.5" />
-            ) : (
+            </button>
+            <button
+              type="button"
+              onClick={() => !isLight || toggleDarkMode()}
+              className={`px-2.5 py-1.5 ${!isLight ? 'bg-background text-foreground' : 'bg-muted/40 text-muted-foreground hover:text-foreground'}`}
+              aria-label="Dark mode"
+            >
               <Moon className="h-3.5 w-3.5" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={shuffleColors}
-            title="Shuffle colors"
-          >
-            <Shuffle className="h-3.5 w-3.5" />
-          </Button>
+            </button>
+          </div>
+          <ShuffleButton onClick={shuffleColors} hint="C" />
         </div>
       </div>
 
-      {/* Color cards grid */}
-      <div className="grid grid-cols-2 gap-2.5 mb-4">
+      <div className="grid grid-cols-2 gap-3">
+        <NeutralsCard neutrals={neutrals} />
         <ColorCard
           color={primary}
-          label={colorName(primary)}
           badge="Main"
           onChange={(hex) => {
             setColor('primary', hex);
-            setNeutrals(generateNeutrals(hueFromHex(hex)));
+            setNeutrals(generateNeutrals(hexToHsl(hex).h));
           }}
         />
         <ColorCard
           color={secondary}
-          label={colorName(secondary)}
           removable
           onChange={(hex) => setColor('secondary', hex)}
           onRemove={() => setColor('secondary', '#94a3b8')}
         />
         <ColorCard
           color={accent}
-          label={colorName(accent)}
           removable
           onChange={(hex) => setColor('accent', hex)}
           onRemove={() => setColor('accent', '#f59e0b')}
         />
-        {/* Add color button */}
-        <button
-          type="button"
-          className="aspect-[3/4] min-h-[120px] rounded-xl border-2 border-dashed border-border/60 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
-          onClick={() => {
-            const hex = hslStringToHex(randomAccent());
-            addColor(hex);
+        <AddColorCard
+          onAdd={() => {
+            const hue = Math.floor(Math.random() * 360);
+            addColor(hslToHex(hue, 0.65, 0.55));
           }}
-        >
-          <Plus className="h-5 w-5" />
-          <span className="text-[11px] font-medium">Add Color</span>
-        </button>
-      </div>
-
-      {/* Neutrals row */}
-      <div>
-        <span className="text-[11px] font-medium text-muted-foreground mb-1.5 block">
-          Neutrals
-        </span>
-        <div className="flex gap-1.5">
-          {neutrals.slice(0, 6).map((n, i) => (
-            <div
-              key={i}
-              className="flex-1 aspect-square rounded-lg border border-border/40"
-              style={{ backgroundColor: n }}
-              title={n.toUpperCase()}
-            />
-          ))}
-        </div>
+        />
       </div>
     </section>
   );

@@ -34,17 +34,27 @@ export default function BrandBoardPage() {
     if (brand) initFromBrand(brand);
   }, [brand?.id]);
 
-  // Keyboard: SPACE to shuffle
+  // Keyboard shortcuts: SPACE = shuffle all, C/T/U = shuffle colors/typography/UI.
+  // Ignored while the user is typing in a form control.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (
-        e.code === 'Space' &&
-        !['INPUT', 'TEXTAREA', 'SELECT'].includes(
-          (e.target as HTMLElement).tagName,
-        )
-      ) {
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const store = useBrandBoardStore.getState();
+      if (e.code === 'Space') {
         e.preventDefault();
-        useBrandBoardStore.getState().shuffleAll();
+        store.shuffleAll();
+      } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        store.shuffleColors();
+      } else if (e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        store.shuffleTypography();
+      } else if (e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        store.shuffleUI();
       }
     };
     window.addEventListener('keydown', handler);

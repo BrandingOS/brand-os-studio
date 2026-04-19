@@ -1,5 +1,11 @@
+/**
+ * UIStylingPanel — Relume-style UI controls.
+ *
+ * Two preview cards: Buttons & Forms (with live radius/shadow) and
+ * Cards & Images. Corner-radius slider + shadow/spacing selectors
+ * live inside the respective cards instead of a flat control stack.
+ */
 import { Shuffle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { SHADOW_MAP } from '../engine/uiPresets';
 
@@ -15,9 +21,25 @@ const SHADOW_OPTIONS: { value: ShadowIntensity; label: string }[] = [
 
 const SPACING_OPTIONS: { value: Spacing; label: string }[] = [
   { value: 'compact', label: 'Compact' },
-  { value: 'comfortable', label: 'Comfortable' },
-  { value: 'spacious', label: 'Spacious' },
+  { value: 'comfortable', label: 'Cozy' },
+  { value: 'spacious', label: 'Roomy' },
 ];
+
+function ShuffleButton({ onClick, hint }: { onClick: () => void; hint: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50 transition-colors"
+    >
+      <Shuffle className="h-3.5 w-3.5" />
+      <span>Shuffle</span>
+      <kbd className="ml-1 px-1.5 py-0.5 text-[10px] font-mono bg-muted/70 rounded text-muted-foreground">
+        {hint}
+      </kbd>
+    </button>
+  );
+}
 
 export function UIStylingPanel() {
   const draft = useBrandBoardStore((s) => s.draft);
@@ -27,139 +49,165 @@ export function UIStylingPanel() {
   const shuffleUI = useBrandBoardStore((s) => s.shuffleUI);
 
   const { borderRadius, shadowIntensity, spacing } = draft.uiStyle;
-
-  const handleShuffle = () => {
-    shuffleUI();
-  };
+  const primary = draft.colors.primary;
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-foreground">UI Styling</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleShuffle}
-          title="Shuffle UI style"
-        >
-          <Shuffle className="h-3.5 w-3.5" />
-        </Button>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold tracking-tight text-foreground">UI Styling</h3>
+        <ShuffleButton onClick={shuffleUI} hint="U" />
       </div>
 
-      {/* Border Radius slider */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-            Corner Radius
-          </label>
-          <span className="text-xs font-mono text-muted-foreground">
-            {borderRadius}px
-          </span>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={24}
-          step={2}
-          value={borderRadius}
-          onChange={(e) => setBorderRadius(Number(e.target.value))}
-          className="w-full accent-primary h-1.5"
-        />
-      </div>
+      <div className="space-y-3">
+        {/* ── Buttons & Forms ─────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border/60 bg-card p-5">
+          <div className="text-[11px] font-semibold text-muted-foreground mb-3">
+            Buttons &amp; Forms
+          </div>
 
-      {/* Shadow selector */}
-      <div className="mb-4">
-        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
-          Shadow
-        </label>
-        <div className="grid grid-cols-4 gap-1.5">
-          {SHADOW_OPTIONS.map((opt) => (
+          <div className="flex flex-wrap gap-2 mb-4">
             <button
-              key={opt.value}
               type="button"
-              className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
-                shadowIntensity === opt.value
-                  ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                  : 'border-border/60 hover:border-border'
-              }`}
-              onClick={() => setShadowIntensity(opt.value)}
+              className="px-4 py-2 text-sm font-medium text-white"
+              style={{
+                background: primary,
+                borderRadius: `${borderRadius}px`,
+                boxShadow: SHADOW_MAP[shadowIntensity],
+              }}
             >
-              <div
-                className="w-8 h-6 rounded bg-background border border-border/40"
-                style={{
-                  boxShadow: SHADOW_MAP[opt.value],
-                  borderRadius: `${Math.min(borderRadius, 8)}px`,
-                }}
+              Button
+            </button>
+            <button
+              type="button"
+              className="px-4 py-2 text-sm font-medium"
+              style={{
+                border: `1px solid ${primary}`,
+                color: primary,
+                borderRadius: `${borderRadius}px`,
+              }}
+            >
+              Button
+            </button>
+          </div>
+
+          <div className="mb-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            Label
+          </div>
+          <input
+            type="text"
+            placeholder="Placeholder"
+            className="w-full text-sm px-3 py-2 bg-background text-foreground"
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: `${borderRadius}px`,
+            }}
+          />
+
+          <div className="mt-4 pt-4 border-t border-border/50 space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Corner radius
+                </label>
+                <span className="text-xs font-mono text-muted-foreground">
+                  {borderRadius}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={24}
+                step={1}
+                value={borderRadius}
+                onChange={(e) => setBorderRadius(Number(e.target.value))}
+                className="w-full accent-primary h-1 cursor-pointer"
               />
-              <span className="text-[10px] text-muted-foreground">{opt.label}</span>
-            </button>
-          ))}
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                Shadow
+              </label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {SHADOW_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setShadowIntensity(opt.value)}
+                    className={`py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                      shadowIntensity === opt.value
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Spacing selector */}
-      <div className="mb-4">
-        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
-          Spacing
-        </label>
-        <div className="flex rounded-lg border border-border/60 overflow-hidden">
-          {SPACING_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={`flex-1 text-xs py-1.5 transition-colors ${
-                spacing === opt.value
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'bg-background hover:bg-muted/60 text-muted-foreground'
-              }`}
-              onClick={() => setSpacing(opt.value)}
+        {/* ── Cards & Images ──────────────────────────────────────── */}
+        <div className="rounded-2xl border border-border/60 bg-card p-5">
+          <div className="text-[11px] font-semibold text-muted-foreground mb-3">
+            Cards &amp; Images
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div
+              className="aspect-[4/3] bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-700 dark:to-neutral-800"
+              style={{
+                borderRadius: `${borderRadius}px`,
+                boxShadow: SHADOW_MAP[shadowIntensity],
+              }}
+            />
+            <div
+              className="p-3 bg-background border border-border/60 flex flex-col justify-between"
+              style={{
+                borderRadius: `${borderRadius}px`,
+                boxShadow: SHADOW_MAP[shadowIntensity],
+              }}
             >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </div>
+              <div>
+                <div className="text-[11px] font-semibold mb-1">Outlined Card</div>
+                <div className="text-[10px] text-muted-foreground leading-snug">
+                  Match this card to your aesthetic.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="self-start mt-2 px-2.5 py-1 text-[10px] font-medium text-white"
+                style={{
+                  background: primary,
+                  borderRadius: `${Math.max(borderRadius - 2, 2)}px`,
+                }}
+              >
+                Button
+              </button>
+            </div>
+          </div>
 
-      {/* Buttons preview card */}
-      <div>
-        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
-          Button Preview
-        </label>
-        <div className="rounded-xl border border-border/60 p-4 flex flex-wrap gap-2 bg-muted/20">
-          <button
-            type="button"
-            className="px-4 py-2 text-xs font-medium text-white transition-colors"
-            style={{
-              backgroundColor: draft.colors.primary,
-              borderRadius: `${borderRadius}px`,
-              boxShadow: SHADOW_MAP[shadowIntensity],
-            }}
-          >
-            Primary
-          </button>
-          <button
-            type="button"
-            className="px-4 py-2 text-xs font-medium border transition-colors"
-            style={{
-              borderColor: draft.colors.primary,
-              color: draft.colors.primary,
-              borderRadius: `${borderRadius}px`,
-              backgroundColor: 'transparent',
-            }}
-          >
-            Outline
-          </button>
-          <button
-            type="button"
-            className="px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/60 transition-colors"
-            style={{
-              borderRadius: `${borderRadius}px`,
-              backgroundColor: 'transparent',
-            }}
-          >
-            Ghost
-          </button>
+          <div className="pt-4 border-t border-border/50">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+              Spacing
+            </label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {SPACING_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSpacing(opt.value)}
+                  className={`py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                    spacing === opt.value
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
