@@ -74,20 +74,24 @@ export function ConceptSwitcher() {
               </span>
             </button>
           ))}
-          {concepts.length < MAX_CONCEPTS && (
-            <>
-              {concepts.length > 0 && (
-                <div className="border-t border-border/60 my-1" />
-              )}
-              <button
-                type="button"
-                className="w-full text-left text-sm px-3 py-2 hover:bg-muted/60 transition-colors flex items-center gap-2 text-muted-foreground"
-                onClick={handleSave}
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save current as concept
-              </button>
-            </>
+          {concepts.length > 0 && <div className="border-t border-border/60 my-1" />}
+          {concepts.length < MAX_CONCEPTS ? (
+            <button
+              type="button"
+              className="w-full text-left text-sm px-3 py-2 hover:bg-muted/60 transition-colors flex items-center gap-2 text-muted-foreground"
+              onClick={handleSave}
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save current as concept
+            </button>
+          ) : (
+            <div
+              className="w-full text-left text-xs px-3 py-2 flex items-center gap-2 text-muted-foreground/70"
+              title="Delete a concept to free a slot."
+            >
+              <Save className="h-3.5 w-3.5 opacity-50" />
+              <span>Max {MAX_CONCEPTS} concepts reached</span>
+            </div>
           )}
         </div>
       )}

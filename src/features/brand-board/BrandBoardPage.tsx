@@ -63,18 +63,29 @@ export default function BrandBoardPage() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Save back to brand store
+  // Save back to brand store — round-trip the ENTIRE draft so nothing
+  // the user picked is lost on refresh. Previously we only persisted
+  // primary/secondary/fonts and silently dropped accent, neutrals,
+  // weight, borderRadius, shadow, and spacing.
   const handleSave = async () => {
     if (!brand) return;
     await updateBrand(brand.id, {
       primaryColor: draft.colors.primary,
       secondaryColor: draft.colors.secondary,
+      accentColor: draft.colors.accent,
+      neutrals: draft.colors.neutrals,
       fonts: {
         primary: draft.typography.heading,
         secondary: draft.typography.body,
       },
+      uiStyle: {
+        borderRadius: draft.uiStyle.borderRadius,
+        shadowIntensity: draft.uiStyle.shadowIntensity,
+        spacing: draft.uiStyle.spacing,
+        weight: draft.typography.weight,
+      },
     });
-    toast.success('Brand updated');
+    toast.success('Brand board saved');
   };
 
   return (

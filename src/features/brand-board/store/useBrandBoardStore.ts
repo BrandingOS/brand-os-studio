@@ -246,14 +246,23 @@ export const useBrandBoardStore = create<BrandBoardState>()(
       },
 
       addColor: (hex) => {
-        // Smart add: fills first empty semantic slot, or replaces accent
+        // Round-robin: each `+` click writes into the next unlocked slot
+        // (secondary → accent → secondary …). Locked slots are skipped so
+        // the user's pinned colors stay untouched. Falls back to accent
+        // if everything non-primary is locked.
         get().pushHistory();
-        set((state) => ({
-          draft: {
-            ...state.draft,
-            colors: { ...state.draft.colors, accent: hex },
-          },
-        }));
+        const { lockedColors } = get();
+        set((state) => {
+          const next = { ...state.draft.colors };
+          const candidates: Array<keyof typeof next> = ['secondary', 'accent'];
+          const available = candidates.filter((c) => !lockedColors[c as ColorRole]);
+          const slot =
+            available.length > 0
+              ? available[state.history.length % available.length]
+              : 'accent';
+          next[slot] = hex;
+          return { draft: { ...state.draft, colors: next } };
+        });
       },
 
       toggleColorLock: (role) =>
@@ -478,12 +487,20 @@ export const useBrandBoardStore = create<BrandBoardState>()(
         const brandName = brand?.name ?? 'Untitled Brand';
         const logo = brand?.logo;
 
-        // Generate accent as triadic (120 degree rotation) from primary
         const hue = hexToHue(primaryColor);
-        const accent = hslToHex(hue + 120, 0.7, 0.5);
 
-        // Generate neutrals tinted from primary hue
-        const neutrals = generateNeutrals(hue);
+        // Prefer the previously-saved Brand Board state (accent, neutrals,
+        // uiStyle, weight) if present. Otherwise derive sensible defaults:
+        // accent = triadic rotation of primary, neutrals tinted from the
+        // primary hue. This ensures Save/refresh round-trips every choice.
+        const accent =
+          brand?.accentColor ?? hslToHex(hue + 120, 0.7, 0.5);
+        const neutrals: string[] =
+          Array.isArray(brand?.neutrals) && brand.neutrals.length === 6
+            ? brand.neutrals
+            : generateNeutrals(hue);
+
+        const savedUi = brand?.uiStyle;
 
         set({
           draft: {
@@ -498,12 +515,12 @@ export const useBrandBoardStore = create<BrandBoardState>()(
             typography: {
               heading: headingFont,
               body: bodyFont,
-              weight: 'regular',
+              weight: savedUi?.weight ?? 'regular',
             },
             uiStyle: {
-              borderRadius: 8,
-              shadowIntensity: 'medium',
-              spacing: 'comfortable',
+              borderRadius: savedUi?.borderRadius ?? 8,
+              shadowIntensity: savedUi?.shadowIntensity ?? 'medium',
+              spacing: savedUi?.spacing ?? 'comfortable',
             },
             logo,
             brandName,

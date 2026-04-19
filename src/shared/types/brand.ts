@@ -43,6 +43,17 @@ export interface Brand {
   audience: string;
   strategy?: string;
   guidelines?: BrandGuidelines;
+  /**
+   * Brand Board UI-style snapshot. Written by the Brand Board editor on
+   * Save so radius/shadow/spacing/weight choices survive page refresh.
+   * Optional — a brand that was never opened in Brand Board has no
+   * entry here and the editor falls back to defaults.
+   */
+  uiStyle?: BrandUIStyle;
+  /** Extra brand colors chosen in Brand Board beyond primary/secondary. */
+  accentColor?: string;
+  /** Six neutral shades (lightest → darkest) generated from primary hue. */
+  neutrals?: string[];
   /** @deprecated use brandAssets (v3) */
   assets: Asset[];
   isPublic?: boolean;
@@ -50,6 +61,13 @@ export interface Brand {
   customDomain?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface BrandUIStyle {
+  borderRadius: number;
+  shadowIntensity: 'none' | 'subtle' | 'medium' | 'bold';
+  spacing: 'compact' | 'comfortable' | 'spacious';
+  weight: 'light' | 'regular' | 'bold';
 }
 
 /** Logo assets for different use cases */

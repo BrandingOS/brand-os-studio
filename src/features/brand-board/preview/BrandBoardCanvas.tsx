@@ -39,6 +39,30 @@ export function BrandBoardCanvas() {
   const values = currentBrand?.guidelines?.strategy?.values ?? [];
   const toneAttributes = currentBrand?.guidelines?.voiceAndTone?.toneAttributes ?? [];
 
+  // Weight dropdown → CSS custom property. Headings get roughly one step
+  // heavier than body at every setting so the type hierarchy is always
+  // preserved visually.
+  const weightHeading =
+    draft.typography.weight === 'light' ? 500
+      : draft.typography.weight === 'bold' ? 800
+      : 700;
+  const weightBody =
+    draft.typography.weight === 'light' ? 300
+      : draft.typography.weight === 'bold' ? 500
+      : 400;
+
+  // Spacing dropdown → padding + gap multiplier. The canvas + application
+  // mock + palette grid all read from --bb-pad / --bb-gap so the whole
+  // poster tightens or loosens together.
+  const pad =
+    draft.uiStyle.spacing === 'compact' ? 24
+      : draft.uiStyle.spacing === 'spacious' ? 56
+      : 40;
+  const gap =
+    draft.uiStyle.spacing === 'compact' ? 16
+      : draft.uiStyle.spacing === 'spacious' ? 40
+      : 28;
+
   const vars = useMemo<React.CSSProperties>(
     () =>
       ({
@@ -55,10 +79,14 @@ export function BrandBoardCanvas() {
         '--bb-neutral-500': draft.colors.neutrals[5] || '#737373',
         '--bb-font-heading': draft.typography.heading,
         '--bb-font-body': draft.typography.body,
+        '--bb-weight-heading': weightHeading,
+        '--bb-weight-body': weightBody,
         '--bb-radius': `${draft.uiStyle.borderRadius}px`,
         '--bb-shadow': SHADOW_MAP[draft.uiStyle.shadowIntensity] || SHADOW_MAP.medium,
+        '--bb-pad': `${pad}px`,
+        '--bb-gap': `${gap}px`,
       }) as React.CSSProperties,
-    [draft],
+    [draft, weightHeading, weightBody, pad, gap],
   );
 
   return (
@@ -104,8 +132,17 @@ export function BrandBoardCanvas() {
           {new Date().getFullYear()} · Identity
         </div>
 
-        {/* Main grid */}
-        <div className="absolute inset-0 pt-24 pb-10 px-12 grid grid-cols-12 grid-rows-[auto_1fr_auto] gap-8">
+        {/* Main grid — padding + gap track the spacing dropdown */}
+        <div
+          className="absolute inset-0 grid grid-cols-12 grid-rows-[auto_1fr_auto]"
+          style={{
+            paddingTop: `calc(var(--bb-pad) + 56px)`,
+            paddingBottom: 'var(--bb-pad)',
+            paddingLeft: 'var(--bb-pad)',
+            paddingRight: 'var(--bb-pad)',
+            gap: 'var(--bb-gap)',
+          }}
+        >
           {/* HERO — brand name + tone */}
           <div className="col-span-7 row-start-1">
             <div
@@ -142,7 +179,7 @@ export function BrandBoardCanvas() {
                     fontFamily: 'var(--bb-font-heading)',
                     fontSize: 72,
                     lineHeight: 1,
-                    fontWeight: 700,
+                    fontWeight: 'var(--bb-weight-heading)' as unknown as number,
                     letterSpacing: '-0.02em',
                   }}
                 >
@@ -234,7 +271,7 @@ export function BrandBoardCanvas() {
                   style={{
                     fontFamily: 'var(--bb-font-heading)',
                     fontSize: 44,
-                    fontWeight: 700,
+                    fontWeight: 'var(--bb-weight-heading)' as unknown as number,
                     lineHeight: 1.05,
                     letterSpacing: '-0.02em',
                   }}
@@ -262,6 +299,7 @@ export function BrandBoardCanvas() {
                   style={{
                     fontFamily: 'var(--bb-font-body)',
                     fontSize: 14,
+                    fontWeight: 'var(--bb-weight-body)' as unknown as number,
                     lineHeight: 1.55,
                   }}
                 >
@@ -272,7 +310,10 @@ export function BrandBoardCanvas() {
           </section>
 
           {/* BRAND VOICE / APPLICATION */}
-          <section className="col-span-12 row-start-3 grid grid-cols-12 gap-6">
+          <section
+            className="col-span-12 row-start-3 grid grid-cols-12"
+            style={{ gap: 'var(--bb-gap)' }}
+          >
             <div className="col-span-7 flex flex-col">
               <SectionLabel>Voice &amp; Values</SectionLabel>
               <div className="flex flex-wrap gap-2">
