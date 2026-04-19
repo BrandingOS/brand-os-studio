@@ -6,7 +6,7 @@
  * keyboard hint rendered as a kbd badge.
  */
 import { useMemo, useRef } from 'react';
-import { Sun, Moon, Shuffle, Plus, X } from 'lucide-react';
+import { Sun, Moon, Shuffle, Plus, X, Lock, LockOpen } from 'lucide-react';
 import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { generateNeutrals } from '../engine/shuffle';
 
@@ -79,11 +79,13 @@ interface ColorCardProps {
   color: string;
   badge?: string;
   removable?: boolean;
+  locked?: boolean;
+  onToggleLock?: () => void;
   onChange: (hex: string) => void;
   onRemove?: () => void;
 }
 
-function ColorCard({ color, badge, removable, onChange, onRemove }: ColorCardProps) {
+function ColorCard({ color, badge, removable, locked, onToggleLock, onChange, onRemove }: ColorCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const fg = readableOn(color);
   const { h, s, l } = useMemo(() => hexToHsl(color), [color]);
@@ -106,16 +108,38 @@ function ColorCard({ color, badge, removable, onChange, onRemove }: ColorCardPro
         aria-label={`Pick ${name}`}
       />
       <div className="relative p-3 flex flex-col h-full pointer-events-none">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-2">
           <span className="text-[13px] font-semibold tracking-tight">{name}</span>
-          {badge && (
-            <span
-              className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.22)', color: fg }}
-            >
-              {badge}
-            </span>
-          )}
+          <div className="flex items-center gap-1 pointer-events-auto">
+            {badge && (
+              <span
+                className="text-[9px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.22)', color: fg }}
+              >
+                {badge}
+              </span>
+            )}
+            {onToggleLock && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleLock();
+                }}
+                className={`h-6 w-6 rounded-full flex items-center justify-center transition-all ${
+                  locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+                style={{
+                  background: locked ? fg : 'rgba(255,255,255,0.22)',
+                  color: locked ? color : fg,
+                }}
+                aria-label={locked ? `Unlock ${name}` : `Lock ${name}`}
+                title={locked ? 'Unlock — shuffle will change this color' : 'Lock — shuffle will keep this color'}
+              >
+                {locked ? <Lock className="h-3 w-3" /> : <LockOpen className="h-3 w-3" />}
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex-1" />
         <div className="pointer-events-auto">
@@ -171,16 +195,35 @@ function ColorCard({ color, badge, removable, onChange, onRemove }: ColorCardPro
   );
 }
 
-function NeutralsCard({ neutrals }: { neutrals: string[] }) {
+function NeutralsCard({
+  neutrals,
+  locked,
+  onToggleLock,
+}: {
+  neutrals: string[];
+  locked: boolean;
+  onToggleLock: () => void;
+}) {
   return (
     <div
-      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm bg-white"
+      className="relative rounded-2xl overflow-hidden border border-border/50 shadow-sm bg-white group"
       style={{ aspectRatio: '3 / 5' }}
     >
-      <div className="absolute top-3 left-3 right-3 z-10">
+      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between">
         <span className="text-[13px] font-semibold tracking-tight text-foreground">
           Neutrals
         </span>
+        <button
+          type="button"
+          onClick={onToggleLock}
+          className={`h-6 w-6 rounded-full flex items-center justify-center transition-all bg-black/10 hover:bg-black/20 ${
+            locked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          }`}
+          aria-label={locked ? 'Unlock neutrals' : 'Lock neutrals'}
+          title={locked ? 'Unlock — shuffle will regenerate neutrals' : 'Lock — shuffle will keep these neutrals'}
+        >
+          {locked ? <Lock className="h-3 w-3 text-foreground" /> : <LockOpen className="h-3 w-3 text-foreground" />}
+        </button>
       </div>
       <div className="absolute inset-0 flex flex-col pt-10">
         {neutrals.slice(0, 6).map((n, i) => (
@@ -235,6 +278,9 @@ export function ColorsPanel() {
   const neutrals =
     draft.colors.neutrals.length > 0 ? draft.colors.neutrals : generateNeutrals(primaryHue);
 
+  const lockedColors = useBrandBoardStore((s) => s.lockedColors);
+  const toggleColorLock = useBrandBoardStore((s) => s.toggleColorLock);
+
   const isLight =
     draft.colors.background === '#ffffff' ||
     draft.colors.background.toLowerCase() === '#fff';
@@ -267,24 +313,34 @@ export function ColorsPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <NeutralsCard neutrals={neutrals} />
+        <NeutralsCard
+          neutrals={neutrals}
+          locked={lockedColors.neutrals}
+          onToggleLock={() => toggleColorLock('neutrals')}
+        />
         <ColorCard
           color={primary}
           badge="Main"
+          locked={lockedColors.primary}
+          onToggleLock={() => toggleColorLock('primary')}
           onChange={(hex) => {
             setColor('primary', hex);
-            setNeutrals(generateNeutrals(hexToHsl(hex).h));
+            if (!lockedColors.neutrals) setNeutrals(generateNeutrals(hexToHsl(hex).h));
           }}
         />
         <ColorCard
           color={secondary}
           removable
+          locked={lockedColors.secondary}
+          onToggleLock={() => toggleColorLock('secondary')}
           onChange={(hex) => setColor('secondary', hex)}
           onRemove={() => setColor('secondary', '#94a3b8')}
         />
         <ColorCard
           color={accent}
           removable
+          locked={lockedColors.accent}
+          onToggleLock={() => toggleColorLock('accent')}
           onChange={(hex) => setColor('accent', hex)}
           onRemove={() => setColor('accent', '#f59e0b')}
         />

@@ -40,6 +40,8 @@ export interface BrandBoardConcept {
   draft: BrandBoardDraft;
 }
 
+export type ColorRole = 'primary' | 'secondary' | 'accent' | 'neutrals';
+
 export interface BrandBoardState {
   draft: BrandBoardDraft;
   concepts: BrandBoardConcept[];
@@ -49,11 +51,16 @@ export interface BrandBoardState {
   previewDevice: 'desktop' | 'tablet' | 'mobile';
   previewTemplate: 'saas' | 'portfolio' | 'ecommerce';
   darkMode: boolean;
+  /** Per-role locks. A locked role is skipped by the Shuffle action so the
+   *  user can iterate on the rest of the palette without losing a color
+   *  they want to keep. */
+  lockedColors: Record<ColorRole, boolean>;
 
   // Color actions
   setColor: (role: 'primary' | 'secondary' | 'accent', hex: string) => void;
   setNeutrals: (neutrals: string[]) => void;
   addColor: (hex: string) => void;
+  toggleColorLock: (role: ColorRole) => void;
 
   // Typography actions
   setFont: (slot: 'heading' | 'body', family: string) => void;
@@ -178,6 +185,7 @@ export const useBrandBoardStore = create<BrandBoardState>()(
       previewDevice: 'desktop',
       previewTemplate: 'saas',
       darkMode: false,
+      lockedColors: { primary: false, secondary: false, accent: false, neutrals: false },
 
       // ------------------------------------------------------------------
       // History helpers
@@ -248,6 +256,11 @@ export const useBrandBoardStore = create<BrandBoardState>()(
         }));
       },
 
+      toggleColorLock: (role) =>
+        set((state) => ({
+          lockedColors: { ...state.lockedColors, [role]: !state.lockedColors[role] },
+        }), false, 'toggleColorLock'),
+
       // ------------------------------------------------------------------
       // Typography actions
       // ------------------------------------------------------------------
@@ -312,17 +325,17 @@ export const useBrandBoardStore = create<BrandBoardState>()(
 
       shuffleColors: () => {
         get().pushHistory();
-        const { draft } = get();
+        const { draft, lockedColors } = get();
         const scheme = shuffleColorScheme(draft.colors.primary);
         set((state) => ({
           draft: {
             ...state.draft,
             colors: {
               ...state.draft.colors,
-              primary: scheme.primary,
-              secondary: scheme.secondary,
-              accent: scheme.accent,
-              neutrals: scheme.neutrals,
+              primary:   lockedColors.primary   ? state.draft.colors.primary   : scheme.primary,
+              secondary: lockedColors.secondary ? state.draft.colors.secondary : scheme.secondary,
+              accent:    lockedColors.accent    ? state.draft.colors.accent    : scheme.accent,
+              neutrals:  lockedColors.neutrals  ? state.draft.colors.neutrals  : scheme.neutrals,
             },
           },
         }));
@@ -360,17 +373,17 @@ export const useBrandBoardStore = create<BrandBoardState>()(
 
       shuffleAll: () => {
         get().pushHistory();
-        const { draft } = get();
+        const { draft, lockedColors } = get();
         const result = shuffleEverything(draft.colors.primary);
         set((state) => ({
           draft: {
             ...state.draft,
             colors: {
               ...state.draft.colors,
-              primary: result.colors.primary,
-              secondary: result.colors.secondary,
-              accent: result.colors.accent,
-              neutrals: result.colors.neutrals,
+              primary:   lockedColors.primary   ? state.draft.colors.primary   : result.colors.primary,
+              secondary: lockedColors.secondary ? state.draft.colors.secondary : result.colors.secondary,
+              accent:    lockedColors.accent    ? state.draft.colors.accent    : result.colors.accent,
+              neutrals:  lockedColors.neutrals  ? state.draft.colors.neutrals  : result.colors.neutrals,
             },
             typography: {
               ...state.draft.typography,
