@@ -245,18 +245,28 @@ export function AppRail({ brandSlug }: AppRailProps) {
       aria-label="Global navigation"
       className="hidden md:flex w-[88px] shrink-0 flex-col border-r border-border/60 bg-background"
     >
-      {/* TOP — context slot ------------------------------------------------ */}
+      {/* TOP — context slot ------------------------------------------------
+           The same dropdown renders in both workspace and brand scope, so
+           the user can always jump between them. The TRIGGER visual differs
+           so the user always knows which context they're in:
+             • workspace → gradient "BrandOS" mark + "Workspace" eyebrow
+             • brand     → brand logo + brand name
+      --------------------------------------------------------------------- */}
       <div className="px-2 pt-3 pb-3 border-b border-border/60">
-        {currentBrand ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Switch brand — current: ${currentBrand.name}`}
-                className="group w-full flex flex-col items-center gap-1.5 rounded-xl px-1.5 py-2 hover:bg-muted/60 transition-colors"
-              >
-                <div className="relative">
-                  {currentBrand.logo ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={
+                currentBrand
+                  ? `Switch context — current brand: ${currentBrand.name}`
+                  : 'Switch context — current: Workspace'
+              }
+              className="group w-full flex flex-col items-center gap-1.5 rounded-xl px-1.5 py-2 hover:bg-muted/60 transition-colors"
+            >
+              <div className="relative">
+                {currentBrand ? (
+                  currentBrand.logo ? (
                     <img
                       src={currentBrand.logo}
                       alt=""
@@ -269,97 +279,103 @@ export function AppRail({ brandSlug }: AppRailProps) {
                     >
                       {currentBrand.name.charAt(0).toUpperCase()}
                     </div>
-                  )}
-                  <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background border border-border/60 flex items-center justify-center">
-                    <ChevronsUpDown className="h-2.5 w-2.5 text-muted-foreground" />
+                  )
+                ) : (
+                  <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary to-primary/70 text-white ring-1 ring-border/60">
+                    <Sparkles className="h-5 w-5" />
                   </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background border border-border/60 flex items-center justify-center">
+                  <ChevronsUpDown className="h-2.5 w-2.5 text-muted-foreground" />
                 </div>
+              </div>
+              {/* Context-scoped eyebrow + label. Workspace mode gets a
+                  "Workspace" eyebrow above "BrandOS" so the user can tell at
+                  a glance whether they're in workspace or brand scope. */}
+              {currentBrand ? (
                 <span className="text-[10px] font-medium leading-tight text-foreground/80 max-w-[68px] truncate">
                   {currentBrand.name}
                 </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="start" className="w-64">
-              <DropdownMenuItem
-                onSelect={() => navigate('/dashboard')}
-                className="flex items-center gap-2.5 cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded shrink-0 flex items-center justify-center bg-muted">
-                  <Home className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Dashboard</p>
-                  <p className="text-[11px] text-muted-foreground">Back to workspace home</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Switch brand
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {brands.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-muted-foreground text-center">
-                  Loading brands…
-                </div>
               ) : (
-                <div className="max-h-72 overflow-y-auto">
-                  {brands.map((b) => {
-                    const isCurrent = b.slug === brandSlug;
-                    return (
-                      <DropdownMenuItem
-                        key={b.id}
-                        onSelect={() => handleSwitchBrand(b.slug)}
-                        className="flex items-center gap-2.5 cursor-pointer"
-                      >
-                        {b.logo ? (
-                          <img
-                            src={b.logo}
-                            alt=""
-                            className="w-7 h-7 object-contain rounded shrink-0 bg-muted/30 p-0.5"
-                          />
-                        ) : (
-                          <div
-                            className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                            style={{ backgroundColor: b.primaryColor }}
-                          >
-                            {b.name.charAt(0)}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{b.name}</p>
-                          {b.tone && (
-                            <p className="text-[11px] text-muted-foreground truncate">{b.tone}</p>
-                          )}
-                        </div>
-                        {isCurrent && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-                      </DropdownMenuItem>
-                    );
-                  })}
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground/70">
+                    Workspace
+                  </span>
+                  <span className="text-[10px] font-semibold text-foreground/80">
+                    BrandOS
+                  </span>
                 </div>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => navigate('/dashboard/brands')}
-                className="cursor-pointer text-sm text-muted-foreground"
-              >
-                View all brands
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <NavLink
-            to="/dashboard"
-            aria-label="BrandOS — workspace home"
-            className="group w-full flex flex-col items-center gap-1.5 rounded-xl px-1.5 py-2 hover:bg-muted/60 transition-colors"
-          >
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary to-primary/70 text-white ring-1 ring-border/60">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <span className="text-[10px] font-semibold leading-tight text-foreground/80">
-              BrandOS
-            </span>
-          </NavLink>
-        )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" className="w-64">
+            <DropdownMenuItem
+              onSelect={() => navigate('/dashboard')}
+              className="flex items-center gap-2.5 cursor-pointer"
+            >
+              <div className="w-7 h-7 rounded shrink-0 flex items-center justify-center bg-gradient-to-br from-primary to-primary/70">
+                <Home className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Dashboard</p>
+                <p className="text-[11px] text-muted-foreground">Workspace home</p>
+              </div>
+              {!currentBrand && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Switch brand
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {brands.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                Loading brands…
+              </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto">
+                {brands.map((b) => {
+                  const isCurrent = b.slug === brandSlug;
+                  return (
+                    <DropdownMenuItem
+                      key={b.id}
+                      onSelect={() => handleSwitchBrand(b.slug)}
+                      className="flex items-center gap-2.5 cursor-pointer"
+                    >
+                      {b.logo ? (
+                        <img
+                          src={b.logo}
+                          alt=""
+                          className="w-7 h-7 object-contain rounded shrink-0 bg-muted/30 p-0.5"
+                        />
+                      ) : (
+                        <div
+                          className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-xs font-bold text-white"
+                          style={{ backgroundColor: b.primaryColor }}
+                        >
+                          {b.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{b.name}</p>
+                        {b.tone && (
+                          <p className="text-[11px] text-muted-foreground truncate">{b.tone}</p>
+                        )}
+                      </div>
+                      {isCurrent && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </div>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => navigate('/dashboard/brands')}
+              className="cursor-pointer text-sm text-muted-foreground"
+            >
+              View all brands
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* MAIN — scope-aware nav (workspace items OR brand items) --------- */}
