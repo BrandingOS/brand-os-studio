@@ -145,6 +145,22 @@ async function curatedPalette(h: number): Promise<ColorScheme | null> {
 
 const STRATEGY_COUNT = 5;
 
+/**
+ * Pick a fresh primary seed that isn't the same hue the user is already
+ * looking at. We randomize the hue by at least ~30° and keep saturation
+ * + lightness in an aesthetically safe band so the result never looks
+ * washed out or neon.
+ */
+function pickFreshPrimary(currentPrimary: string): [number, number, number] {
+  const [currentH] = hexToHSL(currentPrimary);
+  // Random hue at least 30° off the current one, jittered up to +300°.
+  const delta = 30 + Math.random() * 300;
+  const h = (currentH + delta) % 360;
+  const s = 0.55 + Math.random() * 0.3; // 0.55–0.85
+  const l = 0.42 + Math.random() * 0.18; // 0.42–0.60
+  return [h, s, l];
+}
+
 export function shuffleColorScheme(
   currentPrimary: string,
   strategy?: number,
@@ -152,7 +168,10 @@ export function shuffleColorScheme(
   const idx = strategy ?? colorStrategyCounter;
   colorStrategyCounter = (colorStrategyCounter + 1) % STRATEGY_COUNT;
 
-  const [h, s, l] = hexToHSL(currentPrimary);
+  // Rotate the PRIMARY — not just derive harmonies from the existing one.
+  // Anchoring on `currentPrimary` made Shuffle feel broken because the
+  // main color never changed; only secondary/accent rotated around it.
+  const [h, s, l] = pickFreshPrimary(currentPrimary);
 
   switch (idx % STRATEGY_COUNT) {
     case 0:
@@ -184,7 +203,7 @@ export async function shuffleColorSchemeAsync(
   const idx = strategy ?? colorStrategyCounter;
   colorStrategyCounter = (colorStrategyCounter + 1) % STRATEGY_COUNT;
 
-  const [h, s, l] = hexToHSL(currentPrimary);
+  const [h, s, l] = pickFreshPrimary(currentPrimary);
 
   if ((idx % STRATEGY_COUNT) === 4) {
     const result = await curatedPalette(h);
