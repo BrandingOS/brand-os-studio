@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 88" width="72" height="88" role="img" aria-label="Link file">
+  <defs>
+    <filter id="link-shadow" x="-20%" y="-15%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <!-- file body -->
+  <path d="M12 4 H48 L68 24 V80 A4 4 0 0 1 64 84 H12 A4 4 0 0 1 8 80 V8 A4 4 0 0 1 12 4 Z"
+        fill="#f4f4f4" stroke="#c4c4c4" stroke-width="0.9" filter="url(#link-shadow)"/>
+  <!-- folded corner -->
+  <path d="M48 4 V24 H68 Z" fill="#dcdcdc" stroke="#c4c4c4" stroke-width="0.9"/>
+  <!-- link chain glyph -->
+  <g transform="translate(36 38)" fill="none" stroke="#6f6f6f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-4 -4 l-5 5 a5.6 5.6 0 0 0 7.9 7.9 l2.6 -2.6"/>
+    <path d="M4 4 l5 -5 a5.6 5.6 0 0 0 -7.9 -7.9 l-2.6 2.6"/>
+    <path d="M-2.5 2.5 l5 -5" />
+  </g>
+  <!-- label -->
+  <text x="36" y="70" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#222222" letter-spacing="0.5">URL</text>
+</svg>

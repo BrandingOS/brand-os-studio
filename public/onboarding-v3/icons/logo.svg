@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 88" width="72" height="88" role="img" aria-label="Logo file">
+  <defs>
+    <filter id="logo-shadow" x="-20%" y="-15%" width="140%" height="130%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="0.9" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+  <!-- file body -->
+  <path d="M12 4 H48 L68 24 V80 A4 4 0 0 1 64 84 H12 A4 4 0 0 1 8 80 V8 A4 4 0 0 1 12 4 Z"
+        fill="#f4f4f4" stroke="#c4c4c4" stroke-width="0.9" filter="url(#logo-shadow)"/>
+  <!-- folded corner -->
+  <path d="M48 4 V24 H68 Z" fill="#dcdcdc" stroke="#c4c4c4" stroke-width="0.9"/>
+  <!-- logo mark: ring + dot -->
+  <g transform="translate(36 36)">
+    <circle cx="0" cy="0" r="11" fill="none" stroke="#6f6f6f" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="3.6" fill="#6f6f6f"/>
+  </g>
+  <!-- label -->
+  <text x="36" y="70" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif" font-size="12" font-weight="700" fill="#222222" letter-spacing="0.5">LOGO</text>
+</svg>
