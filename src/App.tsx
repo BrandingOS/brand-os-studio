@@ -26,6 +26,8 @@ const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
 const OnboardingV3Page = lazy(() => import("./pages/onboarding-v3"));
 const OnboardingV3CreatePage = lazy(() => import("./pages/onboarding-v3/create"));
 const OnboardingV3PreviewPage = lazy(() => import("./pages/onboarding-v3/preview"));
+const OnboardingV4Page = lazy(() => import("./pages/onboarding-v4"));
+const OnboardingV4CreatePage = lazy(() => import("./pages/onboarding-v4/create"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -189,6 +191,8 @@ const App = () => (
           <Route path="/onboarding-v3" element={<OnboardingV3Page />} />
           <Route path="/onboarding-v3/create" element={<OnboardingV3CreatePage />} />
           <Route path="/onboarding-v3/preview" element={<OnboardingV3PreviewPage />} />
+          <Route path="/onboarding-v4" element={<OnboardingV4Page />} />
+          <Route path="/onboarding-v4/create" element={<OnboardingV4CreatePage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/dashboard/brands" element={
             <ProtectedRoute>
