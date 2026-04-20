@@ -4,6 +4,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './features/onboarding-v3/styles/cosmos.css';
+
 /* SOLID DESIGN SYSTEM – Grayscale + Glassmorphism
    All colors MUST be HSL. Use tokens below via tailwind.config.ts
 */

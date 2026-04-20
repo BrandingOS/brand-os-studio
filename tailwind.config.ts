@@ -61,7 +61,24 @@ export default {
 						'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 						border: 'hsl(var(--sidebar-border))',
 						ring: 'hsl(var(--sidebar-ring))'
-					}
+					},
+					cosmos: {
+						bg: 'var(--background)',
+						surface: 'var(--surface)',
+						'surface-elevated': 'var(--surface-elevated)',
+						'surface-hover': 'var(--surface-hover)',
+						'surface-sunken': 'var(--surface-sunken)',
+						border: 'var(--border)',
+						'border-strong': 'var(--border-strong)',
+						dash: 'var(--dash)',
+						'dash-strong': 'var(--dash-strong)',
+						primary: 'var(--text-primary)',
+						secondary: 'var(--text-secondary)',
+						muted: 'var(--text-muted)',
+						accent: 'var(--accent)',
+						'accent-hover': 'var(--accent-hover)',
+						'accent-contrast': 'var(--accent-contrast)',
+					},
 				},
 				fontFamily: {
 					display: ['"Plus Jakarta Sans"','Inter','ui-sans-serif','system-ui','sans-serif'],
