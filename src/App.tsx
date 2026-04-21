@@ -28,6 +28,17 @@ const OnboardingV3CreatePage = lazy(() => import("./pages/onboarding-v3/create")
 const OnboardingV3PreviewPage = lazy(() => import("./pages/onboarding-v3/preview"));
 const OnboardingV4Page = lazy(() => import("./pages/onboarding-v4"));
 const OnboardingV4CreatePage = lazy(() => import("./pages/onboarding-v4/create"));
+// New canonical Cosmos onboarding + workspace routes. The onboarding screens
+// are shared with /onboarding-v4 (the prior preview alias); the workspace
+// pages (Setup / Brand Kit / Guideline / Design / Tools) live under a new
+// top-center-nav shell, see src/shared/layouts/CosmosWorkspaceShell.tsx.
+const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
+const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
+const WorkspaceSetupPage = lazy(() => import("./pages/setup"));
+const WorkspaceBrandKitPage = lazy(() => import("./pages/setup/brand-kit"));
+const WorkspaceGuidelinePage = lazy(() => import("./pages/setup/guideline"));
+const WorkspaceDesignPage = lazy(() => import("./pages/setup/design"));
+const WorkspaceToolsPage = lazy(() => import("./pages/setup/tools"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -193,6 +204,26 @@ const App = () => (
           <Route path="/onboarding-v3/preview" element={<OnboardingV3PreviewPage />} />
           <Route path="/onboarding-v4" element={<OnboardingV4Page />} />
           <Route path="/onboarding-v4/create" element={<OnboardingV4CreatePage />} />
+          {/*
+            ─── New Cosmos UI direction ───────────────────────────────
+            Onboarding:  /onboard-brand (+ /onboard-brand/create)
+            Workspace:   /setup · /brand-kit · /guideline
+                         /design-workspace · /tools-workspace
+            The workspace tabs share the CosmosWorkspaceShell — a top-
+            center segmented nav with Setup · Brand Kit · Guideline ·
+            Design · Tools. Setup replaces the legacy "Sitemap" concept
+            as the first and primary tab.
+            `/design-workspace` + `/tools-workspace` are name-spaced so
+            they don't collide with the existing public `/tools` tools
+            directory or brand-scoped `/b/:slug/design`.
+            ─────────────────────────────────────────────────────────── */}
+          <Route path="/onboard-brand" element={<OnboardBrandPage />} />
+          <Route path="/onboard-brand/create" element={<OnboardBrandCreatePage />} />
+          <Route path="/setup" element={<WorkspaceSetupPage />} />
+          <Route path="/brand-kit" element={<WorkspaceBrandKitPage />} />
+          <Route path="/guideline" element={<WorkspaceGuidelinePage />} />
+          <Route path="/design-workspace" element={<WorkspaceDesignPage />} />
+          <Route path="/tools-workspace" element={<WorkspaceToolsPage />} />
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route path="/dashboard/brands" element={
             <ProtectedRoute>
