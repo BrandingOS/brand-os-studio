@@ -51,66 +51,97 @@ export default function BrandsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {brands.map((brand) => (
-              <Card key={brand.id} className="hover:shadow-lg transition-shadow overflow-hidden">
-                <div className="flex flex-row">
-                  {/* Color strip on the left */}
-                  <div
-                    className="w-2 shrink-0"
-                    style={{ backgroundColor: brand.primaryColor }}
-                  />
+            {brands.map((brand) => {
+              const swatches = [
+                brand.primaryColor,
+                brand.secondaryColor,
+                brand.accentColor,
+                ...(brand.neutrals?.slice(0, 2) ?? []),
+              ].filter((c): c is string => Boolean(c)).slice(0, 5);
+              const stripEnd = brand.secondaryColor || brand.accentColor || brand.primaryColor;
 
-                  {/* Brand info in the middle */}
-                  <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
-                    {hasLogo(brand) ? (
-                      <img
-                        src={logoUrl(brand)}
-                        alt={brand.name}
-                        className="w-10 h-10 object-contain rounded shrink-0"
-                      />
-                    ) : (
-                      <div
-                        className="w-10 h-10 rounded shrink-0 border border-border"
-                        style={{ backgroundColor: brand.primaryColor }}
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-lg truncate">{brand.name}</CardTitle>
-                      <CardDescription className="mt-0.5 truncate">
-                        {brand.tone || 'Brand toolkit'}
-                      </CardDescription>
+              return (
+                <Card
+                  key={brand.id}
+                  className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:hover:-translate-y-0.5 hover:shadow-xl hover:border-primary/30"
+                >
+                  <div className="flex flex-row">
+                    {/* Color strip — gradient primary → secondary/accent */}
+                    <div
+                      className="w-1.5 shrink-0 transition-[width] duration-[280ms] group-hover:w-2"
+                      style={{
+                        background: `linear-gradient(to bottom, ${brand.primaryColor}, ${stripEnd})`,
+                      }}
+                    />
+
+                    {/* Brand info in the middle */}
+                    <div className="flex-1 p-5 flex items-center gap-4 min-w-0">
+                      {hasLogo(brand) ? (
+                        <img
+                          src={logoUrl(brand)}
+                          alt={brand.name}
+                          className="w-12 h-12 object-contain rounded shrink-0 transition-transform duration-300 motion-safe:group-hover:scale-105"
+                        />
+                      ) : (
+                        <div
+                          className="w-12 h-12 rounded shrink-0 border border-border transition-transform duration-300 motion-safe:group-hover:scale-105"
+                          style={{ backgroundColor: brand.primaryColor }}
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-lg truncate">{brand.name}</CardTitle>
+                        <CardDescription className="mt-0.5 truncate">
+                          {brand.tone || 'Brand toolkit'}
+                        </CardDescription>
+                        {swatches.length > 0 && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            {swatches.map((color, i) => (
+                              <div
+                                key={`${color}-${i}`}
+                                className="w-4 h-4 rounded-full border border-border/60 shadow-sm transition-transform duration-300 motion-safe:group-hover:scale-110"
+                                style={{
+                                  backgroundColor: color,
+                                  transitionDelay: `${i * 30}ms`,
+                                }}
+                                title={color}
+                                aria-hidden="true"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions on the right */}
+                    <div className="flex items-center gap-2 pr-4 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Edit Brand"
+                        onClick={() => navigate(`/b/${brand.slug}/identity`)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Brand Kit"
+                        onClick={() => navigate(`/b/${brand.slug}/kit`)}
+                      >
+                        <Folder className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        className="gap-2"
+                        onClick={() => navigate(`/b/${brand.slug}`)}
+                      >
+                        Open
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Actions on the right */}
-                  <div className="flex items-center gap-2 pr-4 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Edit Brand"
-                      onClick={() => navigate(`/b/${brand.slug}/identity`)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Brand Kit"
-                      onClick={() => navigate(`/b/${brand.slug}/kit`)}
-                    >
-                      <Folder className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      className="gap-2"
-                      onClick={() => navigate(`/b/${brand.slug}`)}
-                    >
-                      Open
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
