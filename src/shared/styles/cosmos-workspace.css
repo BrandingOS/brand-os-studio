@@ -795,15 +795,19 @@
 [data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch:first-child { margin-left: 0; }
 
 [data-cosmos="workspace"] .swatch:hover,
-[data-cosmos="workspace"] .swatch:focus-visible {
+[data-cosmos="workspace"] .swatch:focus-visible,
+[data-cosmos="workspace"] .swatch.is-active {
   transform: translateY(-30%) rotate(-1.4deg);
   outline: none;
 }
 [data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch:hover,
-[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch:hover {
+[data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch.is-active,
+[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch:hover,
+[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch.is-active {
   transform: translateY(-48%) rotate(-1.4deg);
 }
-[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch:hover {
+[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch:hover,
+[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch.is-active {
   transform: translateY(-44%) rotate(-1.4deg);
 }
 
@@ -849,16 +853,247 @@
 [data-cosmos="workspace"] .swatch:hover .swatch-name,
 [data-cosmos="workspace"] .swatch:hover .swatch-hex,
 [data-cosmos="workspace"] .swatch:focus-visible .swatch-name,
-[data-cosmos="workspace"] .swatch:focus-visible .swatch-hex {
+[data-cosmos="workspace"] .swatch:focus-visible .swatch-hex,
+[data-cosmos="workspace"] .swatch.is-active .swatch-name,
+[data-cosmos="workspace"] .swatch.is-active .swatch-hex {
+  opacity: 1;
+}
+
+/* Click-to-copy affordance on the name/hex text */
+[data-cosmos="workspace"] .swatch-name,
+[data-cosmos="workspace"] .swatch-hex {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 180ms var(--ease), text-decoration-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .swatch:hover .swatch-name,
+[data-cosmos="workspace"] .swatch:hover .swatch-hex,
+[data-cosmos="workspace"] .swatch:focus-visible .swatch-name,
+[data-cosmos="workspace"] .swatch:focus-visible .swatch-hex,
+[data-cosmos="workspace"] .swatch.is-active .swatch-name,
+[data-cosmos="workspace"] .swatch.is-active .swatch-hex {
+  text-decoration: underline transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+[data-cosmos="workspace"] .swatch-name:hover,
+[data-cosmos="workspace"] .swatch-hex:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Copy icon that reveals on hover */
+[data-cosmos="workspace"] .swatch-copy-icon {
+  display: inline-block;
+  vertical-align: -1px;
+  width: 11px;
+  height: 11px;
+  opacity: 0;
+  flex-shrink: 0;
+  transition: opacity 180ms var(--ease);
+}
+[data-cosmos="workspace"] .swatch:hover .swatch-copy-icon,
+[data-cosmos="workspace"] .swatch:focus-visible .swatch-copy-icon,
+[data-cosmos="workspace"] .swatch.is-active .swatch-copy-icon {
+  opacity: 0.55;
+}
+[data-cosmos="workspace"] .swatch-name:hover .swatch-copy-icon,
+[data-cosmos="workspace"] .swatch-hex:hover .swatch-copy-icon {
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-cosmos="workspace"] .swatch,
   [data-cosmos="workspace"] .swatch:hover,
-  [data-cosmos="workspace"] .swatch:focus-visible { transform: none !important; }
+  [data-cosmos="workspace"] .swatch:focus-visible,
+  [data-cosmos="workspace"] .swatch.is-active { transform: none !important; }
   [data-cosmos="workspace"] .swatch-name,
   [data-cosmos="workspace"] .swatch-hex { opacity: 1 !important; }
+}
+
+/* ============================================================
+ * INLINE HSV COLOR PICKER
+ * Drops in below the .colors-row of the active swatch.
+ * ============================================================ */
+[data-cosmos="workspace"] .cp-expand {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin-top: 0;
+  transform: translateY(-8px);
+  transition:
+    max-height 300ms var(--ease),
+    opacity 260ms var(--ease),
+    transform 300ms var(--ease),
+    margin-top 300ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-expand.is-open {
+  max-height: 420px;
+  opacity: 1;
+  margin-top: 20px;
+  transform: translateY(0);
+}
+[data-cosmos="workspace"] .cp-body {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-xs);
+}
+[data-cosmos="workspace"] .cp-sv {
+  position: relative;
+  height: 220px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+  background: hsl(var(--cp-h, 220), 100%, 50%);
+  user-select: none;
+  touch-action: none;
+}
+[data-cosmos="workspace"] .cp-sv-sat {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #ffffff 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .cp-sv-val {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000 100%);
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .cp-sv-cursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .cp-hue {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(90deg,
+    hsl(0, 100%, 50%),
+    hsl(60, 100%, 50%),
+    hsl(120, 100%, 50%),
+    hsl(180, 100%, 50%),
+    hsl(240, 100%, 50%),
+    hsl(300, 100%, 50%),
+    hsl(360, 100%, 50%));
+  user-select: none;
+  touch-action: none;
+}
+[data-cosmos="workspace"] .cp-hue-cursor {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+[data-cosmos="workspace"] .cp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .cp-hex-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  transition: border-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-hex-wrap:focus-within { border-color: var(--border-strong); }
+[data-cosmos="workspace"] .cp-swatch-preview {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+[data-cosmos="workspace"] .cp-hex-input {
+  font: inherit;
+  font-size: 13px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 84px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+[data-cosmos="workspace"] .cp-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+[data-cosmos="workspace"] .cp-cancel-btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 999px;
+  transition: color 180ms var(--ease), background 180ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-cancel-btn:hover {
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .cp-add-btn {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border: none;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 999px;
+  transition: background 180ms var(--ease), transform 140ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-add-btn:hover { background: var(--accent-hover); }
+[data-cosmos="workspace"] .cp-add-btn:active { transform: scale(0.97); }
+
+/* Copy flash toast — fixed, centered on the anchor element */
+[data-cosmos="workspace"] .copy-flash {
+  position: fixed;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 200;
+  opacity: 0;
+  transform: translate(-50%, -4px) scale(0.96);
+  transition: opacity 180ms var(--ease), transform 220ms var(--ease);
+  box-shadow: 0 4px 14px rgba(16, 16, 20, 0.18);
+  letter-spacing: -0.005em;
+}
+[data-cosmos="workspace"] .copy-flash.is-on {
+  opacity: 1;
+  transform: translate(-50%, -12px) scale(1);
 }
 
 /* ============================================================

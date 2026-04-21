@@ -1,6 +1,52 @@
-import type { MockBrand } from '../data/mockBrand';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { BrandColor, MockBrand } from '../data/mockBrand';
 import { ArrowRight, ICON_MAP } from './SetupIcons';
+import { ColorPickerHSV } from './ColorPickerHSV';
 import type { SectionKey } from './SetupSidebar';
+
+type ColorGroupKey = 'core' | 'accent' | 'grey';
+
+function CopyIcon() {
+  return (
+    <svg
+      className="swatch-copy-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Relative luminance check — swatches with light bg get dark text. */
 function isLightHex(hex: string): boolean {
@@ -48,9 +94,10 @@ type Props = {
   brand: MockBrand;
   onEdit: (key: SectionKey) => void;
   sectionRefs: React.MutableRefObject<SetupBoardRefs>;
+  onUpdateColor: (group: ColorGroupKey, index: number, hex: string) => void;
 };
 
-export function SetupBoard({ brand, onEdit, sectionRefs }: Props) {
+export function SetupBoard({ brand, onEdit, sectionRefs, onUpdateColor }: Props) {
   const setRef = (key: SectionKey) => (el: HTMLElement | null) => {
     sectionRefs.current[key] = el;
   };
@@ -98,9 +145,27 @@ export function SetupBoard({ brand, onEdit, sectionRefs }: Props) {
       {/* ─── Color ─── */}
       <Section sectionRef={setRef('colors')} dataKey="colors" title="Color" spec="Core · Accent · Grey" onEdit={() => onEdit('colors')}>
         <div className="colors-stack">
-          <ColorsRow layout="core" title="Core" colors={brand.colors.core} />
-          <ColorsRow layout="accent" title="Accent" colors={brand.colors.accent} />
-          <ColorsRow layout="grey" title="Neutrals" colors={brand.colors.grey} />
+          <ColorsGroup
+            groupKey="core"
+            layout="core"
+            title="Core Colors"
+            colors={brand.colors.core}
+            onUpdateColor={onUpdateColor}
+          />
+          <ColorsGroup
+            groupKey="accent"
+            layout="accent"
+            title="Accent Colors"
+            colors={brand.colors.accent}
+            onUpdateColor={onUpdateColor}
+          />
+          <ColorsGroup
+            groupKey="grey"
+            layout="grey"
+            title="Neutral Colors"
+            colors={brand.colors.grey}
+            onUpdateColor={onUpdateColor}
+          />
         </div>
       </Section>
 
@@ -196,35 +261,168 @@ export function SetupBoard({ brand, onEdit, sectionRefs }: Props) {
   );
 }
 
-function ColorsRow({
+type CopyFlash = { id: number; text: string; x: number; y: number };
+
+function ColorsGroup({
+  groupKey,
   layout,
   title,
   colors,
+  onUpdateColor,
 }: {
+  groupKey: ColorGroupKey;
   layout: 'core' | 'accent' | 'grey';
   title: string;
-  colors: { hex: string; name: string }[];
+  colors: BrandColor[];
+  onUpdateColor: (group: ColorGroupKey, index: number, hex: string) => void;
 }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [previewHex, setPreviewHex] = useState<string | null>(null);
+  const [flash, setFlash] = useState<CopyFlash | null>(null);
+  const flashTimerRef = useRef<number | null>(null);
+  const groupRef = useRef<HTMLDivElement>(null);
+
+  // Outside click + Escape close the picker and revert the preview.
+  useEffect(() => {
+    if (activeIndex == null) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (groupRef.current?.contains(target)) return;
+      setActiveIndex(null);
+      setPreviewHex(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveIndex(null);
+        setPreviewHex(null);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [activeIndex]);
+
+  useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    };
+  }, []);
+
+  const handleSwatchClick = useCallback(
+    (i: number) => {
+      setActiveIndex((prev) => {
+        if (prev === i) {
+          setPreviewHex(null);
+          return null;
+        }
+        setPreviewHex(null);
+        return i;
+      });
+    },
+    [],
+  );
+
+  const handleCopy = useCallback(async (text: string, anchor: HTMLElement) => {
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    const rect = anchor.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top;
+    const id = Date.now() + Math.random();
+    setFlash({ id, text: 'Copied!', x, y });
+    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1200);
+  }, []);
+
+  const handleCommit = useCallback(
+    (hex: string) => {
+      if (activeIndex == null) return;
+      onUpdateColor(groupKey, activeIndex, hex);
+      setActiveIndex(null);
+      setPreviewHex(null);
+    },
+    [activeIndex, groupKey, onUpdateColor],
+  );
+
+  const activeColor = activeIndex != null ? colors[activeIndex] : null;
+
   return (
-    <div className="colors-group">
+    <div className="colors-group" ref={groupRef}>
       <p className="colors-group-title">{title}</p>
       <div className="colors-row" data-layout={layout}>
         {colors.map((c, i) => {
-          const light = isLightHex(c.hex);
+          const renderedHex = activeIndex === i && previewHex ? previewHex : c.hex;
+          const light = isLightHex(renderedHex);
+          const isActive = activeIndex === i;
           return (
             <button
               key={`${c.hex}-${i}`}
               type="button"
-              className={`swatch${light ? ' is-light' : ''}`}
-              style={{ background: c.hex, zIndex: i + 1 }}
-              aria-label={`${c.name} ${c.hex}`}
+              className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
+              style={{ background: renderedHex, zIndex: i + 1 }}
+              aria-label={`Edit ${c.name} ${renderedHex}`}
+              aria-expanded={isActive}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSwatchClick(i);
+              }}
             >
-              <span className="swatch-name">{c.name}</span>
-              <span className="swatch-hex">{c.hex.toUpperCase()}</span>
+              <span
+                className="swatch-name"
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy(c.name, e.currentTarget);
+                }}
+              >
+                {c.name}
+                <CopyIcon />
+              </span>
+              <span
+                className="swatch-hex"
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy(renderedHex.toUpperCase(), e.currentTarget);
+                }}
+              >
+                {renderedHex.toUpperCase()}
+                <CopyIcon />
+              </span>
             </button>
           );
         })}
       </div>
+      <div className={`cp-expand${activeIndex != null ? ' is-open' : ''}`}>
+        {activeColor && (
+          <ColorPickerHSV
+            key={`${groupKey}-${activeIndex}-${activeColor.hex}`}
+            hex={activeColor.hex}
+            onChange={(hex) => setPreviewHex(hex)}
+            onCommit={handleCommit}
+            onCancel={() => {
+              setActiveIndex(null);
+              setPreviewHex(null);
+            }}
+          />
+        )}
+      </div>
+      {flash && (
+        <div
+          className="copy-flash is-on"
+          style={{ left: flash.x, top: flash.y }}
+          role="status"
+          aria-live="polite"
+        >
+          {flash.text}
+        </div>
+      )}
     </div>
   );
 }

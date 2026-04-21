@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
-import { mockBrand } from './data/mockBrand';
+import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
 import { SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight } from './components/SetupIcons';
+
+type ColorGroupKey = 'core' | 'accent' | 'grey';
 
 /**
  * Setup — the primary workspace page of the new UI.
@@ -19,8 +21,25 @@ import { ArrowRight } from './components/SetupIcons';
  * land once auth/backend integration resumes.
  */
 export function SetupPage() {
-  const brand = mockBrand;
+  // TODO: swap for a real brand-store read once auth/backend is wired.
+  const [brand, setBrand] = useState<MockBrand>(mockBrand);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
+
+  const handleUpdateColor = useCallback(
+    (group: ColorGroupKey, index: number, hex: string) => {
+      setBrand((prev) => {
+        const list = prev.colors[group];
+        if (!list[index]) return prev;
+        const nextList = list.slice();
+        nextList[index] = { ...nextList[index], hex };
+        return {
+          ...prev,
+          colors: { ...prev.colors, [group]: nextList },
+        };
+      });
+    },
+    [],
+  );
 
   const sectionRefs = useRef<SetupBoardRefs>({
     logo: null,
@@ -77,7 +96,12 @@ export function SetupPage() {
           total={7}
           onJump={handleJump}
         />
-        <SetupBoard brand={brand} onEdit={handleEdit} sectionRefs={sectionRefs} />
+        <SetupBoard
+          brand={brand}
+          onEdit={handleEdit}
+          sectionRefs={sectionRefs}
+          onUpdateColor={handleUpdateColor}
+        />
       </div>
     </CosmosWorkspaceShell>
   );
