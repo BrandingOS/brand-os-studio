@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateShades > snapshot: canonical orange palette 1`] = `
+[
+  "#ffefe0",
+  "#ffdfc4",
+  "#ffc599",
+  "#ffa364",
+  "#fd7926",
+  "#d65200",
+  "#b73800",
+  "#962300",
+  "#741300",
+  "#500600",
+  "#2f0100",
+]
+`;
+
+exports[`generateShades > snapshot: canonical sky palette 1`] = `
+[
+  "#e3fbff",
+  "#caf3ff",
+  "#a2e6ff",
+  "#6ed1ff",
+  "#2eb0f3",
+  "#008cce",
+  "#0072b1",
+  "#005a92",
+  "#004371",
+  "#002b4e",
+  "#00162d",
+]
+`;
+
+exports[`generateShades > snapshot: canonical teal palette 1`] = `
+[
+  "#e4fdf8",
+  "#cbf8ef",
+  "#a3eee1",
+  "#6edccb",
+  "#29bdab",
+  "#009988",
+  "#007e6f",
+  "#006558",
+  "#004c41",
+  "#00332b",
+  "#001b16",
+]
+`;
