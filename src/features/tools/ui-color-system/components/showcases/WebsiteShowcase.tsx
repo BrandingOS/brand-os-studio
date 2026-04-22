@@ -14,8 +14,9 @@
 import { ArrowRight, Check, Sparkles, Quote, Star, ArrowUpRight } from 'lucide-react';
 
 import { pickOn, type ShowcaseProps } from './showcase-shared';
-import { WEB_PHOTOS } from './photos';
+import { WEB_PHOTOS, PHOTO_POOLS } from './photos';
 import { Photo } from './Photo';
+import { SwappablePhoto } from './SwappablePhoto';
 
 export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
@@ -240,11 +241,11 @@ export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
                   </span>
                 </div>
                 <div className="relative aspect-[4/3]">
-                  <Photo
-                    src={WEB_PHOTOS.heroDashboard}
+                  <SwappablePhoto
+                    defaultSrc={WEB_PHOTOS.heroDashboard}
+                    alternatives={PHOTO_POOLS.wide}
                     alt={`${brand.name} dashboard preview`}
                     fallback={{ from: p[100].hex, to: p[300].hex }}
-                    style={{ position: 'absolute', inset: 0 }}
                   />
                 </div>
               </div>
@@ -402,23 +403,26 @@ export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
 
         {/* Card 3 — photo + overlay */}
         <div
-          className="relative flex flex-col justify-end overflow-hidden rounded-2xl"
+          className="tile relative flex flex-col justify-end overflow-hidden rounded-2xl"
           style={{ minHeight: 220, background: n[900].hex, color: n[50].hex }}
         >
           <div className="absolute inset-0">
-            <Photo
-              src={WEB_PHOTOS.featureTeam}
+            <SwappablePhoto
+              defaultSrc={WEB_PHOTOS.featureTeam}
+              alternatives={PHOTO_POOLS.wide}
               alt="Design team collaborating"
               fallback={{ from: p[700].hex, to: n[900].hex }}
+              overlay={
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background: `linear-gradient(180deg, transparent 40%, ${n[950].hex}e0 100%)`,
+                  }}
+                />
+              }
             />
           </div>
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(180deg, transparent 40%, ${n[950].hex}e0 100%)`,
-            }}
-          />
-          <div className="relative z-10 flex flex-col gap-2 p-6">
+          <div className="pointer-events-none relative z-10 flex flex-col gap-2 p-6">
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: p[200].hex }}>
               Built for teams
             </span>

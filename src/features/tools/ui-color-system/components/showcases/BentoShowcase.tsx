@@ -18,8 +18,9 @@
 import { ArrowUpRight, Sparkles, Zap, Layers, Target } from 'lucide-react';
 
 import { pickOn, type ShowcaseProps } from './showcase-shared';
-import { PHOTOS, WEB_PHOTOS } from './photos';
+import { PHOTOS, WEB_PHOTOS, PHOTO_POOLS } from './photos';
 import { Photo } from './Photo';
+import { SwappablePhoto } from './SwappablePhoto';
 
 export function BentoShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
@@ -106,20 +107,22 @@ function HeroTile({
       style={{ background: primary[700].hex, padding: 0, minHeight: 340 }}
     >
       <div className="absolute inset-0">
-        <Photo
-          src={PHOTOS.vrHeadset}
+        <SwappablePhoto
+          defaultSrc={PHOTOS.vrHeadset}
+          alternatives={PHOTO_POOLS.square}
           alt="Product moment"
           fallback={{ from: primary[400].hex, to: primary[700].hex }}
-          style={{ position: 'absolute', inset: 0 }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(180deg, transparent 30%, ${primary[600].hex}aa 60%, ${primary[800].hex} 100%)`,
-          }}
+          overlay={
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `linear-gradient(180deg, transparent 30%, ${primary[600].hex}aa 60%, ${primary[800].hex} 100%)`,
+              }}
+            />
+          }
         />
       </div>
-      <div className="relative z-10 flex h-full flex-col justify-between p-7" style={{ color: ink }}>
+      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-7" style={{ color: ink }}>
         <div className="flex items-start justify-between">
           <span
             className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]"

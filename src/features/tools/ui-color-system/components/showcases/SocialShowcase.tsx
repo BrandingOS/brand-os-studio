@@ -11,8 +11,9 @@
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 
 import { pickOn, type ShowcaseProps } from './showcase-shared';
-import { PHOTOS } from './photos';
+import { PHOTOS, PHOTO_POOLS } from './photos';
 import { Photo } from './Photo';
+import { SwappablePhoto } from './SwappablePhoto';
 
 export function SocialShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
@@ -362,19 +363,21 @@ function PhotoCover({
 }) {
   return (
     <div className="relative h-full overflow-hidden">
-      <Photo
-        src={PHOTOS.womenAtLaptop}
+      <SwappablePhoto
+        defaultSrc={PHOTOS.womenAtLaptop}
+        alternatives={PHOTO_POOLS.square}
         alt="Team at work"
         fallback={{ from: secondary[200].hex, to: primary[500].hex }}
-        style={{ position: 'absolute', inset: 0 }}
+        overlay={
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: `linear-gradient(180deg, transparent 40%, ${neutral[950].hex}cc 100%)`,
+            }}
+          />
+        }
       />
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `linear-gradient(180deg, transparent 40%, ${neutral[950].hex}cc 100%)`,
-        }}
-      />
-      <div className="absolute left-3 top-3">
+      <div className="pointer-events-none absolute left-3 top-3">
         <span
           className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
           style={{ background: '#ffffffcc', color: neutral[950].hex, backdropFilter: 'blur(6px)' }}
@@ -382,7 +385,7 @@ function PhotoCover({
           In studio
         </span>
       </div>
-      <div className="absolute inset-x-4 bottom-4" style={{ color: neutral[50].hex }}>
+      <div className="pointer-events-none absolute inset-x-4 bottom-4" style={{ color: neutral[50].hex }}>
         <p className="text-[14px] font-semibold leading-tight">Behind the scenes</p>
         <p className="mt-0.5 text-[11px]" style={{ opacity: 0.85 }}>
           this week at the studio.
