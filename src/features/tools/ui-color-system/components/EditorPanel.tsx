@@ -484,7 +484,13 @@ function ColorInput({
   const commit = (v: string) => {
     setText(v);
     const withHash = v.startsWith('#') ? v : `#${v}`;
-    if (isValidHex(withHash)) onChange(normalizeHex(withHash));
+    if (!isValidHex(withHash)) return;
+    const normalized = normalizeHex(withHash);
+    // No-op when the value already matches — the HSV picker fires
+    // onChange on every render cycle (its inline callback identity
+    // changes), which would otherwise loop through setSeed → re-render.
+    if (normalized.toLowerCase() === hex.toLowerCase()) return;
+    onChange(normalized);
   };
 
   const openPicker = () => {
