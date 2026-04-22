@@ -85,153 +85,247 @@ export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
       </div>
 
       {/* ─── Hero ─── */}
-      <div className="relative overflow-hidden" style={{ background: '#ffffff' }}>
-        {/* Subtle brand accent shapes in the hero corners */}
-        <span
+      <div
+        className="relative overflow-hidden"
+        style={{ background: n[50].hex, minHeight: 560 }}
+      >
+        {/* Massive soft gradient blob behind the type */}
+        <div
           aria-hidden
-          className="pointer-events-none absolute -top-24 -right-20 h-80 w-80 rounded-full opacity-40 blur-3xl"
-          style={{ background: p[200].hex }}
+          className="pointer-events-none absolute"
+          style={{
+            left: '-10%',
+            top: '10%',
+            width: '70%',
+            aspectRatio: '1 / 1',
+            borderRadius: '50%',
+            background: `radial-gradient(circle at 30% 30%, ${p[400].hex}, ${p[700].hex} 55%, transparent 72%)`,
+            filter: 'blur(60px)',
+            opacity: 0.7,
+          }}
         />
-        <span
+        <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full opacity-30 blur-3xl"
-          style={{ background: s[200].hex }}
+          className="pointer-events-none absolute"
+          style={{
+            right: '-15%',
+            bottom: '-10%',
+            width: '60%',
+            aspectRatio: '1 / 1',
+            borderRadius: '50%',
+            background: `radial-gradient(circle at 60% 60%, ${s[300].hex}, ${s[600].hex} 60%, transparent 75%)`,
+            filter: 'blur(70px)',
+            opacity: 0.55,
+          }}
         />
+        {/* Subtle grid lines */}
+        <svg
+          aria-hidden
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          style={{ opacity: 0.06, color: n[900].hex }}
+        >
+          <defs>
+            <pattern id="hero-grid" width="56" height="56" patternUnits="userSpaceOnUse">
+              <path d="M 56 0 L 0 0 0 56" fill="none" stroke="currentColor" strokeWidth="1" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#hero-grid)" />
+        </svg>
 
-        <div className="relative grid gap-8 px-8 py-12 md:grid-cols-[1.1fr_1fr] md:px-12 md:py-16 lg:gap-12">
-          {/* Left column */}
-          <div className="flex flex-col items-start gap-5">
+        <div className="relative flex flex-col gap-10 px-8 py-14 md:px-14 md:py-20">
+          {/* Top row: eyebrow + floating badges */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold"
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em]"
               style={{
-                background: p[100].hex,
-                color: p[900].hex,
-                border: `1px solid ${p[200].hex}`,
+                borderColor: n[300].hex,
+                color: n[700].hex,
+                background: `${n[50].hex}aa`,
+                backdropFilter: 'blur(8px)',
               }}
             >
-              <Sparkles className="h-3 w-3" style={{ color: p[700].hex }} />
-              New · Vibrant theme
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: p[500].hex, animation: 'pulse 2s infinite' }}
+              />
+              New · Season ’26
             </span>
-            <h1
-              className="text-balance text-4xl font-bold leading-[1.05] tracking-tight md:text-5xl"
-              style={{ color: n[900].hex }}
+            <div className="hidden items-center gap-2 text-[11px] md:flex" style={{ color: n[500].hex }}>
+              <span>01 / 04</span>
+              <span>—</span>
+              <span>The Identity Release</span>
+            </div>
+          </div>
+
+          {/* Massive headline */}
+          <h1
+            className="relative text-balance font-bold tracking-[-0.035em]"
+            style={{
+              color: n[950].hex,
+              fontSize: 'clamp(54px, 9vw, 128px)',
+              lineHeight: 0.92,
+              fontFamily: 'var(--brand-font-display, "Instrument Serif", "Fraunces", ui-serif, Georgia, serif)',
+              fontWeight: 500,
+            }}
+          >
+            A brand{' '}
+            <span
+              className="italic"
+              style={{ color: p[700].hex, fontWeight: 400 }}
             >
-              Build a brand system that{' '}
-              <span style={{ color: p[700].hex }}>actually ships.</span>
-            </h1>
-            <p className="max-w-[46ch] text-[15px] leading-relaxed" style={{ color: n[600].hex }}>
-              One palette. Every token. Every surface. {brand.name} turns your
-              brand color into a full UI system — not just a swatch you paste
-              into Figma.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[14px] font-semibold"
-                style={{ background: n[950].hex, color: onDarkCTA }}
+              system
+            </span>
+            <br />
+            that actually
+            <br />
+            <span style={{ color: n[950].hex, fontWeight: 700, letterSpacing: '-0.04em' }}>
+              ships.
+            </span>
+          </h1>
+
+          {/* Below-headline row: description + CTAs */}
+          <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
+            <div className="flex flex-col items-start gap-6">
+              <p
+                className="max-w-[44ch] text-[16px] leading-[1.55]"
+                style={{ color: n[700].hex }}
               >
-                Start for free
-                <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-              <button
-                className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-[14px] font-semibold"
-                style={{ borderColor: n[300].hex, color: n[900].hex, background: '#ffffff' }}
-              >
-                View demo
-              </button>
+                One palette. Every token. Every surface. {brand.name} turns your
+                brand color into a full UI system — not just a swatch you paste
+                into Figma.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-[14px] font-semibold"
+                  style={{ background: n[950].hex, color: onDarkCTA }}
+                >
+                  Start for free
+                  <span
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                    style={{ background: onDarkCTA, color: n[950].hex }}
+                  >
+                    <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
+                  </span>
+                </button>
+                <button
+                  className="inline-flex items-center gap-1.5 rounded-full px-5 py-3 text-[14px] font-semibold"
+                  style={{ background: 'transparent', color: n[900].hex, border: `1px solid ${n[400].hex}` }}
+                >
+                  Watch 2-min demo
+                </button>
+              </div>
             </div>
 
-            {/* Social proof row */}
-            <div className="mt-2 flex items-center gap-3">
+            {/* Product card: glassy frame with dashboard preview */}
+            <div className="relative">
+              <div
+                className="relative overflow-hidden rounded-2xl"
+                style={{
+                  background: `${n[50].hex}cc`,
+                  backdropFilter: 'blur(20px)',
+                  border: `1px solid ${n[200].hex}`,
+                  boxShadow: '0 40px 80px -20px rgba(16,16,20,0.25)',
+                  transform: 'rotate(-1.5deg)',
+                }}
+              >
+                <div
+                  className="flex items-center gap-1.5 border-b px-3 py-2"
+                  style={{ background: n[100].hex, borderColor: n[200].hex }}
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#ef4444' }} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#f59e0b' }} />
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#22c55e' }} />
+                  <span className="ml-3 text-[10px]" style={{ color: n[500].hex }}>
+                    {brand.name.toLowerCase().replace(/\s+/g, '')}.design
+                  </span>
+                </div>
+                <div className="relative aspect-[4/3]">
+                  <Photo
+                    src={WEB_PHOTOS.heroDashboard}
+                    alt={`${brand.name} dashboard preview`}
+                    fallback={{ from: p[100].hex, to: p[300].hex }}
+                    style={{ position: 'absolute', inset: 0 }}
+                  />
+                </div>
+              </div>
+
+              {/* Floating swatch-pill stack */}
+              <div
+                className="absolute -bottom-5 -left-5 hidden rounded-2xl p-3 shadow-xl md:block"
+                style={{
+                  background: n[950].hex,
+                  color: n[50].hex,
+                  boxShadow: '0 20px 40px -8px rgba(16,16,20,0.45)',
+                }}
+              >
+                <div className="flex items-center gap-1.5">
+                  {[p[400].hex, p[500].hex, p[600].hex, p[700].hex, p[800].hex].map((hex) => (
+                    <span
+                      key={hex}
+                      className="h-5 w-5 rounded-md"
+                      style={{ background: hex, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 font-mono text-[10px]" style={{ color: n[400].hex }}>
+                  primary.[400–800]
+                </div>
+              </div>
+
+              {/* Floating "+ new pair" chip */}
+              {secondary && (
+                <div
+                  className="absolute -top-4 -right-3 hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold md:flex"
+                  style={{
+                    background: '#ffffff',
+                    color: n[950].hex,
+                    border: `1px solid ${n[200].hex}`,
+                    boxShadow: '0 10px 24px -6px rgba(16,16,20,0.15)',
+                  }}
+                >
+                  <span className="inline-flex gap-0.5">
+                    <span className="h-3 w-3 rounded-full" style={{ background: p[500].hex }} />
+                    <span className="h-3 w-3 rounded-full" style={{ background: s[500].hex }} />
+                  </span>
+                  Live sync
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom proof row */}
+          <div className="flex flex-col items-start justify-between gap-3 border-t pt-6 md:flex-row md:items-center" style={{ borderColor: n[200].hex }}>
+            <div className="flex items-center gap-3">
               <div className="flex -space-x-2">
                 {[WEB_PHOTOS.avatar1, WEB_PHOTOS.avatar2, WEB_PHOTOS.avatar3, WEB_PHOTOS.avatar4].map((src, i) => (
                   <div
                     key={i}
                     className="inline-flex h-7 w-7 overflow-hidden rounded-full border-2"
-                    style={{ borderColor: '#ffffff', background: n[200].hex }}
+                    style={{ borderColor: n[50].hex, background: n[200].hex }}
                   >
                     <Photo src={src} alt="Customer avatar" fallback={{ from: n[200].hex, to: n[400].hex }} />
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col text-[11px]" style={{ color: n[600].hex }}>
-                <div className="flex items-center gap-1" style={{ color: p[700].hex }}>
+              <div className="flex items-center gap-1.5 text-[12px]" style={{ color: n[700].hex }}>
+                <div className="flex items-center gap-0.5" style={{ color: p[600].hex }}>
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star key={i} className="h-3 w-3 fill-current" />
                   ))}
                 </div>
-                <span>
-                  <b style={{ color: n[900].hex }}>14,000+</b> product teams ship faster with {brand.name}
-                </span>
+                <span style={{ color: n[900].hex, fontWeight: 600 }}>14,000+</span>
+                <span>teams already shipped.</span>
               </div>
             </div>
-          </div>
-
-          {/* Right column — dashboard mockup in a frame */}
-          <div className="relative">
-            <div
-              className="relative overflow-hidden rounded-2xl border shadow-2xl"
-              style={{
-                borderColor: n[200].hex,
-                boxShadow: '0 30px 60px -20px rgba(0,0,0,0.25)',
-              }}
+            <span
+              className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+              style={{ color: n[500].hex }}
             >
-              <div
-                className="flex items-center gap-1.5 border-b px-3 py-2"
-                style={{ background: n[100].hex, borderColor: n[200].hex }}
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#ef4444' }} />
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#f59e0b' }} />
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#22c55e' }} />
-                <span className="ml-3 text-[10px]" style={{ color: n[500].hex }}>
-                  {brand.name.toLowerCase().replace(/\s+/g, '')}.design/dashboard
-                </span>
-              </div>
-              <div className="relative aspect-[4/3]">
-                <Photo
-                  src={WEB_PHOTOS.heroDashboard}
-                  alt={`${brand.name} dashboard preview`}
-                  fallback={{ from: p[100].hex, to: p[300].hex }}
-                  style={{ position: 'absolute', inset: 0 }}
-                />
-              </div>
-            </div>
-
-            {/* Floating stat card */}
-            <div
-              className="absolute -bottom-4 -left-4 hidden max-w-[180px] flex-col gap-1.5 rounded-xl border p-3 shadow-xl md:flex"
-              style={{ background: '#ffffff', borderColor: n[200].hex }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: n[500].hex }}>
-                  Accessibility
-                </span>
-                <span
-                  className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold"
-                  style={{ background: p[100].hex, color: p[800].hex }}
-                >
-                  <ArrowUpRight className="h-2.5 w-2.5" />
-                  +24%
-                </span>
-              </div>
-              <div className="text-xl font-bold" style={{ color: n[900].hex }}>
-                100%
-              </div>
-              <div className="flex items-center gap-1 text-[10px]" style={{ color: n[600].hex }}>
-                <Check className="h-2.5 w-2.5" style={{ color: p[600].hex }} />
-                WCAG AA passing
-              </div>
-            </div>
-
-            {/* Secondary float (only when palette has secondary) */}
-            {secondary && (
-              <div
-                className="absolute -top-3 -right-3 hidden items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-lg md:flex"
-                style={{ background: '#ffffff', borderColor: n[200].hex, color: n[900].hex }}
-              >
-                <span className="h-2 w-2 rounded-full" style={{ background: s[500].hex }} />
-                <span>Live sync</span>
-              </div>
-            )}
+              Scroll
+              <span aria-hidden style={{ display: 'inline-block', transform: 'rotate(90deg)' }}>
+                →
+              </span>
+            </span>
           </div>
         </div>
       </div>

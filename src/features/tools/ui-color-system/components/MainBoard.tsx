@@ -53,7 +53,7 @@ export function MainBoard({
     letter: deriveLogoLetter(brandName),
     logoUrl: logoUrl ?? null,
   };
-  const [activeShowcase, setActiveShowcase] = useState<ShowcaseKey>('cards');
+  const [activeShowcase, setActiveShowcase] = useState<ShowcaseKey>('bento');
   const [shareOpen, setShareOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [contrastOpen, setContrastOpen] = useState(false);

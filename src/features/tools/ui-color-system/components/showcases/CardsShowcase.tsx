@@ -15,8 +15,9 @@
  *     a highlighted peak.
  */
 import { pickOn, type ShowcaseProps } from './showcase-shared';
-import { PHOTOS } from './photos';
+import { PHOTOS, PHOTO_POOLS } from './photos';
 import { Photo } from './Photo';
+import { SwappablePhoto } from './SwappablePhoto';
 
 export function CardsShowcase({ palette, secondary }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
@@ -121,48 +122,34 @@ function DuotoneHero({
   return (
     <div
       className="tile relative overflow-hidden"
-      style={{ background: primary[600].hex, minHeight: 360 }}
+      style={{ background: primary[600].hex, minHeight: 360, padding: 0 }}
     >
-      <div className="absolute inset-0">
-        <Photo
-          src={photoSrc}
+      {/* Photo takes the top 2/3, natural colors */}
+      <div className="relative" style={{ height: '65%', overflow: 'hidden' }}>
+        <SwappablePhoto
+          defaultSrc={photoSrc}
+          alternatives={PHOTO_POOLS.square}
           alt={photoAlt}
-          fallback={{ from: primary[400].hex, to: primary[700].hex }}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            filter: 'grayscale(100%) contrast(1.05)',
-          }}
+          fallback={{ from: primary[200].hex, to: primary[400].hex }}
         />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: primary[500].hex,
-            mixBlendMode: 'multiply',
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `linear-gradient(180deg, transparent 30%, ${primary[700].hex}dd 100%)`,
-          }}
-        />
-      </div>
-      <div className="relative z-10 flex h-full flex-col justify-between p-5" style={{ minHeight: 360 }}>
+        {/* A small tag pill floats over the photo */}
         <span
-          className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
-          style={{ background: `${onPrimary}22`, color: onPrimary, backdropFilter: 'blur(6px)' }}
+          className="pointer-events-none absolute left-4 top-4 inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
+          style={{ background: '#ffffffcc', color: primary[900].hex, backdropFilter: 'blur(6px)' }}
         >
           {tag}
         </span>
-        <div>
-          <h3 className="text-[26px] font-bold leading-tight" style={{ color: onPrimary }}>
-            {title}
-          </h3>
-          <p className="mt-1 text-[12px]" style={{ color: `${onPrimary}cc` }}>
-            A signature moment in every detail.
-          </p>
-        </div>
+      </div>
+
+      {/* Brand-colored text plate at the bottom */}
+      <div
+        className="relative flex flex-1 flex-col justify-center p-5"
+        style={{ background: primary[600].hex, color: onPrimary }}
+      >
+        <h3 className="text-[24px] font-bold leading-tight">{title}</h3>
+        <p className="mt-1 text-[12px]" style={{ color: `${onPrimary}cc` }}>
+          A signature moment in every detail.
+        </p>
       </div>
     </div>
   );
@@ -207,21 +194,14 @@ function ColumnChartTile({ primary, neutral }: { primary: ScaleMap; neutral: Sca
           return (
             <div
               key={i}
-              className="relative flex-1 overflow-hidden rounded-t-md"
+              className="flex-1 overflow-hidden rounded-t-md"
               style={{
                 height: `${h}%`,
                 background: isPeak
-                  ? `linear-gradient(180deg, ${primary[600].hex}, ${primary[400].hex})`
+                  ? `linear-gradient(180deg, ${primary[700].hex}, ${primary[500].hex})`
                   : `linear-gradient(180deg, ${primary[300].hex}, ${primary[200].hex})`,
               }}
-            >
-              {isPeak && (
-                <span
-                  className="absolute -top-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full"
-                  style={{ background: primary[700].hex, boxShadow: `0 0 0 3px ${primary[100].hex}` }}
-                />
-              )}
-            </div>
+            />
           );
         })}
       </div>
@@ -266,14 +246,15 @@ function GradientBottomPhoto({
       style={{ background: primary[700].hex, minHeight: 360 }}
     >
       <div className="absolute inset-0">
-        <Photo
-          src={photoSrc}
+        <SwappablePhoto
+          defaultSrc={photoSrc}
+          alternatives={PHOTO_POOLS.square}
           alt={photoAlt}
           fallback={{ from: secondary[200].hex, to: primary[500].hex }}
-          style={{ position: 'absolute', inset: 0 }}
+          buttonTone="light"
         />
         <div
-          className="absolute inset-0"
+          className="pointer-events-none absolute inset-0"
           style={{
             background: `linear-gradient(180deg, transparent 35%, ${primary[500].hex}cc 65%, ${primary[700].hex} 100%)`,
           }}
@@ -472,14 +453,14 @@ function TallPhotoCard({
       style={{ background: primary[600].hex, minHeight: 360 }}
     >
       <div className="absolute inset-0">
-        <Photo
-          src={photoSrc}
+        <SwappablePhoto
+          defaultSrc={photoSrc}
+          alternatives={PHOTO_POOLS.tall}
           alt={photoAlt}
           fallback={{ from: primary[200].hex, to: primary[500].hex }}
-          style={{ position: 'absolute', inset: 0 }}
         />
         <div
-          className="absolute inset-0"
+          className="pointer-events-none absolute inset-0"
           style={{
             background: `linear-gradient(180deg, transparent 40%, ${primary[700].hex}ee 100%)`,
           }}
@@ -572,11 +553,12 @@ function FeatureTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMa
     >
       <DecorCircles color={primary[400].hex} />
       <div className="relative flex-1">
-        <Photo
-          src={PHOTOS.macbook}
+        <SwappablePhoto
+          defaultSrc={PHOTOS.macbook}
+          alternatives={PHOTO_POOLS.wide}
           alt="Product photograph"
           fallback={{ from: primary[100].hex, to: primary[400].hex }}
-          style={{ position: 'absolute', inset: 0 }}
+          buttonTone="light"
         />
       </div>
       <div className="relative z-10 flex flex-col gap-3 p-5 pt-4" style={{ color: titleColor }}>

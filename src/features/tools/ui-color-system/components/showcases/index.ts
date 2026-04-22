@@ -36,13 +36,13 @@ export interface ShowcaseEntry {
 }
 
 export const SHOWCASES: ShowcaseEntry[] = [
+  { key: 'bento', label: 'Bento', Component: BentoShowcase },
   { key: 'cards', label: 'Cards', Component: CardsShowcase },
   { key: 'website', label: 'Website', Component: WebsiteShowcase },
+  { key: 'social', label: 'Social', Component: SocialShowcase },
   { key: 'dashboard', label: 'Dashboard', Component: DashboardShowcase },
   { key: 'components', label: 'Components', Component: ComponentsShowcase },
   { key: 'apps', label: 'Apps', Component: AppsShowcase },
-  { key: 'social', label: 'Social', Component: SocialShowcase },
-  { key: 'bento', label: 'Bento', Component: BentoShowcase },
   { key: 'charts', label: 'Charts', Component: ChartsShowcase },
   { key: 'gradients', label: 'Gradients', Component: GradientsShowcase },
   { key: 'logos', label: 'Logos', Component: LogosShowcase },

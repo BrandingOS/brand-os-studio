@@ -42,6 +42,42 @@ export const PHOTOS: Record<PhotoKey, string> = {
   budgets: unsplash('1552664730-d307ca884978', 640, 800),
 };
 
+/**
+ * Pools of Unsplash IDs by shape — used by the photo-swap UI so the
+ * user can cycle through alternatives that are sized/cropped for the
+ * slot they're replacing.
+ */
+export const PHOTO_POOLS = {
+  /** 1:1 portrait product / editorial shots. */
+  square: [
+    unsplash('1512428559087-560fa5ceab42', 640, 640), // hand & phone
+    unsplash('1622979135225-d2ba269cf1ac', 640, 640), // VR headset
+    unsplash('1557804506-669a67965ba0', 640, 640), // laptop work
+    unsplash('1517336714731-489689fd1ca8', 640, 640), // macbook
+    unsplash('1465101046530-73398c7f28ca', 640, 640), // mountain neon
+    unsplash('1545239351-ef35f43d514b', 640, 640), // iridescent glass
+    unsplash('1557672172-298e090bd0f1', 640, 640), // abstract pastel
+    unsplash('1529108190281-9a4f620bc2d8', 640, 640), // blue architecture
+  ],
+  /** Taller product / lifestyle. */
+  tall: [
+    unsplash('1552664730-d307ca884978', 640, 800), // budgets / planning
+    unsplash('1557804506-669a67965ba0', 640, 800), // collaboration
+    unsplash('1521791136064-7986c2920216', 640, 800), // whiteboard team
+    unsplash('1494790108377-be9c29b29330', 640, 800), // portrait 1
+    unsplash('1506794778202-cad84cf45f1d', 640, 800), // portrait 2
+    unsplash('1544005313-94ddf0286df2', 640, 800), // portrait 3
+  ],
+  /** Wide 4:3. */
+  wide: [
+    unsplash('1551288049-bebda4e38f71', 1000, 700), // laptop/analytics
+    unsplash('1517336714731-489689fd1ca8', 1000, 700), // macbook desk
+    unsplash('1498050108023-c5249f4df085', 1000, 700), // code
+    unsplash('1481349518771-20055b2a7b24', 1000, 700), // sunset city
+    unsplash('1524758631624-e2822e304c36', 1000, 700), // office
+  ],
+} as const;
+
 /** Photography specifically for the Website showcase hero + sections. */
 export const WEB_PHOTOS = {
   // Hero: analytics screen on a laptop — Carlos Muza
