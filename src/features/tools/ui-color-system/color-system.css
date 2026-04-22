@@ -954,3 +954,22 @@
   margin: 4px 0;
   line-height: 1.4;
 }
+
+/* ─── Portal popover — lives on document.body so it escapes any
+ * ancestor overflow:hidden that would clip it inside the tile. */
+[data-cosmos="workspace"] .photo-swap-popover--portal,
+.photo-swap-popover--portal {
+  position: fixed;
+  z-index: 2000;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px -8px rgba(16, 16, 20, 0.35);
+  color: #111111;
+}
+[data-theme="dark"] .photo-swap-popover--portal {
+  background: #1a1a1d;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f4f4f5;
+}

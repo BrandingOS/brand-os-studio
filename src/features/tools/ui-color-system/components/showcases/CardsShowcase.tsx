@@ -252,12 +252,14 @@ function GradientBottomPhoto({
           alt={photoAlt}
           fallback={{ from: secondary[200].hex, to: primary[500].hex }}
           buttonTone="light"
-        />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: `linear-gradient(180deg, transparent 35%, ${primary[500].hex}cc 65%, ${primary[700].hex} 100%)`,
-          }}
+          overlay={
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `linear-gradient(180deg, transparent 35%, ${primary[500].hex}cc 65%, ${primary[700].hex} 100%)`,
+              }}
+            />
+          }
         />
       </div>
       <div
@@ -458,12 +460,14 @@ function TallPhotoCard({
           alternatives={PHOTO_POOLS.tall}
           alt={photoAlt}
           fallback={{ from: primary[200].hex, to: primary[500].hex }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background: `linear-gradient(180deg, transparent 40%, ${primary[700].hex}ee 100%)`,
-          }}
+          overlay={
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `linear-gradient(180deg, transparent 40%, ${primary[700].hex}ee 100%)`,
+              }}
+            />
+          }
         />
       </div>
       <div className="relative z-10 flex h-full flex-col justify-between p-5" style={{ minHeight: 360 }}>
