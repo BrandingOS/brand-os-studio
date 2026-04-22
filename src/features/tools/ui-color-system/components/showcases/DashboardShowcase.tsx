@@ -26,12 +26,25 @@ export function DashboardShowcase({ palette, secondary, brand }: ShowcaseProps) 
         style={{ background: n[100].hex, borderColor: n[200].hex }}
       >
         <div className="flex items-center gap-2">
-          <span
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[12px] font-bold"
-            style={{ background: p[600].hex, color: onPrimary }}
-          >
-            {brand.letter}
-          </span>
+          {brand.logoUrl ? (
+            <span
+              className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-md"
+              style={{ background: n[50].hex, border: `1px solid ${n[200].hex}` }}
+            >
+              <img
+                src={brand.logoUrl}
+                alt={brand.name}
+                style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }}
+              />
+            </span>
+          ) : (
+            <span
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[12px] font-bold"
+              style={{ background: p[600].hex, color: onPrimary }}
+            >
+              {brand.letter}
+            </span>
+          )}
           <span className="text-sm font-semibold" style={{ color: n[900].hex }}>
             {brand.name}
           </span>

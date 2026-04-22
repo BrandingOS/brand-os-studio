@@ -35,6 +35,7 @@ export interface MainBoardProps {
   paletteName: string;
   onPaletteNameChange?: (next: string) => void;
   brandName: string;
+  logoUrl?: string | null;
 }
 
 export function MainBoard({
@@ -45,10 +46,12 @@ export function MainBoard({
   paletteName,
   onPaletteNameChange,
   brandName,
+  logoUrl,
 }: MainBoardProps) {
   const brand: BrandIdentity = {
     name: brandName.trim() || 'Brandos',
     letter: deriveLogoLetter(brandName),
+    logoUrl: logoUrl ?? null,
   };
   const [activeShowcase, setActiveShowcase] = useState<ShowcaseKey>('cards');
   const [shareOpen, setShareOpen] = useState(false);

@@ -135,7 +135,7 @@ function HeroTile({
         <div>
           <p
             className="text-[15px] italic opacity-80"
-            style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif' }}
+            style={{ fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)' }}
           >
             Introducing
           </p>
@@ -144,7 +144,7 @@ function HeroTile({
             <br />
             <span
               className="italic"
-              style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif', fontWeight: 400 }}
+              style={{ fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)', fontWeight: 400 }}
             >
               to show up.
             </span>
@@ -379,7 +379,7 @@ function QuoteTile({
         <p
           className="text-[22px] leading-[1.25] tracking-tight"
           style={{
-            fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+            fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
           }}
         >
           A brand isn't what you say it is —{' '}
@@ -538,7 +538,7 @@ function CtaTile({
           <br />
           <span
             className="italic"
-            style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif', fontWeight: 400 }}
+            style={{ fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)', fontWeight: 400 }}
           >
             the shift
           </span>

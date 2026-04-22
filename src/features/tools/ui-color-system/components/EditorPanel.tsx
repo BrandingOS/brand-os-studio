@@ -1,20 +1,20 @@
 /**
  * EditorPanel — the left-hand control panel of the tool.
  *
- * Uses cosmos CSS tokens throughout (see color-system.css) so the form
- * matches the /setup page aesthetic exactly. Every control — tabs,
- * color input, pills, select — is scoped under
- * [data-cosmos="workspace"] and inherits the same border, surface,
- * shadow, and spacing rhythm as the rest of the cosmos UI.
+ * Three categories: Brand (colors + harmony), Fonts (Google Font pair
+ * preview), Logo (upload a brand logo). All controls use cosmos tokens
+ * — borders, surfaces, shadows, typography — so the panel matches the
+ * /setup workspace exactly.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Dice5, Lock, LockOpen, Settings2, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Dice5, Lock, LockOpen, Settings2, Trash2, Upload, Check, X } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import {
   ALL_HARMONIES,
   HARMONY_DESCRIPTORS,
   SHADE_STOPS,
+  generateHarmony,
   isValidHex,
   normalizeHex,
   type HarmonyName,
@@ -22,11 +22,11 @@ import {
   type GenerationMode,
 } from '@/lib/color-engine';
 import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
+import { FONT_PAIRS, type FontPair } from '../data/font-pairs';
+import { loadGoogleFontPair } from '../hooks/useGoogleFonts';
 
 export interface EditorPanelProps {
-  /** Shown as the panel title (cosmos heading). Defaults to generator name. */
   headingLabel?: string;
-  /** Brand name used inside every showcase — driving logo letter and nav label. */
   brandName: string;
   onBrandNameChange: (next: string) => void;
   primaryHex: string;
@@ -36,6 +36,10 @@ export interface EditorPanelProps {
   lockedShade: ShadeStop | null;
   harmony: HarmonyName | 'auto';
   generationMode: GenerationMode;
+  fontPairId: string;
+  onFontPairChange: (pair: FontPair) => void;
+  logoUrl: string | null;
+  onLogoChange: (url: string | null) => void;
   onPrimaryChange: (hex: string) => void;
   onSecondaryChange: (hex: string) => void;
   onAddSecondary: () => void;
@@ -46,13 +50,12 @@ export interface EditorPanelProps {
   onModeChange: (m: GenerationMode) => void;
 }
 
-type CategoryKey = 'brand' | 'neutral' | 'status' | 'fonts';
+type CategoryKey = 'brand' | 'fonts' | 'logo';
 
-const CATEGORIES: { key: CategoryKey; label: string; disabled?: boolean }[] = [
+const CATEGORIES: { key: CategoryKey; label: string }[] = [
   { key: 'brand', label: 'Brand' },
-  { key: 'neutral', label: 'Neutral', disabled: true },
-  { key: 'status', label: 'Status', disabled: true },
-  { key: 'fonts', label: 'Fonts', disabled: true },
+  { key: 'fonts', label: 'Fonts' },
+  { key: 'logo', label: 'Logo' },
 ];
 
 export function EditorPanel({
@@ -66,6 +69,10 @@ export function EditorPanel({
   lockedShade,
   harmony,
   generationMode,
+  fontPairId,
+  onFontPairChange,
+  logoUrl,
+  onLogoChange,
   onPrimaryChange,
   onSecondaryChange,
   onAddSecondary,
@@ -94,14 +101,14 @@ export function EditorPanel({
     <aside className="panel" aria-label="Color system editor" ref={panelRef}>
       <div className="panel-top">
         <div className="panel-heading">
-          <span className="panel-heading-eyebrow">UI Color System</span>
+          <span className="panel-heading-eyebrow">Brand System</span>
           <h1 className="panel-heading-title">
-            {headingLabel ? headingLabel : 'Tailwind CSS Color Generator'}
+            {headingLabel ? headingLabel : 'Build the system'}
           </h1>
         </div>
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-muted)' }}>
-          Create and visualize a full UI color system on all sorts of components
-          and designs.
+          Colors, type, and logo — see the whole brand come together across
+          every surface.
         </p>
       </div>
 
@@ -129,7 +136,6 @@ export function EditorPanel({
               key={c.key}
               type="button"
               onClick={() => setCategory(c.key)}
-              disabled={c.disabled}
               className={cn('editor-cat', category === c.key && 'is-active')}
             >
               {c.label}
@@ -137,135 +143,371 @@ export function EditorPanel({
           ))}
         </div>
 
-        <div>
-          <div className="editor-field-head">
-            <span className="editor-field-label">Primary</span>
-            <div className="editor-field-meta">
-              <span>HEX</span>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen((s) => !s)}
-                className={cn('editor-field-meta-btn', settingsOpen && 'is-open')}
-                aria-label="Color settings"
-              >
-                <Settings2 size={13} />
-              </button>
-            </div>
-          </div>
-          <ColorInput
-            hex={primaryHex}
-            locked={primaryLocked}
-            onChange={onPrimaryChange}
-            onToggleLock={() => {
-              if (primaryLocked) onLockedShadeChange(null);
-              else onLockedShadeChange(500);
-            }}
-          />
-        </div>
-
-        {settingsOpen && (
-          <div className="editor-settings">
-            <label>
-              <span>Lock seed at stop</span>
-              <select
-                className="editor-select"
-                value={lockedShade == null ? 'none' : String(lockedShade)}
-                onChange={(e) =>
-                  onLockedShadeChange(e.target.value === 'none' ? null : (Number(e.target.value) as ShadeStop))
-                }
-              >
-                <option value="none">Auto</option>
-                {SHADE_STOPS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span>Generation mode</span>
-              <select
-                className="editor-select"
-                value={generationMode}
-                onChange={(e) => onModeChange(e.target.value as GenerationMode)}
-              >
-                <option value="auto">Auto</option>
-                <option value="brand-safe">Brand-safe</option>
-                <option value="high-contrast">High contrast</option>
-                <option value="soft-ui">Soft UI</option>
-                <option value="vibrant-saas">Vibrant SaaS</option>
-                <option value="neutral-enterprise">Enterprise</option>
-                <option value="dark-mode-optimized">Dark-first</option>
-              </select>
-            </label>
-          </div>
-        )}
-
-        {secondaryHex != null ? (
-          <div>
-            <div className="editor-field-head">
-              <span className="editor-field-label">Secondary</span>
-              <div className="editor-field-meta">
-                <span>HEX</span>
-                <button
-                  type="button"
-                  onClick={onRemoveSecondary}
-                  className="editor-field-meta-btn is-destructive"
-                  aria-label="Remove secondary"
-                >
-                  <Trash2 size={13} />
-                </button>
+        {category === 'brand' && (
+          <>
+            <div>
+              <div className="editor-field-head">
+                <span className="editor-field-label">Primary</span>
+                <div className="editor-field-meta">
+                  <span>HEX</span>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen((s) => !s)}
+                    className={cn('editor-field-meta-btn', settingsOpen && 'is-open')}
+                    aria-label="Color settings"
+                  >
+                    <Settings2 size={13} />
+                  </button>
+                </div>
               </div>
+              <ColorInput
+                hex={primaryHex}
+                locked={primaryLocked}
+                onChange={onPrimaryChange}
+                onToggleLock={() => {
+                  if (primaryLocked) onLockedShadeChange(null);
+                  else onLockedShadeChange(500);
+                }}
+              />
             </div>
-            <ColorInput
-              hex={secondaryHex}
-              locked={secondaryLocked}
-              onChange={onSecondaryChange}
-              onToggleLock={() => {
-                /* individual locking handled per-shade */
-              }}
+
+            {settingsOpen && (
+              <div className="editor-settings">
+                <label>
+                  <span>Lock seed at stop</span>
+                  <select
+                    className="editor-select"
+                    value={lockedShade == null ? 'none' : String(lockedShade)}
+                    onChange={(e) =>
+                      onLockedShadeChange(
+                        e.target.value === 'none' ? null : (Number(e.target.value) as ShadeStop),
+                      )
+                    }
+                  >
+                    <option value="none">Auto</option>
+                    {SHADE_STOPS.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Generation mode</span>
+                  <select
+                    className="editor-select"
+                    value={generationMode}
+                    onChange={(e) => onModeChange(e.target.value as GenerationMode)}
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="brand-safe">Brand-safe</option>
+                    <option value="high-contrast">High contrast</option>
+                    <option value="soft-ui">Soft UI</option>
+                    <option value="vibrant-saas">Vibrant SaaS</option>
+                    <option value="neutral-enterprise">Enterprise</option>
+                    <option value="dark-mode-optimized">Dark-first</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {secondaryHex != null ? (
+              <div>
+                <div className="editor-field-head">
+                  <span className="editor-field-label">Secondary</span>
+                  <div className="editor-field-meta">
+                    <span>HEX</span>
+                    <button
+                      type="button"
+                      onClick={onRemoveSecondary}
+                      className="editor-field-meta-btn is-destructive"
+                      aria-label="Remove secondary"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+                <ColorInput
+                  hex={secondaryHex}
+                  locked={secondaryLocked}
+                  onChange={onSecondaryChange}
+                  onToggleLock={() => {
+                    /* individual locking handled per-shade */
+                  }}
+                />
+              </div>
+            ) : (
+              <button type="button" onClick={onAddSecondary} className="editor-cta">
+                <span style={{ fontSize: 16, lineHeight: 1, marginTop: -2 }}>+</span>
+                Add secondary color
+              </button>
+            )}
+
+            <button type="button" onClick={onRandomize} className="editor-ghost">
+              <Dice5 size={14} />
+              Random colors
+              <span className="editor-key-hint">Spacebar</span>
+            </button>
+
+            <HarmonyPicker
+              primaryHex={primaryHex}
+              value={harmony}
+              onChange={onHarmonyChange}
             />
-          </div>
-        ) : (
-          <button type="button" onClick={onAddSecondary} className="editor-cta">
-            <span style={{ fontSize: 16, lineHeight: 1, marginTop: -2 }}>+</span>
-            Add secondary color scale
-          </button>
+          </>
         )}
 
-        <button type="button" onClick={onRandomize} className="editor-ghost">
-          <Dice5 size={14} />
-          Random colors
-          <span className="editor-key-hint">Spacebar</span>
-        </button>
+        {category === 'fonts' && (
+          <FontsPanel activeId={fontPairId} onChange={onFontPairChange} />
+        )}
 
-        <div className="editor-harmony">
-          <label className="editor-harmony-label" htmlFor="harmony-select">
-            Color harmony
-          </label>
-          <select
-            id="harmony-select"
-            className="editor-select editor-select-lg"
-            value={harmony}
-            onChange={(e) => onHarmonyChange(e.target.value as HarmonyName | 'auto')}
-          >
-            <option value="auto">Auto</option>
-            {ALL_HARMONIES.map((h) => (
-              <option key={h} value={h}>
-                {h.replace('-', ' ')}
-              </option>
-            ))}
-          </select>
-          {harmony !== 'auto' && (
-            <p className="editor-harmony-hint">
-              {HARMONY_DESCRIPTORS[harmony as HarmonyName]}
-            </p>
-          )}
-        </div>
+        {category === 'logo' && (
+          <LogoPanel logoUrl={logoUrl} onChange={onLogoChange} brandName={brandName} />
+        )}
       </div>
     </aside>
   );
 }
+
+// ─── Harmony picker (visual chips) ────────────────────────────
+
+function HarmonyPicker({
+  primaryHex,
+  value,
+  onChange,
+}: {
+  primaryHex: string;
+  value: HarmonyName | 'auto';
+  onChange: (h: HarmonyName | 'auto') => void;
+}) {
+  const options = useMemo(() => {
+    return ALL_HARMONIES.map((name) => {
+      try {
+        const { seeds } = generateHarmony(primaryHex, name);
+        return { name, seeds };
+      } catch {
+        return { name, seeds: [primaryHex] as string[] };
+      }
+    });
+  }, [primaryHex]);
+
+  const labelFor = (name: HarmonyName): string => {
+    switch (name) {
+      case 'monochromatic':
+        return 'Mono';
+      case 'analogous':
+        return 'Neighbour';
+      case 'complementary':
+        return 'Opposite';
+      case 'split-complementary':
+        return 'Split';
+      case 'triadic':
+        return 'Triad';
+      case 'tetradic':
+        return 'Quad';
+    }
+  };
+
+  const shortHint = (name: HarmonyName): string => {
+    switch (name) {
+      case 'monochromatic':
+        return 'One hue, many shades.';
+      case 'analogous':
+        return 'Close neighbours — cohesive.';
+      case 'complementary':
+        return 'Direct opposite — high contrast.';
+      case 'split-complementary':
+        return 'Pop without clash.';
+      case 'triadic':
+        return 'Three evenly spaced hues.';
+      case 'tetradic':
+        return 'Four-way palette.';
+    }
+  };
+
+  return (
+    <div className="editor-harmony">
+      <div className="editor-field-head">
+        <span className="editor-field-label">Harmony</span>
+        <button
+          type="button"
+          onClick={() => onChange('auto')}
+          className={cn('editor-field-meta-btn', value === 'auto' && 'is-open')}
+          aria-label="Reset harmony"
+        >
+          <span style={{ fontSize: 10, fontWeight: 600 }}>AUTO</span>
+        </button>
+      </div>
+      <div className="harmony-grid">
+        {options.map(({ name, seeds }) => {
+          const active = value === name;
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => onChange(name)}
+              className={cn('harmony-chip', active && 'is-active')}
+            >
+              <div className="harmony-chip-swatches">
+                {(seeds.length > 1 ? seeds : [seeds[0], seeds[0]]).map((hex, i) => (
+                  <span key={`${hex}-${i}`} style={{ background: hex }} />
+                ))}
+              </div>
+              <div>
+                <div className="harmony-chip-label">{labelFor(name)}</div>
+                <div className="harmony-chip-hint">{shortHint(name)}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {value !== 'auto' && (
+        <p className="editor-harmony-hint">
+          {HARMONY_DESCRIPTORS[value as HarmonyName]}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Fonts panel ─────────────────────────────────────────────
+
+function FontsPanel({
+  activeId,
+  onChange,
+}: {
+  activeId: string;
+  onChange: (pair: FontPair) => void;
+}) {
+  return (
+    <div className="font-pair-list">
+      {FONT_PAIRS.map((pair) => {
+        const active = activeId === pair.id;
+        return (
+          <button
+            key={pair.id}
+            type="button"
+            className={cn('font-pair', active && 'is-active')}
+            onClick={() => {
+              loadGoogleFontPair(pair);
+              onChange(pair);
+            }}
+          >
+            <div className="font-pair-head">
+              <span>{pair.label}</span>
+              {active && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Check size={10} />
+                  Active
+                </span>
+              )}
+            </div>
+            <div className="font-pair-display" style={{ fontFamily: pair.displayStack }}>
+              {pair.previewDisplay}
+            </div>
+            <div className="font-pair-body" style={{ fontFamily: pair.bodyStack }}>
+              {pair.previewBody}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Logo panel ─────────────────────────────────────────────
+
+function LogoPanel({
+  logoUrl,
+  onChange,
+  brandName,
+}: {
+  logoUrl: string | null;
+  onChange: (url: string | null) => void;
+  brandName: string;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = (file: File) => {
+    setError(null);
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image (PNG, SVG, JPG).');
+      return;
+    }
+    if (file.size > 1_500_000) {
+      setError('File is too large — keep it under 1.5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') onChange(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {!logoUrl ? (
+        <label
+          className="logo-drop"
+          onDrop={(e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files?.[0];
+            if (file) handleFile(file);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+        >
+          <Upload size={18} />
+          <strong style={{ fontSize: 12, color: 'var(--text-primary)' }}>
+            Upload your logo
+          </strong>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            PNG, SVG, or JPG · up to 1.5 MB
+          </span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+            }}
+          />
+        </label>
+      ) : (
+        <div className="logo-preview">
+          <div className="logo-preview-thumb">
+            <img src={logoUrl} alt="Brand logo preview" />
+          </div>
+          <div className="logo-preview-meta">
+            <strong>{brandName || 'Logo uploaded'}</strong>
+            <span style={{ fontSize: 11 }}>Shown across every showcase</span>
+          </div>
+          <button
+            type="button"
+            className="logo-preview-remove"
+            onClick={() => onChange(null)}
+            aria-label="Remove logo"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p style={{ fontSize: 11, color: 'var(--destructive, #b91c1c)', margin: 0 }}>{error}</p>
+      )}
+
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+        Upload a transparent PNG or SVG for best results. No logo? Showcases
+        fall back to your brand's first letter.
+      </p>
+    </div>
+  );
+}
+
+// ─── Color input with inline HSV picker ──────────────────────
 
 function ColorInput({
   hex,

@@ -13,13 +13,15 @@ export interface BrandIdentity {
   name: string;
   /** Single-letter logomark (defaults to the brand name's initial). */
   letter: string;
+  /** Data URL (or remote URL) of an uploaded logo image. Null when unset. */
+  logoUrl?: string | null;
 }
 
 export interface ShowcaseProps {
   palette: PaletteSystem;
   /** Present when the user added a secondary scale. */
   secondary?: ColorScale | null;
-  /** User-editable brand name + derived logomark letter. */
+  /** User-editable brand name + derived logomark letter + optional logo. */
   brand: BrandIdentity;
 }
 

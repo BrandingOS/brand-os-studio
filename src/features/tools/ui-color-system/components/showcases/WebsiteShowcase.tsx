@@ -37,12 +37,25 @@ export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
       >
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <span
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-bold"
-              style={{ background: p[600].hex, color: onPrimary }}
-            >
-              {brand.letter}
-            </span>
+            {brand.logoUrl ? (
+              <span
+                className="inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg"
+                style={{ background: n[50].hex, border: `1px solid ${n[200].hex}` }}
+              >
+                <img
+                  src={brand.logoUrl}
+                  alt={brand.name}
+                  style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }}
+                />
+              </span>
+            ) : (
+              <span
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-bold"
+                style={{ background: p[600].hex, color: onPrimary }}
+              >
+                {brand.letter}
+              </span>
+            )}
             <span className="text-[14px] font-semibold" style={{ color: n[900].hex }}>
               {brand.name}
             </span>

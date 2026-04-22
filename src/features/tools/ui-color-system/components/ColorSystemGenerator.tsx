@@ -1,14 +1,9 @@
 /**
  * ColorSystemGenerator — root for the UI Color System tool.
  *
- * One-page layout modelled on `/setup`:
- *   - CosmosWorkspaceShell (top nav) wraps everything.
- *   - `.shell` is a two-column grid; left = floating EditorPanel,
- *     right = MainBoard (palette strips + showcase tabs + dialogs).
- *
- * Both standalone (public) and in-app (brand) mounts render the same
- * root. The in-app mount passes a `brand` integration that injects a
- * BrandSyncBar above the MainBoard and a "Save to Brand" action.
+ * Owns the shared, tool-level brand state that sits outside the
+ * palette engine: brand name, font pair, and uploaded logo. These are
+ * threaded into EditorPanel (controls) and MainBoard (showcases).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStore } from 'zustand';
@@ -26,6 +21,8 @@ import {
 import { usePaletteStore } from '../hooks/usePaletteState';
 import { useToolContext } from '../hooks/useToolContext';
 import { useHotkeys } from '../hooks/useHotkeys';
+import { DEFAULT_FONT_PAIR, type FontPair } from '../data/font-pairs';
+import { loadGoogleFontPair } from '../hooks/useGoogleFonts';
 import { EditorPanel } from './EditorPanel';
 import { MainBoard } from './MainBoard';
 import { BrandSyncBar } from './BrandSyncBar';
@@ -34,7 +31,6 @@ export interface BrandIntegration {
   brandName: string;
   brandPrimary?: string;
   brandSecondary?: string;
-  /** Called with the CURRENT palette when Save-to-Brand is clicked. */
   onPush: (palette: PaletteSystem) => void | Promise<void>;
 }
 
@@ -55,7 +51,6 @@ export function ColorSystemGenerator({
   const store = usePaletteStore(initialSeed);
   const state = useStore(store);
 
-  // If the caller supplies an initial secondary, seed the store once.
   useEffect(() => {
     if (initialSecondary && !state.roles.secondary) {
       state.addRole('secondary');
@@ -67,11 +62,22 @@ export function ColorSystemGenerator({
   const [harmony, setHarmony] = useState<HarmonyName | 'auto'>('auto');
   const [paletteName, setPaletteName] = useState('Palette 1');
   const [brandName, setBrandName] = useState(brand?.brandName ?? 'Brandos');
+  const [fontPair, setFontPair] = useState<FontPair>(DEFAULT_FONT_PAIR);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  // Load any non-default pair's Google Fonts on mount.
+  useEffect(() => {
+    loadGoogleFontPair(fontPair);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onHarmonyChange = useCallback(
     (h: HarmonyName | 'auto') => {
       setHarmony(h);
-      if (h !== 'auto') state.applyHarmony(h);
+      if (h !== 'auto') {
+        if (!state.roles.secondary) state.addRole('secondary');
+        state.applyHarmony(h);
+      }
     },
     [state],
   );
@@ -83,8 +89,6 @@ export function ColorSystemGenerator({
     const next = hslToHex({ h, s: s / 100, l: l / 100 });
     state.setSeed(next);
     if (state.roles.secondary) {
-      // Keep secondary on a companion hue so random colors still feel
-      // like a coherent two-brand palette rather than random noise.
       const sH = (h + 140) % 360;
       state.setRoleSeed('secondary', hslToHex({ h: sH, s: s / 100, l: l / 100 }));
     }
@@ -94,8 +98,6 @@ export function ColorSystemGenerator({
     ' ': () => randomize(),
     r: () => randomize(),
     z: (e) => {
-      // Stub — undo/redo hook lives inside the shade drawer for now;
-      // global history can be wired back here once validated.
       if (e.shiftKey) {
         /* redo */
       }
@@ -126,10 +128,17 @@ export function ColorSystemGenerator({
     );
   }, [brand, state]);
 
+  // CSS variables for brand typography — read by showcases that opt in
+  // via var(--brand-font-display) / var(--brand-font-body).
+  const brandFontStyles = {
+    ['--brand-font-display' as string]: fontPair.displayStack,
+    ['--brand-font-body' as string]: fontPair.bodyStack,
+  } as React.CSSProperties;
+
   return (
     <CosmosWorkspaceShell>
       {brandBar && <div className="px-5 pt-3">{brandBar}</div>}
-      <div className="shell">
+      <div className="shell" style={brandFontStyles}>
         <EditorPanel
           headingLabel={brand?.brandName}
           brandName={brandName}
@@ -141,6 +150,10 @@ export function ColorSystemGenerator({
           lockedShade={state.settings.lockedShade}
           harmony={harmony}
           generationMode={state.settings.generationMode}
+          fontPairId={fontPair.id}
+          onFontPairChange={setFontPair}
+          logoUrl={logoUrl}
+          onLogoChange={setLogoUrl}
           onPrimaryChange={(hex) => state.setSeed(hex)}
           onSecondaryChange={(hex) => state.setRoleSeed('secondary', hex)}
           onAddSecondary={() => state.addRole('secondary')}
@@ -158,6 +171,7 @@ export function ColorSystemGenerator({
           paletteName={paletteName}
           onPaletteNameChange={setPaletteName}
           brandName={brandName}
+          logoUrl={logoUrl}
         />
       </div>
     </CosmosWorkspaceShell>

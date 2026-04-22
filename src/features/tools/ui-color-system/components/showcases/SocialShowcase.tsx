@@ -254,7 +254,7 @@ function HeadlineCard({
       <div className="mt-auto">
         <p
           className="text-[34px] font-light italic leading-[0.95] tracking-tight"
-          style={{ color: ink, fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif' }}
+          style={{ color: ink, fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)' }}
         >
           {pre}
         </p>
@@ -304,7 +304,7 @@ function QuoteCard({
           className="text-[18px] leading-[1.3]"
           style={{
             color: ink,
-            fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+            fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
           }}
         >
           Every great business needs a strong digital presence. We craft identities
@@ -337,7 +337,7 @@ function QuoteCard({
         className="text-center text-[11px] italic"
         style={{
           color: footnoteFg,
-          fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+          fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
         }}
       >
         Branding is what people say about you
@@ -381,7 +381,7 @@ function ManifestoCard({
           className="text-[22px] leading-[1.15] tracking-tight"
           style={{
             color: ink,
-            fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+            fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
           }}
         >
           Creativity isn't just about aesthetics
@@ -446,7 +446,7 @@ function StatCard({
           className="mt-1 text-[14px] italic"
           style={{
             color: muted,
-            fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+            fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
           }}
         >
           {sub}
@@ -465,7 +465,7 @@ function StatCard({
             className="mt-2 text-[10px] italic"
             style={{
               color: muted,
-              fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+              fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
               lineHeight: 1.35,
             }}
           >
@@ -525,7 +525,7 @@ function NumberCard({
             className="text-[20px] italic"
             style={{
               color: ink,
-              fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+              fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
             }}
           >
             {label}
@@ -570,7 +570,7 @@ function SecondaryCard({
       <div className="my-auto">
         <p
           className="text-[28px] leading-[1.05] tracking-tight"
-          style={{ color: ink, fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif' }}
+          style={{ color: ink, fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)' }}
         >
           Design is the
           <br />
@@ -647,7 +647,7 @@ function CtaCard({
         <br />
         <span
           className="italic"
-          style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif' }}
+          style={{ fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)' }}
         >
           learn faster.
         </span>
@@ -687,7 +687,7 @@ function ClosingCard({
           className="text-[16px] italic"
           style={{
             color: muted,
-            fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
+            fontFamily: 'var(--brand-font-display, ui-serif, Georgia, Cambria, "Times New Roman", serif)',
           }}
         >
           made with
