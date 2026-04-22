@@ -21,7 +21,7 @@ export function SocialShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const handle = brand.name.toLowerCase().replace(/\s+/g, '');
 
   return (
-    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
       <IgPost brand={brand} handle={handle} neutral={n}>
         <HeadlineCover primary={p} neutral={n} />
       </IgPost>
@@ -71,11 +71,11 @@ function IgPost({
     >
       {/* Header */}
       <div
-        className="flex items-center gap-2 px-2.5 py-2"
+        className="flex items-center gap-2.5 px-3 py-2.5"
         style={{ borderBottom: `1px solid ${neutral[200].hex}` }}
       >
         <span
-          className="inline-flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold"
           style={{
             background: neutral[200].hex,
             color: neutral[900].hex,
@@ -93,26 +93,30 @@ function IgPost({
           )}
         </span>
         <span
-          className="min-w-0 flex-1 truncate text-[11px] font-semibold"
+          className="min-w-0 flex-1 truncate text-[12px] font-semibold"
           style={{ color: neutral[900].hex }}
         >
           {handle}
         </span>
-        <MoreHorizontal size={13} style={{ color: neutral[600].hex }} />
+        <MoreHorizontal size={15} style={{ color: neutral[600].hex }} />
       </div>
 
-      {/* Square cover */}
-      <div className="relative" style={{ aspectRatio: '1 / 1' }}>
+      {/* Square cover — clipped so decorative orbs/gradients can't
+          bleed past the frame edges. */}
+      <div
+        className="relative overflow-hidden"
+        style={{ aspectRatio: '1 / 1' }}
+      >
         {children}
       </div>
 
       {/* Action row */}
-      <div className="flex items-center gap-2 px-2.5 py-2">
-        <Heart size={14} style={{ color: neutral[900].hex }} />
-        <MessageCircle size={14} style={{ color: neutral[900].hex }} />
-        <Send size={14} style={{ color: neutral[900].hex }} />
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <Heart size={17} style={{ color: neutral[900].hex }} />
+        <MessageCircle size={17} style={{ color: neutral[900].hex }} />
+        <Send size={17} style={{ color: neutral[900].hex }} />
         <span style={{ flex: 1 }} />
-        <Bookmark size={14} style={{ color: neutral[900].hex }} />
+        <Bookmark size={17} style={{ color: neutral[900].hex }} />
       </div>
     </div>
   );
@@ -124,32 +128,32 @@ function HeadlineCover({ primary, neutral }: { primary: ScaleMap; neutral: Scale
   const ink = pickOn(primary[600].hex, neutral[50].hex, neutral[950].hex);
   return (
     <div
-      className="relative flex h-full flex-col justify-between p-3"
+      className="relative flex h-full flex-col justify-between p-5"
       style={{ background: primary[600].hex, color: ink }}
     >
-      {/* Soft orb */}
+      {/* Soft orb — fully inside the frame so nothing bleeds to the edges */}
       <div
         aria-hidden
         className="pointer-events-none absolute"
         style={{
-          right: '-20%',
-          top: '-15%',
-          width: '75%',
+          right: '15%',
+          top: '15%',
+          width: '50%',
           aspectRatio: '1 / 1',
           borderRadius: '50%',
-          background: `radial-gradient(circle, ${primary[400].hex}, ${primary[700].hex} 70%, transparent 80%)`,
-          filter: 'blur(12px)',
+          background: `radial-gradient(circle, ${primary[400].hex}, ${primary[700].hex} 60%, transparent 80%)`,
+          filter: 'blur(18px)',
           opacity: 0.85,
         }}
       />
       <span
-        className="relative text-[8px] font-semibold uppercase tracking-[0.18em]"
+        className="relative text-[10px] font-semibold uppercase tracking-[0.18em]"
         style={{ color: ink, opacity: 0.8 }}
       >
         12:00 · Mon
       </span>
       <h3
-        className="relative text-[18px] font-bold leading-[1.05] tracking-[-0.02em]"
+        className="relative text-[30px] font-bold leading-[1.02] tracking-[-0.02em]"
         style={{ color: ink }}
       >
         Join the
@@ -199,25 +203,25 @@ function BrandMarkCover({
       </svg>
 
       <div
-        className="relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5"
+        className="relative flex items-center gap-2 rounded-md px-4 py-2.5"
         style={{
           background: neutral[50].hex,
-          boxShadow: '0 8px 20px -4px rgba(0,0,0,0.18)',
+          boxShadow: '0 10px 26px -6px rgba(0,0,0,0.22)',
         }}
       >
         <span
-          className="inline-block h-4 w-4 rounded-sm"
+          className="inline-block h-5 w-5 rounded-sm"
           style={{ background: primary[600].hex }}
         />
         <span
-          className="text-[12px] font-bold uppercase tracking-tight"
+          className="text-[18px] font-bold uppercase tracking-tight"
           style={{ color: neutral[950].hex, letterSpacing: 0 }}
         >
           {brandName}
         </span>
       </div>
       <span
-        className="absolute bottom-2 left-2 rounded-[3px] bg-white px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.1em]"
+        className="absolute bottom-3 left-3 rounded-[4px] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em]"
         style={{ color: primary[700].hex }}
       >
         Official partner
@@ -229,21 +233,21 @@ function BrandMarkCover({
 function DarkOrbCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap }) {
   return (
     <div
-      className="relative flex h-full flex-col justify-between p-3"
+      className="relative flex h-full flex-col justify-between p-5"
       style={{ background: neutral[950].hex, color: neutral[50].hex }}
     >
-      {/* Orb */}
+      {/* Orb — sits inside the frame; no edge bleed */}
       <div
         aria-hidden
         className="pointer-events-none absolute"
         style={{
-          left: '25%',
+          left: '28%',
           top: '25%',
-          width: '55%',
+          width: '46%',
           aspectRatio: '1 / 1',
           borderRadius: '50%',
-          background: `radial-gradient(circle at 35% 30%, ${primary[300].hex}, ${primary[500].hex} 40%, ${primary[800].hex} 70%, ${neutral[950].hex} 90%)`,
-          filter: 'blur(6px)',
+          background: `radial-gradient(circle at 35% 30%, ${primary[300].hex}, ${primary[500].hex} 40%, ${primary[800].hex} 70%, ${neutral[950].hex} 95%)`,
+          filter: 'blur(8px)',
         }}
       />
       {/* Grid */}
@@ -253,20 +257,20 @@ function DarkOrbCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleM
         style={{ opacity: 0.1, color: neutral[50].hex }}
       >
         <defs>
-          <pattern id="ig-grid-d" width="20" height="20" patternUnits="userSpaceOnUse">
-            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="currentColor" strokeWidth="0.8" />
+          <pattern id="ig-grid-d" width="24" height="24" patternUnits="userSpaceOnUse">
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="currentColor" strokeWidth="0.8" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#ig-grid-d)" />
       </svg>
 
       <div className="relative flex items-start justify-between">
-        <span className="text-[8px] font-semibold uppercase tracking-[0.18em]" style={{ color: neutral[400].hex }}>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: neutral[400].hex }}>
           MM · 2026
         </span>
       </div>
       <div className="relative">
-        <h3 className="text-[18px] font-bold leading-[1] tracking-[-0.02em]" style={{ color: neutral[50].hex }}>
+        <h3 className="text-[30px] font-bold leading-[1] tracking-[-0.02em]" style={{ color: neutral[50].hex }}>
           The
           <br />
           Roundup
@@ -279,17 +283,17 @@ function DarkOrbCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleM
 function StatCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap }) {
   return (
     <div
-      className="relative flex h-full flex-col justify-between p-3"
+      className="relative flex h-full flex-col justify-between p-5"
       style={{ background: neutral[50].hex, color: neutral[950].hex }}
     >
       <div className="flex items-center justify-between">
         <span
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full"
-          style={{ background: primary[500].hex, color: pickOn(primary[500].hex, '#ffffff', '#0a0a0a'), fontSize: 9 }}
+          className="inline-flex h-6 w-6 items-center justify-center rounded-full"
+          style={{ background: primary[500].hex, color: pickOn(primary[500].hex, '#ffffff', '#0a0a0a'), fontSize: 11 }}
         >
           ↑
         </span>
-        <span className="text-[8px] font-semibold uppercase tracking-[0.16em]" style={{ color: neutral[500].hex }}>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: neutral[500].hex }}>
           [ Insight ]
         </span>
       </div>
@@ -298,10 +302,10 @@ function StatCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
           className="flex items-baseline leading-[0.85] tracking-[-0.04em]"
           style={{ color: neutral[950].hex }}
         >
-          <span style={{ fontSize: 56, fontWeight: 700 }}>84</span>
-          <span style={{ fontSize: 28, fontWeight: 700, color: primary[600].hex }}>%</span>
+          <span style={{ fontSize: 92, fontWeight: 700 }}>84</span>
+          <span style={{ fontSize: 44, fontWeight: 700, color: primary[600].hex }}>%</span>
         </div>
-        <p className="mt-1 text-[10px] leading-[1.3]" style={{ color: neutral[600].hex }}>
+        <p className="mt-2 text-[12px] leading-[1.35]" style={{ color: neutral[600].hex }}>
           of brand leaders name identity as their #1 growth lever.
         </p>
       </div>
@@ -312,15 +316,15 @@ function StatCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
 function QuoteCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap }) {
   return (
     <div
-      className="relative flex h-full flex-col justify-center p-3"
+      className="relative flex h-full flex-col justify-center p-5"
       style={{ background: primary[100].hex, color: neutral[950].hex }}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute -left-2 -top-3"
+        className="pointer-events-none absolute left-3 top-2"
         style={{
           fontFamily: 'var(--brand-font-display, ui-serif, Georgia, serif)',
-          fontSize: 88,
+          fontSize: 110,
           lineHeight: 1,
           color: primary[300].hex,
           fontWeight: 500,
@@ -329,7 +333,7 @@ function QuoteCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap
         “
       </span>
       <p
-        className="relative text-[12px] leading-[1.35]"
+        className="relative text-[18px] leading-[1.3]"
         style={{
           fontFamily: 'var(--brand-font-display, ui-serif, Georgia, serif)',
           fontWeight: 500,
@@ -338,7 +342,7 @@ function QuoteCover({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap
         Design is the silent ambassador of your brand.
       </p>
       <span
-        className="relative mt-2 text-[8px] font-semibold uppercase tracking-[0.18em]"
+        className="relative mt-3 text-[10px] font-semibold uppercase tracking-[0.18em]"
         style={{ color: primary[800].hex }}
       >
         — P. Rand
@@ -370,17 +374,17 @@ function PhotoCover({
           background: `linear-gradient(180deg, transparent 40%, ${neutral[950].hex}cc 100%)`,
         }}
       />
-      <div className="absolute left-2 top-2">
+      <div className="absolute left-3 top-3">
         <span
-          className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em]"
+          className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
           style={{ background: '#ffffffcc', color: neutral[950].hex, backdropFilter: 'blur(6px)' }}
         >
           In studio
         </span>
       </div>
-      <div className="absolute inset-x-2 bottom-2" style={{ color: neutral[50].hex }}>
-        <p className="text-[10px] font-semibold leading-tight">Behind the scenes</p>
-        <p className="text-[9px]" style={{ opacity: 0.85 }}>
+      <div className="absolute inset-x-4 bottom-4" style={{ color: neutral[50].hex }}>
+        <p className="text-[14px] font-semibold leading-tight">Behind the scenes</p>
+        <p className="mt-0.5 text-[11px]" style={{ opacity: 0.85 }}>
           this week at the studio.
         </p>
       </div>
