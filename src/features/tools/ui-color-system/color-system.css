@@ -552,3 +552,43 @@
   background: color-mix(in srgb, #dc2626 12%, transparent);
   color: #dc2626;
 }
+
+/* ─── Brand identity section (sits above the color controls) ─── */
+
+[data-cosmos="workspace"] .editor-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .editor-identity-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .editor-identity-input {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+[data-cosmos="workspace"] .editor-identity-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+[data-cosmos="workspace"] .editor-identity-input:focus {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
+}

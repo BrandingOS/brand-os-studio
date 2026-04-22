@@ -105,6 +105,23 @@ export function EditorPanel({
       </div>
 
       <div className="editor-panel">
+        <div className="editor-identity">
+          <label className="editor-identity-label" htmlFor="brand-name-input">
+            Brand name
+          </label>
+          <input
+            id="brand-name-input"
+            type="text"
+            value={brandName}
+            onChange={(e) => onBrandNameChange(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="e.g. Acme"
+            className="editor-identity-input"
+            aria-label="Brand name"
+          />
+        </div>
+
         <div className="editor-cats">
           {CATEGORIES.map((c) => (
             <button
@@ -117,46 +134,6 @@ export function EditorPanel({
               {c.label}
             </button>
           ))}
-        </div>
-
-        <div>
-          <div className="editor-field-head">
-            <span className="editor-field-label">Brand name</span>
-          </div>
-          <div className="editor-color-input" style={{ paddingLeft: 12 }}>
-            <span
-              className="editor-color-chip"
-              style={{ background: primaryHex, flexShrink: 0 }}
-              aria-hidden
-            >
-              <span
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: '#fff',
-                  textShadow: '0 1px 1px rgba(0,0,0,0.25)',
-                }}
-              >
-                {(brandName.trim()[0] ?? 'B').toUpperCase()}
-              </span>
-            </span>
-            <input
-              type="text"
-              value={brandName}
-              onChange={(e) => onBrandNameChange(e.target.value)}
-              spellCheck={false}
-              autoComplete="off"
-              placeholder="e.g. Acme"
-              className="editor-color-hex"
-              style={{ textTransform: 'none' }}
-              aria-label="Brand name"
-            />
-          </div>
         </div>
 
         <div>
