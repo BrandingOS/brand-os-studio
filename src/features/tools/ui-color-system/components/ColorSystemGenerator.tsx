@@ -18,7 +18,7 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useStore } from 'zustand';
-import { Plus, Sparkles, Sun, Moon } from 'lucide-react';
+import { Plus, Sparkles, Sun, Moon, Save, Share2, FolderOpen } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -43,6 +43,17 @@ import { ContrastGrid } from './ContrastGrid';
 import { ExportPanel } from './ExportPanel';
 import { HarmonyPanel } from './HarmonyPanel';
 import { ProLock } from './ProLock';
+import { BrandSyncBar } from './BrandSyncBar';
+import { ShareDialog } from './ShareDialog';
+import { SavedPalettesDrawer } from './SavedPalettesDrawer';
+import { useSavedPalettes } from '../hooks/useSavedPalettes';
+
+export interface BrandIntegration {
+  brandName: string;
+  brandPrimary?: string;
+  /** Called with the CURRENT palette when the user clicks Save-to-brand. */
+  onPush: (palette: import('@/lib/color-engine').PaletteSystem) => void | Promise<void>;
+}
 
 export interface ColorSystemGeneratorProps {
   /** Initial seed color (hex). Defaults to a BrandingOS-friendly blue. */
@@ -51,8 +62,10 @@ export interface ColorSystemGeneratorProps {
   initialPalette?: unknown; // Typed loosely; the shell decides the shape.
   /** Override mode — useful when embedding inside a brand page. */
   forcedMode?: 'standalone' | 'integrated';
-  /** Render slot above the main grid (e.g. BrandSyncBar). */
+  /** Render slot above the main grid (custom banners, etc.). */
   headerSlot?: React.ReactNode;
+  /** Brand integration — renders the BrandSyncBar above the main grid. */
+  brand?: BrandIntegration;
 }
 
 const ROLE_LABELS: Record<RoleKey, string> = {
@@ -70,10 +83,15 @@ export function ColorSystemGenerator({
   initialSeed = '#0ea5e9',
   forcedMode,
   headerSlot,
+  brand,
 }: ColorSystemGeneratorProps) {
   const ctx = useToolContext(forcedMode);
   const store = usePaletteStore(initialSeed);
   const state = useStore(store);
+  const { save, palettes } = useSavedPalettes();
+
+  const [shareOpen, setShareOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
 
   const [drawer, setDrawer] = useState<{
     open: boolean;
@@ -146,6 +164,21 @@ export function ColorSystemGenerator({
     >
       {headerSlot}
 
+      {brand && (
+        <BrandSyncBar
+          brandName={brand.brandName}
+          brandPrimary={brand.brandPrimary}
+          palette={state}
+          onPullFromBrand={() => {
+            if (brand.brandPrimary) state.setSeed(brand.brandPrimary);
+          }}
+          onPushToBrand={() => brand.onPush(state)}
+          onSaveAsVariant={() => {
+            save(state, `${brand.brandName} · ${state.roles.primary.inputHex}`);
+          }}
+        />
+      )}
+
       <SeedInputBar
         seed={state.seedColor}
         onSeedChange={state.setSeed}
@@ -200,6 +233,40 @@ export function ColorSystemGenerator({
             <TabsTrigger value="export">Export</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSavedOpen(true)}
+              className="gap-1.5"
+            >
+              <FolderOpen className="h-3.5 w-3.5" />
+              My palettes
+              {palettes.length > 0 && (
+                <span className="rounded-full bg-muted px-1.5 text-[10px] font-medium">
+                  {palettes.length}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                save(state);
+              }}
+              className="gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" />
+              Save
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShareOpen(true)}
+              className="gap-1.5"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Share
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -263,6 +330,24 @@ export function ColorSystemGenerator({
         onEdit={handleShadeEdit}
         onReset={handleShadeReset}
         onToggleLock={handleShadeLockToggle}
+      />
+
+      <ShareDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        palette={state}
+        theme={state.theme}
+        canSave={ctx.perms.canSave}
+        onSave={() => save(state)}
+      />
+
+      <SavedPalettesDrawer
+        open={savedOpen}
+        onOpenChange={setSavedOpen}
+        onLoad={(p) => {
+          state.replace(p);
+          setSavedOpen(false);
+        }}
       />
     </div>
   );

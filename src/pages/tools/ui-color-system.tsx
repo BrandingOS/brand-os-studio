@@ -12,6 +12,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { ColorSystemGenerator } from '@/features/tools/ui-color-system';
 import { PublicLanding } from '@/features/tools/ui-color-system/public/PublicLanding';
+import { decodePalette } from '@/features/tools/ui-color-system/hooks/usePaletteShareUrl';
 import { TOOL_REGISTRY } from '@/features/tools/core';
 import { isValidHex, normalizeHex } from '@/lib/color-engine';
 
@@ -21,10 +22,19 @@ export default function PublicUiColorSystemPage() {
   const [seed, setSeed] = useState<string | null>(null);
 
   useEffect(() => {
-    const raw = params.get('seed');
-    if (raw) {
-      const hex = raw.startsWith('#') ? raw : `#${raw}`;
-      if (isValidHex(hex)) setSeed(normalizeHex(hex));
+    // ?p=<base64> takes precedence over ?seed=<hex>.
+    const encoded = params.get('p');
+    if (encoded) {
+      const decoded = decodePalette(encoded);
+      if (decoded && isValidHex(decoded.seed)) {
+        setSeed(normalizeHex(decoded.seed));
+      }
+    } else {
+      const raw = params.get('seed');
+      if (raw) {
+        const hex = raw.startsWith('#') ? raw : `#${raw}`;
+        if (isValidHex(hex)) setSeed(normalizeHex(hex));
+      }
     }
     // SEO: keep title in sync with the in-tool state.
     if (meta) {

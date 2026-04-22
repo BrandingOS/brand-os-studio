@@ -62,7 +62,7 @@ export function useToolContext(forcedMode?: ToolMode): ToolContext {
   const user = useSessionStore((s) => s.user);
   const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
   const platformRole = useSessionStore((s) => s.platformRole);
-  const brands = useBrandStore((s) => s.brands);
+  const brands = useBrandStore((s) => s.list);
 
   const routeSlug = (params.slug as string | undefined) ?? null;
   const brandId = useMemo(() => {
