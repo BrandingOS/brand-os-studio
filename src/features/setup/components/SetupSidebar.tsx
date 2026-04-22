@@ -1,5 +1,17 @@
+import { useRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import type { MockBrand } from '../data/mockBrand';
-import { Check, Plus, Type, ImageIcon, Monitor, Camera, Globe, MessageCircle } from './SetupIcons';
+import { Check, Plus } from './SetupIcons';
+import {
+  PenOrganicIconV2,
+  PaletteOrganicIconV2,
+  TypeOrganicIcon,
+  ShapesOrganicIcon,
+  PhotoOrganicIconV2,
+  LinkOrganicIconV2,
+  VoiceOrganicIcon,
+  type OrganicIconHandle,
+  type OrganicIconProps,
+} from './organic-icons';
 
 type SectionKey = 'logo' | 'colors' | 'fonts' | 'icons' | 'photos' | 'website' | 'voice';
 
@@ -9,90 +21,46 @@ type Props = {
   completed: number;
   total: number;
   onJump: (key: SectionKey) => void;
+  onOpenUpload?: (key: SectionKey) => void;
+};
+
+type OrganicIconComponent = ForwardRefExoticComponent<
+  OrganicIconProps & RefAttributes<OrganicIconHandle>
+>;
+
+const ICONS: Record<SectionKey, OrganicIconComponent> = {
+  logo: PenOrganicIconV2,
+  colors: PaletteOrganicIconV2,
+  fonts: TypeOrganicIcon,
+  icons: ShapesOrganicIcon,
+  photos: PhotoOrganicIconV2,
+  website: LinkOrganicIconV2,
+  voice: VoiceOrganicIcon,
 };
 
 type Entry = {
   key: SectionKey;
-  groupLabel?: string;
   name: string;
   sub: string;
-  thumb: React.ReactNode;
-  thumbClass?: string;
   added: boolean;
 };
 
-export function SetupSidebar({ brand, activeKey, completed, total, onJump }: Props) {
-  const displayLogo = brand.logos[0];
-  const [c1, c2] = brand.colors.core;
+const UPLOAD_KEYS = new Set<SectionKey>(['logo', 'icons', 'photos']);
 
+export function SetupSidebar({ brand, activeKey, completed, total, onJump, onOpenUpload }: Props) {
   const entries: Entry[] = [
-    {
-      key: 'logo',
-      groupLabel: 'Identity',
-      name: 'Logo',
-      sub: `${brand.logos.length} variants`,
-      thumb: displayLogo ? (
-        <span
-          aria-hidden
-          dangerouslySetInnerHTML={{ __html: displayLogo.svg }}
-          style={{ width: '100%', height: '100%' }}
-        />
-      ) : (
-        <ImageIcon size={14} />
-      ),
-      added: brand.logos.length > 0,
-    },
-    {
-      key: 'colors',
-      name: 'Color',
-      sub: `${brand.colors.core.length + brand.colors.accent.length} colors`,
-      thumb: null,
-      thumbClass: 'is-color',
-      added: brand.colors.core.length > 0,
-    },
-    {
-      key: 'fonts',
-      name: 'Typography',
-      sub: `${brand.fonts.display.family} · ${brand.fonts.text.family}`,
-      thumb: <span>Aa</span>,
-      thumbClass: 'is-font',
-      added: !!brand.fonts.display && !!brand.fonts.text,
-    },
-    {
-      key: 'icons',
-      groupLabel: 'Style',
-      name: 'Iconography',
-      sub: `${brand.icons.length} icons`,
-      thumb: <Type size={14} />,
-      added: brand.icons.length > 0,
-    },
-    {
-      key: 'photos',
-      name: 'Photography',
-      sub: `${brand.photos.length} references`,
-      thumb: <Camera size={14} />,
-      added: brand.photos.length > 0,
-    },
-    {
-      key: 'website',
-      groupLabel: 'Presence',
-      name: 'Website',
-      sub: brand.website.url || 'Not set',
-      thumb: <Globe size={14} />,
-      added: !!brand.website.url,
-    },
-    {
-      key: 'voice',
-      name: 'Voice & Tone',
-      sub: `${brand.voice.pillars.length} pillars`,
-      thumb: <MessageCircle size={14} />,
-      added: brand.voice.essay.length > 0,
-    },
+    { key: 'logo', name: 'Logo', sub: `${brand.logos.length} variants`, added: brand.logos.length > 0 },
+    { key: 'colors', name: 'Color', sub: `${brand.colors.core.length + brand.colors.accent.length} colors`, added: brand.colors.core.length > 0 },
+    { key: 'fonts', name: 'Typography', sub: `${brand.fonts.display.family} · ${brand.fonts.text.family}`, added: !!brand.fonts.display && !!brand.fonts.text },
+    { key: 'icons', name: 'Iconography', sub: `${brand.icons.length} icons`, added: brand.icons.length > 0 },
+    { key: 'photos', name: 'Photography', sub: `${brand.photos.length} references`, added: brand.photos.length > 0 },
+    { key: 'website', name: 'Website', sub: brand.website.url || 'Not set', added: !!brand.website.url },
+    { key: 'voice', name: 'Voice & Tone', sub: `${brand.voice.pillars.length} pillars`, added: brand.voice.essay.length > 0 },
   ];
 
-  const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
+  const ordered = [...entries.filter((e) => e.added), ...entries.filter((e) => !e.added)];
 
-  let lastGroup: string | undefined;
+  const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   return (
     <aside className="panel" aria-label="Brand setup progress">
@@ -115,43 +83,83 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump }: Pro
       </div>
 
       <nav className="panel-list">
-        {entries.map((entry) => {
-          const showGroup = entry.groupLabel && entry.groupLabel !== lastGroup;
-          if (entry.groupLabel) lastGroup = entry.groupLabel;
+        {ordered.map((entry) => {
           const isActive = activeKey === entry.key;
-
-          const thumbStyle: React.CSSProperties | undefined =
-            entry.thumbClass === 'is-color' && c1 && c2
-              ? ({
-                  ['--tc1' as never]: c1.hex,
-                  ['--tc2' as never]: c2.hex,
-                } as React.CSSProperties)
-              : undefined;
-
+          const canUpload = UPLOAD_KEYS.has(entry.key) && !!onOpenUpload;
+          const handleClick = () => {
+            if (canUpload) onOpenUpload!(entry.key);
+            else onJump(entry.key);
+          };
           return (
-            <div key={entry.key}>
-              {showGroup && <div className="panel-group-label">{entry.groupLabel}</div>}
-              <button
-                type="button"
-                className={`panel-item${isActive ? ' is-active' : ''}${entry.added ? '' : ' is-missing'}`}
-                onClick={() => onJump(entry.key)}
-              >
-                <span className={`panel-item-thumb${entry.thumbClass ? ' ' + entry.thumbClass : ''}`} style={thumbStyle}>
-                  {entry.thumb}
-                </span>
-                <span className="panel-item-meta">
-                  <span className="panel-item-name">{entry.name}</span>
-                  <span className="panel-item-sub">{entry.sub}</span>
-                </span>
-                <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
-                  {entry.added ? <Check size={14} /> : <Plus size={14} />}
-                </span>
-              </button>
-            </div>
+            <SidebarItem
+              key={entry.key}
+              entry={entry}
+              isActive={isActive}
+              onClick={handleClick}
+            />
           );
         })}
       </nav>
     </aside>
+  );
+}
+
+function SidebarItem({
+  entry,
+  isActive,
+  onClick,
+}: {
+  entry: Entry;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const iconRef = useRef<OrganicIconHandle>(null);
+  const Icon = ICONS[entry.key];
+
+  return (
+    <button
+      type="button"
+      className={`panel-item${isActive ? ' is-active' : ''}${entry.added ? '' : ' is-missing'}`}
+      onClick={onClick}
+      onMouseEnter={() => iconRef.current?.startAnimation()}
+      onMouseLeave={() => iconRef.current?.stopAnimation()}
+      onFocus={() => iconRef.current?.startAnimation()}
+      onBlur={() => iconRef.current?.stopAnimation()}
+    >
+      {entry.added && (
+        <span className="panel-item-thumb" aria-hidden>
+          <Icon ref={iconRef} size={18} />
+        </span>
+      )}
+      <span className="panel-item-meta">
+        <span className="panel-item-name">{entry.name}</span>
+        {entry.added && <span className="panel-item-sub">{entry.sub}</span>}
+      </span>
+      <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
+        <span className="chip-default">
+          {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
+        </span>
+        <span className="chip-hover">
+          <Plus size={14} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function OutlineRing({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle
+        cx="8"
+        cy="8"
+        r="6"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeDasharray="2.5 2"
+        fill="none"
+      />
+    </svg>
   );
 }
 

@@ -36,6 +36,7 @@ test-screenshots/
 
 # Local research / reference assets — not part of the product
 new-version/
+new-ui/
 
 # Local-only Product OS / internal control center — never commit
 /product-os/
