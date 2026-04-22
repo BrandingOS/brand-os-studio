@@ -35,7 +35,7 @@ export function generateHarmony(seedHex: string, harmony: HarmonyName): HarmonyR
       seeds = [oklchToHex(oklch)];
       break;
     case 'analogous':
-      seeds = [rotate(-30), oklchToHex(oklch), rotate(30)];
+      seeds = [oklchToHex(oklch), rotate(20), rotate(-20)];
       break;
     case 'complementary':
       seeds = [oklchToHex(oklch), rotate(180)];

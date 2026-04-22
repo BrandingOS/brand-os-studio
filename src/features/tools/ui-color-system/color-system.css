@@ -745,51 +745,15 @@
   border-color: var(--border-strong);
 }
 
-/* ─── Harmony chip grid ───────────────────────────────────── */
-[data-cosmos="workspace"] .harmony-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-[data-cosmos="workspace"] .harmony-chip {
+/* ─── Harmony preview strip ──────────────────────────────── */
+[data-cosmos="workspace"] .harmony-preview {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s, transform 0.15s;
+  gap: 4px;
+  height: 20px;
+  margin-top: 6px;
 }
-[data-cosmos="workspace"] .harmony-chip:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-}
-[data-cosmos="workspace"] .harmony-chip.is-active {
-  border-color: var(--text-primary);
-  box-shadow: 0 0 0 2px var(--accent-ring, rgba(0, 0, 0, 0.06));
-}
-[data-cosmos="workspace"] .harmony-chip-swatches {
-  display: flex;
-  gap: 3px;
-  width: 100%;
-  height: 24px;
-}
-[data-cosmos="workspace"] .harmony-chip-swatches span {
+[data-cosmos="workspace"] .harmony-preview span {
   flex: 1;
-  border-radius: 5px;
-}
-[data-cosmos="workspace"] .harmony-chip-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.1;
-}
-[data-cosmos="workspace"] .harmony-chip-hint {
-  font-size: 10px;
-  color: var(--text-muted);
-  line-height: 1.3;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }

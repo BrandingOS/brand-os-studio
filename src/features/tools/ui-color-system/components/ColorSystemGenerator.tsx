@@ -74,10 +74,7 @@ export function ColorSystemGenerator({
   const onHarmonyChange = useCallback(
     (h: HarmonyName | 'auto') => {
       setHarmony(h);
-      if (h !== 'auto') {
-        if (!state.roles.secondary) state.addRole('secondary');
-        state.applyHarmony(h);
-      }
+      if (h !== 'auto') state.applyHarmony(h);
     },
     [state],
   );

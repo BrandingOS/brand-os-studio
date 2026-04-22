@@ -280,86 +280,37 @@ function HarmonyPicker({
   value: HarmonyName | 'auto';
   onChange: (h: HarmonyName | 'auto') => void;
 }) {
-  const options = useMemo(() => {
-    return ALL_HARMONIES.map((name) => {
-      try {
-        const { seeds } = generateHarmony(primaryHex, name);
-        return { name, seeds };
-      } catch {
-        return { name, seeds: [primaryHex] as string[] };
-      }
-    });
-  }, [primaryHex]);
-
-  const labelFor = (name: HarmonyName): string => {
-    switch (name) {
-      case 'monochromatic':
-        return 'Mono';
-      case 'analogous':
-        return 'Neighbour';
-      case 'complementary':
-        return 'Opposite';
-      case 'split-complementary':
-        return 'Split';
-      case 'triadic':
-        return 'Triad';
-      case 'tetradic':
-        return 'Quad';
+  const activeSeeds = useMemo(() => {
+    if (value === 'auto') return [primaryHex];
+    try {
+      return generateHarmony(primaryHex, value).seeds;
+    } catch {
+      return [primaryHex];
     }
-  };
-
-  const shortHint = (name: HarmonyName): string => {
-    switch (name) {
-      case 'monochromatic':
-        return 'One hue, many shades.';
-      case 'analogous':
-        return 'Close neighbours — cohesive.';
-      case 'complementary':
-        return 'Direct opposite — high contrast.';
-      case 'split-complementary':
-        return 'Pop without clash.';
-      case 'triadic':
-        return 'Three evenly spaced hues.';
-      case 'tetradic':
-        return 'Four-way palette.';
-    }
-  };
+  }, [primaryHex, value]);
 
   return (
     <div className="editor-harmony">
-      <div className="editor-field-head">
-        <span className="editor-field-label">Harmony</span>
-        <button
-          type="button"
-          onClick={() => onChange('auto')}
-          className={cn('editor-field-meta-btn', value === 'auto' && 'is-open')}
-          aria-label="Reset harmony"
-        >
-          <span style={{ fontSize: 10, fontWeight: 600 }}>AUTO</span>
-        </button>
-      </div>
-      <div className="harmony-grid">
-        {options.map(({ name, seeds }) => {
-          const active = value === name;
-          return (
-            <button
-              key={name}
-              type="button"
-              onClick={() => onChange(name)}
-              className={cn('harmony-chip', active && 'is-active')}
-            >
-              <div className="harmony-chip-swatches">
-                {(seeds.length > 1 ? seeds : [seeds[0], seeds[0]]).map((hex, i) => (
-                  <span key={`${hex}-${i}`} style={{ background: hex }} />
-                ))}
-              </div>
-              <div>
-                <div className="harmony-chip-label">{labelFor(name)}</div>
-                <div className="harmony-chip-hint">{shortHint(name)}</div>
-              </div>
-            </button>
-          );
-        })}
+      <label className="editor-harmony-label" htmlFor="harmony-select">
+        Color harmony
+      </label>
+      <select
+        id="harmony-select"
+        className="editor-select editor-select-lg"
+        value={value}
+        onChange={(e) => onChange(e.target.value as HarmonyName | 'auto')}
+      >
+        <option value="auto">Auto</option>
+        {ALL_HARMONIES.map((h) => (
+          <option key={h} value={h}>
+            {h.charAt(0).toUpperCase() + h.slice(1).replace('-', ' ')}
+          </option>
+        ))}
+      </select>
+      <div className="harmony-preview">
+        {activeSeeds.map((hex, i) => (
+          <span key={`${hex}-${i}`} style={{ background: hex }} />
+        ))}
       </div>
       {value !== 'auto' && (
         <p className="editor-harmony-hint">

@@ -221,8 +221,10 @@ export function createPaletteStore(initialSeed: string = '#0ea5e9'): PaletteStor
     applyHarmony: (harmony) => {
       set((s) => {
         const { seeds } = generateHarmony(s.roles.primary.inputHex, harmony);
-        const secondary = seeds[1] ? generateShades(seeds[1]) : null;
-        const tertiary = seeds[2] ? generateShades(seeds[2]) : null;
+        // Mono produces one seed — keep whatever secondary/tertiary were
+        // already on the palette rather than blowing them away.
+        const secondary = seeds[1] ? generateShades(seeds[1]) : s.roles.secondary;
+        const tertiary = seeds[2] ? generateShades(seeds[2]) : s.roles.tertiary;
         const roles: RolePaletteMap = { ...s.roles, secondary, tertiary };
         return recomputeSemantic({ ...s, roles });
       });
