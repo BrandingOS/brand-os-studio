@@ -11,10 +11,36 @@
  * so it can be imported from anywhere (router, SEO meta, server-side
  * sitemaps) without pulling component code into the bundle.
  */
-import { Wand2 } from 'lucide-react';
+import { Wand2, Palette } from 'lucide-react';
 import type { ToolMeta, ToolSlug } from './types';
 
 export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
+  'ui-color-system': {
+    slug: 'ui-color-system',
+    name: 'UI Color System',
+    tagline: 'Generate a complete UI color system from your brand.',
+    description:
+      'Drop in a brand color and get a full UI color system: perceptually ' +
+      'balanced shade ramps, semantic tokens, accessible pairings, live UI ' +
+      'previews, and production-ready exports — all in one place.',
+    seo: {
+      title: 'UI Color System Generator — BrandOS',
+      description:
+        'Generate a complete UI color system from one brand color. Shades, ' +
+        'semantic tokens, WCAG + APCA contrast testing, Tailwind/CSS/JSON exports.',
+      keywords: [
+        'ui color generator',
+        'tailwind palette generator',
+        'design system colors',
+        'oklch palette',
+        'apca contrast checker',
+        'brand color system',
+        'shadcn color system',
+        'color tokens',
+      ],
+    },
+    Icon: Palette,
+  },
   'logo-variant-generator': {
     slug: 'logo-variant-generator',
     name: 'Logo Variant Studio',

@@ -108,6 +108,8 @@ const ToolsDirectoryPage = lazy(() => import('./pages/tools'));
 const PublicVariantStudioPage = lazy(() => import('./pages/tools/logo-variant-generator'));
 const ClaimPage = lazy(() => import('./pages/tools/claim'));
 const VariantStudioInAppPage = lazy(() => import('./pages/dashboard/brand/[slug]/tools/variant-studio'));
+const PublicUiColorSystemPage = lazy(() => import('./pages/tools/ui-color-system'));
+const InAppUiColorSystemPage = lazy(() => import('./pages/dashboard/brand/[slug]/tools/ui-color-system'));
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
@@ -386,6 +388,7 @@ const App = () => (
           <Route path="/tools" element={<ToolsDirectoryPage />} />
           <Route path="/tools/logo-variant-generator" element={<PublicVariantStudioPage />} />
           <Route path="/tools/logo-to-svg" element={<LogoToSvgPage />} />
+          <Route path="/tools/ui-color-system" element={<PublicUiColorSystemPage />} />
           <Route path="/claim" element={<ClaimPage />} />
           <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
             <ProtectedRoute>
@@ -395,6 +398,16 @@ const App = () => (
           <Route path="/b/:slug/tools/variant-studio" element={
             <ProtectedRoute>
               <VariantStudioInAppPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/tools/ui-color-system" element={
+            <ProtectedRoute>
+              <InAppUiColorSystemPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/ui-color-system" element={
+            <ProtectedRoute>
+              <InAppUiColorSystemPage />
             </ProtectedRoute>
           } />
 
