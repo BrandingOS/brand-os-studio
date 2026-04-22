@@ -263,7 +263,7 @@ function GradientBottomPhoto({
         />
       </div>
       <div
-        className="relative z-10 flex h-full flex-col justify-end p-5"
+        className="pointer-events-none relative z-10 flex h-full flex-col justify-end p-5"
         style={{ minHeight: 360, color: onGrad }}
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] opacity-80">
@@ -470,7 +470,7 @@ function TallPhotoCard({
           }
         />
       </div>
-      <div className="relative z-10 flex h-full flex-col justify-between p-5" style={{ minHeight: 360 }}>
+      <div className="pointer-events-none relative z-10 flex h-full flex-col justify-between p-5" style={{ minHeight: 360 }}>
         <span
           className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-semibold"
           style={{ background: `${onBrand}22`, color: onBrand, backdropFilter: 'blur(6px)' }}
