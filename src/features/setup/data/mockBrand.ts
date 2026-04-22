@@ -22,7 +22,8 @@ export type BrandLogo = {
 export type BrandFont = {
   id: string;
   family: string;
-  kind: 'Display' | 'Text';
+  /** Free-form role label shown above the family name (e.g. "Display", "Text", "Mono"). */
+  role: string;
   weights: string;
   fallback?: string;
 };
@@ -33,6 +34,22 @@ export type BrandPhoto = {
   slot: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 };
 
+export type BrandWebsite = {
+  id: string;
+  url: string;
+  live?: boolean;
+  /** OG image URL (preferred) or screenshot URL (fallback). Populated
+   *  asynchronously after the site is added via the site-preview fetch. */
+  preview?: string | null;
+  /** Favicon / touch icon URL, used in the tab strip. */
+  favicon?: string | null;
+  /** Site <title> — used for tab label when available. */
+  title?: string | null;
+  /** True while the preview fetch is in flight; the frame shows a loading
+   *  shimmer instead of the fallback letter mark. */
+  loading?: boolean;
+};
+
 export type MockBrand = {
   name: string;
   logos: BrandLogo[];
@@ -41,13 +58,10 @@ export type MockBrand = {
     accent: BrandColor[];
     grey: BrandColor[];
   };
-  fonts: {
-    display: BrandFont;
-    text: BrandFont;
-  };
+  fonts: BrandFont[];
   icons: string[];
   photos: BrandPhoto[];
-  website: { url: string; live: boolean };
+  websites: BrandWebsite[];
   voice: {
     essay: string;
     pillars: string[];
@@ -112,22 +126,22 @@ export const mockBrand: MockBrand = {
       { hex: '#FAF8F1', name: 'Milk' },
     ],
   },
-  fonts: {
-    display: {
+  fonts: [
+    {
       id: 'f1',
       family: 'Instrument Serif',
-      kind: 'Display',
+      role: 'Display',
       weights: 'Regular · Italic',
       fallback: 'Playfair Display, serif',
     },
-    text: {
+    {
       id: 'f2',
       family: 'Inter',
-      kind: 'Text',
+      role: 'Text',
       weights: '400 · 500 · 600 · 700',
       fallback: 'system-ui, -apple-system, sans-serif',
     },
-  },
+  ],
   icons: [
     'camera',
     'sparkle',
@@ -150,7 +164,7 @@ export const mockBrand: MockBrand = {
     { id: 'p5', src: '/setup/photos/style-mindshift.jpg', slot: 'E' },
     { id: 'p6', src: '/setup/photos/style-soan.jpg', slot: 'F' },
   ],
-  website: { url: 'brand.dropbox.com', live: true },
+  websites: [{ id: 'w1', url: 'brand.dropbox.com', live: true }],
   voice: {
     essay:
       'We speak plainly. We make complex things feel simple. We respect our readers’ time — and their intelligence.',

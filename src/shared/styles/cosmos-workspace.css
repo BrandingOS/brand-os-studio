@@ -11,38 +11,50 @@
  * Ported from new-version/brandos/brandOS brand board.html.
  * ============================================================ */
 
+/*
+ * Palette mapped from Cosmos (cosmos.so) — values read from their
+ * published tokens: --color-paper, --color-gray-*, --color-warm-gray-*,
+ * --color-hover-*, --color-shadow-*. Light mode uses their warm "paper"
+ * (#f7f5f3) as the canvas and warm grays for secondary text; dark mode
+ * uses gray-975 (#141414) with warm-gray-dark text steps.
+ */
 [data-cosmos="workspace"] {
-  --background: #f5f4ef;
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-hover: #faf9f5;
-  --surface-sunken: #efede6;
+  --background: #f7f5f3;              /* color-paper */
+  --surface: #ffffff;                 /* background-primary / card */
+  --surface-elevated: #fcfbfa;        /* background-light-elevation */
+  --surface-hover: #f8f8f7;           /* hover-tertiary */
+  --surface-sunken: #f2f1f0;          /* background-elevation */
 
-  --border: #e6e4dd;
-  --border-strong: #d6d4cc;
-  --dash: #c8c6bd;
-  --dash-strong: #6b6963;
+  --border: rgba(13, 13, 13, 0.12);   /* border-primary */
+  --border-strong: rgba(13, 13, 13, 0.22);
+  --dash: rgba(92, 87, 84, 0.30);     /* hover-border @ stronger alpha */
+  --dash-strong: rgba(13, 13, 13, 0.55);
 
-  --text-primary: #0e0e0e;
-  --text-secondary: #6b6963;
-  --text-muted: #9a988f;
+  --text-primary: #0d0d0d;            /* gray-1000 */
+  --text-secondary: #6e6a69;          /* warm-gray-light-600 */
+  --text-muted: #9a9796;              /* warm-gray-light-400 */
 
-  --accent: #111113;
-  --accent-hover: #2a2a2a;
+  --accent: #0d0d0d;                  /* button-primary light */
+  --accent-hover: #232323;            /* hover-primary light */
   --accent-active: #000000;
-  --accent-muted: rgba(17, 17, 19, 0.07);
-  --accent-ring: rgba(17, 17, 19, 0.16);
+  --accent-muted: rgba(13, 13, 13, 0.07);
+  --accent-ring: rgba(13, 13, 13, 0.18);
   --accent-contrast: #ffffff;
 
-  --ok: #3f7a4a;
-  --ok-bg: rgba(63, 122, 74, 0.08);
+  --critical: #bd3c1f;                /* red-600 / critical */
+  --critical-soft: rgba(189, 60, 31, 0.08);
 
-  --shadow-xs: 0 1px 2px rgba(16, 16, 20, 0.05);
-  --shadow-sm: 0 2px 6px rgba(16, 16, 20, 0.06);
-  --shadow-md: 0 8px 24px rgba(16, 16, 20, 0.08);
-  --shadow-lg: 0 24px 60px rgba(16, 16, 20, 0.14);
+  --ok: #007a3b;                      /* green-600 */
+  --ok-bg: rgba(0, 122, 59, 0.08);
 
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --link: #2965f6;                    /* blue-300 */
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.025);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.14);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --rule: color-mix(in srgb, var(--border) 60%, transparent);
 
   background: var(--background);
@@ -56,35 +68,40 @@
 }
 
 [data-cosmos="workspace"][data-theme="dark"] {
-  --background: #0d0d0d;
-  --surface: #161616;
-  --surface-elevated: #1c1c1c;
-  --surface-hover: #1f1f1f;
-  --surface-sunken: #262626;
+  --background: #141414;              /* gray-975 / dark paper */
+  --surface: #141414;                 /* background-primary dark */
+  --surface-elevated: #212020;        /* gray-950 / card dark */
+  --surface-hover: #181818;           /* hover-tertiary dark */
+  --surface-sunken: #323131;          /* gray-900 / elevation dark */
 
-  --border: #2a2a2a;
-  --border-strong: #3a3a3a;
-  --dash: #363636;
-  --dash-strong: #8a8a86;
+  --border: rgba(247, 245, 243, 0.12); /* border-primary dark */
+  --border-strong: rgba(247, 245, 243, 0.22);
+  --dash: rgba(247, 245, 243, 0.18);
+  --dash-strong: rgba(247, 245, 243, 0.55);
 
-  --text-primary: #f5f4f0;
-  --text-secondary: #a8a6a0;
-  --text-muted: #6e6c67;
+  --text-primary: #ffffff;
+  --text-secondary: #aeabab;          /* warm-gray-dark-400 */
+  --text-muted: #918f8f;              /* warm-gray-dark-600 */
 
-  --accent: #f5f4f0;
-  --accent-hover: #ffffff;
-  --accent-active: #e3e0d9;
-  --accent-muted: rgba(245, 244, 240, 0.10);
-  --accent-ring: rgba(245, 244, 240, 0.24);
+  --accent: #ffffff;                  /* button-primary dark (inverted) */
+  --accent-hover: #e8e6e4;            /* hover-primary dark */
+  --accent-active: #dad8d4;
+  --accent-muted: rgba(255, 255, 255, 0.10);
+  --accent-ring: rgba(255, 255, 255, 0.24);
   --accent-contrast: #0d0d0d;
 
-  --ok: #86c293;
-  --ok-bg: rgba(134, 194, 147, 0.10);
+  --critical: #ef7759;                /* orange-400 / critical dark */
+  --critical-soft: rgba(239, 119, 89, 0.10);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 30px 70px rgba(0, 0, 0, 0.7);
+  --ok: #00af5d;                      /* green-400 dark */
+  --ok-bg: rgba(0, 175, 93, 0.12);
+
+  --link: #316af4;                    /* blue-400 dark */
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.10);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.65);
 }
 
 [data-cosmos="workspace"] * { box-sizing: border-box; }
@@ -103,9 +120,7 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
-  background: color-mix(in srgb, var(--background) 85%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: transparent;
 }
 
 [data-cosmos="workspace"] .top-nav-left,
@@ -393,7 +408,6 @@
   gap: 10px;
   padding: 7px 8px;
   border-radius: 8px;
-  cursor: pointer;
   border: 1px solid transparent;
   background: transparent;
   transition:
@@ -404,6 +418,40 @@
   font-family: inherit;
   color: var(--text-primary);
   width: 100%;
+}
+[data-cosmos="workspace"] .panel-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+[data-cosmos="workspace"] .panel-item-body:focus-visible {
+  outline: none;
+}
+[data-cosmos="workspace"] .panel-item:has(.panel-item-body:focus-visible) {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+[data-cosmos="workspace"] .status-chip.is-button {
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+[data-cosmos="workspace"] .status-chip.is-button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .status-chip.is-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
 }
 [data-cosmos="workspace"] .panel-item:hover {
   background: var(--surface-hover);
@@ -615,6 +663,16 @@
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
+/* Download variant — same pill, muted icon tint, never widens on hover so
+   the + button next to it remains the dominant affordance. */
+[data-cosmos="workspace"] .section-add.section-download {
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .section-add.section-download:hover {
+  width: 30px;
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
 
 [data-cosmos="workspace"] .section-edit {
   font-family: inherit;
@@ -708,7 +766,8 @@
   padding: 0;
   cursor: pointer;
 }
-[data-cosmos="workspace"] .logo-tile:hover {
+[data-cosmos="workspace"] .logo-tile:hover,
+[data-cosmos="workspace"] .logo-tile.is-ctx-active {
   border-color: var(--border-strong);
   background: var(--accent-muted);
 }
@@ -845,7 +904,8 @@
 
 [data-cosmos="workspace"] .swatch:hover,
 [data-cosmos="workspace"] .swatch:focus-visible,
-[data-cosmos="workspace"] .swatch.is-active {
+[data-cosmos="workspace"] .swatch.is-active,
+[data-cosmos="workspace"] .swatch.is-ctx-active {
   transform: translateY(-30%) rotate(-1.4deg);
   outline: none;
 }
@@ -868,12 +928,15 @@
 
 [data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch:hover,
 [data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch.is-active,
+[data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch.is-ctx-active,
 [data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch:hover,
-[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch.is-active {
+[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch.is-active,
+[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch.is-ctx-active {
   transform: translateY(-48%) rotate(-1.4deg);
 }
 [data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch:hover,
-[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch.is-active {
+[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch.is-active,
+[data-cosmos="workspace"] .colors-row[data-layout="core"] .swatch.is-ctx-active {
   transform: translateY(-44%) rotate(-1.4deg);
 }
 
@@ -921,7 +984,9 @@
 [data-cosmos="workspace"] .swatch:focus-visible .swatch-name,
 [data-cosmos="workspace"] .swatch:focus-visible .swatch-hex,
 [data-cosmos="workspace"] .swatch.is-active .swatch-name,
-[data-cosmos="workspace"] .swatch.is-active .swatch-hex {
+[data-cosmos="workspace"] .swatch.is-active .swatch-hex,
+[data-cosmos="workspace"] .swatch.is-ctx-active .swatch-name,
+[data-cosmos="workspace"] .swatch.is-ctx-active .swatch-hex {
   opacity: 1;
 }
 
@@ -949,23 +1014,36 @@
   text-decoration-color: currentColor;
 }
 
-/* Copy icon that reveals on hover */
+/* Copy icon that reveals on hover — wraps the animated CopyOrganicIcon.
+   The organic icon is a motion SVG inside a <div>, so we size the wrapper
+   and let its contents inherit. Animates via its ref from the swatch's
+   mouse enter/leave, same pattern the sidebar uses. */
 [data-cosmos="workspace"] .swatch-copy-icon {
-  display: inline-block;
-  vertical-align: -1px;
-  width: 11px;
-  height: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   opacity: 0;
   flex-shrink: 0;
   transition: opacity 180ms var(--ease);
+  cursor: pointer;
+  color: inherit;
+}
+[data-cosmos="workspace"] .swatch-copy-icon > div,
+[data-cosmos="workspace"] .swatch-copy-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 [data-cosmos="workspace"] .swatch:hover .swatch-copy-icon,
 [data-cosmos="workspace"] .swatch:focus-visible .swatch-copy-icon,
-[data-cosmos="workspace"] .swatch.is-active .swatch-copy-icon {
-  opacity: 0.55;
+[data-cosmos="workspace"] .swatch.is-active .swatch-copy-icon,
+[data-cosmos="workspace"] .swatch.is-ctx-active .swatch-copy-icon {
+  opacity: 0.7;
 }
 [data-cosmos="workspace"] .swatch-name:hover .swatch-copy-icon,
-[data-cosmos="workspace"] .swatch-hex:hover .swatch-copy-icon {
+[data-cosmos="workspace"] .swatch-copy-icon:hover {
   opacity: 1;
 }
 
@@ -1077,6 +1155,11 @@
 }
 [data-cosmos="workspace"] .cp-footer {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .cp-footer-top {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
@@ -1146,6 +1229,162 @@
 [data-cosmos="workspace"] .cp-add-btn:hover { background: var(--accent-hover); }
 [data-cosmos="workspace"] .cp-add-btn:active { transform: scale(0.97); }
 
+/* Compact variant — used for the "add a new color" flow. A more
+   balanced aspect ratio (taller SV) so the picker reads as a real
+   rectangle rather than a wide strip. The footer is two rows: hex +
+   palette dropdown side-by-side on top, full-width Add below. */
+[data-cosmos="workspace"] .cp-body.is-compact { padding: 8px; gap: 8px; }
+[data-cosmos="workspace"] .cp-body.is-compact .cp-sv { height: 120px; }
+[data-cosmos="workspace"] .cp-body.is-compact .cp-hue { height: 10px; }
+/* 2-column grid forces hex-wrap and palette-wrap to exactly equal
+   widths regardless of their intrinsic content size. Flex with
+   `flex: 1 1 0` looked uneven in practice because hex-wrap's input
+   min-content kept nudging it wider than the dropdown. */
+[data-cosmos="workspace"] .cp-body.is-compact .cp-footer-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+[data-cosmos="workspace"] .cp-body.is-compact .cp-hex-wrap,
+[data-cosmos="workspace"] .cp-body.is-compact .cp-palette-wrap {
+  min-width: 0;
+}
+[data-cosmos="workspace"] .cp-body.is-compact .cp-hex-wrap {
+  padding: 4px 10px 4px 4px;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .cp-body.is-compact .cp-hex-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .cp-body.is-compact .cp-swatch-preview {
+  width: 22px;
+  height: 22px;
+}
+
+/* Palette dropdown — same visual footprint as hex-wrap so they read as
+   a balanced pair of inputs on the top footer row. */
+[data-cosmos="workspace"] .cp-palette-wrap {
+  display: flex;
+  align-items: stretch;
+}
+[data-cosmos="workspace"] .cp-palette-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 28px 6px 14px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 180ms var(--ease), background-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-palette-select:hover { border-color: var(--border-strong); }
+[data-cosmos="workspace"] .cp-palette-select:focus-visible {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* Full-width Add button for the bottom row of the compact picker —
+   sized to match the height of the hex + palette controls above it. */
+[data-cosmos="workspace"] .cp-add-btn--full {
+  width: 100%;
+  padding: 0 14px;
+  height: 32px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Add-color popover — replaces the + button in place. Anchored to the
+   right edge of .section-actions so it grows leftward from the button's
+   position rather than stretching the whole section.
+
+   Elevates section-actions to z-index 20 so the popover paints above
+   hovered swatches below (swatches use `isolation: isolate` and later
+   DOM order, so without this the picker slides behind them on hover). */
+[data-cosmos="workspace"] .section-actions {
+  position: relative;
+  z-index: 60;
+}
+[data-cosmos="workspace"] .cp-popover {
+  position: absolute;
+  top: -6px;
+  right: 0;
+  width: 248px;
+  max-width: min(35vw, 280px);
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  transform-origin: top right;
+  pointer-events: none;
+  z-index: 60;
+  transition:
+    opacity 200ms var(--ease),
+    transform 240ms var(--ease);
+}
+[data-cosmos="workspace"] .cp-popover.is-open {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+[data-cosmos="workspace"] .cp-popover .cp-body {
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.14),
+    0 4px 10px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Push the color swatches down while the add-color popover is open so
+   the picker has breathing room and doesn't overlap the Core row. The
+   transition runs both ways — opening and closing — giving swatches a
+   smooth glide into/out of position. */
+[data-cosmos="workspace"] .section[data-key="colors"] .section-body {
+  transition: padding-top 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-cosmos="workspace"] .section[data-key="colors"]:has(.cp-popover.is-open) .section-body {
+  padding-top: 130px;
+}
+
+/* Stacking-context fix — both `.section-header` and `.section-body` get
+   their own stacking context from the `.section > *` fade-in animation
+   (any `transform`, including `translateY(0)`, creates one). In document
+   order `.section-body` paints after `.section-header`, so even though
+   `.section-actions` sets `z-index: 60`, that only orders inside the
+   header's context; the body still paints above it and steals clicks
+   at the popover's position. Lift the header above the body while the
+   popover is open. */
+[data-cosmos="workspace"] .section[data-key="colors"]:has(.cp-popover.is-open) .section-header {
+  position: relative;
+  z-index: 2;
+}
+[data-cosmos="workspace"] .section[data-key="colors"]:has(.cp-popover.is-open) .section-body {
+  z-index: 1;
+}
+
+/* Disable pointer events on the colors rows while the add-color popover
+   is open. Each .colors-row uses `clip-path: inset(-300px 0 0 0)` to let
+   swatches animate upward on hover — but clip-path also extends the
+   row's hit-test region 300px upward, which steals clicks intended for
+   the popover sitting above. Turning off pointer-events on those rows
+   (and turning them back on inline for the swatches outside the
+   overlap) keeps the picker fully interactive. */
+[data-cosmos="workspace"] .section[data-key="colors"]:has(.cp-popover.is-open) .colors-row {
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .section[data-key="colors"]:has(.cp-popover.is-open) .colors-row .swatch {
+  pointer-events: auto;
+}
+
 /* Copy flash toast — fixed, centered on the anchor element */
 [data-cosmos="workspace"] .copy-flash {
   position: fixed;
@@ -1176,6 +1415,121 @@
   flex-direction: column;
   gap: 28px;
 }
+
+/* Flat grid — no cards. Rows are separated by a thin rule between each
+   font. 1–2 fonts: single column. 3–4: 2 cols × 2 rows. 5–6: 2 cols × 3
+   rows. Six is a hard cap, so no scroll container. */
+[data-cosmos="workspace"] .type-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: 28px;
+  column-gap: 40px;
+}
+[data-cosmos="workspace"] .type-grid.is-two-col {
+  /* Column-first flow → items fill top-to-bottom in col 1 before col 2,
+     so a 3rd font lands in the top-right (matches the IA brief). */
+  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, minmax(0, auto));
+}
+[data-cosmos="workspace"] .type-grid.is-three-row {
+  grid-template-rows: repeat(3, minmax(0, auto));
+}
+
+/* Half-width cells — keep the editorial 3-col inner layout but tighten
+   the ratios and type so everything still breathes. */
+[data-cosmos="workspace"] .type-grid.is-two-col .type-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.42fr) minmax(0, 1fr);
+  gap: 18px;
+}
+[data-cosmos="workspace"] .type-grid.is-two-col .type-name {
+  font-size: 32px;
+  line-height: 1.06;
+  margin-bottom: 10px;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+[data-cosmos="workspace"] .type-grid.is-two-col .type-glyph {
+  font-size: 12px;
+  line-height: 1.2;
+  word-break: break-all;
+}
+[data-cosmos="workspace"] .type-grid.is-two-col .type-glyph--upper {
+  font-size: 11px;
+}
+[data-cosmos="workspace"] .type-grid.is-two-col .type-list li {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+/* Hairline separator between fonts in the same column. Base rule lives
+   on `.type-row` (padding-bottom + border-bottom). Here we only remove
+   it on the bottom-of-column cards in grid modes — `:last-child` alone
+   isn't enough because column-flow means the last card in col 1 isn't
+   the last child, and the last card in col 2 might not be either. */
+[data-cosmos="workspace"] .type-grid.is-two-col:not(.is-three-row) .type-row:nth-child(even) {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+[data-cosmos="workspace"] .type-grid.is-three-row .type-row:nth-child(3n) {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Shared action-button styling used by both row- and card-level actions. */
+[data-cosmos="workspace"] .type-card-action {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 180ms var(--ease), border-color 180ms var(--ease), color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .type-card-action:hover {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border-color: var(--accent-muted);
+}
+[data-cosmos="workspace"] .type-card-action:last-child:hover {
+  /* Delete button — warn tone on hover. */
+  color: #b01138;
+  border-color: color-mix(in srgb, #b01138 30%, transparent);
+  background: color-mix(in srgb, #b01138 8%, transparent);
+}
+
+/* Empty states shown before any entry exists — click to open the add
+   modal. Matches the dashed-ring look used in photos. */
+[data-cosmos="workspace"] .type-empty,
+[data-cosmos="workspace"] .website-empty {
+  width: 100%;
+  min-height: 180px;
+  border: 1.5px dashed var(--dash);
+  border-radius: 18px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 180ms var(--ease), color 180ms var(--ease), background 180ms var(--ease);
+}
+[data-cosmos="workspace"] .type-empty:hover,
+[data-cosmos="workspace"] .website-empty:hover {
+  border-color: var(--dash-strong);
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
 [data-cosmos="workspace"] .type-row {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.55fr) minmax(0, 1.3fr);
@@ -1191,6 +1545,42 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+/* Row-level replace/delete actions — anchored to the TOP-RIGHT corner
+   of each font, horizontally side-by-side. Absolute-positioned so they
+   don't reshape the grid when they fade in on hover. */
+[data-cosmos="workspace"] .type-row {
+  position: relative;
+}
+[data-cosmos="workspace"] .type-row-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+[data-cosmos="workspace"] .type-row-actions--corner {
+  position: absolute;
+  top: -10px;
+  right: 0;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .type-row-actions--corner .type-card-action {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+[data-cosmos="workspace"] .type-row-actions--corner .type-card-action svg {
+  width: 11px;
+  height: 11px;
+}
+[data-cosmos="workspace"] .type-row:hover .type-row-actions--corner,
+[data-cosmos="workspace"] .type-row:focus-within .type-row-actions--corner,
+[data-cosmos="workspace"] .type-row.is-ctx-active .type-row-actions--corner {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
 }
 [data-cosmos="workspace"] .type-col-label {
   font-size: 10.5px;
@@ -1415,7 +1805,8 @@
   display: block;
   transition: transform 500ms var(--ease);
 }
-[data-cosmos="workspace"] .photo-tile:hover img { transform: scale(1.03); }
+[data-cosmos="workspace"] .photo-tile:hover img,
+[data-cosmos="workspace"] .photo-tile.is-ctx-active img { transform: scale(1.03); }
 
 [data-cosmos="workspace"] .photo-tile-actions {
   position: absolute;
@@ -1430,7 +1821,8 @@
   pointer-events: none;
 }
 [data-cosmos="workspace"] .photo-tile:hover .photo-tile-actions,
-[data-cosmos="workspace"] .photo-tile:focus-within .photo-tile-actions {
+[data-cosmos="workspace"] .photo-tile:focus-within .photo-tile-actions,
+[data-cosmos="workspace"] .photo-tile.is-ctx-active .photo-tile-actions {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -1462,6 +1854,132 @@
   overflow: hidden;
   background: var(--surface);
 }
+
+/* Browser-style tab strip — mirrors Chrome/Safari's tab-bar so multiple
+   websites read as a stack the user already understands. */
+[data-cosmos="workspace"] .website-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 8px 10px 0;
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .website-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 8px 10px 9px 12px;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-bottom-color: transparent;
+  transition: background 180ms var(--ease), color 180ms var(--ease);
+  min-width: 0;
+}
+[data-cosmos="workspace"] .website-tab:hover,
+[data-cosmos="workspace"] .website-tab.is-ctx-active {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .website-tab.is-active {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  margin-bottom: -1px;
+}
+[data-cosmos="workspace"] .website-tab-favicon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: 3px;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .website-tab-favicon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+[data-cosmos="workspace"] .website-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+}
+[data-cosmos="workspace"] .website-tab-close {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.6;
+  transition: background 140ms var(--ease), color 140ms var(--ease), opacity 140ms var(--ease);
+}
+[data-cosmos="workspace"] .website-tab:hover .website-tab-close,
+[data-cosmos="workspace"] .website-tab.is-active .website-tab-close {
+  opacity: 1;
+}
+[data-cosmos="workspace"] .website-tab-close:hover {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .website-tab-add {
+  margin-left: 4px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  align-self: center;
+  transition: background 180ms var(--ease), color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .website-tab-add:hover {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+[data-cosmos="workspace"] .chrome-edit {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 180ms var(--ease), color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .chrome-edit:hover {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
 [data-cosmos="workspace"] .website-chrome {
   display: flex;
   align-items: center;
@@ -1525,6 +2043,44 @@
   letter-spacing: -0.005em;
   color: var(--text-muted);
   font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+[data-cosmos="workspace"] .website-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+[data-cosmos="workspace"] .website-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .website-loading-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    var(--surface-sunken) 0%,
+    color-mix(in srgb, var(--surface-sunken) 40%, var(--surface)) 45%,
+    var(--surface-sunken) 90%
+  );
+  background-size: 220% 100%;
+  animation: website-shimmer 1.6s linear infinite;
+}
+[data-cosmos="workspace"] .website-loading-label {
+  position: relative;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+@keyframes website-shimmer {
+  from { background-position: 120% 0; }
+  to   { background-position: -20% 0; }
 }
 
 /* ============================================================
@@ -1687,7 +2243,8 @@
   pointer-events: none;
 }
 [data-cosmos="workspace"] .logo-tile:not(.is-empty):hover .logo-tile-actions,
-[data-cosmos="workspace"] .logo-tile:not(.is-empty):focus-within .logo-tile-actions {
+[data-cosmos="workspace"] .logo-tile:not(.is-empty):focus-within .logo-tile-actions,
+[data-cosmos="workspace"] .logo-tile.is-ctx-active .logo-tile-actions {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
@@ -1781,6 +2338,17 @@
 }
 .drop-zone:hover { background: var(--dz-bg-hover); }
 .drop-zone.is-drag { background: var(--accent-muted); }
+/* URL-only variant (website add) — shrink the modal and hide file-drop
+   affordances so the URL input is the focal point. */
+.drop-zone.is-url-only { cursor: default; min-height: 220px; }
+.drop-zone.is-url-only:hover { background: var(--dz-bg); }
+.drop-zone.is-url-only .drop-inset { min-height: 200px; }
+.drop-text--url {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
 
 .drop-inset {
   position: relative;
@@ -1931,6 +2499,188 @@
 }
 .drop-pill input::placeholder { color: var(--text-subtle); }
 
+/* Popular Google Fonts picker — shown only when the modal's kind is
+   'fonts'. Lives below the URL pill. The list scrolls internally so the
+   modal keeps its outer shape. */
+.font-picks {
+  width: 100%;
+  max-width: 520px;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.font-picks-head {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 0 2px;
+}
+.font-picks-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+.font-picks-list::-webkit-scrollbar { width: 8px; }
+.font-picks-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 30%, transparent);
+  border-radius: 999px;
+}
+.font-picks-list::-webkit-scrollbar-track { background: transparent; }
+.font-pick {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-primary);
+  transition: background 140ms var(--ease);
+}
+.font-pick:hover {
+  background: var(--surface-sunken);
+}
+.font-pick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+.font-pick-sample {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.font-pick-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.font-picks-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: -0.005em;
+}
+
+/* Right-click context menu — floating pill, portaled to body so it lives
+   outside the workspace token scope. Flips between a white pill in light
+   mode and a black pill in dark mode via [data-theme] so it always
+   matches the workspace theme. Item layout is "label-left / icon-right"
+   with generous padding so it reads as a command pill, not a dropdown. */
+.ctx-menu {
+  z-index: 120;
+  min-width: 260px;
+  padding: 8px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: ctx-menu-in 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: inherit;
+}
+@keyframes ctx-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Light theme — white pill, dark text, thin border, no drop shadow. */
+.ctx-menu[data-theme="light"] {
+  background: #ffffff;
+  color: #0d0d0d;
+  border: 1px solid rgba(13, 13, 13, 0.08);
+}
+
+/* Dark theme — near-black pill, warm-off-white text, thin border, no drop shadow. */
+.ctx-menu[data-theme="dark"] {
+  background: #141414;
+  color: #f1eee4;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ctx-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 18px 12px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 14px;
+  transition: background 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ctx-menu[data-theme="light"] .ctx-menu-item:hover,
+.ctx-menu[data-theme="light"] .ctx-menu-item:focus-visible {
+  outline: none;
+  background: rgba(13, 13, 13, 0.05);
+}
+.ctx-menu[data-theme="dark"] .ctx-menu-item:hover,
+.ctx-menu[data-theme="dark"] .ctx-menu-item:focus-visible {
+  outline: none;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Destructive items — cleaner pure reds (not Cosmos's orange-leaning
+   critical tones) so "Delete" reads unambiguously red. Brighter in dark
+   mode for legibility against the near-black pill. */
+.ctx-menu[data-theme="light"] .ctx-menu-item.is-destructive {
+  color: #dc2626;
+}
+.ctx-menu[data-theme="light"] .ctx-menu-item.is-destructive:hover {
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+}
+.ctx-menu[data-theme="dark"] .ctx-menu-item.is-destructive {
+  color: #ef4444;
+}
+.ctx-menu[data-theme="dark"] .ctx-menu-item.is-destructive:hover {
+  background: color-mix(in srgb, #ef4444 14%, transparent);
+}
+
+.ctx-menu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ctx-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
 .drop-close {
   position: absolute;
   top: 26px;
@@ -2070,4 +2820,331 @@
 @media (prefers-reduced-motion: reduce) {
   .drop-border rect { animation: none !important; }
   .upload-tile { animation: none !important; }
+}
+
+/* ============================================================
+ * Editor modal — used by VoiceEditorModal (and any future
+ * text-first editor). Portaled through the workspace scope so it
+ * inherits all theme tokens. Structure mirrors the HTML prototype:
+ * head (title + close) · body (scrollable form) · footer (buttons).
+ * ============================================================ */
+[data-cosmos="workspace"] .editor-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 16, 20, 0.36);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  transition: opacity 260ms var(--ease);
+}
+[data-cosmos="workspace"][data-theme="dark"] .editor-modal-backdrop {
+  background: rgba(0, 0, 0, 0.56);
+}
+[data-cosmos="workspace"] .editor-modal-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+[data-cosmos="workspace"] .editor-modal-shell {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(12px) scale(0.98);
+  opacity: 0;
+  transition: transform 320ms var(--ease), opacity 260ms var(--ease);
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .editor-modal-backdrop.is-open .editor-modal-shell {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+[data-cosmos="workspace"] .modal-head {
+  padding: 22px 24px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+[data-cosmos="workspace"] .modal-head-meta h3 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 4px;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .modal-head-meta p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  letter-spacing: -0.005em;
+}
+[data-cosmos="workspace"] .modal-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.5;
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+  flex-shrink: 0;
+}
+[data-cosmos="workspace"] .modal-close:hover {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+[data-cosmos="workspace"] .modal-body {
+  padding: 6px 24px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+[data-cosmos="workspace"] .modal-foot {
+  padding: 14px 24px 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+[data-cosmos="workspace"] .modal-input,
+[data-cosmos="workspace"] .modal-textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease);
+  letter-spacing: -0.005em;
+}
+[data-cosmos="workspace"] .modal-input { height: 44px; }
+[data-cosmos="workspace"] .modal-textarea {
+  min-height: 140px;
+  resize: vertical;
+  line-height: 1.55;
+}
+[data-cosmos="workspace"] .modal-input:focus,
+[data-cosmos="workspace"] .modal-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+[data-cosmos="workspace"] .modal-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0 0 5px 2px;
+}
+
+[data-cosmos="workspace"] .modal-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 16px 0;
+}
+[data-cosmos="workspace"] .modal-or::before,
+[data-cosmos="workspace"] .modal-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* Small drop-zone used inside editor modals (voice upload). */
+[data-cosmos="workspace"] .mini-drop {
+  position: relative;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 10px;
+  min-height: 160px;
+  cursor: pointer;
+  transition: background 260ms var(--ease);
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .mini-drop:hover { background: var(--surface-hover); }
+[data-cosmos="workspace"] .mini-drop-inset {
+  position: relative;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .mini-drop-border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .mini-drop-border rect {
+  x: 1px;
+  y: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  rx: 12px;
+  ry: 12px;
+  fill: none;
+  stroke: var(--dash);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  transition: stroke 260ms var(--ease);
+}
+[data-cosmos="workspace"] .mini-drop:hover .mini-drop-border rect {
+  stroke: var(--dash-strong);
+}
+[data-cosmos="workspace"] .mini-drop-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .mini-drop-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+[data-cosmos="workspace"] .mini-drop-sub {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+  letter-spacing: -0.005em;
+}
+
+/* Tile cursor hint — only applied when a preview handler is wired. */
+[data-cosmos="workspace"] .logo-tile.is-clickable,
+[data-cosmos="workspace"] .photo-tile.is-clickable {
+  cursor: zoom-in;
+}
+
+/* ============================================================
+ * Preview (lightbox) modal — rendered inside the workspace scope
+ * so it picks up the theme tokens. Backdrop dims + blurs the
+ * board, stage centers the content. Max 90vw × 90vh.
+ * ============================================================ */
+[data-cosmos="workspace"] .preview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  transition: opacity 220ms var(--ease);
+}
+[data-cosmos="workspace"][data-theme="dark"] .preview-backdrop {
+  background: rgba(0, 0, 0, 0.82);
+}
+[data-cosmos="workspace"] .preview-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+[data-cosmos="workspace"] .preview-backdrop .preview-stage {
+  transform: scale(0.96);
+  opacity: 0;
+  transition: transform 280ms var(--ease), opacity 220ms var(--ease);
+}
+[data-cosmos="workspace"] .preview-backdrop.is-open .preview-stage {
+  transform: scale(1);
+  opacity: 1;
+}
+[data-cosmos="workspace"] .preview-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 180ms var(--ease), transform 180ms var(--ease);
+  z-index: 2;
+}
+[data-cosmos="workspace"] .preview-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.04);
+}
+
+[data-cosmos="workspace"] .preview-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: min(90vw, 1100px);
+  max-height: 90vh;
+}
+[data-cosmos="workspace"] .preview-img {
+  max-width: 100%;
+  max-height: calc(90vh - 60px);
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  background: var(--surface);
+  object-fit: contain;
+  user-select: none;
+}
+[data-cosmos="workspace"] .preview-svg {
+  width: min(70vw, 640px);
+  height: min(70vw, 640px);
+  max-width: 100%;
+  max-height: calc(90vh - 60px);
+  border-radius: 20px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  background: var(--surface);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+[data-cosmos="workspace"] .preview-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+[data-cosmos="workspace"] .preview-caption {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  font-weight: 500;
 }
