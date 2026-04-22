@@ -19,6 +19,7 @@ export function SocialShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
+  const hasSecondary = !!secondary;
   const handle = brand.name.toLowerCase().replace(/\s+/g, '');
 
   return (
@@ -32,7 +33,9 @@ export function SocialShowcase({ palette, secondary, brand }: ShowcaseProps) {
       </IgPost>
 
       <IgPost brand={brand} handle={handle} neutral={n}>
-        <DarkOrbCover primary={p} neutral={n} />
+        {/* Orb picks secondary when it exists so this post carries
+            the second brand color prominently. */}
+        <DarkOrbCover primary={hasSecondary ? s : p} neutral={n} />
       </IgPost>
 
       <IgPost brand={brand} handle={handle} neutral={n}>
@@ -40,7 +43,8 @@ export function SocialShowcase({ palette, secondary, brand }: ShowcaseProps) {
       </IgPost>
 
       <IgPost brand={brand} handle={handle} neutral={n}>
-        <QuoteCover primary={p} neutral={n} />
+        {/* Quote background uses secondary palette when available. */}
+        <QuoteCover primary={hasSecondary ? s : p} neutral={n} />
       </IgPost>
 
       <IgPost brand={brand} handle={handle} neutral={n}>

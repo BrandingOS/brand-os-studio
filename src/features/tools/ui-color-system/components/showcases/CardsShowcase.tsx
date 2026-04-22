@@ -23,6 +23,7 @@ export function CardsShowcase({ palette, secondary }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
+  const hasSecondary = !!secondary;
 
   return (
     <div className="grid gap-5 md:grid-cols-4 md:auto-rows-[minmax(0,1fr)]">
@@ -49,7 +50,7 @@ export function CardsShowcase({ palette, secondary }: ShowcaseProps) {
       />
 
       {/* 4 — Donut breakdown */}
-      <DonutTile primary={p} neutral={n} />
+      <DonutTile primary={p} secondary={s} neutral={n} hasSecondary={hasSecondary} />
 
       {/* 5 — Blog list */}
       <BlogTile primary={p} secondary={s} neutral={n} />
@@ -79,8 +80,8 @@ export function CardsShowcase({ palette, secondary }: ShowcaseProps) {
           label="Engagement"
           value="92.4%"
           sub="+3.1% this week"
-          primary={p[500].hex}
-          light={p[100].hex}
+          primary={s[500].hex}
+          light={s[100].hex}
           data={[40, 35, 50, 45, 55, 48, 52]}
           neutral={n}
         />
@@ -281,7 +282,22 @@ function GradientBottomPhoto({
 
 // ─── Tile 4: donut + legend ───────────────────────────────────
 
-function DonutTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap }) {
+function DonutTile({
+  primary,
+  secondary,
+  neutral,
+  hasSecondary,
+}: {
+  primary: ScaleMap;
+  secondary: ScaleMap;
+  neutral: ScaleMap;
+  hasSecondary: boolean;
+}) {
+  // When secondary is set we pick one segment from each scale so the
+  // donut reads as a two-brand chart rather than three shades of one.
+  const seg1 = primary[600];
+  const seg2 = hasSecondary ? secondary[500] : primary[400];
+  const seg3 = hasSecondary ? secondary[200] : primary[200];
   return (
     <div className="tile flex flex-col p-5" style={{ background: neutral[50].hex, minHeight: 360 }}>
       <div className="flex items-center justify-between">
@@ -298,13 +314,13 @@ function DonutTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
 
       <div className="relative mx-auto my-3 h-36 w-36">
         <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90">
-          <circle cx="21" cy="21" r="15.915" fill="none" stroke={primary[100].hex} strokeWidth="5" />
+          <circle cx="21" cy="21" r="15.915" fill="none" stroke={neutral[100].hex} strokeWidth="5" />
           <circle
             cx="21"
             cy="21"
             r="15.915"
             fill="none"
-            stroke={primary[600].hex}
+            stroke={seg1.hex}
             strokeWidth="5"
             strokeDasharray="45 55"
             strokeLinecap="round"
@@ -314,7 +330,7 @@ function DonutTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
             cy="21"
             r="15.915"
             fill="none"
-            stroke={primary[400].hex}
+            stroke={seg2.hex}
             strokeWidth="5"
             strokeDasharray="32 68"
             strokeDashoffset="-47"
@@ -325,7 +341,7 @@ function DonutTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
             cy="21"
             r="15.915"
             fill="none"
-            stroke={primary[200].hex}
+            stroke={seg3.hex}
             strokeWidth="5"
             strokeDasharray="23 77"
             strokeDashoffset="-81"
@@ -344,9 +360,9 @@ function DonutTile({ primary, neutral }: { primary: ScaleMap; neutral: ScaleMap 
 
       <ul className="mt-auto flex flex-col gap-1.5 text-[12px]" style={{ color: neutral[900].hex }}>
         {[
-          { c: primary[600].hex, l: 'Direct', v: '45%' },
-          { c: primary[400].hex, l: 'Search', v: '32%' },
-          { c: primary[200].hex, l: 'Social', v: '23%' },
+          { c: seg1.hex, l: 'Direct', v: '45%' },
+          { c: seg2.hex, l: 'Search', v: '32%' },
+          { c: seg3.hex, l: 'Social', v: '23%' },
         ].map((r) => (
           <li key={r.l} className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ background: r.c }} />

@@ -26,6 +26,7 @@ export function BentoShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
+  const hasSecondary = !!secondary;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-6 md:auto-rows-[minmax(170px,1fr)]">
@@ -37,25 +38,31 @@ export function BentoShowcase({ palette, secondary, brand }: ShowcaseProps) {
         brandName={brand.name}
       />
 
-      {/* STAT 2×1 — big number on dark surface */}
+      {/* STAT 2×1 — big number + sparkline (secondary comparison if set) */}
       <StatTile
         className="md:col-span-2 md:row-span-1"
         primary={p}
+        secondary={s}
         neutral={n}
+        hasSecondary={hasSecondary}
       />
 
-      {/* PALETTE CHIP 1×2 — full 11-shade stack */}
+      {/* PALETTE CHIP 1×2 — split stack when secondary is set */}
       <PaletteChipTile
         className="md:col-span-1 md:row-span-2"
         primary={p}
+        secondary={s}
         neutral={n}
+        hasSecondary={hasSecondary}
       />
 
-      {/* FEATURES 2×1 — 2×2 icon grid */}
+      {/* FEATURES 2×1 — 2×2 icon grid alternates primary + secondary */}
       <FeatureGridTile
         className="md:col-span-2 md:row-span-1"
         primary={p}
+        secondary={s}
         neutral={n}
+        hasSecondary={hasSecondary}
       />
 
       {/* QUOTE 3×1 — pull quote with avatar */}
@@ -74,11 +81,13 @@ export function BentoShowcase({ palette, secondary, brand }: ShowcaseProps) {
         neutral={n}
       />
 
-      {/* CTA 1×1 — brand-colored card with arrow */}
+      {/* CTA 1×1 — secondary-colored when we have one, else primary */}
       <CtaTile
         className="md:col-span-1 md:row-span-1"
         primary={p}
+        secondary={s}
         neutral={n}
+        hasSecondary={hasSecondary}
         brandName={brand.name}
       />
     </div>
@@ -176,19 +185,25 @@ function HeroTile({
 function StatTile({
   className = '',
   primary,
+  secondary,
   neutral,
+  hasSecondary,
 }: {
   className?: string;
   primary: ScaleMap;
+  secondary: ScaleMap;
   neutral: ScaleMap;
+  hasSecondary: boolean;
 }) {
   const spark = [30, 38, 34, 48, 42, 58, 52, 68, 62, 82];
-  const max = Math.max(...spark);
-  const min = Math.min(...spark);
+  const sparkPrev = [24, 30, 28, 36, 32, 40, 38, 44, 42, 52];
+  const max = Math.max(...spark, ...sparkPrev);
+  const min = Math.min(...spark, ...sparkPrev);
   const range = max - min || 1;
-  const points = spark
-    .map((v, i) => `${(i / (spark.length - 1)) * 100},${100 - ((v - min) / range) * 70 - 15}`)
-    .join(' ');
+  const toPoints = (arr: number[]) =>
+    arr.map((v, i) => `${(i / (arr.length - 1)) * 100},${100 - ((v - min) / range) * 70 - 15}`).join(' ');
+  const points = toPoints(spark);
+  const prevPoints = toPoints(sparkPrev);
   return (
     <div
       className={`tile flex flex-col justify-between p-6 ${className}`}
@@ -226,6 +241,17 @@ function StatTile({
             d={`M0,100 L${points.split(' ').join(' L')} L100,100 Z`}
             fill="url(#spark-bento)"
           />
+          {hasSecondary && (
+            <polyline
+              points={prevPoints}
+              fill="none"
+              stroke={secondary[400].hex}
+              strokeWidth="1.6"
+              strokeDasharray="3 3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
           <polyline
             points={points}
             fill="none"
@@ -236,9 +262,23 @@ function StatTile({
           />
         </svg>
       </div>
-      <p className="text-[11px]" style={{ color: neutral[400].hex }}>
-        Unaided awareness, trailing 6 weeks vs. prior period.
-      </p>
+      <div className="flex items-center justify-between text-[11px]" style={{ color: neutral[400].hex }}>
+        <span>Unaided awareness · 6 weeks.</span>
+        {hasSecondary && (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block h-1 w-3 rounded-full"
+              style={{ background: primary[400].hex }}
+            />
+            <span>This</span>
+            <span
+              className="ml-1 inline-block h-1 w-3 rounded-full"
+              style={{ background: secondary[400].hex }}
+            />
+            <span>Prev</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -248,11 +288,15 @@ function StatTile({
 function PaletteChipTile({
   className = '',
   primary,
+  secondary,
   neutral,
+  hasSecondary,
 }: {
   className?: string;
   primary: ScaleMap;
+  secondary: ScaleMap;
   neutral: ScaleMap;
+  hasSecondary: boolean;
 }) {
   const stops: (keyof ScaleMap)[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
   return (
@@ -265,32 +309,56 @@ function PaletteChipTile({
           className="text-[10px] font-semibold uppercase tracking-[0.14em]"
           style={{ color: neutral[500].hex }}
         >
-          System
+          {hasSecondary ? 'System · 2 scales' : 'System'}
         </span>
-        <span
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full"
-          style={{ background: primary[500].hex, color: pickOn(primary[500].hex, '#ffffff', '#0a0a0a') }}
-        >
-          <Sparkles size={10} />
+        <span className="inline-flex items-center gap-1">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: primary[500].hex, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+          />
+          {hasSecondary && (
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ background: secondary[500].hex, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)' }}
+            />
+          )}
         </span>
       </div>
-      <div className="flex flex-1 flex-col">
-        {stops.map((stop) => (
-          <div
-            key={stop}
-            className="flex flex-1 items-center justify-between px-4 text-[10px] font-semibold"
-            style={{
-              background: primary[stop].hex,
-              color: pickOn(primary[stop].hex, '#ffffff', '#0a0a0a'),
-              minHeight: 20,
-            }}
-          >
-            <span style={{ opacity: 0.85 }}>{stop}</span>
-            <span className="font-mono tabular-nums" style={{ opacity: 0.7 }}>
-              {primary[stop].hex.toUpperCase()}
-            </span>
+      <div className="flex flex-1">
+        <div className="flex flex-1 flex-col">
+          {stops.map((stop) => (
+            <div
+              key={`p-${stop}`}
+              className="flex flex-1 items-center justify-center px-2 text-[9px] font-semibold"
+              style={{
+                background: primary[stop].hex,
+                color: pickOn(primary[stop].hex, '#ffffff', '#0a0a0a'),
+                minHeight: 18,
+              }}
+              title={primary[stop].hex.toUpperCase()}
+            >
+              <span style={{ opacity: 0.85 }}>{stop}</span>
+            </div>
+          ))}
+        </div>
+        {hasSecondary && (
+          <div className="flex flex-1 flex-col" style={{ borderLeft: `1px solid ${neutral[200].hex}` }}>
+            {stops.map((stop) => (
+              <div
+                key={`s-${stop}`}
+                className="flex flex-1 items-center justify-center px-2 text-[9px] font-semibold"
+                style={{
+                  background: secondary[stop].hex,
+                  color: pickOn(secondary[stop].hex, '#ffffff', '#0a0a0a'),
+                  minHeight: 18,
+                }}
+                title={secondary[stop].hex.toUpperCase()}
+              >
+                <span style={{ opacity: 0.85 }}>{stop}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -301,17 +369,21 @@ function PaletteChipTile({
 function FeatureGridTile({
   className = '',
   primary,
+  secondary,
   neutral,
+  hasSecondary,
 }: {
   className?: string;
   primary: ScaleMap;
+  secondary: ScaleMap;
   neutral: ScaleMap;
+  hasSecondary: boolean;
 }) {
   const items = [
-    { Icon: Sparkles, label: 'Clarity', hint: 'One system' },
-    { Icon: Target, label: 'Focus', hint: 'One voice' },
-    { Icon: Layers, label: 'Scale', hint: 'Every surface' },
-    { Icon: Zap, label: 'Momentum', hint: 'Ships faster' },
+    { Icon: Sparkles, label: 'Clarity', hint: 'One system', useSecondary: false },
+    { Icon: Target, label: 'Focus', hint: 'One voice', useSecondary: true },
+    { Icon: Layers, label: 'Scale', hint: 'Every surface', useSecondary: true },
+    { Icon: Zap, label: 'Momentum', hint: 'Ships faster', useSecondary: false },
   ];
   return (
     <div
@@ -322,26 +394,29 @@ function FeatureGridTile({
         Principles
       </span>
       <div className="mt-3 grid flex-1 grid-cols-2 gap-2.5">
-        {items.map((it) => (
-          <div
-            key={it.label}
-            className="flex flex-col justify-between rounded-lg p-3"
-            style={{ background: neutral[100].hex, border: `1px solid ${neutral[200].hex}` }}
-          >
-            <span
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md"
-              style={{ background: primary[100].hex, color: primary[700].hex }}
+        {items.map((it) => {
+          const scale = hasSecondary && it.useSecondary ? secondary : primary;
+          return (
+            <div
+              key={it.label}
+              className="flex flex-col justify-between rounded-lg p-3"
+              style={{ background: neutral[100].hex, border: `1px solid ${neutral[200].hex}` }}
             >
-              <it.Icon size={13} strokeWidth={2.2} />
-            </span>
-            <div className="mt-2">
-              <div className="text-[12px] font-semibold leading-tight">{it.label}</div>
-              <div className="text-[10px]" style={{ color: neutral[500].hex }}>
-                {it.hint}
+              <span
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md"
+                style={{ background: scale[100].hex, color: scale[700].hex }}
+              >
+                <it.Icon size={13} strokeWidth={2.2} />
+              </span>
+              <div className="mt-2">
+                <div className="text-[12px] font-semibold leading-tight">{it.label}</div>
+                <div className="text-[10px]" style={{ color: neutral[500].hex }}>
+                  {it.hint}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -505,19 +580,26 @@ function TeamTile({
 function CtaTile({
   className = '',
   primary,
+  secondary,
   neutral,
+  hasSecondary,
   brandName,
 }: {
   className?: string;
   primary: ScaleMap;
+  secondary: ScaleMap;
   neutral: ScaleMap;
+  hasSecondary: boolean;
   brandName: string;
 }) {
-  const ink = pickOn(primary[500].hex, neutral[50].hex, neutral[950].hex);
+  // Pick secondary when available so the CTA visibly brings the
+  // second brand color into the bento composition.
+  const scale = hasSecondary ? secondary : primary;
+  const ink = pickOn(scale[500].hex, neutral[50].hex, neutral[950].hex);
   return (
     <div
       className={`tile relative flex flex-col justify-between overflow-hidden p-5 ${className}`}
-      style={{ background: primary[500].hex, color: ink }}
+      style={{ background: scale[500].hex, color: ink }}
     >
       <div
         aria-hidden
@@ -551,7 +633,7 @@ function CtaTile({
         <span className="text-[11px] opacity-85">Book a demo</span>
         <span
           className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-          style={{ background: ink, color: primary[500].hex }}
+          style={{ background: ink, color: scale[500].hex }}
         >
           <ArrowUpRight size={14} strokeWidth={2.4} />
         </span>
