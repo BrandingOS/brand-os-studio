@@ -47,6 +47,8 @@ import { BrandSyncBar } from './BrandSyncBar';
 import { ShareDialog } from './ShareDialog';
 import { SavedPalettesDrawer } from './SavedPalettesDrawer';
 import { useSavedPalettes } from '../hooks/useSavedPalettes';
+import { useHotkeys } from '../hooks/useHotkeys';
+import { usePaletteHistory } from '../hooks/usePaletteHistory';
 
 export interface BrandIntegration {
   brandName: string;
@@ -92,6 +94,27 @@ export function ColorSystemGenerator({
 
   const [shareOpen, setShareOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preview' | 'contrast' | 'harmony' | 'export'>('preview');
+
+  const history = usePaletteHistory(state, (restored) => state.replace(restored));
+
+  useHotkeys({
+    r: () => state.setSeed(randomHex()),
+    c: () => setActiveTab('contrast'),
+    e: () => setActiveTab('export'),
+    h: () => setActiveTab('harmony'),
+    p: () => setActiveTab('preview'),
+    l: () => {
+      const nextStop = state.settings.lockedShade == null ? 500 : null;
+      state.setSetting('lockedShade', nextStop);
+    },
+    s: () => setShareOpen(true),
+    '/': () => setShareOpen(false),
+    z: (e) => {
+      if (e.shiftKey) history.redo();
+      else history.undo();
+    },
+  });
 
   const [drawer, setDrawer] = useState<{
     open: boolean;
@@ -136,12 +159,7 @@ export function ColorSystemGenerator({
   const activeValue =
     activeRole && drawer.stop != null ? activeRole.shades[drawer.stop] : null;
 
-  const randomize = () => {
-    const h = Math.floor(Math.random() * 360);
-    const s = 70 + Math.floor(Math.random() * 20);
-    const l = 50 + Math.floor(Math.random() * 10);
-    state.setSeed(hslToHex({ h, s: s / 100, l: l / 100 }));
-  };
+  const randomize = () => state.setSeed(randomHex());
 
   const visibleRoles = useMemo<RoleKey[]>(() => {
     const rs: RoleKey[] = ['primary', 'neutral'];
@@ -224,7 +242,7 @@ export function ColorSystemGenerator({
         />
       </div>
 
-      <Tabs defaultValue="preview" className="mt-2 flex min-h-[28rem] flex-col">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="mt-2 flex min-h-[28rem] flex-col">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
             <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -355,6 +373,13 @@ export function ColorSystemGenerator({
 
 function isGatedRole(role: RoleKey): boolean {
   return role === 'secondary' || role === 'tertiary' || role === 'success' || role === 'warning' || role === 'error' || role === 'info';
+}
+
+function randomHex(): string {
+  const h = Math.floor(Math.random() * 360);
+  const s = 70 + Math.floor(Math.random() * 20);
+  const l = 50 + Math.floor(Math.random() * 10);
+  return hslToHex({ h, s: s / 100, l: l / 100 });
 }
 
 function AddRoleBar({
