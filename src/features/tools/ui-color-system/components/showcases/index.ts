@@ -9,6 +9,7 @@ import { WebsiteShowcase } from './WebsiteShowcase';
 import { DashboardShowcase } from './DashboardShowcase';
 import { ComponentsShowcase } from './ComponentsShowcase';
 import { AppsShowcase } from './AppsShowcase';
+import { SocialShowcase } from './SocialShowcase';
 import { ChartsShowcase } from './ChartsShowcase';
 import { GradientsShowcase } from './GradientsShowcase';
 import { LogosShowcase } from './LogosShowcase';
@@ -20,6 +21,7 @@ export type ShowcaseKey =
   | 'dashboard'
   | 'components'
   | 'apps'
+  | 'social'
   | 'charts'
   | 'gradients'
   | 'logos'
@@ -37,6 +39,7 @@ export const SHOWCASES: ShowcaseEntry[] = [
   { key: 'dashboard', label: 'Dashboard', Component: DashboardShowcase },
   { key: 'components', label: 'Components', Component: ComponentsShowcase },
   { key: 'apps', label: 'Apps', Component: AppsShowcase },
+  { key: 'social', label: 'Social', Component: SocialShowcase },
   { key: 'charts', label: 'Charts', Component: ChartsShowcase },
   { key: 'gradients', label: 'Gradients', Component: GradientsShowcase },
   { key: 'logos', label: 'Logos', Component: LogosShowcase },
