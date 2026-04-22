@@ -23,7 +23,9 @@ import {
 } from '@/lib/color-engine';
 import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
 import { FONT_PAIRS, type FontPair } from '../data/font-pairs';
-import { loadGoogleFontPair } from '../hooks/useGoogleFonts';
+import { loadGoogleFontPair, loadSingleGoogleFont } from '../hooks/useGoogleFonts';
+import { searchGoogleFonts, type GoogleFontEntry } from '../data/google-fonts-catalog';
+import { Search } from 'lucide-react';
 
 export interface EditorPanelProps {
   headingLabel?: string;
@@ -330,38 +332,121 @@ function FontsPanel({
   activeId: string;
   onChange: (pair: FontPair) => void;
 }) {
+  const [query, setQuery] = useState('');
+  const results = useMemo(() => searchGoogleFonts(query), [query]);
+  const isSearching = query.trim().length > 0;
+
+  const applyCustomFont = (entry: GoogleFontEntry) => {
+    loadSingleGoogleFont(entry);
+    const stack = `"${entry.name}", ${
+      entry.category === 'serif'
+        ? 'ui-serif, Georgia, serif'
+        : entry.category === 'mono'
+          ? 'ui-monospace, Menlo, monospace'
+          : 'system-ui, -apple-system, sans-serif'
+    }`;
+    const custom: FontPair = {
+      id: `custom:${entry.name}`,
+      label: entry.name,
+      gfonts: [],
+      displayStack: stack,
+      bodyStack: stack,
+      previewDisplay: entry.name,
+      previewBody: `${entry.name} · ${entry.category}`,
+    };
+    onChange(custom);
+  };
+
   return (
-    <div className="font-pair-list">
-      {FONT_PAIRS.map((pair) => {
-        const active = activeId === pair.id;
-        return (
-          <button
-            key={pair.id}
-            type="button"
-            className={cn('font-pair', active && 'is-active')}
-            onClick={() => {
-              loadGoogleFontPair(pair);
-              onChange(pair);
-            }}
-          >
-            <div className="font-pair-head">
-              <span>{pair.label}</span>
-              {active && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Check size={10} />
-                  Active
-                </span>
-              )}
-            </div>
-            <div className="font-pair-display" style={{ fontFamily: pair.displayStack }}>
-              {pair.previewDisplay}
-            </div>
-            <div className="font-pair-body" style={{ fontFamily: pair.bodyStack }}>
-              {pair.previewBody}
-            </div>
-          </button>
-        );
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="font-search">
+        <Search size={13} />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search Google Fonts…"
+          spellCheck={false}
+          autoComplete="off"
+        />
+      </div>
+
+      {isSearching ? (
+        <div className="font-pair-list">
+          {results.length === 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+              No Google Fonts matching "{query}".
+            </p>
+          ) : (
+            results.map((entry) => {
+              const id = `custom:${entry.name}`;
+              const active = activeId === id;
+              const stack = `"${entry.name}", ${
+                entry.category === 'serif'
+                  ? 'ui-serif, Georgia, serif'
+                  : entry.category === 'mono'
+                    ? 'ui-monospace, Menlo, monospace'
+                    : 'system-ui, -apple-system, sans-serif'
+              }`;
+              // Load on hover so the preview itself uses the font.
+              return (
+                <button
+                  key={entry.name}
+                  type="button"
+                  className={cn('font-pair', active && 'is-active')}
+                  onMouseEnter={() => loadSingleGoogleFont(entry)}
+                  onFocus={() => loadSingleGoogleFont(entry)}
+                  onClick={() => applyCustomFont(entry)}
+                >
+                  <div className="font-pair-head">
+                    <span>{entry.name}</span>
+                    <span style={{ opacity: 0.7 }}>{entry.category}</span>
+                  </div>
+                  <div className="font-pair-display" style={{ fontFamily: stack }}>
+                    {entry.name}
+                  </div>
+                  <div className="font-pair-body" style={{ fontFamily: stack }}>
+                    The quick brown fox jumps over the lazy dog.
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        <div className="font-pair-list">
+          {FONT_PAIRS.map((pair) => {
+            const active = activeId === pair.id;
+            return (
+              <button
+                key={pair.id}
+                type="button"
+                className={cn('font-pair', active && 'is-active')}
+                onClick={() => {
+                  loadGoogleFontPair(pair);
+                  onChange(pair);
+                }}
+              >
+                <div className="font-pair-head">
+                  <span>{pair.label}</span>
+                  {active && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={10} />
+                      Active
+                    </span>
+                  )}
+                </div>
+                <div className="font-pair-display" style={{ fontFamily: pair.displayStack }}>
+                  {pair.previewDisplay}
+                </div>
+                <div className="font-pair-body" style={{ fontFamily: pair.bodyStack }}>
+                  {pair.previewBody}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
