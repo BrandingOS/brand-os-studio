@@ -1,84 +1,69 @@
 /**
- * /tools/ui-color-system — public landing + studio.
+ * /tools/ui-color-system — single-surface public route.
  *
- * State machine:
- *   - No seed committed → render <PublicLanding>
- *   - Seed committed     → render <ColorSystemGenerator initialSeed>
- *
- * The URL also accepts ?seed=#abc123 which skips the landing.
+ * No landing page. The seed is either decoded from a share link
+ * (`?p=<base64>`) or initialised to a default. The full generator
+ * mounts directly underneath the Cosmos workspace shell.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { ColorSystemGenerator } from '@/features/tools/ui-color-system';
-import { PublicLanding } from '@/features/tools/ui-color-system/public/PublicLanding';
 import { decodePalette } from '@/features/tools/ui-color-system/hooks/usePaletteShareUrl';
 import { TOOL_REGISTRY } from '@/features/tools/core';
 import { isValidHex, normalizeHex } from '@/lib/color-engine';
 
+const DEFAULT_SEED = '#801132';
+
 export default function PublicUiColorSystemPage() {
   const meta = TOOL_REGISTRY['ui-color-system' as keyof typeof TOOL_REGISTRY];
-  const [params, setParams] = useSearchParams();
-  const [seed, setSeed] = useState<string | null>(null);
+  const [params] = useSearchParams();
 
-  useEffect(() => {
-    // ?p=<base64> takes precedence over ?seed=<hex>.
+  const { seed, secondary } = useMemo(() => {
     const encoded = params.get('p');
     if (encoded) {
       const decoded = decodePalette(encoded);
       if (decoded && isValidHex(decoded.seed)) {
-        setSeed(normalizeHex(decoded.seed));
-      }
-    } else {
-      const raw = params.get('seed');
-      if (raw) {
-        const hex = raw.startsWith('#') ? raw : `#${raw}`;
-        if (isValidHex(hex)) setSeed(normalizeHex(hex));
+        return {
+          seed: normalizeHex(decoded.seed),
+          secondary:
+            decoded.roles.secondary && isValidHex(decoded.roles.secondary)
+              ? normalizeHex(decoded.roles.secondary)
+              : null,
+        };
       }
     }
-    // SEO: keep title in sync with the in-tool state.
-    if (meta) {
-      document.title = meta.seo.title;
-      let descTag = document.querySelector('meta[name="description"]');
-      if (!descTag) {
-        descTag = document.createElement('meta');
-        descTag.setAttribute('name', 'description');
-        document.head.appendChild(descTag);
-      }
-      descTag.setAttribute('content', meta.seo.description);
+    const raw = params.get('seed');
+    if (raw) {
+      const hex = raw.startsWith('#') ? raw : `#${raw}`;
+      if (isValidHex(hex)) return { seed: normalizeHex(hex), secondary: null };
     }
-  }, [params, meta]);
+    return { seed: DEFAULT_SEED, secondary: null };
+  }, [params]);
 
-  const launch = useCallback(
-    (hex: string) => {
-      setSeed(normalizeHex(hex));
-      setParams({ seed: hex.replace('#', '') });
-    },
-    [setParams],
-  );
-
-  if (!seed) {
-    return <PublicLanding onLaunch={launch} />;
-  }
+  useEffect(() => {
+    if (!meta) return;
+    const prevTitle = document.title;
+    document.title = meta.seo.title;
+    let descTag = document.querySelector('meta[name="description"]');
+    if (!descTag) {
+      descTag = document.createElement('meta');
+      descTag.setAttribute('name', 'description');
+      document.head.appendChild(descTag);
+    }
+    const prevDesc = descTag.getAttribute('content');
+    descTag.setAttribute('content', meta.seo.description);
+    return () => {
+      document.title = prevTitle;
+      if (descTag && prevDesc !== null) descTag.setAttribute('content', prevDesc);
+    };
+  }, [meta]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-12 max-w-none items-center justify-between gap-3 px-4">
-          <a href="/tools/ui-color-system" className="flex items-center gap-2 text-sm font-semibold">
-            ← UI Color System
-          </a>
-          <div className="flex items-center gap-2 text-sm">
-            <a
-              href="/?signup=1"
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Save & sync with a brand →
-            </a>
-          </div>
-        </div>
-      </header>
-      <ColorSystemGenerator initialSeed={seed} forcedMode="standalone" />
-    </div>
+    <ColorSystemGenerator
+      initialSeed={seed}
+      initialSecondary={secondary}
+      forcedMode="standalone"
+    />
   );
 }
