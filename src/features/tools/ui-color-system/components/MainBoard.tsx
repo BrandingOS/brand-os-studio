@@ -24,6 +24,7 @@ import { ExportPanel } from './ExportPanel';
 import { ShareDialog } from './ShareDialog';
 import { SavedPalettesDrawer } from './SavedPalettesDrawer';
 import { SHOWCASES, type ShowcaseKey } from './showcases';
+import { deriveLogoLetter, type BrandIdentity } from './showcases/showcase-shared';
 import type { PaletteStateSnapshot, PaletteActions } from '../hooks/usePaletteState';
 
 export interface MainBoardProps {
@@ -33,6 +34,7 @@ export interface MainBoardProps {
   canSave: boolean;
   paletteName: string;
   onPaletteNameChange?: (next: string) => void;
+  brandName: string;
 }
 
 export function MainBoard({
@@ -42,7 +44,12 @@ export function MainBoard({
   canSave,
   paletteName,
   onPaletteNameChange,
+  brandName,
 }: MainBoardProps) {
+  const brand: BrandIdentity = {
+    name: brandName.trim() || 'Brandos',
+    letter: deriveLogoLetter(brandName),
+  };
   const [activeShowcase, setActiveShowcase] = useState<ShowcaseKey>('cards');
   const [shareOpen, setShareOpen] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
@@ -141,7 +148,7 @@ export function MainBoard({
 
       {/* Showcase body */}
       <div className="color-board-body">
-        <ActiveShowcase palette={state} secondary={state.roles.secondary} />
+        <ActiveShowcase palette={state} secondary={state.roles.secondary} brand={brand} />
       </div>
 
       {/* Dialogs */}

@@ -6,7 +6,7 @@
 import { ArrowUpRight, ArrowDownRight, Send, Check } from 'lucide-react';
 import { pickOn, type ShowcaseProps } from './showcase-shared';
 
-export function AppsShowcase({ palette, secondary }: ShowcaseProps) {
+export function AppsShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
@@ -14,7 +14,7 @@ export function AppsShowcase({ palette, secondary }: ShowcaseProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Phone>
-        <WalletScreen p={p} n={n} />
+        <WalletScreen p={p} n={n} brandName={brand.name} />
       </Phone>
       <Phone>
         <TasksScreen p={p} n={n} s={s} />
@@ -39,7 +39,7 @@ function Phone({ children }: { children: React.ReactNode }) {
 
 type ScaleMap = Record<50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950, { hex: string }>;
 
-function WalletScreen({ p, n }: { p: ScaleMap; n: ScaleMap }) {
+function WalletScreen({ p, n, brandName }: { p: ScaleMap; n: ScaleMap; brandName: string }) {
   const onP = pickOn(p[600].hex, n[50].hex, n[950].hex);
   return (
     <div className="flex h-full flex-col" style={{ background: n[50].hex }}>
@@ -69,7 +69,7 @@ function WalletScreen({ p, n }: { p: ScaleMap; n: ScaleMap }) {
         </p>
         {[
           { label: 'Coffee · Blue Bottle', amount: '-$6.20', icon: ArrowDownRight, color: p[500].hex },
-          { label: 'Payday — Brandos', amount: '+$3,400.00', icon: ArrowUpRight, color: p[600].hex },
+          { label: `Payday — ${brandName}`, amount: '+$3,400.00', icon: ArrowUpRight, color: p[600].hex },
           { label: 'Figma · Pro', amount: '-$15.00', icon: ArrowDownRight, color: p[500].hex },
         ].map((t) => {
           const Icon = t.icon;

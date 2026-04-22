@@ -17,7 +17,7 @@ import { pickOn, type ShowcaseProps } from './showcase-shared';
 import { WEB_PHOTOS } from './photos';
 import { Photo } from './Photo';
 
-export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
+export function WebsiteShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
@@ -41,10 +41,10 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
               className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-bold"
               style={{ background: p[600].hex, color: onPrimary }}
             >
-              B
+              {brand.letter}
             </span>
             <span className="text-[14px] font-semibold" style={{ color: n[900].hex }}>
-              Brandos
+              {brand.name}
             </span>
           </div>
           <div className="hidden items-center gap-6 text-[13px] md:flex" style={{ color: n[600].hex }}>
@@ -107,8 +107,9 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
               <span style={{ color: p[700].hex }}>actually ships.</span>
             </h1>
             <p className="max-w-[46ch] text-[15px] leading-relaxed" style={{ color: n[600].hex }}>
-              One palette. Every token. Every surface. Brandos turns your brand
-              color into a full UI system — not just a swatch you paste into Figma.
+              One palette. Every token. Every surface. {brand.name} turns your
+              brand color into a full UI system — not just a swatch you paste
+              into Figma.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -146,7 +147,7 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
                   ))}
                 </div>
                 <span>
-                  <b style={{ color: n[900].hex }}>14,000+</b> product teams ship faster with Brandos
+                  <b style={{ color: n[900].hex }}>14,000+</b> product teams ship faster with {brand.name}
                 </span>
               </div>
             </div>
@@ -169,13 +170,13 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#f59e0b' }} />
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#22c55e' }} />
                 <span className="ml-3 text-[10px]" style={{ color: n[500].hex }}>
-                  brandos.design/dashboard
+                  {brand.name.toLowerCase().replace(/\s+/g, '')}.design/dashboard
                 </span>
               </div>
               <div className="relative aspect-[4/3]">
                 <Photo
                   src={WEB_PHOTOS.heroDashboard}
-                  alt="Brandos dashboard preview"
+                  alt={`${brand.name} dashboard preview`}
                   fallback={{ from: p[100].hex, to: p[300].hex }}
                   style={{ position: 'absolute', inset: 0 }}
                 />
@@ -263,8 +264,8 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
             Brand-aware by default
           </h3>
           <p className="text-[13px] leading-relaxed" style={{ color: n[600].hex }}>
-            Drop in one hex and Brandos generates shades, semantic tokens, and
-            theme variables that actually match your identity.
+            Drop in one hex and {brand.name} generates shades, semantic tokens,
+            and theme variables that actually match your identity.
           </p>
         </div>
 
@@ -332,7 +333,7 @@ export function WebsiteShowcase({ palette, secondary }: ShowcaseProps) {
         >
           <Quote className="h-6 w-6" style={{ color: p[300].hex }} />
           <p className="text-[14px] leading-relaxed" style={{ color: n[800].hex }}>
-            "We replaced three tools with Brandos. The handoff from design to
+            "We replaced three tools with {brand.name}. The handoff from design to
             production is invisible now — tokens just show up."
           </p>
           <div className="flex items-center gap-3">

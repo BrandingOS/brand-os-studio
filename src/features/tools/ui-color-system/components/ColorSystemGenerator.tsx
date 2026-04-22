@@ -66,6 +66,7 @@ export function ColorSystemGenerator({
 
   const [harmony, setHarmony] = useState<HarmonyName | 'auto'>('auto');
   const [paletteName, setPaletteName] = useState('Palette 1');
+  const [brandName, setBrandName] = useState(brand?.brandName ?? 'Brandos');
 
   const onHarmonyChange = useCallback(
     (h: HarmonyName | 'auto') => {
@@ -130,7 +131,9 @@ export function ColorSystemGenerator({
       {brandBar && <div className="px-5 pt-3">{brandBar}</div>}
       <div className="shell">
         <EditorPanel
-          brandName={brand?.brandName}
+          headingLabel={brand?.brandName}
+          brandName={brandName}
+          onBrandNameChange={setBrandName}
           primaryHex={state.roles.primary.inputHex}
           primaryLocked={primaryLocked}
           secondaryHex={state.roles.secondary ? state.roles.secondary.inputHex : null}
@@ -154,6 +157,7 @@ export function ColorSystemGenerator({
           canSave={ctx.perms.canSave}
           paletteName={paletteName}
           onPaletteNameChange={setPaletteName}
+          brandName={brandName}
         />
       </div>
     </CosmosWorkspaceShell>

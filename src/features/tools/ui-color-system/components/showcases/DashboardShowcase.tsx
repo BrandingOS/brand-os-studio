@@ -9,7 +9,7 @@
 import { Home, Users, CreditCard, Settings, Bell, ChevronRight } from 'lucide-react';
 import { pickOn, type ShowcaseProps } from './showcase-shared';
 
-export function DashboardShowcase({ palette, secondary }: ShowcaseProps) {
+export function DashboardShowcase({ palette, secondary, brand }: ShowcaseProps) {
   const p = palette.roles.primary.shades;
   const n = palette.roles.neutral.shades;
   const s = secondary?.shades ?? p;
@@ -30,10 +30,10 @@ export function DashboardShowcase({ palette, secondary }: ShowcaseProps) {
             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[12px] font-bold"
             style={{ background: p[600].hex, color: onPrimary }}
           >
-            B
+            {brand.letter}
           </span>
           <span className="text-sm font-semibold" style={{ color: n[900].hex }}>
-            Brandos
+            {brand.name}
           </span>
         </div>
         <nav className="flex flex-col gap-1 text-[12px]">

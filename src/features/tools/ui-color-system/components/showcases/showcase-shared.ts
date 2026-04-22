@@ -8,10 +8,30 @@
  */
 import { apcaContrast, type ColorScale, type PaletteSystem } from '@/lib/color-engine';
 
+export interface BrandIdentity {
+  /** Human-readable brand name — shown verbatim in navs, hero, app chrome. */
+  name: string;
+  /** Single-letter logomark (defaults to the brand name's initial). */
+  letter: string;
+}
+
 export interface ShowcaseProps {
   palette: PaletteSystem;
   /** Present when the user added a secondary scale. */
   secondary?: ColorScale | null;
+  /** User-editable brand name + derived logomark letter. */
+  brand: BrandIdentity;
+}
+
+/**
+ * Derive a single uppercase initial from a brand name. Falls back to
+ * "B" when the string is empty so the logomark never collapses.
+ */
+export function deriveLogoLetter(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return 'B';
+  const first = trimmed[0];
+  return first.toUpperCase();
 }
 
 /**

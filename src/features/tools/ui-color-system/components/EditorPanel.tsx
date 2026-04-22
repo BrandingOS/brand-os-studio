@@ -23,7 +23,11 @@ import {
 } from '@/lib/color-engine';
 
 export interface EditorPanelProps {
-  brandName?: string;
+  /** Shown as the panel title (cosmos heading). Defaults to generator name. */
+  headingLabel?: string;
+  /** Brand name used inside every showcase — driving logo letter and nav label. */
+  brandName: string;
+  onBrandNameChange: (next: string) => void;
   primaryHex: string;
   primaryLocked: boolean;
   secondaryHex: string | null;
@@ -51,7 +55,9 @@ const CATEGORIES: { key: CategoryKey; label: string; disabled?: boolean }[] = [
 ];
 
 export function EditorPanel({
+  headingLabel,
   brandName,
+  onBrandNameChange,
   primaryHex,
   primaryLocked,
   secondaryHex,
@@ -89,7 +95,7 @@ export function EditorPanel({
         <div className="panel-heading">
           <span className="panel-heading-eyebrow">UI Color System</span>
           <h1 className="panel-heading-title">
-            {brandName ? brandName : 'Tailwind CSS Color Generator'}
+            {headingLabel ? headingLabel : 'Tailwind CSS Color Generator'}
           </h1>
         </div>
         <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-muted)' }}>
@@ -111,6 +117,46 @@ export function EditorPanel({
               {c.label}
             </button>
           ))}
+        </div>
+
+        <div>
+          <div className="editor-field-head">
+            <span className="editor-field-label">Brand name</span>
+          </div>
+          <div className="editor-color-input" style={{ paddingLeft: 12 }}>
+            <span
+              className="editor-color-chip"
+              style={{ background: primaryHex, flexShrink: 0 }}
+              aria-hidden
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#fff',
+                  textShadow: '0 1px 1px rgba(0,0,0,0.25)',
+                }}
+              >
+                {(brandName.trim()[0] ?? 'B').toUpperCase()}
+              </span>
+            </span>
+            <input
+              type="text"
+              value={brandName}
+              onChange={(e) => onBrandNameChange(e.target.value)}
+              spellCheck={false}
+              autoComplete="off"
+              placeholder="e.g. Acme"
+              className="editor-color-hex"
+              style={{ textTransform: 'none' }}
+              aria-label="Brand name"
+            />
+          </div>
         </div>
 
         <div>
