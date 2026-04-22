@@ -973,3 +973,14 @@
   border-color: rgba(255, 255, 255, 0.08);
   color: #f4f4f5;
 }
+
+/* ─── Photo swap button — reveal on tile hover ─────────────
+ * Tiles typically stack a z-10 content layer (title, tag pill) above
+ * the photo. Hovering that layer wouldn't trigger .photo-swap:hover
+ * — the icon only appeared when the cursor was over the bare photo.
+ * Listen on the whole tile instead so any hover reveals the button.
+ */
+[data-cosmos="workspace"] .tile:hover .photo-swap-btn,
+[data-cosmos="workspace"] .tile:focus-within .photo-swap-btn {
+  opacity: 1;
+}
