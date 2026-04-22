@@ -1,11 +1,16 @@
 /**
  * ExportPanel — production-ready token exports.
  *
- * Nine tabs. Each produces copy-paste-ready output; each token gets a
- * dash-separated semantic name (`--color-primary-500`,
- * `--color-surface`, `--color-on-primary`). Free users get HEX + CSS
- * variables; Pro unlocks Tailwind, SCSS, JSON, W3C tokens, HSL, RGB,
- * OKLCH exports.
+ * Two modes, toggled at the top:
+ *  - Quick (default): brand ramps only (primary / secondary / neutral),
+ *    no semantic tokens. CSS / HEX / Tailwind tabs. This is what most
+ *    designers paste into a codebase.
+ *  - Advanced: every format plus the full semantic token layer
+ *    (success / warning / surface / on-primary / …).
+ *
+ * Every token uses a dash-separated semantic name (`--color-primary-500`,
+ * `--color-surface`). Free users get HEX + CSS variables in both modes;
+ * Pro unlocks Tailwind / SCSS / JSON / W3C / HSL / RGB / OKLCH.
  */
 import { useMemo, useState } from 'react';
 import { Copy, Check, Download, Lock } from 'lucide-react';
@@ -24,8 +29,11 @@ import {
 } from '@/lib/color-engine';
 
 type ExportKind = 'css' | 'hex' | 'tailwind' | 'scss' | 'json' | 'w3c' | 'hsl' | 'rgb' | 'oklch';
+type ExportMode = 'quick' | 'advanced';
 
 const FREE_KINDS: ExportKind[] = ['css', 'hex'];
+const QUICK_KINDS: ExportKind[] = ['css', 'hex', 'tailwind'];
+const ALL_KINDS: ExportKind[] = ['css', 'hex', 'tailwind', 'scss', 'json', 'w3c', 'hsl', 'rgb', 'oklch'];
 
 const LABELS: Record<ExportKind, string> = {
   css: 'CSS variables',
@@ -44,13 +52,28 @@ export interface ExportPanelProps {
   canExportAdvanced: boolean;
 }
 
+interface RenderOpts {
+  /** When false, semantic tokens (success/warning/etc.) are omitted. */
+  semantics: boolean;
+}
+
 export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
+  const [mode, setMode] = useState<ExportMode>('quick');
   const [kind, setKind] = useState<ExportKind>('css');
   const [copied, setCopied] = useState(false);
 
+  const availableKinds = mode === 'quick' ? QUICK_KINDS : ALL_KINDS;
   const locked = !canExportAdvanced && !FREE_KINDS.includes(kind);
 
-  const content = useMemo(() => renderExport(palette, kind), [palette, kind]);
+  const opts: RenderOpts = { semantics: mode === 'advanced' };
+  const content = useMemo(() => renderExport(palette, kind, opts), [palette, kind, opts]);
+
+  const onModeChange = (next: ExportMode) => {
+    setMode(next);
+    // If the active kind doesn't belong to the new mode, snap to the
+    // first tab so we don't show a blank panel.
+    if (next === 'quick' && !QUICK_KINDS.includes(kind)) setKind('css');
+  };
 
   const doCopy = async () => {
     try {
@@ -77,9 +100,50 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Mode switch — Quick is the default, Advanced reveals every
+          format + semantic tokens. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold">
+            {mode === 'quick' ? 'Quick export' : 'Advanced export'}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {mode === 'quick'
+              ? 'Brand ramps only — paste into Tailwind / CSS.'
+              : 'Every format, plus semantic tokens (success, warning, surface, …).'}
+          </span>
+        </div>
+        <div className="inline-flex rounded-full border bg-muted/40 p-0.5" role="tablist" aria-label="Export depth">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'quick'}
+            onClick={() => onModeChange('quick')}
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              mode === 'quick' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Quick
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'advanced'}
+            onClick={() => onModeChange('advanced')}
+            className={cn(
+              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              mode === 'advanced' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Advanced
+          </button>
+        </div>
+      </div>
+
       <Tabs value={kind} onValueChange={(v) => setKind(v as ExportKind)}>
         <TabsList className="flex flex-wrap">
-          {(Object.keys(LABELS) as ExportKind[]).map((k) => {
+          {availableKinds.map((k) => {
             const isLocked = !canExportAdvanced && !FREE_KINDS.includes(k);
             return (
               <TabsTrigger key={k} value={k} className="gap-1.5">
@@ -89,7 +153,7 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
             );
           })}
         </TabsList>
-        {(Object.keys(LABELS) as ExportKind[]).map((k) => (
+        {availableKinds.map((k) => (
           <TabsContent key={k} value={k} className="mt-3">
             <div className="relative rounded-xl border bg-zinc-950 font-mono text-[12px] text-zinc-100">
               <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
@@ -165,51 +229,53 @@ function forEachScale(
   });
 }
 
-function renderExport(palette: PaletteSystem, kind: ExportKind): string {
+function renderExport(palette: PaletteSystem, kind: ExportKind, opts: RenderOpts): string {
   switch (kind) {
     case 'css':
-      return renderCss(palette);
+      return renderCss(palette, opts);
     case 'hex':
-      return renderHex(palette);
+      return renderHex(palette, opts);
     case 'tailwind':
       return renderTailwind(palette);
     case 'scss':
-      return renderScss(palette);
+      return renderScss(palette, opts);
     case 'json':
-      return renderJson(palette);
+      return renderJson(palette, opts);
     case 'w3c':
-      return renderW3c(palette);
+      return renderW3c(palette, opts);
     case 'hsl':
-      return renderByFormat(palette, 'hsl');
+      return renderByFormat(palette, 'hsl', opts);
     case 'rgb':
-      return renderByFormat(palette, 'rgb');
+      return renderByFormat(palette, 'rgb', opts);
     case 'oklch':
-      return renderByFormat(palette, 'oklch');
+      return renderByFormat(palette, 'oklch', opts);
   }
 }
 
-function renderCss(palette: PaletteSystem): string {
+function renderCss(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [':root {'];
   forEachScale(palette, (role, stop, hex) => {
     out.push(`  --color-${role}-${stop}: ${hex};`);
   });
-  const t = palette.semanticTokens;
-  for (const [k, v] of Object.entries(t)) {
-    out.push(`  --color-${kebab(k)}: ${v};`);
+  if (opts.semantics) {
+    for (const [k, v] of Object.entries(palette.semanticTokens)) {
+      out.push(`  --color-${kebab(k)}: ${v};`);
+    }
   }
   out.push('}');
   return out.join('\n');
 }
 
-function renderHex(palette: PaletteSystem): string {
+function renderHex(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [];
   forEachScale(palette, (role, stop, hex) => {
     out.push(`${role}-${stop}: ${hex}`);
   });
-  const t = palette.semanticTokens;
-  out.push('');
-  for (const [k, v] of Object.entries(t)) {
-    out.push(`${kebab(k)}: ${v}`);
+  if (opts.semantics) {
+    out.push('');
+    for (const [k, v] of Object.entries(palette.semanticTokens)) {
+      out.push(`${kebab(k)}: ${v}`);
+    }
   }
   return out.join('\n');
 }
@@ -233,36 +299,43 @@ module.exports = {
 `;
 }
 
-function renderScss(palette: PaletteSystem): string {
+function renderScss(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [];
   forEachScale(palette, (role, stop, hex) => {
     out.push(`$color-${role}-${stop}: ${hex};`);
   });
-  out.push('');
-  for (const [k, v] of Object.entries(palette.semanticTokens)) {
-    out.push(`$color-${kebab(k)}: ${v};`);
+  if (opts.semantics) {
+    out.push('');
+    for (const [k, v] of Object.entries(palette.semanticTokens)) {
+      out.push(`$color-${kebab(k)}: ${v};`);
+    }
   }
   return out.join('\n');
 }
 
-function renderJson(palette: PaletteSystem): string {
+function renderJson(palette: PaletteSystem, opts: RenderOpts): string {
   const colors: Record<string, Record<string, string>> = {};
   forEachScale(palette, (role, stop, hex) => {
     colors[role] ??= {};
     colors[role][String(stop)] = hex;
   });
   return JSON.stringify(
-    {
-      name: palette.name,
-      colors,
-      semantic: palette.semanticTokens,
-    },
+    opts.semantics
+      ? {
+          name: palette.name,
+          colors,
+          semantic: palette.semanticTokens,
+        }
+      : {
+          name: palette.name,
+          colors,
+        },
     null,
     2,
   );
 }
 
-function renderW3c(palette: PaletteSystem): string {
+function renderW3c(palette: PaletteSystem, opts: RenderOpts): string {
   const root: Record<string, unknown> = {};
   forEachScale(palette, (role, stop, hex) => {
     root[role] ??= {} as Record<string, unknown>;
@@ -271,6 +344,9 @@ function renderW3c(palette: PaletteSystem): string {
       $value: hex,
     };
   });
+  if (!opts.semantics) {
+    return JSON.stringify({ color: root }, null, 2);
+  }
   const semantic: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(palette.semanticTokens)) {
     semantic[k] = { $type: 'color', $value: v };
@@ -278,14 +354,16 @@ function renderW3c(palette: PaletteSystem): string {
   return JSON.stringify({ color: root, semantic }, null, 2);
 }
 
-function renderByFormat(palette: PaletteSystem, format: 'hsl' | 'rgb' | 'oklch'): string {
+function renderByFormat(palette: PaletteSystem, format: 'hsl' | 'rgb' | 'oklch', opts: RenderOpts): string {
   const lines: string[] = [];
   forEachScale(palette, (role, stop, hex) => {
     lines.push(`${role}-${stop}: ${formatColor(hex, format)}`);
   });
-  lines.push('');
-  for (const [k, v] of Object.entries(palette.semanticTokens)) {
-    lines.push(`${kebab(k)}: ${formatColor(v, format)}`);
+  if (opts.semantics) {
+    lines.push('');
+    for (const [k, v] of Object.entries(palette.semanticTokens)) {
+      lines.push(`${kebab(k)}: ${formatColor(v, format)}`);
+    }
   }
   return lines.join('\n');
 }
