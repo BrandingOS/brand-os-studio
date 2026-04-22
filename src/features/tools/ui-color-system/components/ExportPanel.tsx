@@ -2,11 +2,14 @@
  * ExportPanel — production-ready token exports.
  *
  * Two modes, toggled at the top:
- *  - Quick (default): brand ramps only (primary / secondary / neutral),
- *    no semantic tokens. CSS / HEX / Tailwind tabs. This is what most
- *    designers paste into a codebase.
- *  - Advanced: every format plus the full semantic token layer
- *    (success / warning / surface / on-primary / …).
+ *  - Quick (default): primary + secondary ramps only — the two pieces
+ *    that are genuinely brand-specific. Neutral, tertiary, and every
+ *    semantic token are skipped because they either live in the
+ *    consumer's design system already or are framework defaults.
+ *    CSS / HEX / Tailwind tabs.
+ *  - Advanced: every role (incl. neutral + tertiary), every format,
+ *    and the full semantic token layer (success / warning / surface
+ *    / on-primary / …).
  *
  * Every token uses a dash-separated semantic name (`--color-primary-500`,
  * `--color-surface`). Free users get HEX + CSS variables in both modes;
@@ -55,7 +58,14 @@ export interface ExportPanelProps {
 interface RenderOpts {
   /** When false, semantic tokens (success/warning/etc.) are omitted. */
   semantics: boolean;
+  /** Whitelist of palette roles to emit. Quick mode ships only the
+   * brand-specific roles (primary + secondary); every other role
+   * (neutral, tertiary, semantic) is either brand-agnostic or lives
+   * in the consumer's design system already. */
+  roles: RoleKey[];
 }
+
+const QUICK_ROLES: RoleKey[] = ['primary', 'secondary'];
 
 export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
   const [mode, setMode] = useState<ExportMode>('quick');
@@ -65,8 +75,19 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
   const availableKinds = mode === 'quick' ? QUICK_KINDS : ALL_KINDS;
   const locked = !canExportAdvanced && !FREE_KINDS.includes(kind);
 
-  const opts: RenderOpts = { semantics: mode === 'advanced' };
-  const content = useMemo(() => renderExport(palette, kind, opts), [palette, kind, opts]);
+  const allRoles = useMemo(
+    () => (Object.keys(palette.roles) as RoleKey[]).filter((r) => palette.roles[r]),
+    [palette.roles],
+  );
+  const opts: RenderOpts = {
+    semantics: mode === 'advanced',
+    roles: mode === 'quick' ? QUICK_ROLES.filter((r) => palette.roles[r]) : allRoles,
+  };
+  const content = useMemo(
+    () => renderExport(palette, kind, opts),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [palette, kind, opts.semantics, opts.roles.join('|')],
+  );
 
   const onModeChange = (next: ExportMode) => {
     setMode(next);
@@ -109,8 +130,8 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
           </span>
           <span className="text-xs text-muted-foreground">
             {mode === 'quick'
-              ? 'Brand ramps only — paste into Tailwind / CSS.'
-              : 'Every format, plus semantic tokens (success, warning, surface, …).'}
+              ? 'Primary + secondary ramps only — paste into Tailwind / CSS.'
+              : 'Every role, every format, plus semantic tokens (success, warning, surface, …).'}
           </span>
         </div>
         <div className="inline-flex rounded-full border bg-muted/40 p-0.5" role="tablist" aria-label="Export depth">
@@ -218,9 +239,10 @@ function extensionFor(kind: ExportKind): string {
 
 function forEachScale(
   palette: PaletteSystem,
+  roles: RoleKey[],
   fn: (role: RoleKey, stop: ShadeStop, hex: string) => void,
 ) {
-  (Object.keys(palette.roles) as RoleKey[]).forEach((role) => {
+  roles.forEach((role) => {
     const scale = palette.roles[role];
     if (!scale) return;
     for (const stop of SHADE_STOPS) {
@@ -254,7 +276,7 @@ function renderExport(palette: PaletteSystem, kind: ExportKind, opts: RenderOpts
 
 function renderCss(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [':root {'];
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     out.push(`  --color-${role}-${stop}: ${hex};`);
   });
   if (opts.semantics) {
@@ -268,7 +290,7 @@ function renderCss(palette: PaletteSystem, opts: RenderOpts): string {
 
 function renderHex(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [];
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     out.push(`${role}-${stop}: ${hex}`);
   });
   if (opts.semantics) {
@@ -282,7 +304,7 @@ function renderHex(palette: PaletteSystem, opts: RenderOpts): string {
 
 function renderTailwind(palette: PaletteSystem): string {
   const colors: Record<string, Record<string, string>> = {};
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     colors[role] ??= {};
     colors[role][String(stop)] = hex;
   });
@@ -301,7 +323,7 @@ module.exports = {
 
 function renderScss(palette: PaletteSystem, opts: RenderOpts): string {
   const out: string[] = [];
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     out.push(`$color-${role}-${stop}: ${hex};`);
   });
   if (opts.semantics) {
@@ -315,7 +337,7 @@ function renderScss(palette: PaletteSystem, opts: RenderOpts): string {
 
 function renderJson(palette: PaletteSystem, opts: RenderOpts): string {
   const colors: Record<string, Record<string, string>> = {};
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     colors[role] ??= {};
     colors[role][String(stop)] = hex;
   });
@@ -337,7 +359,7 @@ function renderJson(palette: PaletteSystem, opts: RenderOpts): string {
 
 function renderW3c(palette: PaletteSystem, opts: RenderOpts): string {
   const root: Record<string, unknown> = {};
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     root[role] ??= {} as Record<string, unknown>;
     (root[role] as Record<string, unknown>)[String(stop)] = {
       $type: 'color',
@@ -356,7 +378,7 @@ function renderW3c(palette: PaletteSystem, opts: RenderOpts): string {
 
 function renderByFormat(palette: PaletteSystem, format: 'hsl' | 'rgb' | 'oklch', opts: RenderOpts): string {
   const lines: string[] = [];
-  forEachScale(palette, (role, stop, hex) => {
+  forEachScale(palette, opts.roles, (role, stop, hex) => {
     lines.push(`${role}-${stop}: ${formatColor(hex, format)}`);
   });
   if (opts.semantics) {
