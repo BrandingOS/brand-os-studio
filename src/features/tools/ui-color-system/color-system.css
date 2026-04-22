@@ -1,0 +1,265 @@
+/**
+ * Cosmos-native styling for the UI Color System tool.
+ *
+ * The editor panel already uses `.panel` from cosmos-workspace.css.
+ * This stylesheet aligns the right-hand board (palette strips + tabs +
+ * showcase) to the same design system: same radii, same border tokens,
+ * same shadow rhythm, same top-line baseline.
+ */
+
+[data-cosmos="workspace"] .color-board {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  min-width: 0;
+  padding: 16px 20px 60px;
+}
+
+[data-cosmos="workspace"] .color-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+[data-cosmos="workspace"] .color-board-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  font-weight: 400;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0;
+}
+
+[data-cosmos="workspace"] .color-board-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+[data-cosmos="workspace"] .color-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-size: 12px;
+  font-weight: 500;
+}
+[data-cosmos="workspace"] .color-action-link:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+[data-cosmos="workspace"] .color-board-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--surface);
+  border: 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+[data-cosmos="workspace"] .color-board-save:hover {
+  opacity: 0.88;
+}
+
+/* ─── Palette strip ─────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .color-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .color-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 2px;
+}
+[data-cosmos="workspace"] .color-strip-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .color-strip-tag {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--text-primary);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+[data-cosmos="workspace"] .color-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 8px;
+}
+
+[data-cosmos="workspace"] .color-swatch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  padding: 10px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  border: 0;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+[data-cosmos="workspace"] .color-swatch:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .color-swatch:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+[data-cosmos="workspace"] .color-swatch-stop {
+  opacity: 0.9;
+}
+[data-cosmos="workspace"] .color-swatch-hex {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+}
+[data-cosmos="workspace"] .color-swatch-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+[data-cosmos="workspace"] .color-swatch-action {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  cursor: pointer;
+}
+[data-cosmos="workspace"] .color-swatch:hover .color-swatch-action,
+[data-cosmos="workspace"] .color-swatch:focus-within .color-swatch-action {
+  opacity: 1;
+}
+[data-cosmos="workspace"] .color-swatch-action:hover {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .color-board-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 4px -6px 0;
+  padding: 0 6px;
+}
+[data-cosmos="workspace"] .color-board-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+[data-cosmos="workspace"] .color-board-tab:hover {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .color-board-tab.is-active {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .color-board-tab.is-active::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px -1px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ─── Showcase body ─────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .color-board-body {
+  margin-top: 4px;
+}
+
+/* Showcase tile card — used inside every showcase so radii, shadows,
+ * and strokes match the cosmos system consistently. */
+[data-cosmos="workspace"] .tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .tile--brand {
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+}
+[data-cosmos="workspace"] .tile-photo {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .tile-photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+[data-cosmos="workspace"] .tile-photo-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Instrument Serif", serif;
+  font-size: 72px;
+  color: rgba(0, 0, 0, 0.08);
+}
+
+/* Dark-mode photo tone */
+[data-cosmos="workspace"][data-theme="dark"] .tile-photo-fallback {
+  color: rgba(255, 255, 255, 0.06);
+}

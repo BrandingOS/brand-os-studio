@@ -1,14 +1,9 @@
 /**
  * MainBoard — the right-hand workspace of the tool.
  *
- * Composition:
- *   1. One or two palette strips (primary, optional secondary)
- *   2. Action row: Contrast grid / Color info / Export / Edit (open dialogs)
- *   3. Showcase tab strip
- *   4. Active showcase rendered beneath
- *
- * Every dialog (contrast, export, share, saved, shade-detail) is mounted
- * here too so the board owns every surface above the editor panel.
+ * No outer card wrapper: we live directly inside the cosmos `.shell`
+ * grid so the board inherits the same baseline, padding rhythm, and
+ * vertical start as the left `.panel`. This matches the /setup page.
  */
 import { useMemo, useState } from 'react';
 import { Heart, Grid3x3, Info, Download, PencilLine } from 'lucide-react';
@@ -77,20 +72,18 @@ export function MainBoard({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto rounded-2xl border bg-card/60 p-6">
+    <div className="color-board">
       {/* Top bar: palette name + actions */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-baseline gap-3">
-          <input
-            type="text"
-            value={paletteName}
-            spellCheck={false}
-            onChange={(e) => onPaletteNameChange?.(e.target.value)}
-            className="bg-transparent text-2xl font-semibold tracking-tight text-foreground outline-none"
-            aria-label="Palette name"
-          />
-        </div>
-        <div className="flex items-center gap-1 text-xs">
+      <div className="color-board-head">
+        <input
+          type="text"
+          value={paletteName}
+          spellCheck={false}
+          onChange={(e) => onPaletteNameChange?.(e.target.value)}
+          className="color-board-title"
+          aria-label="Palette name"
+        />
+        <div className="color-board-actions">
           <ActionLink icon={<Grid3x3 className="h-3.5 w-3.5" />} label="Contrast grid" onClick={() => setContrastOpen(true)} />
           <ActionLink icon={<Info className="h-3.5 w-3.5" />} label="Color info" onClick={() => setInfoOpen(true)} />
           <ActionLink icon={<Download className="h-3.5 w-3.5" />} label="Export" onClick={() => setExportOpen(true)} />
@@ -98,7 +91,7 @@ export function MainBoard({
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90"
+            className="color-board-save"
           >
             <Heart className="h-3.5 w-3.5" />
             Save
@@ -107,9 +100,9 @@ export function MainBoard({
       </div>
 
       {/* Palette strips */}
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         <PaletteStrip
-          label={paletteName.split(/\s|·/)[0] || 'Claret'}
+          label={paletteName.split(/\s|·/)[0] || 'Palette'}
           roleLabel="Primary"
           scale={state.roles.primary}
           accentStop={findAccentStop(state.roles.primary.inputHex, state.roles.primary)}
@@ -130,29 +123,24 @@ export function MainBoard({
       </div>
 
       {/* Showcase tab strip */}
-      <div className="-mx-1 flex items-center gap-1 overflow-x-auto border-b pb-1 text-sm">
+      <div className="color-board-tabs">
         {SHOWCASES.map((sc) => (
           <button
             key={sc.key}
             type="button"
             onClick={() => setActiveShowcase(sc.key)}
             className={cn(
-              'relative shrink-0 rounded-t-md px-3 py-2 text-sm font-medium transition',
-              activeShowcase === sc.key
-                ? 'text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
+              'color-board-tab',
+              activeShowcase === sc.key && 'is-active',
             )}
           >
             {sc.label}
-            {activeShowcase === sc.key && (
-              <span className="absolute inset-x-2 -bottom-1 h-0.5 rounded-full bg-foreground" />
-            )}
           </button>
         ))}
       </div>
 
       {/* Showcase body */}
-      <div className="flex-1">
+      <div className="color-board-body">
         <ActiveShowcase palette={state} secondary={state.roles.secondary} />
       </div>
 
@@ -239,22 +227,13 @@ function ActionLink({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-    >
+    <button type="button" onClick={onClick} className="color-action-link">
       {icon}
       {label}
     </button>
   );
 }
 
-/**
- * Pick the stop whose hex is visually closest to the seed — lets the
- * strip mark it as the role "hero" even when the user locks a stop
- * other than 500.
- */
 function findAccentStop(
   seedHex: string,
   scale: { shades: Record<ShadeStop, { hex: string }> },

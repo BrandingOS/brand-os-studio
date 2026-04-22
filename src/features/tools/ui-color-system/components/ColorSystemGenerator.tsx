@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStore } from 'zustand';
 
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import '../color-system.css';
 import {
   hslToHex,
   type HarmonyName,
