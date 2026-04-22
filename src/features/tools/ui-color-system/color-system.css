@@ -865,3 +865,17 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ─── Brand font cascade ──────────────────────────────────────
+ * The tool-root sets --brand-font-body on `.color-board`; inherit
+ * pushes the body font into every tile automatically. Headings are
+ * heavy / display type so we explicitly route them through the
+ * display family so picking a new font pair actually changes the
+ * look of every showcase, not just the places that opted in inline.
+ */
+[data-cosmos="workspace"] .color-board-body h1,
+[data-cosmos="workspace"] .color-board-body h2,
+[data-cosmos="workspace"] .color-board-body h3,
+[data-cosmos="workspace"] .color-board-body h4 {
+  font-family: var(--brand-font-display, inherit);
+}
