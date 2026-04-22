@@ -1,0 +1,470 @@
+{
+  "schema_version": "1.0",
+  "description": "Layout templates for logo composition. Each layout defines element positions, alignment, and constraints. The composition engine renders these by binding type/symbol/color slots to actual assets from the libraries.",
+  "schema": {
+    "id": "string — unique layout identifier",
+    "name": "string — human-readable name",
+    "archetype": "wordmark | lettermark | pictorial | abstract | combination | emblem | mascot",
+    "compatible_style_families": "array of style_family ids this layout works for",
+    "canvas": {
+      "width": "number (in design units)",
+      "height": "number",
+      "background": "currentBackground (resolved by color mood)"
+    },
+    "slots": "ordered array of element slots (type, symbol, divider, etc.)",
+    "constraints": "rules the renderer must enforce (alignment, optical_center, max_text_length)"
+  },
+  "layouts": [
+    {
+      "id": "wordmark_centered",
+      "name": "Wordmark — Centered",
+      "archetype": "wordmark",
+      "compatible_style_families": ["swiss_minimal", "editorial_serif", "luxury_quiet", "arabic_modern"],
+      "canvas": { "width": 800, "height": 400 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit",
+          "tracking": "normal",
+          "case": "as-typed"
+        }
+      ],
+      "constraints": {
+        "optical_center": true,
+        "horizontal_padding": "12%",
+        "max_chars": 20
+      }
+    },
+    {
+      "id": "wordmark_widetrack_caps",
+      "name": "Wordmark — Wide Track Caps",
+      "archetype": "wordmark",
+      "compatible_style_families": ["luxury_quiet", "editorial_serif", "art_deco"],
+      "canvas": { "width": 800, "height": 200 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_weight": "light",
+          "tracking": "+200",
+          "case": "uppercase"
+        }
+      ],
+      "constraints": {
+        "horizontal_padding": "15%",
+        "max_chars": 14
+      }
+    },
+    {
+      "id": "wordmark_with_underline",
+      "name": "Wordmark — With Underline Mark",
+      "archetype": "wordmark",
+      "compatible_style_families": ["editorial_serif", "swiss_minimal", "brutalist"],
+      "canvas": { "width": 800, "height": 300 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "45%" },
+          "anchor": "center",
+          "font_role": "primary"
+        },
+        {
+          "type": "rule",
+          "weight": "1pt",
+          "length": "30%",
+          "position": { "x": "50%", "y": "70%" },
+          "anchor": "center"
+        }
+      ],
+      "constraints": {
+        "max_chars": 20
+      }
+    },
+    {
+      "id": "wordmark_descriptor_below",
+      "name": "Wordmark — With Descriptor",
+      "archetype": "wordmark",
+      "compatible_style_families": ["editorial_serif", "luxury_quiet", "swiss_minimal", "arabic_modern"],
+      "canvas": { "width": 800, "height": 350 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "42%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit"
+        },
+        {
+          "type": "text",
+          "content": "{descriptor}",
+          "position": { "x": "50%", "y": "70%" },
+          "anchor": "center",
+          "font_role": "secondary",
+          "font_size": "12% of primary",
+          "tracking": "+150",
+          "case": "uppercase"
+        }
+      ],
+      "constraints": {
+        "descriptor_max_chars": 30
+      }
+    },
+    {
+      "id": "lettermark_in_circle",
+      "name": "Lettermark — Inside Circle",
+      "archetype": "lettermark",
+      "compatible_style_families": ["swiss_minimal", "luxury_quiet", "vintage_workwear", "arabic_modern"],
+      "canvas": { "width": 400, "height": 400 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "frames",
+          "symbol_subcategory": "circle",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "85%"
+        },
+        {
+          "type": "text",
+          "content": "{initials}",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "40%",
+          "case": "uppercase"
+        }
+      ],
+      "constraints": {
+        "initials_max_chars": 3,
+        "optical_center": true
+      }
+    },
+    {
+      "id": "lettermark_stacked",
+      "name": "Lettermark — Stacked Initials",
+      "archetype": "lettermark",
+      "compatible_style_families": ["editorial_serif", "swiss_minimal", "brutalist"],
+      "canvas": { "width": 400, "height": 400 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{initial_1}",
+          "position": { "x": "50%", "y": "30%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "60%",
+          "case": "uppercase"
+        },
+        {
+          "type": "text",
+          "content": "{initial_2}",
+          "position": { "x": "50%", "y": "70%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "60%",
+          "case": "uppercase"
+        }
+      ],
+      "constraints": {
+        "initials_count": 2
+      }
+    },
+    {
+      "id": "lettermark_overlap",
+      "name": "Lettermark — Overlapping",
+      "archetype": "lettermark",
+      "compatible_style_families": ["editorial_serif", "art_deco", "vintage_workwear"],
+      "canvas": { "width": 400, "height": 400 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{initial_1}",
+          "position": { "x": "40%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "75%",
+          "opacity": 1
+        },
+        {
+          "type": "text",
+          "content": "{initial_2}",
+          "position": { "x": "60%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "75%",
+          "opacity": 0.85
+        }
+      ],
+      "constraints": {
+        "initials_count": 2
+      }
+    },
+    {
+      "id": "combination_horizontal",
+      "name": "Combination — Symbol Left, Text Right",
+      "archetype": "combination",
+      "compatible_style_families": ["swiss_minimal", "tech_mono", "playful_bold", "arabic_modern"],
+      "canvas": { "width": 800, "height": 200 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "any",
+          "position": { "x": "20%", "y": "50%" },
+          "anchor": "center",
+          "size": "70% of canvas height"
+        },
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "35%", "y": "50%" },
+          "anchor": "left-center",
+          "font_role": "primary",
+          "font_size": "auto-fit"
+        }
+      ],
+      "constraints": {
+        "spacing_between": "8% of canvas width"
+      }
+    },
+    {
+      "id": "combination_stacked",
+      "name": "Combination — Symbol Above, Text Below",
+      "archetype": "combination",
+      "compatible_style_families": ["swiss_minimal", "vintage_workwear", "luxury_quiet", "arabic_modern"],
+      "canvas": { "width": 400, "height": 500 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "any",
+          "position": { "x": "50%", "y": "35%" },
+          "anchor": "center",
+          "size": "50%"
+        },
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "75%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit"
+        }
+      ],
+      "constraints": {
+        "vertical_padding": "10%"
+      }
+    },
+    {
+      "id": "emblem_circle_classic",
+      "name": "Emblem — Circle Badge Classic",
+      "archetype": "emblem",
+      "compatible_style_families": ["vintage_workwear", "stamp_stencil", "luxury_quiet", "art_deco"],
+      "canvas": { "width": 500, "height": 500 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "frames",
+          "symbol_subcategory": "circle",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "90%"
+        },
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit",
+          "case": "uppercase",
+          "tracking": "+100"
+        },
+        {
+          "type": "text",
+          "content": "{est_year}",
+          "position": { "x": "50%", "y": "62%" },
+          "anchor": "center",
+          "font_role": "secondary",
+          "font_size": "8%",
+          "tracking": "+200"
+        }
+      ],
+      "constraints": {
+        "optional_slots": ["est_year"]
+      }
+    },
+    {
+      "id": "emblem_circular_text",
+      "name": "Emblem — Circular Text Around Mark",
+      "archetype": "emblem",
+      "compatible_style_families": ["vintage_workwear", "stamp_stencil", "art_deco"],
+      "canvas": { "width": 500, "height": 500 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "frames",
+          "symbol_subcategory": "circle",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "90%"
+        },
+        {
+          "type": "circular_text",
+          "content": "{brand_name} · EST {est_year} · {tagline}",
+          "radius": "40%",
+          "start_angle": -90,
+          "direction": "clockwise",
+          "font_role": "secondary",
+          "font_size": "6%",
+          "tracking": "+200",
+          "case": "uppercase"
+        },
+        {
+          "type": "symbol",
+          "symbol_category": "any",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "30%"
+        }
+      ],
+      "constraints": {
+        "circular_text_max_chars": 60
+      }
+    },
+    {
+      "id": "abstract_centered",
+      "name": "Abstract Mark — Centered",
+      "archetype": "abstract",
+      "compatible_style_families": ["bauhaus_geometric", "swiss_minimal", "y2k_chrome", "tech_mono"],
+      "canvas": { "width": 400, "height": 400 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "abstract",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "60%"
+        }
+      ],
+      "constraints": {
+        "optical_center": true
+      }
+    },
+    {
+      "id": "pictorial_centered",
+      "name": "Pictorial — Centered",
+      "archetype": "pictorial",
+      "compatible_style_families": ["vintage_workwear", "playful_bold", "organic_handdrawn"],
+      "canvas": { "width": 400, "height": 400 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "pictorial",
+          "position": { "x": "50%", "y": "50%" },
+          "anchor": "center",
+          "size": "65%"
+        }
+      ],
+      "constraints": {
+        "optical_center": true
+      }
+    },
+    {
+      "id": "wordmark_with_dingbat",
+      "name": "Wordmark — With Asterisk Mark",
+      "archetype": "wordmark",
+      "compatible_style_families": ["postmodern", "editorial_serif", "swiss_minimal"],
+      "canvas": { "width": 800, "height": 300 },
+      "slots": [
+        {
+          "type": "symbol",
+          "symbol_category": "dingbats",
+          "symbol_subcategory": "asterisk",
+          "position": { "x": "50%", "y": "30%" },
+          "anchor": "center",
+          "size": "12%"
+        },
+        {
+          "type": "text",
+          "content": "{brand_name}",
+          "position": { "x": "50%", "y": "60%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit"
+        }
+      ]
+    },
+    {
+      "id": "wordmark_split_caps",
+      "name": "Wordmark — Split Two-Word",
+      "archetype": "wordmark",
+      "compatible_style_families": ["editorial_serif", "luxury_quiet", "art_deco"],
+      "canvas": { "width": 800, "height": 400 },
+      "slots": [
+        {
+          "type": "text",
+          "content": "{word_1}",
+          "position": { "x": "50%", "y": "35%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit",
+          "case": "uppercase"
+        },
+        {
+          "type": "rule",
+          "weight": "1pt",
+          "length": "20%",
+          "position": { "x": "50%", "y": "55%" },
+          "anchor": "center"
+        },
+        {
+          "type": "text",
+          "content": "{word_2}",
+          "position": { "x": "50%", "y": "75%" },
+          "anchor": "center",
+          "font_role": "primary",
+          "font_size": "auto-fit",
+          "case": "uppercase"
+        }
+      ],
+      "constraints": {
+        "requires_two_word_brand": true
+      }
+    },
+    {
+      "id": "lockup_modular",
+      "name": "Lockup — Modular Grid",
+      "archetype": "combination",
+      "compatible_style_families": ["bauhaus_geometric", "swiss_minimal", "tech_mono"],
+      "canvas": { "width": 600, "height": 600 },
+      "slots": [
+        {
+          "type": "grid_cell",
+          "position": "top-left",
+          "size": "50%",
+          "content": { "type": "symbol", "symbol_category": "abstract" }
+        },
+        {
+          "type": "grid_cell",
+          "position": "top-right",
+          "size": "50%",
+          "content": { "type": "text", "content": "{initial_1}", "font_role": "primary" }
+        },
+        {
+          "type": "grid_cell",
+          "position": "bottom",
+          "size": "50%",
+          "content": { "type": "text", "content": "{brand_name}", "font_role": "primary" }
+        }
+      ]
+    }
+  ]
+}

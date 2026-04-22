@@ -134,7 +134,7 @@ export function ColorSystemModule({ brand, onUpdate }: ColorSystemModuleProps) {
                 <div
                   key={i}
                   onClick={() => setSelectedColor(color.hex)}
-                  className={`rounded-xl border overflow-hidden cursor-pointer transform-gpu will-change-transform transition-transform duration-[400ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:hover:-translate-y-[45%] motion-safe:hover:-rotate-[1.4deg] hover:z-10 relative ${
+                  className={`rounded-xl border overflow-hidden cursor-pointer transition-all hover:shadow-md ${
                     selectedColor === color.hex ? 'ring-2 ring-primary' : 'border-border'
                   }`}
                 >

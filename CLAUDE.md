@@ -53,29 +53,38 @@ There are also legacy landing page versions at `src/domains/landing` (v1) and `s
 BrandOS has **three scopes**: Workspace · Brand · Editor. Each scope has
 exactly one sidebar and one shell. See `docs/ux-redesign/ARCHITECTURE.md`.
 
-**Workspace sidebar** (`/dashboard`): Home · Brands · Templates · Learn · Settings
-(Logo Maker is brand-scoped — saved into a brand via the LogoExportPanel
+**Workspace sidebar** (`/dashboard`): Home · Brands · Templates · Learn · Settings.
+Clicking a template on the workspace `/templates` page forces a brand chooser
+(`src/features/brand/components/BrandChooserDialog.tsx`) — templates live inside
+a brand. (Logo Maker is brand-scoped — saved into a brand via the LogoExportPanel
 "Save to Brand" flow. Don't re-add it as a workspace entry.)
 
-**Brand sidebar** (`/dashboard/brand/:slug/...`): five sections only —
-Overview · Identity · Assets · Guidelines · Share. The previous 7-item nav
-plus 18-item brandkit submenu is gone. Don't re-add items to the brand
-sidebar without justifying it against §3 of `ARCHITECTURE.md`.
+**Brand sidebar** (7 sections, per `ARCHITECTURE.md` §3 revised 2026-04):
+Overview · Identity · Templates · Design · Content · Folders · Share.
+The original five-section rule was loosened after Brand Board, Bento, Social
+Media, AI Design, Content Calendar all shipped. Sub-navigation stays as
+in-page `?tab=` tabs, NOT expanded sidebar groups. The live rail is
+**`src/shared/layouts/AppRail.tsx`** — `BrandSidebar.tsx` in
+`src/features/brand/components/` is dead code kept for reference, never rendered.
 
-**Identity** (`/dashboard/brand/:slug/identity`) is a tabbed page that
-inline-mounts the brandkit identity modules: Logo · Colors · Typography ·
-Voice · Strategy. Active tab persists to `?tab=`.
+- **Identity** (`/b/:slug/identity`) tabs: Logo · Colors · Typography · Voice · Strategy
+- **Templates** (`/b/:slug/templates`) tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility
+- **Design** (`/b/:slug/design`) launchpad: Blank Canvas · AI Design · Recent
+- **Content** (`/b/:slug/content`) tabs: Calendar · Posts · Drafts. Clicking a social format goes to `/b/:slug/social-media?platform=X&format=Y` which skips the old dark modal picker and opens the editor directly.
+- **Folders** (`/b/:slug/folders`) tabs: Assets · Designs (DAM + saved canvas designs)
+- **Share** (`/b/:slug/share`) tabs: Guidelines · Showcase · Exports (public link, logo deck, guidelines export)
 
-**Assets** (`/dashboard/brand/:slug/assets`) is a filterable categorized
-hub: All · Print · Social · Screen · Utility. Active category persists
-to `?category=`.
+**URL aliases**: both `/dashboard/brand/:slug/...` (legacy) and `/b/:slug/...` (short form)
+work. The short form is preferred for new code; existing call sites may still use
+either. Redirects: `/b/:slug/assets` → `/templates`, legacy `/kit` → `/templates`.
 
-**Share** (`/dashboard/brand/:slug/share`) is the outbox — public
-showcase link, logo presentation deck, brand guidelines export.
-
-**Short-form URLs**: `/b/:slug/...` aliases exist alongside the legacy
-`/dashboard/brand/:slug/...` paths. Both work; the long form is what most
-internal code currently uses.
+**Brand Board** (`/b/:slug/brand-board`) is the interactive brand-identity poster
+editor. Before touching it, read `docs/brand-board/README.md` — it has the
+scenario, control spec (every button mapped to store field + required preview
+effect), and a manual test matrix. The right-side canvas is
+`src/features/brand-board/preview/BrandBoardCanvas.tsx` and reads ONLY from CSS
+custom properties (`--bb-primary`, `--bb-weight-heading`, `--bb-pad`, etc.) —
+never hard-code a color/weight/spacing value there.
 
 ## Page-shell rules (from `src/shared/layouts/README.md`)
 
@@ -100,6 +109,32 @@ internal code currently uses.
 - **`EditorWorkspace` and `src/shared/services/export/vectorize/*` are
   off-limits** — tagged `stable/editable-export-v1`. Don't refactor
   through them. The editor unification works around them.
+
+## Canonical pickers & primitives
+
+- **Image uploads inside a brand**: use `@/shared/upload/AssetSourcePopover`.
+  Pops a unified "Upload from device + Brand Assets grid" surface. Don't roll
+  a one-off file picker for brand image slots.
+- **Brand chooser** (when picking which brand to act on): `@/features/brand/components/BrandChooserDialog`.
+  Supports "Start without a brand" (→ standalone editor) and "Create new brand"
+  (→ AI onboarding with a `?then=` return param).
+- **Page header**: `@/shared/ui/PageHeader` — always. See page-shell rules above.
+
+## Auth flow gotchas
+
+`src/features/auth/components/AuthModal.tsx` + `src/features/auth/hooks/useAuth.ts` + `src/shared/store/sessionStore.ts`:
+
+- `sessionStore.signIn()` sets `isAuthenticated: true` AND `isLoading: false`
+  atomically. Don't split these — `DashboardRoute` / `ProtectedRoute` guards
+  redirect on the `(!isLoading && !isAuthenticated)` combo and will bounce
+  real users back to `/login` if a split shows up.
+- `AuthModal` seeds the session store synchronously on a successful
+  `signInWithPassword` BEFORE navigating. Otherwise `onAuthStateChange` races
+  the navigate and the guard redirects.
+- `useAuth` calls `signIn()` BEFORE `checkAccountStatus` in both the
+  initial-session and OAuth paths. Keep that order.
+- The safety timeout in `useAuth` (15s) only releases loading when the user
+  is NOT authenticated — never over-write a live session.
 
 ## Stack
 - **Build**: Vite 5 + React 18 + TypeScript 5.8
@@ -201,3 +236,13 @@ The landing page's `early_access` table uses RLS: anon INSERT-only, no SELECT �
 ## TypeScript Config
 
 `strictNullChecks` is OFF. `noImplicitAny` is OFF. Be aware when writing new code — nullable values won't cause compile errors but can still crash at runtime.
+
+## Git conventions
+
+- Default branch is `dev` (NOT `main`). Work lands on `dev`; merge to `main`
+  is a release step the user handles manually.
+- A peer branch `x` is used for a separate deploy target. Many commits should
+  land on both — the convenient pattern is:
+  `git push origin dev && git push origin dev:x` (no force, `x` is an ancestor of `dev`).
+- Commit messages follow a `feat(scope): …` / `fix(scope): …` / `refine(scope): …`
+  convention — see `git log --oneline` for recent examples.

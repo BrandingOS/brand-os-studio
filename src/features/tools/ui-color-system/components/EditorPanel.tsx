@@ -21,6 +21,7 @@ import {
   type ShadeStop,
   type GenerationMode,
 } from '@/lib/color-engine';
+import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
 
 export interface EditorPanelProps {
   /** Shown as the panel title (cosmos heading). Defaults to generator name. */
@@ -278,6 +279,10 @@ function ColorInput({
   onToggleLock: () => void;
 }) {
   const [text, setText] = useState(hex);
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => setText(hex), [hex]);
 
   const commit = (v: string) => {
@@ -286,33 +291,67 @@ function ColorInput({
     if (isValidHex(withHash)) onChange(normalizeHex(withHash));
   };
 
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setPreview(null);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  const swatchHex = preview ?? hex;
+
   return (
-    <div className="editor-color-input">
-      <label className="editor-color-chip" style={{ background: hex }}>
-        <input
-          type="color"
-          value={hex}
-          onChange={(e) => commit(e.target.value)}
-          aria-label="Color picker"
+    <div ref={wrapRef}>
+      <div className="editor-color-input">
+        <button
+          type="button"
+          className="editor-color-chip"
+          style={{ background: swatchHex }}
+          onClick={() => setOpen((o) => !o)}
+          aria-label="Open color picker"
+          aria-expanded={open}
         />
-      </label>
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => commit(e.target.value)}
-        spellCheck={false}
-        autoComplete="off"
-        className="editor-color-hex"
-        aria-label="Hex value"
-      />
-      <button
-        type="button"
-        onClick={onToggleLock}
-        className={cn('editor-color-lock', locked && 'is-active')}
-        aria-label={locked ? 'Unlock' : 'Lock'}
-      >
-        {locked ? <Lock size={13} /> : <LockOpen size={13} />}
-      </button>
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => commit(e.target.value)}
+          spellCheck={false}
+          autoComplete="off"
+          className="editor-color-hex"
+          aria-label="Hex value"
+        />
+        <button
+          type="button"
+          onClick={onToggleLock}
+          className={cn('editor-color-lock', locked && 'is-active')}
+          aria-label={locked ? 'Unlock' : 'Lock'}
+        >
+          {locked ? <Lock size={13} /> : <LockOpen size={13} />}
+        </button>
+      </div>
+      <div className={cn('cp-expand', open && 'is-open')} aria-hidden={!open}>
+        {open && (
+          <ColorPickerHSV
+            key={hex}
+            hex={hex}
+            onChange={(next) => setPreview(next)}
+            onCommit={(next) => {
+              commit(next);
+              setOpen(false);
+              setPreview(null);
+            }}
+            onCancel={() => {
+              setOpen(false);
+              setPreview(null);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
