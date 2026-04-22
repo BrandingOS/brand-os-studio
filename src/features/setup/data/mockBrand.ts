@@ -30,7 +30,7 @@ export type BrandFont = {
 export type BrandPhoto = {
   id: string;
   src: string;
-  span?: 'wide' | 'tall';
+  slot: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 };
 
 export type MockBrand = {
@@ -143,12 +143,12 @@ export const mockBrand: MockBrand = {
     'search',
   ],
   photos: [
-    { id: 'p1', src: '/setup/photos/style-nuworld.jpg', span: 'wide' },
-    { id: 'p2', src: '/setup/photos/style-spectrum.jpg' },
-    { id: 'p3', src: '/setup/photos/style-amber.jpg' },
-    { id: 'p4', src: '/setup/photos/style-crater.jpg', span: 'tall' },
-    { id: 'p5', src: '/setup/photos/style-mindshift.jpg' },
-    { id: 'p6', src: '/setup/photos/style-soan.jpg' },
+    { id: 'p1', src: '/setup/photos/style-nuworld.jpg', slot: 'A' },
+    { id: 'p2', src: '/setup/photos/style-spectrum.jpg', slot: 'B' },
+    { id: 'p3', src: '/setup/photos/style-amber.jpg', slot: 'C' },
+    { id: 'p4', src: '/setup/photos/style-crater.jpg', slot: 'D' },
+    { id: 'p5', src: '/setup/photos/style-mindshift.jpg', slot: 'E' },
+    { id: 'p6', src: '/setup/photos/style-soan.jpg', slot: 'F' },
   ],
   website: { url: 'brand.dropbox.com', live: true },
   voice: {
