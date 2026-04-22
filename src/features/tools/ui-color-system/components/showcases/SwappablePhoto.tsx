@@ -150,7 +150,7 @@ export function SwappablePhoto({
       ? createPortal(
           <div
             ref={popoverRef}
-            data-cosmos="workspace"
+            data-uics-popover=""
             className="photo-swap-popover photo-swap-popover--portal"
             style={{ top: popoverPos.top, left: popoverPos.left, width: POPOVER_WIDTH }}
             onClick={(e) => e.stopPropagation()}
