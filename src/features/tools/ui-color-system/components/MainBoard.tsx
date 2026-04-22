@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { PaletteSystem, RoleKey, ShadeStop } from '@/lib/color-engine';
+import { hexToOklch, type PaletteSystem, type RoleKey, type ShadeStop } from '@/lib/color-engine';
 
 import { PaletteStrip } from './PaletteStrip';
 import { ShadeDetailDrawer } from './ShadeDetailDrawer';
@@ -246,12 +246,25 @@ function findAccentStop(
   scale: { shades: Record<ShadeStop, { hex: string }> },
 ): ShadeStop {
   const stops: ShadeStop[] = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+  const seed = hexToOklch(seedHex);
+  let nearest: ShadeStop = 500;
+  let bestDist = Infinity;
   for (const stop of stops) {
-    if (scale.shades[stop].hex.toLowerCase() === seedHex.toLowerCase()) {
-      return stop;
+    const shadeHex = scale.shades[stop].hex;
+    if (shadeHex.toLowerCase() === seedHex.toLowerCase()) return stop;
+    const { l, c, h } = hexToOklch(shadeHex);
+    const dh = ((h - seed.h + 540) % 360) - 180;
+    const dl = l - seed.l;
+    const dc = c - seed.c;
+    // Perceptual OKLCH distance — lightness and chroma weigh most, hue
+    // is down-weighted so near-grey shades don't dominate the match.
+    const dist = dl * dl + dc * dc + (dh * dh) / 6000;
+    if (dist < bestDist) {
+      bestDist = dist;
+      nearest = stop;
     }
   }
-  return 900;
+  return nearest;
 }
 
 function ColorInfo({ state }: { state: PaletteStateSnapshot & PaletteActions }) {
