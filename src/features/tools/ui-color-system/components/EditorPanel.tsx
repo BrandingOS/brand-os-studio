@@ -473,7 +473,10 @@ function ColorInput({
 }) {
   const [text, setText] = useState(hex);
   const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  // Snapshot of the hex when the picker opens. Live drags call onChange
+  // immediately (so showcases update in real time), but Cancel reverts
+  // to this value. Update / click-outside both commit whatever's live.
+  const baselineRef = useRef<string>(hex);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => setText(hex), [hex]);
@@ -484,19 +487,21 @@ function ColorInput({
     if (isValidHex(withHash)) onChange(normalizeHex(withHash));
   };
 
+  const openPicker = () => {
+    if (!open) baselineRef.current = hex;
+    setOpen((o) => !o);
+  };
+
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setPreview(null);
       }
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
-
-  const swatchHex = preview ?? hex;
 
   return (
     <div ref={wrapRef}>
@@ -504,8 +509,8 @@ function ColorInput({
         <button
           type="button"
           className="editor-color-chip"
-          style={{ background: swatchHex }}
-          onClick={() => setOpen((o) => !o)}
+          style={{ background: hex }}
+          onClick={openPicker}
           aria-label="Open color picker"
           aria-expanded={open}
         />
@@ -530,17 +535,16 @@ function ColorInput({
       <div className={cn('cp-expand', open && 'is-open')} aria-hidden={!open}>
         {open && (
           <ColorPickerHSV
-            key={hex}
+            key={baselineRef.current}
             hex={hex}
-            onChange={(next) => setPreview(next)}
-            onCommit={(next) => {
-              commit(next);
-              setOpen(false);
-              setPreview(null);
-            }}
+            onChange={(next) => commit(next)}
+            onCommit={() => setOpen(false)}
             onCancel={() => {
+              if (isValidHex(baselineRef.current)) {
+                onChange(normalizeHex(baselineRef.current));
+                setText(baselineRef.current);
+              }
               setOpen(false);
-              setPreview(null);
             }}
           />
         )}
