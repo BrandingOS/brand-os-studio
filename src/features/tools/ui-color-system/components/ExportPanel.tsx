@@ -258,7 +258,7 @@ function renderExport(palette: PaletteSystem, kind: ExportKind, opts: RenderOpts
     case 'hex':
       return renderHex(palette, opts);
     case 'tailwind':
-      return renderTailwind(palette);
+      return renderTailwind(palette, opts);
     case 'scss':
       return renderScss(palette, opts);
     case 'json':
@@ -302,7 +302,7 @@ function renderHex(palette: PaletteSystem, opts: RenderOpts): string {
   return out.join('\n');
 }
 
-function renderTailwind(palette: PaletteSystem): string {
+function renderTailwind(palette: PaletteSystem, opts: RenderOpts): string {
   const colors: Record<string, Record<string, string>> = {};
   forEachScale(palette, opts.roles, (role, stop, hex) => {
     colors[role] ??= {};
