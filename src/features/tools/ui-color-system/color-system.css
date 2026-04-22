@@ -263,3 +263,292 @@
 [data-cosmos="workspace"][data-theme="dark"] .tile-photo-fallback {
   color: rgba(255, 255, 255, 0.06);
 }
+
+/* ============================================================
+ * EDITOR PANEL — left sidebar form controls (cosmos tokens only)
+ * ============================================================ */
+
+[data-cosmos="workspace"] .editor-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 16px 20px;
+  overflow-y: auto;
+}
+
+/* Brand / Neutral / Status / Fonts tabs */
+[data-cosmos="workspace"] .editor-cats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+[data-cosmos="workspace"] .editor-cat {
+  position: relative;
+  background: transparent;
+  border: 0;
+  padding: 0 0 8px;
+  margin-bottom: -10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+[data-cosmos="workspace"] .editor-cat:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .editor-cat.is-active {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .editor-cat.is-active::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px 2px 0 0;
+}
+[data-cosmos="workspace"] .editor-cat:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Label row above a color input */
+[data-cosmos="workspace"] .editor-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+[data-cosmos="workspace"] .editor-field-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .editor-field-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .editor-field-meta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+[data-cosmos="workspace"] .editor-field-meta-btn:hover,
+[data-cosmos="workspace"] .editor-field-meta-btn.is-open {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Color input row — pill with swatch + hex + lock */
+[data-cosmos="workspace"] .editor-color-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 8px 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+[data-cosmos="workspace"] .editor-color-input:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
+}
+[data-cosmos="workspace"] .editor-color-chip {
+  position: relative;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .editor-color-chip input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+[data-cosmos="workspace"] .editor-color-hex {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .editor-color-lock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+[data-cosmos="workspace"] .editor-color-lock:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .editor-color-lock.is-active {
+  background: var(--text-primary);
+  color: var(--surface);
+}
+
+/* Settings popover (inline) */
+[data-cosmos="workspace"] .editor-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .editor-settings label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* Select styled */
+[data-cosmos="workspace"] .editor-select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+[data-cosmos="workspace"] .editor-select-lg {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  width: 100%;
+}
+
+/* Add secondary CTA — dark pill with light text */
+[data-cosmos="workspace"] .editor-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--surface);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .editor-cta:hover { opacity: 0.9; }
+[data-cosmos="workspace"] .editor-cta:active { transform: scale(0.98); }
+
+/* Randomize (ghost) */
+[data-cosmos="workspace"] .editor-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  box-shadow: var(--shadow-xs);
+}
+[data-cosmos="workspace"] .editor-ghost:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .editor-ghost:active { transform: scale(0.98); }
+
+[data-cosmos="workspace"] .editor-key-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Harmony group */
+[data-cosmos="workspace"] .editor-harmony {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-cosmos="workspace"] .editor-harmony-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .editor-harmony-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Delete button for secondary color */
+[data-cosmos="workspace"] .editor-field-meta-btn.is-destructive:hover {
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  color: #dc2626;
+}
