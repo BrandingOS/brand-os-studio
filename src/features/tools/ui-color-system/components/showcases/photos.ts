@@ -41,3 +41,17 @@ export const PHOTOS: Record<PhotoKey, string> = {
   // Budgets / planning hero — Brooke Cagle alt
   budgets: unsplash('1552664730-d307ca884978', 640, 800),
 };
+
+/** Photography specifically for the Website showcase hero + sections. */
+export const WEB_PHOTOS = {
+  // Hero: analytics screen on a laptop — Carlos Muza
+  heroDashboard: unsplash('1551288049-bebda4e38f71', 1000, 700),
+  // Feature 3: team working at whiteboard — KOBU Agency
+  featureTeam: unsplash('1521791136064-7986c2920216', 640, 480),
+  // Avatars for the testimonial stack
+  avatar1: unsplash('1494790108377-be9c29b29330', 96, 96),
+  avatar2: unsplash('1507003211169-0a1dd7228f2d', 96, 96),
+  avatar3: unsplash('1524250502761-1ac6f2e30d43', 96, 96),
+  avatar4: unsplash('1506794778202-cad84cf45f1d', 96, 96),
+};
+
