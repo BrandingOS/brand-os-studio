@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { BrandSwitcher } from '@/features/brand/components/BrandSwitcher';
 
 // Persisted across shell remounts so the active pill starts where it
 // last was and smoothly transitions to the newly-active tab instead of
@@ -176,12 +177,16 @@ export function CosmosWorkspaceShell({
     <div data-cosmos="workspace" data-theme={theme}>
       <header className="top-nav-wrap" role="banner">
         <div className="top-nav-left">
-          <NavLink to={resolvedBrandHome} className="top-nav-brand" aria-label={brandName}>
-            <span className="top-nav-brand-mark" aria-hidden="true">
-              B
-            </span>
-            <span>{brandName}</span>
-          </NavLink>
+          {slug ? (
+            <BrandSwitcher currentSlug={slug} />
+          ) : (
+            <NavLink to={resolvedBrandHome} className="top-nav-brand" aria-label={brandName}>
+              <span className="top-nav-brand-mark" aria-hidden="true">
+                B
+              </span>
+              <span>{brandName}</span>
+            </NavLink>
+          )}
         </div>
 
         <nav

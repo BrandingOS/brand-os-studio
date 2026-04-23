@@ -160,9 +160,12 @@ async function fetchSitePreview(url: string): Promise<{
  * `mockBrand`. Wiring points (TODOs inline) are where persistence should
  * land once auth/backend integration resumes.
  */
-export function SetupPage() {
-  // TODO: swap for a real brand-store read once auth/backend is wired.
-  const [brand, setBrand] = useState<MockBrand>(mockBrand);
+export function SetupPage({ initialBrand }: { initialBrand?: MockBrand } = {}) {
+  // Seed from `initialBrand` when provided (e.g. the /b/:slug/setup wrapper
+  // maps a real Brand → MockBrand before passing it). Falls back to the
+  // hard-coded Nuworld mock when rendered at the flat /setup route or
+  // when no brand resolves.
+  const [brand, setBrand] = useState<MockBrand>(initialBrand ?? mockBrand);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
