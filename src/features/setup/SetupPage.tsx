@@ -1,4 +1,4 @@
-import { createElement, useCallback, useMemo, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { mockBrand, type MockBrand } from './data/mockBrand';
@@ -160,12 +160,42 @@ async function fetchSitePreview(url: string): Promise<{
  * `mockBrand`. Wiring points (TODOs inline) are where persistence should
  * land once auth/backend integration resumes.
  */
-export function SetupPage({ initialBrand }: { initialBrand?: MockBrand } = {}) {
+export function SetupPage({
+  initialBrand,
+  onPersist,
+}: {
+  initialBrand?: MockBrand;
+  /**
+   * Called (debounced) on every change to local brand state so the
+   * parent can persist edits back to the store / Supabase. The parent
+   * is responsible for translating MockBrand → Partial<Brand> and
+   * invoking the appropriate store action.
+   */
+  onPersist?: (next: MockBrand) => void;
+} = {}) {
   // Seed from `initialBrand` when provided (e.g. the /b/:slug/setup wrapper
   // maps a real Brand → MockBrand before passing it). Falls back to the
   // hard-coded Nuworld mock when rendered at the flat /setup route or
   // when no brand resolves.
   const [brand, setBrand] = useState<MockBrand>(initialBrand ?? mockBrand);
+
+  // Debounced persistence: after any mutation settles (400ms of
+  // stillness), hand the full brand state up to the parent. Skip the
+  // initial mount so hydration from `initialBrand` doesn't round-trip.
+  const isInitialMount = useRef(true);
+  const persistRef = useRef(onPersist);
+  persistRef.current = onPersist;
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (!persistRef.current) return;
+    const handle = window.setTimeout(() => {
+      persistRef.current?.(brand);
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [brand]);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
