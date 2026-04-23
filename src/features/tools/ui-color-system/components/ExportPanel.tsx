@@ -16,7 +16,7 @@
  * Pro unlocks Tailwind / SCSS / JSON / W3C / HSL / RGB / OKLCH.
  */
 import { useMemo, useState } from 'react';
-import { Copy, Check, Download, Lock, Palette, Type, ImageIcon } from 'lucide-react';
+import { Copy, Check, Download, Lock, Palette, Type, ImageIcon, Camera, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -59,7 +59,7 @@ export interface ExportPanelProps {
   logoUrl?: string | null;
 }
 
-type ExportSection = 'colors' | 'fonts' | 'logo';
+type ExportSection = 'colors' | 'fonts' | 'logo' | 'image';
 
 interface RenderOpts {
   /** When false, semantic tokens (success/warning/etc.) are omitted. */
@@ -95,6 +95,7 @@ export function ExportPanel({
             { id: 'colors', label: 'Colors', Icon: Palette },
             { id: 'fonts', label: 'Fonts', Icon: Type },
             { id: 'logo', label: 'Logo', Icon: ImageIcon },
+            { id: 'image', label: 'Design', Icon: Camera },
           ] as const
         ).map(({ id, label, Icon }) => (
           <button
@@ -120,6 +121,7 @@ export function ExportPanel({
       {section === 'logo' && (
         <LogoExport logoUrl={logoUrl} brandName={brandName} />
       )}
+      {section === 'image' && <DesignExport brandName={brandName} />}
       {section === 'colors' && (
         <ColorsExportBody
           palette={palette}
@@ -704,6 +706,96 @@ function LogoExport({
       <p className="text-xs text-muted-foreground">
         For best results, upload a transparent PNG or SVG. Exports preserve the
         original file — no re-encoding.
+      </p>
+    </div>
+  );
+}
+
+// ─── Design export (capture showcase as image) ───────────────
+
+function DesignExport({ brandName }: { brandName?: string }) {
+  const [busy, setBusy] = useState<null | 'png' | 'jpg'>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const capture = async (format: 'png' | 'jpg') => {
+    setBusy(format);
+    setError(null);
+    try {
+      // Grab the showcase body from the DOM — it lives behind the
+      // dialog, but the element is still mounted so html2canvas can
+      // render from it directly.
+      const el = document.querySelector('.color-board-body') as HTMLElement | null;
+      if (!el) throw new Error('No showcase on screen.');
+
+      // Dynamic import so html2canvas only loads when the user asks
+      // for an image (keeps the tool's initial bundle small).
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: format === 'jpg' ? '#ffffff' : null,
+        logging: false,
+      });
+      const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+      const dataUrl = canvas.toDataURL(mime, format === 'jpg' ? 0.92 : 1);
+      const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `${name}-showcase.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Capture failed.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold">Download the active showcase</span>
+        <span className="text-xs text-muted-foreground">
+          Captures whatever showcase tab is visible behind this dialog
+          (Bento, Cards, Website, Social, …) as a high-resolution image.
+          Exported at 2× so it stays crisp on retina screens.
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          onClick={() => capture('png')}
+          disabled={busy !== null}
+          className="gap-1.5"
+        >
+          {busy === 'png' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          Download PNG
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => capture('jpg')}
+          disabled={busy !== null}
+          className="gap-1.5"
+        >
+          {busy === 'jpg' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Download className="h-3.5 w-3.5" />
+          )}
+          Download JPG
+        </Button>
+      </div>
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Tip: some third-party photos (Unsplash) may fail to export if
+        their CORS headers don't allow canvas reads — upload your own
+        photo for a guaranteed clean export.
       </p>
     </div>
   );
