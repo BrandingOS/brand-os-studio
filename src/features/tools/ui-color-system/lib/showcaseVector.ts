@@ -240,10 +240,15 @@ function emitTextNode(
     rects.forEach((lineRect, i) => {
       const line = lines[i];
       if (!line) return;
+      // Anchor at the vertical MIDDLE of the line box (not the
+      // baseline). The emitters flag this with middleBaseline so both
+      // SVG and PDF can position with dominant-baseline:middle /
+      // baseline:'middle'. Far more robust than font-metric baselines
+      // when Illustrator substitutes the font.
       out.push({
         kind: 'text',
         x: lineRect.left - rootRect.left,
-        y: lineRect.top - rootRect.top + fontSize * 0.82,
+        y: lineRect.top - rootRect.top + lineRect.height / 2,
         w: lineRect.width,
         h: lineRect.height,
         text: line,
@@ -470,7 +475,10 @@ function nodeToSvg(n: VNode): string {
           : n.textAlign === 'right'
             ? n.x + n.w
             : n.x;
-      return `<text x="${round(tx)}" y="${round(n.y)}" fill="${n.fill}" font-family="${escXml(n.fontFamily || 'sans-serif')}" font-size="${round(n.fontSize || 14)}"${weight}${slant}${anchor}${opacity}>${escXml(n.text || '')}</text>`;
+      // dominant-baseline="middle" anchors the text at the vertical
+      // centre of the line box — line up with our `y = lineRect.top
+      // + lineRect.height / 2` calculation.
+      return `<text x="${round(tx)}" y="${round(n.y)}" fill="${n.fill}" font-family="${escXml(n.fontFamily || 'sans-serif')}" font-size="${round(n.fontSize || 14)}" dominant-baseline="middle"${weight}${slant}${anchor}${opacity}>${escXml(n.text || '')}</text>`;
     }
     case 'image':
       return `<image x="${round(n.x)}" y="${round(n.y)}" width="${round(n.w)}" height="${round(n.h)}" xlink:href="${n.href}" href="${n.href}" preserveAspectRatio="xMidYMid slice"${opacity}/>`;
@@ -540,7 +548,9 @@ function applyPDFNode(doc: any, n: VNode): void {
     case 'text': {
       if (!n.text) return;
       doc.setTextColor(n.fill || '#000000');
-      doc.setFontSize((n.fontSize || 14) * 0.75); // jsPDF uses pt → scale down a touch
+      // jsPDF's setFontSize takes points; our coordinates are in px.
+      // 1pt = 1.333px so px → pt is ×0.75.
+      doc.setFontSize((n.fontSize || 14) * 0.75);
       const style = textStyleFor(n.fontWeight, n.fontStyle);
       try {
         doc.setFont('helvetica', style);
@@ -550,7 +560,11 @@ function applyPDFNode(doc: any, n: VNode): void {
       const align = n.textAlign === 'center' || n.textAlign === 'right' ? n.textAlign : 'left';
       const textX =
         align === 'center' ? n.x + n.w / 2 : align === 'right' ? n.x + n.w : n.x;
-      doc.text(n.text, textX, n.y, { align });
+      // baseline:'middle' matches the "y = line centre" vertical
+      // anchor chosen in the walker. This keeps text visually centred
+      // inside pills / buttons even when Illustrator substitutes the
+      // font and its ascent differs from the web font.
+      doc.text(n.text, textX, n.y, { align, baseline: 'middle' });
       break;
     }
     case 'image': {
