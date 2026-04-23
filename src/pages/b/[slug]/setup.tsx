@@ -54,6 +54,7 @@ export default function BrandSetupPage() {
   return (
     <SetupPage
       key={brand.id}
+      brandId={brand.id}
       initialBrand={brandToMockBrand(brand)}
       onPersist={handlePersist}
     />

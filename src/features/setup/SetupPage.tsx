@@ -165,6 +165,7 @@ async function fetchSitePreview(url: string): Promise<{
 export function SetupPage({
   initialBrand,
   onPersist,
+  brandId: brandIdProp,
 }: {
   initialBrand?: MockBrand;
   /**
@@ -174,6 +175,15 @@ export function SetupPage({
    * invoking the appropriate store action.
    */
   onPersist?: (next: MockBrand) => void;
+  /**
+   * The real Brand.id corresponding to this SetupPage, when it's
+   * mounted inside a brand-scoped route (/b/:slug/setup). Lets the
+   * embedded typescale dialog (and future integrations) save directly
+   * against the right brand without a brittle name-match lookup. When
+   * omitted (e.g. the workspace /setup route), we fall back to a
+   * name-match against the brand store so the button still lights up.
+   */
+  brandId?: string;
 } = {}) {
   // Seed from `initialBrand` when provided (e.g. the /b/:slug/setup wrapper
   // maps a real Brand → MockBrand before passing it). Falls back to the
@@ -200,10 +210,11 @@ export function SetupPage({
   }, [brand]);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
   const [typescaleOpen, setTypescaleOpen] = useState(false);
-  // Resolve the real brand by name so the embedded typescale dialog has a
-  // brandId to save against. SetupPage only sees a MockBrand; the /b/:slug
-  // wrapper keeps the real brand in the store.
-  const resolvedBrandId = useBrandStore((s) => {
+  // The brand-scoped wrapper (/b/:slug/setup) threads the real Brand.id in
+  // as a prop — prefer that. Only fall back to the name-match lookup when
+  // the prop is absent (e.g. the workspace /setup route mounts SetupPage
+  // with just the Nuworld mock and no real brand yet).
+  const fallbackBrandId = useBrandStore((s) => {
     const name = brand.name.trim().toLowerCase();
     if (!name) return undefined;
     const match =
@@ -211,6 +222,7 @@ export function SetupPage({
       s.list.find((b) => b.name.trim().toLowerCase() === name);
     return match?.id;
   });
+  const resolvedBrandId = brandIdProp ?? fallbackBrandId;
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);

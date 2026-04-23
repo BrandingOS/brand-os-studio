@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { TypescaleEditor } from './components/TypescaleEditor';
 import { useSeedTypescale } from './hooks/useSeedTypescale';
@@ -22,6 +22,9 @@ export function EmbeddedTypescaleDialog({ brandId, open, onOpenChange }: Props) 
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Typescale — {brand.name}</DialogTitle>
+          <DialogDescription>
+            Pick fonts and tune the scale — your changes save to the brand automatically.
+          </DialogDescription>
         </DialogHeader>
         <TypescaleEditor
           variant="compact"
