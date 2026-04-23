@@ -1,18 +1,30 @@
-import { ArrowRight } from '@/features/setup/components/SetupIcons';
-import { WorkspacePlaceholder } from '@/features/setup/components/WorkspacePlaceholder';
+import { useParams } from 'react-router-dom';
+import DesignCosmosPage from '@/features/design-cosmos/DesignCosmosPage';
+import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 
+/**
+ * Brand-scoped Design tab at /b/:slug/design.
+ *
+ * This is the v2 launchpad — a single surface that links out to every
+ * fullscreen editor (Blank Canvas / AI Design / Design-with-AI /
+ * Presentations / Social Media) plus inline quick-links for Content and
+ * Templates. The actual canvas surfaces keep their existing fullscreen
+ * routes and are intentionally NOT pulled into the Cosmos shell.
+ *
+ * The `key={slug}` force-remounts the launchpad when the user switches
+ * brands so scroll position / active-section resets cleanly.
+ */
 export default function BrandDesignTabPage() {
+  const { slug } = useParams<{ slug: string }>();
+  const { brand, isLoading, error } = useBrandFromSlug(slug);
+
   return (
-    <WorkspacePlaceholder
-      eyebrow="Design"
-      title="Your on-brand canvas — always."
-      description="Blank canvas, AI-generated designs, and templates for social, print, and screen. Every export lands back in your Brand Kit."
-      actions={
-        <button type="button" className="pill-btn pill-btn--primary">
-          <span>Coming soon</span>
-          <ArrowRight size={14} className="pill-btn-arrow" />
-        </button>
-      }
+    <DesignCosmosPage
+      key={slug}
+      slug={slug ?? ''}
+      brand={brand}
+      isLoading={isLoading}
+      error={error}
     />
   );
 }
