@@ -711,40 +711,97 @@ function LogoExport({
   );
 }
 
-// ─── Design export (capture showcase as image) ───────────────
+// ─── Design export (capture showcase as image / vector) ───────
+
+type DesignKind = 'png' | 'jpg' | 'pdf-editable' | 'svg-editable';
+
+const DESIGN_LABELS: Record<DesignKind, { label: string; hint: string }> = {
+  png: { label: 'PNG', hint: 'High-res image · transparent' },
+  jpg: { label: 'JPG', hint: 'Smaller file · solid background' },
+  'pdf-editable': {
+    label: 'PDF (editable)',
+    hint: 'Real text + shapes — open in Illustrator',
+  },
+  'svg-editable': {
+    label: 'SVG (editable)',
+    hint: 'True vector — edit text and strokes downstream',
+  },
+};
+
+/**
+ * Breathing room around the showcase before we capture it. The tool's
+ * main body has no padding on the edges, so capturing it produces an
+ * image that's flush to every element. Wrap it in a padded container
+ * first so the export reads like a presentation.
+ */
+const CAPTURE_PADDING_PX = 56;
 
 function DesignExport({ brandName }: { brandName?: string }) {
-  const [busy, setBusy] = useState<null | 'png' | 'jpg'>(null);
+  const [busy, setBusy] = useState<DesignKind | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const capture = async (format: 'png' | 'jpg') => {
-    setBusy(format);
+  const capture = async (kind: DesignKind) => {
+    setBusy(kind);
     setError(null);
     try {
-      // Grab the showcase body from the DOM — it lives behind the
-      // dialog, but the element is still mounted so html2canvas can
-      // render from it directly.
       const el = document.querySelector('.color-board-body') as HTMLElement | null;
       if (!el) throw new Error('No showcase on screen.');
 
-      // Dynamic import so html2canvas only loads when the user asks
-      // for an image (keeps the tool's initial bundle small).
-      const { default: html2canvas } = await import('html2canvas');
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: format === 'jpg' ? '#ffffff' : null,
-        logging: false,
-      });
-      const mime = format === 'png' ? 'image/png' : 'image/jpeg';
-      const dataUrl = canvas.toDataURL(mime, format === 'jpg' ? 0.92 : 1);
+      // Temporarily wrap the showcase in a padded container so the
+      // exported frame has breathing room. We put the wrapper in the
+      // same parent node as the original element so React doesn't
+      // notice the DOM moved.
+      const parent = el.parentElement!;
+      const marker = document.createComment('uics-design-export');
+      parent.insertBefore(marker, el);
+      const wrapper = document.createElement('div');
+      wrapper.style.padding = `${CAPTURE_PADDING_PX}px`;
+      wrapper.style.background = getComputedStyle(document.body).getPropertyValue('background-color') || '#f5f4ef';
+      wrapper.appendChild(el);
+      parent.insertBefore(wrapper, marker);
+
       const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `${name}-showcase.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+
+      try {
+        if (kind === 'png' || kind === 'jpg') {
+          const { default: html2canvas } = await import('html2canvas');
+          const canvas = await html2canvas(wrapper, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: kind === 'jpg' ? '#ffffff' : null,
+            logging: false,
+          });
+          const mime = kind === 'png' ? 'image/png' : 'image/jpeg';
+          const dataUrl = canvas.toDataURL(mime, kind === 'jpg' ? 0.92 : 1);
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${name}-showcase.${kind}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else {
+          // Editable PDF / SVG — route through the project's shared
+          // Universal Export engine, which parses the DOM into an
+          // intermediate representation and re-emits it as live text +
+          // shapes. Same path the canvas editor uses.
+          const { exportAndDownload } = await import('@/shared/services/export');
+          await exportAndDownload({
+            source: { type: 'html-element', element: wrapper },
+            format: kind,
+            options: {
+              filename: `${name}-showcase`,
+              scale: 2,
+              backgroundColor: '#f5f4ef',
+            },
+          });
+        }
+      } finally {
+        // Always restore the showcase to its original spot so the UI
+        // doesn't glitch if an export throws mid-flight.
+        parent.insertBefore(el, marker);
+        wrapper.remove();
+        marker.remove();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Capture failed.');
     } finally {
@@ -757,45 +814,42 @@ function DesignExport({ brandName }: { brandName?: string }) {
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold">Download the active showcase</span>
         <span className="text-xs text-muted-foreground">
-          Captures whatever showcase tab is visible behind this dialog
-          (Bento, Cards, Website, Social, …) as a high-resolution image.
-          Exported at 2× so it stays crisp on retina screens.
+          Snapshots whatever showcase is visible behind this dialog (Bento,
+          Cards, Website, Social, …) with padding, so the export looks like
+          a presentation frame. PNG/JPG for quick shares; PDF / SVG stay
+          editable downstream.
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          onClick={() => capture('png')}
-          disabled={busy !== null}
-          className="gap-1.5"
-        >
-          {busy === 'png' ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          Download PNG
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => capture('jpg')}
-          disabled={busy !== null}
-          className="gap-1.5"
-        >
-          {busy === 'jpg' ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Download className="h-3.5 w-3.5" />
-          )}
-          Download JPG
-        </Button>
+      <div className="grid grid-cols-2 gap-2">
+        {(Object.keys(DESIGN_LABELS) as DesignKind[]).map((kind) => (
+          <Button
+            key={kind}
+            onClick={() => capture(kind)}
+            disabled={busy !== null}
+            variant={kind === 'png' ? 'default' : 'outline'}
+            className="flex h-auto flex-col items-start gap-0.5 px-3 py-2.5 text-left"
+          >
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
+              {busy === kind ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              {DESIGN_LABELS[kind].label}
+            </span>
+            <span className="text-[11px] font-normal opacity-80">
+              {DESIGN_LABELS[kind].hint}
+            </span>
+          </Button>
+        ))}
       </div>
       {error && (
         <p className="text-xs text-destructive">{error}</p>
       )}
       <p className="text-xs text-muted-foreground">
-        Tip: some third-party photos (Unsplash) may fail to export if
-        their CORS headers don't allow canvas reads — upload your own
-        photo for a guaranteed clean export.
+        Tip: third-party photos (Unsplash) may fail the raster canvas CORS
+        check on some hosts. Editable PDF / SVG render from DOM geometry
+        instead and don't hit this issue.
       </p>
     </div>
   );
