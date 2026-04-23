@@ -36,6 +36,7 @@ export interface MainBoardProps {
   onPaletteNameChange?: (next: string) => void;
   brandName: string;
   logoUrl?: string | null;
+  fontPair?: import('../data/font-pairs').FontPair | null;
 }
 
 export function MainBoard({
@@ -47,6 +48,7 @@ export function MainBoard({
   onPaletteNameChange,
   brandName,
   logoUrl,
+  fontPair,
 }: MainBoardProps) {
   const brand: BrandIdentity = {
     name: brandName.trim() || 'Brandos',
@@ -192,9 +194,15 @@ export function MainBoard({
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent className="max-h-[80vh] max-w-4xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>Export palette</DialogTitle>
+            <DialogTitle>Export brand</DialogTitle>
           </DialogHeader>
-          <ExportPanel palette={state} canExportAdvanced={canExportAdvanced} />
+          <ExportPanel
+            palette={state}
+            canExportAdvanced={canExportAdvanced}
+            brandName={brand.name}
+            fontPair={fontPair ?? null}
+            logoUrl={logoUrl ?? null}
+          />
         </DialogContent>
       </Dialog>
 

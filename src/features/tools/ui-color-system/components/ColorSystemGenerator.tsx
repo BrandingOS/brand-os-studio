@@ -169,6 +169,7 @@ export function ColorSystemGenerator({
           onPaletteNameChange={setPaletteName}
           brandName={brandName}
           logoUrl={logoUrl}
+          fontPair={fontPair}
         />
       </div>
     </CosmosWorkspaceShell>

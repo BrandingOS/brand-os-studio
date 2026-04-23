@@ -16,7 +16,7 @@
  * Pro unlocks Tailwind / SCSS / JSON / W3C / HSL / RGB / OKLCH.
  */
 import { useMemo, useState } from 'react';
-import { Copy, Check, Download, Lock } from 'lucide-react';
+import { Copy, Check, Download, Lock, Palette, Type, ImageIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -30,6 +30,7 @@ import {
   type RoleKey,
   type ShadeStop,
 } from '@/lib/color-engine';
+import type { FontPair } from '../data/font-pairs';
 
 type ExportKind = 'css' | 'hex' | 'tailwind' | 'scss' | 'json' | 'w3c' | 'hsl' | 'rgb' | 'oklch';
 type ExportMode = 'quick' | 'advanced';
@@ -53,7 +54,12 @@ const LABELS: Record<ExportKind, string> = {
 export interface ExportPanelProps {
   palette: PaletteSystem;
   canExportAdvanced: boolean;
+  brandName?: string;
+  fontPair?: FontPair | null;
+  logoUrl?: string | null;
 }
+
+type ExportSection = 'colors' | 'fonts' | 'logo';
 
 interface RenderOpts {
   /** When false, semantic tokens (success/warning/etc.) are omitted. */
@@ -67,11 +73,90 @@ interface RenderOpts {
 
 const QUICK_ROLES: RoleKey[] = ['primary', 'secondary'];
 
-export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
+export function ExportPanel({
+  palette,
+  canExportAdvanced,
+  brandName,
+  fontPair,
+  logoUrl,
+}: ExportPanelProps) {
+  const [section, setSection] = useState<ExportSection>('colors');
   const [mode, setMode] = useState<ExportMode>('quick');
   const [kind, setKind] = useState<ExportKind>('css');
   const [copied, setCopied] = useState(false);
 
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Section switch — one dialog exports everything about the
+          brand, not just the palette. */}
+      <div className="inline-flex self-start rounded-full border bg-muted/30 p-0.5">
+        {(
+          [
+            { id: 'colors', label: 'Colors', Icon: Palette },
+            { id: 'fonts', label: 'Fonts', Icon: Type },
+            { id: 'logo', label: 'Logo', Icon: ImageIcon },
+          ] as const
+        ).map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setSection(id)}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
+              section === id
+                ? 'bg-background shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'fonts' && (
+        <FontsExport fontPair={fontPair} brandName={brandName} />
+      )}
+      {section === 'logo' && (
+        <LogoExport logoUrl={logoUrl} brandName={brandName} />
+      )}
+      {section === 'colors' && (
+        <ColorsExportBody
+          palette={palette}
+          canExportAdvanced={canExportAdvanced}
+          mode={mode}
+          setMode={setMode}
+          kind={kind}
+          setKind={setKind}
+          copied={copied}
+          setCopied={setCopied}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Colors (existing quick/advanced export) ──────────────────
+
+function ColorsExportBody({
+  palette,
+  canExportAdvanced,
+  mode,
+  setMode,
+  kind,
+  setKind,
+  copied,
+  setCopied,
+}: {
+  palette: PaletteSystem;
+  canExportAdvanced: boolean;
+  mode: ExportMode;
+  setMode: (m: ExportMode) => void;
+  kind: ExportKind;
+  setKind: (k: ExportKind) => void;
+  copied: boolean;
+  setCopied: (b: boolean) => void;
+}) {
   const availableKinds = mode === 'quick' ? QUICK_KINDS : ALL_KINDS;
   const locked = !canExportAdvanced && !FREE_KINDS.includes(kind);
 
@@ -91,8 +176,6 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
 
   const onModeChange = (next: ExportMode) => {
     setMode(next);
-    // If the active kind doesn't belong to the new mode, snap to the
-    // first tab so we don't show a blank panel.
     if (next === 'quick' && !QUICK_KINDS.includes(kind)) setKind('css');
   };
 
@@ -121,8 +204,6 @@ export function ExportPanel({ palette, canExportAdvanced }: ExportPanelProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Mode switch — Quick is the default, Advanced reveals every
-          format + semantic tokens. */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-col">
           <span className="text-sm font-semibold">
@@ -405,4 +486,234 @@ function formatColor(hex: string, format: 'hsl' | 'rgb' | 'oklch'): string {
 
 function kebab(camel: string): string {
   return camel.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+}
+
+// ─── Fonts export ─────────────────────────────────────────────
+
+type FontKind = 'css' | 'html' | 'tailwind';
+
+const FONT_LABELS: Record<FontKind, string> = {
+  css: 'CSS',
+  html: 'HTML',
+  tailwind: 'Tailwind',
+};
+
+function FontsExport({
+  fontPair,
+  brandName,
+}: {
+  fontPair: FontPair | null | undefined;
+  brandName?: string;
+}) {
+  const [kind, setKind] = useState<FontKind>('css');
+  const [copied, setCopied] = useState(false);
+  const content = useMemo(
+    () => (fontPair ? renderFonts(fontPair, kind) : ''),
+    [fontPair, kind],
+  );
+
+  if (!fontPair) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No font pair selected. Pick one from the Fonts tab on the left panel to enable this export.
+      </p>
+    );
+  }
+
+  const doCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+
+  const doDownload = () => {
+    const ext = kind === 'tailwind' ? 'js' : kind;
+    const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}-fonts.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold">{fontPair.label}</span>
+        <span className="text-xs text-muted-foreground">
+          Display · <span style={{ fontFamily: fontPair.displayStack }}>{previewFontName(fontPair.displayStack)}</span>
+          {' · '}
+          Body · <span style={{ fontFamily: fontPair.bodyStack }}>{previewFontName(fontPair.bodyStack)}</span>
+        </span>
+      </div>
+      <Tabs value={kind} onValueChange={(v) => setKind(v as FontKind)}>
+        <TabsList>
+          {(Object.keys(FONT_LABELS) as FontKind[]).map((k) => (
+            <TabsTrigger key={k} value={k}>
+              {FONT_LABELS[k]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {(Object.keys(FONT_LABELS) as FontKind[]).map((k) => (
+          <TabsContent key={k} value={k} className="mt-3">
+            <div className="relative rounded-xl border bg-zinc-950 font-mono text-[12px] text-zinc-100">
+              <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+                <Button size="icon" variant="secondary" onClick={doCopy} className="h-7 w-7" aria-label="Copy">
+                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+                <Button size="icon" variant="secondary" onClick={doDownload} className="h-7 w-7" aria-label="Download">
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <pre className="max-h-[480px] overflow-auto whitespace-pre p-4">{content}</pre>
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+function renderFonts(pair: FontPair, kind: FontKind): string {
+  const href = googleFontsHref(pair);
+  if (kind === 'html') {
+    const link = href
+      ? `<link href="${href}" rel="stylesheet">\n`
+      : '';
+    return `${link}<style>
+  :root {
+    --font-display: ${pair.displayStack};
+    --font-body: ${pair.bodyStack};
+  }
+  body { font-family: var(--font-body); }
+  h1, h2, h3, h4 { font-family: var(--font-display); }
+</style>`;
+  }
+  if (kind === 'tailwind') {
+    const displayPrimary = firstFamily(pair.displayStack);
+    const bodyPrimary = firstFamily(pair.bodyStack);
+    return `/** Generated by BrandOS — ${pair.label} */
+module.exports = {
+  theme: {
+    extend: {
+      fontFamily: {
+        display: [${wrapFamily(displayPrimary)}, 'serif'],
+        body: [${wrapFamily(bodyPrimary)}, 'sans-serif'],
+      },
+    },
+  },
+};
+`;
+  }
+  // css
+  const importLine = href ? `@import url("${href}");\n\n` : '';
+  return `${importLine}:root {
+  --font-display: ${pair.displayStack};
+  --font-body: ${pair.bodyStack};
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+}`;
+}
+
+function googleFontsHref(pair: FontPair): string | null {
+  if (!pair.gfonts.length) return null;
+  return `https://fonts.googleapis.com/css2?${pair.gfonts.map((g) => `family=${g}`).join('&')}&display=swap`;
+}
+
+function firstFamily(stack: string): string {
+  const first = stack.split(',')[0].trim();
+  return first.replace(/^['"]|['"]$/g, '');
+}
+
+function wrapFamily(name: string): string {
+  return name.includes(' ') ? `'${name}'` : name;
+}
+
+function previewFontName(stack: string): string {
+  return firstFamily(stack);
+}
+
+// ─── Logo export ──────────────────────────────────────────────
+
+function LogoExport({
+  logoUrl,
+  brandName,
+}: {
+  logoUrl: string | null | undefined;
+  brandName?: string;
+}) {
+  if (!logoUrl) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="text-sm text-muted-foreground">
+          No logo uploaded. Upload one from the Logo tab on the left panel to
+          enable this export.
+        </p>
+      </div>
+    );
+  }
+
+  const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
+  const ext = guessExtension(logoUrl);
+
+  const doDownload = () => {
+    const a = document.createElement('a');
+    a.href = logoUrl;
+    a.download = `${name}-logo.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-4 rounded-xl border p-4">
+        <div
+          className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-white"
+          style={{ backgroundImage: 'repeating-conic-gradient(#f3f3f3 0% 25%, #fff 0% 50%)', backgroundSize: '12px 12px' }}
+        >
+          <img src={logoUrl} alt="Brand logo" style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate text-sm font-semibold">
+            {brandName || 'Brand'} logo
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Downloaded as <code>{name}-logo.{ext}</code>
+          </span>
+        </div>
+        <Button onClick={doDownload} className="gap-1.5">
+          <Download className="h-3.5 w-3.5" />
+          Download
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        For best results, upload a transparent PNG or SVG. Exports preserve the
+        original file — no re-encoding.
+      </p>
+    </div>
+  );
+}
+
+function guessExtension(url: string): string {
+  if (url.startsWith('data:image/svg')) return 'svg';
+  if (url.startsWith('data:image/png')) return 'png';
+  if (url.startsWith('data:image/jpeg') || url.startsWith('data:image/jpg')) return 'jpg';
+  if (url.startsWith('data:image/webp')) return 'webp';
+  const m = url.match(/\.(png|jpe?g|svg|webp|gif)(\?|$)/i);
+  return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'png';
 }
