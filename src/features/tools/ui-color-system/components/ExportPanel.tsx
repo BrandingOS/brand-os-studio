@@ -716,10 +716,10 @@ function LogoExport({
 type DesignKind = 'png' | 'jpg' | 'pdf' | 'svg';
 
 const DESIGN_LABELS: Record<DesignKind, { label: string; hint: string }> = {
-  png: { label: 'PNG', hint: 'High-res image · transparent' },
-  jpg: { label: 'JPG', hint: 'Smaller file · solid background' },
-  pdf: { label: 'PDF', hint: 'Opens in Illustrator · pixel-perfect' },
-  svg: { label: 'SVG', hint: 'Single-frame SVG · embeds the design' },
+  png: { label: 'PNG', hint: 'Pixel-perfect image · transparent' },
+  jpg: { label: 'JPG', hint: 'Smaller file · white background' },
+  pdf: { label: 'PDF', hint: 'Editable text + shapes in Illustrator' },
+  svg: { label: 'SVG', hint: 'Editable vector · live text layers' },
 };
 
 /**
@@ -757,51 +757,38 @@ function DesignExport({ brandName }: { brandName?: string }) {
       const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
 
       try {
-        // One render path for every format: a 2x raster of the
-        // padded wrapper via html2canvas. That gives us a high-res
-        // PNG we can either download directly, embed in a PDF, or
-        // wrap in an SVG <image>. The DOM→IR vector walker can't
-        // faithfully reproduce these showcases (gradients, blurs,
-        // rotations, mixed text+span patterns, inline SVGs), and
-        // producing something broken is worse than producing a
-        // pixel-perfect single-frame export.
-        const { default: html2canvas } = await import('html2canvas');
-        const canvas = await html2canvas(wrapper, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor:
-            kind === 'png' || kind === 'svg' ? null : '#ffffff',
-          logging: false,
-        });
-        const pngDataUrl = canvas.toDataURL('image/png', 1);
-
         if (kind === 'png' || kind === 'jpg') {
-          const mime = kind === 'png' ? 'image/png' : 'image/jpeg';
-          const dataUrl =
-            kind === 'png' ? pngDataUrl : canvas.toDataURL(mime, 0.92);
-          triggerDownload(dataUrl, `${name}-showcase.${kind}`);
-        } else if (kind === 'pdf') {
-          const { default: jsPDF } = await import('jspdf');
-          const w = canvas.width;
-          const h = canvas.height;
-          const doc = new jsPDF({
-            orientation: w >= h ? 'landscape' : 'portrait',
-            unit: 'px',
-            format: [w, h],
-            hotfixes: ['px_scaling'],
+          // Raster formats — pixel-perfect html2canvas capture.
+          const { default: html2canvas } = await import('html2canvas');
+          const canvas = await html2canvas(wrapper, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: kind === 'jpg' ? '#ffffff' : null,
+            logging: false,
           });
-          doc.addImage(pngDataUrl, 'PNG', 0, 0, w, h, undefined, 'FAST');
-          doc.save(`${name}-showcase.pdf`);
-        } else if (kind === 'svg') {
-          const w = canvas.width;
-          const h = canvas.height;
-          const vw = w / 2;
-          const vh = h / 2;
-          const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}" viewBox="0 0 ${w} ${h}"><image x="0" y="0" width="${w}" height="${h}" href="${pngDataUrl}" preserveAspectRatio="xMidYMid meet"/></svg>`;
-          const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-          const url = URL.createObjectURL(blob);
-          triggerDownload(url, `${name}-showcase.svg`);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          const mime = kind === 'png' ? 'image/png' : 'image/jpeg';
+          const dataUrl = canvas.toDataURL(mime, kind === 'jpg' ? 0.92 : 1);
+          triggerDownload(dataUrl, `${name}-showcase.${kind}`);
+        } else if (kind === 'pdf' || kind === 'svg') {
+          // Editable vector path — walks the showcase DOM, emits real
+          // rects / text / embedded images. Opens in Illustrator with
+          // selectable layers (no shadows / gradients, but all text
+          // and shapes are live).
+          const { captureShowcaseToVector, vectorCaptureToSVG, vectorCaptureToPDFBlob } =
+            await import('../lib/showcaseVector');
+          const cap = await captureShowcaseToVector(wrapper);
+          if (kind === 'svg') {
+            const svg = vectorCaptureToSVG(cap);
+            const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, `${name}-showcase.svg`);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } else {
+            const blob = await vectorCaptureToPDFBlob(cap);
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url, `${name}-showcase.pdf`);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
         }
       } finally {
         parent.insertBefore(el, marker);
@@ -820,11 +807,10 @@ function DesignExport({ brandName }: { brandName?: string }) {
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold">Download the active showcase</span>
         <span className="text-xs text-muted-foreground">
-          Captures whatever showcase is visible behind this dialog at 2× with
-          padding. PDF / SVG wrap that capture so they open pixel-perfect in
-          Illustrator — great for hand-off and mockups. (For true editable
-          vector output this composition is too complex; use PNG if you need
-          to import and trace.)
+          PNG / JPG are pixel-perfect raster captures. PDF / SVG walk the
+          showcase DOM and emit real rectangles, live text, and embedded
+          photos — open in Illustrator with selectable layers (gradients,
+          shadows, and inline icons are dropped for editability).
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2">
