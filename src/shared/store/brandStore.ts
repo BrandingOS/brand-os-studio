@@ -74,9 +74,11 @@ export function mirrorTypographyFromTypescale(
   };
   return {
     ...(current ?? {}),
-    primary: fontTokenFromRef(next.fonts.heading),
-    secondary: fontTokenFromRef(next.fonts.body),
-    accent: next.fonts.mono ? fontTokenFromRef(next.fonts.mono) : current?.accent,
+    primary: { ...(current?.primary ?? {}), ...fontTokenFromRef(next.fonts.heading) },
+    secondary: { ...(current?.secondary ?? {}), ...fontTokenFromRef(next.fonts.body) },
+    accent: next.fonts.mono
+      ? { ...(current?.accent ?? {}), ...fontTokenFromRef(next.fonts.mono) }
+      : current?.accent,
     scale,
   };
 }

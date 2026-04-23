@@ -15,6 +15,17 @@ export function useTypescaleDraft(brandId: string | undefined, initial: Typescal
     ensurePairLoaded(draft.fonts);
   }, [draft.fonts.heading.family, draft.fonts.body.family, draft.fonts.mono?.family]);
 
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    setDraft(initial);
+    if (timer.current) clearTimeout(timer.current);
+  }, [brandId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const commit = useCallback((next: Typescale) => {
     if (!brandId) return;
     if (timer.current) clearTimeout(timer.current);

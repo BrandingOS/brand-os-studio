@@ -44,4 +44,30 @@ describe('mirrorTypographyFromTypescale', () => {
     const out = mirrorTypographyFromTypescale(existing as any, next);
     expect(out.accent?.family).toBe('KeepMe');
   });
+
+  it('preserves primary.usage when heading family is mirrored', () => {
+    const existing = {
+      primary: { family: 'Old', weights: [400], fallbacks: ['x'], usage: 'For all headings' },
+    };
+    const out = mirrorTypographyFromTypescale(existing as any, next);
+    expect(out.primary.family).toBe('Playfair Display');
+    expect(out.primary.usage).toBe('For all headings');
+  });
+
+  it('preserves primary.fontAssetId when heading family is mirrored', () => {
+    const existing = {
+      primary: { family: 'Old', weights: [400], fallbacks: ['x'], fontAssetId: 'asset_123' },
+    };
+    const out = mirrorTypographyFromTypescale(existing as any, next);
+    expect(out.primary.fontAssetId).toBe('asset_123');
+  });
+
+  it('preserves secondary.usage when body family is mirrored', () => {
+    const existing = {
+      primary: { family: 'Old', weights: [400], fallbacks: ['x'] },
+      secondary: { family: 'OldBody', weights: [400], fallbacks: ['x'], usage: 'For body copy' },
+    };
+    const out = mirrorTypographyFromTypescale(existing as any, next);
+    expect(out.secondary?.usage).toBe('For body copy');
+  });
 });
