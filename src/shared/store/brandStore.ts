@@ -5,6 +5,8 @@ import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 import type { Brand, CreateBrandInput } from '../types/brand';
 import { loadBrandFonts } from '@/shared/design-system/fonts';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
+import type { Typescale } from '@/shared/types/typescale';
+import type { TypographySystem, FontToken, FontScaleTokens } from '@/shared/types/brandAssets';
 
 /**
  * Helper to get the brands service from the DI container.
@@ -29,6 +31,54 @@ interface BrandStore {
   setCurrent: (brand: Brand | undefined) => void;
   setError: (error: string | undefined) => void;
   setLoading: (loading: boolean) => void;
+  setTypescale: (brandId: string, next: Typescale) => Promise<void>;
+}
+
+function fallbacksFromString(fallback: string): string[] {
+  return fallback.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function fontTokenFromRef(ref: { family: string; weights: number[]; fallback: string; files?: { url: string }[] }): FontToken {
+  return {
+    family: ref.family,
+    weights: ref.weights,
+    fallbacks: fallbacksFromString(ref.fallback),
+    url: ref.files?.[0]?.url,
+  };
+}
+
+export function mirrorTypographyFromTypescale(
+  current: TypographySystem | undefined,
+  next: Typescale,
+): TypographySystem {
+  const web = next.surfaces.web;
+  const byId = new Map(web.steps.map(s => [s.id, s]));
+  const pick = (role: keyof typeof web.semantic): string | undefined => {
+    const entry = web.semantic[role];
+    if (!entry) return undefined;
+    const step = byId.get(entry.stepId);
+    return step ? `${step.sizePx}px` : undefined;
+  };
+  const scale: FontScaleTokens = {
+    h1: pick('h1'),
+    h2: pick('h2'),
+    h3: pick('h3'),
+    h4: pick('h4'),
+    h5: pick('h5'),
+    h6: pick('h6'),
+    body: pick('body'),
+    bodyLarge: pick('bodyLg'),
+    bodySmall: pick('bodySm'),
+    caption: pick('caption'),
+    overline: pick('overline'),
+  };
+  return {
+    ...(current ?? {}),
+    primary: fontTokenFromRef(next.fonts.heading),
+    secondary: fontTokenFromRef(next.fonts.body),
+    accent: next.fonts.mono ? fontTokenFromRef(next.fonts.mono) : current?.accent,
+    scale,
+  };
 }
 
 export const useBrandStore = create<BrandStore>()(
@@ -90,7 +140,7 @@ export const useBrandStore = create<BrandStore>()(
               : state.current,
             isLoading: false,
           }), false, 'update/success');
-          if (patch.fonts || patch.primaryColor || patch.secondaryColor) {
+          if (patch.fonts || patch.primaryColor || patch.secondaryColor || patch.typescale || patch.typography) {
             const next = { ...(useBrandStore.getState().current ?? {}), ...patch } as Brand;
             loadBrandFonts(next);
             applyBrandTokens(next);
@@ -98,6 +148,13 @@ export const useBrandStore = create<BrandStore>()(
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Failed to update brand', isLoading: false }, false, 'update/error');
         }
+      },
+
+      setTypescale: async (brandId: string, next: Typescale) => {
+        const current = useBrandStore.getState().list.find(b => b.id === brandId)
+                      ?? (useBrandStore.getState().current?.id === brandId ? useBrandStore.getState().current : undefined);
+        const typography = mirrorTypographyFromTypescale(current?.typography, next);
+        await useBrandStore.getState().update(brandId, { typescale: next, typography });
       },
 
       delete: async (id: string) => {
