@@ -6,11 +6,24 @@ type Props = {
   icons: string[];
   iconMap: Record<string, IconComponent>;
   iconSize?: number;
+  /** Right-click handler per icon tile — the marquee duplicates tiles to
+   *  fill the track, so the same name may be passed multiple times with
+   *  different DOM anchors. The parent decides what to do (menu, delete,
+   *  etc.). */
+  onIconContextMenu?: (
+    e: React.MouseEvent<HTMLDivElement>,
+    name: string,
+  ) => void;
 };
 
 const MIN_TILES = 16;
 
-export function IconsMarquee({ icons, iconMap, iconSize = 28 }: Props) {
+export function IconsMarquee({
+  icons,
+  iconMap,
+  iconSize = 28,
+  onIconContextMenu,
+}: Props) {
   const marqueeRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -188,7 +201,14 @@ export function IconsMarquee({ icons, iconMap, iconSize = 28 }: Props) {
           const Icon = iconMap[name];
           if (!Icon) return null;
           return (
-            <div key={`${name}-${i}`} className="icon-tile" aria-label={name}>
+            <div
+              key={`${name}-${i}`}
+              className="icon-tile"
+              aria-label={name}
+              onContextMenu={
+                onIconContextMenu ? (e) => onIconContextMenu(e, name) : undefined
+              }
+            >
               <Icon size={iconSize} />
             </div>
           );

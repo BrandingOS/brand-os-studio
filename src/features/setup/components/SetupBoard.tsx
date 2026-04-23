@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BrandColor, MockBrand } from '../data/mockBrand';
 import { ICON_MAP } from './SetupIcons';
 import { ColorPickerHSV } from './ColorPickerHSV';
 import { IconsMarquee } from './IconsMarquee';
 import type { SectionKey } from './SetupSidebar';
+import { CopyIcon, type OrganicIconHandle } from './organic-icons';
+import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { hexToName } from '../data/colorNames';
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
 
@@ -242,23 +245,6 @@ function rectStyle(rect: SlotRect): React.CSSProperties {
   };
 }
 
-function CopyIcon() {
-  return (
-    <svg
-      className="swatch-copy-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -299,14 +285,27 @@ function Section({
   title,
   spec,
   onEdit,
+  onExport,
   sectionRef,
+  addButtonAttrs,
+  addSlot,
+  hideAdd,
   children,
 }: {
   dataKey: SectionKey;
   title: string;
   spec: string;
   onEdit?: () => void;
+  /** Download the section's data. Rendered as a tray-arrow button next
+   *  to the + button. Omit to hide the download affordance. */
+  onExport?: () => void;
   sectionRef?: (el: HTMLElement | null) => void;
+  addButtonAttrs?: React.ButtonHTMLAttributes<HTMLButtonElement>;
+  /** Extra node rendered inside `.section-actions` — used to anchor a
+   *  popover (e.g. the add-color picker) to the + button's position. */
+  addSlot?: React.ReactNode;
+  /** Hide the + button (useful while a popover anchored to it is open). */
+  hideAdd?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -315,11 +314,39 @@ function Section({
         <h2>{title}</h2>
         <span className="section-spec">{spec}</span>
         <div className="section-actions">
+          {addSlot}
+          {onExport && (
+            <button
+              type="button"
+              className="section-add section-download"
+              onClick={onExport}
+              aria-label={`Download ${title} as JSON`}
+              title={`Download ${title}`}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+          )}
+          {!hideAdd && (
           <button
             type="button"
             className="section-add"
             onClick={onEdit}
             aria-label="Add to section"
+            {...addButtonAttrs}
           >
             <svg
               width="16"
@@ -335,6 +362,7 @@ function Section({
               <path d="M5 12 L19 12" />
             </svg>
           </button>
+          )}
         </div>
       </div>
       <div className="section-body">{children}</div>
@@ -344,15 +372,44 @@ function Section({
 
 export type SetupBoardRefs = Partial<Record<SectionKey, HTMLElement | null>>;
 
+type AddableColorGroup = Exclude<ColorGroupKey, 'grey'>;
+
 type Props = {
   brand: MockBrand;
   onEdit: (key: SectionKey) => void;
   sectionRefs: React.MutableRefObject<SetupBoardRefs>;
   onUpdateColor: (group: ColorGroupKey, index: number, hex: string) => void;
+  onAddColor?: (group: AddableColorGroup, hex: string) => void;
+  onDeleteColor?: (group: ColorGroupKey, index: number) => void;
+  onMoveColor?: (from: ColorGroupKey, to: ColorGroupKey, index: number) => void;
+  onDownloadColor?: (color: BrandColor) => void;
+  onCopyText?: (text: string) => void;
   onDeleteLogo?: (id: string) => void;
   onReplaceLogo?: (id: string) => void;
+  onDownloadLogo?: (logo: MockBrand['logos'][number]) => void;
+  onPreviewLogo?: (logo: MockBrand['logos'][number]) => void;
   onDeletePhoto?: (id: string) => void;
   onReplacePhoto?: (id: string) => void;
+  onDownloadPhoto?: (photo: MockBrand['photos'][number]) => void;
+  onPreviewPhoto?: (photo: MockBrand['photos'][number]) => void;
+  onDeleteFont?: (id: string) => void;
+  onReplaceFont?: (id: string) => void;
+  onDownloadFont?: (font: MockBrand['fonts'][number]) => void;
+  onDeleteIcon?: (name: string) => void;
+  onDownloadIcon?: (name: string, anchor: HTMLElement) => void;
+  canAddFont?: boolean;
+  onDeleteWebsite?: (id: string) => void;
+  onReplaceWebsite?: (id: string) => void;
+  onAddWebsite?: () => void;
+  canAddWebsite?: boolean;
+  onEditAbout?: (id: string) => void;
+  onDeleteAbout?: (id: string) => void;
+  onDownloadAbout?: (entry: MockBrand['about'][number]) => void;
+  /** Drag-drop passthrough — lets the empty logo / photo tiles accept
+   *  image file drops directly without routing through the upload modal. */
+  onDropFiles?: (kind: 'logo' | 'photos', files: File[]) => void;
+  /** Per-section download handler. Omit to hide all download buttons. */
+  onExport?: (key: SectionKey) => void;
 };
 
 export function SetupBoard({
@@ -360,16 +417,581 @@ export function SetupBoard({
   onEdit,
   sectionRefs,
   onUpdateColor,
+  onAddColor,
+  onDeleteColor,
+  onMoveColor,
+  onDownloadColor,
+  onCopyText,
   onDeleteLogo,
   onReplaceLogo,
+  onDownloadLogo,
+  onPreviewLogo,
   onDeletePhoto,
   onReplacePhoto,
+  onDownloadPhoto,
+  onPreviewPhoto,
+  onDeleteFont,
+  onReplaceFont,
+  onDownloadFont,
+  onDeleteIcon,
+  onDownloadIcon,
+  canAddFont = true,
+  onDeleteWebsite,
+  onReplaceWebsite,
+  onAddWebsite,
+  canAddWebsite = true,
+  onEditAbout,
+  onDeleteAbout,
+  onDownloadAbout,
+  onDropFiles,
+  onExport,
 }: Props) {
+  const exportFor = (key: SectionKey): (() => void) | undefined =>
+    onExport ? () => onExport(key) : undefined;
+
+  // Right-click menu state shared across all card types. A null value
+  // means no menu is open; setting a value moves/replaces an existing
+  // menu to the new cursor coordinates.
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  // Element the active menu was triggered from. Gets the `is-ctx-active`
+  // class so the card keeps its hover-lifted look while the menu is
+  // open — the class is cleared in closeCtxMenu.
+  const ctxAnchorRef = useRef<HTMLElement | null>(null);
+  const closeCtxMenu = useCallback(() => {
+    ctxAnchorRef.current?.classList.remove('is-ctx-active');
+    ctxAnchorRef.current = null;
+    setCtxMenu(null);
+  }, []);
+  // Only one card on the page should sit in its raised state at a time —
+  // right-clicking a swatch should collapse any open HSV picker
+  // elsewhere, and toggling an HSV picker should close any open
+  // right-click menu. We coordinate via a custom event on window so
+  // ColorsGroup's internal state and this board's ctx-menu state stay in
+  // sync without either owning the other's data.
+  const raiseSourceRef = useRef<number>(0);
+  const notifyRaised = useCallback(() => {
+    const id = ++raiseSourceRef.current;
+    window.dispatchEvent(
+      new CustomEvent('brand-os:card-raised', { detail: { id, scope: 'ctx' } }),
+    );
+  }, []);
+  useEffect(() => {
+    const onRaised = (e: Event) => {
+      const detail = (e as CustomEvent<{ id: number; scope: string }>).detail;
+      if (detail.scope !== 'ctx') closeCtxMenu();
+    };
+    window.addEventListener('brand-os:card-raised', onRaised);
+    return () => window.removeEventListener('brand-os:card-raised', onRaised);
+  }, [closeCtxMenu]);
+  const markAnchor = useCallback(
+    (el: HTMLElement | null) => {
+      if (ctxAnchorRef.current && ctxAnchorRef.current !== el) {
+        ctxAnchorRef.current.classList.remove('is-ctx-active');
+      }
+      ctxAnchorRef.current = el;
+      el?.classList.add('is-ctx-active');
+      notifyRaised();
+    },
+    [notifyRaised],
+  );
+  const openColorMenu = (
+    e: React.MouseEvent,
+    color: BrandColor,
+    group: ColorGroupKey,
+    index: number,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const hex = color.hex.toUpperCase();
+    const groupLabel: Record<ColorGroupKey, string> = {
+      core: 'Core',
+      accent: 'Accent',
+      grey: 'Grey',
+    };
+    const moveTargets: ColorGroupKey[] = (['core', 'accent'] as const).filter(
+      (g) => g !== group,
+    );
+    const items: ContextMenuState['items'] = [];
+    if (onCopyText) {
+      items.push({
+        label: 'Copy hex',
+        onSelect: () => onCopyText(hex),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="4" y1="9" x2="20" y2="9" />
+            <line x1="4" y1="15" x2="20" y2="15" />
+            <line x1="10" y1="3" x2="8" y2="21" />
+            <line x1="16" y1="3" x2="14" y2="21" />
+          </svg>
+        ),
+      });
+      items.push({
+        label: 'Copy name',
+        onSelect: () => onCopyText(color.name),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7V5h16v2" />
+            <path d="M9 20h6" />
+            <path d="M12 5v15" />
+          </svg>
+        ),
+      });
+    }
+    if (onMoveColor && group !== 'grey') {
+      for (const t of moveTargets) {
+        items.push({
+          label: `Move to ${groupLabel[t]}`,
+          onSelect: () => onMoveColor(group, t, index),
+          icon: (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="13 6 19 12 13 18" />
+            </svg>
+          ),
+        });
+      }
+    }
+    if (onDownloadColor) {
+      items.push({
+        label: 'Download color',
+        onSelect: () => onDownloadColor(color),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteColor && group !== 'grey') {
+      items.push({
+        label: 'Delete color',
+        destructive: true,
+        onSelect: () => onDeleteColor(group, index),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openLogoMenu = (
+    e: React.MouseEvent,
+    logo: MockBrand['logos'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    if (onDownloadLogo) {
+      items.push({
+        label: 'Download logo',
+        onSelect: () => onDownloadLogo(logo),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onReplaceLogo) {
+      items.push({
+        label: 'Replace logo',
+        onSelect: () => onReplaceLogo(logo.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteLogo) {
+      items.push({
+        label: 'Delete logo',
+        destructive: true,
+        onSelect: () => onDeleteLogo(logo.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openFontMenu = (
+    e: React.MouseEvent,
+    font: MockBrand['fonts'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    if (onDownloadFont) {
+      items.push({
+        label: 'Download font',
+        onSelect: () => onDownloadFont(font),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onReplaceFont) {
+      items.push({
+        label: 'Replace font',
+        onSelect: () => onReplaceFont(font.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteFont) {
+      items.push({
+        label: 'Delete font',
+        destructive: true,
+        onSelect: () => onDeleteFont(font.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openPhotoMenu = (
+    e: React.MouseEvent,
+    photo: MockBrand['photos'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    if (onDownloadPhoto) {
+      items.push({
+        label: 'Download photo',
+        onSelect: () => onDownloadPhoto(photo),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onReplacePhoto) {
+      items.push({
+        label: 'Replace photo',
+        onSelect: () => onReplacePhoto(photo.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeletePhoto) {
+      items.push({
+        label: 'Delete photo',
+        destructive: true,
+        onSelect: () => onDeletePhoto(photo.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openWebsiteMenu = (
+    e: React.MouseEvent,
+    website: MockBrand['websites'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    items.push({
+      label: 'Open in new tab',
+      onSelect: () => window.open(website.url, '_blank', 'noopener,noreferrer'),
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      ),
+    });
+    if (onAddWebsite && canAddWebsite) {
+      items.push({
+        label: 'New tab',
+        onSelect: () => onAddWebsite(),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteWebsite) {
+      items.push({
+        label: 'Close tab',
+        destructive: true,
+        onSelect: () => onDeleteWebsite(website.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        ),
+      });
+    }
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openIconMenu = (e: React.MouseEvent<HTMLDivElement>, name: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const anchor = e.currentTarget as HTMLElement;
+    const items: ContextMenuState['items'] = [];
+    if (onDownloadIcon) {
+      items.push({
+        label: 'Download icon',
+        onSelect: () => onDownloadIcon(name, anchor),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteIcon) {
+      items.push({
+        label: 'Delete icon',
+        destructive: true,
+        onSelect: () => onDeleteIcon(name),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const openDeleteMenu = (
+    e: React.MouseEvent,
+    label: string,
+    onDelete: () => void,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    setCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          label,
+          destructive: true,
+          onSelect: onDelete,
+          icon: (
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+            </svg>
+          ),
+        },
+      ],
+    });
+  };
+  const openAboutMenu = (
+    e: React.MouseEvent,
+    entry: MockBrand['about'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    if (onEditAbout) {
+      items.push({
+        label: 'Edit',
+        onSelect: () => onEditAbout(entry.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </svg>
+        ),
+      });
+    }
+    if (onDownloadAbout) {
+      items.push({
+        label: 'Download',
+        onSelect: () => onDownloadAbout(entry),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteAbout) {
+      items.push({
+        label: 'Delete',
+        destructive: true,
+        onSelect: () => onDeleteAbout(entry.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
   const setRef = (key: SectionKey) => (el: HTMLElement | null) => {
     sectionRefs.current[key] = el;
   };
 
   const iconMap = ICON_MAP();
+
+  // Add-color picker state — opened by the `+` in the Color section header.
+  // Lives here (instead of in ColorsGroup) because the new color can land in
+  // any of the palettes; the user picks inside the picker itself.
+  const [addColorOpen, setAddColorOpen] = useState(false);
+  const [addColorTarget, setAddColorTarget] = useState<AddableColorGroup>('core');
+  const [addColorDraft, setAddColorDraft] = useState('#4F46E5');
+  const [addColorDisplayed, setAddColorDisplayed] = useState(false);
+  const addColorWrapRef = useRef<HTMLDivElement>(null);
+  const addCloseTimerRef = useRef<number | null>(null);
+
+  // Keep picker mounted during the collapse transition (matches swatch picker).
+  useEffect(() => {
+    if (addColorOpen) {
+      if (addCloseTimerRef.current) {
+        window.clearTimeout(addCloseTimerRef.current);
+        addCloseTimerRef.current = null;
+      }
+      setAddColorDisplayed(true);
+      return;
+    }
+    if (!addColorDisplayed) return;
+    if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
+    addCloseTimerRef.current = window.setTimeout(() => {
+      setAddColorDisplayed(false);
+      addCloseTimerRef.current = null;
+    }, 440);
+  }, [addColorOpen, addColorDisplayed]);
+
+  useEffect(() => {
+    return () => {
+      if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
+    };
+  }, []);
+
+  // Outside click + Escape close the add picker.
+  //
+  // We listen to `click` (not `mousedown`) because the HSV canvas uses
+  // mousedown to start a drag — and if the user drags out of the popover
+  // (which is fine, you can pick a color outside the canvas boundary) a
+  // mousedown-based outside-click would fire `setAddColorOpen(false)`
+  // mid-drag. `click` only fires when mousedown and mouseup land on the
+  // same target, so a drag inside the picker never generates one.
+  useEffect(() => {
+    if (!addColorOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target || typeof target.closest !== 'function') return;
+      if (target.closest('.cp-popover')) return;
+      if (target.closest('[data-add-color-trigger="colors"]')) return;
+      setAddColorOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAddColorOpen(false);
+    };
+    document.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [addColorOpen]);
+
+  const handleAddColorCommit = useCallback(
+    (hex: string) => {
+      onAddColor?.(addColorTarget, hex);
+      setAddColorOpen(false);
+    },
+    [onAddColor, addColorTarget],
+  );
+
+  const handleColorsSectionAdd = () => {
+    setAddColorOpen((prev) => !prev);
+  };
 
   return (
     <main className="board-wrap" id="board">
@@ -383,13 +1005,27 @@ export function SetupBoard({
       </header>
 
       {/* ─── Logo ─── */}
-      <Section sectionRef={setRef('logo')} dataKey="logo" title="Logo" spec="Primary · Variants" onEdit={() => onEdit('logo')}>
+      <Section sectionRef={setRef('logo')} dataKey="logo" title="Logo" spec="Primary · Variants" onEdit={() => onEdit('logo')} onExport={exportFor('logo')}>
         <div className="logos">
           {brand.logos.map((logo) => (
             <div
               key={logo.id}
-              className={`logo-tile${logo.variant === 'dark' ? ' is-dark' : ''}`}
+              className={`logo-tile${logo.variant === 'dark' ? ' is-dark' : ''}${onPreviewLogo ? ' is-clickable' : ''}`}
               aria-label={logo.label}
+              role={onPreviewLogo ? 'button' : undefined}
+              tabIndex={onPreviewLogo ? 0 : undefined}
+              onClick={onPreviewLogo ? () => onPreviewLogo(logo) : undefined}
+              onKeyDown={
+                onPreviewLogo
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onPreviewLogo(logo);
+                      }
+                    }
+                  : undefined
+              }
+              onContextMenu={(e) => openLogoMenu(e, logo)}
             >
               <span
                 className="logo-svg"
@@ -403,7 +1039,10 @@ export function SetupBoard({
                       type="button"
                       className="logo-tile-action"
                       aria-label="Replace logo"
-                      onClick={() => onReplaceLogo(logo.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onReplaceLogo(logo.id);
+                      }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                         <polyline points="23 4 23 10 17 10" />
@@ -418,7 +1057,10 @@ export function SetupBoard({
                       type="button"
                       className="logo-tile-action"
                       aria-label="Delete logo"
-                      onClick={() => onDeleteLogo(logo.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteLogo(logo.id);
+                      }}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                         <path d="M3 6h18" />
@@ -431,7 +1073,30 @@ export function SetupBoard({
               )}
             </div>
           ))}
-          <button type="button" className="logo-tile is-empty" onClick={() => onEdit('logo')} aria-label="Add logo variant">
+          <button
+            type="button"
+            className="logo-tile is-empty"
+            onClick={() => onEdit('logo')}
+            aria-label="Add logo variant"
+            onDragOver={(e) => {
+              if (!onDropFiles) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              (e.currentTarget as HTMLElement).classList.add('is-drop-target');
+            }}
+            onDragLeave={(e) => {
+              (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+            }}
+            onDrop={(e) => {
+              if (!onDropFiles) return;
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+              const files = Array.from(e.dataTransfer.files).filter((f) =>
+                f.type.startsWith('image/'),
+              );
+              if (files.length > 0) onDropFiles('logo', files);
+            }}
+          >
             <svg className="logo-tile-dash" aria-hidden="true">
               <rect />
             </svg>
@@ -443,7 +1108,44 @@ export function SetupBoard({
       </Section>
 
       {/* ─── Color ─── */}
-      <Section sectionRef={setRef('colors')} dataKey="colors" title="Color" spec="Core · Accent · Grey" onEdit={() => onEdit('colors')}>
+      <Section
+        sectionRef={setRef('colors')}
+        dataKey="colors"
+        title="Color"
+        spec="Core · Accent · Grey"
+        onEdit={handleColorsSectionAdd}
+        onExport={exportFor('colors')}
+        hideAdd={addColorOpen}
+        addButtonAttrs={{
+          'data-add-color-trigger': 'colors',
+          'aria-expanded': addColorOpen,
+          'aria-label': 'Add a new color',
+        }}
+        addSlot={
+          <div
+            ref={addColorWrapRef}
+            className={`cp-popover${addColorOpen ? ' is-open' : ''}`}
+            aria-hidden={!addColorOpen}
+          >
+            {addColorDisplayed && (
+              <ColorPickerHSV
+                hex={addColorDraft}
+                compact
+                commitLabel="Add"
+                paletteOptions={[
+                  { key: 'core', label: 'Core' },
+                  { key: 'accent', label: 'Accent' },
+                ]}
+                selectedPalette={addColorTarget}
+                onSelectPalette={(k) => setAddColorTarget(k as AddableColorGroup)}
+                onChange={(hex) => setAddColorDraft(hex)}
+                onCommit={handleAddColorCommit}
+                onCancel={() => setAddColorOpen(false)}
+              />
+            )}
+          </div>
+        }
+      >
         <div className="colors-stack">
           <ColorsGroup
             groupKey="core"
@@ -451,54 +1153,110 @@ export function SetupBoard({
             title="Core Colors"
             colors={brand.colors.core}
             onUpdateColor={onUpdateColor}
+            onSwatchContextMenu={openColorMenu}
+            onAddColor={(hex) => onAddColor?.('core', hex)}
+            addFirstLabel="Add a core color"
           />
-          <ColorsGroup
-            groupKey="accent"
-            layout="accent"
-            title="Accent Colors"
-            colors={brand.colors.accent}
-            onUpdateColor={onUpdateColor}
-          />
+          {brand.colors.accent.length > 0 && (
+            <ColorsGroup
+              groupKey="accent"
+              layout="accent"
+              title="Accent Colors"
+              colors={brand.colors.accent}
+              onUpdateColor={onUpdateColor}
+              onSwatchContextMenu={openColorMenu}
+            />
+          )}
           <ColorsGroup
             groupKey="grey"
             layout="grey"
             title="Neutral Colors"
             colors={brand.colors.grey}
             onUpdateColor={onUpdateColor}
+            onSwatchContextMenu={openColorMenu}
           />
         </div>
       </Section>
 
       {/* ─── Typography ─── */}
-      <Section sectionRef={setRef('fonts')} dataKey="fonts" title="Typography" spec="Display · Text" onEdit={() => onEdit('fonts')}>
-        <div className="type-system">
-          <TypeRow
-            label="Display"
-            family={brand.fonts.display.family}
-            fallback={brand.fonts.display.fallback}
-            weights={brand.fonts.display.weights}
-            displayStyle={{ fontStyle: 'italic', fontWeight: 400 }}
-          />
-          <TypeRow
-            label="Text"
-            family={brand.fonts.text.family}
-            fallback={brand.fonts.text.fallback}
-            weights={brand.fonts.text.weights}
-            displayStyle={{ fontWeight: 500 }}
-          />
-        </div>
+      <Section
+        sectionRef={setRef('fonts')}
+        dataKey="fonts"
+        title="Typography"
+        spec={brand.fonts.length === 0 ? 'Add your first font' : `${brand.fonts.length} / 4`}
+        onEdit={() => onEdit('fonts')}
+        onExport={exportFor('fonts')}
+        hideAdd={!canAddFont}
+      >
+        {brand.fonts.length === 0 ? (
+          <button
+            type="button"
+            className="type-empty"
+            onClick={() => onEdit('fonts')}
+          >
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="empty-tile-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add a font</span>
+            </span>
+          </button>
+        ) : (
+          // 1–2 fonts: single column. 3–4 fonts: 2 cols × 2 rows.
+          // 5–6 fonts: 2 cols × 3 rows (the hard cap — no scroll). Column-
+          // first flow so a new font lands in the next open slot going
+          // down, then the next column.
+          <div
+            className={`type-grid${brand.fonts.length >= 3 ? ' is-two-col' : ''}${brand.fonts.length >= 5 ? ' is-three-row' : ''}`}
+            data-count={brand.fonts.length}
+          >
+            {brand.fonts.map((font) => (
+              <TypeRow
+                key={font.id}
+                font={font}
+                onReplace={onReplaceFont ? () => onReplaceFont(font.id) : undefined}
+                onDelete={onDeleteFont ? () => onDeleteFont(font.id) : undefined}
+                onContextMenu={(e) => openFontMenu(e, font)}
+              />
+            ))}
+          </div>
+        )}
       </Section>
 
       {/* ─── Iconography ─── */}
-      <Section sectionRef={setRef('icons')} dataKey="icons" title="Iconography" spec="24 × 24px" onEdit={() => onEdit('icons')}>
-        <IconsMarquee
-          icons={brand.icons}
-          iconMap={iconMap as Record<string, (p: { size?: number }) => JSX.Element>}
-        />
+      <Section sectionRef={setRef('icons')} dataKey="icons" title="Iconography" spec="24 × 24px" onEdit={() => onEdit('icons')} onExport={exportFor('icons')}>
+        {brand.icons.length === 0 ? (
+          <button
+            type="button"
+            className="icons-empty"
+            onClick={() => onEdit('icons')}
+          >
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="empty-tile-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add icons</span>
+            </span>
+          </button>
+        ) : (
+          <IconsMarquee
+            icons={brand.icons}
+            iconMap={iconMap as Record<string, (p: { size?: number }) => JSX.Element>}
+            onIconContextMenu={openIconMenu}
+          />
+        )}
       </Section>
 
       {/* ─── Photography ─── */}
-      <Section sectionRef={setRef('photos')} dataKey="photos" title="Photography" spec="Imagery & style" onEdit={() => onEdit('photos')}>
+      <Section sectionRef={setRef('photos')} dataKey="photos" title="Photography" spec="Imagery & style" onEdit={() => onEdit('photos')} onExport={exportFor('photos')}>
         {(() => {
           const photoBySlot = new Map<PhotoSlot, (typeof brand.photos)[number]>(
             brand.photos.map((p) => [p.slot, p]),
@@ -513,7 +1271,25 @@ export function SetupBoard({
                 const photo = photoBySlot.get(slot);
                 if (!photo) return null;
                 return (
-                  <div key={photo.id} className="photo-tile" style={rectStyle(SLOT_RECTS[slot])}>
+                  <div
+                    key={photo.id}
+                    className={`photo-tile${onPreviewPhoto ? ' is-clickable' : ''}`}
+                    style={rectStyle(SLOT_RECTS[slot])}
+                    role={onPreviewPhoto ? 'button' : undefined}
+                    tabIndex={onPreviewPhoto ? 0 : undefined}
+                    onClick={onPreviewPhoto ? () => onPreviewPhoto(photo) : undefined}
+                    onKeyDown={
+                      onPreviewPhoto
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onPreviewPhoto(photo);
+                            }
+                          }
+                        : undefined
+                    }
+                    onContextMenu={(e) => openPhotoMenu(e, photo)}
+                  >
                     <img src={photo.src} alt="" loading="lazy" />
                     {(onDeletePhoto || onReplacePhoto) && (
                       <div className="photo-tile-actions">
@@ -522,7 +1298,10 @@ export function SetupBoard({
                             type="button"
                             className="photo-tile-action"
                             aria-label="Replace image"
-                            onClick={() => onReplacePhoto(photo.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReplacePhoto(photo.id);
+                            }}
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                               <polyline points="23 4 23 10 17 10" />
@@ -537,7 +1316,10 @@ export function SetupBoard({
                             type="button"
                             className="photo-tile-action"
                             aria-label="Delete image"
-                            onClick={() => onDeletePhoto(photo.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeletePhoto(photo.id);
+                            }}
                           >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                               <path d="M3 6h18" />
@@ -559,6 +1341,24 @@ export function SetupBoard({
                   style={rectStyle(region.bbox)}
                   onClick={() => onEdit('photos')}
                   aria-label="Add photo"
+                  onDragOver={(e) => {
+                    if (!onDropFiles) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    (e.currentTarget as HTMLElement).classList.add('is-drop-target');
+                  }}
+                  onDragLeave={(e) => {
+                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+                  }}
+                  onDrop={(e) => {
+                    if (!onDropFiles) return;
+                    e.preventDefault();
+                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+                    const files = Array.from(e.dataTransfer.files).filter((f) =>
+                      f.type.startsWith('image/'),
+                    );
+                    if (files.length > 0) onDropFiles('photos', files);
+                  }}
                 >
                   {region.isRect ? (
                     <svg className="photo-tile-dash" aria-hidden="true">
@@ -597,49 +1397,170 @@ export function SetupBoard({
       </Section>
 
       {/* ─── Website ─── */}
-      <Section sectionRef={setRef('website')} dataKey="website" title="Website" spec="Reference" onEdit={() => onEdit('website')}>
-        <div className="website-frame">
-          <div className="website-chrome">
-            <span className="chrome-dot" />
-            <span className="chrome-dot" />
-            <span className="chrome-dot" />
-            <span className="chrome-url">{brand.website.url}</span>
-          </div>
-          <div className="website-body">
-            <div className="website-fallback">
-              <div className="website-fallback-mark">{brand.name.charAt(0)}</div>
-              <div className="website-fallback-url">{brand.website.url}</div>
-            </div>
-          </div>
-        </div>
+      <Section
+        sectionRef={setRef('website')}
+        dataKey="website"
+        title="Website"
+        spec={
+          brand.websites.length === 0
+            ? 'Add a reference link'
+            : `${brand.websites.length} / 3`
+        }
+        onEdit={() => onEdit('website')}
+        onExport={exportFor('website')}
+      >
+        <WebsiteFrame
+          brandName={brand.name}
+          websites={brand.websites}
+          canAdd={canAddWebsite}
+          onAdd={onAddWebsite}
+          onReplace={onReplaceWebsite}
+          onDelete={onDeleteWebsite}
+          onTabContextMenu={(e, website) => openWebsiteMenu(e, website)}
+        />
       </Section>
 
-      {/* ─── Voice & Tone ─── */}
-      <Section sectionRef={setRef('voice')} dataKey="voice" title="Voice & Tone" spec="How we sound" onEdit={() => onEdit('voice')}>
-        <div className="voice-block">
-          <p className="voice-essay">{brand.voice.essay}</p>
-          <div className="voice-card">
-            <h3>Pillars</h3>
-            <p>Four words our copy returns to — the North Star for tone.</p>
-            <div className="voice-pills">
-              {brand.voice.pillars.map((p) => (
-                <span key={p} className="voice-pill">
-                  {p}
+      {/* ─── About ─── */}
+      <Section
+        sectionRef={setRef('voice')}
+        dataKey="voice"
+        title={`About ${brand.name}`}
+        spec="A narrative of your brand"
+        onEdit={() => onEdit('voice')}
+        onExport={exportFor('voice')}
+      >
+        {(() => {
+          const filled = brand.about.filter((a) => a.content.trim().length > 0);
+          if (filled.length === 0) {
+            return (
+              <button
+                type="button"
+                className="about-empty"
+                onClick={() => onEdit('voice')}
+              >
+                <svg className="empty-tile-dash" aria-hidden="true">
+                  <rect />
+                </svg>
+                <span className="empty-tile-content">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                    <path d="M12 5 L12 19" />
+                    <path d="M5 12 L19 12" />
+                  </svg>
+                  <span>Add a section</span>
                 </span>
+              </button>
+            );
+          }
+          return (
+            <div className="about-grid">
+              {filled.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="about-card"
+                  onClick={() => onEditAbout?.(entry.id)}
+                  onContextMenu={(e) => openAboutMenu(e, entry)}
+                >
+                  <h3 className="about-card-title">{entry.title}</h3>
+                  <p className="about-card-body">{entry.content}</p>
+                </button>
               ))}
             </div>
-          </div>
-          <div className="voice-card">
-            <h3>Tone range</h3>
-            <p>Warm but precise. We drop jargon, keep rigor. We sound like a thoughtful friend who knows the subject cold.</p>
-          </div>
-        </div>
+          );
+        })()}
       </Section>
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={ctxMenu.items}
+          onClose={closeCtxMenu}
+        />
+      )}
     </main>
   );
 }
 
 type CopyFlash = { id: number; text: string; x: number; y: number };
+
+/**
+ * One color tile in a ColorsGroup. Extracted from the map-loop so the
+ * copy-icon animation can own its own ref — hovering any part of the
+ * swatch nudges the icon, and clicking the name / icon / hex copies the
+ * hex (never the display name). Clicking empty background of the swatch
+ * still toggles the inline HSV picker.
+ */
+function Swatch({
+  color,
+  renderedHex,
+  light,
+  isActive,
+  zIndex,
+  onPickerToggle,
+  onCopyHex,
+  onContextMenu,
+}: {
+  color: BrandColor;
+  renderedHex: string;
+  light: boolean;
+  isActive: boolean;
+  zIndex: number;
+  onPickerToggle: () => void;
+  onCopyHex: (anchor: HTMLElement) => void;
+  onContextMenu?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  const iconRef = useRef<OrganicIconHandle>(null);
+  const resetTimerRef = useRef<number | null>(null);
+  const handleCopyClick = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    onCopyHex(e.currentTarget);
+    // Pulse the copy icon once — spring out, then back. Not tied to
+    // hover; the animation only fires when the copy actually happens.
+    iconRef.current?.startAnimation();
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = window.setTimeout(() => {
+      iconRef.current?.stopAnimation();
+      resetTimerRef.current = null;
+    }, 520);
+  };
+  useEffect(() => () => {
+    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current);
+  }, []);
+  return (
+    <button
+      type="button"
+      className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
+      style={{ background: renderedHex, zIndex }}
+      aria-label={`Edit ${color.name} ${renderedHex}`}
+      aria-expanded={isActive}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPickerToggle();
+      }}
+      onContextMenu={onContextMenu}
+    >
+      <span
+        className="swatch-name"
+        role="button"
+        tabIndex={-1}
+        onClick={handleCopyClick}
+      >
+        {color.name}
+        <span className="swatch-copy-icon" aria-hidden onClick={handleCopyClick}>
+          <CopyIcon ref={iconRef} size={13} />
+        </span>
+      </span>
+      <span
+        className="swatch-hex"
+        role="button"
+        tabIndex={-1}
+        onClick={handleCopyClick}
+      >
+        {renderedHex.toUpperCase()}
+      </span>
+    </button>
+  );
+}
 
 function ColorsGroup({
   groupKey,
@@ -647,19 +1568,35 @@ function ColorsGroup({
   title,
   colors,
   onUpdateColor,
+  onSwatchContextMenu,
+  onAddColor,
+  addFirstLabel,
 }: {
   groupKey: ColorGroupKey;
   layout: 'core' | 'accent' | 'grey';
   title: string;
   colors: BrandColor[];
   onUpdateColor: (group: ColorGroupKey, index: number, hex: string) => void;
+  onSwatchContextMenu?: (
+    e: React.MouseEvent,
+    color: BrandColor,
+    group: ColorGroupKey,
+    index: number,
+  ) => void;
+  onAddColor?: (hex: string) => void;
+  addFirstLabel?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [displayedIndex, setDisplayedIndex] = useState<number | null>(null);
   const [previewHex, setPreviewHex] = useState<string | null>(null);
   const [flash, setFlash] = useState<CopyFlash | null>(null);
+  const [addMode, setAddMode] = useState(false);
+  const [addDraftHex, setAddDraftHex] = useState('#5B6BFF');
+  const [addTouched, setAddTouched] = useState(false);
+  const [addMounted, setAddMounted] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const addCloseTimerRef = useRef<number | null>(null);
   const groupRef = useRef<HTMLDivElement>(null);
 
   // Outside click + Escape close the picker and revert the preview.
@@ -690,8 +1627,62 @@ function ColorsGroup({
     return () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
     };
   }, []);
+
+  // Keep the inline add-picker mounted through the close transition so it
+  // fades out smoothly instead of disappearing the moment addMode flips off.
+  useEffect(() => {
+    if (addMode) {
+      if (addCloseTimerRef.current) {
+        window.clearTimeout(addCloseTimerRef.current);
+        addCloseTimerRef.current = null;
+      }
+      setAddMounted(true);
+      return;
+    }
+    if (!addMounted) return;
+    if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
+    addCloseTimerRef.current = window.setTimeout(() => {
+      setAddMounted(false);
+      addCloseTimerRef.current = null;
+    }, 440);
+  }, [addMode, addMounted]);
+
+  // Outside click + Escape cancel the inline add flow; Enter commits the
+  // current draft hex (skipped when focus is in a text field so the user
+  // can still type commas/newlines into an input without accidental save).
+  useEffect(() => {
+    if (!addMode) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (groupRef.current?.contains(target)) return;
+      setAddMode(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAddMode(false);
+        return;
+      }
+      if (e.key === 'Enter') {
+        const t = e.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return;
+        e.preventDefault();
+        onAddColor?.(addDraftHex);
+        setAddMode(false);
+        setAddTouched(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [addMode, addDraftHex, onAddColor]);
 
   // Keep the picker mounted through the close transition (max-height 420ms).
   // When activeIndex is set we mirror it immediately; when it clears we wait
@@ -722,11 +1713,58 @@ function ColorsGroup({
           return null;
         }
         setPreviewHex(null);
+        // Any other raised card (right-click menu, picker in a sibling
+        // group) should collapse the moment this one opens.
+        window.dispatchEvent(
+          new CustomEvent('brand-os:card-raised', {
+            detail: { id: Date.now(), scope: `colors-${groupKey}` },
+          }),
+        );
         return i;
       });
     },
-    [],
+    [groupKey],
   );
+
+  // Listen for a raise dispatched elsewhere (ctx menu on a swatch,
+  // picker opening in another ColorsGroup) and collapse this group's
+  // open picker if we aren't the source of the event.
+  useEffect(() => {
+    const onRaised = (e: Event) => {
+      const scope = (e as CustomEvent<{ scope: string }>).detail.scope;
+      if (scope !== `colors-${groupKey}`) {
+        setActiveIndex(null);
+        setPreviewHex(null);
+        setAddMode(false);
+      }
+    };
+    window.addEventListener('brand-os:card-raised', onRaised);
+    return () => window.removeEventListener('brand-os:card-raised', onRaised);
+  }, [groupKey]);
+
+  const handleStartAdd = useCallback(() => {
+    if (addMode) return;
+    setAddMode(true);
+    window.dispatchEvent(
+      new CustomEvent('brand-os:card-raised', {
+        detail: { id: Date.now(), scope: `colors-${groupKey}` },
+      }),
+    );
+  }, [addMode, groupKey]);
+
+  const handleAddCommit = useCallback(
+    (hex: string) => {
+      onAddColor?.(hex);
+      setAddMode(false);
+      setAddTouched(false);
+    },
+    [onAddColor],
+  );
+
+  const handleAddCancel = useCallback(() => {
+    setAddMode(false);
+    setAddTouched(false);
+  }, []);
 
   const handleCopy = useCallback(async (text: string, anchor: HTMLElement) => {
     const ok = await copyToClipboard(text);
@@ -754,6 +1792,63 @@ function ColorsGroup({
   const displayedColor = displayedIndex != null ? colors[displayedIndex] : activeColor;
   const pickerIndex = activeIndex ?? displayedIndex;
 
+  if (colors.length === 0 && onAddColor) {
+    const showColor = addMode && addTouched;
+    const addLight = showColor ? isLightHex(addDraftHex) : false;
+    const swatchClass = [
+      'swatch',
+      'is-empty',
+      addMode ? 'is-active' : '',
+      showColor ? 'is-filled' : '',
+      addLight ? 'is-light' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const liveName = showColor
+      ? hexToName(addDraftHex)
+      : addFirstLabel ?? `Add ${title.toLowerCase()}`;
+    return (
+      <div className="colors-group" ref={groupRef}>
+        <p className="colors-group-title">{title}</p>
+        <div className="colors-row" data-layout={layout}>
+          <button
+            type="button"
+            className={swatchClass}
+            style={showColor ? { background: addDraftHex } : undefined}
+            onClick={handleStartAdd}
+            aria-pressed={addMode}
+          >
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="swatch-name">{liveName}</span>
+            <span className="swatch-hex">
+              {addMode
+                ? showColor
+                  ? addDraftHex.toUpperCase()
+                  : '—'
+                : '+'}
+            </span>
+          </button>
+        </div>
+        <div className={`cp-expand${addMode ? ' is-open' : ''}`} aria-hidden={!addMode}>
+          {addMounted && (
+            <ColorPickerHSV
+              key={`${groupKey}-add`}
+              hex={addDraftHex}
+              onChange={(hex) => {
+                setAddDraftHex(hex);
+                setAddTouched(true);
+              }}
+              onCommit={handleAddCommit}
+              onCancel={handleAddCancel}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="colors-group" ref={groupRef}>
       <p className="colors-group-title">{title}</p>
@@ -763,43 +1858,21 @@ function ColorsGroup({
           const light = isLightHex(renderedHex);
           const isActive = activeIndex === i;
           return (
-            <button
+            <Swatch
               key={`${c.hex}-${i}`}
-              type="button"
-              className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
-              style={{ background: renderedHex, zIndex: i + 1 }}
-              aria-label={`Edit ${c.name} ${renderedHex}`}
-              aria-expanded={isActive}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSwatchClick(i);
-              }}
-            >
-              <span
-                className="swatch-name"
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCopy(c.name, e.currentTarget);
-                }}
-              >
-                {c.name}
-                <CopyIcon />
-              </span>
-              <span
-                className="swatch-hex"
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCopy(renderedHex.toUpperCase(), e.currentTarget);
-                }}
-              >
-                {renderedHex.toUpperCase()}
-                <CopyIcon />
-              </span>
-            </button>
+              color={c}
+              renderedHex={renderedHex}
+              light={light}
+              isActive={isActive}
+              zIndex={i + 1}
+              onPickerToggle={() => handleSwatchClick(i)}
+              onCopyHex={(anchor) => handleCopy(renderedHex.toUpperCase(), anchor)}
+              onContextMenu={
+                onSwatchContextMenu
+                  ? (e) => onSwatchContextMenu(e, c, groupKey, i)
+                  : undefined
+              }
+            />
           );
         })}
       </div>
@@ -897,24 +1970,265 @@ function resolveWeights(family: string): FontWeight[] {
   return FONT_WEIGHTS[family] ?? DEFAULT_WEIGHTS;
 }
 
-function TypeRow({
-  label,
-  family,
-  fallback,
+function WebsiteFrame({
+  brandName,
+  websites,
+  canAdd,
+  onAdd,
+  onReplace,
+  onDelete,
+  onTabContextMenu,
 }: {
-  label: string;
-  family: string;
-  fallback?: string;
-  weights?: string;
-  displayStyle?: React.CSSProperties;
+  brandName: string;
+  websites: MockBrand['websites'];
+  canAdd: boolean;
+  onAdd?: () => void;
+  onReplace?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onTabContextMenu?: (
+    e: React.MouseEvent,
+    website: MockBrand['websites'][number],
+  ) => void;
 }) {
-  const fontStack = `"${family}", ${fallback ?? (label === 'Display' ? 'serif' : 'sans-serif')}`;
-  const weightList = resolveWeights(family);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const active = useMemo(
+    () => websites.find((w) => w.id === activeId) ?? websites[0] ?? null,
+    [websites, activeId],
+  );
+
+  // When the active website is removed, fall back to the first remaining one.
+  useEffect(() => {
+    if (!active && websites.length > 0) setActiveId(websites[0].id);
+  }, [active, websites]);
+
+  if (websites.length === 0) {
+    return (
+      <button
+        type="button"
+        className="website-empty"
+        onClick={onAdd}
+      >
+        <svg className="empty-tile-dash" aria-hidden="true">
+          <rect />
+        </svg>
+        <span className="empty-tile-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M12 5 L12 19" />
+            <path d="M5 12 L19 12" />
+          </svg>
+          <span>Add a website</span>
+        </span>
+      </button>
+    );
+  }
+
+  const pretty = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
   return (
-    <div className="type-row" style={{ fontFamily: fontStack }}>
+    <div
+      className="website-frame"
+      onContextMenu={
+        onTabContextMenu && active
+          ? (e) => {
+              // Scope the frame-level right-click to the active tab. If
+              // the target was a specific tab or the +/close button,
+              // those have their own handlers and stopPropagation — this
+              // only fires for "empty" areas of the frame (chrome +
+              // body).
+              onTabContextMenu(e, active);
+            }
+          : undefined
+      }
+    >
+      <div className="website-tabs" role="tablist">
+        {websites.map((w) => {
+          const isActive = (active?.id ?? websites[0].id) === w.id;
+          return (
+            <div
+              key={w.id}
+              className={`website-tab${isActive ? ' is-active' : ''}`}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveId(w.id)}
+              onContextMenu={onTabContextMenu ? (e) => onTabContextMenu(e, w) : undefined}
+            >
+              <span className="website-tab-favicon" aria-hidden>
+                {w.favicon ? (
+                  <img
+                    src={w.favicon}
+                    alt=""
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M3 12h18" />
+                    <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18" />
+                  </svg>
+                )}
+              </span>
+              <span className="website-tab-label">{w.title || pretty(w.url)}</span>
+              {onDelete && (
+                <button
+                  type="button"
+                  className="website-tab-close"
+                  aria-label={`Remove ${pretty(w.url)}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(w.id);
+                  }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        })}
+        {canAdd && onAdd && (
+          <button
+            type="button"
+            className="website-tab-add"
+            aria-label="Add a new website"
+            onClick={onAdd}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+              <path d="M12 5 L12 19" />
+              <path d="M5 12 L19 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div className="website-chrome">
+        <span className="chrome-dot" />
+        <span className="chrome-dot" />
+        <span className="chrome-dot" />
+        <span className="chrome-url">{active ? pretty(active.url) : ''}</span>
+        {active && onReplace && (
+          <button
+            type="button"
+            className="chrome-edit"
+            aria-label="Change URL"
+            onClick={() => onReplace(active.id)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </button>
+        )}
+      </div>
+      <div className="website-body">
+        {active?.loading ? (
+          <div className="website-loading" aria-live="polite">
+            <div className="website-loading-shimmer" aria-hidden />
+            <div className="website-loading-label">Fetching preview…</div>
+          </div>
+        ) : active?.preview ? (
+          <img
+            className="website-preview-img"
+            src={active.preview}
+            alt={active.title ? `${active.title} preview` : pretty(active.url)}
+          />
+        ) : (
+          <div className="website-fallback">
+            <div className="website-fallback-mark">{brandName.charAt(0)}</div>
+            <div className="website-fallback-url">{active ? pretty(active.url) : ''}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type Font = { id: string; family: string; role: string; fallback?: string };
+
+function FontActions({
+  onReplace,
+  onDelete,
+  className = 'type-card-actions',
+}: {
+  onReplace?: () => void;
+  onDelete?: () => void;
+  className?: string;
+}) {
+  if (!onReplace && !onDelete) return null;
+  return (
+    <div className={className}>
+      {onReplace && (
+        <button
+          type="button"
+          className="type-card-action"
+          aria-label="Replace font"
+          onClick={onReplace}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
+            <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+          </svg>
+        </button>
+      )}
+      {onDelete && (
+        <button
+          type="button"
+          className="type-card-action"
+          aria-label="Delete font"
+          onClick={onDelete}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Full-width 3-column row — matches the original specimen layout in the
+ * source HTML prototype. Actions (replace / delete) live in a narrow
+ * column to the LEFT of the identity column, so they never overlap or
+ * sit on top of the font name.
+ */
+function TypeRow({
+  font,
+  onReplace,
+  onDelete,
+  onContextMenu,
+}: {
+  font: Font;
+  onReplace?: () => void;
+  onDelete?: () => void;
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
+}) {
+  const isDisplay = font.role.toLowerCase().includes('display');
+  const fontStack = `"${font.family}", ${font.fallback ?? (isDisplay ? 'serif' : 'sans-serif')}`;
+  const weightList = resolveWeights(font.family);
+  const hasActions = !!(onReplace || onDelete);
+  return (
+    <div
+      className={`type-row${hasActions ? ' has-actions' : ''}`}
+      style={{ fontFamily: fontStack }}
+      onContextMenu={onContextMenu}
+    >
+      {hasActions && (
+        <FontActions
+          onReplace={onReplace}
+          onDelete={onDelete}
+          className="type-row-actions type-row-actions--corner"
+        />
+      )}
       <div className="type-col type-col--identity">
-        <p className="type-col-label">{label}</p>
-        <h3 className="type-name">{family}</h3>
+        <p className="type-col-label">{font.role}</p>
+        <h3 className="type-name">{font.family}</h3>
         <div className="type-glyphs">
           <p className="type-glyph type-glyph--lower">abcdefghijklmnopqrstuvwxyz</p>
           <p className="type-glyph type-glyph--upper">ABCDEFGHIJKLMNOPQRSTUVWXYZ</p>
@@ -952,3 +2266,4 @@ function TypeRow({
     </div>
   );
 }
+

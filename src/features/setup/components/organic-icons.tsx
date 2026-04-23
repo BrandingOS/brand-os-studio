@@ -583,12 +583,12 @@ export const PhotoOrganicIconV2 = forwardRef<OrganicIconHandle, OrganicIconProps
       <IconShell size={size} controls={controls} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} restProps={rest}>
         {/* Back card — tilted left */}
         <motion.g variants={back} style={{ transformOrigin: '12px 20px' }}>
-          <rect x="4" y="5" width="12" height="14" rx="1.8" fill="white" />
+          <rect x="4" y="5" width="12" height="14" rx="1.8" fill="var(--surface)" />
           <rect x="4" y="5" width="12" height="14" rx="1.8" />
         </motion.g>
         {/* Front card — tilted right, scene inside */}
         <motion.g variants={front} style={{ transformOrigin: '12px 20px' }}>
-          <rect x="8" y="4.5" width="12" height="14" rx="1.8" fill="white" />
+          <rect x="8" y="4.5" width="12" height="14" rx="1.8" fill="var(--surface)" />
           <rect x="8" y="4.5" width="12" height="14" rx="1.8" />
           <motion.circle cx="11.5" cy="9" r="1.4" fill="currentColor" stroke="none" variants={sun} style={{ transformOrigin: '11.5px 9px' }} />
           <motion.path d="M8.5 15 L11.5 12 L14 13.5 L16.5 11.5 L19.5 14" variants={hill} />
@@ -598,3 +598,71 @@ export const PhotoOrganicIconV2 = forwardRef<OrganicIconHandle, OrganicIconProps
   },
 );
 PhotoOrganicIconV2.displayName = 'PhotoOrganicIconV2';
+
+/* 6) COPY — two stacked sheets that spring apart when copy fires.
+ * Verbatim port of the user-supplied reference: strokeWidth 2, spring
+ * 160 / 17 / 1, front rect translates (-3, -3), back path translates
+ * (+3, +3). Not hover-driven — the parent calls startAnimation via the
+ * exposed handle when a copy completes, then stopAnimation returns it
+ * home. */
+const COPY_TRANSITION: Transition = {
+  type: 'spring',
+  stiffness: 160,
+  damping: 17,
+  mass: 1,
+};
+
+export const CopyIcon = forwardRef<OrganicIconHandle, OrganicIconProps>(
+  ({ onMouseEnter, onMouseLeave, size = 24, ...rest }, ref) => {
+    const { controls, handleMouseEnter, handleMouseLeave } = useIconAnimation(
+      ref,
+      onMouseEnter,
+      onMouseLeave,
+    );
+    return (
+      <div
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        {...rest}
+      >
+        <svg
+          fill="none"
+          height={size}
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          width={size}
+          xmlns="http://www.w3.org/2000/svg"
+          style={{ overflow: 'visible' }}
+        >
+          <motion.rect
+            animate={controls}
+            height="14"
+            rx="2"
+            ry="2"
+            transition={COPY_TRANSITION}
+            variants={{
+              normal: { translateY: 0, translateX: 0 },
+              animate: { translateY: -3, translateX: -3 },
+            }}
+            width="14"
+            x="8"
+            y="8"
+          />
+          <motion.path
+            animate={controls}
+            d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"
+            transition={COPY_TRANSITION}
+            variants={{
+              normal: { x: 0, y: 0 },
+              animate: { x: 3, y: 3 },
+            }}
+          />
+        </svg>
+      </div>
+    );
+  },
+);
+CopyIcon.displayName = 'CopyIcon';

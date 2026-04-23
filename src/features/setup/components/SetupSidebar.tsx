@@ -21,7 +21,10 @@ type Props = {
   completed: number;
   total: number;
   onJump: (key: SectionKey) => void;
-  onOpenUpload?: (key: SectionKey) => void;
+  /** Optional: when provided, the chip on each row becomes an
+   *  interactive add-button that jumps to the section and opens its add
+   *  flow directly, without the user needing to click + on the board. */
+  onAdd?: (key: SectionKey) => void;
 };
 
 type OrganicIconComponent = ForwardRefExoticComponent<
@@ -45,17 +48,34 @@ type Entry = {
   added: boolean;
 };
 
-const UPLOAD_KEYS = new Set<SectionKey>(['logo', 'icons', 'photos']);
+export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd }: Props) {
+  const fontSummary = brand.fonts.length === 0
+    ? 'Not set'
+    : brand.fonts.length === 1
+    ? brand.fonts[0].family
+    : `${brand.fonts[0].family} · ${brand.fonts[1].family}`;
+  const websiteSummary = brand.websites.length === 0
+    ? 'Not set'
+    : brand.websites.length === 1
+    ? brand.websites[0].url
+    : `${brand.websites.length} sites`;
 
-export function SetupSidebar({ brand, activeKey, completed, total, onJump, onOpenUpload }: Props) {
   const entries: Entry[] = [
     { key: 'logo', name: 'Logo', sub: `${brand.logos.length} variants`, added: brand.logos.length > 0 },
     { key: 'colors', name: 'Color', sub: `${brand.colors.core.length + brand.colors.accent.length} colors`, added: brand.colors.core.length > 0 },
-    { key: 'fonts', name: 'Typography', sub: `${brand.fonts.display.family} · ${brand.fonts.text.family}`, added: !!brand.fonts.display && !!brand.fonts.text },
+    { key: 'fonts', name: 'Typography', sub: fontSummary, added: brand.fonts.length > 0 },
     { key: 'icons', name: 'Iconography', sub: `${brand.icons.length} icons`, added: brand.icons.length > 0 },
     { key: 'photos', name: 'Photography', sub: `${brand.photos.length} references`, added: brand.photos.length > 0 },
-    { key: 'website', name: 'Website', sub: brand.website.url || 'Not set', added: !!brand.website.url },
-    { key: 'voice', name: 'Voice & Tone', sub: `${brand.voice.pillars.length} pillars`, added: brand.voice.essay.length > 0 },
+    { key: 'website', name: 'Website', sub: websiteSummary, added: brand.websites.length > 0 },
+    {
+      key: 'voice',
+      name: 'About',
+      sub: (() => {
+        const filled = brand.about.filter((a) => a.content.trim()).length;
+        return filled === 0 ? 'Not set' : `${filled} / ${brand.about.length} sections`;
+      })(),
+      added: brand.about.some((a) => a.content.trim().length > 0),
+    },
   ];
 
   const ordered = [...entries.filter((e) => e.added), ...entries.filter((e) => !e.added)];
@@ -85,17 +105,13 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onOpe
       <nav className="panel-list">
         {ordered.map((entry) => {
           const isActive = activeKey === entry.key;
-          const canUpload = UPLOAD_KEYS.has(entry.key) && !!onOpenUpload;
-          const handleClick = () => {
-            if (canUpload) onOpenUpload!(entry.key);
-            else onJump(entry.key);
-          };
           return (
             <SidebarItem
               key={entry.key}
               entry={entry}
               isActive={isActive}
-              onClick={handleClick}
+              onClick={() => onJump(entry.key)}
+              onAdd={onAdd ? () => onAdd(entry.key) : undefined}
             />
           );
         })}
@@ -108,42 +124,67 @@ function SidebarItem({
   entry,
   isActive,
   onClick,
+  onAdd,
 }: {
   entry: Entry;
   isActive: boolean;
   onClick: () => void;
+  onAdd?: () => void;
 }) {
   const iconRef = useRef<OrganicIconHandle>(null);
   const Icon = ICONS[entry.key];
 
   return (
-    <button
-      type="button"
+    <div
       className={`panel-item${isActive ? ' is-active' : ''}${entry.added ? '' : ' is-missing'}`}
-      onClick={onClick}
       onMouseEnter={() => iconRef.current?.startAnimation()}
       onMouseLeave={() => iconRef.current?.stopAnimation()}
-      onFocus={() => iconRef.current?.startAnimation()}
-      onBlur={() => iconRef.current?.stopAnimation()}
     >
-      {entry.added && (
-        <span className="panel-item-thumb" aria-hidden>
-          <Icon ref={iconRef} size={18} />
+      <button
+        type="button"
+        className="panel-item-body"
+        onClick={onClick}
+        onFocus={() => iconRef.current?.startAnimation()}
+        onBlur={() => iconRef.current?.stopAnimation()}
+      >
+        {entry.added && (
+          <span className="panel-item-thumb" aria-hidden>
+            <Icon ref={iconRef} size={18} />
+          </span>
+        )}
+        <span className="panel-item-meta">
+          <span className="panel-item-name">{entry.name}</span>
+          {entry.added && <span className="panel-item-sub">{entry.sub}</span>}
+        </span>
+      </button>
+      {onAdd ? (
+        <button
+          type="button"
+          className={`status-chip is-button${entry.added ? ' is-added' : ' is-missing'}`}
+          aria-label={`Add to ${entry.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAdd();
+          }}
+        >
+          <span className="chip-default">
+            {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
+          </span>
+          <span className="chip-hover">
+            <Plus size={14} />
+          </span>
+        </button>
+      ) : (
+        <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
+          <span className="chip-default">
+            {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
+          </span>
+          <span className="chip-hover">
+            <Plus size={14} />
+          </span>
         </span>
       )}
-      <span className="panel-item-meta">
-        <span className="panel-item-name">{entry.name}</span>
-        {entry.added && <span className="panel-item-sub">{entry.sub}</span>}
-      </span>
-      <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
-        <span className="chip-default">
-          {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
-        </span>
-        <span className="chip-hover">
-          <Plus size={14} />
-        </span>
-      </span>
-    </button>
+    </div>
   );
 }
 

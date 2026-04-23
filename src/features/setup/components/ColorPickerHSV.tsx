@@ -74,14 +74,36 @@ function hsvToHex(h: number, s: number, v: number): string {
   return rgbToHex((r1 + m) * 255, (g1 + m) * 255, (b1 + m) * 255);
 }
 
+type PaletteOption = { key: string; label: string };
+
 type Props = {
   hex: string;
   onChange?: (hex: string) => void;
   onCommit: (hex: string) => void;
   onCancel: () => void;
+  /** Render a more compact surface (shorter SV canvas) — used for the
+   *  "add a new color" flow so the picker doesn't dominate the page. */
+  compact?: boolean;
+  /** When set, shows a pill-group between the hex input and the action
+   *  buttons so the user can pick which palette the new color lands in. */
+  paletteOptions?: PaletteOption[];
+  selectedPalette?: string;
+  onSelectPalette?: (key: string) => void;
+  /** Override the commit button label — "Update" for edit, "Add" for create. */
+  commitLabel?: string;
 };
 
-export function ColorPickerHSV({ hex, onChange, onCommit, onCancel }: Props) {
+export function ColorPickerHSV({
+  hex,
+  onChange,
+  onCommit,
+  onCancel,
+  compact = false,
+  paletteOptions,
+  selectedPalette,
+  onSelectPalette,
+  commitLabel = 'Update',
+}: Props) {
   const initial = useMemo(() => {
     const rgb = hexToRgb(hex) || ([0, 0, 0] as RGB);
     return rgbToHsv(rgb[0], rgb[1], rgb[2]);
@@ -162,7 +184,10 @@ export function ColorPickerHSV({ hex, onChange, onCommit, onCancel }: Props) {
   };
 
   return (
-    <div className="cp-body" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`cp-body${compact ? ' is-compact' : ''}`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <div
         ref={svRef}
         className="cp-sv"
@@ -179,26 +204,55 @@ export function ColorPickerHSV({ hex, onChange, onCommit, onCancel }: Props) {
         <div className="cp-hue-cursor" style={{ left: `${(state.h / 360) * 100}%` }} />
       </div>
       <div className="cp-footer">
-        <div className="cp-hex-wrap">
-          <span className="cp-swatch-preview" style={{ background: currentHex }} />
-          <input
-            type="text"
-            className="cp-hex-input"
-            value={hexInput}
-            maxLength={7}
-            spellCheck={false}
-            onChange={(e) => handleHexInput(e.target.value)}
-            aria-label="Hex color"
-          />
+        <div className="cp-footer-top">
+          <div className="cp-hex-wrap">
+            <span className="cp-swatch-preview" style={{ background: currentHex }} />
+            <input
+              type="text"
+              className="cp-hex-input"
+              value={hexInput}
+              maxLength={7}
+              spellCheck={false}
+              onChange={(e) => handleHexInput(e.target.value)}
+              aria-label="Hex color"
+            />
+          </div>
+          {paletteOptions && paletteOptions.length > 0 && (
+            <div className="cp-palette-wrap">
+              <select
+                className="cp-palette-select"
+                value={selectedPalette ?? ''}
+                onChange={(e) => onSelectPalette?.(e.target.value)}
+                aria-label="Target palette"
+              >
+                {paletteOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {!compact && (
+            <div className="cp-actions">
+              <button type="button" className="cp-cancel-btn" onClick={onCancel}>
+                Cancel
+              </button>
+              <button type="button" className="cp-add-btn" onClick={() => onCommit(currentHex)}>
+                {commitLabel}
+              </button>
+            </div>
+          )}
         </div>
-        <div className="cp-actions">
-          <button type="button" className="cp-cancel-btn" onClick={onCancel}>
-            Cancel
+        {compact && (
+          <button
+            type="button"
+            className="cp-add-btn cp-add-btn--full"
+            onClick={() => onCommit(currentHex)}
+          >
+            {commitLabel}
           </button>
-          <button type="button" className="cp-add-btn" onClick={() => onCommit(currentHex)}>
-            Update
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
