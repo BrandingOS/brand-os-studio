@@ -711,21 +711,15 @@ function LogoExport({
   );
 }
 
-// ─── Design export (capture showcase as image / vector) ───────
+// ─── Design export (capture showcase as image or document) ────
 
-type DesignKind = 'png' | 'jpg' | 'pdf-editable' | 'svg-editable';
+type DesignKind = 'png' | 'jpg' | 'pdf' | 'svg';
 
 const DESIGN_LABELS: Record<DesignKind, { label: string; hint: string }> = {
   png: { label: 'PNG', hint: 'High-res image · transparent' },
   jpg: { label: 'JPG', hint: 'Smaller file · solid background' },
-  'pdf-editable': {
-    label: 'PDF (editable)',
-    hint: 'Real text + shapes — open in Illustrator',
-  },
-  'svg-editable': {
-    label: 'SVG (editable)',
-    hint: 'True vector — edit text and strokes downstream',
-  },
+  pdf: { label: 'PDF', hint: 'Opens in Illustrator · pixel-perfect' },
+  svg: { label: 'SVG', hint: 'Single-frame SVG · embeds the design' },
 };
 
 /**
@@ -762,48 +756,54 @@ function DesignExport({ brandName }: { brandName?: string }) {
 
       const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
 
-      // When we're going editable, neuter the CSS features the
-      // DOM→IR walker considers unsupported. The walker drops an
-      // entire subtree when it hits any of these — every .tile has a
-      // box-shadow and many have gradients, so without this the
-      // vector output is empty.
-      const stripStyle =
-        kind === 'pdf-editable' || kind === 'svg-editable'
-          ? injectVectorStripStyles(wrapper)
-          : null;
-
       try {
+        // One render path for every format: a 2x raster of the
+        // padded wrapper via html2canvas. That gives us a high-res
+        // PNG we can either download directly, embed in a PDF, or
+        // wrap in an SVG <image>. The DOM→IR vector walker can't
+        // faithfully reproduce these showcases (gradients, blurs,
+        // rotations, mixed text+span patterns, inline SVGs), and
+        // producing something broken is worse than producing a
+        // pixel-perfect single-frame export.
+        const { default: html2canvas } = await import('html2canvas');
+        const canvas = await html2canvas(wrapper, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor:
+            kind === 'png' || kind === 'svg' ? null : '#ffffff',
+          logging: false,
+        });
+        const pngDataUrl = canvas.toDataURL('image/png', 1);
+
         if (kind === 'png' || kind === 'jpg') {
-          const { default: html2canvas } = await import('html2canvas');
-          const canvas = await html2canvas(wrapper, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: kind === 'jpg' ? '#ffffff' : null,
-            logging: false,
-          });
           const mime = kind === 'png' ? 'image/png' : 'image/jpeg';
-          const dataUrl = canvas.toDataURL(mime, kind === 'jpg' ? 0.92 : 1);
-          const a = document.createElement('a');
-          a.href = dataUrl;
-          a.download = `${name}-showcase.${kind}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        } else {
-          const { exportAndDownload } = await import('@/shared/services/export');
-          await exportAndDownload({
-            source: { type: 'html-element', element: wrapper },
-            format: kind,
-            options: {
-              filename: `${name}-showcase`,
-              scale: 2,
-              backgroundColor: '#f5f4ef',
-              noRasterFallback: true,
-            },
+          const dataUrl =
+            kind === 'png' ? pngDataUrl : canvas.toDataURL(mime, 0.92);
+          triggerDownload(dataUrl, `${name}-showcase.${kind}`);
+        } else if (kind === 'pdf') {
+          const { default: jsPDF } = await import('jspdf');
+          const w = canvas.width;
+          const h = canvas.height;
+          const doc = new jsPDF({
+            orientation: w >= h ? 'landscape' : 'portrait',
+            unit: 'px',
+            format: [w, h],
+            hotfixes: ['px_scaling'],
           });
+          doc.addImage(pngDataUrl, 'PNG', 0, 0, w, h, undefined, 'FAST');
+          doc.save(`${name}-showcase.pdf`);
+        } else if (kind === 'svg') {
+          const w = canvas.width;
+          const h = canvas.height;
+          const vw = w / 2;
+          const vh = h / 2;
+          const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${vw}" height="${vh}" viewBox="0 0 ${w} ${h}"><image x="0" y="0" width="${w}" height="${h}" href="${pngDataUrl}" preserveAspectRatio="xMidYMid meet"/></svg>`;
+          const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          triggerDownload(url, `${name}-showcase.svg`);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
       } finally {
-        stripStyle?.remove();
         parent.insertBefore(el, marker);
         wrapper.remove();
         marker.remove();
@@ -820,10 +820,11 @@ function DesignExport({ brandName }: { brandName?: string }) {
       <div className="flex flex-col gap-1">
         <span className="text-sm font-semibold">Download the active showcase</span>
         <span className="text-xs text-muted-foreground">
-          Snapshots whatever showcase is visible behind this dialog (Bento,
-          Cards, Website, Social, …) with padding, so the export looks like
-          a presentation frame. PNG/JPG for quick shares; PDF / SVG stay
-          editable downstream.
+          Captures whatever showcase is visible behind this dialog at 2× with
+          padding. PDF / SVG wrap that capture so they open pixel-perfect in
+          Illustrator — great for hand-off and mockups. (For true editable
+          vector output this composition is too complex; use PNG if you need
+          to import and trace.)
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2">
@@ -853,47 +854,21 @@ function DesignExport({ brandName }: { brandName?: string }) {
         <p className="text-xs text-destructive">{error}</p>
       )}
       <p className="text-xs text-muted-foreground">
-        Tip: third-party photos (Unsplash) may fail the raster canvas CORS
-        check on some hosts. Editable PDF / SVG render from DOM geometry
-        instead and don't hit this issue.
+        Tip: third-party Unsplash photos may fail the canvas CORS check on
+        some hosts. If the export comes out blank, upload your own photo
+        into the tile or pick from the "Quick picks" pool.
       </p>
     </div>
   );
 }
 
-/**
- * Temporarily strip CSS features the DOM→IR walker treats as
- * unsupported (box-shadow, gradients, filters, transforms, …).
- * Without this the walker drops entire subtrees when `noRasterFallback`
- * is on, yielding a blank PDF / SVG.
- *
- * Returns the injected <style> so the caller can remove it after
- * the export finishes.
- */
-function injectVectorStripStyles(wrapper: HTMLElement): HTMLStyleElement {
-  const tag = `uics-strip-${Math.random().toString(36).slice(2, 8)}`;
-  wrapper.setAttribute('data-uics-strip', tag);
-  const style = document.createElement('style');
-  style.textContent = `
-    [data-uics-strip="${tag}"],
-    [data-uics-strip="${tag}"] * {
-      box-shadow: none !important;
-      filter: none !important;
-      -webkit-filter: none !important;
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
-      transform: none !important;
-      -webkit-transform: none !important;
-      mix-blend-mode: normal !important;
-      clip-path: none !important;
-      -webkit-clip-path: none !important;
-      mask-image: none !important;
-      -webkit-mask-image: none !important;
-      background-image: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-  return style;
+function triggerDownload(href: string, filename: string): void {
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function guessExtension(url: string): string {
