@@ -89,7 +89,7 @@ export function useBrandCreator() {
 
   const goToBrand = useCallback(
     (slug: string) => {
-      window.setTimeout(() => navigate(`/b/${slug}/identity`), 120);
+      window.setTimeout(() => navigate(`/b/${slug}/setup`), 120);
     },
     [navigate],
   );
