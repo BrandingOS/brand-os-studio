@@ -303,6 +303,13 @@ function isUrlOnly(kind: UploadKind | null): boolean {
   return kind === 'website';
 }
 
+/** File-only kinds hide the URL pill entirely — users upload by dropping
+ *  a file or clicking inside the drop area, and the modal is confirmed
+ *  with the footer Done button once they've finished adding. */
+function isFileOnly(kind: UploadKind | null): boolean {
+  return kind === 'logo' || kind === 'photos';
+}
+
 function urlPromptForKind(kind: UploadKind | null): { heading: string; placeholder: string } {
   if (kind === 'website') {
     return {
@@ -365,11 +372,23 @@ export function UploadModal({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Enter' && isFileOnly(kind)) {
+        // File-only modes (logo, photos) have no URL input, so Enter
+        // unambiguously means "I'm done adding files" — close the modal.
+        const t = e.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return;
+        e.preventDefault();
+        onClose();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, kind]);
 
   // Auto-focus the URL input when the modal opens so the user can start
   // typing immediately — no need to click into the pill first. Pushed to
@@ -529,6 +548,7 @@ export function UploadModal({
 
   const itemsLabel = session.length === 1 ? '1 item' : `${session.length} items`;
   const urlOnly = isUrlOnly(kind);
+  const fileOnly = isFileOnly(kind);
   const { heading: customHeading, placeholder: urlPlaceholder } = urlPromptForKind(kind);
 
   return (
@@ -550,13 +570,23 @@ export function UploadModal({
           aria-label="Upload — drag and drop, click to upload, or paste a URL"
           onClick={(e) => {
             if (urlOnly) return;
-            if ((e.target as HTMLElement).closest('.drop-pill, .drop-close, .items-clear, .upload-tile-remove'))
+            if (
+              (e.target as HTMLElement).closest(
+                '.drop-pill, .drop-close, .items-clear, .upload-tile-remove, .upload-modal-foot, .pill-btn',
+              )
+            )
               return;
             fileInputRef.current?.click();
           }}
           onKeyDown={(e) => {
             if (urlOnly) return;
-            if (e.key === 'Enter' || e.key === ' ') {
+            // Don't steal keys from focused controls inside the drop-zone
+            // (footer buttons, inputs). Only react to Space/Enter on the
+            // drop-zone itself.
+            if (e.target !== e.currentTarget) return;
+            // In file-only modes, Enter is reserved for "Done" (handled at
+            // the document level); only Space opens the file picker.
+            if (e.key === ' ' || (e.key === 'Enter' && !fileOnly)) {
               e.preventDefault();
               fileInputRef.current?.click();
             }
@@ -646,67 +676,69 @@ export function UploadModal({
                     }}
                   >
                     upload file
-                  </button>{' '}
-                  or paste the URL
+                  </button>
+                  {fileOnly ? '' : ' or paste the URL'}
                 </p>
               )}
 
-              <label className="drop-pill" onClick={(e) => e.stopPropagation()}>
-                {kind === 'fonts' ? (
-                  <svg
-                    className="drop-pill-icon"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="m20 20-3.5-3.5" />
-                  </svg>
-                ) : (
-                  <svg
-                    className="drop-pill-icon"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
-                    <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
-                  </svg>
-                )}
-                {kind === 'fonts' ? (
-                  <input
-                    ref={urlInputRef}
-                    type="text"
-                    placeholder={urlPlaceholder}
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={fontQuery}
-                    onChange={(e) => setFontQuery(e.target.value)}
-                    onKeyDown={handleUrlKey}
-                  />
-                ) : (
-                  <input
-                    ref={urlInputRef}
-                    type="url"
-                    placeholder={urlPlaceholder}
-                    autoComplete="off"
-                    spellCheck={false}
-                    onKeyDown={handleUrlKey}
-                  />
-                )}
-              </label>
+              {!fileOnly && (
+                <label className="drop-pill" onClick={(e) => e.stopPropagation()}>
+                  {kind === 'fonts' ? (
+                    <svg
+                      className="drop-pill-icon"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="drop-pill-icon"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+                      <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+                    </svg>
+                  )}
+                  {kind === 'fonts' ? (
+                    <input
+                      ref={urlInputRef}
+                      type="text"
+                      placeholder={urlPlaceholder}
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={fontQuery}
+                      onChange={(e) => setFontQuery(e.target.value)}
+                      onKeyDown={handleUrlKey}
+                    />
+                  ) : (
+                    <input
+                      ref={urlInputRef}
+                      type="url"
+                      placeholder={urlPlaceholder}
+                      autoComplete="off"
+                      spellCheck={false}
+                      onKeyDown={handleUrlKey}
+                    />
+                  )}
+                </label>
+              )}
 
               {kind === 'fonts' && (
                 <div className="font-picks" onClick={(e) => e.stopPropagation()}>
@@ -821,6 +853,33 @@ export function UploadModal({
               e.target.value = '';
             }}
           />
+
+          <footer
+            className="upload-modal-foot"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="pill-btn pill-btn--ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="pill-btn pill-btn--primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
+              Done
+            </button>
+          </footer>
         </div>
       </div>
     </div>

@@ -67,7 +67,15 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd
     { key: 'icons', name: 'Iconography', sub: `${brand.icons.length} icons`, added: brand.icons.length > 0 },
     { key: 'photos', name: 'Photography', sub: `${brand.photos.length} references`, added: brand.photos.length > 0 },
     { key: 'website', name: 'Website', sub: websiteSummary, added: brand.websites.length > 0 },
-    { key: 'voice', name: 'Voice & Tone', sub: `${brand.voice.pillars.length} pillars`, added: brand.voice.essay.length > 0 },
+    {
+      key: 'voice',
+      name: 'About',
+      sub: (() => {
+        const filled = brand.about.filter((a) => a.content.trim()).length;
+        return filled === 0 ? 'Not set' : `${filled} / ${brand.about.length} sections`;
+      })(),
+      added: brand.about.some((a) => a.content.trim().length > 0),
+    },
   ];
 
   const ordered = [...entries.filter((e) => e.added), ...entries.filter((e) => !e.added)];

@@ -50,6 +50,12 @@ export type BrandWebsite = {
   loading?: boolean;
 };
 
+export type AboutEntry = {
+  id: string;
+  title: string;
+  content: string;
+};
+
 export type MockBrand = {
   name: string;
   logos: BrandLogo[];
@@ -66,6 +72,7 @@ export type MockBrand = {
     essay: string;
     pillars: string[];
   };
+  about: AboutEntry[];
 };
 
 const nuworldLogoSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -170,4 +177,16 @@ export const mockBrand: MockBrand = {
       'We speak plainly. We make complex things feel simple. We respect our readers’ time — and their intelligence.',
     pillars: ['Clear', 'Warm', 'Precise', 'Confident'],
   },
+  about: [
+    { id: 'audience', title: 'Audience', content: '' },
+    { id: 'messaging', title: 'Messaging', content: '' },
+    { id: 'vision', title: 'Vision', content: '' },
+    { id: 'mission', title: 'Mission', content: '' },
+    {
+      id: 'voice',
+      title: 'Voice & Tone',
+      content:
+        'We speak plainly. We make complex things feel simple. We respect our readers’ time — and their intelligence.\n\nPillars: Clear, Warm, Precise, Confident.',
+    },
+  ],
 };

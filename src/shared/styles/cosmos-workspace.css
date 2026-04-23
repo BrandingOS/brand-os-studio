@@ -157,27 +157,74 @@
   box-shadow: var(--shadow-xs);
 }
 
+/* Segmented nav — dark pill at the top, patterned after brand.ai's nav.
+   Opens on mount with a subtle scale + fade so it feels like it's
+   "unfurling" onto the page. Single shared active pill slides between
+   items; no shrink-then-expand container morph. */
 [data-cosmos="workspace"] .segmented-nav {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 2px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: 10px;
   border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-xs);
+  background: var(--surface);
+  color: var(--text-primary);
+  overflow: hidden;
+  transform-origin: top center;
+  transition:
+    background 180ms var(--ease),
+    border-color 180ms var(--ease),
+    color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .segmented-nav.is-opening {
+  animation: segmented-nav-open 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes segmented-nav-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Single animated active pill — subtle white chip on the dark container
+   (same relationship brand.ai uses). Slides smoothly between items. */
+[data-cosmos="workspace"] .segmented-nav-pill {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  border-radius: 6px;
+  background: var(--accent-muted);
+  transition:
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms var(--ease);
+  z-index: 0;
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .segmented-nav.is-opening .segmented-nav-pill {
+  animation: segmented-nav-pill-open 440ms 80ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes segmented-nav-pill-open {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 [data-cosmos="workspace"] .segmented-nav-item {
   position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
@@ -189,18 +236,15 @@
   font-family: inherit;
   transition:
     color 180ms var(--ease),
-    background 180ms var(--ease),
     transform 180ms var(--ease);
 }
 [data-cosmos="workspace"] .segmented-nav-item:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
 }
 [data-cosmos="workspace"] .segmented-nav-item[aria-current="page"],
 [data-cosmos="workspace"] .segmented-nav-item.is-active {
-  color: var(--accent-contrast);
-  background: var(--accent);
-  box-shadow: var(--shadow-xs);
+  color: var(--text-primary);
+  background: transparent;
 }
 [data-cosmos="workspace"] .segmented-nav-item:focus-visible {
   outline: none;
@@ -791,9 +835,18 @@
   transition: color 180ms var(--ease), background 180ms var(--ease);
   animation: cosmos-ws-fade-up 240ms var(--ease) both;
 }
-[data-cosmos="workspace"] .logo-tile.is-empty:hover {
+[data-cosmos="workspace"] .logo-tile.is-empty:hover,
+[data-cosmos="workspace"] .logo-tile.is-empty.is-drop-target {
   background: var(--accent-muted);
   color: var(--text-primary);
+}
+[data-cosmos="workspace"] .logo-tile.is-empty.is-drop-target .logo-tile-dash rect,
+[data-cosmos="workspace"] .photo-tile.is-slot.is-drop-target .photo-tile-dash rect,
+[data-cosmos="workspace"] .photo-tile.is-slot.is-drop-target .photo-tile-dash-shape path {
+  stroke: var(--dash-strong);
+}
+[data-cosmos="workspace"] .photo-tile.is-slot.is-drop-target {
+  background: var(--accent-muted);
 }
 [data-cosmos="workspace"] .logo-tile-dash {
   position: absolute;
@@ -878,7 +931,7 @@
   gap: 10px;
   cursor: pointer;
   border: none;
-  border-radius: 20px;
+  border-radius: 20px 20px 0 0;
   margin-left: -10px;
   box-shadow: none;
   transform-origin: 50% 50%;
@@ -889,13 +942,13 @@
 [data-cosmos="workspace"] .colors-row > .swatch:first-child { margin-left: 0; }
 [data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch {
   margin-left: -130px;
-  border-radius: 18px;
+  border-radius: 18px 18px 0 0;
   padding: 20px 22px 20px 10px;
 }
 [data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch:first-child { margin-left: 0; }
 [data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch {
   margin-left: -130px;
-  border-radius: 18px;
+  border-radius: 18px 18px 0 0;
   padding: 20px 22px 20px 10px;
 }
 [data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch:first-child { margin-left: 0; }
@@ -1504,12 +1557,17 @@
 }
 
 /* Empty states shown before any entry exists — click to open the add
-   modal. Matches the dashed-ring look used in photos. */
+   modal. Uses the same animated dashed-border pattern as
+   .logo-tile.is-empty so every "add from here" affordance feels the same. */
 [data-cosmos="workspace"] .type-empty,
-[data-cosmos="workspace"] .website-empty {
+[data-cosmos="workspace"] .website-empty,
+[data-cosmos="workspace"] .colors-empty,
+[data-cosmos="workspace"] .icons-empty,
+[data-cosmos="workspace"] .about-empty {
+  position: relative;
   width: 100%;
   min-height: 180px;
-  border: 1.5px dashed var(--dash);
+  border: none;
   border-radius: 18px;
   background: transparent;
   display: flex;
@@ -1521,13 +1579,127 @@
   font-weight: 500;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 180ms var(--ease), color 180ms var(--ease), background 180ms var(--ease);
+  overflow: hidden;
+  transition: color 180ms var(--ease), background 180ms var(--ease);
+  animation: cosmos-ws-fade-up 240ms var(--ease) both;
 }
+[data-cosmos="workspace"] .colors-group > .colors-empty {
+  min-height: 160px;
+  border-radius: 14px;
+}
+
+[data-cosmos="workspace"] .empty-tile-dash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .empty-tile-dash rect {
+  x: 1px; y: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  rx: 18px; ry: 18px;
+  fill: none;
+  stroke: var(--dash);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  animation: cosmos-ws-dash-flow 110s linear infinite;
+  transition: stroke 260ms var(--ease);
+}
+[data-cosmos="workspace"] .colors-group > .colors-empty .empty-tile-dash rect {
+  rx: 14px; ry: 14px;
+}
+[data-cosmos="workspace"] .type-empty:hover .empty-tile-dash rect,
+[data-cosmos="workspace"] .website-empty:hover .empty-tile-dash rect,
+[data-cosmos="workspace"] .colors-empty:hover .empty-tile-dash rect,
+[data-cosmos="workspace"] .icons-empty:hover .empty-tile-dash rect,
+[data-cosmos="workspace"] .about-empty:hover .empty-tile-dash rect {
+  stroke: var(--dash-strong);
+}
+[data-cosmos="workspace"] .empty-tile-content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Empty-core swatch — same shape as a normal swatch, but transparent
+   with an animated dashed outline. Lifts on click (is-active) exactly
+   like a regular swatch, and stays colorless until the picker fires
+   onChange (is-filled is added then and the outline hides). */
+[data-cosmos="workspace"] .swatch.is-empty {
+  background: transparent;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .swatch.is-empty .empty-tile-dash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 0;
+}
+[data-cosmos="workspace"] .swatch.is-empty .empty-tile-dash rect {
+  x: 1px; y: 1px;
+  width: calc(100% - 2px);
+  height: 400px;
+  rx: 20px; ry: 20px;
+  fill: none;
+  stroke: var(--dash);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 7;
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+  animation: cosmos-ws-dash-flow 110s linear infinite;
+  transition: stroke 260ms var(--ease);
+}
+[data-cosmos="workspace"] .colors-row[data-layout="accent"] .swatch.is-empty .empty-tile-dash rect,
+[data-cosmos="workspace"] .colors-row[data-layout="grey"] .swatch.is-empty .empty-tile-dash rect {
+  rx: 18px; ry: 18px;
+}
+[data-cosmos="workspace"] .swatch.is-empty:hover .empty-tile-dash rect,
+[data-cosmos="workspace"] .swatch.is-empty.is-active .empty-tile-dash rect {
+  stroke: var(--dash-strong);
+}
+[data-cosmos="workspace"] .swatch.is-empty.is-filled .empty-tile-dash {
+  display: none;
+}
+[data-cosmos="workspace"] .swatch.is-empty::after {
+  box-shadow: none;
+}
+[data-cosmos="workspace"] .swatch.is-empty .swatch-name,
+[data-cosmos="workspace"] .swatch.is-empty .swatch-hex {
+  position: relative;
+  z-index: 1;
+  opacity: 1;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .swatch.is-empty.is-filled .swatch-name {
+  color: rgba(255, 255, 255, 0.96);
+}
+[data-cosmos="workspace"] .swatch.is-empty.is-filled .swatch-hex {
+  color: rgba(255, 255, 255, 0.88);
+}
+[data-cosmos="workspace"] .swatch.is-empty.is-filled.is-light .swatch-name {
+  color: rgba(0, 0, 0, 0.84);
+}
+[data-cosmos="workspace"] .swatch.is-empty.is-filled.is-light .swatch-hex {
+  color: rgba(0, 0, 0, 0.54);
+}
+
 [data-cosmos="workspace"] .type-empty:hover,
-[data-cosmos="workspace"] .website-empty:hover {
-  border-color: var(--dash-strong);
+[data-cosmos="workspace"] .website-empty:hover,
+[data-cosmos="workspace"] .colors-empty:hover,
+[data-cosmos="workspace"] .icons-empty:hover,
+[data-cosmos="workspace"] .about-empty:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
+  background: var(--accent-muted);
 }
 
 [data-cosmos="workspace"] .type-row {
@@ -2084,7 +2256,105 @@
 }
 
 /* ============================================================
- * VOICE & TONE SECTION
+ * ABOUT SECTION — grid of clickable subsection cards
+ * ============================================================ */
+[data-cosmos="workspace"] .about-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+[data-cosmos="workspace"] .about-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 24px;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 180ms var(--ease), background 180ms var(--ease), transform 220ms var(--ease);
+}
+[data-cosmos="workspace"] .about-card:hover,
+[data-cosmos="workspace"] .about-card:focus-visible,
+[data-cosmos="workspace"] .about-card.is-ctx-active {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  outline: none;
+  transform: translateY(-1px);
+}
+[data-cosmos="workspace"] .about-card.is-empty {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--dash);
+}
+[data-cosmos="workspace"] .about-card.is-empty:hover {
+  border-color: var(--dash-strong);
+  background: var(--surface-hover);
+}
+[data-cosmos="workspace"] .about-card-title {
+  font-family: "Instrument Serif", "Playfair Display", serif;
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .about-card-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .about-card-placeholder {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+@media (max-width: 900px) {
+  [data-cosmos="workspace"] .about-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+[data-cosmos="workspace"] .about-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+[data-cosmos="workspace"] .about-suggestion-chip {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 180ms var(--ease), color 180ms var(--ease), border-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .about-suggestion-chip:hover {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* ============================================================
+ * VOICE & TONE SECTION (legacy markup — kept for any references)
  * ============================================================ */
 [data-cosmos="workspace"] .voice-block {
   display: grid;
@@ -2185,7 +2455,8 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-  [data-cosmos="workspace"] .logo-tile-dash rect { animation: none !important; }
+  [data-cosmos="workspace"] .logo-tile-dash rect,
+  [data-cosmos="workspace"] .empty-tile-dash rect { animation: none !important; }
 }
 
 /* ============================================================
@@ -2325,6 +2596,16 @@
   opacity: 1;
 }
 
+[data-cosmos="workspace"] .upload-modal-foot {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  z-index: 3;
+}
+
 .drop-zone {
   position: relative;
   background: var(--dz-bg);
@@ -2340,9 +2621,9 @@
 .drop-zone.is-drag { background: var(--accent-muted); }
 /* URL-only variant (website add) — shrink the modal and hide file-drop
    affordances so the URL input is the focal point. */
-.drop-zone.is-url-only { cursor: default; min-height: 220px; }
+.drop-zone.is-url-only { cursor: default; min-height: 280px; }
 .drop-zone.is-url-only:hover { background: var(--dz-bg); }
-.drop-zone.is-url-only .drop-inset { min-height: 200px; }
+.drop-zone.is-url-only .drop-inset { min-height: 260px; padding-bottom: 80px; }
 .drop-text--url {
   font-size: 14px;
   font-weight: 500;
@@ -2481,7 +2762,7 @@
 .drop-pill:focus-within {
   background: var(--pill-bg-focus);
   border-color: var(--text-primary);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: none;
 }
 .drop-pill-icon { color: var(--text-subtle); flex-shrink: 0; transition: color 180ms var(--ease); }
 .drop-pill:focus-within .drop-pill-icon { color: var(--text-muted); }
@@ -2506,6 +2787,7 @@
   width: 100%;
   max-width: 520px;
   margin-top: 16px;
+  margin-bottom: 64px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2947,7 +3229,7 @@
 [data-cosmos="workspace"] .modal-input:focus,
 [data-cosmos="workspace"] .modal-textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-ring);
+  box-shadow: none;
 }
 [data-cosmos="workspace"] .modal-label {
   font-size: 12px;

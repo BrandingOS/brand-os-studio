@@ -1,13 +1,23 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { createElement, useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
 import { SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
-import { ArrowRight } from './components/SetupIcons';
+import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
-import { VoiceEditorModal } from './components/VoiceEditorModal';
+import { AboutEditorModal, type AboutEditorInitial } from './components/AboutEditorModal';
 import { PreviewModal, type PreviewData } from './components/PreviewModal';
+import { hexToName } from './data/colorNames';
+import {
+  buildZip,
+  downloadBlob,
+  fetchGoogleFontPackage,
+  renderIconToSvg,
+  serializeSvgNode,
+  slugify,
+  svgToRasterBlob,
+} from './utils/downloads';
 
 const UPLOAD_KINDS: ReadonlySet<SectionKey> = new Set<SectionKey>([
   'logo',
@@ -74,75 +84,33 @@ function isValidHttpUrl(raw: string): boolean {
   }
 }
 
-/** Pull the section-scoped slice of the brand object for download. Used
- *  by the section-header "download" button to hand the user a JSON file
- *  they can diff / archive / paste into another tool. */
-function sectionSnapshot(brand: MockBrand, key: SectionKey): unknown {
-  switch (key) {
-    case 'logo': return { logos: brand.logos };
-    case 'colors': return { colors: brand.colors };
-    case 'fonts': return { fonts: brand.fonts };
-    case 'icons': return { icons: brand.icons };
-    case 'photos': return { photos: brand.photos };
-    case 'website': return { websites: brand.websites };
-    case 'voice': return { voice: brand.voice };
-    default: return null;
-  }
-}
-
-/** Trigger a browser download for either a data URL or a remote asset.
- *  Data URLs are assigned straight to an <a download>; remote URLs go
- *  through fetch() so cross-origin images still save under the given
- *  filename rather than the remote path. Falls back to a direct anchor
- *  click if fetch is blocked by CORS. */
-async function downloadFromUrl(src: string, filename: string): Promise<void> {
-  const trigger = (href: string, cleanup?: () => void) => {
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    if (cleanup) setTimeout(cleanup, 1000);
-  };
+/** Fetch a remote asset (or pass through a data: URL) and return a Blob.
+ *  Returns null on fetch failure so callers can skip or fall back. */
+async function fetchAsBlob(src: string): Promise<Blob | null> {
   if (src.startsWith('data:')) {
-    trigger(src);
-    return;
+    try {
+      const res = await fetch(src);
+      return await res.blob();
+    } catch {
+      return null;
+    }
   }
   try {
     const res = await fetch(src);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    trigger(url, () => URL.revokeObjectURL(url));
+    if (!res.ok) return null;
+    return await res.blob();
   } catch {
-    trigger(src);
+    return null;
   }
 }
 
-function slugify(s: string): string {
-  return (
-    s
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'item'
-  );
-}
-
-function downloadJson(data: unknown, filename: string): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Give the browser a tick to start the download before revoking.
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function extOf(src: string): string {
+  if (src.startsWith('data:')) {
+    const m = src.match(/^data:image\/([a-z0-9]+)/i);
+    return m?.[1] ?? 'png';
+  }
+  const m = src.match(/\.([a-z0-9]+)(?:\?.*)?$/i);
+  return (m?.[1] ?? 'jpg').toLowerCase();
 }
 
 /** Fetch title + OG image + favicon + screenshot via Microlink. Returns
@@ -205,8 +173,8 @@ export function SetupPage() {
   const [replaceFontId, setReplaceFontId] = useState<string | null>(null);
   // Same idea for websites.
   const [replaceWebsiteId, setReplaceWebsiteId] = useState<string | null>(null);
-  // Voice & Tone editor — opens when the user clicks + on that section.
-  const [voiceOpen, setVoiceOpen] = useState(false);
+  // About-section editor — either a new entry (no id) or an existing one.
+  const [aboutEditing, setAboutEditing] = useState<AboutEditorInitial | null>(null);
   // Lightbox preview for logos / photos. Null when nothing is open.
   const [preview, setPreview] = useState<PreviewData | null>(null);
 
@@ -260,17 +228,12 @@ export function SetupPage() {
   );
 
   const handleDownloadColor = useCallback((color: { hex: string; name: string }) => {
-    const slug = color.name.trim().toLowerCase().replace(/\s+/g, '-') || 'color';
+    const slug = slugify(color.name);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><title>${color.name} ${color.hex}</title><rect width="512" height="512" fill="${color.hex}"/></svg>`;
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${slug}-${color.hex.replace('#', '').toLowerCase()}.svg`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBlob(
+      new Blob([svg], { type: 'image/svg+xml' }),
+      `${slug}-${color.hex.replace('#', '').toLowerCase()}.svg`,
+    );
   }, []);
 
   const handleCopyText = useCallback(async (text: string) => {
@@ -302,7 +265,14 @@ export function SetupPage() {
     (group: Exclude<ColorGroupKey, 'grey'>, hex: string) => {
       setBrand((prev) => {
         const list = prev.colors[group];
-        const name = `${group === 'core' ? 'Core' : 'Accent'} ${list.length + 1}`;
+        const base = hexToName(hex);
+        const taken = new Set(list.map((c) => c.name));
+        let name = base;
+        let n = 2;
+        while (taken.has(name)) {
+          name = `${base} ${n}`;
+          n += 1;
+        }
         return {
           ...prev,
           colors: {
@@ -333,7 +303,7 @@ export function SetupPage() {
     if (brand.icons.length) n += 1;
     if (brand.photos.length) n += 1;
     if (brand.websites.length) n += 1;
-    if (brand.voice.essay) n += 1;
+    if (brand.about.some((a) => a.content.trim().length > 0)) n += 1;
     return n;
   }, [brand]);
 
@@ -352,7 +322,7 @@ export function SetupPage() {
       return;
     }
     if (key === 'voice') {
-      setVoiceOpen(true);
+      setAboutEditing({ title: '', content: '' });
       return;
     }
     toast(`Edit ${key}`, {
@@ -378,7 +348,7 @@ export function SetupPage() {
         return;
       }
       if (key === 'voice') {
-        setVoiceOpen(true);
+        setAboutEditing({ title: '', content: '' });
         return;
       }
       if (UPLOAD_KINDS.has(key)) {
@@ -477,28 +447,35 @@ export function SetupPage() {
     });
   }, []);
 
-  /** Grab the SVG node from the right-clicked tile and save it as a
-   *  standalone .svg file. The marquee renders duplicate tiles to fill
-   *  the track, so we rely on the triggering element rather than
-   *  re-rendering from the icon component. */
+  /** Grab the SVG node from the right-clicked tile and zip it as three
+   *  copies — svg/, png/, and jpg/ — so the user gets a ready-to-ship
+   *  icon pack whatever format they need downstream. The marquee renders
+   *  duplicate tiles to fill the track, so we rely on the triggering
+   *  element rather than re-rendering from the icon component. */
   const handleDownloadIcon = useCallback(
-    (name: string, anchor: HTMLElement) => {
-      const svg = anchor.querySelector('svg');
-      if (!svg) return;
-      const cloned = svg.cloneNode(true) as SVGElement;
-      cloned.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      cloned.removeAttribute('class');
-      const xml = new XMLSerializer().serializeToString(cloned);
-      const payload = xml.startsWith('<?xml') ? xml : `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
-      const blob = new Blob([payload], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slugify(name)}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    async (name: string, anchor: HTMLElement) => {
+      const svgNode = anchor.querySelector('svg');
+      if (!svgNode) return;
+      const svgText = serializeSvgNode(svgNode as SVGElement);
+      const slug = slugify(name);
+      try {
+        const [pngBlob, jpgBlob] = await Promise.all([
+          svgToRasterBlob(svgText, 'image/png', 512),
+          svgToRasterBlob(svgText, 'image/jpeg', 512),
+        ]);
+        await buildZip(`${slug}-icon.zip`, (zip) => {
+          zip.file(`svg/${slug}.svg`, svgText);
+          zip.file(`png/${slug}.png`, pngBlob);
+          zip.file(`jpg/${slug}.jpg`, jpgBlob);
+        });
+      } catch {
+        // Rasterization failed (rare — safari taint). Fall back to the
+        // raw SVG so the user still gets something.
+        downloadBlob(
+          new Blob([svgText], { type: 'image/svg+xml' }),
+          `${slug}.svg`,
+        );
+      }
     },
     [],
   );
@@ -510,37 +487,50 @@ export function SetupPage() {
     }));
   }, []);
 
+  /** Zip the Google Fonts woff2 files for this family together with a
+   *  drop-in CSS snippet. If Google Fonts can't be reached (offline /
+   *  CORS), fall back to a CSS-only file so the user still gets the
+   *  correct @import they can paste into a stylesheet. */
   const handleDownloadFont = useCallback(
-    (font: MockBrand['fonts'][number]) => {
-      // Most "fonts" on this page are referenced by family name rather
-      // than a stored file (Google Fonts, uploaded, etc.), so the most
-      // useful artefact is a drop-in CSS snippet the user can paste into
-      // a project: import link + usage declaration.
+    async (font: MockBrand['fonts'][number]) => {
       const family = font.family;
-      const encoded = encodeURIComponent(family).replace(/%20/g, '+');
+      const slug = slugify(family);
       const fallback = font.fallback ?? 'sans-serif';
-      const css = [
+      const usageCss = [
         `/* ${family} — BrandOS export */`,
-        `@import url('https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap');`,
-        ``,
         `:root {`,
-        `  --font-${slugify(family)}: "${family}", ${fallback};`,
+        `  --font-${slug}: "${family}", ${fallback};`,
         `}`,
         ``,
-        `.${slugify(family)} {`,
+        `.${slug} {`,
         `  font-family: "${family}", ${fallback};`,
         `}`,
         ``,
       ].join('\n');
-      const blob = new Blob([css], { type: 'text/css' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${slugify(family)}.css`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const pkg = await fetchGoogleFontPackage(family);
+      if (!pkg || (pkg.ttfFiles.length === 0 && pkg.woff2Files.length === 0)) {
+        const encoded = encodeURIComponent(family).replace(/%20/g, '+');
+        const cssOnly = [
+          `/* ${family} — BrandOS export (CSS only — couldn't fetch font files) */`,
+          `@import url('https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap');`,
+          ``,
+          usageCss,
+        ].join('\n');
+        downloadBlob(new Blob([cssOnly], { type: 'text/css' }), `${slug}.css`);
+        return;
+      }
+      await buildZip(`${slug}-font.zip`, (zip) => {
+        if (pkg.ttfFiles.length > 0) {
+          const ttf = zip.folder('ttf');
+          pkg.ttfFiles.forEach(({ name, blob }) => ttf?.file(name, blob));
+        }
+        if (pkg.woff2Files.length > 0) {
+          const woff2 = zip.folder('woff2');
+          pkg.woff2Files.forEach(({ name, blob }) => woff2?.file(name, blob));
+        }
+        zip.file('fonts.css', pkg.fontsCss);
+        zip.file('usage.css', usageCss);
+      });
     },
     [],
   );
@@ -808,20 +798,290 @@ export function SetupPage() {
     [replaceLogoId, replacePhotoId, replaceFontId, handleAddFont, handleReplaceFontUrl],
   );
 
-  const handleSaveVoice = useCallback(
-    ({ essay, pillars }: { essay: string; pillars: string[] }) => {
-      setBrand((prev) => ({ ...prev, voice: { essay, pillars } }));
-      setVoiceOpen(false);
+  const handleEditAbout = useCallback(
+    (id: string) => {
+      const entry = brand.about.find((a) => a.id === id);
+      if (!entry) return;
+      setAboutEditing({ id: entry.id, title: entry.title, content: entry.content });
+    },
+    [brand.about],
+  );
+
+  const handleSaveAbout = useCallback(
+    ({ id, title, content }: { id?: string; title: string; content: string }) => {
+      setBrand((prev) => {
+        if (id) {
+          return {
+            ...prev,
+            about: prev.about.map((a) =>
+              a.id === id ? { ...a, title, content } : a,
+            ),
+          };
+        }
+        // New entry — if a pre-seeded (empty-content) slot already holds
+        // this title, fill that one in place rather than creating a dup.
+        const existingEmpty = prev.about.find(
+          (a) => !a.content.trim() && a.title.toLowerCase() === title.toLowerCase(),
+        );
+        if (existingEmpty) {
+          return {
+            ...prev,
+            about: prev.about.map((a) =>
+              a.id === existingEmpty.id ? { ...a, title, content } : a,
+            ),
+          };
+        }
+        const base =
+          title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') ||
+          'section';
+        const taken = new Set(prev.about.map((a) => a.id));
+        let newId = base;
+        let n = 2;
+        while (taken.has(newId)) {
+          newId = `${base}-${n}`;
+          n += 1;
+        }
+        return { ...prev, about: [...prev.about, { id: newId, title, content }] };
+      });
+      setAboutEditing(null);
     },
     [],
   );
 
+  const handleDropFiles = useCallback(
+    (kind: 'logo' | 'photos', files: File[]) => {
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = String(reader.result ?? '');
+          if (!dataUrl) return;
+          let svg: string | undefined;
+          if (file.type === 'image/svg+xml') {
+            const textReader = new FileReader();
+            textReader.onload = () => {
+              svg = String(textReader.result ?? '') || undefined;
+              handleCommitAsset(
+                { name: file.name, size: file.size, type: file.type, dataUrl, svg },
+                kind,
+              );
+            };
+            textReader.readAsText(file);
+            return;
+          }
+          handleCommitAsset(
+            { name: file.name, size: file.size, type: file.type, dataUrl },
+            kind,
+          );
+        };
+        reader.readAsDataURL(file);
+      });
+    },
+    [handleCommitAsset],
+  );
+
+  const handleDownloadAbout = useCallback(
+    (entry: MockBrand['about'][number]) => {
+      const slug = entry.title.trim().toLowerCase().replace(/\s+/g, '-') || 'section';
+      const brandSlug =
+        brand.name.trim().toLowerCase().replace(/\s+/g, '-') || 'brand';
+      const body = `# ${entry.title}\n\n${entry.content}\n`;
+      const blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${brandSlug}-${slug}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    [brand.name],
+  );
+
+  const handleDeleteAbout = useCallback((id: string) => {
+    setBrand((prev) => ({
+      ...prev,
+      about: prev.about.filter((a) => a.id !== id),
+    }));
+    setAboutEditing(null);
+  }, []);
+
+  /** Section-wide export — the "download" button in each section header
+   *  hands the user a zip with every asset in that section, organized
+   *  into sensible folders by format. Skips sections that are empty so
+   *  the user doesn't end up with a 0-entry archive. */
   const handleExportSection = useCallback(
-    (key: SectionKey) => {
-      const snapshot = sectionSnapshot(brand, key);
-      if (!snapshot) return;
-      const slug = brand.name.trim().toLowerCase().replace(/\s+/g, '-') || 'brand';
-      downloadJson(snapshot, `${slug}-${key}.json`);
+    async (key: SectionKey) => {
+      const brandSlug = slugify(brand.name);
+      const filename = `${brandSlug}-${key}.zip`;
+
+      if (key === 'logo') {
+        if (brand.logos.length === 0) return;
+        await buildZip(filename, (zip) => {
+          brand.logos.forEach((logo, i) => {
+            const name = slugify(logo.label || `logo-${i + 1}`);
+            zip.file(`${name}.svg`, logo.svg);
+          });
+        });
+        return;
+      }
+
+      if (key === 'colors') {
+        const { core, accent, grey } = brand.colors;
+        if (core.length + accent.length + grey.length === 0) return;
+        await buildZip(filename, (zip) => {
+          const groups: Array<[string, MockBrand['colors']['core']]> = [
+            ['core', core],
+            ['accent', accent],
+            ['grey', grey],
+          ];
+          const lines: string[] = [`# ${brand.name} — color palette`, ''];
+          for (const [groupName, list] of groups) {
+            if (list.length === 0) continue;
+            lines.push(`## ${groupName}`);
+            const folder = zip.folder(groupName);
+            list.forEach((color) => {
+              const slug = slugify(color.name);
+              const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><title>${color.name} ${color.hex}</title><rect width="512" height="512" fill="${color.hex}"/></svg>`;
+              folder?.file(`${slug}.svg`, svg);
+              lines.push(`- ${color.name} — ${color.hex}`);
+            });
+            lines.push('');
+          }
+          zip.file('palette.md', lines.join('\n'));
+        });
+        return;
+      }
+
+      if (key === 'fonts') {
+        if (brand.fonts.length === 0) return;
+        await buildZip(filename, async (zip) => {
+          const indexLines: string[] = [`# ${brand.name} — typography`, ''];
+          for (const font of brand.fonts) {
+            const slug = slugify(font.family);
+            const familyFolder = zip.folder(slug);
+            const fallback = font.fallback ?? 'sans-serif';
+            const usageCss = [
+              `/* ${font.family} — BrandOS export */`,
+              `:root { --font-${slug}: "${font.family}", ${fallback}; }`,
+              `.${slug} { font-family: "${font.family}", ${fallback}; }`,
+              '',
+            ].join('\n');
+            const pkg = await fetchGoogleFontPackage(font.family);
+            if (pkg && (pkg.ttfFiles.length > 0 || pkg.woff2Files.length > 0)) {
+              if (pkg.ttfFiles.length > 0) {
+                const ttf = familyFolder?.folder('ttf');
+                pkg.ttfFiles.forEach(({ name, blob }) =>
+                  ttf?.file(name, blob),
+                );
+              }
+              if (pkg.woff2Files.length > 0) {
+                const woff2 = familyFolder?.folder('woff2');
+                pkg.woff2Files.forEach(({ name, blob }) =>
+                  woff2?.file(name, blob),
+                );
+              }
+              familyFolder?.file('fonts.css', pkg.fontsCss);
+            } else {
+              const encoded = encodeURIComponent(font.family).replace(/%20/g, '+');
+              familyFolder?.file(
+                'fonts.css',
+                `@import url('https://fonts.googleapis.com/css2?family=${encoded}:wght@400;500;600;700&display=swap');\n`,
+              );
+            }
+            familyFolder?.file('usage.css', usageCss);
+            indexLines.push(`## ${font.role} — ${font.family}`);
+            indexLines.push(`- Weights: ${font.weights}`);
+            indexLines.push(`- Fallback: ${fallback}`);
+            indexLines.push('');
+          }
+          zip.file('README.md', indexLines.join('\n'));
+        });
+        return;
+      }
+
+      if (key === 'icons') {
+        if (brand.icons.length === 0) return;
+        const iconMap = ICON_MAP();
+        await buildZip(filename, async (zip) => {
+          const svgFolder = zip.folder('svg');
+          const pngFolder = zip.folder('png');
+          const jpgFolder = zip.folder('jpg');
+          for (const name of brand.icons) {
+            const Comp = iconMap[name as keyof typeof iconMap];
+            if (!Comp) continue;
+            const slug = slugify(name);
+            const svgText = renderIconToSvg(createElement(Comp, { size: 24 }));
+            svgFolder?.file(`${slug}.svg`, svgText);
+            try {
+              const [png, jpg] = await Promise.all([
+                svgToRasterBlob(svgText, 'image/png', 512),
+                svgToRasterBlob(svgText, 'image/jpeg', 512),
+              ]);
+              pngFolder?.file(`${slug}.png`, png);
+              jpgFolder?.file(`${slug}.jpg`, jpg);
+            } catch {
+              /* skip raster variants if rasterization fails */
+            }
+          }
+        });
+        return;
+      }
+
+      if (key === 'photos') {
+        if (brand.photos.length === 0) return;
+        await buildZip(filename, async (zip) => {
+          const folder = zip.folder('photos');
+          for (const photo of brand.photos) {
+            const ext = extOf(photo.src);
+            const blob = await fetchAsBlob(photo.src);
+            if (blob) folder?.file(`photo-${photo.slot}.${ext}`, blob);
+          }
+        });
+        return;
+      }
+
+      if (key === 'website') {
+        if (brand.websites.length === 0) return;
+        await buildZip(filename, (zip) => {
+          const lines: string[] = [
+            `# ${brand.name} — websites`,
+            '',
+            ...brand.websites.map((w) =>
+              `- ${w.title ? `${w.title} — ` : ''}${w.url}${w.live ? ' (live)' : ''}`,
+            ),
+            '',
+          ];
+          zip.file('websites.md', lines.join('\n'));
+          zip.file(
+            'websites.json',
+            JSON.stringify(
+              brand.websites.map((w) => ({
+                url: w.url,
+                title: w.title ?? null,
+                live: !!w.live,
+              })),
+              null,
+              2,
+            ),
+          );
+        });
+        return;
+      }
+
+      if (key === 'voice') {
+        const filled = brand.about.filter((a) => a.content.trim().length > 0);
+        if (filled.length === 0) return;
+        await buildZip(filename, (zip) => {
+          const folder = zip.folder('about');
+          filled.forEach((entry) => {
+            const slug = slugify(entry.title);
+            const body = `# ${entry.title}\n\n${entry.content}\n`;
+            folder?.file(`${slug}.md`, body);
+          });
+        });
+        return;
+      }
     },
     [brand],
   );
@@ -835,19 +1095,12 @@ export function SetupPage() {
 
   const handleDownloadLogo = useCallback(
     (logo: MockBrand['logos'][number]) => {
-      const slug =
-        (logo.label || 'logo').trim().toLowerCase().replace(/\s+/g, '-') || 'logo';
-      const brandSlug =
-        brand.name.trim().toLowerCase().replace(/\s+/g, '-') || 'brand';
-      const blob = new Blob([logo.svg], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${brandSlug}-${slug}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const slug = slugify(logo.label || 'logo');
+      const brandSlug = slugify(brand.name);
+      downloadBlob(
+        new Blob([logo.svg], { type: 'image/svg+xml' }),
+        `${brandSlug}-${slug}.svg`,
+      );
     },
     [brand.name],
   );
@@ -872,15 +1125,22 @@ export function SetupPage() {
   );
 
   const handleDownloadPhoto = useCallback(
-    (photo: MockBrand['photos'][number]) => {
-      const brandSlug = slugify(brand.name) || 'brand';
-      const ext = photo.src.startsWith('data:')
-        ? (photo.src.match(/^data:image\/([a-z0-9]+)/i)?.[1] ?? 'png')
-        : (photo.src.match(/\.([a-z0-9]+)(?:\?.*)?$/i)?.[1] ?? 'jpg');
-      void downloadFromUrl(
-        photo.src,
-        `${brandSlug}-photo-${photo.slot}.${ext.toLowerCase()}`,
-      );
+    async (photo: MockBrand['photos'][number]) => {
+      const brandSlug = slugify(brand.name);
+      const ext = extOf(photo.src);
+      const filename = `${brandSlug}-photo-${photo.slot}.${ext}`;
+      const blob = await fetchAsBlob(photo.src);
+      if (blob) {
+        downloadBlob(blob, filename);
+        return;
+      }
+      // Fallback: anchor click so the browser handles the redirect.
+      const a = document.createElement('a');
+      a.href = photo.src;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     },
     [brand.name],
   );
@@ -943,6 +1203,10 @@ export function SetupPage() {
           onReplaceWebsite={handleReplaceWebsite}
           onAddWebsite={handleOpenWebsiteAdd}
           canAddWebsite={brand.websites.length < MAX_WEBSITES}
+          onEditAbout={handleEditAbout}
+          onDeleteAbout={handleDeleteAbout}
+          onDownloadAbout={handleDownloadAbout}
+          onDropFiles={handleDropFiles}
           onExport={handleExportSection}
         />
       </div>
@@ -954,12 +1218,15 @@ export function SetupPage() {
         onUrl={handleUrlCommit}
         onFontFamilies={handleAddFontFamilies}
       />
-      <VoiceEditorModal
-        open={voiceOpen}
-        essay={brand.voice.essay}
-        pillars={brand.voice.pillars}
-        onClose={() => setVoiceOpen(false)}
-        onSave={handleSaveVoice}
+      <AboutEditorModal
+        open={!!aboutEditing}
+        initial={aboutEditing}
+        takenTitles={brand.about
+          .filter((a) => a.content.trim().length > 0)
+          .map((a) => a.title)}
+        onClose={() => setAboutEditing(null)}
+        onSave={handleSaveAbout}
+        onDelete={handleDeleteAbout}
       />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
     </CosmosWorkspaceShell>

@@ -1,5 +1,20 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+
+// Persisted across shell remounts so the active pill starts where it
+// last was and smoothly transitions to the newly-active tab instead of
+// appearing at the new position from scratch. Each workspace route
+// renders its own CosmosWorkspaceShell, so the React tree remounts on
+// navigation — this module-level cache bridges that.
+type PillStyle = { left: number; width: number };
+let lastPillStyle: PillStyle | null = null;
+let hasOpenedOnce = false;
 import '@/shared/styles/cosmos-workspace.css';
 
 /**
@@ -67,6 +82,50 @@ export function CosmosWorkspaceShell({
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
   }, []);
 
+  // Segmented-nav active pill. Seeded from the module-level cache so a
+  // freshly-mounted shell (after a route change) starts with the pill at
+  // its previous position and animates to the new one via the CSS
+  // transition, instead of appearing at the new position from scratch.
+  // Using useEffect (not useLayoutEffect) is intentional: we need the
+  // browser to paint the cached position once before the state update
+  // re-renders with the new position, otherwise React batches both
+  // paints into one and there's no transition.
+  const location = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+  const [pillStyle, setPillStyle] = useState<PillStyle | null>(lastPillStyle);
+  // Only run the container "open" keyframe on the first-ever shell
+  // mount. Subsequent mounts (tab-to-tab nav) skip it so only the pill
+  // transition is visible.
+  const [shouldAnimateOpen] = useState(() => !hasOpenedOnce);
+
+  const measurePill = useCallback(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('.segmented-nav-item.is-active');
+    if (!active) return;
+    const navRect = nav.getBoundingClientRect();
+    const aRect = active.getBoundingClientRect();
+    const next = {
+      left: aRect.left - navRect.left,
+      width: aRect.width,
+    };
+    lastPillStyle = next;
+    setPillStyle(next);
+  }, []);
+
+  useEffect(() => {
+    hasOpenedOnce = true;
+  }, []);
+
+  useEffect(() => {
+    measurePill();
+  }, [location.pathname, measurePill]);
+
+  useEffect(() => {
+    window.addEventListener('resize', measurePill);
+    return () => window.removeEventListener('resize', measurePill);
+  }, [measurePill]);
+
   return (
     <div data-cosmos="workspace" data-theme={theme}>
       <header className="top-nav-wrap" role="banner">
@@ -79,7 +138,21 @@ export function CosmosWorkspaceShell({
           </NavLink>
         </div>
 
-        <nav className="segmented-nav" aria-label="Primary">
+        <nav
+          ref={navRef}
+          className={`segmented-nav${shouldAnimateOpen ? ' is-opening' : ''}`}
+          aria-label="Primary"
+        >
+          {pillStyle && (
+            <span
+              className="segmented-nav-pill"
+              aria-hidden
+              style={{
+                transform: `translateX(${pillStyle.left}px)`,
+                width: pillStyle.width,
+              }}
+            />
+          )}
           {tabs.map((tab) => (
             <NavLink
               key={tab.to}

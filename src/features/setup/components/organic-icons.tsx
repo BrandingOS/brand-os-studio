@@ -583,12 +583,12 @@ export const PhotoOrganicIconV2 = forwardRef<OrganicIconHandle, OrganicIconProps
       <IconShell size={size} controls={controls} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} restProps={rest}>
         {/* Back card — tilted left */}
         <motion.g variants={back} style={{ transformOrigin: '12px 20px' }}>
-          <rect x="4" y="5" width="12" height="14" rx="1.8" fill="white" />
+          <rect x="4" y="5" width="12" height="14" rx="1.8" fill="var(--surface)" />
           <rect x="4" y="5" width="12" height="14" rx="1.8" />
         </motion.g>
         {/* Front card — tilted right, scene inside */}
         <motion.g variants={front} style={{ transformOrigin: '12px 20px' }}>
-          <rect x="8" y="4.5" width="12" height="14" rx="1.8" fill="white" />
+          <rect x="8" y="4.5" width="12" height="14" rx="1.8" fill="var(--surface)" />
           <rect x="8" y="4.5" width="12" height="14" rx="1.8" />
           <motion.circle cx="11.5" cy="9" r="1.4" fill="currentColor" stroke="none" variants={sun} style={{ transformOrigin: '11.5px 9px' }} />
           <motion.path d="M8.5 15 L11.5 12 L14 13.5 L16.5 11.5 L19.5 14" variants={hill} />

@@ -6,6 +6,7 @@ import { IconsMarquee } from './IconsMarquee';
 import type { SectionKey } from './SetupSidebar';
 import { CopyIcon, type OrganicIconHandle } from './organic-icons';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
+import { hexToName } from '../data/colorNames';
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
 
@@ -401,6 +402,12 @@ type Props = {
   onReplaceWebsite?: (id: string) => void;
   onAddWebsite?: () => void;
   canAddWebsite?: boolean;
+  onEditAbout?: (id: string) => void;
+  onDeleteAbout?: (id: string) => void;
+  onDownloadAbout?: (entry: MockBrand['about'][number]) => void;
+  /** Drag-drop passthrough — lets the empty logo / photo tiles accept
+   *  image file drops directly without routing through the upload modal. */
+  onDropFiles?: (kind: 'logo' | 'photos', files: File[]) => void;
   /** Per-section download handler. Omit to hide all download buttons. */
   onExport?: (key: SectionKey) => void;
 };
@@ -433,6 +440,10 @@ export function SetupBoard({
   onReplaceWebsite,
   onAddWebsite,
   canAddWebsite = true,
+  onEditAbout,
+  onDeleteAbout,
+  onDownloadAbout,
+  onDropFiles,
   onExport,
 }: Props) {
   const exportFor = (key: SectionKey): (() => void) | undefined =>
@@ -527,7 +538,7 @@ export function SetupBoard({
         ),
       });
     }
-    if (onMoveColor) {
+    if (onMoveColor && group !== 'grey') {
       for (const t of moveTargets) {
         items.push({
           label: `Move to ${groupLabel[t]}`,
@@ -554,7 +565,7 @@ export function SetupBoard({
         ),
       });
     }
-    if (onDeleteColor) {
+    if (onDeleteColor && group !== 'grey') {
       items.push({
         label: 'Delete color',
         destructive: true,
@@ -851,6 +862,57 @@ export function SetupBoard({
       ],
     });
   };
+  const openAboutMenu = (
+    e: React.MouseEvent,
+    entry: MockBrand['about'][number],
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    markAnchor(e.currentTarget as HTMLElement);
+    const items: ContextMenuState['items'] = [];
+    if (onEditAbout) {
+      items.push({
+        label: 'Edit',
+        onSelect: () => onEditAbout(entry.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </svg>
+        ),
+      });
+    }
+    if (onDownloadAbout) {
+      items.push({
+        label: 'Download',
+        onSelect: () => onDownloadAbout(entry),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        ),
+      });
+    }
+    if (onDeleteAbout) {
+      items.push({
+        label: 'Delete',
+        destructive: true,
+        onSelect: () => onDeleteAbout(entry.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      });
+    }
+    if (items.length === 0) return;
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
   const setRef = (key: SectionKey) => (el: HTMLElement | null) => {
     sectionRefs.current[key] = el;
   };
@@ -1011,7 +1073,30 @@ export function SetupBoard({
               )}
             </div>
           ))}
-          <button type="button" className="logo-tile is-empty" onClick={() => onEdit('logo')} aria-label="Add logo variant">
+          <button
+            type="button"
+            className="logo-tile is-empty"
+            onClick={() => onEdit('logo')}
+            aria-label="Add logo variant"
+            onDragOver={(e) => {
+              if (!onDropFiles) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              (e.currentTarget as HTMLElement).classList.add('is-drop-target');
+            }}
+            onDragLeave={(e) => {
+              (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+            }}
+            onDrop={(e) => {
+              if (!onDropFiles) return;
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+              const files = Array.from(e.dataTransfer.files).filter((f) =>
+                f.type.startsWith('image/'),
+              );
+              if (files.length > 0) onDropFiles('logo', files);
+            }}
+          >
             <svg className="logo-tile-dash" aria-hidden="true">
               <rect />
             </svg>
@@ -1069,15 +1154,19 @@ export function SetupBoard({
             colors={brand.colors.core}
             onUpdateColor={onUpdateColor}
             onSwatchContextMenu={openColorMenu}
+            onAddColor={(hex) => onAddColor?.('core', hex)}
+            addFirstLabel="Add a core color"
           />
-          <ColorsGroup
-            groupKey="accent"
-            layout="accent"
-            title="Accent Colors"
-            colors={brand.colors.accent}
-            onUpdateColor={onUpdateColor}
-            onSwatchContextMenu={openColorMenu}
-          />
+          {brand.colors.accent.length > 0 && (
+            <ColorsGroup
+              groupKey="accent"
+              layout="accent"
+              title="Accent Colors"
+              colors={brand.colors.accent}
+              onUpdateColor={onUpdateColor}
+              onSwatchContextMenu={openColorMenu}
+            />
+          )}
           <ColorsGroup
             groupKey="grey"
             layout="grey"
@@ -1105,11 +1194,16 @@ export function SetupBoard({
             className="type-empty"
             onClick={() => onEdit('fonts')}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-              <path d="M12 5 L12 19" />
-              <path d="M5 12 L19 12" />
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
             </svg>
-            <span>Add a font</span>
+            <span className="empty-tile-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add a font</span>
+            </span>
           </button>
         ) : (
           // 1–2 fonts: single column. 3–4 fonts: 2 cols × 2 rows.
@@ -1135,11 +1229,30 @@ export function SetupBoard({
 
       {/* ─── Iconography ─── */}
       <Section sectionRef={setRef('icons')} dataKey="icons" title="Iconography" spec="24 × 24px" onEdit={() => onEdit('icons')} onExport={exportFor('icons')}>
-        <IconsMarquee
-          icons={brand.icons}
-          iconMap={iconMap as Record<string, (p: { size?: number }) => JSX.Element>}
-          onIconContextMenu={openIconMenu}
-        />
+        {brand.icons.length === 0 ? (
+          <button
+            type="button"
+            className="icons-empty"
+            onClick={() => onEdit('icons')}
+          >
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="empty-tile-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add icons</span>
+            </span>
+          </button>
+        ) : (
+          <IconsMarquee
+            icons={brand.icons}
+            iconMap={iconMap as Record<string, (p: { size?: number }) => JSX.Element>}
+            onIconContextMenu={openIconMenu}
+          />
+        )}
       </Section>
 
       {/* ─── Photography ─── */}
@@ -1228,6 +1341,24 @@ export function SetupBoard({
                   style={rectStyle(region.bbox)}
                   onClick={() => onEdit('photos')}
                   aria-label="Add photo"
+                  onDragOver={(e) => {
+                    if (!onDropFiles) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    (e.currentTarget as HTMLElement).classList.add('is-drop-target');
+                  }}
+                  onDragLeave={(e) => {
+                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+                  }}
+                  onDrop={(e) => {
+                    if (!onDropFiles) return;
+                    e.preventDefault();
+                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
+                    const files = Array.from(e.dataTransfer.files).filter((f) =>
+                      f.type.startsWith('image/'),
+                    );
+                    if (files.length > 0) onDropFiles('photos', files);
+                  }}
                 >
                   {region.isRect ? (
                     <svg className="photo-tile-dash" aria-hidden="true">
@@ -1289,26 +1420,54 @@ export function SetupBoard({
         />
       </Section>
 
-      {/* ─── Voice & Tone ─── */}
-      <Section sectionRef={setRef('voice')} dataKey="voice" title="Voice & Tone" spec="How we sound" onEdit={() => onEdit('voice')} onExport={exportFor('voice')}>
-        <div className="voice-block">
-          <p className="voice-essay">{brand.voice.essay}</p>
-          <div className="voice-card">
-            <h3>Pillars</h3>
-            <p>Four words our copy returns to — the North Star for tone.</p>
-            <div className="voice-pills">
-              {brand.voice.pillars.map((p) => (
-                <span key={p} className="voice-pill">
-                  {p}
+      {/* ─── About ─── */}
+      <Section
+        sectionRef={setRef('voice')}
+        dataKey="voice"
+        title={`About ${brand.name}`}
+        spec="A narrative of your brand"
+        onEdit={() => onEdit('voice')}
+        onExport={exportFor('voice')}
+      >
+        {(() => {
+          const filled = brand.about.filter((a) => a.content.trim().length > 0);
+          if (filled.length === 0) {
+            return (
+              <button
+                type="button"
+                className="about-empty"
+                onClick={() => onEdit('voice')}
+              >
+                <svg className="empty-tile-dash" aria-hidden="true">
+                  <rect />
+                </svg>
+                <span className="empty-tile-content">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                    <path d="M12 5 L12 19" />
+                    <path d="M5 12 L19 12" />
+                  </svg>
+                  <span>Add a section</span>
                 </span>
+              </button>
+            );
+          }
+          return (
+            <div className="about-grid">
+              {filled.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="about-card"
+                  onClick={() => onEditAbout?.(entry.id)}
+                  onContextMenu={(e) => openAboutMenu(e, entry)}
+                >
+                  <h3 className="about-card-title">{entry.title}</h3>
+                  <p className="about-card-body">{entry.content}</p>
+                </button>
               ))}
             </div>
-          </div>
-          <div className="voice-card">
-            <h3>Tone range</h3>
-            <p>Warm but precise. We drop jargon, keep rigor. We sound like a thoughtful friend who knows the subject cold.</p>
-          </div>
-        </div>
+          );
+        })()}
       </Section>
       {ctxMenu && (
         <ContextMenu
@@ -1410,6 +1569,8 @@ function ColorsGroup({
   colors,
   onUpdateColor,
   onSwatchContextMenu,
+  onAddColor,
+  addFirstLabel,
 }: {
   groupKey: ColorGroupKey;
   layout: 'core' | 'accent' | 'grey';
@@ -1422,13 +1583,20 @@ function ColorsGroup({
     group: ColorGroupKey,
     index: number,
   ) => void;
+  onAddColor?: (hex: string) => void;
+  addFirstLabel?: string;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [displayedIndex, setDisplayedIndex] = useState<number | null>(null);
   const [previewHex, setPreviewHex] = useState<string | null>(null);
   const [flash, setFlash] = useState<CopyFlash | null>(null);
+  const [addMode, setAddMode] = useState(false);
+  const [addDraftHex, setAddDraftHex] = useState('#5B6BFF');
+  const [addTouched, setAddTouched] = useState(false);
+  const [addMounted, setAddMounted] = useState(false);
   const flashTimerRef = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const addCloseTimerRef = useRef<number | null>(null);
   const groupRef = useRef<HTMLDivElement>(null);
 
   // Outside click + Escape close the picker and revert the preview.
@@ -1459,8 +1627,62 @@ function ColorsGroup({
     return () => {
       if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
       if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
     };
   }, []);
+
+  // Keep the inline add-picker mounted through the close transition so it
+  // fades out smoothly instead of disappearing the moment addMode flips off.
+  useEffect(() => {
+    if (addMode) {
+      if (addCloseTimerRef.current) {
+        window.clearTimeout(addCloseTimerRef.current);
+        addCloseTimerRef.current = null;
+      }
+      setAddMounted(true);
+      return;
+    }
+    if (!addMounted) return;
+    if (addCloseTimerRef.current) window.clearTimeout(addCloseTimerRef.current);
+    addCloseTimerRef.current = window.setTimeout(() => {
+      setAddMounted(false);
+      addCloseTimerRef.current = null;
+    }, 440);
+  }, [addMode, addMounted]);
+
+  // Outside click + Escape cancel the inline add flow; Enter commits the
+  // current draft hex (skipped when focus is in a text field so the user
+  // can still type commas/newlines into an input without accidental save).
+  useEffect(() => {
+    if (!addMode) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as Element | null;
+      if (!target) return;
+      if (groupRef.current?.contains(target)) return;
+      setAddMode(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAddMode(false);
+        return;
+      }
+      if (e.key === 'Enter') {
+        const t = e.target as HTMLElement | null;
+        const tag = t?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || t?.isContentEditable) return;
+        e.preventDefault();
+        onAddColor?.(addDraftHex);
+        setAddMode(false);
+        setAddTouched(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [addMode, addDraftHex, onAddColor]);
 
   // Keep the picker mounted through the close transition (max-height 420ms).
   // When activeIndex is set we mirror it immediately; when it clears we wait
@@ -1513,11 +1735,36 @@ function ColorsGroup({
       if (scope !== `colors-${groupKey}`) {
         setActiveIndex(null);
         setPreviewHex(null);
+        setAddMode(false);
       }
     };
     window.addEventListener('brand-os:card-raised', onRaised);
     return () => window.removeEventListener('brand-os:card-raised', onRaised);
   }, [groupKey]);
+
+  const handleStartAdd = useCallback(() => {
+    if (addMode) return;
+    setAddMode(true);
+    window.dispatchEvent(
+      new CustomEvent('brand-os:card-raised', {
+        detail: { id: Date.now(), scope: `colors-${groupKey}` },
+      }),
+    );
+  }, [addMode, groupKey]);
+
+  const handleAddCommit = useCallback(
+    (hex: string) => {
+      onAddColor?.(hex);
+      setAddMode(false);
+      setAddTouched(false);
+    },
+    [onAddColor],
+  );
+
+  const handleAddCancel = useCallback(() => {
+    setAddMode(false);
+    setAddTouched(false);
+  }, []);
 
   const handleCopy = useCallback(async (text: string, anchor: HTMLElement) => {
     const ok = await copyToClipboard(text);
@@ -1544,6 +1791,63 @@ function ColorsGroup({
   const activeColor = activeIndex != null ? colors[activeIndex] : null;
   const displayedColor = displayedIndex != null ? colors[displayedIndex] : activeColor;
   const pickerIndex = activeIndex ?? displayedIndex;
+
+  if (colors.length === 0 && onAddColor) {
+    const showColor = addMode && addTouched;
+    const addLight = showColor ? isLightHex(addDraftHex) : false;
+    const swatchClass = [
+      'swatch',
+      'is-empty',
+      addMode ? 'is-active' : '',
+      showColor ? 'is-filled' : '',
+      addLight ? 'is-light' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const liveName = showColor
+      ? hexToName(addDraftHex)
+      : addFirstLabel ?? `Add ${title.toLowerCase()}`;
+    return (
+      <div className="colors-group" ref={groupRef}>
+        <p className="colors-group-title">{title}</p>
+        <div className="colors-row" data-layout={layout}>
+          <button
+            type="button"
+            className={swatchClass}
+            style={showColor ? { background: addDraftHex } : undefined}
+            onClick={handleStartAdd}
+            aria-pressed={addMode}
+          >
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="swatch-name">{liveName}</span>
+            <span className="swatch-hex">
+              {addMode
+                ? showColor
+                  ? addDraftHex.toUpperCase()
+                  : '—'
+                : '+'}
+            </span>
+          </button>
+        </div>
+        <div className={`cp-expand${addMode ? ' is-open' : ''}`} aria-hidden={!addMode}>
+          {addMounted && (
+            <ColorPickerHSV
+              key={`${groupKey}-add`}
+              hex={addDraftHex}
+              onChange={(hex) => {
+                setAddDraftHex(hex);
+                setAddTouched(true);
+              }}
+              onCommit={handleAddCommit}
+              onCancel={handleAddCancel}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="colors-group" ref={groupRef}>
@@ -1704,11 +2008,16 @@ function WebsiteFrame({
         className="website-empty"
         onClick={onAdd}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-          <path d="M12 5 L12 19" />
-          <path d="M5 12 L19 12" />
+        <svg className="empty-tile-dash" aria-hidden="true">
+          <rect />
         </svg>
-        <span>Add a website</span>
+        <span className="empty-tile-content">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+            <path d="M12 5 L12 19" />
+            <path d="M5 12 L19 12" />
+          </svg>
+          <span>Add a website</span>
+        </span>
       </button>
     );
   }
