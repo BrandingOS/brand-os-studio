@@ -1,0 +1,543 @@
+/**
+ * Cosmos-native styling for the Typescale tool.
+ *
+ * Mirrors the shape of color-system.css so the two tools look and feel
+ * like siblings: same radii, borders, shadow rhythm, and form-control
+ * vocabulary. Every selector is scoped under [data-cosmos="workspace"]
+ * so nothing leaks out of the workspace shell.
+ */
+
+/* ============================================================
+ * RIGHT BOARD — preview workspace
+ * ============================================================ */
+
+[data-cosmos="workspace"] .ts-board {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  padding: 16px 20px 60px;
+  font-family: var(--brand-font-body, inherit);
+}
+
+[data-cosmos="workspace"] .ts-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+[data-cosmos="workspace"] .ts-board-title {
+  font-family: var(--brand-font-display, "Instrument Serif", "DM Serif Display", "Playfair Display", serif);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  font-weight: 400;
+  margin: 0;
+}
+
+[data-cosmos="workspace"] .ts-board-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ─── Preview tab strip (same rhythm as .color-board-tabs) ─── */
+
+[data-cosmos="workspace"] .ts-board-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  margin: 4px -6px 0;
+  padding: 0 6px;
+}
+[data-cosmos="workspace"] .ts-board-tab {
+  position: relative;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s;
+  text-transform: capitalize;
+}
+[data-cosmos="workspace"] .ts-board-tab:hover {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-board-tab.is-active {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-board-tab.is-active::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px -1px;
+  height: 2px;
+  background: var(--text-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ─── Preview body ──────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-board-body {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+[data-cosmos="workspace"] .ts-preview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 40px;
+}
+
+[data-cosmos="workspace"] .ts-preview-card--tight {
+  padding: 24px 28px;
+}
+
+[data-cosmos="workspace"] .ts-ladder-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-ladder-row:last-child {
+  border-bottom: 0;
+}
+[data-cosmos="workspace"] .ts-ladder-id {
+  flex-shrink: 0;
+  width: 56px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+}
+[data-cosmos="workspace"] .ts-ladder-sample {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ladder-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  white-space: nowrap;
+}
+
+[data-cosmos="workspace"] .ts-ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .ts-ui-metric-label {
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-ui-metric-value {
+  color: var(--text-primary);
+}
+
+/* ============================================================
+ * LEFT PANEL — collapsible sub-sections
+ * ============================================================ */
+
+[data-cosmos="workspace"] .ts-panel-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-cosmos="workspace"] .ts-section {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-section:first-child {
+  border-top: 0;
+}
+[data-cosmos="workspace"] .ts-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px 10px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-primary);
+  text-align: left;
+}
+[data-cosmos="workspace"] .ts-section-head:hover {
+  background: var(--surface-hover);
+}
+[data-cosmos="workspace"] .ts-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-section-chevron {
+  color: var(--text-muted);
+  transition: transform 0.18s;
+}
+[data-cosmos="workspace"] .ts-section-chevron.is-open {
+  transform: rotate(90deg);
+}
+[data-cosmos="workspace"] .ts-section-body {
+  padding: 4px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ─── Form rows inside the panel ────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-cosmos="workspace"] .ts-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .ts-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-field-value {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+[data-cosmos="workspace"] .ts-select {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+[data-cosmos="workspace"] .ts-select:focus {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
+}
+
+[data-cosmos="workspace"] .ts-input-number {
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11.5px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 56px;
+}
+[data-cosmos="workspace"] .ts-input-number:focus {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 2px var(--accent-ring, rgba(0, 0, 0, 0.06));
+}
+
+/* ─── Cosmos-toned range slider ────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+[data-cosmos="workspace"] .ts-range::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+}
+[data-cosmos="workspace"] .ts-range::-moz-range-track {
+  height: 3px;
+  background: var(--surface-sunken);
+  border-radius: 999px;
+}
+[data-cosmos="workspace"] .ts-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  margin-top: -5.5px;
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+[data-cosmos="workspace"] .ts-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ─── Upload button (font) ─────────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  width: 100%;
+}
+[data-cosmos="workspace"] .ts-upload-btn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-upload-dialog {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .ts-upload-dialog input[type="file"] {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .ts-upload-cancel {
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+}
+[data-cosmos="workspace"] .ts-upload-cancel:hover {
+  color: var(--text-primary);
+}
+
+/* ============================================================
+ * SEMANTIC MAP TABLE (roles)
+ * ============================================================ */
+
+[data-cosmos="workspace"] .ts-roles-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11.5px;
+}
+[data-cosmos="workspace"] .ts-roles-table th {
+  text-align: left;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  padding: 0 4px 6px;
+}
+[data-cosmos="workspace"] .ts-roles-table td {
+  padding: 6px 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+[data-cosmos="workspace"] .ts-roles-table td:first-child {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding-right: 8px;
+  white-space: nowrap;
+}
+[data-cosmos="workspace"] .ts-roles-table .ts-select {
+  height: 28px;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* ============================================================
+ * EXPORT DRAWER — bottom of the board
+ * ============================================================ */
+
+[data-cosmos="workspace"] .ts-export {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-cosmos="workspace"] .ts-export-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-primary);
+  text-align: left;
+}
+[data-cosmos="workspace"] .ts-export-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-export-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+[data-cosmos="workspace"] .ts-format-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+[data-cosmos="workspace"] .ts-format-tab {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+[data-cosmos="workspace"] .ts-format-tab:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ts-format-tab.is-active {
+  background: var(--text-primary);
+  color: var(--surface);
+  border-color: var(--text-primary);
+}
+
+[data-cosmos="workspace"] .ts-export-pre {
+  max-height: 260px;
+  overflow: auto;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-cosmos="workspace"] .ts-export-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+[data-cosmos="workspace"] .ts-export-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  color: var(--surface);
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+[data-cosmos="workspace"] .ts-export-copy:hover {
+  opacity: 0.88;
+}
+
+/* ============================================================
+ * BRAND SYNC BAR — compact info bar above the board
+ * ============================================================ */
+
+[data-cosmos="workspace"] .ts-sync-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-xs);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .ts-sync-bar strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+[data-cosmos="workspace"] .ts-sync-bar-meta {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}

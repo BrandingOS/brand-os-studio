@@ -1,6 +1,7 @@
 // components/TypescaleEditor.tsx
 import { useEffect, useState } from 'react';
 import type { Typescale } from '@/shared/types/typescale';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { useTypescaleDraft } from '../hooks/useTypescaleDraft';
 import { FontPairPanel } from './FontPairPanel';
 import { SurfaceTabs } from './SurfaceTabs';
@@ -18,11 +19,29 @@ interface Props {
   showBrandSync?: boolean;
 }
 
+/**
+ * TypescaleEditor
+ *
+ * Two variants:
+ *   • `full` — the standalone tool page. Renders the cosmos `.shell`
+ *     grid directly (left `.panel` sidebar + right `.ts-board`). The
+ *     hosting page is expected to wrap this in <CosmosWorkspaceShell>.
+ *   • `compact` — rendered inside <EmbeddedTypescaleDialog>. Keeps the
+ *     old minimal column layout; the dialog owns the chrome.
+ *
+ * Brand font cascade: when used in-app the board surfaces the brand
+ * display+body families via CSS variables so the right-hand preview
+ * inherits the same families the showcases do.
+ */
 export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandSync }: Props) {
   const { draft, update } = useTypescaleDraft(brandId, initial);
   const [activeSurface, setActiveSurface] = useState(initial.activeSurface);
 
   useEffect(() => { update(p => ({ ...p, activeSurface })); }, [activeSurface, update]);
+
+  const brand = useBrandStore(s =>
+    brandId ? s.list.find(b => b.id === brandId) ?? null : null,
+  );
 
   if (variant === 'compact') {
     return (
@@ -47,21 +66,67 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
     );
   }
 
+  const boardTitle = brand?.name ? `${brand.name} typescale` : 'Public typescale';
+  const headingFamily = `"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`;
+  const bodyFamily = `"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`;
+  const brandFontStyles = {
+    ['--brand-font-display' as string]: headingFamily,
+    ['--brand-font-body' as string]: bodyFamily,
+  } as React.CSSProperties;
+
   return (
-    <div className="grid h-full w-full grid-cols-[18rem_minmax(0,1fr)_22rem] gap-4">
-      <aside className="space-y-4">
-        <FontPairPanel draft={draft} onChange={update} />
+    <div className="shell" style={brandFontStyles}>
+      <aside className="panel" aria-label="Typescale editor">
+        <div className="panel-top">
+          <div className="panel-heading">
+            <span className="panel-heading-eyebrow">Typescale</span>
+            <h1 className="panel-heading-title">Build your typography</h1>
+          </div>
+          <p style={{ fontSize: 12, lineHeight: 1.55, color: 'var(--text-muted)', margin: 0 }}>
+            Pick fonts, tune the scale per surface, export to every format your team uses.
+          </p>
+        </div>
+
+        <div className="ts-panel-body">
+          <FontPairPanel draft={draft} onChange={update} />
+
+          <div className="ts-section">
+            <div className="ts-section-head" aria-hidden>
+              <span className="ts-section-title">Surface</span>
+            </div>
+            <div className="ts-section-body">
+              <SurfaceTabs
+                value={activeSurface}
+                onChange={setActiveSurface}
+                surfaces={draft.surfaces}
+              />
+            </div>
+          </div>
+
+          <ScaleControls
+            surface={draft.surfaces[activeSurface]}
+            onChange={(next) =>
+              update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
+            }
+          />
+
+          <SemanticMap
+            surface={draft.surfaces[activeSurface]}
+            onChange={(next) =>
+              update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
+            }
+          />
+        </div>
       </aside>
-      <main className="space-y-4">
+
+      <main className="ts-board">
         {showBrandSync && brandId && <BrandSyncBar brandId={brandId} />}
-        <SurfaceTabs value={activeSurface} onChange={setActiveSurface} surfaces={draft.surfaces} />
+        <div className="ts-board-head">
+          <h2 className="ts-board-title">{boardTitle}</h2>
+        </div>
         <PreviewTabs draft={draft} activeSurface={activeSurface} />
-      </main>
-      <aside className="space-y-4">
-        <ScaleControls surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} />
-        <SemanticMap surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} />
         <ExportPanel draft={draft} mode={brandId ? 'in-app' : 'public'} />
-      </aside>
+      </main>
     </div>
   );
 }

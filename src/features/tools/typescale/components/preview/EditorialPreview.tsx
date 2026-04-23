@@ -21,12 +21,16 @@ function styleFor(draft: Typescale, surfaceKey: SurfaceKey, role: SemanticRole):
     letterSpacing: `${step.letterSpacingEm}em`,
     fontWeight: entry.weight ?? step.weight,
     textTransform: entry.transform === 'uppercase' ? 'uppercase' : entry.transform === 'lowercase' ? 'lowercase' : 'none',
+    margin: 0,
   };
 }
 
 export function EditorialPreview({ draft, activeSurface }: Props) {
   return (
-    <article className="rounded-lg border p-6 space-y-4">
+    <article
+      className="ts-preview-card"
+      style={{ display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 760 }}
+    >
       <h1 style={styleFor(draft, activeSurface, 'h1')}>A typographic system for your brand</h1>
       <h2 style={styleFor(draft, activeSurface, 'h2')}>Set the rhythm, everywhere</h2>
       <p style={styleFor(draft, activeSurface, 'body')}>
@@ -38,8 +42,19 @@ export function EditorialPreview({ draft, activeSurface }: Props) {
         Pick a pair, tune base and ratio per surface, let the engine handle leading and tracking.
         Drop the export into your codebase or Figma and you're done.
       </p>
-      <blockquote style={styleFor(draft, activeSurface, 'bodyLg')}>“Typography is what language looks like.” — Ellen Lupton</blockquote>
-      <p style={styleFor(draft, activeSurface, 'caption')}>Caption: read the small print.</p>
+      <blockquote
+        style={{
+          ...styleFor(draft, activeSurface, 'bodyLg'),
+          borderLeft: '3px solid var(--border-strong)',
+          paddingLeft: 16,
+          color: 'var(--text-secondary)',
+        }}
+      >
+        "Typography is what language looks like." — Ellen Lupton
+      </blockquote>
+      <p style={{ ...styleFor(draft, activeSurface, 'caption'), color: 'var(--text-muted)' }}>
+        Caption: read the small print.
+      </p>
     </article>
   );
 }

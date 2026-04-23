@@ -3,9 +3,14 @@
  *
  * Public, anonymous. The editor mounts directly; tool session
  * persistence and export gating come from the platform.
+ *
+ * The whole page is wrapped in <CosmosWorkspaceShell> so the tool
+ * inherits the same top nav + theme toggle as every other workspace
+ * page. The editor itself renders the cosmos `.shell` grid.
  */
 import { useEffect, useMemo } from 'react';
 
+import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { TypescaleEditor, seedTypescale } from '@/features/tools/typescale';
 import { TOOL_REGISTRY } from '@/features/tools/core';
 
@@ -32,12 +37,8 @@ export default function PublicTypescalePage() {
   }, [meta]);
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="mx-auto max-w-7xl">
-        <h1 className="mb-4 text-2xl font-semibold">{meta?.name}</h1>
-        <p className="mb-6 text-sm text-muted-foreground">{meta?.tagline}</p>
-        <TypescaleEditor variant="full" initial={initial} />
-      </div>
-    </div>
+    <CosmosWorkspaceShell>
+      <TypescaleEditor variant="full" initial={initial} />
+    </CosmosWorkspaceShell>
   );
 }

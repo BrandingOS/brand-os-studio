@@ -11,18 +11,54 @@ export function UIPreview({ draft, activeSurface }: Props) {
     return step.fluid?.clamp ?? `${step.sizePx}px`;
   };
   return (
-    <div className="rounded-lg border p-6 bg-background">
-      <div style={{ fontFamily: `"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`, fontSize: size('h1') }}>
+    <div className="ts-preview-card">
+      <div
+        style={{
+          fontFamily: `"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`,
+          fontSize: size('h1'),
+          color: 'var(--text-primary)',
+        }}
+      >
         Dashboard
       </div>
-      <div style={{ fontFamily: `"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`, fontSize: size('body') }} className="mt-2 text-muted-foreground">
+      <div
+        className="ts-ui-metric-label"
+        style={{
+          fontFamily: `"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`,
+          fontSize: size('body'),
+          marginTop: 4,
+        }}
+      >
         Revenue over the last 30 days
       </div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        {['Sessions','Conversions','Revenue'].map((label) => (
-          <div key={label} className="rounded border p-3">
-            <div style={{ fontFamily:`"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`, fontSize: size('caption') }} className="text-muted-foreground">{label}</div>
-            <div style={{ fontFamily:`"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`, fontSize: size('h3') }}>12,840</div>
+      <div
+        style={{
+          marginTop: 28,
+          display: 'grid',
+          gap: 14,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        }}
+      >
+        {['Sessions', 'Conversions', 'Revenue'].map((label) => (
+          <div key={label} className="ts-ui-card">
+            <div
+              className="ts-ui-metric-label"
+              style={{
+                fontFamily: `"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`,
+                fontSize: size('caption'),
+              }}
+            >
+              {label}
+            </div>
+            <div
+              className="ts-ui-metric-value"
+              style={{
+                fontFamily: `"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`,
+                fontSize: size('h3'),
+              }}
+            >
+              12,840
+            </div>
           </div>
         ))}
       </div>
