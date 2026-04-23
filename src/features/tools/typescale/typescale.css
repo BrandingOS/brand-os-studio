@@ -106,38 +106,317 @@
   padding: 24px 28px;
 }
 
+/* ─── Ladder preview (artful alternating rows) ─────────────── */
+
+[data-cosmos="workspace"] .ts-ladder {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
 [data-cosmos="workspace"] .ts-ladder-row {
   display: flex;
   align-items: baseline;
-  gap: 16px;
-  padding: 14px 4px;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 28px;
   border-bottom: 1px solid var(--border);
 }
 [data-cosmos="workspace"] .ts-ladder-row:last-child {
   border-bottom: 0;
 }
-[data-cosmos="workspace"] .ts-ladder-id {
-  flex-shrink: 0;
-  width: 56px;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--text-muted);
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+[data-cosmos="workspace"] .ts-ladder-row--alt {
+  background: color-mix(in oklch, var(--accent, currentColor) 6%, transparent);
 }
 [data-cosmos="workspace"] .ts-ladder-sample {
   flex: 1;
   min-width: 0;
   color: var(--text-primary);
-}
-[data-cosmos="workspace"] .ts-ladder-meta {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
+[data-cosmos="workspace"] .ts-ladder-meta {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  white-space: nowrap;
+}
+[data-cosmos="workspace"] .ts-ladder-meta-id {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .ts-ladder-meta-size {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ladder-meta-rest {
+  font-size: 10.5px;
+}
+
+/* ─── UI preview (dashboard mock) ──────────────────────────── */
+
+[data-cosmos="workspace"] .ts-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .ts-ui-topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-ui-logo {
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+[data-cosmos="workspace"] .ts-ui-nav {
+  display: flex;
+  gap: 18px;
+  margin-left: 12px;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-ui-avatar {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+[data-cosmos="workspace"] .ts-ui-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+[data-cosmos="workspace"] .ts-ui-hero-sub {
+  color: var(--text-muted);
+  max-width: 46ch;
+  margin-top: 6px;
+}
+[data-cosmos="workspace"] .ts-ui-cta {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--text-primary);
+  color: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+}
+[data-cosmos="workspace"] .ts-ui-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+[data-cosmos="workspace"] .ts-ui-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .ts-ui-stat-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+[data-cosmos="workspace"] .ts-ui-stat-value {
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+[data-cosmos="workspace"] .ts-ui-stat-delta {
+  font-variant-numeric: tabular-nums;
+}
+[data-cosmos="workspace"] .ts-ui-stat-delta--up { color: #16a34a; }
+[data-cosmos="workspace"] .ts-ui-stat-delta--down { color: #dc2626; }
+
+[data-cosmos="workspace"] .ts-ui-chart {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ui-chart svg {
+  display: block;
+}
+
+[data-cosmos="workspace"] .ts-ui-activity {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .ts-ui-activity-title {
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+[data-cosmos="workspace"] .ts-ui-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .ts-ui-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+[data-cosmos="workspace"] .ts-ui-activity-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--accent, currentColor) 14%, var(--surface-sunken));
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+[data-cosmos="workspace"] .ts-ui-activity-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-cosmos="workspace"] .ts-ui-activity-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+[data-cosmos="workspace"] .ts-ui-activity-when {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── Editorial preview (magazine mock) ────────────────────── */
+
+[data-cosmos="workspace"] .ts-editorial {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 48px 44px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .ts-editorial-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-editorial-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-editorial-title {
+  color: var(--text-primary);
+  text-wrap: balance;
+  max-width: 22ch;
+}
+[data-cosmos="workspace"] .ts-editorial-lede {
+  color: var(--text-secondary);
+  max-width: 56ch;
+}
+[data-cosmos="workspace"] .ts-editorial-byline {
+  color: var(--text-muted);
+}
+
+[data-cosmos="workspace"] .ts-editorial-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 62ch;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-editorial-body p {
+  color: var(--text-secondary);
+}
+[data-cosmos="workspace"] .ts-editorial-body p + p {
+  margin-top: 0;
+}
+[data-cosmos="workspace"] .ts-editorial-dropcap {
+  float: left;
+  padding-right: 12px;
+  padding-top: 4px;
+  line-height: 0.85;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-editorial-pull {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 6px 0 6px 20px;
+  border-left: 2px solid currentColor;
+  color: var(--text-primary);
+  font-style: italic;
+}
+[data-cosmos="workspace"] .ts-editorial-pull-cite {
+  font-style: normal;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-editorial-h2,
+[data-cosmos="workspace"] .ts-editorial-h3 {
+  color: var(--text-primary);
+  margin-top: 8px;
+}
+
+[data-cosmos="workspace"] .ts-editorial-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* ─── Deprecated (old UI-card helpers kept for callers) ────── */
 
 [data-cosmos="workspace"] .ts-ui-card {
   display: flex;
@@ -315,8 +594,104 @@
   box-shadow: var(--shadow-xs);
 }
 
-/* ─── Upload button (font) ─────────────────────────────────── */
+/* ─── Font picker (popover trigger) ────────────────────────── */
 
+[data-cosmos="workspace"] .ts-fontpicker-trigger {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  box-shadow: var(--shadow-xs);
+}
+[data-cosmos="workspace"] .ts-fontpicker-trigger:hover {
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ts-fontpicker-trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
+}
+[data-cosmos="workspace"] .ts-fontpicker-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-fontpicker-value {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-cosmos="workspace"] .ts-fontpicker-chevron {
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-fontpicker-item {
+  padding: 8px 10px !important;
+  align-items: center;
+}
+[data-cosmos="workspace"] .ts-fontpicker-item-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+[data-cosmos="workspace"] .ts-fontpicker-item-preview {
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Upload row + dialog ──────────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-upload-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 2px;
+}
+[data-cosmos="workspace"] .ts-upload-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+[data-cosmos="workspace"] .ts-upload-chip:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-upload-chip.is-active {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border-style: solid;
+}
 [data-cosmos="workspace"] .ts-upload-btn {
   display: inline-flex;
   align-items: center;
@@ -340,7 +715,7 @@
 }
 [data-cosmos="workspace"] .ts-upload-dialog {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
   padding: 10px;
   border-radius: 8px;
@@ -349,24 +724,133 @@
   font-size: 11.5px;
   color: var(--text-secondary);
 }
+[data-cosmos="workspace"] .ts-upload-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .ts-upload-dialog-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
 [data-cosmos="workspace"] .ts-upload-dialog input[type="file"] {
   flex: 1;
   min-width: 0;
   font-size: 11px;
   color: var(--text-secondary);
 }
+[data-cosmos="workspace"] .ts-upload-dialog-hint {
+  margin: 0;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
 [data-cosmos="workspace"] .ts-upload-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   background: transparent;
   border: 0;
-  padding: 4px 6px;
+  border-radius: 5px;
+  padding: 0;
   font-family: inherit;
-  font-size: 11px;
   color: var(--text-muted);
   cursor: pointer;
-  text-decoration: underline;
 }
 [data-cosmos="workspace"] .ts-upload-cancel:hover {
   color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+/* ─── Ratio grid (visual preset picker) ────────────────────── */
+
+[data-cosmos="workspace"] .ts-ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+[data-cosmos="workspace"] .ts-ratio-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+[data-cosmos="workspace"] .ts-ratio-card:hover {
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ts-ratio-card.is-active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--text-primary) inset;
+}
+[data-cosmos="workspace"] .ts-ratio-card-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  height: 26px;
+  color: var(--text-primary);
+  font-family: var(--brand-font-display, "Instrument Serif", "Playfair Display", serif);
+  line-height: 1;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .ts-ratio-card-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ratio-card-value {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Advanced (collapsible) ───────────────────────────────── */
+
+[data-cosmos="workspace"] .ts-advanced-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: fit-content;
+}
+[data-cosmos="workspace"] .ts-advanced-trigger:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+[data-cosmos="workspace"] .ts-advanced-chevron {
+  transition: transform 0.18s;
+}
+[data-cosmos="workspace"] .ts-advanced-chevron.is-open {
+  transform: rotate(180deg);
+}
+[data-cosmos="workspace"] .ts-advanced-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 6px;
 }
 
 /* ============================================================
@@ -516,28 +1000,6 @@
 }
 
 /* ============================================================
- * BRAND SYNC BAR — compact info bar above the board
+ * BRAND SYNC BAR — actions live in Tailwind via the component;
+ * no cosmos selectors needed here anymore.
  * ============================================================ */
-
-[data-cosmos="workspace"] .ts-sync-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-xs);
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-[data-cosmos="workspace"] .ts-sync-bar strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-[data-cosmos="workspace"] .ts-sync-bar-meta {
-  color: var(--text-muted);
-  font-family: "SF Mono", ui-monospace, Menlo, monospace;
-  font-size: 11px;
-}

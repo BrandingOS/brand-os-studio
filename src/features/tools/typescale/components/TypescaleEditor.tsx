@@ -1,8 +1,15 @@
 // components/TypescaleEditor.tsx
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Typescale } from '@/shared/types/typescale';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useTypescaleDraft } from '../hooks/useTypescaleDraft';
+import { seedTypescale } from '../hooks/useSeedTypescale';
+import {
+  buildLadder,
+  toFluid,
+  DEFAULT_SURFACES,
+  defaultSemanticMap,
+} from '../engine';
 import { FontPairPanel } from './FontPairPanel';
 import { SurfaceTabs } from './SurfaceTabs';
 import { ScaleControls } from './ScaleControls';
@@ -43,10 +50,49 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
     brandId ? s.list.find(b => b.id === brandId) ?? null : null,
   );
 
+  const handlePullFromBrand = useCallback(() => {
+    if (!brand) return;
+    const next = seedTypescale(brand);
+    update(() => next);
+  }, [brand, update]);
+
+  const handleResetActiveSurface = useCallback(() => {
+    const def = DEFAULT_SURFACES[activeSurface];
+    let steps = buildLadder({
+      basePx: def.basePx,
+      ratio: def.ratio.value,
+      stepsUp: def.stepsUp,
+      stepsDown: def.stepsDown,
+      leading: def.leading,
+      tracking: def.tracking,
+    });
+    if (activeSurface === 'web' && def.fluid) {
+      steps = steps.map(st => toFluid(st, def.fluid!));
+    }
+    update(p => ({
+      ...p,
+      surfaces: {
+        ...p.surfaces,
+        [activeSurface]: {
+          key: activeSurface,
+          ...def,
+          steps,
+          semantic: defaultSemanticMap(activeSurface, steps),
+        },
+      },
+    }));
+  }, [activeSurface, update]);
+
   if (variant === 'compact') {
     return (
       <div className="flex flex-col gap-4">
-        {showBrandSync && brandId && <BrandSyncBar brandId={brandId} />}
+        {showBrandSync && brandId && (
+          <BrandSyncBar
+            brandId={brandId}
+            onPullFromBrand={handlePullFromBrand}
+            onResetActiveSurface={handleResetActiveSurface}
+          />
+        )}
         <FontPairPanel draft={draft} onChange={update} compact />
         <SurfaceTabs value={activeSurface} onChange={setActiveSurface} surfaces={draft.surfaces} />
         <ScaleControls surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} compact />
@@ -120,7 +166,13 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
       </aside>
 
       <main className="ts-board">
-        {showBrandSync && brandId && <BrandSyncBar brandId={brandId} />}
+        {showBrandSync && brandId && (
+          <BrandSyncBar
+            brandId={brandId}
+            onPullFromBrand={handlePullFromBrand}
+            onResetActiveSurface={handleResetActiveSurface}
+          />
+        )}
         <div className="ts-board-head">
           <h2 className="ts-board-title">{boardTitle}</h2>
         </div>
