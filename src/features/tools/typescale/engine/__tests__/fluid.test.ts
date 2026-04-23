@@ -21,4 +21,8 @@ describe('toFluid', () => {
     expect(out.sizePx).toBe(24);
     expect(out.lineHeight).toBe(1.3);
   });
+  it('returns step unchanged when maxVwPx <= minVwPx', () => {
+    const out = toFluid(step, { minVwPx: 1440, maxVwPx: 1440, minRatioMultiplier: 0.75 });
+    expect(out.fluid).toBeUndefined();
+  });
 });

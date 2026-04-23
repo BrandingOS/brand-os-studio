@@ -3,6 +3,7 @@ import type { ScaleStep } from '@/shared/types/typescale';
 export interface FluidOpts { minVwPx: number; maxVwPx: number; minRatioMultiplier: number; }
 
 export function toFluid(step: ScaleStep, opts: FluidOpts): ScaleStep {
+  if (opts.maxVwPx <= opts.minVwPx) return step;
   const minPx = round2(step.sizePx * opts.minRatioMultiplier);
   const maxPx = step.sizePx;
   const slope = (maxPx - minPx) / (opts.maxVwPx - opts.minVwPx);
