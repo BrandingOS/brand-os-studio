@@ -49,7 +49,8 @@ export interface VectorCapture {
   nodes: VNode[];
 }
 
-const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'SVG', 'CANVAS']);
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CANVAS']);
+const RASTERIZE_TAGS = new Set(['SVG', 'svg']);
 
 export async function captureShowcaseToVector(
   root: HTMLElement,
@@ -152,93 +153,118 @@ function walk(
     return;
   }
 
-  // ── Text (leaf elements with direct text children) ──
-  if (hasDirectText(el) && el.childElementCount === 0) {
-    emitText(el, rootRect, style, opacity, out);
+  // ── Inline <svg> — raster it as a small PNG and embed ──
+  // The walker can't faithfully vectorize every SVG we render
+  // (Lucide icons use paths, charts use polylines, decorative orbs
+  // use gradients). Capture the SVG subtree as a PNG so icons,
+  // charts, and quote marks all survive the export.
+  if (RASTERIZE_TAGS.has(el.tagName)) {
+    const p = rasterizeNodeToDataUrl(el as unknown as HTMLElement).then((dataUrl) => {
+      if (dataUrl) {
+        out.push({
+          kind: 'image',
+          x,
+          y,
+          w: rect.width,
+          h: rect.height,
+          href: dataUrl,
+          opacity,
+        });
+      }
+    });
+    imagePromises.push(p);
     return;
   }
 
-  // ── Recurse ──
-  for (const child of Array.from(el.children)) {
-    walk(child, rootRect, out, imagePromises, false);
-  }
-}
-
-function hasDirectText(el: Element): boolean {
+  // ── Text + child elements, in DOM order ──
+  // Previous version only emitted text for pure-leaf elements; that
+  // skipped headlines like `<h2>A new way<br/><span>to show up.</span></h2>`
+  // because the h2 has an element child alongside its direct text.
+  // Walk childNodes so both sides make it out.
   for (const child of Array.from(el.childNodes)) {
-    if (child.nodeType === Node.TEXT_NODE && child.textContent && child.textContent.trim()) {
-      return true;
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = child.textContent ?? '';
+      if (!text.trim()) continue;
+      emitTextNode(child as Text, style, rootRect, opacity, out);
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      walk(child as Element, rootRect, out, imagePromises, false);
     }
   }
-  return false;
 }
 
-function emitText(
-  el: HTMLElement,
+/**
+ * Emit wrapped-line text for a single TEXT_NODE. Uses Range on the
+ * node itself to get per-line boxes, so we don't over-collect text
+ * from sibling elements.
+ */
+function emitTextNode(
+  textNode: Text,
+  parentStyle: CSSStyleDeclaration,
   rootRect: DOMRect,
-  style: CSSStyleDeclaration,
   opacity: number,
   out: VNode[],
 ): void {
-  const rawText = el.textContent ?? '';
-  if (!rawText.trim()) return;
+  const content = textNode.textContent ?? '';
+  if (!content.trim()) return;
 
-  const fontSize = parsePx(style.fontSize) || 14;
-  const color = parseColor(style.color) ?? { r: 17, g: 17, b: 17, a: 1 };
-  const fontFamily = stripFontFamily(style.fontFamily || 'sans-serif');
-  const fontWeight = style.fontWeight || '400';
-  const fontStyle = style.fontStyle || 'normal';
-  const textAlign =
-    (['left', 'center', 'right'].includes(style.textAlign)
-      ? (style.textAlign as 'left' | 'center' | 'right')
-      : 'left');
+  const fontSize = parsePx(parentStyle.fontSize) || 14;
+  const color = parseColor(parentStyle.color) ?? { r: 17, g: 17, b: 17, a: 1 };
+  const fontFamily = stripFontFamily(parentStyle.fontFamily || 'sans-serif');
+  const fontWeight = parentStyle.fontWeight || '400';
+  const fontStyle = parentStyle.fontStyle || 'normal';
+  const textAlign = (['left', 'center', 'right'].includes(parentStyle.textAlign)
+    ? (parentStyle.textAlign as 'left' | 'center' | 'right')
+    : 'left');
 
-  // Use Range to walk the wrapped lines geometrically.
   const range = document.createRange();
-  const textNode = firstSignificantTextNode(el);
-  if (!textNode) return;
-  range.setStart(textNode, 0);
-  // End at the last significant text node — usually it's the same one.
-  let last: Text = textNode;
-  for (const child of Array.from(el.childNodes)) {
-    if (child.nodeType === Node.TEXT_NODE && child.textContent && child.textContent.trim()) {
-      last = child as Text;
-    }
+  try {
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, content.length);
+    const rects = Array.from(range.getClientRects()).filter(
+      (r) => r.width > 0 && r.height > 0,
+    );
+    if (rects.length === 0) return;
+
+    const cleaned = content.replace(/\s+/g, ' ').trim();
+    const lines = splitIntoLines(cleaned, rects.length);
+    rects.forEach((lineRect, i) => {
+      const line = lines[i];
+      if (!line) return;
+      out.push({
+        kind: 'text',
+        x: lineRect.left - rootRect.left,
+        y: lineRect.top - rootRect.top + fontSize * 0.82,
+        w: lineRect.width,
+        h: lineRect.height,
+        text: line,
+        fontSize,
+        fontFamily,
+        fontWeight,
+        fontStyle,
+        fill: rgbaToHex(color),
+        textAlign,
+        opacity: opacity * color.a,
+      });
+    });
+  } finally {
+    // @ts-expect-error detach() exists historically but is deprecated
+    range.detach?.();
   }
-  range.setEnd(last, last.textContent?.length ?? 0);
-  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
-
-  if (rects.length === 0) return;
-
-  const lines = splitIntoLines(rawText.trim(), rects.length);
-  rects.forEach((lineRect, i) => {
-    const line = lines[i];
-    if (!line) return;
-    out.push({
-      kind: 'text',
-      x: lineRect.left - rootRect.left,
-      y: lineRect.top - rootRect.top + fontSize * 0.82, // approx baseline
-      w: lineRect.width,
-      h: lineRect.height,
-      text: line,
-      fontSize,
-      fontFamily,
-      fontWeight,
-      fontStyle,
-      fill: rgbaToHex(color),
-      textAlign,
-      opacity: opacity * color.a,
-    } as VNode);
-  });
 }
 
-function firstSignificantTextNode(el: Element): Text | null {
-  for (const child of Array.from(el.childNodes)) {
-    if (child.nodeType === Node.TEXT_NODE && child.textContent && child.textContent.trim()) {
-      return child as Text;
-    }
+async function rasterizeNodeToDataUrl(el: HTMLElement): Promise<string | null> {
+  try {
+    const { default: html2canvas } = await import('html2canvas');
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: null,
+      logging: false,
+    });
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /**
