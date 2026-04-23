@@ -762,6 +762,16 @@ function DesignExport({ brandName }: { brandName?: string }) {
 
       const name = brandName ? brandName.toLowerCase().replace(/[^\w-]+/g, '-') : 'brand';
 
+      // When we're going editable, neuter the CSS features the
+      // DOM→IR walker considers unsupported. The walker drops an
+      // entire subtree when it hits any of these — every .tile has a
+      // box-shadow and many have gradients, so without this the
+      // vector output is empty.
+      const stripStyle =
+        kind === 'pdf-editable' || kind === 'svg-editable'
+          ? injectVectorStripStyles(wrapper)
+          : null;
+
       try {
         if (kind === 'png' || kind === 'jpg') {
           const { default: html2canvas } = await import('html2canvas');
@@ -780,10 +790,6 @@ function DesignExport({ brandName }: { brandName?: string }) {
           a.click();
           document.body.removeChild(a);
         } else {
-          // Editable PDF / SVG — route through the project's shared
-          // Universal Export engine, which parses the DOM into an
-          // intermediate representation and re-emits it as live text +
-          // shapes. Same path the canvas editor uses.
           const { exportAndDownload } = await import('@/shared/services/export');
           await exportAndDownload({
             source: { type: 'html-element', element: wrapper },
@@ -792,18 +798,12 @@ function DesignExport({ brandName }: { brandName?: string }) {
               filename: `${name}-showcase`,
               scale: 2,
               backgroundColor: '#f5f4ef',
-              // Editable formats: drop the raster fallback so every
-              // tile comes out as live layers (text stays editable,
-              // shapes stay selectable) instead of a flat image.
-              // Box-shadow / gradient / transform won't render —
-              // acceptable tradeoff when the goal is editability.
               noRasterFallback: true,
             },
           });
         }
       } finally {
-        // Always restore the showcase to its original spot so the UI
-        // doesn't glitch if an export throws mid-flight.
+        stripStyle?.remove();
         parent.insertBefore(el, marker);
         wrapper.remove();
         marker.remove();
@@ -859,6 +859,41 @@ function DesignExport({ brandName }: { brandName?: string }) {
       </p>
     </div>
   );
+}
+
+/**
+ * Temporarily strip CSS features the DOM→IR walker treats as
+ * unsupported (box-shadow, gradients, filters, transforms, …).
+ * Without this the walker drops entire subtrees when `noRasterFallback`
+ * is on, yielding a blank PDF / SVG.
+ *
+ * Returns the injected <style> so the caller can remove it after
+ * the export finishes.
+ */
+function injectVectorStripStyles(wrapper: HTMLElement): HTMLStyleElement {
+  const tag = `uics-strip-${Math.random().toString(36).slice(2, 8)}`;
+  wrapper.setAttribute('data-uics-strip', tag);
+  const style = document.createElement('style');
+  style.textContent = `
+    [data-uics-strip="${tag}"],
+    [data-uics-strip="${tag}"] * {
+      box-shadow: none !important;
+      filter: none !important;
+      -webkit-filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      transform: none !important;
+      -webkit-transform: none !important;
+      mix-blend-mode: normal !important;
+      clip-path: none !important;
+      -webkit-clip-path: none !important;
+      mask-image: none !important;
+      -webkit-mask-image: none !important;
+      background-image: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+  return style;
 }
 
 function guessExtension(url: string): string {
