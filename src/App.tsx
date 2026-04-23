@@ -65,6 +65,7 @@ const BrandKitModulePage = lazy(() => import("./pages/dashboard/brand/[slug]/bra
 const BrandGuidesPage = lazy(() => import("./pages/dashboard/brand/[slug]/brand-guides"));
 const LogoPresentationPage = lazy(() => import("./pages/dashboard/brand/[slug]/logo-presentation"));
 const PresentationsPage = lazy(() => import("./pages/dashboard/brand/[slug]/presentations"));
+const CaseStudyPage = lazy(() => import("./features/case-study-deck/pages/CaseStudyPage"));
 const SocialMediaPage = lazy(() => import("./pages/dashboard/brand/[slug]/social-media"));
 const GuidelinesHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines"));
 const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines/canvas"));
@@ -368,6 +369,17 @@ const App = () => (
           <Route path="/dashboard/brand/:slug/presentations" element={
             <ProtectedRoute>
               <PresentationsPage />
+            </ProtectedRoute>
+          } />
+          {/* Adaptive Case Study Deck — Behance-style brand presentation. */}
+          <Route path="/dashboard/brand/:slug/case-study" element={
+            <ProtectedRoute>
+              <CaseStudyPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/case-study" element={
+            <ProtectedRoute>
+              <CaseStudyPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/social-media" element={

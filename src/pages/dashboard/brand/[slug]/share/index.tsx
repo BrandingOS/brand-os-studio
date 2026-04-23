@@ -167,6 +167,7 @@ export default function SharePage() {
         <ExportsTab
           onLogoDeck={() => navigate(`/b/${slug}/logo-presentation`)}
           onGuidelinesExport={() => navigate(`/b/${slug}/guidelines`)}
+          onCaseStudy={() => navigate(`/b/${slug}/case-study`)}
           onOpenPortal={() => window.open(portalUrl, '_blank')}
         />
       )}
@@ -356,14 +357,32 @@ function ShowcaseTab({
 function ExportsTab({
   onLogoDeck,
   onGuidelinesExport,
+  onCaseStudy,
   onOpenPortal: _onOpenPortal,
 }: {
   onLogoDeck: () => void;
   onGuidelinesExport: () => void;
+  onCaseStudy: () => void;
   onOpenPortal: () => void;
 }) {
   return (
     <div className="space-y-4">
+      <Card
+        className="p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5 relative overflow-hidden"
+        onClick={onCaseStudy}
+      >
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gradient-to-br from-orange-500 via-rose-500 to-purple-600 opacity-20 blur-2xl" />
+        <div className="flex items-start gap-4 relative">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500 via-rose-500 to-purple-600 flex items-center justify-center shrink-0">
+            <Presentation className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-semibold mb-1">Case Study Deck <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ml-1 bg-gradient-to-r from-orange-500 to-rose-500 text-white">NEW</span></h3>
+            <p className="text-sm text-muted-foreground">Auto-composed Behance-style 10-slide presentation tailored to this brand. Export PDF or PNG zip.</p>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5" onClick={onLogoDeck}>
         <div className="flex items-start gap-4">
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">

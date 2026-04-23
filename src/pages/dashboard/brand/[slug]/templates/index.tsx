@@ -42,12 +42,13 @@ import {
   BookOpen,
 } from 'lucide-react';
 
-type CategoryId = 'all' | 'brand-board' | 'guidelines' | 'bento' | 'social' | 'print' | 'screen' | 'utility';
+type CategoryId = 'all' | 'brand-board' | 'guidelines' | 'case-study' | 'bento' | 'social' | 'print' | 'screen' | 'utility';
 
 const CATEGORIES: { id: CategoryId; label: string; icon: React.ElementType }[] = [
   { id: 'all',         label: 'All',         icon: LayoutGrid },
   { id: 'brand-board', label: 'Brand Board', icon: Palette },
   { id: 'guidelines',  label: 'Guidelines',  icon: BookOpen },
+  { id: 'case-study',  label: 'Case Study',  icon: Presentation },
   { id: 'bento',       label: 'Bento',       icon: Grid3X3 },
   { id: 'social',      label: 'Social',      icon: Megaphone },
   { id: 'print',       label: 'Print',       icon: Printer },
@@ -90,6 +91,15 @@ const CATALOG: CatalogCard[] = [
     accent: 'from-rose-400 to-red-500',
     category: 'guidelines',
     path: (slug) => `/b/${slug}/brand-guides`,
+  },
+  // Case Study — Behance-style adaptive deck
+  {
+    title: 'Case Study Deck',
+    description: 'Auto-composed Behance-style deck — 10 slides tailored to this brand.',
+    icon: Presentation,
+    accent: 'from-orange-500 via-rose-500 to-purple-600',
+    category: 'case-study',
+    path: (slug) => `/b/${slug}/case-study`,
   },
   // Bento
   {
