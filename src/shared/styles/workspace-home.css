@@ -1,0 +1,434 @@
+/* ============================================================
+ * Workspace Home — styles for the out-of-brand workspace shell.
+ *
+ * Sibling to `cosmos-workspace.css`. Everything is scoped to
+ * [data-cosmos="workspace"] so it picks up the same design tokens
+ * (surface, text-primary, shadow-*, ease) as the brand shell. No
+ * token is redefined here — only page-level primitives that the
+ * BrandShell didn't need.
+ *
+ * Primitives defined:
+ *   .workspace-top-nav       — softer, simpler header bar (no center tabs)
+ *   .ws-profile-pill         — top-right profile button (avatar + initial)
+ *   .ws-outlet               — main content container with consistent padding
+ *   .ws-hero, .ws-hero-*     — page hero (Instrument Serif headline + subtext)
+ *   .ws-brands-grid          — responsive 1/2/3-col card grid
+ *   .ws-brand-card / -new    — soft floating brand card (color top, cream bottom)
+ *   .ws-tutorial-grid / card — learn-page tutorial card grid
+ *   .ws-settings-grid / card — settings nav card grid
+ *   .ws-templates-grid / card — templates marketplace grid
+ *   .ws-empty                — centered empty state
+ * ============================================================ */
+
+[data-cosmos="workspace"] .workspace-top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 110;
+  padding: 18px 28px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  background: transparent;
+}
+
+[data-cosmos="workspace"] .workspace-top-nav-left,
+[data-cosmos="workspace"] .workspace-top-nav-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .workspace-top-nav-right {
+  justify-self: end;
+}
+
+/* Profile pill — mimics the segmented-nav visual grammar
+   (soft surface, xs shadow, rounded pill). Avatar is a disk
+   using --accent / --accent-contrast so it inverts in dark. */
+[data-cosmos="workspace"] .ws-profile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  transition:
+    background 180ms var(--ease),
+    border-color 180ms var(--ease),
+    transform 180ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-profile-pill:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ws-profile-pill:active { transform: scale(0.97); }
+[data-cosmos="workspace"] .ws-profile-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+/* Main outlet — consistent max-width + padding for every
+   workspace page. Pages should render directly inside this. */
+[data-cosmos="workspace"] .ws-outlet {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 28px 96px;
+}
+
+/* Hero — Instrument Serif 48px display + 14px muted subhead */
+[data-cosmos="workspace"] .ws-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 40px;
+}
+[data-cosmos="workspace"] .ws-hero-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+[data-cosmos="workspace"] .ws-hero-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 48px;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-hero-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 620px;
+}
+@media (max-width: 640px) {
+  [data-cosmos="workspace"] .ws-hero-title { font-size: 36px; }
+}
+
+/* ============================================================
+ * Brands grid — Home.tsx
+ * ============================================================ */
+[data-cosmos="workspace"] .ws-brands-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 1024px) {
+  [data-cosmos="workspace"] .ws-brands-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  [data-cosmos="workspace"] .ws-brands-grid { grid-template-columns: 1fr; }
+}
+
+[data-cosmos="workspace"] .ws-brand-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 240px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    border-color 220ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-brand-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ws-brand-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+[data-cosmos="workspace"] .ws-brand-card-color {
+  flex: 1 1 55%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .ws-brand-card-logo {
+  max-width: 58%;
+  max-height: 58%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12));
+}
+[data-cosmos="workspace"] .ws-brand-card-letter {
+  font-family: "Instrument Serif", "DM Serif Display", serif;
+  font-size: 64px;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+  text-transform: uppercase;
+  mix-blend-mode: normal;
+}
+
+[data-cosmos="workspace"] .ws-brand-card-body {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 16px 14px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ws-brand-card-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-brand-card-sub {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+[data-cosmos="workspace"] .ws-brand-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ws-brand-card-foot-arrow {
+  transition: transform 200ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-brand-card:hover .ws-brand-card-foot-arrow {
+  transform: translateX(3px);
+}
+
+/* "+ Create new brand" ghost card */
+[data-cosmos="workspace"] .ws-brand-card--new {
+  background: transparent;
+  border: 1.5px dashed var(--dash);
+  box-shadow: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  color: var(--text-secondary);
+  transition:
+    border-color 220ms var(--ease),
+    background 220ms var(--ease),
+    color 220ms var(--ease),
+    transform 220ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-brand-card--new:hover {
+  border-color: var(--dash-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  transform: translateY(-4px);
+}
+[data-cosmos="workspace"] .ws-brand-card-plus {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-muted);
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+}
+[data-cosmos="workspace"] .ws-brand-card--new .ws-brand-card-title {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+[data-cosmos="workspace"] .ws-brand-card--new .ws-brand-card-sub {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+/* ============================================================
+ * Empty state (no brands yet)
+ * ============================================================ */
+[data-cosmos="workspace"] .ws-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 24px;
+  text-align: center;
+  border: 1.5px dashed var(--dash);
+  border-radius: 20px;
+  background: var(--surface-elevated);
+}
+[data-cosmos="workspace"] .ws-empty-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 36px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-empty-sub {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 420px;
+  margin: 0;
+}
+
+/* ============================================================
+ * Generic card grid (learn / templates / settings)
+ * ============================================================ */
+[data-cosmos="workspace"] .ws-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+[data-cosmos="workspace"] .ws-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xs);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 200ms var(--ease),
+    box-shadow 200ms var(--ease),
+    border-color 200ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ws-card-thumb {
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 24px;
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .ws-card-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-card-sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-card-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Section header (between hero and grid) */
+[data-cosmos="workspace"] .ws-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 48px 0 20px;
+}
+[data-cosmos="workspace"] .ws-section-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ws-section-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+ * Nested tabs — used on Settings page. Lightweight variant of
+ * the main segmented-nav that sits inside the page body, not
+ * in the top header.
+ * ============================================================ */
+[data-cosmos="workspace"] .ws-subtabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 28px;
+}
+[data-cosmos="workspace"] .ws-subtab {
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 180ms var(--ease), background 180ms var(--ease);
+}
+[data-cosmos="workspace"] .ws-subtab:hover { color: var(--text-primary); }
+[data-cosmos="workspace"] .ws-subtab.is-active {
+  color: var(--text-primary);
+  background: var(--accent-muted);
+}
