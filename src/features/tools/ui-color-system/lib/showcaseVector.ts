@@ -94,11 +94,18 @@ function walk(
   const x = rect.left - rootRect.left;
   const y = rect.top - rootRect.top;
 
-  // ── Background (solid only, skip gradients) ──
+  // ── Background ──
+  // Prefer the solid background-color if present. Otherwise, if the
+  // element uses a CSS gradient, fall back to its first colour stop so
+  // pills / CTA cards don't come out as empty outlines.
   if (!isRoot) {
     const bg = parseColor(style.backgroundColor);
-    const gradient = style.backgroundImage && style.backgroundImage.includes('gradient');
-    if (bg && bg.a > 0.01 && !gradient) {
+    const gradientColor =
+      bg && bg.a > 0.01
+        ? null
+        : extractFirstGradientColor(style.backgroundImage);
+    const fill = bg && bg.a > 0.01 ? bg : gradientColor;
+    if (fill) {
       out.push({
         kind: 'rect',
         x,
@@ -106,8 +113,8 @@ function walk(
         w: rect.width,
         h: rect.height,
         rx: averageBorderRadius(style),
-        fill: rgbaToHex(bg),
-        opacity: opacity * bg.a,
+        fill: rgbaToHex(fill),
+        opacity: opacity * fill.a,
       });
     }
   }
@@ -153,25 +160,28 @@ function walk(
     return;
   }
 
-  // ── Inline <svg> — raster it as a small PNG and embed ──
-  // The walker can't faithfully vectorize every SVG we render
-  // (Lucide icons use paths, charts use polylines, decorative orbs
-  // use gradients). Capture the SVG subtree as a PNG so icons,
-  // charts, and quote marks all survive the export.
+  // ── Inline <svg> — serialize and rasterize to PNG ──
+  // The walker can't faithfully vectorize every SVG we render (Lucide
+  // icons, the sparkline, the quote mark, arrow chips). Serialize the
+  // SVG with its full computed size and draw it onto a canvas to get
+  // a clean PNG — works reliably where html2canvas often fails on
+  // inline SVGs.
   if (RASTERIZE_TAGS.has(el.tagName)) {
-    const p = rasterizeNodeToDataUrl(el as unknown as HTMLElement).then((dataUrl) => {
-      if (dataUrl) {
-        out.push({
-          kind: 'image',
-          x,
-          y,
-          w: rect.width,
-          h: rect.height,
-          href: dataUrl,
-          opacity,
-        });
-      }
-    });
+    const p = serializedSvgToPng(el as SVGElement, rect.width, rect.height).then(
+      (dataUrl) => {
+        if (dataUrl) {
+          out.push({
+            kind: 'image',
+            x,
+            y,
+            w: rect.width,
+            h: rect.height,
+            href: dataUrl,
+            opacity,
+          });
+        }
+      },
+    );
     imagePromises.push(p);
     return;
   }
@@ -252,19 +262,70 @@ function emitTextNode(
   }
 }
 
-async function rasterizeNodeToDataUrl(el: HTMLElement): Promise<string | null> {
+async function serializedSvgToPng(
+  svg: SVGElement,
+  w: number,
+  h: number,
+): Promise<string | null> {
+  if (w <= 0 || h <= 0) return null;
   try {
-    const { default: html2canvas } = await import('html2canvas');
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: null,
-      logging: false,
+    // Clone so we can set xmlns + explicit size without mutating the DOM.
+    const clone = svg.cloneNode(true) as SVGElement;
+    if (!clone.getAttribute('xmlns')) {
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+    if (!clone.getAttribute('xmlns:xlink')) {
+      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    }
+    clone.setAttribute('width', String(w));
+    clone.setAttribute('height', String(h));
+    // Pick up computed color so `currentColor` strokes/fills inherit
+    // from the rendered context rather than defaulting to black.
+    const computed = getComputedStyle(svg);
+    if (!clone.getAttribute('color')) clone.setAttribute('color', computed.color);
+
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(serialized);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('svg image load failed'));
+      img.src = url;
     });
+
+    const scale = 2;
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/png');
   } catch {
     return null;
   }
+}
+
+/**
+ * Pull the first hex / rgb color out of a CSS gradient string so we
+ * can approximate the gradient as a solid fill. Returns null if no
+ * gradient or no parseable color found.
+ */
+function extractFirstGradientColor(bgImage: string): RGBA | null {
+  if (!bgImage || !bgImage.includes('gradient')) return null;
+  const rgbMatch = bgImage.match(/rgba?\([^)]+\)/);
+  if (rgbMatch) {
+    const color = parseColor(rgbMatch[0]);
+    if (color) return color;
+  }
+  const hexMatch = bgImage.match(/#[0-9a-fA-F]{3,8}\b/);
+  if (hexMatch) {
+    const color = parseColor(hexMatch[0]);
+    if (color) return color;
+  }
+  return null;
 }
 
 /**
