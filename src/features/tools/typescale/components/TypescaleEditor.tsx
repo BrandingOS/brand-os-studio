@@ -60,7 +60,7 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
       <aside className="space-y-4">
         <ScaleControls surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} />
         <SemanticMap surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} />
-        <ExportPanel draft={draft} />
+        <ExportPanel draft={draft} mode={brandId ? 'in-app' : 'public'} />
       </aside>
     </div>
   );

@@ -11,7 +11,7 @@
  * so it can be imported from anywhere (router, SEO meta, server-side
  * sitemaps) without pulling component code into the bundle.
  */
-import { Wand2, Palette } from 'lucide-react';
+import { Type, Wand2, Palette } from 'lucide-react';
 import type { ToolMeta, ToolSlug } from './types';
 
 export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
@@ -66,6 +66,25 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       ],
     },
     Icon: Wand2,
+  },
+  'typescale': {
+    slug: 'typescale',
+    name: 'Typescale Generator',
+    tagline: 'Build a typography system your whole brand can use.',
+    description:
+      'Pick a font pair, tune the scale for web, UI, presentations, and social — then export ' +
+      'CSS, Tailwind v3/v4, SCSS, W3C design tokens, and Figma Tokens Studio. Free.',
+    seo: {
+      title: 'Typescale Generator — Build a typography system — BrandOS',
+      description:
+        'Free modern typescale tool. Pick Google Fonts, generate a fluid scale, export CSS, ' +
+        'Tailwind, and W3C design tokens.',
+      keywords: [
+        'typescale generator', 'type scale', 'modular scale', 'fluid typography',
+        'tailwind typography', 'design tokens typography', 'google fonts pair', 'type hierarchy',
+      ],
+    },
+    Icon: Type,
   },
 };
 

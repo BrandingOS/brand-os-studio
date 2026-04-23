@@ -9,7 +9,7 @@
 import type { ComponentType } from 'react';
 
 /** Public-facing slug. Becomes part of the URL: `/tools/<slug>`. */
-export type ToolSlug = 'logo-variant-generator' | 'ui-color-system';
+export type ToolSlug = 'logo-variant-generator' | 'ui-color-system' | 'typescale';
 
 /** Where a tool is currently mounted. Drives gates and persistence. */
 export type ToolMode = 'in-app' | 'public';
@@ -22,6 +22,7 @@ export type ToolFeature =
   | 'export-svg'
   | 'export-pdf'
   | 'export-kit'
+  | 'export-typescale'
   | 'save-session'
   | 'add-custom-color'
   | 'add-extra-variant'

@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Typescale } from '@/shared/types/typescale';
+import { ToolGate } from '@/features/tools/core';
+import type { ToolMode } from '@/features/tools/core';
 import {
   serializeCss, serializeTailwindV3, serializeTailwindV4, serializeScss,
   serializeJs, serializeJson, serializeW3c, serializeFigmaTokens, serializeFontSnippet,
@@ -18,7 +20,7 @@ const FORMATS: Array<[Fmt, string, (t: Typescale) => string]> = [
   ['fonts', '@font-face',     serializeFontSnippet],
 ];
 
-export function ExportPanel({ draft }: { draft: Typescale }) {
+export function ExportPanel({ draft, mode = 'public' }: { draft: Typescale; mode?: ToolMode }) {
   const [fmt, setFmt] = useState<Fmt>('css');
   const selected = FORMATS.find(([k]) => k === fmt)!;
   const content = useMemo(() => selected[2](draft), [draft, fmt]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -35,8 +37,22 @@ export function ExportPanel({ draft }: { draft: Typescale }) {
       </div>
       <pre className="max-h-64 overflow-auto rounded border bg-muted/30 p-2 text-[11px] leading-snug">{content}</pre>
       <div className="flex gap-2">
-        <button className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
-                onClick={() => navigator.clipboard.writeText(content)}>Copy</button>
+        <ToolGate
+          slug="typescale"
+          mode={mode}
+          feature="export-typescale"
+          gates={{ 'export-typescale': 'auth' }}
+          onAllowed={() => navigator.clipboard?.writeText(content).catch(() => {})}
+        >
+          {(trigger) => (
+            <button
+              className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
+              onClick={trigger}
+            >
+              Copy
+            </button>
+          )}
+        </ToolGate>
       </div>
     </section>
   );

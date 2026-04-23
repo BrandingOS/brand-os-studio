@@ -70,6 +70,10 @@ const FEATURE_COPY: Record<ToolFeature, { title: string; body: string }> = {
     title: 'Export the full kit',
     body: 'The bulk variant kit (all formats, all variants, naming-convention-ready) is part of a free account.',
   },
+  'export-typescale': {
+    title: 'Export typescale',
+    body: 'Sign up to copy the CSS, Tailwind, and design token exports — your scale is saved to a new brand.',
+  },
   'save-session': {
     title: 'Save your work',
     body: 'Create a free account to save this session as a brand. Your variants will be waiting for you on the other side.',
