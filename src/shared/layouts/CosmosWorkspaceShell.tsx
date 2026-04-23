@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -18,16 +19,19 @@ let hasOpenedOnce = false;
 import '@/shared/styles/cosmos-workspace.css';
 
 /**
- * Shared workspace shell for the new Cosmos UI direction.
+ * Shared shell for the v2 UI direction.
  *
  * Layout:
  *   - Top bar (sticky): left brand mark · center segmented nav · right utilities
  *   - Outlet: the page fills the rest; it can use `.shell` + `.panel` + `.board-wrap`
- *     for the two-column Setup page, or `.workspace-empty` for sibling tabs.
+ *     for two-column pages, or `.workspace-empty` for placeholder tabs.
  *
- * The cosmos theme (warm cream in light, deep charcoal in dark) is scoped to
- * [data-cosmos="workspace"]. Theme preference persists in localStorage under
- * the same key the onboarding flow uses ("brandos-theme").
+ * Tab resolution:
+ *   - If an explicit `tabs` prop is passed, it wins.
+ *   - Otherwise, if the current URL matches `/b/:slug/...`, brand-scoped tabs are built automatically.
+ *   - Otherwise, falls back to the flat workspace tabs (legacy `/setup`, etc.).
+ *
+ * Theme: scoped to [data-cosmos="workspace"], persisted in localStorage key "brandos-theme".
  */
 
 export type WorkspaceTab = {
@@ -44,6 +48,27 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
   { label: 'Tools', to: '/tools-workspace' },
 ];
 
+/**
+ * Brand-scoped tabs for /b/:slug/* routes. Use when rendering the shell
+ * inside a brand — the 5 tabs point to /b/<slug>/{setup,brand-kit,...}.
+ */
+export function buildBrandTabs(slug: string): WorkspaceTab[] {
+  return [
+    { label: 'Setup', to: `/b/${slug}/setup` },
+    { label: 'Brand Kit', to: `/b/${slug}/brand-kit` },
+    { label: 'Guideline', to: `/b/${slug}/guideline` },
+    { label: 'Design', to: `/b/${slug}/design` },
+    { label: 'Tools', to: `/b/${slug}/tools` },
+  ];
+}
+
+const BRAND_SLUG_REGEX = /^\/b\/([^/]+)/;
+
+function extractBrandSlug(pathname: string): string | null {
+  const match = pathname.match(BRAND_SLUG_REGEX);
+  return match ? match[1] : null;
+}
+
 const THEME_KEY = 'brandos-theme';
 
 function readInitialTheme(): 'light' | 'dark' {
@@ -58,16 +83,38 @@ function readInitialTheme(): 'light' | 'dark' {
 }
 
 export function CosmosWorkspaceShell({
-  tabs = DEFAULT_WORKSPACE_TABS,
+  tabs: explicitTabs,
   brandName = 'BrandOS',
+  brandHome,
   rightActions,
   children,
 }: {
+  /**
+   * Explicit tabs to render. If omitted, the shell auto-detects brand
+   * context from the URL: /b/:slug/* routes get brand-scoped tabs,
+   * anything else falls back to DEFAULT_WORKSPACE_TABS.
+   */
   tabs?: WorkspaceTab[];
   brandName?: string;
+  /**
+   * Where the top-left brand mark links to. Defaults to the current
+   * brand's setup page when on /b/:slug/*, otherwise the workspace home.
+   */
+  brandHome?: string;
   rightActions?: ReactNode;
   children: ReactNode;
 }) {
+  const location = useLocation();
+  const slug = useMemo(() => extractBrandSlug(location.pathname), [location.pathname]);
+
+  const tabs = useMemo(() => {
+    if (explicitTabs) return explicitTabs;
+    if (slug) return buildBrandTabs(slug);
+    return DEFAULT_WORKSPACE_TABS;
+  }, [explicitTabs, slug]);
+
+  const resolvedBrandHome = brandHome ?? (slug ? `/b/${slug}/setup` : '/');
+
   const [theme, setTheme] = useState<'light' | 'dark'>(readInitialTheme);
 
   useEffect(() => {
@@ -90,7 +137,6 @@ export function CosmosWorkspaceShell({
   // browser to paint the cached position once before the state update
   // re-renders with the new position, otherwise React batches both
   // paints into one and there's no transition.
-  const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
   const [pillStyle, setPillStyle] = useState<PillStyle | null>(lastPillStyle);
   // Only run the container "open" keyframe on the first-ever shell
@@ -130,7 +176,7 @@ export function CosmosWorkspaceShell({
     <div data-cosmos="workspace" data-theme={theme}>
       <header className="top-nav-wrap" role="banner">
         <div className="top-nav-left">
-          <NavLink to="/setup" className="top-nav-brand" aria-label={brandName}>
+          <NavLink to={resolvedBrandHome} className="top-nav-brand" aria-label={brandName}>
             <span className="top-nav-brand-mark" aria-hidden="true">
               B
             </span>

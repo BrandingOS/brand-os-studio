@@ -39,6 +39,13 @@ const WorkspaceBrandKitPage = lazy(() => import("./pages/setup/brand-kit"));
 const WorkspaceGuidelinePage = lazy(() => import("./pages/setup/guideline"));
 const WorkspaceDesignPage = lazy(() => import("./pages/setup/design"));
 const WorkspaceToolsPage = lazy(() => import("./pages/setup/tools"));
+// v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
+// See docs/ux-v2/PLAN.md for the full restructure plan.
+const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
+const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
+const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
+const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
+const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -585,6 +592,35 @@ const App = () => (
           <Route path="/b/:slug/brandkit/:moduleId" element={
             <ProtectedRoute>
               <BrandKitModulePage />
+            </ProtectedRoute>
+          } />
+          {/* v2 brand-scoped tabs: the 5 tabs always live inside a brand.
+              Setup reuses the existing SetupPage; the other four are
+              placeholders in Phase 1 and get wired to real features in
+              Phase 3. See docs/ux-v2/PLAN.md for the full plan. */}
+          <Route path="/b/:slug/setup" element={
+            <ProtectedRoute>
+              <BrandSetupPageV2 />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/brand-kit" element={
+            <ProtectedRoute>
+              <BrandBrandKitPageV2 />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guideline" element={
+            <ProtectedRoute>
+              <BrandGuidelinePageV2 />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/design" element={
+            <ProtectedRoute>
+              <BrandDesignPageV2 />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools" element={
+            <ProtectedRoute>
+              <BrandToolsPageV2 />
             </ProtectedRoute>
           } />
           <Route path="/settings" element={
