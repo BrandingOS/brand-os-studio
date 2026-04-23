@@ -60,6 +60,14 @@ export interface ExportOptions {
   orientation?: 'portrait' | 'landscape';
   /** PDF page format */
   pageFormat?: 'a4' | 'letter' | [number, number];
+  /**
+   * For editable PDF/SVG only: skip the raster-patch fallback the DOM
+   * walker uses when it hits CSS it can't reproduce (box-shadow,
+   * gradients, filters, transforms, mix-blend-mode, …). Those
+   * subtrees simply aren't emitted, so the rest of the slide stays
+   * fully editable. Lose some visual fidelity, gain live layers.
+   */
+  noRasterFallback?: boolean;
 }
 
 // ─── Frame Generator (for video/GIF) ─────────────────────────────────

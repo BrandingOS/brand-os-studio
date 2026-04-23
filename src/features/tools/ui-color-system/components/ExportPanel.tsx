@@ -792,6 +792,12 @@ function DesignExport({ brandName }: { brandName?: string }) {
               filename: `${name}-showcase`,
               scale: 2,
               backgroundColor: '#f5f4ef',
+              // Editable formats: drop the raster fallback so every
+              // tile comes out as live layers (text stays editable,
+              // shapes stay selectable) instead of a flat image.
+              // Box-shadow / gradient / transform won't render —
+              // acceptable tradeoff when the goal is editability.
+              noRasterFallback: true,
             },
           });
         }

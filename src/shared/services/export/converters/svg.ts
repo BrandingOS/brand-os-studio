@@ -85,7 +85,9 @@ export async function htmlToVectorSVG(
   const { irToSvg } = await import('../vectorize/irToSvg');
   onProgress?.(25);
 
-  const ir = await domToIR(element);
+  const ir = await domToIR(element, {
+    noRasterFallback: options.noRasterFallback,
+  });
   onProgress?.(70);
 
   const svgText = await irToSvg(ir, { inlineVectorImages: true });

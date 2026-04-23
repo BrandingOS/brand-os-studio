@@ -151,7 +151,9 @@ export async function htmlToVectorPDF(
 
   const irs = [];
   for (let i = 0; i < elements.length; i++) {
-    const ir = await domToIR(elements[i]);
+    const ir = await domToIR(elements[i], {
+      noRasterFallback: options.noRasterFallback,
+    });
     irs.push(ir);
     onProgress?.(15 + Math.round((i + 1) / elements.length * 60));
   }
