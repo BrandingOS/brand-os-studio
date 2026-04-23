@@ -1,0 +1,96 @@
+/* ============================================================
+ * Brand Kit v2 — flat sidebar + uniform placeholder-card grid.
+ *
+ * All selectors scoped to [data-cosmos="workspace"] so they stay
+ * theme-aware (light + dark) via the shell's CSS tokens.
+ * ============================================================ */
+
+/* ─── Section grid ─────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .bk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+[data-cosmos="workspace"] .bk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 180ms var(--ease);
+}
+[data-cosmos="workspace"] .bk-card:hover {
+  transform: translateY(-2px);
+}
+
+[data-cosmos="workspace"] .bk-card-cover {
+  position: relative;
+  aspect-ratio: 1.6 / 1;
+  border-radius: 14px;
+  background-color: #0a0a0a;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  transition:
+    box-shadow 180ms var(--ease),
+    border-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .bk-card:hover .bk-card-cover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* Hover-reveal action buttons (edit · download). Mirrors the
+   photo-tile-actions pattern from Setup so the UI reads the same. */
+[data-cosmos="workspace"] .bk-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 180ms var(--ease),
+    transform 180ms var(--ease);
+  z-index: 2;
+  pointer-events: none;
+}
+[data-cosmos="workspace"] .bk-card:hover .bk-card-actions,
+[data-cosmos="workspace"] .bk-card:focus-within .bk-card-actions,
+[data-cosmos="workspace"] .bk-card.is-ctx-active .bk-card-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+[data-cosmos="workspace"] .bk-card-action {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: rgba(17, 17, 20, 0.72);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: background 180ms var(--ease);
+}
+[data-cosmos="workspace"] .bk-card-action:hover {
+  background: rgba(17, 17, 20, 0.92);
+}
+
+[data-cosmos="workspace"] .bk-card-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  padding-left: 2px;
+}
+

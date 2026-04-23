@@ -1,597 +1,323 @@
-import type { Brand } from '@/shared/types/brand';
+import { useCallback, useRef, useState } from 'react';
+import {
+  ContextMenu,
+  type ContextMenuState,
+} from '@/features/setup/components/ContextMenu';
+import type { KitSectionKey } from './BrandKitSidebar';
 
-/** Shared empty state for sections with no data. */
-function EmptyNote({ label }: { label: string }) {
-  return (
-    <div
-      style={{
-        padding: '28px 20px',
-        border: '1px dashed var(--dash)',
-        borderRadius: 14,
-        background: 'var(--surface-hover)',
-        color: 'var(--text-muted)',
-        fontSize: 13,
-        textAlign: 'center',
-      }}
-    >
-      {label}
-    </div>
-  );
-}
+/**
+ * Every Brand Kit section renders the same shape — a grid of
+ * placeholder cards. Each card uses the shared cover image until
+ * real per-item renders land. The card aspect is slightly taller
+ * than a business card (1.6 / 1) — enough vertical room to fit a
+ * mark + label without feeling squat.
+ */
 
-/** ============================================================
- *  LOGO SYSTEM
- *  ============================================================ */
-export function LogoSystemSection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
+/** Pool of 46 cover images in /public/brand-kit/covers/pic-01…46.
+ *  Most are .jpeg, a few have .jpg / .gif extensions — the override
+ *  map below spells those out. */
+const COVERS: string[] = (() => {
+  const exts: Record<number, string> = { 14: 'jpg', 21: 'jpg', 15: 'gif', 39: 'gif' };
+  return Array.from({ length: 46 }, (_, i) => {
+    const n = i + 1;
+    const ext = exts[n] ?? 'jpeg';
+    return `/brand-kit/covers/pic-${n.toString().padStart(2, '0')}.${ext}`;
+  });
+})();
 
-  // Collect logo slots with their source URLs.
-  type LogoTile = { label: string; url: string; variant: 'light' | 'dark' };
-  const tiles: LogoTile[] = [];
+/** Section order used when assigning covers globally. Mirrors the
+ *  order in BrandKitSidebar's KIT_SECTIONS — duplicated here to keep
+ *  sections.tsx free of an import cycle with BrandKitSidebar. */
+const SECTION_ORDER: KitSectionKey[] = [
+  'stationery',
+  'social',
+  'web',
+  'mockups',
+  'brand-guides',
+  'presentations',
+  'animations',
+  'qr-code',
+];
 
-  const push = (label: string, url: string | undefined, variant: 'light' | 'dark' = 'light') => {
-    if (!url) return;
-    if (tiles.some((t) => t.url === url)) return;
-    tiles.push({ label, url, variant });
-  };
-
-  push('Primary', brand.logoSystem?.primary?.url ?? brand.logoAssets?.full ?? brand.logo);
-  push('Wordmark', brand.logoSystem?.wordmark?.url ?? brand.logoAssets?.wordmark);
-  push('Iconmark', brand.logoSystem?.iconmark?.url ?? brand.logoAssets?.icon);
-  push('Secondary', brand.logoSystem?.secondary?.url);
-  push('Black', brand.logoSystem?.mono?.black?.url ?? brand.logoAssets?.dark, 'dark');
-  push('White', brand.logoSystem?.mono?.white?.url ?? brand.logoAssets?.light);
-
-  if (tiles.length === 0) {
-    // Fallback text mark in brand colors.
-    const bg = brand.primaryColor || '#111113';
-    const fg = brand.secondaryColor || '#F1EEE4';
-    return (
-      <div className="logos">
-        <div
-          className="logo-tile"
-          style={{ background: bg, color: fg }}
-          aria-label={`${brand.name} placeholder logo`}
-        >
-          <span
-            style={{
-              fontFamily: '"Instrument Serif", "Playfair Display", serif',
-              fontSize: 32,
-              letterSpacing: '-0.01em',
-              color: fg,
-            }}
-          >
-            {brand.name}
-          </span>
-        </div>
-      </div>
-    );
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h * 31 + s.charCodeAt(i)) | 0;
   }
-
-  return (
-    <div className="logos">
-      {tiles.map((tile) => (
-        <div
-          key={`${tile.label}-${tile.url}`}
-          className={`logo-tile${tile.variant === 'dark' ? ' is-dark' : ''}`}
-          title={tile.label}
-        >
-          <img
-            src={tile.url}
-            alt={`${brand.name} ${tile.label} logo`}
-            style={{
-              maxWidth: '78%',
-              maxHeight: '78%',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
+  return Math.abs(h);
 }
 
-/** ============================================================
- *  COLOR PALETTE
- *  ============================================================ */
-type Swatch = { hex: string; name: string; usage?: string };
-
-function isLightHex(hex: string): boolean {
-  const clean = hex.replace('#', '');
-  if (clean.length < 6) return false;
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return l > 0.6;
-}
-
-function SwatchGrid({ swatches, heading }: { swatches: Swatch[]; heading: string }) {
-  if (swatches.length === 0) return null;
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <h3
-        style={{
-          fontSize: 12.5,
-          color: 'var(--text-muted)',
-          fontWeight: 500,
-          letterSpacing: '-0.005em',
-          margin: 0,
-        }}
-      >
-        {heading}
-      </h3>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: 12,
-        }}
-      >
-        {swatches.map((s, i) => {
-          const textColor = isLightHex(s.hex) ? '#0d0d0d' : '#ffffff';
-          return (
-            <div
-              key={`${s.hex}-${i}`}
-              style={{
-                borderRadius: 14,
-                overflow: 'hidden',
-                background: s.hex,
-                color: textColor,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                padding: 14,
-                minHeight: 130,
-                border: '1px solid var(--border)',
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 500, letterSpacing: '-0.01em' }}>
-                {s.name}
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.85, letterSpacing: '0.02em' }}>
-                {s.hex.toUpperCase()}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-export function ColorPaletteSection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const core: Swatch[] = [];
-  const primaryHex = brand.colorSystem?.primary?.hex ?? brand.primaryColor;
-  const secondaryHex = brand.colorSystem?.secondary?.hex ?? brand.secondaryColor;
-  const accentHex = brand.colorSystem?.accent?.hex ?? brand.accentColor;
-
-  if (primaryHex) {
-    core.push({
-      hex: primaryHex,
-      name: brand.colorSystem?.primary?.name ?? 'Primary',
-      usage: brand.colorSystem?.primary?.usage,
-    });
+/** Seeded xorshift shuffle so the cover order looks randomised but is
+ *  stable across page loads — keeps the same image pinned to the same
+ *  card on every render. */
+function deterministicShuffle<T>(arr: readonly T[], seed: number): T[] {
+  const out = [...arr];
+  let s = seed || 1;
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    s = (s ^ (s << 13)) >>> 0;
+    s = (s ^ (s >>> 17)) >>> 0;
+    s = (s ^ (s << 5)) >>> 0;
+    const j = s % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
   }
-  if (secondaryHex) {
-    core.push({
-      hex: secondaryHex,
-      name: brand.colorSystem?.secondary?.name ?? 'Secondary',
-    });
-  }
-  if (accentHex) {
-    core.push({
-      hex: accentHex,
-      name: brand.colorSystem?.accent?.name ?? 'Accent',
-    });
-  }
-
-  const neutrals: Swatch[] = (brand.colorSystem?.neutrals ?? []).map((n, i) => ({
-    hex: n.hex,
-    name: n.name ?? `Neutral ${i + 1}`,
-  }));
-  if (neutrals.length === 0 && brand.neutrals?.length) {
-    brand.neutrals.forEach((hex, i) => {
-      neutrals.push({ hex, name: `Neutral ${i + 1}` });
-    });
-  }
-
-  const semantic: Swatch[] = [];
-  const s = brand.colorSystem?.semantic;
-  if (s?.success?.hex) semantic.push({ hex: s.success.hex, name: 'Success' });
-  if (s?.warning?.hex) semantic.push({ hex: s.warning.hex, name: 'Warning' });
-  if (s?.error?.hex) semantic.push({ hex: s.error.hex, name: 'Error' });
-  if (s?.info?.hex) semantic.push({ hex: s.info.hex, name: 'Info' });
-
-  if (core.length === 0 && neutrals.length === 0 && semantic.length === 0) {
-    return <EmptyNote label="No colors defined yet." />;
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <SwatchGrid swatches={core} heading="Core" />
-      <SwatchGrid swatches={neutrals} heading="Neutrals" />
-      <SwatchGrid swatches={semantic} heading="Semantic" />
-    </div>
-  );
+  return out;
 }
 
-/** ============================================================
- *  TYPOGRAPHY
- *  ============================================================ */
-function TypeRow({
-  role,
-  family,
-  weights,
-  usage,
-}: {
-  role: string;
-  family: string;
-  weights?: string;
-  usage?: string;
-}) {
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(160px, 220px) 1fr',
-        gap: 24,
-        padding: '24px 0',
-        borderTop: '1px solid var(--rule)',
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span
-          style={{
-            fontSize: 10,
-            textTransform: 'uppercase',
-            letterSpacing: '0.12em',
-            color: 'var(--text-muted)',
-            fontWeight: 500,
-          }}
-        >
-          {role}
-        </span>
-        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
-          {family}
-        </span>
-        {weights && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{weights}</span>
-        )}
-        {usage && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            {usage}
-          </span>
-        )}
-      </div>
-      <div
-        style={{
-          fontFamily: `"${family}", Inter, system-ui, sans-serif`,
-          fontSize: 56,
-          lineHeight: 1.05,
-          letterSpacing: '-0.02em',
-          color: 'var(--text-primary)',
-          fontWeight: 500,
-        }}
-      >
-        {family}
-      </div>
-    </div>
-  );
+type CardSpec = { label: string };
+
+const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
+  stationery: [
+    { label: 'Business Card' },
+    { label: 'Letterhead' },
+    { label: 'Envelope' },
+    { label: 'Notecard' },
+    { label: 'Invoice' },
+  ],
+  social: [
+    { label: 'Profile' },
+    { label: 'Cover' },
+    { label: 'Post' },
+    { label: 'Story' },
+  ],
+  web: [
+    { label: 'Favicon' },
+    { label: 'Website' },
+    { label: 'Email Signature' },
+    { label: 'Landing Page' },
+  ],
+  mockups: [
+    { label: 'Mug' },
+    { label: 'T-Shirt' },
+    { label: 'Billboard' },
+    { label: 'Tote' },
+    { label: 'Sticker Sheet' },
+  ],
+  'brand-guides': [
+    { label: 'Logo Guide' },
+    { label: 'Color Guide' },
+    { label: 'Typography Guide' },
+    { label: 'Voice Guide' },
+    { label: 'Imagery Guide' },
+  ],
+  presentations: [
+    { label: 'Pitch Deck' },
+    { label: 'Business Plan' },
+    { label: 'Portfolio' },
+    { label: 'Proposal' },
+    { label: 'Case Studies' },
+  ],
+  animations: [
+    { label: 'Logo Reveal' },
+    { label: 'Slide In' },
+    { label: 'Fade' },
+    { label: 'Rotate' },
+  ],
+  'qr-code': [
+    { label: 'Branded' },
+    { label: 'Minimal' },
+    { label: 'Rounded' },
+    { label: 'Square' },
+  ],
+};
+
+/** Cap any section at 5 cards regardless of source data. */
+const MAX_PER_SECTION = 5;
+
+export function getSectionCount(sectionKey: KitSectionKey): number {
+  const raw = SECTION_CARDS[sectionKey]?.length ?? 0;
+  return Math.min(raw, MAX_PER_SECTION);
 }
 
-export function TypographySection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const primaryFamily = brand.typography?.primary?.family ?? brand.fonts?.primary;
-  const secondaryFamily = brand.typography?.secondary?.family ?? brand.fonts?.secondary;
-
-  if (!primaryFamily && !secondaryFamily) {
-    return <EmptyNote label="No typography defined yet." />;
-  }
-
-  const primaryWeights =
-    brand.typography?.primary?.weights?.join(' · ') ?? 'Regular · Medium · Bold';
-  const secondaryWeights =
-    brand.typography?.secondary?.weights?.join(' · ') ?? 'Regular · Medium';
-
-  return (
-    <div>
-      {primaryFamily && (
-        <TypeRow
-          role="Display"
-          family={primaryFamily}
-          weights={primaryWeights}
-          usage={brand.typography?.primary?.usage}
-        />
-      )}
-      {secondaryFamily && secondaryFamily !== primaryFamily && (
-        <TypeRow
-          role="Text"
-          family={secondaryFamily}
-          weights={secondaryWeights}
-          usage={brand.typography?.secondary?.usage}
-        />
-      )}
-    </div>
-  );
-}
-
-/** ============================================================
- *  ICONOGRAPHY
- *  ============================================================ */
-export function IconographySection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const iconography = brand.guidelines?.iconography;
-  const examples = iconography?.examples ?? [];
-  const total = examples.reduce((n, ex) => n + (ex.icons?.length ?? 0), 0);
-
-  if (!iconography && total === 0) {
-    return (
-      <EmptyNote label="No iconography style defined yet. Icons will appear here once added." />
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {iconography && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 12,
-          }}
-        >
-          {iconography.style && (
-            <Field label="Style" value={iconography.style} />
-          )}
-          {iconography.weight && (
-            <Field label="Weight" value={iconography.weight} />
-          )}
-          {iconography.cornerRadius && (
-            <Field label="Corner radius" value={iconography.cornerRadius} />
-          )}
-        </div>
-      )}
-      {examples.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {examples.map((ex) => (
-            <div key={ex.category}>
-              <h3
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  fontWeight: 500,
-                  margin: '0 0 10px',
-                }}
-              >
-                {ex.category}
-              </h3>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
-                  gap: 8,
-                }}
-              >
-                {(ex.icons ?? []).map((icon) => (
-                  <div
-                    key={icon.name}
-                    style={{
-                      aspectRatio: '1 / 1',
-                      border: '1px solid var(--border)',
-                      borderRadius: 12,
-                      display: 'grid',
-                      placeItems: 'center',
-                      background: 'var(--surface)',
-                      padding: 12,
-                    }}
-                    title={icon.name}
-                  >
-                    {icon.url ? (
-                      <img
-                        src={icon.url}
-                        alt={icon.name}
-                        style={{ maxWidth: '100%', maxHeight: '100%' }}
-                      />
-                    ) : (
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {icon.name}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div
-      style={{
-        padding: 12,
-        borderRadius: 12,
-        background: 'var(--surface-elevated)',
-        border: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-          color: 'var(--text-muted)',
-          fontWeight: 500,
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{value}</span>
-    </div>
-  );
-}
-
-/** ============================================================
- *  PHOTOGRAPHY
- *  ============================================================ */
-export function PhotographySection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const images: { id: string; url: string; name: string }[] = [];
-  for (const asset of brand.brandAssets ?? []) {
-    if (asset.kind === 'image') {
-      const url =
-        asset.formats?.webp?.url ??
-        asset.formats?.png?.url ??
-        asset.formats?.jpg?.url ??
-        asset.formats?.svg?.url;
-      if (url) images.push({ id: asset.id, url, name: asset.name || 'Image' });
+/** Build a global cover map at module load: walk every section in
+ *  order, assign the next image from a shuffled 46-image pool. Every
+ *  card on the page gets a unique cover (36 cards total, 46 images
+ *  available). The shuffle is seeded so it's consistent across loads. */
+const GLOBAL_COVER_MAP: ReadonlyMap<string, string> = (() => {
+  const shuffled = deterministicShuffle(COVERS, hashString('brand-kit-v2'));
+  const map = new Map<string, string>();
+  let idx = 0;
+  for (const section of SECTION_ORDER) {
+    const cards = (SECTION_CARDS[section] ?? []).slice(0, MAX_PER_SECTION);
+    for (const card of cards) {
+      map.set(`${section}::${card.label}`, shuffled[idx % shuffled.length]);
+      idx += 1;
     }
   }
-  for (const asset of brand.assets ?? []) {
-    if (asset.type === 'image' && !images.some((i) => i.id === asset.id)) {
-      images.push({ id: asset.id, url: asset.url, name: asset.name || 'Image' });
-    }
-  }
+  return map;
+})();
 
-  if (images.length === 0) {
-    return <EmptyNote label="No photography added yet." />;
-  }
+function coverFor(sectionKey: KitSectionKey, label: string): string {
+  return GLOBAL_COVER_MAP.get(`${sectionKey}::${label}`) ?? COVERS[0];
+}
+
+function EditIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
+type CardProps = {
+  sectionKey: KitSectionKey;
+  card: CardSpec;
+  onEdit?: (sectionKey: KitSectionKey, label: string) => void;
+  onDownload?: (sectionKey: KitSectionKey, label: string) => void;
+  onOpenMenu: (e: React.MouseEvent, sectionKey: KitSectionKey, label: string) => void;
+};
+
+function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: CardProps) {
+  return (
+    <figure
+      className="bk-card"
+      onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
+    >
+      <div
+        className="bk-card-cover"
+        style={{ backgroundImage: `url(${coverFor(sectionKey, card.label)})` }}
+      >
+        {(onEdit || onDownload) && (
+          <div className="bk-card-actions">
+            {onEdit && (
+              <button
+                type="button"
+                className="bk-card-action"
+                aria-label={`Edit ${card.label}`}
+                title={`Edit ${card.label}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(sectionKey, card.label);
+                }}
+              >
+                <EditIcon />
+              </button>
+            )}
+            {onDownload && (
+              <button
+                type="button"
+                className="bk-card-action"
+                aria-label={`Download ${card.label}`}
+                title={`Download ${card.label}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownload(sectionKey, card.label);
+                }}
+              >
+                <DownloadIcon />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <figcaption className="bk-card-label">{card.label}</figcaption>
+    </figure>
+  );
+}
+
+type GridProps = {
+  sectionKey: KitSectionKey;
+  onEditCard?: (sectionKey: KitSectionKey, label: string) => void;
+  onDownloadCard?: (sectionKey: KitSectionKey, label: string) => void;
+};
+
+export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProps) {
+  const cards = (SECTION_CARDS[sectionKey] ?? []).slice(0, MAX_PER_SECTION);
+
+  const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  // Keep the card visually raised (actions visible) while its menu is open,
+  // mirroring SetupBoard's `.is-ctx-active` pattern.
+  const ctxAnchorRef = useRef<HTMLElement | null>(null);
+  const closeCtxMenu = useCallback(() => {
+    ctxAnchorRef.current?.classList.remove('is-ctx-active');
+    ctxAnchorRef.current = null;
+    setCtxMenu(null);
+  }, []);
+
+  const openMenu = useCallback(
+    (e: React.MouseEvent, key: KitSectionKey, label: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const anchor = (e.currentTarget as HTMLElement).closest('.bk-card') as HTMLElement | null;
+      if (ctxAnchorRef.current && ctxAnchorRef.current !== anchor) {
+        ctxAnchorRef.current.classList.remove('is-ctx-active');
+      }
+      ctxAnchorRef.current = anchor;
+      anchor?.classList.add('is-ctx-active');
+
+      const items: ContextMenuState['items'] = [];
+      if (onEditCard) {
+        items.push({
+          label: 'Edit',
+          onSelect: () => onEditCard(key, label),
+          icon: <EditIcon />,
+        });
+      }
+      if (onDownloadCard) {
+        items.push({
+          label: 'Download',
+          onSelect: () => onDownloadCard(key, label),
+          icon: <DownloadIcon />,
+        });
+      }
+      if (items.length === 0) return;
+      setCtxMenu({ x: e.clientX, y: e.clientY, items });
+    },
+    [onEditCard, onDownloadCard],
+  );
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-        gap: 10,
-      }}
-    >
-      {images.map((img) => (
-        <div
-          key={img.id}
-          style={{
-            aspectRatio: '4 / 3',
-            borderRadius: 14,
-            overflow: 'hidden',
-            border: '1px solid var(--border)',
-            background: 'var(--surface-hover)',
-          }}
-        >
-          <img
-            src={img.url}
-            alt={img.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+    <>
+      <div className="bk-grid">
+        {cards.map((card) => (
+          <BrandKitCard
+            key={card.label}
+            sectionKey={sectionKey}
+            card={card}
+            onEdit={onEditCard}
+            onDownload={onDownloadCard}
+            onOpenMenu={openMenu}
           />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** ============================================================
- *  BRAND BOARD (read-only summary of uiStyle)
- *  ============================================================ */
-export function BrandBoardSection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const ui = brand.uiStyle;
-  const hasAny = !!ui || (brand.neutrals?.length ?? 0) > 0;
-  if (!hasAny) {
-    return <EmptyNote label="Brand Board not configured yet." />;
-  }
-
-  return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: 12,
-      }}
-    >
-      {ui?.borderRadius !== undefined && (
-        <Field label="Border radius" value={`${ui.borderRadius}px`} />
+        ))}
+      </div>
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          items={ctxMenu.items}
+          onClose={closeCtxMenu}
+        />
       )}
-      {ui?.shadowIntensity && (
-        <Field label="Shadow" value={ui.shadowIntensity} />
-      )}
-      {ui?.spacing && <Field label="Spacing" value={ui.spacing} />}
-      {ui?.weight && <Field label="Weight" value={ui.weight} />}
-      {brand.neutrals?.length ? (
-        <Field label="Neutrals" value={`${brand.neutrals.length} shades`} />
-      ) : null}
-    </div>
-  );
-}
-
-/** ============================================================
- *  VOICE & TONE
- *  ============================================================ */
-export function VoiceAndToneSection({ brand }: { brand: Brand | undefined }) {
-  if (!brand) return <EmptyNote label="No brand loaded." />;
-
-  const voice = brand.guidelines?.voiceAndTone;
-  const toneText = brand.tone ?? voice?.brandVoice ?? '';
-  const attrs = voice?.toneAttributes ?? [];
-  const communication = voice?.communicationStyle;
-
-  if (!toneText && attrs.length === 0 && !communication) {
-    return <EmptyNote label="No voice & tone defined yet." />;
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {toneText && (
-        <p
-          style={{
-            fontSize: 16,
-            lineHeight: 1.55,
-            color: 'var(--text-primary)',
-            margin: 0,
-            fontFamily: '"Instrument Serif", "Playfair Display", serif',
-            letterSpacing: '-0.005em',
-            fontWeight: 400,
-          }}
-        >
-          {toneText}
-        </p>
-      )}
-      {attrs.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {attrs.map((a) => (
-            <span
-              key={a}
-              style={{
-                padding: '6px 12px',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'var(--surface-elevated)',
-                fontSize: 12,
-                color: 'var(--text-primary)',
-                letterSpacing: '-0.005em',
-              }}
-            >
-              {a}
-            </span>
-          ))}
-        </div>
-      )}
-      {communication && (
-        <Field label="Communication style" value={communication} />
-      )}
-      {brand.audience && <Field label="Audience" value={brand.audience} />}
-    </div>
+    </>
   );
 }

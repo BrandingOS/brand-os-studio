@@ -1,123 +1,111 @@
-import type { Brand } from '@/shared/types/brand';
+import { useRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { Check } from '@/features/setup/components/SetupIcons';
+import {
+  LinkOrganicIconV2,
+  type OrganicIconHandle,
+  type OrganicIconProps,
+} from '@/features/setup/components/organic-icons';
+import {
+  PaperStackOrganicIcon,
+  ChatBubblesOrganicIcon,
+  CubeOrganicIcon,
+  CompassOrganicIcon,
+  ChartOrganicIcon,
+  PlayOrganicIcon,
+  QrOrganicIcon,
+} from './brand-kit-organic-icons';
+import { getSectionCount } from './sections';
 
+/**
+ * Single flat list of sections — no "On this page" / "Deep editors"
+ * split anymore. Every entry is a heading on the page and a
+ * scroll-target in the sidebar. Most headings contain multiple
+ * placeholder cards inside (business-card-sized); users drill into
+ * one to customize.
+ */
 export type KitSectionKey =
-  | 'logo-system'
-  | 'color-palette'
-  | 'typography'
-  | 'iconography'
-  | 'photography'
-  | 'brand-board'
-  | 'voice-tone';
+  | 'stationery'
+  | 'social'
+  | 'web'
+  | 'mockups'
+  | 'brand-guides'
+  | 'presentations'
+  | 'animations'
+  | 'qr-code';
 
-export const KIT_SECTIONS: { key: KitSectionKey; name: string }[] = [
-  { key: 'logo-system', name: 'Logo System' },
-  { key: 'color-palette', name: 'Color Palette' },
-  { key: 'typography', name: 'Typography' },
-  { key: 'iconography', name: 'Iconography' },
-  { key: 'photography', name: 'Photography' },
-  { key: 'brand-board', name: 'Brand Board' },
-  { key: 'voice-tone', name: 'Voice & Tone' },
-];
+type OrganicIconComponent = ForwardRefExoticComponent<
+  OrganicIconProps & RefAttributes<OrganicIconHandle>
+>;
 
 type Entry = {
   key: KitSectionKey;
   name: string;
   sub: string;
   added: boolean;
+  Icon: OrganicIconComponent;
 };
 
-function buildEntries(brand: Brand | undefined): Entry[] {
-  if (!brand) {
-    return KIT_SECTIONS.map((s) => ({ key: s.key, name: s.name, sub: 'Not set', added: false }));
-  }
+export const KIT_SECTIONS: { key: KitSectionKey; name: string }[] = [
+  { key: 'stationery', name: 'Stationery' },
+  { key: 'social', name: 'Social Media' },
+  { key: 'web', name: 'Web' },
+  { key: 'mockups', name: 'Mockups' },
+  { key: 'brand-guides', name: 'Brand Guides' },
+  { key: 'presentations', name: 'Presentations' },
+  { key: 'animations', name: 'Animations' },
+  { key: 'qr-code', name: 'QR Code' },
+];
 
-  const logoCount = [
-    brand.logoSystem?.primary,
-    brand.logoSystem?.wordmark,
-    brand.logoSystem?.iconmark,
-    brand.logoSystem?.secondary,
-  ].filter(Boolean).length || (brand.logo ? 1 : 0);
+function countLabel(key: KitSectionKey): string {
+  const n = getSectionCount(key);
+  return `${n} element${n === 1 ? '' : 's'}`;
+}
 
+function buildEntries(brand: MockBrand): Entry[] {
+  const logoCount = brand.logos.length;
   const colorCount =
-    (brand.primaryColor ? 1 : 0) +
-    (brand.secondaryColor ? 1 : 0) +
-    (brand.accentColor ? 1 : 0) +
-    (brand.neutrals?.length ?? 0);
-
-  const fontPrimary =
-    brand.typography?.primary?.family ?? brand.fonts?.primary;
-  const fontSecondary =
-    brand.typography?.secondary?.family ?? brand.fonts?.secondary;
-  const fontSummary = !fontPrimary
-    ? 'Not set'
-    : fontSecondary
-    ? `${fontPrimary} · ${fontSecondary}`
-    : fontPrimary;
-
-  const iconExamples = brand.guidelines?.iconography?.examples ?? [];
-  const iconCount = iconExamples.reduce(
-    (sum, ex) => sum + (ex.icons?.length ?? 0),
-    0,
-  );
-
-  const photoCount = (brand.brandAssets ?? [])
-    .filter((a) => a.kind === 'image').length
-    || (brand.assets ?? []).filter((a) => a.type === 'image').length;
-
-  const hasBoard = !!(brand.uiStyle || (brand.neutrals && brand.neutrals.length > 0));
-
-  const voiceAttrs = brand.guidelines?.voiceAndTone?.toneAttributes?.length ?? 0;
-  const hasVoice = !!brand.tone || voiceAttrs > 0 || !!brand.guidelines?.voiceAndTone?.brandVoice;
+    brand.colors.core.length + brand.colors.accent.length + brand.colors.grey.length;
+  const hasIdentity = logoCount > 0 && colorCount > 0;
 
   return [
     {
-      key: 'logo-system',
-      name: 'Logo System',
-      sub: logoCount > 0 ? `${logoCount} variant${logoCount === 1 ? '' : 's'}` : 'Not set',
+      key: 'stationery',
+      name: 'Stationery',
+      sub: countLabel('stationery'),
+      added: hasIdentity,
+      Icon: PaperStackOrganicIcon,
+    },
+    {
+      key: 'social',
+      name: 'Social Media',
+      sub: countLabel('social'),
+      added: hasIdentity,
+      Icon: ChatBubblesOrganicIcon,
+    },
+    {
+      key: 'web',
+      name: 'Web',
+      sub: countLabel('web'),
       added: logoCount > 0,
+      Icon: LinkOrganicIconV2,
     },
     {
-      key: 'color-palette',
-      name: 'Color Palette',
-      sub: colorCount > 0 ? `${colorCount} color${colorCount === 1 ? '' : 's'}` : 'Not set',
-      added: colorCount > 0,
+      key: 'mockups',
+      name: 'Mockups',
+      sub: countLabel('mockups'),
+      added: logoCount > 0,
+      Icon: CubeOrganicIcon,
     },
-    {
-      key: 'typography',
-      name: 'Typography',
-      sub: fontSummary,
-      added: !!fontPrimary,
-    },
-    {
-      key: 'iconography',
-      name: 'Iconography',
-      sub: iconCount > 0 ? `${iconCount} icon${iconCount === 1 ? '' : 's'}` : 'Not set',
-      added: iconCount > 0,
-    },
-    {
-      key: 'photography',
-      name: 'Photography',
-      sub: photoCount > 0 ? `${photoCount} image${photoCount === 1 ? '' : 's'}` : 'Not set',
-      added: photoCount > 0,
-    },
-    {
-      key: 'brand-board',
-      name: 'Brand Board',
-      sub: hasBoard ? 'Configured' : 'Not set',
-      added: hasBoard,
-    },
-    {
-      key: 'voice-tone',
-      name: 'Voice & Tone',
-      sub: hasVoice ? (brand.tone ? 'Tone set' : 'Guidelines set') : 'Not set',
-      added: hasVoice,
-    },
+    { key: 'brand-guides', name: 'Brand Guides', sub: countLabel('brand-guides'), added: true, Icon: CompassOrganicIcon },
+    { key: 'presentations', name: 'Presentations', sub: countLabel('presentations'), added: true, Icon: ChartOrganicIcon },
+    { key: 'animations', name: 'Animations', sub: countLabel('animations'), added: true, Icon: PlayOrganicIcon },
+    { key: 'qr-code', name: 'QR Code', sub: countLabel('qr-code'), added: true, Icon: QrOrganicIcon },
   ];
 }
 
 type Props = {
-  brand: Brand | undefined;
+  brand: MockBrand;
   activeKey: KitSectionKey | null;
   completed: number;
   total: number;
@@ -133,7 +121,7 @@ export function BrandKitSidebar({ brand, activeKey, completed, total, onJump }: 
       <div className="panel-top">
         <div className="panel-heading">
           <span className="panel-heading-eyebrow">Brand Kit</span>
-          <h1 className="panel-heading-title">{brand?.name ?? 'Brand'}</h1>
+          <h1 className="panel-heading-title">{brand.name}</h1>
         </div>
         <div className="panel-progress">
           <div className="panel-progress-head">
@@ -149,33 +137,60 @@ export function BrandKitSidebar({ brand, activeKey, completed, total, onJump }: 
       </div>
 
       <nav className="panel-list">
-        {entries.map((entry) => {
-          const isActive = activeKey === entry.key;
-          return (
-            <div
-              key={entry.key}
-              className={`panel-item${isActive ? ' is-active' : ''}${entry.added ? '' : ' is-missing'}`}
-            >
-              <button
-                type="button"
-                className="panel-item-body"
-                onClick={() => onJump(entry.key)}
-              >
-                <span className="panel-item-meta">
-                  <span className="panel-item-name">{entry.name}</span>
-                  {entry.added && <span className="panel-item-sub">{entry.sub}</span>}
-                </span>
-              </button>
-              <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
-                <span className="chip-default">
-                  {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
-                </span>
-              </span>
-            </div>
-          );
-        })}
+        {entries.map((entry) => (
+          <SectionRow
+            key={entry.key}
+            entry={entry}
+            isActive={activeKey === entry.key}
+            onClick={() => onJump(entry.key)}
+          />
+        ))}
       </nav>
     </aside>
+  );
+}
+
+function SectionRow({
+  entry,
+  isActive,
+  onClick,
+}: {
+  entry: Entry;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const iconRef = useRef<OrganicIconHandle>(null);
+  const Icon = entry.Icon;
+
+  return (
+    <div
+      className={`panel-item${isActive ? ' is-active' : ''}${entry.added ? '' : ' is-missing'}`}
+      onMouseEnter={() => iconRef.current?.startAnimation()}
+      onMouseLeave={() => iconRef.current?.stopAnimation()}
+    >
+      <button
+        type="button"
+        className="panel-item-body"
+        onClick={onClick}
+        onFocus={() => iconRef.current?.startAnimation()}
+        onBlur={() => iconRef.current?.stopAnimation()}
+      >
+        {entry.added && (
+          <span className="panel-item-thumb" aria-hidden>
+            <Icon ref={iconRef} size={18} />
+          </span>
+        )}
+        <span className="panel-item-meta">
+          <span className="panel-item-name">{entry.name}</span>
+          {entry.added && entry.sub && <span className="panel-item-sub">{entry.sub}</span>}
+        </span>
+      </button>
+      <span className={`status-chip${entry.added ? ' is-added' : ' is-missing'}`}>
+        <span className="chip-default">
+          {entry.added ? <Check size={14} /> : <OutlineRing size={12} />}
+        </span>
+      </span>
+    </div>
   );
 }
 
