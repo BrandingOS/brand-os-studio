@@ -4,6 +4,7 @@ import type {
   LogoSystemRefs,
   TypographySystem,
 } from './brandAssets';
+import type { Typescale } from './typescale';
 
 export interface Brand {
   id: string;
@@ -19,6 +20,8 @@ export interface Brand {
   colorSystem?: ColorSystem;
   /** Canonical typography — collapses fonts + guidelines.typography. */
   typography?: TypographySystem;
+  /** Structured typescale (fonts + multi-surface ladders + semantic map). */
+  typescale?: Typescale;
   /** Canonical brand asset library. Includes logos, images, fonts, docs. */
   brandAssets?: BrandAsset[];
 
