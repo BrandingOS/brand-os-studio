@@ -46,6 +46,13 @@ const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
+// v2 workspace shell pages (outside a brand). Simpler shell, no tabs.
+const WorkspaceHomePage = lazy(() => import("./pages/workspace/Home"));
+const WorkspaceLearnPage = lazy(() => import("./pages/workspace/Learn"));
+const WorkspaceSettingsPageV2 = lazy(() => import("./pages/workspace/Settings"));
+const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"));
+// Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
+const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -233,7 +240,13 @@ const App = () => (
           <Route path="/guideline" element={<WorkspaceGuidelinePage />} />
           <Route path="/design-workspace" element={<WorkspaceDesignPage />} />
           <Route path="/tools-workspace" element={<WorkspaceToolsPage />} />
-          <Route path="/dashboard" element={<DashboardRoute />} />
+          {/* v2 workspace home — new WorkspaceShell (no tabs). Old DashboardRoute
+              stays lazy-imported but unused; Phase 6 removes it. */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <WorkspaceHomePage />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard/brands" element={
             <ProtectedRoute>
               <BrandsPage />
@@ -259,9 +272,10 @@ const App = () => (
               <FeaturesIndexPage />
             </ProtectedRoute>
           } />
+          {/* v2 workspace: Learn now lives in WorkspaceShell. */}
           <Route path="/learn" element={
             <ProtectedRoute>
-              <LearnPage />
+              <WorkspaceLearnPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/admin/brands" element={
@@ -421,9 +435,10 @@ const App = () => (
           {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
           {/* /dashboard/brand/:slug/kit and /dam are nested under BrandRouteLayout above.
               The /b/:slug short-form aliases are nested under their own BrandRouteLayout below. */}
+          {/* v2 workspace: Templates marketplace now lives in WorkspaceShell. */}
           <Route path="/templates" element={
             <ProtectedRoute>
-              <TemplatesMarketplacePage />
+              <WorkspaceTemplatesPageV2 />
             </ProtectedRoute>
           } />
           <Route path="/templates/builder" element={
@@ -623,6 +638,9 @@ const App = () => (
               <BrandToolsPageV2 />
             </ProtectedRoute>
           } />
+          {/* Dev-only all-features inventory. Self-gated on import.meta.env.DEV
+              or ?dev=1. Not linked from any user nav. */}
+          <Route path="/_dev/features" element={<DevFeaturesPage />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />

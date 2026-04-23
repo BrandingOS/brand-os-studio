@@ -1,0 +1,325 @@
+/*
+ * Dev features inventory page — scoped to [data-dev-features]
+ * so it can't leak into the rest of the workspace.
+ *
+ * Reads the cosmos-workspace theme tokens (--surface, --text-primary, …)
+ * via inheritance from its CosmosWorkspaceShell parent, so it responds
+ * to light/dark toggles automatically.
+ */
+
+[data-dev-features] {
+  padding: 28px 40px 80px;
+  max-width: 1280px;
+  margin: 0 auto;
+  color: var(--text-primary);
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+[data-dev-features] .dfx-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+[data-dev-features] .dfx-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+[data-dev-features] .dfx-title {
+  font-family: "Instrument Serif", "Playfair Display", serif;
+  font-size: 40px;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-dev-features] .dfx-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+[data-dev-features] .dfx-sub strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ── Filter bar ─────────────────────────────────────────────────── */
+[data-dev-features] .dfx-filters {
+  position: sticky;
+  top: 56px; /* just under the shell's sticky top-nav (h-14 = 56px) */
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0;
+  margin-bottom: 18px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule, var(--border));
+  backdrop-filter: saturate(1.1);
+}
+[data-dev-features] .dfx-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+[data-dev-features] .dfx-filter-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 6px;
+  min-width: 54px;
+}
+[data-dev-features] .dfx-search {
+  flex: 1 1 280px;
+  min-width: 220px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+[data-dev-features] .dfx-search::placeholder {
+  color: var(--text-muted);
+}
+[data-dev-features] .dfx-search:focus {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+[data-dev-features] .dfx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+[data-dev-features] .dfx-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+[data-dev-features] .dfx-chip.is-active {
+  background: var(--text-primary);
+  color: var(--surface);
+  border-color: var(--text-primary);
+}
+[data-dev-features] .dfx-chip-count {
+  font-size: 11px;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Section ───────────────────────────────────────────────────── */
+[data-dev-features] .dfx-section {
+  margin-bottom: 32px;
+}
+[data-dev-features] .dfx-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule, var(--border));
+}
+[data-dev-features] .dfx-section-title {
+  font-family: "Instrument Serif", "Playfair Display", serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-dev-features] .dfx-section-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Card grid ─────────────────────────────────────────────────── */
+[data-dev-features] .dfx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+[data-dev-features] .dfx-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-elevated);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+[data-dev-features] .dfx-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+[data-dev-features] .dfx-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+[data-dev-features] .dfx-card-name {
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  color: var(--text-primary);
+  margin: 0;
+}
+[data-dev-features] .dfx-card-route {
+  font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin: 0;
+}
+[data-dev-features] .dfx-card-entry {
+  font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin: 0;
+}
+[data-dev-features] .dfx-card-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+}
+[data-dev-features] .dfx-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule, var(--border));
+}
+[data-dev-features] .dfx-card-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 140ms ease, transform 140ms ease;
+}
+[data-dev-features] .dfx-card-open:hover {
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+[data-dev-features] .dfx-card-open.is-disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Status badges ─────────────────────────────────────────────── */
+[data-dev-features] .dfx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+[data-dev-features] .dfx-badge--active {
+  background: color-mix(in srgb, #16a34a 14%, transparent);
+  color: #15803d;
+  border-color: color-mix(in srgb, #16a34a 28%, transparent);
+}
+[data-dev-features] .dfx-badge--planned {
+  background: color-mix(in srgb, #d97706 16%, transparent);
+  color: #b45309;
+  border-color: color-mix(in srgb, #d97706 30%, transparent);
+}
+[data-dev-features] .dfx-badge--dead {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  color: #b91c1c;
+  border-color: color-mix(in srgb, #ef4444 24%, transparent);
+  opacity: 0.85;
+}
+[data-dev-features][data-theme="dark"] .dfx-badge--active {
+  color: #4ade80;
+  background: color-mix(in srgb, #16a34a 22%, transparent);
+}
+[data-dev-features][data-theme="dark"] .dfx-badge--planned {
+  color: #fbbf24;
+  background: color-mix(in srgb, #d97706 22%, transparent);
+}
+[data-dev-features][data-theme="dark"] .dfx-badge--dead {
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 20%, transparent);
+}
+
+/* ── Empty state ───────────────────────────────────────────────── */
+[data-dev-features] .dfx-empty {
+  padding: 40px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Not-available fallback (non-dev) ─────────────────────────── */
+.dfx-fallback {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  text-align: center;
+  background: #ffffff;
+  color: #0d0d0d;
+  font-family: "Inter", -apple-system, system-ui, sans-serif;
+}
+.dfx-fallback h1 {
+  font-family: "Instrument Serif", serif;
+  font-size: 32px;
+  font-weight: 400;
+  margin: 0;
+}
+.dfx-fallback p {
+  font-size: 14px;
+  color: #6e6a69;
+  margin: 0;
+  max-width: 420px;
+}
