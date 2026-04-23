@@ -35,3 +35,21 @@ describe('serializeCss', () => {
     expect(serializeCss(makeTypescale())).toMatch(/--text-web-h1:\s*[0-9.]+px/);
   });
 });
+
+describe('serializeCss (hardening)', () => {
+  function withBadFamily(): Typescale {
+    const base = makeTypescale();
+    return {
+      ...base,
+      fonts: {
+        ...base.fonts,
+        heading: { ...base.fonts.heading, family: 'Bad"Font\\Name' },
+      },
+    };
+  }
+  it('escapes quotes in heading family', () => {
+    const out = serializeCss(withBadFamily());
+    // No unescaped quote inside the custom property value
+    expect(out).toMatch(/--font-heading: "Bad\\"Font\\\\Name"/);
+  });
+});

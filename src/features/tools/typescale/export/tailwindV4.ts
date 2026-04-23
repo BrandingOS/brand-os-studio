@@ -1,10 +1,11 @@
 import type { SemanticRole, Typescale } from '@/shared/types/typescale';
+import { cssFallback, cssString } from './_escape';
 
 export function serializeTailwindV4(t: Typescale): string {
   const lines: string[] = ['@theme {'];
-  lines.push(`  --font-heading: "${t.fonts.heading.family}", ${t.fonts.heading.fallback};`);
-  lines.push(`  --font-body: "${t.fonts.body.family}", ${t.fonts.body.fallback};`);
-  if (t.fonts.mono) lines.push(`  --font-mono: "${t.fonts.mono.family}", ${t.fonts.mono.fallback};`);
+  lines.push(`  --font-heading: "${cssString(t.fonts.heading.family)}", ${cssFallback(t.fonts.heading.fallback)};`);
+  lines.push(`  --font-body: "${cssString(t.fonts.body.family)}", ${cssFallback(t.fonts.body.fallback)};`);
+  if (t.fonts.mono) lines.push(`  --font-mono: "${cssString(t.fonts.mono.family)}", ${cssFallback(t.fonts.mono.fallback)};`);
   for (const surface of Object.values(t.surfaces)) {
     const byId = new Map(surface.steps.map(s => [s.id, s]));
     for (const [role, entry] of Object.entries(surface.semantic) as [SemanticRole, any][]) {

@@ -27,3 +27,22 @@ describe('serializeFontSnippet', () => {
     expect(out).toContain('MyMono');
   });
 });
+
+describe('serializeFontSnippet (hardening)', () => {
+  it('escapes quotes in family + url in @font-face', () => {
+    const ts: Typescale = {
+      schemaVersion:1,
+      fonts:{
+        heading:{family:'Inter',source:'google',weights:[400],italic:false,fallback:'sans'},
+        body:{family:'Inter',source:'google',weights:[400],italic:false,fallback:'sans'},
+        mono:{family:'Bad"Name',source:'upload',weights:[400],italic:false,fallback:'monospace',
+          files:[{weight:400,italic:false,url:'https://cdn/x"y.woff2',format:'woff2'}]},
+      },
+      surfaces:{} as any, activeSurface:'web', updatedAt:'2026-04-23T00:00:00.000Z',
+    };
+    const out = serializeFontSnippet(ts);
+    // No raw unescaped quote in either font-family or url content
+    expect(out).toContain('font-family: "Bad\\"Name"');
+    expect(out).toContain('url("https://cdn/x\\"y.woff2")');
+  });
+});

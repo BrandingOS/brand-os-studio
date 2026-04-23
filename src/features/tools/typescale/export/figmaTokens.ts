@@ -15,9 +15,9 @@ export function serializeFigmaTokens(t: Typescale): string {
         value: {
           fontFamily: font,
           fontWeight: `${entry.weight ?? step.weight}`,
-          fontSize: step.fluid?.clamp ?? `${step.sizePx}`,
+          fontSize: step.fluid?.clamp ?? `${step.sizePx}px`,
           lineHeight: `${step.lineHeight}`,
-          letterSpacing: `${step.letterSpacingEm * 100}%`,
+          letterSpacing: `${Math.round(step.letterSpacingEm * 10000) / 100}%`,
           textCase: entry.transform === 'uppercase' ? 'uppercase' : entry.transform === 'lowercase' ? 'lowercase' : 'none',
         },
       };

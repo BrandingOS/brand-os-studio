@@ -22,3 +22,19 @@ describe('serializeFigmaTokens', () => {
     expect(parsed.global.web.h1.value.fontFamily).toBeTruthy();
   });
 });
+
+describe('serializeFigmaTokens (hardening)', () => {
+  it('emits fontSize with px unit', () => {
+    const parsed = JSON.parse(serializeFigmaTokens(t));
+    expect(parsed.global.web.h1.value.fontSize).toMatch(/px$/);
+  });
+  it('letterSpacing percent is rounded to 2 decimals', () => {
+    const parsed = JSON.parse(serializeFigmaTokens(t));
+    const v: string = parsed.global.web.body.value.letterSpacing;
+    expect(v.endsWith('%')).toBe(true);
+    // No long float tail: the digits before the % should have <= 2 decimals.
+    const num = v.replace('%', '');
+    const parts = num.split('.');
+    if (parts.length === 2) expect(parts[1].length).toBeLessThanOrEqual(2);
+  });
+});
