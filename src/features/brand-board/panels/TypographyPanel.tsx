@@ -10,6 +10,8 @@ import { Shuffle, ChevronDown, Search, Check } from 'lucide-react';
 import { useBrandBoardStore } from '../store/useBrandBoardStore';
 import { FONT_PAIRINGS } from '../engine/fontPairings';
 import { loadFontFamily } from '@/shared/design-system/fonts';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 
 type Weight = 'light' | 'regular' | 'bold';
 
@@ -204,6 +206,8 @@ export function TypographyPanel() {
   const setFont = useBrandBoardStore((s) => s.setFont);
   const storeSetWeight = useBrandBoardStore((s) => s.setWeight);
   const shuffleTypography = useBrandBoardStore((s) => s.shuffleTypography);
+  const brand = useBrandStore((s) => s.current);
+  const [typescaleOpen, setTypescaleOpen] = useState(false);
 
   useEffect(() => {
     loadFontFamily(draft.typography.heading);
@@ -212,6 +216,22 @@ export function TypographyPanel() {
 
   return (
     <section>
+      {brand?.id && (
+        <div className="mb-3 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setTypescaleOpen(true)}
+            className="rounded border px-3 py-1 text-xs hover:bg-muted/40"
+          >
+            Edit scale
+          </button>
+          <EmbeddedTypescaleDialog
+            brandId={brand.id}
+            open={typescaleOpen}
+            onOpenChange={setTypescaleOpen}
+          />
+        </div>
+      )}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold tracking-tight text-foreground">Typography</h3>
         <div className="flex items-center gap-2">

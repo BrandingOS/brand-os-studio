@@ -1,6 +1,8 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
 import { SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
@@ -197,6 +199,18 @@ export function SetupPage({
     return () => window.clearTimeout(handle);
   }, [brand]);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
+  const [typescaleOpen, setTypescaleOpen] = useState(false);
+  // Resolve the real brand by name so the embedded typescale dialog has a
+  // brandId to save against. SetupPage only sees a MockBrand; the /b/:slug
+  // wrapper keeps the real brand in the store.
+  const resolvedBrandId = useBrandStore((s) => {
+    const name = brand.name.trim().toLowerCase();
+    if (!name) return undefined;
+    const match =
+      (s.current && s.current.name.trim().toLowerCase() === name ? s.current : undefined) ??
+      s.list.find((b) => b.name.trim().toLowerCase() === name);
+    return match?.id;
+  });
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);
@@ -1193,10 +1207,21 @@ export function SetupPage({
   return (
     <CosmosWorkspaceShell
       rightActions={
-        <button type="button" className="pill-btn pill-btn--primary">
-          <span>Publish</span>
-          <ArrowRight size={14} className="pill-btn-arrow" />
-        </button>
+        <>
+          {resolvedBrandId && (
+            <button
+              type="button"
+              onClick={() => setTypescaleOpen(true)}
+              className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
+            >
+              Open typescale editor
+            </button>
+          )}
+          <button type="button" className="pill-btn pill-btn--primary">
+            <span>Publish</span>
+            <ArrowRight size={14} className="pill-btn-arrow" />
+          </button>
+        </>
       }
     >
       <div className="shell">
@@ -1262,6 +1287,13 @@ export function SetupPage({
         onDelete={handleDeleteAbout}
       />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
+      {resolvedBrandId && (
+        <EmbeddedTypescaleDialog
+          brandId={resolvedBrandId}
+          open={typescaleOpen}
+          onOpenChange={setTypescaleOpen}
+        />
+      )}
     </CosmosWorkspaceShell>
   );
 }

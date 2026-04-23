@@ -11,7 +11,7 @@
  *
  * See docs/ux-redesign/ARCHITECTURE.md §3.1.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -31,6 +31,7 @@ import { BrandStrategyModule } from '@/features/brandkit/components/BrandStrateg
 import type { Brand } from '@/shared/types/brand';
 import { Image as ImageIcon, Palette, Type, MessageCircle, Target } from 'lucide-react';
 import { useBrandSettings } from '@/shared/brand-settings';
+import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 
 const TABS = ['logo', 'colors', 'typography', 'voice', 'strategy'] as const;
 type TabId = (typeof TABS)[number];
@@ -52,6 +53,7 @@ export default function IdentityPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { brand, isLoading, error } = useBrandBySlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
+  const [typescaleOpen, setTypescaleOpen] = useState(false);
 
   const activeTab: TabId = useMemo(() => {
     const fromUrl = searchParams.get('tab');
@@ -192,10 +194,15 @@ export default function IdentityPage() {
                 <h2 className="text-lg font-semibold">Typography</h2>
                 <p className="text-sm text-muted-foreground">Font families and type scale.</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => openSettingsTab('typography')}>
-                <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                Edit
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setTypescaleOpen(true)}>
+                  Open typescale editor
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => openSettingsTab('typography')}>
+                  <Pencil className="h-3.5 w-3.5 mr-1.5" />
+                  Edit
+                </Button>
+              </div>
             </div>
             <TypographyModule brand={brand} />
           </TabsContent>
@@ -228,6 +235,12 @@ export default function IdentityPage() {
             <BrandStrategyModule brand={brand} />
           </TabsContent>
         </Tabs>
+
+        <EmbeddedTypescaleDialog
+          brandId={brand.id}
+          open={typescaleOpen}
+          onOpenChange={setTypescaleOpen}
+        />
     </div>
   );
 }
