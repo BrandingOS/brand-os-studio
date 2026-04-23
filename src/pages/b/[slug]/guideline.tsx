@@ -13,6 +13,7 @@ import {
   type GuidelineBoardRefs,
 } from '@/features/guideline-cosmos/components/GuidelineBoard';
 import type { Brand } from '@/shared/types/brand';
+import '@/features/guideline-cosmos/styles.css';
 
 /**
  * Brand-scoped Guideline tab at `/b/:slug/guideline`.
