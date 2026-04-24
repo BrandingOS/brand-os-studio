@@ -3,7 +3,9 @@ import {
   ContextMenu,
   type ContextMenuState,
 } from '@/features/setup/components/ContextMenu';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from './BrandKitSidebar';
+import { BrandKitCardEditor, type EditorTarget } from './BrandKitCardEditor';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -129,25 +131,45 @@ export function getSectionCount(sectionKey: KitSectionKey): number {
 }
 
 /** Build a global cover map at module load: walk every section in
- *  order, assign the next image from a shuffled 46-image pool. Every
- *  card on the page gets a unique cover (36 cards total, 46 images
- *  available). The shuffle is seeded so it's consistent across loads. */
-const GLOBAL_COVER_MAP: ReadonlyMap<string, string> = (() => {
+ *  order, assign 3 cover options from a shuffled 46-image pool —
+ *  the first is the card's default, the other two are alternatives
+ *  the editor exposes as a thumbnail picker. Indices are spread out
+ *  by ~1/3 of the pool so the alternatives look distinct. */
+const GLOBAL_COVER_MAP: ReadonlyMap<string, string[]> = (() => {
   const shuffled = deterministicShuffle(COVERS, hashString('brand-kit-v2'));
-  const map = new Map<string, string>();
+  const len = shuffled.length;
+  const offsets = [0, Math.floor(len / 3), Math.floor((len * 2) / 3)];
+  const map = new Map<string, string[]>();
   let idx = 0;
   for (const section of SECTION_ORDER) {
     const cards = (SECTION_CARDS[section] ?? []).slice(0, MAX_PER_SECTION);
     for (const card of cards) {
-      map.set(`${section}::${card.label}`, shuffled[idx % shuffled.length]);
+      const opts = offsets.map((off) => shuffled[(idx + off) % len]);
+      map.set(`${section}::${card.label}`, opts);
       idx += 1;
     }
   }
   return map;
 })();
 
+/** Hand-picked default covers for specific cards. The first option in
+ *  the editor's image picker uses this when present; the remaining
+ *  two alternatives still come from the shuffled pool. */
+const COVER_OVERRIDES: Partial<Record<string, string>> = {
+  'stationery::Business Card': '/brand-kit/covers/stationery-business-card.jpeg',
+};
+
+export function coversFor(sectionKey: KitSectionKey, label: string): string[] {
+  const key = `${sectionKey}::${label}`;
+  const pooled = GLOBAL_COVER_MAP.get(key) ?? [COVERS[0]];
+  const override = COVER_OVERRIDES[key];
+  if (!override) return pooled;
+  // Replace the primary with the override; keep the other two alternatives.
+  return [override, ...pooled.slice(1)];
+}
+
 function coverFor(sectionKey: KitSectionKey, label: string): string {
-  return GLOBAL_COVER_MAP.get(`${sectionKey}::${label}`) ?? COVERS[0];
+  return coversFor(sectionKey, label)[0];
 }
 
 function EditIcon() {
@@ -192,7 +214,7 @@ function DownloadIcon() {
 type CardProps = {
   sectionKey: KitSectionKey;
   card: CardSpec;
-  onEdit?: (sectionKey: KitSectionKey, label: string) => void;
+  onEdit: (sectionKey: KitSectionKey, label: string) => void;
   onDownload?: (sectionKey: KitSectionKey, label: string) => void;
   onOpenMenu: (e: React.MouseEvent, sectionKey: KitSectionKey, label: string) => void;
 };
@@ -202,43 +224,40 @@ function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: Card
     <figure
       className="bk-card"
       onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
+      onClick={() => onEdit(sectionKey, card.label)}
     >
       <div
         className="bk-card-cover"
         style={{ backgroundImage: `url(${coverFor(sectionKey, card.label)})` }}
       >
-        {(onEdit || onDownload) && (
-          <div className="bk-card-actions">
-            {onEdit && (
-              <button
-                type="button"
-                className="bk-card-action"
-                aria-label={`Edit ${card.label}`}
-                title={`Edit ${card.label}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(sectionKey, card.label);
-                }}
-              >
-                <EditIcon />
-              </button>
-            )}
-            {onDownload && (
-              <button
-                type="button"
-                className="bk-card-action"
-                aria-label={`Download ${card.label}`}
-                title={`Download ${card.label}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownload(sectionKey, card.label);
-                }}
-              >
-                <DownloadIcon />
-              </button>
-            )}
-          </div>
-        )}
+        <div className="bk-card-actions">
+          <button
+            type="button"
+            className="bk-card-action"
+            aria-label={`Edit ${card.label}`}
+            title={`Edit ${card.label}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(sectionKey, card.label);
+            }}
+          >
+            <EditIcon />
+          </button>
+          {onDownload && (
+            <button
+              type="button"
+              className="bk-card-action"
+              aria-label={`Download ${card.label}`}
+              title={`Download ${card.label}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload(sectionKey, card.label);
+              }}
+            >
+              <DownloadIcon />
+            </button>
+          )}
+        </div>
       </div>
       <figcaption className="bk-card-label">{card.label}</figcaption>
     </figure>
@@ -246,15 +265,18 @@ function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: Card
 }
 
 type GridProps = {
+  brand: MockBrand;
   sectionKey: KitSectionKey;
-  onEditCard?: (sectionKey: KitSectionKey, label: string) => void;
-  onDownloadCard?: (sectionKey: KitSectionKey, label: string) => void;
+  onSaveCard?: (target: EditorTarget) => void;
+  onDownloadCard?: (target: EditorTarget) => void;
 };
 
-export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProps) {
+export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: GridProps) {
   const cards = (SECTION_CARDS[sectionKey] ?? []).slice(0, MAX_PER_SECTION);
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
+  const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
+
   // Keep the card visually raised (actions visible) while its menu is open,
   // mirroring SetupBoard's `.is-ctx-active` pattern.
   const ctxAnchorRef = useRef<HTMLElement | null>(null);
@@ -263,6 +285,14 @@ export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProp
     ctxAnchorRef.current = null;
     setCtxMenu(null);
   }, []);
+
+  const openEditor = useCallback(
+    (key: KitSectionKey, label: string) => {
+      const opts = coversFor(key, label);
+      setEditorTarget({ sectionKey: key, label, cover: opts[0], covers: opts });
+    },
+    [],
+  );
 
   const openMenu = useCallback(
     (e: React.MouseEvent, key: KitSectionKey, label: string) => {
@@ -275,25 +305,26 @@ export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProp
       ctxAnchorRef.current = anchor;
       anchor?.classList.add('is-ctx-active');
 
-      const items: ContextMenuState['items'] = [];
-      if (onEditCard) {
-        items.push({
+      const items: ContextMenuState['items'] = [
+        {
           label: 'Edit',
-          onSelect: () => onEditCard(key, label),
+          onSelect: () => openEditor(key, label),
           icon: <EditIcon />,
-        });
-      }
+        },
+      ];
       if (onDownloadCard) {
         items.push({
           label: 'Download',
-          onSelect: () => onDownloadCard(key, label),
+          onSelect: () => {
+            const opts = coversFor(key, label);
+            onDownloadCard({ sectionKey: key, label, cover: opts[0], covers: opts });
+          },
           icon: <DownloadIcon />,
         });
       }
-      if (items.length === 0) return;
       setCtxMenu({ x: e.clientX, y: e.clientY, items });
     },
-    [onEditCard, onDownloadCard],
+    [onDownloadCard, openEditor],
   );
 
   return (
@@ -304,8 +335,15 @@ export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProp
             key={card.label}
             sectionKey={sectionKey}
             card={card}
-            onEdit={onEditCard}
-            onDownload={onDownloadCard}
+            onEdit={openEditor}
+            onDownload={
+              onDownloadCard
+                ? (k, l) => {
+                    const opts = coversFor(k, l);
+                    onDownloadCard({ sectionKey: k, label: l, cover: opts[0], covers: opts });
+                  }
+                : undefined
+            }
             onOpenMenu={openMenu}
           />
         ))}
@@ -318,6 +356,16 @@ export function SectionGrid({ sectionKey, onEditCard, onDownloadCard }: GridProp
           onClose={closeCtxMenu}
         />
       )}
+      <BrandKitCardEditor
+        brand={brand}
+        target={editorTarget}
+        onClose={() => setEditorTarget(null)}
+        onSave={(t) => {
+          onSaveCard?.(t);
+          setEditorTarget(null);
+        }}
+        onDownload={(t) => onDownloadCard?.(t)}
+      />
     </>
   );
 }

@@ -114,14 +114,15 @@ export function BrandKitCosmosPage({ brand }: { brand: MockBrand }) {
               }
             >
               <SectionGrid
+                brand={brand}
                 sectionKey={s.key}
-                onEditCard={(_, label) =>
-                  toast(`Edit ${label}`, {
-                    description: 'Editor lands here.',
+                onSaveCard={(t) =>
+                  toast(`Saved ${t.label}`, {
+                    description: 'Persistence lands here.',
                   })
                 }
-                onDownloadCard={(_, label) =>
-                  toast(`Download ${label}`, {
+                onDownloadCard={(t) =>
+                  toast(`Download ${t.label}`, {
                     description: 'Export lands here.',
                   })
                 }
