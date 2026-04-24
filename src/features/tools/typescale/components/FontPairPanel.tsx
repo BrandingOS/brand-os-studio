@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Upload, X } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Upload, X, Check } from 'lucide-react';
 import type { Typescale, FontRef } from '@/shared/types/typescale';
 import {
   GOOGLE_FONT_CATALOG,
@@ -125,6 +125,36 @@ export function FontPairPanel({ draft, onChange, compact }: Props) {
   );
 }
 
+function detectFormat(name: string): 'woff2' | 'woff' | 'ttf' {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.woff2')) return 'woff2';
+  if (lower.endsWith('.woff')) return 'woff';
+  // CSS `truetype` format covers both .ttf AND .otf in practice.
+  return 'ttf';
+}
+
+function stripFontExt(name: string): string {
+  return name.replace(/\.(woff2|woff|ttf|otf)$/i, '');
+}
+
+function buildUploadRef(file: File): FontRef {
+  return {
+    family: stripFontExt(file.name),
+    source: 'upload',
+    weights: [400],
+    italic: false,
+    files: [
+      {
+        weight: 400,
+        italic: false,
+        url: URL.createObjectURL(file),
+        format: detectFormat(file.name),
+      },
+    ],
+    fallback: 'system-ui, sans-serif',
+  };
+}
+
 function UploadPicker({
   slot,
   onPicked,
@@ -134,6 +164,18 @@ function UploadPicker({
   onPicked: (ref: FontRef) => void;
   onCancel: () => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [staged, setStaged] = useState<FontRef | null>(null);
+
+  const loadFile = (file: File) => {
+    const ref = buildUploadRef(file);
+    // Inject @font-face immediately so the preview below renders in the
+    // newly-uploaded family, not the fallback.
+    ensureLoaded(ref);
+    setStaged(ref);
+  };
+
   return (
     <div className="ts-upload-dialog">
       <div className="ts-upload-dialog-head">
@@ -147,34 +189,73 @@ function UploadPicker({
           <X size={12} />
         </button>
       </div>
-      <input
-        type="file"
-        accept=".woff2,.woff,.ttf"
-        onChange={e => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          const url = URL.createObjectURL(file);
-          const format = file.name.endsWith('.woff2')
-            ? 'woff2'
-            : file.name.endsWith('.woff')
-            ? 'woff'
-            : 'ttf';
-          const ref: FontRef = {
-            family: file.name.replace(/\.(woff2|woff|ttf)$/i, ''),
-            source: 'upload',
-            weights: [400],
-            italic: false,
-            files: [{ weight: 400, italic: false, url, format }],
-            fallback: 'system-ui, sans-serif',
-          };
-          // Inject @font-face immediately so it renders before any re-render.
-          ensureLoaded(ref);
-          onPicked(ref);
+
+      <label
+        className={`ts-upload-drop${dragging ? ' is-dragging' : ''}${staged ? ' is-staged' : ''}`}
+        onDragOver={e => {
+          e.preventDefault();
+          setDragging(true);
         }}
-      />
-      <p className="ts-upload-dialog-hint">
-        .woff2, .woff or .ttf — the file stays local to this session.
-      </p>
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) loadFile(file);
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+          className="ts-upload-drop-input"
+          onChange={e => {
+            const file = e.target.files?.[0];
+            if (file) loadFile(file);
+          }}
+        />
+        {!staged ? (
+          <>
+            <Upload size={18} className="ts-upload-drop-icon" />
+            <span className="ts-upload-drop-label">Click or drop a font file</span>
+            <span className="ts-upload-drop-hint">.woff2 · .woff · .ttf · .otf</span>
+          </>
+        ) : (
+          <>
+            <Check size={18} className="ts-upload-drop-icon is-success" />
+            <span className="ts-upload-drop-label">{staged.family}</span>
+            <span
+              className="ts-upload-drop-preview"
+              style={{ fontFamily: `"${staged.family}", ${staged.fallback}` }}
+              aria-hidden
+            >
+              The quick brown fox
+            </span>
+          </>
+        )}
+      </label>
+
+      {staged && (
+        <div className="ts-upload-actions">
+          <button
+            type="button"
+            className="ts-upload-secondary"
+            onClick={() => {
+              setStaged(null);
+              if (inputRef.current) inputRef.current.value = '';
+            }}
+          >
+            Replace
+          </button>
+          <button
+            type="button"
+            className="ts-upload-primary"
+            onClick={() => onPicked(staged)}
+          >
+            Apply to {slot}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
