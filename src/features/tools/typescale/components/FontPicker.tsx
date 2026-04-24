@@ -147,7 +147,6 @@ export function FontPicker({ label, value, onChange, customFonts = [] }: Props) 
 
 function FontPickerItem({
   fontRef,
-  preview,
   selected,
   onSelect,
 }: {
@@ -160,22 +159,21 @@ function FontPickerItem({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { ensureLoaded(fontRef); }, [fontRef.family, fontRef.source]);
 
+  const fontFamily = `"${fontRef.family}", ${fontRef.fallback}`;
+
   return (
     <CommandItem
       value={fontRef.family}
       onSelect={onSelect}
-      className="ts-fontpicker-item"
+      className={`ts-fontpicker-item${selected ? ' is-selected' : ''}`}
     >
-      <div className="flex-1 min-w-0">
-        <div className="ts-fontpicker-item-name">{fontRef.family}</div>
-        <div
-          className="ts-fontpicker-item-preview"
-          style={{ fontFamily: `"${fontRef.family}", ${fontRef.fallback}` }}
-        >
-          {preview}
-        </div>
-      </div>
-      {selected && <Check size={14} className="text-primary" />}
+      <span className="ts-fontpicker-item-aa" style={{ fontFamily }} aria-hidden>
+        Aa
+      </span>
+      <span className="ts-fontpicker-item-name" style={{ fontFamily }}>
+        {fontRef.family}
+      </span>
+      {selected && <Check size={14} className="ts-fontpicker-item-check" />}
     </CommandItem>
   );
 }
