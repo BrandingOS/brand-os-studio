@@ -171,6 +171,28 @@ See `src/core/contracts/` for the available service interfaces.
 
 ---
 
+## Typescale tool (`src/features/tools/typescale/`)
+
+| Component | Path | Purpose |
+|---|---|---|
+| **`TypescaleEditor`** | `components/TypescaleEditor.tsx` | Root editor. `variant: 'full' \| 'compact'`. Full = cosmos `.shell` grid (sidebar + board). Compact = stacked layout for `EmbeddedTypescaleDialog`. |
+| **`FontPicker`** | `components/FontPicker.tsx` | Popover + cmdk search + per-item live preview. Groups: Your uploads / System / Sans / Serif / Display / Mono. Lazy-loads Google Fonts via `ensureLoaded`. **Use this any time you need a font picker in the Typescale tool.** |
+| **`FontPairPanel`** | `components/FontPairPanel.tsx` | Three `FontPicker` slots (heading/body/optional mono) + dropzone for custom upload with staged preview. |
+| **`ScaleControls`** | `components/ScaleControls.tsx` | Visual 2×4 ratio card grid + Advanced collapsible (base / steps / leading / tracking / fluid). |
+| **`SurfaceTabs`** · **`SemanticMap`** · **`ExportPanel`** · **`BrandSyncBar`** | `components/*.tsx` | Surface switcher, role-to-step table, 9-format export drawer, brand-sync chip with Pull + Reset actions. |
+| **`PreviewTabs`** | `components/preview/PreviewTabs.tsx` | `{editorial, ui, ladder}` × `{plain, creative}` = 6 renderers. `accentColor` prop threads the brand primary into creative mockups. |
+| Plain previews | `components/preview/{EditorialPreview,UIPreview,LadderPreview}.tsx` | Flat text-only renderings. Useful when the user wants to see raw typography without "design". |
+| Creative mockups | `components/preview/{EditorialCreative,UICreative,LadderCreative}.tsx` | Designed mocks: magazine spread, product dashboard, typographic poster. Paint accents from `brand.primaryColor`. |
+| **`EmbeddedTypescaleDialog`** | `EmbeddedTypescaleDialog.tsx` | Mounts `TypescaleEditor variant="compact"` inside a shadcn Dialog. Wired into Identity → Typography, Brand Board → TypographyPanel, Brand Setup. |
+
+Engine + exports are pure TS under `engine/` and `export/`. Brand integration is `mirrorTypographyFromTypescale` in `src/shared/store/brandStore.ts` — **per-role shallow merge** (`{ ...current.primary, ...fontTokenFromRef(...) }`) to preserve `usage` / `fontAssetId` fields.
+
+Global typography primitives: `src/shared/typography/{fontCatalog, fontLoader}.ts`. `ensureLoaded` is idempotent for google/system but always re-injects for upload (blob URLs change).
+
+Tool-local styles: `src/features/tools/typescale/typescale.css`. All classes prefixed `.ts-*` and scoped under `[data-cosmos="workspace"]`.
+
+---
+
 ## Off-limits surfaces
 
 These exist and work — **do not refactor through them.** Tagged

@@ -9,6 +9,32 @@ that overview.
 
 ---
 
+## 2026-04-24 — Typescale tool: preview-only with font-only persistence
+
+**Decision.** The Typescale tool writes **only the font pair** (`brand.typography.primary/secondary/accent`) back to the brand. The structured `Typescale` object (surfaces, ratios, semantic map, steps) is **not persisted** — it's ephemeral editor state.
+
+**Reasoning.** The tool started as "full dual-write brand.typescale + brand.typography" (spec decision #7 in `docs/superpowers/specs/2026-04-23-typescale-tool-design.md`). Mid-session the user pushed back: the typescale is an *exploration* surface — users tune a ratio to see what it looks like, not to commit a canonical scale. Fonts are the brand decision worth saving; the scale is not. Removing `brand.typescale` persistence simplified the mental model, eliminated "which is source of truth" confusion across Brand Board / presentation templates / exports, and removed the need for a schema migration path on a field no downstream reader consulted.
+
+**Alternatives considered.**
+- **Keep full dual-write** (original spec). Rejected: every downstream consumer reads the flat `brand.typography.scale` map, not the structured surfaces. The structured field was load-bearing for zero readers.
+- **Persist scale but not surfaces.** Rejected: more complex, same confusion.
+- **Persist nothing.** Rejected: users do pick a font pair and expect it to stick to the brand. That's the one piece worth writing.
+
+---
+
+## 2026-04-23 — Typescale tool architecture (tool-platform pattern)
+
+**Decision.** The Typescale tool set the pattern for "tool features in BrandOS": pure-TS `engine/` + `export/` folders (no React, no DOM, no async); a composable root component with `variant: 'full' | 'compact'` so the same editor mounts in both a full page and an embedded dialog; a `materializer` registered via side-effect import to hook into the platform's claim-on-signup flow.
+
+**Reasoning.** Codified the pattern by building against it. Pure-TS cores are unit-testable without a DOM harness and keep ratio / fluid-clamp / semantic-mapping math away from React re-render concerns. The `variant` prop collapses what would otherwise be two parallel component trees into one, avoiding drift. The side-effect-on-import materializer (copied from `variant-studio/materializer.ts`) makes adding a tool purely additive — `src/features/tools/core/claim.ts` knows nothing about specific slugs.
+
+**Alternatives considered.**
+- **Separate `full` and `compact` component trees.** Rejected: drift risk; the two views share 90% of behavior.
+- **Explicit materializer registration at platform boot.** Rejected: couples the platform to the list of tools. Side-effect registration on tool import is the established repo pattern.
+- **Zustand store for the draft.** Rejected: the draft is ephemeral per-editor; no other component reads it. Local `useState` + a debounced commit through `useTypescaleDraft` is the right scope.
+
+---
+
 ## 2026-04-24 — Mockup Studio engine = PixiJS v8
 
 **Decision.** The Mockup Studio render engine will be built on **PixiJS v8**,

@@ -30,7 +30,7 @@ doc under `docs/`.
 |---|---|---|
 | Overview | active | `/b/:slug/overview`. |
 | Identity | active | Logo · Colors · Typography · Voice · Strategy tabs. |
-| Identity — Typescale tool | active | Preview-only tool; persists fonts only. `src/features/tools/typescale/`. |
+| Identity — Typescale tool | active | Preview-only tool; persists fonts only (not the scale). Cosmos UI, FontPicker popover, 4 surfaces (web/ui/presentation/social), 9 export formats, Plain/Creative preview toggle. `src/features/tools/typescale/`. |
 | Templates | active | Tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility. |
 | Brand Board editor | active | `/b/:slug/brand-board`. CSS custom properties only — see `docs/brand-board/README.md`. |
 | Design launchpad | active | Blank Canvas · AI Design · Recent. |
