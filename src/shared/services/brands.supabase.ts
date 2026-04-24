@@ -83,6 +83,12 @@ export class SupabaseBrandsService implements IBrandsService {
 
     if (input.slug) brandData.slug = input.slug;
     if (input.workspaceId) brandData.workspace_id = input.workspaceId;
+    const extras = input as typeof input & {
+      guidelines?: unknown;
+      strategy?: unknown;
+    };
+    if (extras.guidelines !== undefined) brandData.guidelines = extras.guidelines;
+    if (extras.strategy !== undefined) brandData.strategy = extras.strategy;
 
     const { data, error } = await supabase
       .from('brands')

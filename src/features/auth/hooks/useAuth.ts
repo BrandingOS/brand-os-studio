@@ -41,7 +41,7 @@ export const useAuth = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
         .abortSignal(controller.signal);
 
       clearTimeout(timeout);
@@ -62,7 +62,7 @@ export const useAuth = () => {
         .from('profiles')
         .select('status, suspension_reason')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (data?.status === 'suspended') {
         await supabase.auth.signOut();

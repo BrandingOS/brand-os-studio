@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { CosmosShell } from '../components/CosmosShell';
 import { FlowSwitch } from '../components/FlowSwitch';
 import { StepDots } from '../components/StepDots';
@@ -7,6 +8,8 @@ import { FooterCTA } from '../components/FooterCTA';
 import { DefineStep } from '../steps/DefineStep';
 import { FeelStep } from '../steps/FeelStep';
 import { useV4Store } from '../store/onboardingV4Store';
+import { STYLE_CARDS, poolForCard } from '../data/styleCards';
+import { useBrandStore } from '@/shared/store/brandStore';
 
 const STEP_META: Record<1 | 2, { title: string; subtitle: string; caption: string; label: string }> = {
   1: {
@@ -35,17 +38,78 @@ export function CreateScreen() {
   const meta = STEP_META[step];
   const canAdvance = step === 1 ? define.name.trim().length > 0 && define.description.trim().length >= 10 : true;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 1) {
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setBusy(true);
-      // TODO: wire real brand creation on step 2 submit.
-      window.setTimeout(() => {
-        setBusy(false);
-        navigate(then ?? '/onboarding-v4');
-      }, 600);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const state = useV4Store.getState();
+      const palette =
+        state.palettes.find((p) => p.id === state.selectedPaletteId) ||
+        state.palettes.find((p) => p.locked) ||
+        state.palettes[0];
+      const cardState =
+        state.styleCards.find((s) => s.locked) || state.styleCards[0];
+      const cardDef =
+        STYLE_CARDS.find((d) => d.id === cardState.id) || STYLE_CARDS[0];
+      const pool = poolForCard(cardDef);
+      const uniqueFonts = Array.from(new Map(pool.map((f) => [f.name, f])).values());
+      const headingFont =
+        uniqueFonts[cardState.fontIdx % uniqueFonts.length] ||
+        uniqueFonts[0] || { name: 'Inter', weight: 500 };
+      const bodyFont =
+        uniqueFonts.find((f) => f.name !== headingFont.name) || headingFont;
+
+      const primary = palette.colors[1] ?? palette.colors[0];
+      const secondary = palette.colors[2] ?? palette.colors[palette.colors.length - 1];
+      const accent = palette.colors[3] ?? palette.colors[palette.colors.length - 1];
+      const description = state.define.description.trim();
+
+      const guidelines = {
+        strategy: {
+          mission: description,
+          values: [],
+          personality: [cardDef.label],
+          positioning: `${cardDef.label} direction`,
+          targetAudience: description,
+        },
+        colorPalette: {
+          primary: { hex: primary, name: 'Primary', rgb: '', cmyk: '', usage: 'Primary brand color' },
+          secondary: { hex: secondary, name: 'Secondary', rgb: '', cmyk: '', usage: 'Secondary brand color' },
+          accent: { hex: accent, name: 'Accent', rgb: '', cmyk: '', usage: 'Accent color' },
+        },
+        voiceAndTone: {
+          voice: cardDef.label,
+          toneAttributes: [cardDef.label],
+        },
+      };
+
+      const input = {
+        name: state.define.name.trim(),
+        primaryColor: primary,
+        secondaryColor: secondary,
+        fonts: {
+          primary: headingFont.name,
+          secondary: bodyFont.name,
+        },
+        tone: cardDef.label,
+        audience: description,
+        guidelines,
+      };
+
+      const brand = await useBrandStore.getState().create(input as any);
+
+      toast.success('Brand created!');
+      useV4Store.getState().reset();
+      navigate(then ?? `/b/${brand.slug}/setup`);
+    } catch (err) {
+      console.error('Failed to create brand:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to create brand');
+      setBusy(false);
     }
   };
 

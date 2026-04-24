@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { CosmosShell } from '../components/CosmosShell';
 import { BrandMark } from '../components/BrandMark';
 import { FlowSwitch } from '../components/FlowSwitch';
 import { BrandDropzone } from '../components/BrandDropzone';
 import { FooterCTA } from '../components/FooterCTA';
 import { useV4Store } from '../store/onboardingV4Store';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { initialPalettes } from '../data/seedPalettes';
 
 export function SetUpScreen() {
   const navigate = useNavigate();
@@ -23,14 +26,26 @@ export function SetUpScreen() {
   const hasUploadInFlight = assets.some((a) => a.uploadStatus === 'uploading');
   const canSubmit = define.name.trim().length > 0 && assets.length > 0 && !hasUploadInFlight;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setBusy(true);
-    // TODO: wire real brand creation + asset finalize when backend is ready.
-    // For now: no-op, redirect to a preview placeholder.
-    window.setTimeout(() => {
+    try {
+      const palette = initialPalettes()[0];
+      const brand = await useBrandStore.getState().create({
+        name: define.name.trim(),
+        primaryColor: palette.colors[1],
+        secondaryColor: palette.colors[2],
+        fonts: { primary: 'Inter', secondary: 'Inter' },
+        tone: 'Neutral',
+        audience: define.description.trim(),
+      });
+      toast.success('Brand created!');
+      useV4Store.getState().reset();
+      navigate(then ?? `/b/${brand.slug}/setup`);
+    } catch (err) {
+      console.error('Failed to create brand:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to create brand');
       setBusy(false);
-      navigate(then ?? '/onboarding-v4');
-    }, 600);
+    }
   };
 
   const createHref = then ? `/onboarding-v4/create?then=${encodeURIComponent(then)}` : '/onboarding-v4/create';
