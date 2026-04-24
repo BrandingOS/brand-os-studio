@@ -152,11 +152,26 @@ export const useBrandStore = create<BrandStore>()(
         }
       },
 
-      setTypescale: async (_brandId: string, _next: Typescale) => {
-        // Typescale tool is preview-only. Nothing — including font selection
-        // — writes back to the brand. The brand's fonts are owned by the
-        // Identity surface; this tool just visualizes a scale on top of
-        // whatever fonts the brand already has.
+      setTypescale: async (brandId: string, next: Typescale) => {
+        // Typescale tool is preview-only EXCEPT for font-family changes:
+        // Heading/Body selection (including uploaded fonts) writes back
+        // to brand.fonts.primary / brand.fonts.secondary. Scale, ratio,
+        // leading, tracking, semantic map, and activeSurface stay in
+        // local draft state and are thrown away on reload.
+        const current = useBrandStore.getState().list.find(b => b.id === brandId)
+                      ?? (useBrandStore.getState().current?.id === brandId ? useBrandStore.getState().current : undefined);
+        if (!current) return;
+
+        const nextPrimary = next.fonts?.heading?.family ?? current.fonts?.primary;
+        const nextSecondary = next.fonts?.body?.family ?? current.fonts?.secondary;
+        if (
+          nextPrimary === current.fonts?.primary &&
+          nextSecondary === current.fonts?.secondary
+        ) return;
+
+        await useBrandStore.getState().update(brandId, {
+          fonts: { primary: nextPrimary, secondary: nextSecondary },
+        });
       },
 
       delete: async (id: string) => {

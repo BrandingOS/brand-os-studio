@@ -16,7 +16,7 @@ import {
   DEFAULT_SURFACES,
   defaultSemanticMap,
 } from '../engine';
-import { FontPairPanel, FontUploadSection } from './FontPairPanel';
+import { FontPairPanel } from './FontPairPanel';
 import { SurfaceTabs } from './SurfaceTabs';
 import { ScaleControls } from './ScaleControls';
 import { SemanticMap } from './SemanticMap';
@@ -157,15 +157,6 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="ts-section">
-                <div className="ts-section-head" aria-hidden>
-                  <span className="ts-section-title">Custom fonts</span>
-                </div>
-                <div className="ts-section-body">
-                  <FontUploadSection draft={draft} onChange={update} />
-                </div>
-              </div>
-
               <div className="ts-section">
                 <div className="ts-section-head" aria-hidden>
                   <span className="ts-section-title">Surface</span>

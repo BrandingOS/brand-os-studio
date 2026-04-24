@@ -39,9 +39,9 @@ export function BrandSyncBar({ brandId, onPullFromBrand, onResetActiveSurface }:
             Linked to <span className="text-primary">{brand.name}</span>
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
-            Preview only — changes here never write back to the brand.
+            Font selection saves to the brand — scale & roles are preview only.
             {brandHeading || brandBody
-              ? ` Brand fonts: ${brandHeading ?? '—'}${brandBody ? ` · ${brandBody}` : ''}`
+              ? ` Current: ${brandHeading ?? '—'}${brandBody ? ` · ${brandBody}` : ''}`
               : ''}
           </p>
         </div>
