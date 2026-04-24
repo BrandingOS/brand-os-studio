@@ -26,7 +26,7 @@ interface Props {
  * native <select> so the dialog stays simple.
  */
 export function FontPairPanel({ draft, onChange, compact }: Props) {
-  const [uploadTarget, setUploadTarget] = useState<'heading' | 'body' | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const setFont = (slot: Slot, ref: FontRef) => {
     onChange(p => ({ ...p, fonts: { ...p.fonts, [slot]: ref } }));
@@ -88,28 +88,22 @@ export function FontPairPanel({ draft, onChange, compact }: Props) {
           customFonts={customFonts}
         />
 
-        <div className="ts-upload-row">
-          {(['heading', 'body'] as const).map(slot => (
-            <button
-              key={slot}
-              type="button"
-              className={`ts-upload-chip${uploadTarget === slot ? ' is-active' : ''}`}
-              onClick={() => setUploadTarget(uploadTarget === slot ? null : slot)}
-            >
-              <Upload size={13} />
-              <span>Upload {slot === 'heading' ? 'Heading' : 'Body'}</span>
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className={`ts-upload-chip${uploadOpen ? ' is-active' : ''}`}
+          onClick={() => setUploadOpen(o => !o)}
+        >
+          <Upload size={13} />
+          <span>Upload custom font</span>
+        </button>
 
-        {uploadTarget && (
+        {uploadOpen && (
           <UploadPicker
-            slot={uploadTarget}
-            onPicked={ref => {
-              setFont(uploadTarget, ref);
-              setUploadTarget(null);
+            onPicked={(slot, ref) => {
+              setFont(slot, ref);
+              setUploadOpen(false);
             }}
-            onCancel={() => setUploadTarget(null)}
+            onCancel={() => setUploadOpen(false)}
           />
         )}
       </div>
@@ -148,12 +142,10 @@ function buildUploadRef(file: File): FontRef {
 }
 
 function UploadPicker({
-  slot,
   onPicked,
   onCancel,
 }: {
-  slot: Slot;
-  onPicked: (ref: FontRef) => void;
+  onPicked: (slot: 'heading' | 'body', ref: FontRef) => void;
   onCancel: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +163,7 @@ function UploadPicker({
   return (
     <div className="ts-upload-dialog">
       <div className="ts-upload-dialog-head">
-        <span className="ts-upload-dialog-title">Upload for {slot}</span>
+        <span className="ts-upload-dialog-title">Custom font</span>
         <button
           type="button"
           className="ts-upload-cancel"
@@ -242,9 +234,16 @@ function UploadPicker({
           <button
             type="button"
             className="ts-upload-primary"
-            onClick={() => onPicked(staged)}
+            onClick={() => onPicked('heading', staged)}
           >
-            Apply to {slot}
+            Use as Heading
+          </button>
+          <button
+            type="button"
+            className="ts-upload-primary"
+            onClick={() => onPicked('body', staged)}
+          >
+            Use as Body
           </button>
         </div>
       )}
