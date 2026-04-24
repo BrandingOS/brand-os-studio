@@ -96,8 +96,8 @@ export function FontPairPanel({ draft, onChange, compact }: Props) {
               className={`ts-upload-chip${uploadTarget === slot ? ' is-active' : ''}`}
               onClick={() => setUploadTarget(uploadTarget === slot ? null : slot)}
             >
-              <Upload size={11} />
-              <span>Upload {slot}</span>
+              <Upload size={13} />
+              <span>Upload {slot === 'heading' ? 'Heading' : 'Body'}</span>
             </button>
           ))}
         </div>

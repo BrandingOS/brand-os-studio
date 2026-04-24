@@ -1240,24 +1240,26 @@
 /* ─── Font picker (popover trigger) ────────────────────────── */
 
 [data-cosmos="workspace"] .ts-fontpicker-trigger {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 36px 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   font-family: inherit;
   box-shadow: var(--shadow-xs);
 }
 [data-cosmos="workspace"] .ts-fontpicker-trigger:hover {
   border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 [data-cosmos="workspace"] .ts-fontpicker-trigger:focus-visible {
   outline: none;
@@ -1265,19 +1267,25 @@
   box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
 }
 [data-cosmos="workspace"] .ts-fontpicker-label {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
+  line-height: 1.2;
 }
 [data-cosmos="workspace"] .ts-fontpicker-value {
   font-size: 14px;
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 [data-cosmos="workspace"] .ts-fontpicker-chevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
 }
 [data-cosmos="workspace"] .ts-fontpicker-item {
@@ -1304,36 +1312,50 @@
 
 [data-cosmos="workspace"] .ts-upload-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-top: 2px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 6px;
 }
 [data-cosmos="workspace"] .ts-upload-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px dashed var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary, var(--text-muted));
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: var(--shadow-xs);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
+[data-cosmos="workspace"] .ts-upload-chip > svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
 [data-cosmos="workspace"] .ts-upload-chip:hover {
-  border-color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-upload-chip:hover > svg {
   color: var(--text-primary);
 }
 [data-cosmos="workspace"] .ts-upload-chip.is-active {
   border-color: var(--text-primary);
   color: var(--text-primary);
-  background: var(--surface-sunken);
-  border-style: solid;
+  background: var(--surface-hover);
+}
+[data-cosmos="workspace"] .ts-upload-chip.is-active > svg {
+  color: var(--text-primary);
 }
 [data-cosmos="workspace"] .ts-upload-btn {
   display: inline-flex;
