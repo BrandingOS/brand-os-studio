@@ -223,16 +223,6 @@ function UploadPicker({
         <div className="ts-upload-actions">
           <button
             type="button"
-            className="ts-upload-secondary"
-            onClick={() => {
-              setStaged(null);
-              if (inputRef.current) inputRef.current.value = '';
-            }}
-          >
-            Replace
-          </button>
-          <button
-            type="button"
             className="ts-upload-primary"
             onClick={() => onPicked('heading', staged)}
           >
