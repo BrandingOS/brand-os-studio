@@ -314,4 +314,23 @@ export const SERVICE_KEYS = {
   UPLOAD: 'upload',
   /** Brand Consistency engine — generated outputs persistence. */
   BRAND_CONSISTENCY: 'brandConsistency',
+  /** Mockup Studio — template catalogue (local bundle for V1). */
+  MOCKUP_TEMPLATES: 'mockupTemplates',
 } as const;
+
+// ─── Mockup Templates Service ──────────────────────────────────
+
+/**
+ * Source of truth for the mockup catalogue. V1 is a local, bundled
+ * implementation; a Supabase-backed one replaces it once the admin
+ * uploader is built (spec Phase 7).
+ *
+ * Imported lazily from the feature module to avoid pulling PixiJS
+ * types into the core layer.
+ */
+export interface IMockupTemplatesService {
+  list(): Promise<import('@/features/mockup-studio/engine/types').TemplateMeta[]>;
+  getById(
+    id: string,
+  ): Promise<import('@/features/mockup-studio/engine/types').TemplateMeta | null>;
+}

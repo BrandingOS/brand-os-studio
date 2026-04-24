@@ -18,6 +18,7 @@ import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { LocalUploadService } from './adapters/upload/LocalUploadService';
 import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
+import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -41,6 +42,11 @@ export function bootServices(): void {
   // LocalStorage-backed for now; a Supabase impl can be slotted in
   // later behind the same `IBrandConsistencyService` interface.
   container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
+
+  // ─── Mockup Templates ──────────────────────────────────────
+  // Bundled local catalogue for V1 (admin-uploaded templates come
+  // with the Phase 7 Supabase implementation).
+  container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
 }
 
 /**
@@ -65,6 +71,7 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
     container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
     container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
+    container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
   } else {
     // Revert to local implementations for guest mode
     bootServices();

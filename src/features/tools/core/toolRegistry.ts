@@ -11,7 +11,7 @@
  * so it can be imported from anywhere (router, SEO meta, server-side
  * sitemaps) without pulling component code into the bundle.
  */
-import { Type, Wand2, Palette } from 'lucide-react';
+import { Type, Wand2, Palette, Shirt } from 'lucide-react';
 import type { ToolMeta, ToolSlug } from './types';
 
 export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
@@ -85,6 +85,32 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       ],
     },
     Icon: Type,
+  },
+  'mockup-studio': {
+    slug: 'mockup-studio',
+    name: 'Mockup Studio',
+    tagline: 'Drop your design on a t-shirt, mug, or card — in one click.',
+    description:
+      'Place any design or logo onto a growing library of product mockups. ' +
+      'Tint t-shirt / mug / card colors, swap backgrounds, and export studio-quality PNGs. ' +
+      'Connect a brand to auto-fill every template with your logo and palette.',
+    seo: {
+      title: 'Free Mockup Generator — T-shirts, mugs, cards & more — BrandOS',
+      description:
+        'Free online mockup generator. Upload a logo or design and see it composited ' +
+        'on t-shirts, mugs, business cards, and more. Export at up to 2x. Brand-aware.',
+      keywords: [
+        'mockup generator',
+        'logo mockup',
+        't-shirt mockup',
+        'mug mockup',
+        'business card mockup',
+        'free mockup tool',
+        'brand mockups',
+        'online mockup maker',
+      ],
+    },
+    Icon: Shirt,
   },
 };
 

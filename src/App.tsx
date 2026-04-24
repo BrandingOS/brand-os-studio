@@ -127,6 +127,12 @@ const PublicUiColorSystemPage = lazy(() => import('./pages/tools/ui-color-system
 const InAppUiColorSystemPage = lazy(() => import('./pages/dashboard/brand/[slug]/tools/ui-color-system'));
 const PublicTypescalePage = lazy(() => import('./pages/tools/typescale'));
 const InAppTypescalePage = lazy(() => import('./pages/dashboard/brand/[slug]/tools/typescale'));
+const StandaloneMockupStudioPage = lazy(
+  () => import('./features/mockup-studio/modes/standalone/StandaloneMockupStudioPage'),
+);
+const BrandMockupStudioPage = lazy(
+  () => import('./features/mockup-studio/modes/brand-aware/BrandMockupStudioPage'),
+);
 const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
@@ -425,6 +431,7 @@ const App = () => (
           <Route path="/tools/logo-to-svg" element={<LogoToSvgPage />} />
           <Route path="/tools/ui-color-system" element={<PublicUiColorSystemPage />} />
           <Route path="/tools/typescale" element={<PublicTypescalePage />} />
+          <Route path="/tools/mockup-studio" element={<StandaloneMockupStudioPage />} />
           <Route path="/claim" element={<ClaimPage />} />
           <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
             <ProtectedRoute>
@@ -454,6 +461,16 @@ const App = () => (
           <Route path="/b/:slug/tools/typescale" element={
             <ProtectedRoute>
               <InAppTypescalePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/tools/mockup-studio" element={
+            <ProtectedRoute>
+              <BrandMockupStudioPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/mockup-studio" element={
+            <ProtectedRoute>
+              <BrandMockupStudioPage />
             </ProtectedRoute>
           } />
 

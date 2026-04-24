@@ -391,6 +391,15 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     status: 'active',
     description: 'Brand-scoped settings (infrastructure-config separation). Moves to Tools ?section=settings.',
   },
+  {
+    id: 'mockup-studio',
+    name: 'Mockup Studio',
+    tab: 'tools',
+    route: '/b/:slug/tools/mockup-studio',
+    entry: 'src/features/mockup-studio/modes/brand-aware/BrandMockupStudioPage.tsx',
+    status: 'active',
+    description: 'Place designs on products (t-shirt, mug, card). Brand-aware auto-fill.',
+  },
 
   // ────────────────────────────────────────────────────────────────
   // Workspace (outside brand shell)
