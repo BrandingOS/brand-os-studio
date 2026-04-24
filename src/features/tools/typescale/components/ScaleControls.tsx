@@ -1,10 +1,3 @@
-import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import type {
   LeadingCurve,
   RatioName,
@@ -49,14 +42,11 @@ function prettyRatio(n: string): string {
 }
 
 /**
- * ScaleControls — visual ratio cards + collapsible advanced knobs.
- * The ratio grid gives each option a mini three-bar preview so users
- * can SEE the progression they're picking. Base/steps/leading/tracking/
- * fluid live under a single "Advanced" collapsible.
+ * ScaleControls — visual ratio cards + the scale knobs. This component
+ * is rendered inside the Typescale tool's Advanced collapsible; the
+ * knobs are always visible (no nested collapsible).
  */
 export function ScaleControls({ surface, onChange, compact }: Props) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-
   const set = (patch: Partial<ScaleSurface>) =>
     onChange(rebuild({ ...surface, ...patch } as ScaleSurface));
 
@@ -152,17 +142,7 @@ export function ScaleControls({ surface, onChange, compact }: Props) {
           })}
         </div>
 
-        <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-          <CollapsibleTrigger asChild>
-            <button type="button" className="ts-advanced-trigger">
-              <span>Advanced</span>
-              <ChevronDown
-                size={14}
-                className={`ts-advanced-chevron${advancedOpen ? ' is-open' : ''}`}
-              />
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="ts-advanced-content">
+        <div className="ts-advanced-content">
             <div className="ts-field">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span className="ts-field-label">Base size</span>
@@ -318,8 +298,7 @@ export function ScaleControls({ surface, onChange, compact }: Props) {
                 </div>
               </div>
             )}
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
       </div>
     </div>
   );

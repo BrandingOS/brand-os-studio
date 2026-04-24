@@ -1,5 +1,11 @@
 // components/TypescaleEditor.tsx
 import { useCallback, useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import type { Typescale } from '@/shared/types/typescale';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useTypescaleDraft } from '../hooks/useTypescaleDraft';
@@ -10,7 +16,7 @@ import {
   DEFAULT_SURFACES,
   defaultSemanticMap,
 } from '../engine';
-import { FontPairPanel } from './FontPairPanel';
+import { FontPairPanel, FontUploadSection } from './FontPairPanel';
 import { SurfaceTabs } from './SurfaceTabs';
 import { ScaleControls } from './ScaleControls';
 import { SemanticMap } from './SemanticMap';
@@ -43,6 +49,7 @@ interface Props {
 export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandSync }: Props) {
   const { draft, update } = useTypescaleDraft(brandId, initial);
   const [activeSurface, setActiveSurface] = useState(initial.activeSurface);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => { update(p => ({ ...p, activeSurface })); }, [activeSurface, update]);
 
@@ -135,32 +142,58 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
         <div className="ts-panel-body">
           <FontPairPanel draft={draft} onChange={update} />
 
-          <div className="ts-section">
-            <div className="ts-section-head" aria-hidden>
-              <span className="ts-section-title">Surface</span>
-            </div>
-            <div className="ts-section-body">
-              <SurfaceTabs
-                value={activeSurface}
-                onChange={setActiveSurface}
-                surfaces={draft.surfaces}
+          <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="ts-advanced-trigger"
+                aria-expanded={advancedOpen}
+              >
+                <span>Advanced</span>
+                <ChevronDown
+                  size={14}
+                  className={`ts-advanced-chevron${advancedOpen ? ' is-open' : ''}`}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="ts-section">
+                <div className="ts-section-head" aria-hidden>
+                  <span className="ts-section-title">Custom fonts</span>
+                </div>
+                <div className="ts-section-body">
+                  <FontUploadSection draft={draft} onChange={update} />
+                </div>
+              </div>
+
+              <div className="ts-section">
+                <div className="ts-section-head" aria-hidden>
+                  <span className="ts-section-title">Surface</span>
+                </div>
+                <div className="ts-section-body">
+                  <SurfaceTabs
+                    value={activeSurface}
+                    onChange={setActiveSurface}
+                    surfaces={draft.surfaces}
+                  />
+                </div>
+              </div>
+
+              <ScaleControls
+                surface={draft.surfaces[activeSurface]}
+                onChange={(next) =>
+                  update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
+                }
               />
-            </div>
-          </div>
 
-          <ScaleControls
-            surface={draft.surfaces[activeSurface]}
-            onChange={(next) =>
-              update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
-            }
-          />
-
-          <SemanticMap
-            surface={draft.surfaces[activeSurface]}
-            onChange={(next) =>
-              update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
-            }
-          />
+              <SemanticMap
+                surface={draft.surfaces[activeSurface]}
+                onChange={(next) =>
+                  update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))
+                }
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </aside>
 

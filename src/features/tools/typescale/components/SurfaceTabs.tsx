@@ -15,7 +15,7 @@ interface Props {
  */
 export function SurfaceTabs({ value, onChange }: Props) {
   return (
-    <div className="editor-cats" role="tablist" aria-label="Surface">
+    <div className="ts-surface-tabs" role="tablist" aria-label="Surface">
       {(Object.keys(LABELS) as SurfaceKey[]).map(k => (
         <button
           key={k}
@@ -23,7 +23,7 @@ export function SurfaceTabs({ value, onChange }: Props) {
           role="tab"
           aria-selected={value === k}
           onClick={() => onChange(k)}
-          className={`editor-cat${value === k ? ' is-active' : ''}`}
+          className={`ts-surface-tab${value === k ? ' is-active' : ''}`}
         >
           {LABELS[k]}
         </button>

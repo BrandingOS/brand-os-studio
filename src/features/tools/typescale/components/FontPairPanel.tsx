@@ -26,7 +26,6 @@ interface Props {
  * native <select> so the dialog stays simple.
  */
 export function FontPairPanel({ draft, onChange, compact }: Props) {
-  const [uploadTarget, setUploadTarget] = useState<Slot | null>(null);
 
   const setFont = (slot: Slot, ref: FontRef) => {
     onChange(p => ({ ...p, fonts: { ...p.fonts, [slot]: ref } }));
@@ -87,40 +86,72 @@ export function FontPairPanel({ draft, onChange, compact }: Props) {
           onChange={ref => setFont('body', ref)}
           customFonts={customFonts}
         />
-        {draft.fonts.mono && (
-          <FontPicker
-            label="Mono"
-            value={draft.fonts.mono}
-            onChange={ref => setFont('mono', ref)}
-            customFonts={customFonts}
-          />
-        )}
-
-        <div className="ts-upload-row">
-          {(['heading', 'body', 'mono'] as const).map(slot => (
-            <button
-              key={slot}
-              type="button"
-              className={`ts-upload-chip${uploadTarget === slot ? ' is-active' : ''}`}
-              onClick={() => setUploadTarget(uploadTarget === slot ? null : slot)}
-            >
-              <Upload size={11} />
-              <span>Upload {slot}</span>
-            </button>
-          ))}
-        </div>
-
-        {uploadTarget && (
-          <UploadPicker
-            slot={uploadTarget}
-            onPicked={ref => {
-              setFont(uploadTarget, ref);
-              setUploadTarget(null);
-            }}
-            onCancel={() => setUploadTarget(null)}
-          />
-        )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * FontUploadSection — mono picker + per-slot upload chips. Rendered
+ * inside the Advanced collapsible so the basic panel stays clean.
+ */
+export function FontUploadSection({
+  draft,
+  onChange,
+}: {
+  draft: Typescale;
+  onChange: (patch: (prev: Typescale) => Typescale) => void;
+}) {
+  const [uploadTarget, setUploadTarget] = useState<Slot | null>(null);
+
+  const setFont = (slot: Slot, ref: FontRef) => {
+    onChange(p => ({ ...p, fonts: { ...p.fonts, [slot]: ref } }));
+  };
+
+  const customFonts = useMemo<FontRef[]>(() => {
+    const arr: FontRef[] = [];
+    for (const slot of ['heading', 'body', 'mono'] as const) {
+      const r = draft.fonts[slot];
+      if (r && r.source === 'upload') arr.push(r);
+    }
+    return arr;
+  }, [draft.fonts]);
+
+  return (
+    <div className="ts-section-body" style={{ padding: 0 }}>
+      {draft.fonts.mono && (
+        <FontPicker
+          label="Mono"
+          value={draft.fonts.mono}
+          onChange={ref => setFont('mono', ref)}
+          customFonts={customFonts}
+        />
+      )}
+
+      <div className="ts-upload-row">
+        {(['heading', 'body', 'mono'] as const).map(slot => (
+          <button
+            key={slot}
+            type="button"
+            className={`ts-upload-chip${uploadTarget === slot ? ' is-active' : ''}`}
+            onClick={() => setUploadTarget(uploadTarget === slot ? null : slot)}
+          >
+            <Upload size={11} />
+            <span>Upload {slot}</span>
+          </button>
+        ))}
+      </div>
+
+      {uploadTarget && (
+        <UploadPicker
+          slot={uploadTarget}
+          onPicked={ref => {
+            setFont(uploadTarget, ref);
+            setUploadTarget(null);
+          }}
+          onCancel={() => setUploadTarget(null)}
+        />
+      )}
     </div>
   );
 }
