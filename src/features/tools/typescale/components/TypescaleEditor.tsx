@@ -96,7 +96,12 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
         <FontPairPanel draft={draft} onChange={update} compact />
         <SurfaceTabs value={activeSurface} onChange={setActiveSurface} surfaces={draft.surfaces} />
         <ScaleControls surface={draft.surfaces[activeSurface]} onChange={(next) => update(p => ({ ...p, surfaces: { ...p.surfaces, [activeSurface]: next } }))} compact />
-        <PreviewTabs draft={draft} activeSurface={activeSurface} defaultTab="ladder" />
+        <PreviewTabs
+          draft={draft}
+          activeSurface={activeSurface}
+          defaultTab="ladder"
+          accentColor={brand?.primaryColor}
+        />
         {onClose && (
           <div className="flex justify-end">
             <button
@@ -176,7 +181,11 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
         <div className="ts-board-head">
           <h2 className="ts-board-title">{boardTitle}</h2>
         </div>
-        <PreviewTabs draft={draft} activeSurface={activeSurface} />
+        <PreviewTabs
+          draft={draft}
+          activeSurface={activeSurface}
+          accentColor={brand?.primaryColor}
+        />
         <ExportPanel draft={draft} mode={brandId ? 'in-app' : 'public'} />
       </main>
     </div>

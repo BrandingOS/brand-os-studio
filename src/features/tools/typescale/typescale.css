@@ -435,6 +435,619 @@
 }
 
 /* ============================================================
+ * Creative previews — Plain/Creative toggle + designed mockups
+ * ============================================================ */
+
+/* ─── Tab header (tabs + mode toggle on one row) ──────────── */
+
+[data-cosmos="workspace"] .ts-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+[data-cosmos="workspace"] .ts-preview-header .ts-board-tabs {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .ts-preview-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .ts-preview-mode-btn {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+[data-cosmos="workspace"] .ts-preview-mode-btn:hover {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-preview-mode-btn.is-active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ─── Editorial creative (magazine spread) ─────────────────── */
+
+[data-cosmos="workspace"] .ts-ce {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 48px 44px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ce-hero-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  [data-cosmos="workspace"] .ts-ce-hero-row {
+    grid-template-columns: 1fr;
+  }
+}
+[data-cosmos="workspace"] .ts-ce-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .ts-ce-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ts-accent, var(--text-muted));
+}
+[data-cosmos="workspace"] .ts-ce-title {
+  color: var(--text-primary);
+  text-wrap: balance;
+  max-width: 20ch;
+}
+[data-cosmos="workspace"] .ts-ce-lede {
+  color: var(--text-secondary);
+  max-width: 52ch;
+}
+[data-cosmos="workspace"] .ts-ce-byline {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+[data-cosmos="workspace"] .ts-ce-hero-art-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .ts-ce-hero-art {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+[data-cosmos="workspace"] .ts-ce-hero-art-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+[data-cosmos="workspace"] .ts-ce-caption {
+  color: var(--text-muted);
+  font-style: italic;
+  padding-left: 2px;
+}
+[data-cosmos="workspace"] .ts-ce-divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0;
+}
+[data-cosmos="workspace"] .ts-ce-body-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  [data-cosmos="workspace"] .ts-ce-body-grid {
+    grid-template-columns: 1fr;
+  }
+}
+[data-cosmos="workspace"] .ts-ce-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .ts-ce-body {
+  color: var(--text-secondary);
+  max-width: 50ch;
+}
+[data-cosmos="workspace"] .ts-ce-dropcap {
+  float: left;
+  padding-right: 12px;
+  padding-top: 4px;
+  line-height: 0.85;
+  color: var(--ts-accent, var(--text-primary));
+}
+[data-cosmos="workspace"] .ts-ce-pull {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 6px 0 6px 22px;
+  border-left: 3px solid var(--ts-accent, currentColor);
+  color: var(--text-primary);
+  font-style: italic;
+}
+[data-cosmos="workspace"] .ts-ce-pull-glyph {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  font-family: "Instrument Serif", "Playfair Display", Georgia, serif;
+  font-size: 52px;
+  line-height: 1;
+  color: var(--ts-accent, var(--text-primary));
+  font-style: normal;
+}
+[data-cosmos="workspace"] .ts-ce-pull-cite {
+  font-style: normal;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-ce-h3 {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-ce-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-ce-footer-meta {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+}
+[data-cosmos="workspace"] .ts-ce-footer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+/* ─── UI creative (product dashboard) ──────────────────────── */
+
+[data-cosmos="workspace"] .ts-uc {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+@media (max-width: 720px) {
+  [data-cosmos="workspace"] .ts-uc {
+    grid-template-columns: 1fr;
+  }
+  [data-cosmos="workspace"] .ts-uc-side {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}
+[data-cosmos="workspace"] .ts-uc-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 16px;
+  background: var(--surface-sunken);
+  border-right: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-uc-side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+[data-cosmos="workspace"] .ts-uc-side-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: inline-block;
+}
+[data-cosmos="workspace"] .ts-uc-side-logo-name {
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+[data-cosmos="workspace"] .ts-uc-side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+[data-cosmos="workspace"] .ts-uc-side-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  transition: color 0.15s, background 0.15s;
+}
+[data-cosmos="workspace"] .ts-uc-side-item:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+[data-cosmos="workspace"] .ts-uc-side-item.is-active {
+  font-weight: 600;
+}
+
+[data-cosmos="workspace"] .ts-uc-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 24px 28px;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .ts-uc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-uc-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  max-width: 360px;
+}
+[data-cosmos="workspace"] .ts-uc-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+[data-cosmos="workspace"] .ts-uc-icon-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+[data-cosmos="workspace"] .ts-uc-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ts-uc-notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+}
+[data-cosmos="workspace"] .ts-uc-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+[data-cosmos="workspace"] .ts-uc-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-cosmos="workspace"] .ts-uc-crumb {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+[data-cosmos="workspace"] .ts-uc-crumb span {
+  margin: 0 4px;
+  opacity: 0.6;
+}
+[data-cosmos="workspace"] .ts-uc-hero-sub {
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+[data-cosmos="workspace"] .ts-uc-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+[data-cosmos="workspace"] .ts-uc-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+}
+[data-cosmos="workspace"] .ts-uc-stat-label {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+[data-cosmos="workspace"] .ts-uc-stat-value {
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+[data-cosmos="workspace"] .ts-uc-stat-delta {
+  font-variant-numeric: tabular-nums;
+}
+[data-cosmos="workspace"] .ts-uc-stat-delta--up { color: #16a34a; }
+[data-cosmos="workspace"] .ts-uc-stat-delta--down { color: #dc2626; }
+
+[data-cosmos="workspace"] .ts-uc-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1.5fr 1fr;
+}
+@media (max-width: 720px) {
+  [data-cosmos="workspace"] .ts-uc-row {
+    grid-template-columns: 1fr;
+  }
+}
+[data-cosmos="workspace"] .ts-uc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+[data-cosmos="workspace"] .ts-uc-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .ts-uc-card-title {
+  color: var(--text-primary);
+}
+[data-cosmos="workspace"] .ts-uc-card-sub {
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+[data-cosmos="workspace"] .ts-uc-chart {
+  display: block;
+  width: 100%;
+  height: 120px;
+}
+
+[data-cosmos="workspace"] .ts-uc-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .ts-uc-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+}
+[data-cosmos="workspace"] .ts-uc-activity-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+[data-cosmos="workspace"] .ts-uc-activity-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-cosmos="workspace"] .ts-uc-activity-text strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+[data-cosmos="workspace"] .ts-uc-activity-when {
+  color: var(--text-muted);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-cosmos="workspace"] .ts-uc-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+[data-cosmos="workspace"] .ts-uc-btn {
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+[data-cosmos="workspace"] .ts-uc-btn--primary {
+  color: #fff;
+  border-color: transparent;
+}
+[data-cosmos="workspace"] .ts-uc-btn--primary:hover {
+  opacity: 0.9;
+}
+[data-cosmos="workspace"] .ts-uc-btn--secondary {
+  background: transparent;
+}
+[data-cosmos="workspace"] .ts-uc-btn--secondary:hover {
+  background: var(--surface-hover);
+}
+
+/* ─── Ladder creative (typographic poster) ─────────────────── */
+
+[data-cosmos="workspace"] .ts-lc {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding: 60px 48px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+[data-cosmos="workspace"] .ts-lc-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+[data-cosmos="workspace"] .ts-lc-eyebrow {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--ts-accent, var(--text-muted));
+}
+[data-cosmos="workspace"] .ts-lc-cascade {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0 20px;
+}
+[data-cosmos="workspace"] .ts-lc-word-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  transition: padding-left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+[data-cosmos="workspace"] .ts-lc-word {
+  color: var(--text-primary);
+  line-height: 1;
+}
+[data-cosmos="workspace"] .ts-lc-word-tag {
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  align-self: center;
+  flex-shrink: 0;
+}
+[data-cosmos="workspace"] .ts-lc-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-lc-swatch-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+[data-cosmos="workspace"] .ts-lc-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border);
+}
+[data-cosmos="workspace"] .ts-lc-swatch-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+[data-cosmos="workspace"] .ts-lc-meta-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+[data-cosmos="workspace"] .ts-lc-meta-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+[data-cosmos="workspace"] .ts-lc-meta-stats strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-right: 4px;
+}
+
+/* ============================================================
  * LEFT PANEL — collapsible sub-sections
  * ============================================================ */
 
