@@ -118,15 +118,9 @@ export function TypescaleEditor({ variant, brandId, initial, onClose, showBrandS
   }
 
   const boardTitle = brand?.name ? `${brand.name} typescale` : 'Public typescale';
-  const headingFamily = `"${draft.fonts.heading.family}", ${draft.fonts.heading.fallback}`;
-  const bodyFamily = `"${draft.fonts.body.family}", ${draft.fonts.body.fallback}`;
-  const brandFontStyles = {
-    ['--brand-font-display' as string]: headingFamily,
-    ['--brand-font-body' as string]: bodyFamily,
-  } as React.CSSProperties;
 
   return (
-    <div className="shell" style={brandFontStyles}>
+    <div className="shell">
       <aside className="panel" aria-label="Typescale editor">
         <div className="panel-top">
           <div className="panel-heading">
