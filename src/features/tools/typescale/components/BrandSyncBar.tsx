@@ -21,12 +21,8 @@ export function BrandSyncBar({ brandId, onPullFromBrand, onResetActiveSurface }:
   const brand = useBrandStore(s => s.list.find(b => b.id === brandId));
   if (!brand) return null;
 
-  const when = brand.typescale?.updatedAt;
-  const brandHeading = brand.typography?.primary?.family;
-  const brandBody = brand.typography?.secondary?.family;
-  const savedLabel = when
-    ? `Saved ${relativeTime(when)}`
-    : 'Not saved yet';
+  const brandHeading = brand.fonts?.primary ?? brand.typography?.primary?.family;
+  const brandBody = brand.fonts?.secondary ?? brand.typography?.secondary?.family;
 
   return (
     <div
@@ -43,17 +39,15 @@ export function BrandSyncBar({ brandId, onPullFromBrand, onResetActiveSurface }:
             Linked to <span className="text-primary">{brand.name}</span>
           </p>
           <p className="text-[11px] text-muted-foreground truncate">
+            Preview only — only font selection saves back to the brand.
             {brandHeading || brandBody
-              ? `Brand fonts: ${brandHeading ?? '—'}${brandBody ? ` · ${brandBody}` : ''}`
-              : 'No brand typography set yet.'}
+              ? ` Current: ${brandHeading ?? '—'}${brandBody ? ` · ${brandBody}` : ''}`
+              : ''}
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] text-muted-foreground font-mono mr-1 hidden sm:inline">
-          {savedLabel}
-        </span>
         <Button
           size="sm"
           variant="outline"
@@ -75,19 +69,4 @@ export function BrandSyncBar({ brandId, onPullFromBrand, onResetActiveSurface }:
       </div>
     </div>
   );
-}
-
-/** "Saved 12s ago" / "Saved 3m ago" / "Saved 2h ago". */
-function relativeTime(iso: string): string {
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return 'just now';
-  const diff = Math.max(0, Date.now() - then);
-  const s = Math.round(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  return `${d}d ago`;
 }
