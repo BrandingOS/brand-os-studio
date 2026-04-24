@@ -173,23 +173,73 @@ See `src/core/contracts/` for the available service interfaces.
 
 ## Typescale tool (`src/features/tools/typescale/`)
 
+> **Tool is preview-only except for fonts.** `brandStore.setTypescale` writes
+> only `brand.fonts.primary` / `brand.fonts.secondary` when the heading or
+> body family changes. Scale, ratio, leading, tracking, semantic map, and
+> activeSurface stay in local draft state and are thrown away on reload.
+> Do not add back the typescale/typography dual-write — the user deliberately
+> simplified this so non-experts can't break the brand's type system.
+
 | Component | Path | Purpose |
 |---|---|---|
-| **`TypescaleEditor`** | `components/TypescaleEditor.tsx` | Root editor. `variant: 'full' \| 'compact'`. Full = cosmos `.shell` grid (sidebar + board). Compact = stacked layout for `EmbeddedTypescaleDialog`. |
-| **`FontPicker`** | `components/FontPicker.tsx` | Popover + cmdk search + per-item live preview. Groups: Your uploads / System / Sans / Serif / Display / Mono. Lazy-loads Google Fonts via `ensureLoaded`. **Use this any time you need a font picker in the Typescale tool.** |
-| **`FontPairPanel`** | `components/FontPairPanel.tsx` | Three `FontPicker` slots (heading/body/optional mono) + dropzone for custom upload with staged preview. |
-| **`ScaleControls`** | `components/ScaleControls.tsx` | Visual 2×4 ratio card grid + Advanced collapsible (base / steps / leading / tracking / fluid). |
-| **`SurfaceTabs`** · **`SemanticMap`** · **`ExportPanel`** · **`BrandSyncBar`** | `components/*.tsx` | Surface switcher, role-to-step table, 9-format export drawer, brand-sync chip with Pull + Reset actions. |
+| **`TypescaleEditor`** | `components/TypescaleEditor.tsx` | Root editor. `variant: 'full' \| 'compact'`. Full = cosmos `.shell` grid (sidebar + board). Layout: Font Pair always visible, everything else (Surface, Scale ratio, Scale knobs, Roles) under a single outer Advanced collapsible. |
+| **`FontPicker`** | `components/FontPicker.tsx` | Popover + cmdk search. Each row is an Aa swatch + font name, both rendered in that font (Figma-style). Groups: Your uploads / System / Sans / Serif / Display / Mono. Lazy-loads Google Fonts via `ensureLoaded`. **CSS for the popover interior is unscoped** — Radix Popover portals to `document.body`, outside `[data-cosmos="workspace"]`. |
+| **`FontPairPanel`** | `components/FontPairPanel.tsx` | Two `FontPicker` slots (heading + body) + a single full-width "Upload custom font" button. Clicking opens the dropzone; after staging, the user picks "Use as Heading" or "Use as Body". |
+| **`ScaleControls`** | `components/ScaleControls.tsx` | Visual 2×4 ratio card grid + base/steps/leading/tracking/fluid knobs. No inner collapsible — the outer Advanced in `TypescaleEditor` is the only one. |
+| **`SurfaceTabs`** | `components/SurfaceTabs.tsx` | Web · UI · Presentation · Social segmented control. Uses `.ts-surface-tabs` / `.ts-surface-tab` classes (don't use the `editor-cats` classes — those are scoped to color-system CSS and won't load here). |
+| **`SemanticMap`** · **`ExportPanel`** · **`BrandSyncBar`** | `components/*.tsx` | Role-to-step table, 9-format export drawer, brand-sync chip with Pull + Reset actions. BrandSyncBar copy makes the preview-only contract explicit. |
 | **`PreviewTabs`** | `components/preview/PreviewTabs.tsx` | `{editorial, ui, ladder}` × `{plain, creative}` = 6 renderers. `accentColor` prop threads the brand primary into creative mockups. |
-| Plain previews | `components/preview/{EditorialPreview,UIPreview,LadderPreview}.tsx` | Flat text-only renderings. Useful when the user wants to see raw typography without "design". |
-| Creative mockups | `components/preview/{EditorialCreative,UICreative,LadderCreative}.tsx` | Designed mocks: magazine spread, product dashboard, typographic poster. Paint accents from `brand.primaryColor`. |
-| **`EmbeddedTypescaleDialog`** | `EmbeddedTypescaleDialog.tsx` | Mounts `TypescaleEditor variant="compact"` inside a shadcn Dialog. Wired into Identity → Typography, Brand Board → TypographyPanel, Brand Setup. |
+| Plain previews | `components/preview/{EditorialPreview,UIPreview,LadderPreview}.tsx` | Flat text-only renderings. |
+| Creative mockups | `components/preview/{EditorialCreative,UICreative,LadderCreative}.tsx` | Designed mocks: magazine spread, product dashboard, typographic poster. |
+| **`EmbeddedTypescaleDialog`** | `EmbeddedTypescaleDialog.tsx` | Mounts `TypescaleEditor variant="compact"` inside a shadcn Dialog. Wired into Identity → Typography, Brand Board → TypographyPanel, Brand Setup. **Compact variant still uses native `<select>` + bare Tailwind from before the cosmos redesign — known follow-up.** |
 
-Engine + exports are pure TS under `engine/` and `export/`. Brand integration is `mirrorTypographyFromTypescale` in `src/shared/store/brandStore.ts` — **per-role shallow merge** (`{ ...current.primary, ...fontTokenFromRef(...) }`) to preserve `usage` / `fontAssetId` fields.
+Engine + exports are pure TS under `engine/` and `export/`. `mirrorTypographyFromTypescale` in `src/shared/store/brandStore.ts` is still exported (used by `materializer.ts` for the anon-session claim flow) but **not called by `setTypescale` anymore**.
 
 Global typography primitives: `src/shared/typography/{fontCatalog, fontLoader}.ts`. `ensureLoaded` is idempotent for google/system but always re-injects for upload (blob URLs change).
 
-Tool-local styles: `src/features/tools/typescale/typescale.css`. All classes prefixed `.ts-*` and scoped under `[data-cosmos="workspace"]`.
+Tool-local styles: `src/features/tools/typescale/typescale.css`. Classes prefixed `.ts-*`. Most selectors are scoped under `[data-cosmos="workspace"]` — **except** `.ts-fontpicker-*` which must be unscoped because Radix Popover portals the content to `document.body`.
+
+---
+
+## Case-study deck (`src/features/case-study-deck/`)
+
+Shipped 2026-04-24. The Behance-style adaptive presentation feature. Lives at
+`/b/:slug/case-study` and exports to PDF / PNG-zip via `html2canvas + jsPDF + jszip`
+(reuses project deps — don't install another export lib). Every piece of brand
+state (`logoSystem`, `colorSystem`, `typography`, `guidelines.strategy`,
+`brandAssets`) is read through the **director**; slides don't reach into the
+`Brand` type directly. If a slide needs new brand data, extend `buildProfile()`
+in `director.ts` so the whole feature sees it — do not inline
+`brand.colorSystem?.primary?.hex` into a slide file.
+
+| Component | Path | Purpose |
+|---|---|---|
+| **`directDeck(brand) → DeckPlan`** · **`buildProfile(brand) → BrandProfile`** | `director.ts` | Pure. No React, no DOM, no storage. Reads personality + palette + assets → picks archetype variants. `BrandProfile` is the single read-only view the slides render against. |
+| **`SlideFrame`** | `SlideFrame.tsx` | Canonical 1920×1080 landscape frame. Emits `data-case-study-slide` + `data-slide-index` + `data-archetype` + `data-variant` so the exporter can find slides. **Every slide must render through this** — do not roll a custom frame. |
+| **`LogoMark`** · **`Display`** · **`Body`** · **`LabelRule`** · **`SilhouettePlaceholder`** · **`TMark`** | `slides/shared.tsx` | Shared presentational primitives. `LogoMark` falls back to a wordmark in the brand's heading type when no logo image exists — slide authors should never branch on "does this brand have a logo". |
+| Archetype modules (10 files, 29 variants) | `slides/{Cover,Manifesto,Moodboard,Palette,Typography,Signature,Environmental,Digital,Stationery,Outdoor}Slides.tsx` | Each archetype ships its variants in one file. Variants are named `CoverA`, `CoverB`, … and registered in `slides/renderer.tsx`. To add a new variant: add `CoverE` to the file, export it, register in `REGISTRY`, and add `'E'` to `SLIDE_CATALOG['cover']`. |
+| **`resolveSlide(pick)`** · **`SLIDE_CATALOG`** · **`ARCHETYPE_LABELS`** | `slides/renderer.tsx` | The only place that imports the concrete slide modules. Slide consumers (viewer, thumbnail rail, editor) call `resolveSlide` — never import a variant directly. |
+| **`CaseStudyViewer`** | `viewer/CaseStudyViewer.tsx` | The UI. Scroll-snap stage + left thumbnail rail (live CSS-transform scaled, never PNG snapshots) + right inspector (variant swap, headline/credit/image URL overrides, hide) + topbar with Regenerate / Canvas edit / PNG / Export PDF. |
+| **`useDeckPlan(brand)`** | `hooks/useDeckPlan.ts` | Load-or-generate hook. Returns `{ plan, profile, slides, regenerate, setVariant, setOverride, toggleHidden, reset }`. `slides` is already merged with variant overrides and hidden flags — consumers don't re-merge. |
+| **`exportDeck(container, opts)`** | `export.ts` | Dynamic-imports `html2canvas` + `jspdf` + `jszip`. Captures each `[data-case-study-slide]` in `container` at natural 1920×1080 (strips `style.transform` first so scaled previews export correctly), then bundles as PDF (multi-page landscape) or PNG zip. |
+| Storage | `storage.ts` | `localStorage['brandos:case-study-deck:v1']` keyed by brandId → `{ plan, overrides, variantOverrides, hidden }`. Do not write to this key from outside this feature. |
+| `CaseStudyPage` | `pages/CaseStudyPage.tsx` | Route target for `/b/:slug/case-study` and `/dashboard/brand/:slug/case-study`. Flat route — bypasses `BrandRouteLayout` intentionally (the deck is its own chrome). |
+
+**Rules when extending.**
+- Need data from the brand? Add it to `BrandProfile` (types.ts + buildProfile in director.ts), not to individual slide components.
+- Adding a variant? Edit the archetype's file, register in renderer.tsx, update `SLIDE_CATALOG`. Never fork a slide file.
+- Adding an archetype? Extend `SlideArchetype` (types.ts), add to `ARCHETYPE_ORDER` + `pickVariant` switch (director.ts), create the slides file, register in renderer.tsx.
+- The signature slide's artwork is seeded by `djb2(brandId + updatedAt + palette)` — do not re-seed with anything else or you lose determinism (same brand = same artwork every render).
+
+---
+
+## Brand switcher + path rewriting
+
+| Symbol | Path | Purpose |
+|---|---|---|
+| **`BrandSwitcher`** | `src/features/brand/components/BrandSwitcher.tsx` | Legacy floating pill on the old workspace shell (`/setup`, `/brand-kit`, `/guideline`, `/design`, `/tools`). |
+| **`AppRail`** (top slot) | `src/shared/layouts/AppRail.tsx` | The global switcher on the new Brand scope rail. |
+| **`rewriteBrandPath(pathname, oldSlug, newSlug, search)`** | `src/shared/brand/brandPathRewrite.ts` | Shared URL-rewrite helper. **Both switchers call this** so picking a different brand lands on the same tool/page for the new slug. Handles `/b/:slug` and legacy `/dashboard/brand/:slug` prefixes; preserves query string. If you add a third switcher anywhere, route it through this helper — don't reinvent the logic. |
 
 ---
 

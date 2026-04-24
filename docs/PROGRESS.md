@@ -5,6 +5,156 @@ Newest entries at the top. One entry per working session. Keep entries concrete
 
 ---
 
+## 2026-04-24 — Adaptive Case Study Deck (Behance-style) — shipped end-to-end
+
+**Accomplished** (one commit on `dev` — `034413a`):
+
+User asked for a Behance-style presentation generator per brand. Built
+`src/features/case-study-deck/` as a full new feature, 25 files.
+
+- **Anti-stamp architecture:** 10 slide archetypes × 3–4 variants each = 29
+  distinct compositions. A pure `director(brand) → DeckPlan` picks variants
+  from:
+    - `guidelines.strategy.personality` → DeckMode (bold / editorial /
+      technical / elegant / playful), with a palette-luminance fallback for
+      brands with no personality tags.
+    - Palette shape (luminance, chroma) → light/dark rhythm per slide.
+    - Asset inventory (portraits, scenes, any image) → routes to
+      photo-dominant variants when assets exist, type-dominant fallbacks
+      when not.
+- **Slide archetypes** (all at native 1920×1080):
+    - `cover` (4: color-flood+silhouette · photo-hero+wash · typographic · split)
+    - `manifesto` (3: quote · oversize · serif editorial)
+    - `moodboard` (3: dark floating cards like ref slide 02 · light masonry · asymmetric grid)
+    - `palette` (3: bands+full HEX/RGB/CMYK/HSV/HSL specs like ref slide 03 · squares · overlapping circles)
+    - `typography` (3: specimen · ladder · huge-headline-with-inline-logo like ref slide 05)
+    - `signature` (1: SVG generative tessellation seeded by `djb2(brandId + updatedAt + palette)`)
+    - `environmental` (3: booth like ref slide 04 · lobby signage · activation)
+    - `digital` (3: laptop-on-desk with inline website mock · phone stack · dashboard)
+    - `stationery` (3: flatlay like ref slide 07 · isometric · hero-shots)
+    - `outdoor` (3: mesh banner on fence like ref slide 08 · highway billboard · metro poster)
+- **Viewer** (`viewer/CaseStudyViewer.tsx`): scroll-snap full-viewport
+  slides; left thumbnail rail with live CSS-transform-scaled mini slides
+  (not PNG captures — stays crisp); right inspector for per-slide variant
+  swap + headline/credit/image URL overrides + hide toggle; topbar with
+  Regenerate / Canvas edit / PNG / Export PDF.
+- **Export** (`export.ts`): `html2canvas → jsPDF` for multi-page 1920×1080
+  landscape PDF, `html2canvas → jszip` for PNG bundle. Reused existing
+  project deps. Exporter strips `style.transform` during capture so scaled
+  preview copies still export at natural pixel grid.
+- **Storage** (`storage.ts`): `localStorage['brandos:case-study-deck:v1']`
+  keyed by brandId → `{ plan, overrides, variantOverrides, hidden }`.
+  `regenerate()` wipes overrides; `reset()` keeps the plan, drops overrides.
+- **Fonts**: `buildProfile` emits Google Fonts URLs in
+  `BrandProfile.typography.fontUrls`; viewer appends `<link>`s on mount
+  and cleans up on unmount.
+- **Entry points** (wired in the same commit):
+    - Routes `/b/:slug/case-study` + `/dashboard/brand/:slug/case-study`
+      (flat fullscreen — no brand shell, the deck is the chrome).
+    - Templates page: new "Case Study" category + featured tile.
+    - Share → Exports tab: featured "NEW" card above the existing
+      Logo-deck and Guidelines-export cards.
+- **Spec**: `docs/superpowers/specs/2026-04-24-case-study-deck-design.md`.
+- **Verification**: `npm run typecheck` = 0 errors; `npm run lint` = 0 errors
+  on new files (one `let→const` auto-fixed in `director.ts`);
+  `npm run build` = clean, `CaseStudyPage` lazy chunk **95.7 KB / 21.2 KB
+  gzip**.
+
+**Process note.** User said "do not ask me" partway through brainstorming
+and told me to just build. Per the brainstorming skill's own priority rule
+("User's explicit instructions — highest priority"), I treated that as
+design approval and executed. Still wrote a spec doc as an artifact before
+the commit.
+
+**Next step (start here next session):**
+- **Mockup Studio v2 Phase 0** remains the multi-session-pending next step.
+  Fill `docs/BRANDINGOS_MOCKUP_STUDIO_V2.md` §5.1 checklists, write
+  `MOCKUP_STUDIO_ADAPTATION_PLAN.md` at repo root, sweep
+  `src/features/brandkit/` + `EditorWorkspace` (Fabric.js) to confirm no
+  pre-existing mockup work already covers part of this ground.
+- Or, if iterating on the case-study deck, three known follow-ups:
+  (1) dedicated public `/case-study/:slug` share route (viewer is auth-only
+  today), (2) AI-generated imagery source wired into the inspector's image
+  URL field (stub today — infra exists in `brand-consistency`),
+  (3) real photo-mockup templates for environmental/digital/stationery/
+  outdoor slots (current CSS/SVG composited versions look good but are
+  stylized, not photorealistic — naturally pairs with Mockup Studio v2).
+
+**Open questions / blockers:**
+- Export uses `html2canvas` with `useCORS: true` + `allowTaint: true`.
+  Override-image URLs from arbitrary domains may strand capture. Likely
+  fine for Supabase storage URLs (CORS headers served) — worth spot-check
+  after first real use.
+- "Canvas edit" escape hatch navigates to `/b/:slug/guidelines/canvas?source=case-study`
+  but the canvas doesn't read the deck plan; it opens empty. Acceptable
+  because it's an escape hatch, but a real hand-off (prime canvas with
+  current slide's composition) is a reasonable follow-up.
+
+**Decisions made + why:**
+- **Archetype × variant × director, not one fixed 8-slide template.** The
+  reference Fexilc deck's 8 slides look great together, but stamping them
+  per-brand would make every BrandOS user's deck look identical. Director
+  pattern lets the same slide idea render differently based on who it's
+  for. Cost: 25 files vs 10. Worth it — the user explicitly asked for
+  variety.
+- **Each archetype lives in one file containing its variants** (not one
+  file per variant). 10 archetype files + 1 renderer + 1 shared primitives
+  = easier to navigate than 29 files. Variants share naming prefixes
+  (`CoverA`, `CoverB`, …) and imports.
+- **Generative signature slide seeded by `djb2(brandId + updatedAt + palette)`.**
+  Deterministic: same brand always gets the same artwork (important for
+  screenshots and social-proof links); changes when the palette is edited.
+- **CSS/SVG composited mockups, not photorealistic.** The reference leans
+  on 3D renders. Building a real render engine this session would have
+  blown scope. CSS/SVG versions (booth with track-light dots, laptop with
+  3D-rotated screen rendering an inline website mock, mesh banner on
+  chain-link fence, metro tile wall) look intentionally stylized. Upgrade
+  path = per-slot image override field already exists; Mockup Studio v2
+  slot-ins later.
+- **Feature in `src/features/case-study-deck/`, not nested in
+  `src/features/guidelines/`.** Guidelines is load-bearing and tagged
+  `stable/editable-export-v1` elsewhere. Case study is marketing collateral
+  with different rules. Keeping them separate avoids conditional branches.
+
+**What I did NOT do** (flagged for the next session to decide):
+- No unit tests on the director. Logic is ~60 lines, deterministic — easy
+  to test. Skipped for speed; add if it starts drifting.
+- No Playwright/screenshot regression test for each variant.
+- No integration with the Mockup Studio v2 `template.json` / `brand_kit_hints`
+  concept. Upgrading case-study slides to data-driven templates would let
+  third parties install deck themes. Large scope — out of this session.
+
+---
+
+## 2026-04-24 — New-user QA walkthrough, onboarding-v4 fix, Typescale UX polish, tri-branch sync
+
+**Accomplished:**
+
+QA-as-user walkthrough of the app as a brand-new signup (`alex.test.2026@brandos-qa.dev`), then a cascade of UX fixes driven by findings. All work on `dev`.
+
+- **Root-cause fix — onboarding-v4 never created brands** (`744271a`). `CreateScreen.handleNext` at step 2 was a TODO stub: 600ms timeout → navigate back to upload screen, brand never persisted. Wired real creation via `useBrandStore.create` with palette-derived colors, style-card-derived fonts (picks distinct heading/body families from the font pool), and a guidelines payload (strategy / colorPalette / voiceAndTone) so Voice and Strategy tabs have content. Same stub fixed in `SetUpScreen.tsx` for the upload path. Updated `brands.supabase.create` to accept `guidelines` + `strategy` in the insert payload (was silently dropped — `update` already handled them). Switched `useAuth` `user_roles` / `profiles` lookups to `.maybeSingle()` so freshly signed-up accounts don't emit 406 errors.
+- **Brand switcher preserves subpath** (`48163b8`). `BrandSwitcher` (legacy pill on `/setup`, `/brand-kit`, `/guideline`, `/design`, `/tools`) was hard-coded to `/b/:slug/setup`; `AppRail` already preserved subpath via inline logic. Extracted `src/shared/brand/brandPathRewrite.ts` helper and routed both switchers through it. `/b/a/tools/typescale` → pick brand B → `/b/b/tools/typescale`. Short and legacy `/dashboard/brand/:slug` prefixes both supported; query string preserved.
+- **Typescale tool — preview-only model + UX simplification** (`d09d1d3` → `9c7d0a0`, many commits). User's clarification: font selection saves to the brand (`brand.fonts.primary/secondary`); scale, ratio, leading, tracking, semantic map, and activeSurface are draft-only and thrown away on reload. Chrome vs preview font separation — `ts-board` / `ts-board-title` / `ts-ratio-card-preview` dropped `--brand-font-display` / `--brand-font-body` cascade so only the white preview area renders in brand fonts (chrome uses BrandOS Instrument Serif). Layout restructured: Font Pair (heading + body + single "Upload custom font" button) always visible; Surface tabs, Scale ratio cards, Scale knobs, and Roles table all collapsed under one Advanced trigger. `SurfaceTabs` ported from `editor-cats` (scoped to color-system CSS, wasn't loading) to `ts-surface-tabs` segmented control with real styles in `typescale.css`. Upload flow collapsed from two cramped 2-column chips to one full-width button; slot choice moves into the dropzone as "Use as Heading" / "Use as Body" buttons after staging. Font picker popover redesigned: each row is a bordered Aa swatch + font name, both rendered in that font (Figma-style). The `[data-cosmos="workspace"]` prefix dropped from `.ts-fontpicker-*` selectors — Radix Popover portals to `document.body`, outside the cosmos scope, so the scoped rules never applied.
+- **Tri-branch sync** (`e7b1b25`). Merged `origin/ui`'s 2 brand-kit-v2-cosmos commits into `dev` (clean auto-merge, no real conflicts — only new files under `src/features/brand-kit-v2-cosmos/` + `public/brand-kit/`). Verified `origin/x` and `origin/ui` were both ancestors of the new dev tip, so fast-forwarded all three to `e7b1b25`: `git push origin dev dev:x dev:ui`. Typecheck clean. `/b/:slug/brand-kit` renders all 8 sections post-merge.
+
+**Bugs found but not fixed (out of immediate scope):**
+- Supabase `SELECT * FROM workspaces` returns 500 for fresh users — server-side RLS/trigger issue, not client-fixable.
+- Fresh-signup dashboard shows other users' brands (Untitled Brand, VECTOR, SKAM) alongside seed brands. Either RLS on `brands` is too permissive, or the list isn't filtered by `user_id`. Worth a separate security pass.
+- Typography module labels "Primary" as body font / "Secondary" as headlines — inverted from `useBrandCreator` / `CreateScreen` which treat primary = heading. Pre-existing inconsistency; not touched this session.
+
+**Next step (start here next session):**
+- **Execute Phase 0 of Mockup Studio v2** (this has carried from the two prior sessions now). Fill `docs/BRANDINGOS_MOCKUP_STUDIO_V2.md` §5.1 checklists, write `MOCKUP_STUDIO_ADAPTATION_PLAN.md` at repo root. Specifically sweep `src/features/brandkit/` + `EditorWorkspace` (Fabric.js) to confirm no pre-existing mockup work already covers part of this ground.
+- If continuing on Typescale: the `compact` variant in `EmbeddedTypescaleDialog` still uses native `<select>` + bare Tailwind from before the cosmos redesign. Bring it in line with the new FontPicker / segmented tabs if it matters.
+- If taking on the Supabase security issues: verify RLS policies on `brands` and `workspaces` tables; the brands list endpoint should filter by `user_id` or workspace membership.
+
+**Decisions made + why:**
+- **Typescale is preview-only except for fonts** (late pivot, `d09d1d3`). The earlier session shipped it with full `typescale` + `typography` dual-write. User: the tool has ratios, leading, steps — a non-expert user who opens it to "see fonts" can easily destroy the brand's type system with one drag. Solution: `setTypescale` now only writes `brand.fonts.primary` / `brand.fonts.secondary` when families change. Scale stays ephemeral. Simpler mental model; same power user flow via direct brand edits if needed.
+- **Shared URL-rewrite helper** (`rewriteBrandPath`). Two switchers had independent path logic — extracted so any third switcher (future editor topbars etc.) routes through one function. Handles both `/b/:slug` and legacy `/dashboard/brand/:slug` prefixes; caller decides what to do when there's no current brand.
+- **Single Advanced collapsible instead of nested.** `ScaleControls` had its own inner Advanced collapsible around basePx/leading/tracking. When we moved everything non-font-pair under one outer Advanced, the inner one became double-nested noise. Flattened: outer Advanced now directly exposes ratio cards + knobs + Roles.
+- **CSS scope for portaled content** (important lesson). Radix Popover/Dialog renders content into a Portal under `document.body`, outside any workspace-scoped ancestor. Rules written as `[data-cosmos="workspace"] .x` don't apply there. When redesigning a popover's interior, use unscoped selectors + theme tokens (`hsl(var(--muted))` etc.). Added to `CLAUDE.md`.
+
+---
+
 ## 2026-04-24 — Typescale tool — full build + cosmos redesign + creative previews
 
 **Accomplished (this was a long session — ~30 commits on `dev`):**

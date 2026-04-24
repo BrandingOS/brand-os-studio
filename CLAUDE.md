@@ -119,6 +119,28 @@ never hard-code a color/weight/spacing value there.
   Supports "Start without a brand" (→ standalone editor) and "Create new brand"
   (→ AI onboarding with a `?then=` return param).
 - **Page header**: `@/shared/ui/PageHeader` — always. See page-shell rules above.
+- **Brand switch URL rewrite**: `@/shared/brand/brandPathRewrite.ts`. All brand
+  switchers (AppRail top slot, legacy BrandSwitcher pill, any future
+  editor-topbar switcher) route through `rewriteBrandPath(...)` so picking
+  a new brand keeps the user on the same tool/page. Handles `/b/:slug` and
+  legacy `/dashboard/brand/:slug` prefixes; preserves query string.
+
+## Radix Portal + scoped CSS (gotcha)
+
+Radix `Popover`, `Dialog`, `DropdownMenu`, `Select`, etc. render their content
+inside a `Portal` that mounts under `document.body` — **outside** any
+cosmos/workspace wrapper. CSS rules written as `[data-cosmos="workspace"] .x`
+never apply to portaled content.
+
+**Rule.** When styling the interior of a Radix popover/dialog/menu:
+- Use unscoped selectors (no `[data-cosmos=...]` prefix).
+- Reach theme tokens via `hsl(var(--muted))` / `hsl(var(--foreground))` /
+  etc. so light + dark mode still work.
+- If you need cosmos-scoped styles for the trigger (not the content), that's
+  fine — the trigger isn't portaled.
+
+This caught us on the Typescale `FontPicker` (2026-04-24) where the Aa-swatch
+items rendered as unstyled run-on text until the scope prefix was removed.
 
 ## Auth flow gotchas
 

@@ -9,6 +9,70 @@ that overview.
 
 ---
 
+## 2026-04-24 — Case-study deck: archetype × variant × director pattern
+
+**Decision.** Auto-generated brand decks (Behance-style case study at
+`/b/:slug/case-study`) are built as **N archetypes × M variants, composed
+by a pure director function**. For v1: 10 archetypes, 3–4 variants each, 29
+compositions total. The director reads brand personality, palette shape,
+and asset inventory, then emits a `DeckPlan` (`{ archetype, variant }[]`).
+A `slides/renderer.tsx` registry maps `(archetype, variant)` → React
+component. No slide reads the `Brand` type directly — they render against
+`BrandProfile` (a pure derived view produced by `buildProfile(brand)`).
+
+**Reasoning.**
+- The user's core ask was "could be applied for any brand, and not just
+  repetitive/stupid". One fixed template would stamp every brand. A
+  template-selection system avoids that: same vocabulary, bespoke output.
+- Separating the director (what to render) from the slides (how to render)
+  makes each half independently testable. Director is pure TS and has no
+  React; slides are presentational components with no knowledge of brand
+  rules.
+- `BrandProfile` gives slides a stable contract. If the `Brand` type
+  changes, only `buildProfile` needs updating — 29 slide files don't
+  touch `brand.colorSystem` / `brand.guidelines` / etc.
+- Generative signature slide is seeded deterministically
+  (`djb2(brandId + updatedAt + palette)`) — a brand always gets the same
+  artwork until its palette changes, which matters for screenshots and
+  social-proof links.
+
+**Alternatives considered.**
+- **One fixed 8-slide template.** Lowest code; would ship in a quarter the
+  time. Rejected — would look identical across brands (exactly what the
+  user said to avoid).
+- **User picks a template style from a gallery.** Adds a choice the user
+  doesn't want to make. The director does the "pick a style" job
+  automatically. If we later want user choice, the director becomes a
+  default that the user can override — same architecture.
+- **Fabric.js canvas per slide** (like the existing guidelines editor).
+  Would give pixel-perfect editing for free. Rejected — composition-heavy
+  slides with cards / charts / website mocks are painful to author in
+  Fabric. Also tied us to the guidelines pipeline, which is tagged
+  `stable/editable-export-v1` and off-limits for refactoring.
+- **Extend `src/features/guidelines/` with `kind: 'case-study'`.** Rejected
+  — guidelines is a reference document, case study is marketing
+  collateral. Different rules (no compliance checklists on a deck, no
+  environmental mockups in guidelines). Co-housing would invite
+  conditional branches in both.
+
+**Source.** `docs/superpowers/specs/2026-04-24-case-study-deck-design.md`
+· `src/features/case-study-deck/director.ts`.
+
+---
+
+## 2026-04-24 — Brand switcher URL rewriting via shared helper
+
+**Decision.** All brand switchers (current: `AppRail` global rail top slot, legacy `BrandSwitcher` pill on the old workspace shell) call `rewriteBrandPath(pathname, oldSlug, newSlug, search)` from `src/shared/brand/brandPathRewrite.ts` when the user picks a different brand. Any future switcher (editor topbars, etc.) routes through the same helper — do not reinvent the path logic.
+
+**Reasoning.** Picking a different brand should keep the user on the same tool or page in the new brand's namespace (`/b/a/tools/typescale` → `/b/b/tools/typescale`), not drop them on `/b/:slug/setup` or `/overview`. `AppRail` already had inline logic that did this; `BrandSwitcher` was hard-coded to `/setup`. Extracting one helper means a single source of truth for the suffix-preservation rule, short-form / legacy-prefix handling, and query-string preservation.
+
+**Alternatives considered.**
+- **Leave each switcher's logic inline.** Rejected: the file-diff revealed the same logic already existed in `AppRail.tsx`; we were duplicating ~15 LOC of edge-case handling (short prefix, legacy `/dashboard/brand/:slug` prefix, empty tail, query string).
+- **Put the helper on `useBrandStore`.** Rejected: it's a pure URL transformation, not tied to brand store state.
+- **Route all switchers through `AppRail`.** Rejected: the legacy `BrandSwitcher` is rendered by `CosmosWorkspaceShell` which is its own container; merging them is the right eventual move but out of scope for this session.
+
+---
+
 ## 2026-04-24 — Typescale tool: preview-only with font-only persistence
 
 **Decision.** The Typescale tool writes **only the font pair** (`brand.typography.primary/secondary/accent`) back to the brand. The structured `Typescale` object (surfaces, ratios, semantic map, steps) is **not persisted** — it's ephemeral editor state.

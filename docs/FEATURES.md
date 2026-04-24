@@ -30,7 +30,7 @@ doc under `docs/`.
 |---|---|---|
 | Overview | active | `/b/:slug/overview`. |
 | Identity | active | Logo · Colors · Typography · Voice · Strategy tabs. |
-| Identity — Typescale tool | active | Preview-only tool; persists fonts only (not the scale). Cosmos UI, FontPicker popover, 4 surfaces (web/ui/presentation/social), 9 export formats, Plain/Creative preview toggle. `src/features/tools/typescale/`. |
+| Identity — Typescale tool | active | Preview-only tool; only heading/body font-family saves to `brand.fonts` (not the scale). UI simplified 2026-04-24: Font Pair + "Upload custom font" visible, Surface / Scale ratio / knobs / Roles all under one Advanced collapsible. 9 export formats, Plain/Creative preview toggle. `src/features/tools/typescale/`. |
 | Templates | active | Tabs: All · Brand Board · Guidelines · Bento · Social · Print · Screen · Utility. |
 | Brand Board editor | active | `/b/:slug/brand-board`. CSS custom properties only — see `docs/brand-board/README.md`. |
 | Design launchpad | active | Blank Canvas · AI Design · Recent. |
@@ -38,7 +38,7 @@ doc under `docs/`.
 | Folders (DAM + saved canvas designs) | active | Assets · Designs tabs. |
 | Share (public link, logo deck, guidelines export) | active | Guidelines · Showcase · Exports. |
 | Brand Kit v2 card editor modal | active | Image/color/logo/font picker, shipped 2026-04. |
-| Case-study deck (Behance-style) | active | `src/features/case-study-deck/`. Adaptive per brand. |
+| Case-study deck (Behance-style) | active | `/b/:slug/case-study`. Shipped 2026-04-24 (`034413a`). Adaptive director + 29 compositions across 10 archetypes + SVG generative signature slide + PDF / PNG-zip export. Entry from Templates → Case Study and Share → Exports. See `docs/superpowers/specs/2026-04-24-case-study-deck-design.md`. |
 
 ## Tools (brand-scoped)
 
