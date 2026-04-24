@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
 import type { Brand } from '@/shared/types/brand';
 
 /**
@@ -16,6 +17,7 @@ import type { Brand } from '@/shared/types/brand';
  */
 export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const list = useBrandStore((s) => s.list);
   const current = useBrandStore((s) => s.current);
   const loadAll = useBrandStore((s) => s.loadAll);
@@ -52,7 +54,8 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
 
   const handlePick = (brand: Brand) => {
     setOpen(false);
-    if (brand.slug !== currentSlug) navigate(`/b/${brand.slug}/setup`);
+    if (brand.slug === currentSlug) return;
+    navigate(rewriteBrandPath(location.pathname, currentSlug, brand.slug, location.search));
   };
 
   return (

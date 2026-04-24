@@ -54,6 +54,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
 import { cn } from '@/lib/utils';
 
 interface RailItem {
@@ -220,24 +221,8 @@ export function AppRail({ brandSlug }: AppRailProps) {
    * up after the rewrite.
    */
   const handleSwitchBrand = (newSlug: string) => {
-    if (!brandSlug) {
-      navigate(`/b/${newSlug}`);
-      return;
-    }
     if (newSlug === brandSlug) return;
-    // Match both short-form and legacy prefix
-    const shortPrefix = `/b/${brandSlug}`;
-    const longPrefix = `/dashboard/brand/${brandSlug}`;
-    let tail = '';
-    if (location.pathname.startsWith(shortPrefix)) {
-      tail = location.pathname.slice(shortPrefix.length).replace(/^\/+/, '');
-    } else if (location.pathname.startsWith(longPrefix)) {
-      tail = location.pathname.slice(longPrefix.length).replace(/^\/+/, '');
-    }
-    const target = tail
-      ? `/b/${newSlug}/${tail}${location.search || ''}`
-      : `/b/${newSlug}`;
-    navigate(target);
+    navigate(rewriteBrandPath(location.pathname, brandSlug, newSlug, location.search));
   };
 
   return (
