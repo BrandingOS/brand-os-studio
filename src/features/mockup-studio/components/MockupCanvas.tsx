@@ -1,14 +1,19 @@
 /**
- * MockupCanvas — the PixiJS viewport.
+ * MockupCanvas — the PixiJS viewport plus its interactive overlay.
  *
- * Keeps the canvas sized to the container, forwards events to the
- * selection logic, and mounts the engine via `useMockupRenderer`.
+ * The PixiJS canvas handles heavy rendering (displacement, lighting,
+ * masks). The HTML overlay above it handles click-to-select, text
+ * editing, and drag interactions — cheap, accessible, keyboard-friendly.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useMockupRenderer } from '../engine/useMockupRenderer';
 import type { MockupState, TemplateMeta } from '../engine/types';
+import { useMockupStore } from '../state/mockupStore';
+import { CanvasOverlay } from './CanvasOverlay';
+import { CanvasToolbar } from './CanvasToolbar';
+import { ZoneTabs } from './ZoneTabs';
 
 interface MockupCanvasProps {
   template: TemplateMeta | null;
@@ -20,6 +25,7 @@ export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasPro
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const setSelection = useMockupStore((s) => s.setSelection);
 
   useMockupRenderer(canvasRef, template, state);
 
@@ -39,11 +45,10 @@ export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasPro
     return () => ro.disconnect();
   }, []);
 
-  // Compute a letterbox scale so the canvas fits the viewport.
   const display = useMemo(() => {
     if (!template) return { width: 0, height: 0 };
     const maxW = containerSize.width - 32;
-    const maxH = containerSize.height - 32;
+    const maxH = containerSize.height - 96; // room for toolbar
     if (maxW <= 0 || maxH <= 0) return { width: 0, height: 0 };
     const ratio = Math.min(
       maxW / template.canvas.width,
@@ -59,9 +64,17 @@ export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasPro
     <div
       ref={containerRef}
       className="relative flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_center,theme(colors.muted/40)_0%,theme(colors.muted/10)_100%)] overflow-hidden"
-      onClick={onCanvasClick}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          setSelection(null);
+          onCanvasClick?.();
+        }
+      }}
     >
-      {template ? (
+      <CanvasToolbar />
+      <ZoneTabs />
+
+      {template && state ? (
         <div
           className="relative rounded-lg shadow-2xl bg-card overflow-hidden"
           style={{ width: display.width, height: display.height }}
@@ -69,6 +82,12 @@ export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasPro
           <canvas
             ref={canvasRef}
             style={{ width: '100%', height: '100%', display: 'block' }}
+          />
+          <CanvasOverlay
+            template={template}
+            mockup={state}
+            displayWidth={display.width}
+            displayHeight={display.height}
           />
         </div>
       ) : (

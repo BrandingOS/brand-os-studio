@@ -12,6 +12,7 @@ import { devtools, persist } from 'zustand/middleware';
 
 import {
   createInitialMockupState,
+  type ElementLayer,
   type MockupState,
   type TemplateMeta,
   type TextLayer,
@@ -26,6 +27,7 @@ export interface MockupStudioState {
   selection:
     | { kind: 'zone'; id: string }
     | { kind: 'text'; id: string }
+    | { kind: 'element'; id: string }
     | null;
   /** Undo / redo stacks. */
   history: MockupState[];
@@ -45,6 +47,15 @@ export interface MockupStudioState {
   addTextLayer: (layer: TextLayer) => void;
   updateTextLayer: (id: string, patch: Partial<TextLayer>) => void;
   deleteTextLayer: (id: string) => void;
+  addElementLayer: (layer: ElementLayer) => void;
+  updateElementLayer: (id: string, patch: Partial<ElementLayer>) => void;
+  deleteElementLayer: (id: string) => void;
+  setShadowsEnabled: (enabled: boolean) => void;
+  reorderLayer: (
+    kind: 'text' | 'element',
+    id: string,
+    direction: 'up' | 'down',
+  ) => void;
   setSelection: (selection: MockupStudioState['selection']) => void;
   undo: () => void;
   redo: () => void;
@@ -215,6 +226,77 @@ export const useMockupStore = create<MockupStudioState>()(
               ...mockup,
               textLayers: mockup.textLayers.filter((t) => t.id !== id),
             },
+          });
+        },
+
+        addElementLayer: (layer) => {
+          const { mockup, history } = get();
+          if (!mockup) return;
+          set({
+            history: pushHistory(mockup, history),
+            future: [],
+            mockup: {
+              ...mockup,
+              elementLayers: [...mockup.elementLayers, layer],
+            },
+          });
+        },
+
+        updateElementLayer: (id, patch) => {
+          const { mockup, history } = get();
+          if (!mockup) return;
+          set({
+            history: pushHistory(mockup, history),
+            future: [],
+            mockup: {
+              ...mockup,
+              elementLayers: mockup.elementLayers.map((l) =>
+                l.id === id ? ({ ...l, ...patch } as ElementLayer) : l,
+              ),
+            },
+          });
+        },
+
+        deleteElementLayer: (id) => {
+          const { mockup, history } = get();
+          if (!mockup) return;
+          set({
+            history: pushHistory(mockup, history),
+            future: [],
+            mockup: {
+              ...mockup,
+              elementLayers: mockup.elementLayers.filter((l) => l.id !== id),
+            },
+          });
+        },
+
+        setShadowsEnabled: (enabled) => {
+          const { mockup, history } = get();
+          if (!mockup) return;
+          set({
+            history: pushHistory(mockup, history),
+            future: [],
+            mockup: {
+              ...mockup,
+              effects: { ...mockup.effects, shadowsEnabled: enabled },
+            },
+          });
+        },
+
+        reorderLayer: (kind, id, direction) => {
+          const { mockup, history } = get();
+          if (!mockup) return;
+          const key = kind === 'text' ? 'textLayers' : 'elementLayers';
+          const list = [...mockup[key]];
+          const idx = list.findIndex((x) => x.id === id);
+          if (idx < 0) return;
+          const swap = direction === 'up' ? idx - 1 : idx + 1;
+          if (swap < 0 || swap >= list.length) return;
+          [list[idx], list[swap]] = [list[swap], list[idx]];
+          set({
+            history: pushHistory(mockup, history),
+            future: [],
+            mockup: { ...mockup, [key]: list } as MockupState,
           });
         },
 

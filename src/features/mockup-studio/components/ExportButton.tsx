@@ -22,7 +22,7 @@ export function ExportButton() {
   const mockup = useMockupStore((s) => s.mockup);
   const [busy, setBusy] = useState(false);
 
-  const run = async (scale: 1 | 2, format: 'png' | 'jpeg') => {
+  const run = async (scale: 1 | 2 | 4, format: 'png' | 'jpeg') => {
     if (!template || !mockup) return;
     setBusy(true);
     try {
@@ -53,9 +53,19 @@ export function ExportButton() {
           Export
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem onSelect={() => run(1, 'png')}>PNG · 1x</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => run(2, 'png')}>PNG · 2x</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onSelect={() => run(1, 'png')}>
+          <span className="flex-1">PNG · 1x</span>
+          <span className="text-[10px] text-muted-foreground">web</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => run(2, 'png')}>
+          <span className="flex-1">PNG · 2x</span>
+          <span className="text-[10px] text-muted-foreground">retina</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => run(4, 'png')}>
+          <span className="flex-1">PNG · 4x</span>
+          <span className="text-[10px] text-muted-foreground">print</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => run(1, 'jpeg')}>JPG · 1x</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => run(2, 'jpeg')}>JPG · 2x</DropdownMenuItem>
       </DropdownMenuContent>

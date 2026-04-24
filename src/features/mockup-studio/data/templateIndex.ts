@@ -121,6 +121,103 @@ const seeds: SeedTemplate[] = [
   },
   {
     descriptor: {
+      id: 'greeting-card-quad',
+      canvas: 1600,
+      backgroundColor: '#f0e9df',
+      productColor: '#ffffff',
+      shape: 'poster',
+      designZone: { x: 0.3, y: 0.18, width: 0.4, height: 0.64 },
+    },
+    meta: {
+      id: 'greeting-card-quad',
+      name: 'Greeting card — 4 panels',
+      category: 'print',
+      canvas: { width: 1600, height: 1600 },
+      zones: [
+        {
+          id: 'top-left',
+          label: 'Top left',
+          displacementScale: 3,
+          defaultTransform: {
+            x: 540,
+            y: 520,
+            width: 300,
+            height: 300,
+            rotation: 0,
+          },
+          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: 'logo_iconmark',
+            fallbackAssets: ['logo_primary', 'logo_wordmark'],
+          },
+        },
+        {
+          id: 'top-right',
+          label: 'Top right',
+          displacementScale: 3,
+          defaultTransform: {
+            x: 1060,
+            y: 520,
+            width: 300,
+            height: 300,
+            rotation: 0,
+          },
+          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: 'logo_wordmark',
+            fallbackAssets: ['logo_primary', 'logo_iconmark'],
+          },
+        },
+        {
+          id: 'bottom-left',
+          label: 'Bottom left',
+          displacementScale: 3,
+          defaultTransform: {
+            x: 540,
+            y: 1040,
+            width: 300,
+            height: 300,
+            rotation: 0,
+          },
+          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: 'logo_primary',
+            fallbackAssets: ['logo_iconmark', 'logo_wordmark'],
+          },
+        },
+        {
+          id: 'bottom-right',
+          label: 'Bottom right',
+          displacementScale: 3,
+          defaultTransform: {
+            x: 1060,
+            y: 1040,
+            width: 300,
+            height: 300,
+            rotation: 0,
+          },
+          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: 'logo_secondary',
+            fallbackAssets: ['logo_primary', 'logo_iconmark'],
+          },
+        },
+      ],
+      tintableRegions: [
+        {
+          id: 'card_color',
+          label: 'Card color',
+          mask: 'procedural:tintMask',
+          defaultColor: '#ffffff',
+          swatches: ['#ffffff', '#fef3c7', '#dbeafe', '#fecaca', '#111827'],
+          brandKitHints: { preferredColorRole: 'neutral_light' },
+        },
+      ],
+      backgroundReplaceable: true,
+    },
+  },
+  {
+    descriptor: {
       id: 'white-mug',
       canvas: 1600,
       backgroundColor: '#ede6d9',

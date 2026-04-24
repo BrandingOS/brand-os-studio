@@ -11,8 +11,10 @@
 import { MockupRenderer } from './MockupRenderer';
 import type { MockupState, TemplateMeta } from './types';
 
+export type ExportScale = 1 | 2 | 4;
+
 export interface ExportOptions {
-  scale?: 1 | 2 | 4;
+  scale?: ExportScale;
   format?: 'png' | 'jpeg';
   quality?: number;
 }

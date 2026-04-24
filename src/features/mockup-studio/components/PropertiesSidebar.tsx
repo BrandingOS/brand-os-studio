@@ -1,7 +1,11 @@
 /**
- * PropertiesSidebar — contextual right-panel that shows either the
- * global mockup properties or, when a zone is selected, that zone's
- * transform + design controls.
+ * PropertiesSidebar — contextual right-panel.
+ *
+ * - When a text layer is selected: text controls.
+ * - When an element layer is selected: shape/image controls.
+ * - When a zone is selected (default): zone transform + design upload.
+ * - Always shows template-wide controls below: tints, props, background,
+ *   lighting, shadows, and the layers list.
  */
 
 import { ChevronDown, ChevronUp, RotateCcw, Sparkles } from 'lucide-react';
@@ -12,6 +16,9 @@ import { Slider } from '@/components/ui/slider';
 import { DesignDropzone } from './DesignDropzone';
 import { TintSwatches } from './TintSwatches';
 import { BackgroundPanel } from './BackgroundPanel';
+import { LayersPanel } from './LayersPanel';
+import { TextLayerEditor } from './TextLayerEditor';
+import { ElementLayerEditor } from './ElementLayerEditor';
 import { useMockupStore } from '../state/mockupStore';
 
 export function PropertiesSidebar() {
@@ -23,6 +30,8 @@ export function PropertiesSidebar() {
   const setTint = useMockupStore((s) => s.setTint);
   const setBackground = useMockupStore((s) => s.setBackground);
   const setLightingIntensity = useMockupStore((s) => s.setLightingIntensity);
+  const setShadowsEnabled = useMockupStore((s) => s.setShadowsEnabled);
+  const setPropVisible = useMockupStore((s) => s.setPropVisible);
   const reset = useMockupStore((s) => s.reset);
 
   if (!template || !mockup) {
@@ -32,6 +41,16 @@ export function PropertiesSidebar() {
       </aside>
     );
   }
+
+  // Which detail panel at the top? Defaults to zone if nothing selected.
+  const activeTextLayer =
+    selection?.kind === 'text'
+      ? mockup.textLayers.find((t) => t.id === selection.id)
+      : null;
+  const activeElementLayer =
+    selection?.kind === 'element'
+      ? mockup.elementLayers.find((l) => l.id === selection.id)
+      : null;
 
   const zoneId =
     selection?.kind === 'zone' ? selection.id : template.zones[0]?.id ?? null;
@@ -57,97 +76,107 @@ export function PropertiesSidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {zone && zoneState && (
-          <Section title={zone.label} defaultOpen>
-            <div className="space-y-3">
-              {zoneState.designUrl ? (
-                <div className="space-y-2">
-                  <div className="flex h-24 items-center justify-center rounded-md bg-muted/40 ring-1 ring-border/60">
-                    <img
-                      src={zoneState.designUrl}
-                      alt=""
-                      className="max-h-full max-w-full object-contain p-2"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setZoneDesign(zone.id, null)}
-                      className="flex-1 rounded-md bg-muted/60 px-2 py-1.5 text-xs hover:bg-muted"
-                    >
-                      Remove
-                    </button>
-                    <label className="flex-1 cursor-pointer rounded-md bg-primary px-2 py-1.5 text-center text-xs text-primary-foreground hover:bg-primary/90">
-                      Replace
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const url = URL.createObjectURL(file);
-                            setZoneDesign(zone.id, url);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <DesignDropzone
-                  compact
-                  onPick={(url) => setZoneDesign(zone.id, url)}
-                />
-              )}
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground/80">Scale</label>
-                <Slider
-                  value={[zoneState.transform.scale * 100]}
-                  min={(zone.constraints?.minScale ?? 0.2) * 100}
-                  max={(zone.constraints?.maxScale ?? 2) * 100}
-                  step={1}
-                  onValueChange={([v]) =>
-                    setZoneTransform(zone.id, { scale: v / 100 })
-                  }
-                />
-                <div className="text-right text-[11px] tabular-nums text-muted-foreground">
-                  {Math.round(zoneState.transform.scale * 100)}%
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground/80">Rotation</label>
-                <Slider
-                  value={[zoneState.transform.rotation]}
-                  min={-180}
-                  max={180}
-                  step={1}
-                  onValueChange={([v]) =>
-                    setZoneTransform(zone.id, { rotation: v })
-                  }
-                />
-                <div className="text-right text-[11px] tabular-nums text-muted-foreground">
-                  {Math.round(zoneState.transform.rotation)}°
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <NumberField
-                  label="X"
-                  value={zoneState.transform.x}
-                  onChange={(v) => setZoneTransform(zone.id, { x: v })}
-                />
-                <NumberField
-                  label="Y"
-                  value={zoneState.transform.y}
-                  onChange={(v) => setZoneTransform(zone.id, { y: v })}
-                />
-              </div>
-            </div>
+        {activeTextLayer ? (
+          <Section title="Text" defaultOpen>
+            <TextLayerEditor layer={activeTextLayer} />
           </Section>
+        ) : activeElementLayer ? (
+          <Section title="Layer" defaultOpen>
+            <ElementLayerEditor layer={activeElementLayer} />
+          </Section>
+        ) : (
+          zone && zoneState && (
+            <Section title={zone.label} defaultOpen>
+              <div className="space-y-3">
+                {zoneState.designUrl ? (
+                  <div className="space-y-2">
+                    <div className="flex h-24 items-center justify-center rounded-md bg-muted/40 ring-1 ring-border/60">
+                      <img
+                        src={zoneState.designUrl}
+                        alt=""
+                        className="max-h-full max-w-full object-contain p-2"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setZoneDesign(zone.id, null)}
+                        className="flex-1 rounded-md bg-muted/60 px-2 py-1.5 text-xs hover:bg-muted"
+                      >
+                        Remove
+                      </button>
+                      <label className="flex-1 cursor-pointer rounded-md bg-primary px-2 py-1.5 text-center text-xs text-primary-foreground hover:bg-primary/90">
+                        Replace
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const url = URL.createObjectURL(file);
+                              setZoneDesign(zone.id, url);
+                            }
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <DesignDropzone
+                    compact
+                    onPick={(url) => setZoneDesign(zone.id, url)}
+                  />
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground/80">Scale</label>
+                  <Slider
+                    value={[zoneState.transform.scale * 100]}
+                    min={(zone.constraints?.minScale ?? 0.2) * 100}
+                    max={(zone.constraints?.maxScale ?? 2) * 100}
+                    step={1}
+                    onValueChange={([v]) =>
+                      setZoneTransform(zone.id, { scale: v / 100 })
+                    }
+                  />
+                  <div className="text-right text-[11px] tabular-nums text-muted-foreground">
+                    {Math.round(zoneState.transform.scale * 100)}%
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground/80">Rotation</label>
+                  <Slider
+                    value={[zoneState.transform.rotation]}
+                    min={-180}
+                    max={180}
+                    step={1}
+                    onValueChange={([v]) =>
+                      setZoneTransform(zone.id, { rotation: v })
+                    }
+                  />
+                  <div className="text-right text-[11px] tabular-nums text-muted-foreground">
+                    {Math.round(zoneState.transform.rotation)}°
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberField
+                    label="X"
+                    value={zoneState.transform.x}
+                    onChange={(v) => setZoneTransform(zone.id, { x: v })}
+                  />
+                  <NumberField
+                    label="Y"
+                    value={zoneState.transform.y}
+                    onChange={(v) => setZoneTransform(zone.id, { y: v })}
+                  />
+                </div>
+              </div>
+            </Section>
+          )
         )}
 
         {template.tintableRegions?.map((region) => (
@@ -160,28 +189,65 @@ export function PropertiesSidebar() {
           </Section>
         ))}
 
+        {template.props && template.props.length > 0 && (
+          <Section title="Scene props" defaultOpen={false}>
+            <div className="space-y-2">
+              {template.props.map((p) => {
+                const propState = mockup.props[p.id] ?? { visible: p.defaultVisible !== false };
+                return (
+                  <label
+                    key={p.id}
+                    className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs hover:bg-muted/60"
+                  >
+                    <span>{p.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={propState.visible}
+                      onChange={(e) => setPropVisible(p.id, e.target.checked)}
+                      className="h-3.5 w-3.5"
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
         <Section title="Background" defaultOpen={false}>
           <BackgroundPanel value={mockup.background} onChange={setBackground} />
         </Section>
 
-        <Section title="Lighting" defaultOpen={false}>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" />
-              Intensity
+        <Section title="Realism" defaultOpen={false}>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5" />
+                Lighting intensity
+              </div>
+              <Slider
+                value={[mockup.effects.lightingIntensity * 100]}
+                min={0}
+                max={100}
+                step={1}
+                onValueChange={([v]) => setLightingIntensity(v / 100)}
+              />
+              <div className="text-right text-[11px] tabular-nums text-muted-foreground">
+                {Math.round(mockup.effects.lightingIntensity * 100)}%
+              </div>
             </div>
-            <Slider
-              value={[mockup.effects.lightingIntensity * 100]}
-              min={0}
-              max={100}
-              step={1}
-              onValueChange={([v]) => setLightingIntensity(v / 100)}
-            />
-            <div className="text-right text-[11px] tabular-nums text-muted-foreground">
-              {Math.round(mockup.effects.lightingIntensity * 100)}%
-            </div>
+            <label className="flex items-center justify-between rounded-md px-2 py-1.5 text-xs hover:bg-muted/60">
+              <span>Shadows</span>
+              <input
+                type="checkbox"
+                checked={mockup.effects.shadowsEnabled}
+                onChange={(e) => setShadowsEnabled(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+            </label>
           </div>
         </Section>
+
+        <LayersPanel />
       </div>
     </aside>
   );

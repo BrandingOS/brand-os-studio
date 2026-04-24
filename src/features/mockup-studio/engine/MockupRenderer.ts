@@ -15,8 +15,10 @@
  *        b. Alpha-masked by the zone mask so it only appears on-surface.
  *        c. DisplacementFilter warps the design to the surface curvature.
  *        d. Lighting overlay multiplied on top to preserve highlights.
- *   4. (V1 stub) text + element layers — deferred per adaptation plan.
- *   5. Present.
+ *   4. Scene props — per-prop mask visibility + optional tint.
+ *   5. Element layers — Graphics (rect/circle/line) + Sprite (image).
+ *   6. Text layers — Pixi Text so exports bake typography into pixels.
+ *   7. Present.
  */
 
 import {
@@ -26,10 +28,18 @@ import {
   DisplacementFilter,
   Graphics,
   Sprite,
+  Text,
+  TextStyle,
   Texture,
 } from 'pixi.js';
 
-import type { MockupState, TemplateMeta, TemplateZone } from './types';
+import type {
+  ElementLayer,
+  MockupState,
+  TemplateMeta,
+  TemplateZone,
+  TextLayer,
+} from './types';
 
 interface ZoneObjects {
   /** Container for this zone's design + mask + lighting. */
@@ -52,6 +62,17 @@ interface TintObjects {
   loadedColor: string | null;
 }
 
+interface PropObjects {
+  sprite: Sprite | null;
+  loadedTint: string | null;
+}
+
+interface ElementObjects {
+  node: Graphics | Sprite;
+  type: ElementLayer['type'];
+  loadedUrl?: string;
+}
+
 export class MockupRenderer {
   readonly app: Application;
 
@@ -63,10 +84,15 @@ export class MockupRenderer {
   private backgroundLayer = new Container();
   private tintLayer = new Container();
   private zoneLayer = new Container();
+  private propLayer = new Container();
+  private elementLayer = new Container();
   private textLayer = new Container();
 
   private zoneObjects = new Map<string, ZoneObjects>();
   private tintObjects = new Map<string, TintObjects>();
+  private propObjects = new Map<string, PropObjects>();
+  private elementObjects = new Map<string, ElementObjects>();
+  private textObjects = new Map<string, Text>();
 
   /** True once `init()` has completed. */
   private ready = false;
@@ -93,6 +119,8 @@ export class MockupRenderer {
     this.app.stage.addChild(this.backgroundLayer);
     this.app.stage.addChild(this.tintLayer);
     this.app.stage.addChild(this.zoneLayer);
+    this.app.stage.addChild(this.propLayer);
+    this.app.stage.addChild(this.elementLayer);
     this.app.stage.addChild(this.textLayer);
     this.ready = true;
   }
@@ -116,6 +144,9 @@ export class MockupRenderer {
     await this.updateBackground(state);
     await this.updateTints(state);
     await this.updateZones(state);
+    await this.updateProps(state);
+    await this.updateElementLayers(state);
+    this.updateTextLayers(state);
     this.updateEffects(state);
   }
 
@@ -123,6 +154,9 @@ export class MockupRenderer {
     this.destroyed = true;
     this.zoneObjects.clear();
     this.tintObjects.clear();
+    this.propObjects.clear();
+    this.elementObjects.clear();
+    this.textObjects.clear();
     this.app.destroy(true, { children: true, texture: false });
   }
 
@@ -202,6 +236,19 @@ export class MockupRenderer {
     for (const region of template.tintableRegions ?? []) {
       this.tintObjects.set(region.id, { sprite: null, loadedColor: null });
     }
+
+    // Per-prop scaffolding (loaded on demand in updateProps).
+    this.propLayer.removeChildren().forEach((c) => c.destroy());
+    this.propObjects.clear();
+    for (const prop of template.props ?? []) {
+      this.propObjects.set(prop.id, { sprite: null, loadedTint: null });
+    }
+
+    // Element + text layers are rebuilt every state tick, but clear on template swap.
+    this.elementLayer.removeChildren().forEach((c) => c.destroy());
+    this.elementObjects.clear();
+    this.textLayer.removeChildren().forEach((c) => c.destroy());
+    this.textObjects.clear();
   }
 
   private async makeMaskSprite(maskUrl: string, template: TemplateMeta): Promise<Sprite | null> {
@@ -330,16 +377,166 @@ export class MockupRenderer {
     }
   }
 
-  private updateEffects(state: MockupState) {
+  private async updateProps(state: MockupState) {
     if (!this.template) return;
-    const intensity = Math.max(0, Math.min(1, state.effects.lightingIntensity));
-    for (const zone of this.template.zones) {
-      const record = this.zoneObjects.get(zone.id);
-      if (record?.lighting) {
-        record.lighting.alpha = intensity;
+    for (const prop of this.template.props ?? []) {
+      const propState = state.props[prop.id] ?? { visible: prop.defaultVisible !== false };
+      let record = this.propObjects.get(prop.id);
+      if (!record) {
+        record = { sprite: null, loadedTint: null };
+        this.propObjects.set(prop.id, record);
+      }
+
+      if (!record.sprite) {
+        const tex = await safeLoadTexture(prop.mask);
+        if (!tex) continue;
+        const sprite = new Sprite(tex);
+        sprite.width = this.template.canvas.width;
+        sprite.height = this.template.canvas.height;
+        this.propLayer.addChild(sprite);
+        record.sprite = sprite;
+      }
+
+      if (!record.sprite) continue;
+      record.sprite.visible = propState.visible;
+      if (propState.tint) {
+        record.sprite.tint = propState.tint;
+        record.sprite.blendMode = 'multiply';
+        record.loadedTint = propState.tint;
+      } else {
+        // Prop shown as a "cover" that hides the default base underneath.
+        record.sprite.tint = 0xffffff;
+        record.sprite.blendMode = 'normal';
+        record.loadedTint = null;
       }
     }
   }
+
+  private async updateElementLayers(state: MockupState) {
+    const seen = new Set<string>();
+    for (const layer of state.elementLayers) {
+      seen.add(layer.id);
+      let rec = this.elementObjects.get(layer.id);
+      // Swap node if element type changed.
+      if (rec && rec.type !== layer.type) {
+        rec.node.destroy();
+        this.elementObjects.delete(layer.id);
+        rec = undefined;
+      }
+      if (!rec) {
+        if (layer.type === 'image') {
+          const tex = await safeLoadTexture(layer.url);
+          if (!tex) continue;
+          const sprite = new Sprite(tex);
+          sprite.anchor.set(0.5, 0.5);
+          this.elementLayer.addChild(sprite);
+          rec = { node: sprite, type: 'image', loadedUrl: layer.url };
+        } else {
+          const g = new Graphics();
+          this.elementLayer.addChild(g);
+          rec = { node: g, type: layer.type };
+        }
+        this.elementObjects.set(layer.id, rec);
+      }
+
+      if (layer.type === 'image') {
+        const sprite = rec.node as Sprite;
+        if (rec.loadedUrl !== layer.url) {
+          const tex = await safeLoadTexture(layer.url);
+          if (tex) sprite.texture = tex;
+          rec.loadedUrl = layer.url;
+        }
+        sprite.width = layer.width;
+        sprite.height = layer.height;
+        sprite.position.set(layer.x, layer.y);
+        sprite.rotation = (layer.rotation * Math.PI) / 180;
+      } else if (layer.type === 'rect') {
+        const g = rec.node as Graphics;
+        g.clear();
+        g.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+        g.fill(layer.fill);
+        if (layer.stroke) g.stroke({ color: layer.stroke, width: 2 });
+        g.position.set(layer.x, layer.y);
+        g.rotation = (layer.rotation * Math.PI) / 180;
+      } else if (layer.type === 'circle') {
+        const g = rec.node as Graphics;
+        g.clear();
+        g.circle(0, 0, layer.radius);
+        g.fill(layer.fill);
+        if (layer.stroke) g.stroke({ color: layer.stroke, width: 2 });
+        g.position.set(layer.x, layer.y);
+      } else if (layer.type === 'line') {
+        const g = rec.node as Graphics;
+        g.clear();
+        g.moveTo(layer.x1, layer.y1);
+        g.lineTo(layer.x2, layer.y2);
+        g.stroke({ color: layer.stroke, width: layer.strokeWidth });
+      }
+    }
+
+    // Destroy layers removed from state.
+    for (const [id, rec] of this.elementObjects.entries()) {
+      if (!seen.has(id)) {
+        rec.node.destroy();
+        this.elementObjects.delete(id);
+      }
+    }
+  }
+
+  private updateTextLayers(state: MockupState) {
+    const seen = new Set<string>();
+    for (const layer of state.textLayers) {
+      seen.add(layer.id);
+      let text = this.textObjects.get(layer.id);
+      if (!text) {
+        text = new Text({ text: layer.text });
+        text.anchor.set(alignAnchor(layer.align), 0.5);
+        this.textLayer.addChild(text);
+        this.textObjects.set(layer.id, text);
+      }
+      applyTextStyle(text, layer);
+    }
+    for (const [id, t] of this.textObjects.entries()) {
+      if (!seen.has(id)) {
+        t.destroy();
+        this.textObjects.delete(id);
+      }
+    }
+  }
+
+  private updateEffects(state: MockupState) {
+    if (!this.template) return;
+    const intensity = Math.max(0, Math.min(1, state.effects.lightingIntensity));
+    // Disabling shadows softens the lighting layer by half.
+    const shadowMult = state.effects.shadowsEnabled ? 1 : 0.5;
+    for (const zone of this.template.zones) {
+      const record = this.zoneObjects.get(zone.id);
+      if (record?.lighting) {
+        record.lighting.alpha = intensity * shadowMult;
+      }
+    }
+  }
+}
+
+function alignAnchor(align: TextLayer['align']): number {
+  if (align === 'left') return 0;
+  if (align === 'right') return 1;
+  return 0.5;
+}
+
+function applyTextStyle(text: Text, layer: TextLayer) {
+  text.text = layer.text;
+  text.style = new TextStyle({
+    fontFamily: layer.fontFamily,
+    fontSize: layer.fontSize,
+    fontWeight: String(layer.fontWeight) as TextStyle['fontWeight'],
+    fill: layer.color,
+    letterSpacing: layer.letterSpacing,
+    align: layer.align,
+  });
+  text.anchor.set(alignAnchor(layer.align), 0.5);
+  text.position.set(layer.x, layer.y);
+  text.rotation = (layer.rotation * Math.PI) / 180;
 }
 
 function applyZoneTransform(
