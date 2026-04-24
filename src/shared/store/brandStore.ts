@@ -152,25 +152,11 @@ export const useBrandStore = create<BrandStore>()(
         }
       },
 
-      setTypescale: async (brandId: string, next: Typescale) => {
-        // Typescale tool is preview-only: only font-family changes persist to
-        // the brand. Scale, ratio, leading, tracking, semantic map edits stay
-        // in local draft state and are thrown away on reload. This keeps the
-        // tool safe to explore without breaking the brand's type system.
-        const current = useBrandStore.getState().list.find(b => b.id === brandId)
-                      ?? (useBrandStore.getState().current?.id === brandId ? useBrandStore.getState().current : undefined);
-        if (!current) return;
-
-        const nextPrimary = next.fonts?.heading?.family ?? current.fonts?.primary;
-        const nextSecondary = next.fonts?.body?.family ?? current.fonts?.secondary;
-        if (
-          nextPrimary === current.fonts?.primary &&
-          nextSecondary === current.fonts?.secondary
-        ) return;
-
-        await useBrandStore.getState().update(brandId, {
-          fonts: { primary: nextPrimary, secondary: nextSecondary },
-        });
+      setTypescale: async (_brandId: string, _next: Typescale) => {
+        // Typescale tool is preview-only. Nothing — including font selection
+        // — writes back to the brand. The brand's fonts are owned by the
+        // Identity surface; this tool just visualizes a scale on top of
+        // whatever fonts the brand already has.
       },
 
       delete: async (id: string) => {
