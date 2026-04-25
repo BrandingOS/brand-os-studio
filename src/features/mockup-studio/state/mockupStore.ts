@@ -61,7 +61,7 @@ export interface MockupStudioState {
   redo: () => void;
   reset: () => void;
   /** Swap wholesale (used by applyBrandKit). */
-  setState: (next: MockupState) => void;
+  replaceState: (next: MockupState) => void;
 }
 
 const MAX_HISTORY = 50;
@@ -286,18 +286,31 @@ export const useMockupStore = create<MockupStudioState>()(
         reorderLayer: (kind, id, direction) => {
           const { mockup, history } = get();
           if (!mockup) return;
-          const key = kind === 'text' ? 'textLayers' : 'elementLayers';
-          const list = [...mockup[key]];
-          const idx = list.findIndex((x) => x.id === id);
-          if (idx < 0) return;
-          const swap = direction === 'up' ? idx - 1 : idx + 1;
-          if (swap < 0 || swap >= list.length) return;
-          [list[idx], list[swap]] = [list[swap], list[idx]];
-          set({
-            history: pushHistory(mockup, history),
-            future: [],
-            mockup: { ...mockup, [key]: list } as MockupState,
-          });
+          if (kind === 'text') {
+            const list = [...mockup.textLayers];
+            const idx = list.findIndex((x) => x.id === id);
+            if (idx < 0) return;
+            const swap = direction === 'up' ? idx - 1 : idx + 1;
+            if (swap < 0 || swap >= list.length) return;
+            [list[idx], list[swap]] = [list[swap], list[idx]];
+            set({
+              history: pushHistory(mockup, history),
+              future: [],
+              mockup: { ...mockup, textLayers: list },
+            });
+          } else {
+            const list = [...mockup.elementLayers];
+            const idx = list.findIndex((x) => x.id === id);
+            if (idx < 0) return;
+            const swap = direction === 'up' ? idx - 1 : idx + 1;
+            if (swap < 0 || swap >= list.length) return;
+            [list[idx], list[swap]] = [list[swap], list[idx]];
+            set({
+              history: pushHistory(mockup, history),
+              future: [],
+              mockup: { ...mockup, elementLayers: list },
+            });
+          }
         },
 
         setSelection: (selection) => set({ selection }),
@@ -335,7 +348,7 @@ export const useMockupStore = create<MockupStudioState>()(
           });
         },
 
-        setState: (next) => {
+        replaceState: (next) => {
           const { mockup, history } = get();
           set({
             history: pushHistory(mockup, history),
@@ -346,9 +359,16 @@ export const useMockupStore = create<MockupStudioState>()(
       }),
       {
         name: 'mockup-studio:draft',
-        // Only persist the editable state — history is in-memory.
+        /**
+         * Persist ONLY the editable mockup state, not the template object
+         * (templates include data-URL assets multiple MB in size — way over
+         * localStorage quota). Callers rehydrate the template separately
+         * from the service on mount and call `loadTemplate` again.
+         *
+         * The persisted `mockup` has the same `templateId` as the template
+         * the caller re-resolves, so the shape lines up.
+         */
         partialize: (state) => ({
-          template: state.template,
           mockup: state.mockup,
         }),
       },

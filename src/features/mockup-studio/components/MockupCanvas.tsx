@@ -22,12 +22,13 @@ interface MockupCanvasProps {
 }
 
 export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const setSelection = useMockupStore((s) => s.setSelection);
 
-  useMockupRenderer(canvasRef, template, state);
+  // `attachCanvas` is a callback ref — wiring the renderer on mount and
+  // disposing on unmount. It handles the conditional canvas correctly.
+  const attachCanvas = useMockupRenderer(template, state);
 
   // Watch container size for responsive scaling.
   useEffect(() => {
@@ -80,7 +81,7 @@ export function MockupCanvas({ template, state, onCanvasClick }: MockupCanvasPro
           style={{ width: display.width, height: display.height }}
         >
           <canvas
-            ref={canvasRef}
+            ref={attachCanvas}
             style={{ width: '100%', height: '100%', display: 'block' }}
           />
           <CanvasOverlay

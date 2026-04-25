@@ -109,7 +109,18 @@ export function resolveColor(brand: Brand, role: ColorRole): string {
     case 'secondary':
       return cs?.secondary?.hex ?? brand.secondaryColor ?? '#888888';
     case 'accent':
-      return cs?.accent?.hex ?? brand.accentColor ?? '#ff7a59';
+      // Fall back through the brand's own palette instead of a hardcoded
+      // hue — we don't want mockups to default to an arbitrary peach that
+      // the brand didn't choose.
+      return (
+        cs?.accent?.hex ??
+        brand.accentColor ??
+        cs?.secondary?.hex ??
+        brand.secondaryColor ??
+        cs?.primary?.hex ??
+        brand.primaryColor ??
+        '#111111'
+      );
     case 'neutral_light':
       return brand.neutrals?.[0] ?? '#FFFFFF';
     case 'neutral_dark': {

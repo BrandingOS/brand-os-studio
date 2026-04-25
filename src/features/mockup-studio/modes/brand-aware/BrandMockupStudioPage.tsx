@@ -47,7 +47,7 @@ export default function BrandMockupStudioPage() {
   const template = useMockupStore((s) => s.template);
   const mockup = useMockupStore((s) => s.mockup);
   const loadTemplate = useMockupStore((s) => s.loadTemplate);
-  const setMockupState = useMockupStore((s) => s.setState);
+  const replaceMockupState = useMockupStore((s) => s.replaceState);
   const undo = useMockupStore((s) => s.undo);
   const redo = useMockupStore((s) => s.redo);
   const historyLen = useMockupStore((s) => s.history.length);
@@ -84,7 +84,7 @@ export default function BrandMockupStudioPage() {
     }
     const seeded = applyBrandKit(tpl, brand);
     loadTemplate(tpl);
-    setMockupState(seeded);
+    replaceMockupState(seeded);
   };
 
   // Auto-pick a template once both brand + template list are ready.
@@ -109,7 +109,7 @@ export default function BrandMockupStudioPage() {
   const handleReapplyBrand = () => {
     if (!brand || !template) return;
     const seeded = applyBrandKit(template, brand);
-    setMockupState(seeded);
+    replaceMockupState(seeded);
     toast.success('Brand reapplied', {
       description: `${brand.name} overrides put back in place.`,
     });

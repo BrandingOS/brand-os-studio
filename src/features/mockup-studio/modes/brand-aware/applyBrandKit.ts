@@ -73,9 +73,20 @@ export function applyBrandKit(template: TemplateMeta, brand: Brand): MockupState
   return base;
 }
 
-/** Pick a high-contrast color against the brand's default light surface. */
+/**
+ * Pick a high-contrast color for text overlays.
+ *
+ * The default template base tends to be light (our procedural templates
+ * and most product photos have neutral/light backdrops), so a dark
+ * foreground works in most cases. The user can override per-layer in the
+ * text sidebar if it reads wrong on a particular template.
+ *
+ * When a template has a light primary tint chosen, we could inspect it
+ * and pick a light text color — that check belongs closer to the render
+ * layer where we know the actual surface. For now, pick the brand's own
+ * dark neutral so the text feels on-brand even if contrast isn't
+ * optimal.
+ */
 function contrastingColor(brand: Brand): string {
-  // Neutral dark for default light backgrounds — simple heuristic.
-  const dark = resolveColor(brand, 'neutral_dark');
-  return dark;
+  return resolveColor(brand, 'neutral_dark');
 }

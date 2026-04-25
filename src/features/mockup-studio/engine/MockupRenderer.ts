@@ -94,6 +94,16 @@ export class MockupRenderer {
   private elementObjects = new Map<string, ElementObjects>();
   private textObjects = new Map<string, Text>();
 
+  /** Displacement sprites live on the stage (Pixi requires filter-source
+   *  sprites to be in the scene graph), but we set `renderable = false`
+   *  so they don't paint. Tracked here for cleanup on template swap. */
+  private displacementSprites: Sprite[] = [];
+
+  /** URLs loaded through `Assets.load()` for the current template — cleared
+   *  on template swap so the PIXI asset cache doesn't accumulate across
+   *  sessions. */
+  private loadedAssetUrls = new Set<string>();
+
   /** True once `init()` has completed. */
   private ready = false;
 
@@ -106,15 +116,26 @@ export class MockupRenderer {
 
   async init(canvas: HTMLCanvasElement, opts: { width: number; height: number }) {
     // Pixi v8 init is async.
+    //
+    // `autoDensity: true` would force the canvas's CSS width/height to the
+    // logical resolution (e.g. 1600px). That overrides our `width:100%;
+    // height:100%` rule and makes the canvas overflow its letterbox
+    // wrapper. Keep autoDensity off — we size the canvas with CSS and let
+    // the GPU render at the full device-pixel-ratio backing store.
     await this.app.init({
       canvas,
       width: opts.width,
       height: opts.height,
       backgroundAlpha: 0,
       antialias: true,
-      autoDensity: true,
+      autoDensity: false,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
     });
+
+    // Guarantee our sizing rules: fill the wrapper, never overflow.
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.display = 'block';
 
     this.app.stage.addChild(this.backgroundLayer);
     this.app.stage.addChild(this.tintLayer);
@@ -137,32 +158,60 @@ export class MockupRenderer {
     await this.rebuildForTemplate(template);
   }
 
-  /** Update state and repaint. Idempotent — cheap to call on every mutation. */
+  /** Update state and repaint. Idempotent — cheap to call on every mutation.
+   *  Guarded against `destroy()` landing mid-flight: every async step checks
+   *  `this.destroyed` after its await and bails before touching PIXI
+   *  objects. */
   async applyState(state: MockupState) {
-    if (!this.ready || !this.template) return;
+    if (!this.ready || !this.template || this.destroyed) return;
     this.state = state;
     await this.updateBackground(state);
+    if (this.destroyed) return;
     await this.updateTints(state);
+    if (this.destroyed) return;
     await this.updateZones(state);
+    if (this.destroyed) return;
     await this.updateProps(state);
+    if (this.destroyed) return;
     await this.updateElementLayers(state);
+    if (this.destroyed) return;
     this.updateTextLayers(state);
     this.updateEffects(state);
   }
 
   destroy() {
+    if (this.destroyed) return;
     this.destroyed = true;
+
+    // Unload every texture we ever loaded for the last template so the
+    // PIXI Assets cache doesn't grow across sessions.
+    for (const url of this.loadedAssetUrls) {
+      Assets.unload(url).catch(() => {});
+    }
+    this.loadedAssetUrls.clear();
+
+    // Explicit filter cleanup — `app.destroy` doesn't walk filters.
+    for (const rec of this.zoneObjects.values()) {
+      rec.displacementFilter?.destroy();
+    }
+
     this.zoneObjects.clear();
     this.tintObjects.clear();
     this.propObjects.clear();
     this.elementObjects.clear();
     this.textObjects.clear();
+    this.displacementSprites = [];
     this.app.destroy(true, { children: true, texture: false });
   }
 
   // ─── private ────────────────────────────────────────────────────
 
   private async rebuildForTemplate(template: TemplateMeta) {
+    // Dispose filters from the previous template before we orphan them.
+    for (const rec of this.zoneObjects.values()) {
+      rec.displacementFilter?.destroy();
+    }
+
     // Clear previous zones / tints / bg.
     this.zoneLayer.removeChildren().forEach((c) => c.destroy());
     this.tintLayer.removeChildren().forEach((c) => c.destroy());
@@ -172,8 +221,22 @@ export class MockupRenderer {
     this.backgroundSprite = null;
     this.solidBackground = null;
 
+    // Detach and destroy any displacement sprites from the previous template.
+    for (const sprite of this.displacementSprites) {
+      sprite.parent?.removeChild(sprite);
+      sprite.destroy();
+    }
+    this.displacementSprites = [];
+
+    // Unload any textures from the previous template so the PIXI asset
+    // cache doesn't grow unbounded across rapid template swaps.
+    for (const url of this.loadedAssetUrls) {
+      Assets.unload(url).catch(() => {});
+    }
+    this.loadedAssetUrls.clear();
+
     // Background base image.
-    const baseTex = await safeLoadTexture(template.assets.base);
+    const baseTex = await this.safeLoadTexture(template.assets.base);
     if (baseTex) {
       this.backgroundSprite = new Sprite(baseTex);
       this.backgroundSprite.width = template.canvas.width;
@@ -190,18 +253,25 @@ export class MockupRenderer {
       if (mask) {
         container.addChild(mask);
         container.mask = mask;
+        // Belt-and-braces: a mask should never render as a visible layer.
+        mask.renderable = false;
       }
 
       // Displacement — loaded once per zone.
       let displacement: Sprite | null = null;
       let displacementFilter: DisplacementFilter | null = null;
       if (zone.displacement) {
-        const dispTex = await safeLoadTexture(zone.displacement);
+        const dispTex = await this.safeLoadTexture(zone.displacement);
         if (dispTex) {
           displacement = new Sprite(dispTex);
           displacement.width = template.canvas.width;
           displacement.height = template.canvas.height;
-          this.app.stage.addChild(displacement); // filter source must be on stage
+          // The filter needs the sprite in the scene graph so Pixi renders
+          // its texture, but we keep it invisible so it doesn't overlay the
+          // composite (the displacement map is a grayscale bump map).
+          displacement.renderable = false;
+          this.app.stage.addChild(displacement);
+          this.displacementSprites.push(displacement);
           displacementFilter = new DisplacementFilter({
             sprite: displacement,
             scale: zone.displacementScale ?? 10,
@@ -212,7 +282,7 @@ export class MockupRenderer {
       // Lighting overlay (rendered after design, multiply-blended).
       let lighting: Sprite | null = null;
       if (zone.lighting) {
-        const lightTex = await safeLoadTexture(zone.lighting);
+        const lightTex = await this.safeLoadTexture(zone.lighting);
         if (lightTex) {
           lighting = new Sprite(lightTex);
           lighting.width = template.canvas.width;
@@ -252,7 +322,7 @@ export class MockupRenderer {
   }
 
   private async makeMaskSprite(maskUrl: string, template: TemplateMeta): Promise<Sprite | null> {
-    const tex = await safeLoadTexture(maskUrl);
+    const tex = await this.safeLoadTexture(maskUrl);
     if (!tex) return null;
     const sprite = new Sprite(tex);
     sprite.width = template.canvas.width;
@@ -280,7 +350,7 @@ export class MockupRenderer {
       this.solidBackground = g;
     } else if (state.background.type === 'image') {
       if (this.backgroundSprite) this.backgroundSprite.visible = false;
-      const tex = await safeLoadTexture(state.background.value);
+      const tex = await this.safeLoadTexture(state.background.value);
       if (tex) {
         const g = new Graphics();
         g.rect(0, 0, this.template.canvas.width, this.template.canvas.height);
@@ -300,28 +370,26 @@ export class MockupRenderer {
       const record = this.tintObjects.get(region.id);
       if (!record) continue;
 
-      const needsLoad =
-        !record.sprite || record.loadedColor !== tintState.color;
-
-      if (needsLoad) {
-        if (record.sprite) {
-          record.sprite.destroy();
-        }
-        const tex = await safeLoadTexture(region.mask);
+      if (!record.sprite) {
+        const tex = await this.safeLoadTexture(region.mask);
         if (!tex) continue;
         const sprite = new Sprite(tex);
         sprite.width = this.template.canvas.width;
         sprite.height = this.template.canvas.height;
-        sprite.tint = tintState.color;
-        sprite.blendMode = 'multiply';
+        // Normal blend: the tint mask's transparent regions leave the
+        // background untouched; only the product surface is recolored
+        // via the sprite's tint property.
+        sprite.blendMode = 'normal';
         this.tintLayer.addChild(sprite);
         record.sprite = sprite;
-        record.loadedColor = tintState.color;
-      } else if (record.sprite) {
-        record.sprite.tint = tintState.color;
       }
 
-      if (record.sprite) record.sprite.visible = tintState.visible;
+      // Convert the hex string to a number — Pixi v8's `Color` parser
+      // accepts strings, but writing the numeric form is more robust
+      // across Pixi releases and makes WebGL state changes detectable.
+      record.sprite.tint = hexToNumber(tintState.color);
+      record.sprite.visible = tintState.visible;
+      record.loadedColor = tintState.color;
     }
   }
 
@@ -342,7 +410,7 @@ export class MockupRenderer {
           record.design = null;
         }
         if (zoneState.designUrl) {
-          const tex = await safeLoadTexture(zoneState.designUrl);
+          const tex = await this.safeLoadTexture(zoneState.designUrl);
           if (tex) {
             const sprite = new Sprite(tex);
             sprite.anchor.set(0.5, 0.5);
@@ -368,11 +436,24 @@ export class MockupRenderer {
         }
       }
 
-      // Ensure lighting is the last child of the container (drawn on top of design).
-      if (record.lighting && record.lighting.parent !== record.container) {
-        record.container.addChild(record.lighting);
-      } else if (record.lighting && record.lighting.parent === record.container) {
-        record.container.setChildIndex(record.lighting, record.container.children.length - 1);
+      // Lighting follows the design: visible + topmost only when there's a
+      // design to light. Without a design, a multiply-blended lighting sprite
+      // over an empty container produces a muddy rectangle; we suppress it.
+      if (record.lighting) {
+        const hasDesign = !!record.design;
+        if (hasDesign) {
+          if (record.lighting.parent !== record.container) {
+            record.container.addChild(record.lighting);
+          } else {
+            record.container.setChildIndex(
+              record.lighting,
+              record.container.children.length - 1,
+            );
+          }
+          record.lighting.visible = true;
+        } else {
+          record.lighting.visible = false;
+        }
       }
     }
   }
@@ -388,7 +469,7 @@ export class MockupRenderer {
       }
 
       if (!record.sprite) {
-        const tex = await safeLoadTexture(prop.mask);
+        const tex = await this.safeLoadTexture(prop.mask);
         if (!tex) continue;
         const sprite = new Sprite(tex);
         sprite.width = this.template.canvas.width;
@@ -400,7 +481,7 @@ export class MockupRenderer {
       if (!record.sprite) continue;
       record.sprite.visible = propState.visible;
       if (propState.tint) {
-        record.sprite.tint = propState.tint;
+        record.sprite.tint = hexToNumber(propState.tint);
         record.sprite.blendMode = 'multiply';
         record.loadedTint = propState.tint;
       } else {
@@ -425,7 +506,7 @@ export class MockupRenderer {
       }
       if (!rec) {
         if (layer.type === 'image') {
-          const tex = await safeLoadTexture(layer.url);
+          const tex = await this.safeLoadTexture(layer.url);
           if (!tex) continue;
           const sprite = new Sprite(tex);
           sprite.anchor.set(0.5, 0.5);
@@ -442,7 +523,7 @@ export class MockupRenderer {
       if (layer.type === 'image') {
         const sprite = rec.node as Sprite;
         if (rec.loadedUrl !== layer.url) {
-          const tex = await safeLoadTexture(layer.url);
+          const tex = await this.safeLoadTexture(layer.url);
           if (tex) sprite.texture = tex;
           rec.loadedUrl = layer.url;
         }
@@ -504,6 +585,18 @@ export class MockupRenderer {
     }
   }
 
+  private async safeLoadTexture(url: string | undefined): Promise<Texture | null> {
+    if (!url) return null;
+    try {
+      const tex = (await Assets.load(url)) as Texture;
+      this.loadedAssetUrls.add(url);
+      return tex;
+    } catch (err) {
+      console.warn('[MockupRenderer] texture load failed', url, err);
+      return null;
+    }
+  }
+
   private updateEffects(state: MockupState) {
     if (!this.template) return;
     const intensity = Math.max(0, Math.min(1, state.effects.lightingIntensity));
@@ -518,6 +611,17 @@ export class MockupRenderer {
   }
 }
 
+/** Parse "#RRGGBB" or "RRGGBB" into a uint24 number. Returns 0xffffff
+ *  for unparseable input — that's a safe identity tint. */
+function hexToNumber(hex: string): number {
+  if (!hex) return 0xffffff;
+  const stripped = hex.startsWith('#') ? hex.slice(1) : hex;
+  const n = parseInt(stripped.length === 3
+    ? stripped.split('').map((c) => c + c).join('')
+    : stripped, 16);
+  return Number.isNaN(n) ? 0xffffff : n;
+}
+
 function alignAnchor(align: TextLayer['align']): number {
   if (align === 'left') return 0;
   if (align === 'right') return 1;
@@ -526,14 +630,16 @@ function alignAnchor(align: TextLayer['align']): number {
 
 function applyTextStyle(text: Text, layer: TextLayer) {
   text.text = layer.text;
-  text.style = new TextStyle({
-    fontFamily: layer.fontFamily,
-    fontSize: layer.fontSize,
-    fontWeight: String(layer.fontWeight) as TextStyle['fontWeight'],
-    fill: layer.color,
-    letterSpacing: layer.letterSpacing,
-    align: layer.align,
-  });
+  // Mutate the existing TextStyle in place rather than replacing it — a
+  // fresh `new TextStyle()` per update leaks the old style's internal event
+  // emitters (Pixi v8 does not auto-destroy replaced styles).
+  const style = text.style as TextStyle;
+  style.fontFamily = layer.fontFamily;
+  style.fontSize = layer.fontSize;
+  style.fontWeight = String(layer.fontWeight) as TextStyle['fontWeight'];
+  style.fill = layer.color;
+  style.letterSpacing = layer.letterSpacing;
+  style.align = layer.align;
   text.anchor.set(alignAnchor(layer.align), 0.5);
   text.position.set(layer.x, layer.y);
   text.rotation = (layer.rotation * Math.PI) / 180;
@@ -562,12 +668,3 @@ function applyZoneTransform(
   sprite.rotation = (zoneState.transform.rotation * Math.PI) / 180;
 }
 
-async function safeLoadTexture(url: string | undefined): Promise<Texture | null> {
-  if (!url) return null;
-  try {
-    return (await Assets.load(url)) as Texture;
-  } catch (err) {
-    console.warn('[MockupRenderer] texture load failed', url, err);
-    return null;
-  }
-}

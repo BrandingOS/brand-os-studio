@@ -37,19 +37,29 @@ export default function StandaloneMockupStudioPage() {
   const historyLen = useMockupStore((s) => s.history.length);
   const futureLen = useMockupStore((s) => s.future.length);
 
-  // On mount: pick the template from URL, or the first one we loaded.
+  // On mount: resolve the right template + rehydrate any persisted mockup.
   useEffect(() => {
     if (templates.length === 0) return;
-    if (template) return;
-    const preferred = templateParam
-      ? templates.find((t) => t.id === templateParam)
-      : undefined;
-    const target = preferred ?? templates[0];
-    loadTemplate(target);
+    // Already hydrated a template with a matching id? Nothing to do.
+    if (template && template.id === (templateParam ?? template.id)) return;
+
+    const persistedId = mockup?.templateId;
+    // Priority: URL param > persisted draft > first available.
+    const preferred =
+      (templateParam && templates.find((t) => t.id === templateParam)) ||
+      (persistedId && templates.find((t) => t.id === persistedId)) ||
+      templates[0];
+
+    // If we're rehydrating the same template the persisted mockup targets,
+    // keep the persisted state; otherwise start clean.
+    const seed =
+      mockup && mockup.templateId === preferred.id ? mockup : undefined;
+    loadTemplate(preferred, seed);
+
     if (!templateParam) {
-      setParams({ template: target.id }, { replace: true });
+      setParams({ template: preferred.id }, { replace: true });
     }
-  }, [templates, template, templateParam, loadTemplate, setParams]);
+  }, [templates, template, mockup, templateParam, loadTemplate, setParams]);
 
   // Keep URL in sync when user picks a different template.
   const handlePick = (t: TemplateMeta) => {

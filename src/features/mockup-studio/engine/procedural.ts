@@ -46,8 +46,12 @@ export function generateProceduralAssets(
   const base = drawBase(desc);
   const displacement = drawDisplacement(desc);
   const lighting = drawLighting(desc);
+  // designZone mask: black background, white inside — used by Pixi
+  // `Container.mask` which reads luminance.
   const mask = drawProductMask(desc, 'designZone');
-  const tintMask = drawProductMask(desc, 'product');
+  // tint mask: transparent background, white inside — the engine tints +
+  // normal-blends this so the color lands only on the product surface.
+  const tintMask = drawProductTintMask(desc);
   const thumbnail = drawBase(desc, 512);
 
   const assets: ProceduralAssets = {
@@ -160,6 +164,7 @@ function drawProductMask(
 ): string {
   const size = desc.canvas;
   const [c, ctx] = makeCanvas(size);
+  // Black background (required for Pixi luminance-based masking).
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, size, size);
 
@@ -176,6 +181,17 @@ function drawProductMask(
     ctx.fillRect(x, y, w, h);
     ctx.filter = 'none';
   }
+  return c.toDataURL('image/png');
+}
+
+/** Tint mask = transparent background, opaque white where the product is.
+ *  The engine tints this sprite and normal-blends it, so only the product
+ *  surface is recolored. Black-on-black multiply tinting (the old approach)
+ *  painted the whole backdrop black. */
+function drawProductTintMask(desc: ProceduralTemplateDescriptor): string {
+  const size = desc.canvas;
+  const [c, ctx] = makeCanvas(size);
+  drawProductShape(ctx, desc, size, { fill: '#ffffff' });
   return c.toDataURL('image/png');
 }
 
@@ -213,39 +229,43 @@ function drawProductShape(
 }
 
 function drawTshirt(ctx: CanvasRenderingContext2D, size: number) {
-  // Simple t-shirt silhouette — hand-tuned bezier path.
+  // Rebuilt with simple polygon geometry — the old bezier path was
+  // degenerate at real sizes (folded back on itself) and rendered as a
+  // plain rectangle. This version composes the shirt from clear
+  // primitives: left sleeve + body + right sleeve, plus a V-neck
+  // "punch-out" by overdrawing the backdrop color at the collar.
   const cx = size / 2;
-  const w = size * 0.72;
-  const left = cx - w / 2;
-  const right = cx + w / 2;
-  const top = size * 0.18;
-  const neckTop = top + size * 0.02;
-  const shoulderY = top + size * 0.05;
-  const sleeveOutY = top + size * 0.2;
-  const bodyOutY = size * 0.28;
-  const hem = size * 0.88;
+  const bodyW = size * 0.42;
+  const sleeveW = size * 0.16;
+  const sleeveH = size * 0.18;
+  const shoulderY = size * 0.22;
+  const hem = size * 0.84;
+  const bodyLeft = cx - bodyW / 2;
+  const bodyRight = cx + bodyW / 2;
+
   ctx.beginPath();
-  ctx.moveTo(cx - size * 0.08, top);
-  // Collar — gentle curve.
-  ctx.quadraticCurveTo(cx, neckTop + size * 0.05, cx + size * 0.08, top);
-  // Shoulder to sleeve (right).
-  ctx.lineTo(right - size * 0.02, shoulderY);
-  ctx.quadraticCurveTo(right + size * 0.01, sleeveOutY - size * 0.02, right, sleeveOutY);
-  ctx.lineTo(right - size * 0.08, sleeveOutY + size * 0.03);
-  // Armpit right.
-  ctx.quadraticCurveTo(right - size * 0.14, bodyOutY - size * 0.02, right - size * 0.14, bodyOutY);
-  // Body right.
-  ctx.lineTo(right - size * 0.16, hem);
-  // Hem.
-  ctx.lineTo(left + size * 0.16, hem);
-  // Body left.
-  ctx.lineTo(left + size * 0.14, bodyOutY);
-  // Armpit left.
-  ctx.quadraticCurveTo(left + size * 0.14, bodyOutY - size * 0.02, left + size * 0.08, sleeveOutY + size * 0.03);
-  // Sleeve left.
-  ctx.lineTo(left, sleeveOutY);
-  ctx.quadraticCurveTo(left - size * 0.01, sleeveOutY - size * 0.02, left + size * 0.02, shoulderY);
-  ctx.lineTo(cx - size * 0.08, top);
+  // Start at outer-left of left sleeve.
+  ctx.moveTo(bodyLeft - sleeveW, shoulderY);
+  // Down outer edge of left sleeve.
+  ctx.lineTo(bodyLeft - sleeveW, shoulderY + sleeveH);
+  // Across to body (armpit left).
+  ctx.lineTo(bodyLeft, shoulderY + sleeveH + size * 0.01);
+  // Down body left.
+  ctx.lineTo(bodyLeft, hem);
+  // Across hem.
+  ctx.lineTo(bodyRight, hem);
+  // Up body right.
+  ctx.lineTo(bodyRight, shoulderY + sleeveH + size * 0.01);
+  // Across to right sleeve armpit.
+  ctx.lineTo(bodyRight + sleeveW, shoulderY + sleeveH);
+  // Up outer edge of right sleeve.
+  ctx.lineTo(bodyRight + sleeveW, shoulderY);
+  // Across top of right sleeve → shoulder → collar right.
+  ctx.lineTo(bodyRight, shoulderY);
+  // Collar cutout: V dip.
+  ctx.lineTo(cx + size * 0.04, shoulderY + size * 0.03);
+  ctx.quadraticCurveTo(cx, shoulderY + size * 0.07, cx - size * 0.04, shoulderY + size * 0.03);
+  ctx.lineTo(bodyLeft, shoulderY);
   ctx.closePath();
   ctx.fill();
 }

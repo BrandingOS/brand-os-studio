@@ -178,7 +178,22 @@ function TextLayerHtml({
     startY: number;
     origX: number;
     origY: number;
+    onMove: (ev: MouseEvent) => void;
+    onUp: () => void;
   } | null>(null);
+
+  // Mid-drag unmount cleanup — if the component disappears with listeners
+  // still attached (fast navigate, undo nuking the layer), detach them.
+  useEffect(() => {
+    return () => {
+      const s = dragState.current;
+      if (s) {
+        window.removeEventListener('mousemove', s.onMove);
+        window.removeEventListener('mouseup', s.onUp);
+        dragState.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (editing && ref.current) {
@@ -198,12 +213,6 @@ function TextLayerHtml({
     if (editing) return;
     e.stopPropagation();
     onSelect();
-    dragState.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: layer.x,
-      origY: layer.y,
-    };
     const onMove = (ev: MouseEvent) => {
       const s = dragState.current;
       if (!s) return;
@@ -212,9 +221,20 @@ function TextLayerHtml({
       updateTextLayer(layer.id, { x: s.origX + dx, y: s.origY + dy });
     };
     const onUp = () => {
+      const s = dragState.current;
+      if (s) {
+        window.removeEventListener('mousemove', s.onMove);
+        window.removeEventListener('mouseup', s.onUp);
+      }
       dragState.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+    };
+    dragState.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: layer.x,
+      origY: layer.y,
+      onMove,
+      onUp,
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
