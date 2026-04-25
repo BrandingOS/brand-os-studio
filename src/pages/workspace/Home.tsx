@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useSessionStore } from '@/shared/store/sessionStore';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import type { Brand } from '@/shared/types/brand';
 
@@ -128,22 +129,16 @@ export default function WorkspaceHome() {
   const navigate = useNavigate();
   const brands = useBrandStore((s) => s.list);
   const loadAll = useBrandStore((s) => s.loadAll);
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
 
-  // Wait for the first fetch to resolve before deciding between empty
-  // state and grid. Without this gate the initial render runs with the
-  // store's default `list: []` and flashes "No brands yet" before the
-  // async `loadAll()` completes.
-  const [hasLoaded, setHasLoaded] = useState(brands.length > 0);
-
+  // Re-fetch whenever the auth-driven service swap may have happened.
+  // `useAuth` calls `reconfigureForAuth(true)` to swap brands from Local
+  // (localStorage) → Supabase on sign-in. If Home mounted before that
+  // swap, the first `loadAll()` would have hit the empty localStorage
+  // and stuck on "No brands yet" until manual refresh.
   useEffect(() => {
-    let cancelled = false;
-    loadAll().finally(() => {
-      if (!cancelled) setHasLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [loadAll]);
+    loadAll();
+  }, [loadAll, isAuthenticated]);
 
   const sorted = useMemo(() => {
     // Show the most-recently-edited first. Fall back to createdAt.
@@ -156,7 +151,6 @@ export default function WorkspaceHome() {
 
   const lastEdit = sorted[0]?.updatedAt;
   const count = sorted.length;
-  const ready = hasLoaded || count > 0;
 
   return (
     <WorkspaceShell>
@@ -165,15 +159,13 @@ export default function WorkspaceHome() {
           <span className="ws-hero-eyebrow">Workspace</span>
           <h1 className="ws-hero-title">Your brands</h1>
           <p className="ws-hero-sub">
-            {!ready
-              ? 'Loading your brands…'
-              : count === 0
-                ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
-                : `${count} brand${count === 1 ? '' : 's'} · ${formatRelative(lastEdit).toLowerCase()}`}
+            {count === 0
+              ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
+              : `${count} brand${count === 1 ? '' : 's'} · ${formatRelative(lastEdit).toLowerCase()}`}
           </p>
         </section>
 
-        {!ready ? null : count === 0 ? (
+        {count === 0 ? (
           <div className="ws-empty" role="region" aria-label="No brands yet">
             <h2 className="ws-empty-title">No brands yet — create your first</h2>
             <p className="ws-empty-sub">

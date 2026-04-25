@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useWorkspaceStore } from '@/shared/store/workspaceStore';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { reconfigureForAuth } from '@/core/boot';
 import { migrateLocalStorageToSupabase } from '@/shared/utils/localStorage-migration';
 import { toast } from 'sonner';
@@ -123,6 +124,11 @@ export const useAuth = () => {
           checkAccountStatus(session.user.id).catch(() => true);
           updateLastSignIn(session.user.id);
           workspaceStore.loadAll().catch(console.error);
+          // Re-fetch brands now that the service has been swapped to
+          // Supabase. Without this, anything that called `useBrandStore.
+          // loadAll()` before reconfigure ran (e.g. /dashboard mounting)
+          // is left holding the empty Local result.
+          useBrandStore.getState().loadAll().catch(console.error);
           loadFromSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
         } else {
@@ -182,6 +188,9 @@ export const useAuth = () => {
           checkAccountStatus(session.user.id).catch(() => true);
           updateLastSignIn(session.user.id);
           workspaceStore.loadAll().catch(console.error);
+          // Re-fetch brands with the freshly-swapped Supabase service
+          // (see getInitialSession for why this is needed).
+          useBrandStore.getState().loadAll().catch(console.error);
           syncToSupabase().catch(console.error);
           migrateLocalStorageToSupabase().catch(console.error);
         } else if (event === 'PASSWORD_RECOVERY') {
@@ -191,6 +200,9 @@ export const useAuth = () => {
           console.log('[useAuth] User signed out');
           reconfigureForAuth(false);
           workspaceStore.reset();
+          // Drop the previous user's brands from the store and re-read
+          // the (local) list so the UI doesn't leak across sessions.
+          useBrandStore.getState().loadAll().catch(console.error);
           signOut();
         }
       }
