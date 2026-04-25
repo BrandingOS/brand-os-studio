@@ -128,7 +128,21 @@ export function SignatureA({ index, profile }: Props) {
         <LogoMark profile={profile} variant="white" height={34} color={ink} />
       </div>
       <div style={{ position: 'absolute', left: 96, right: 96, bottom: 80, display: 'flex', justifyContent: 'space-between', alignItems: 'end' }}>
-        <Display profile={profile} size={94} weight={900} color={ink} style={{ letterSpacing: '-0.035em', maxWidth: 1200, mixBlendMode: 'difference' }}>
+        <Display
+          profile={profile}
+          size={94}
+          weight={900}
+          color={ink}
+          style={{
+            letterSpacing: '-0.035em',
+            maxWidth: 1200,
+            // No mixBlendMode here — `difference` of white on the brand
+            // primary computes an off-brand teal/cyan (e.g. red#EF4444 →
+            // ~#10BBBB) which clashes badly with the brand. Keep ink solid
+            // and use a soft shadow for legibility over the busy pattern.
+            textShadow: `0 2px 24px ${shiftLightness(bg, -0.3)}, 0 0 6px ${shiftLightness(bg, -0.25)}`,
+          }}
+        >
           A pattern only {profile.name} could wear.
         </Display>
         <Body profile={profile} size={14} color={ink} style={{ textAlign: 'right', opacity: 0.9, letterSpacing: '0.18em', textTransform: 'uppercase', lineHeight: 1.7 }}>

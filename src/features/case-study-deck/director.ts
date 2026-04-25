@@ -135,6 +135,28 @@ export function analyzePalette(brand: Brand): PaletteAnalysis {
 
 /* ─────────────────────────  asset inventory  ───────────────────────── */
 
+// Tags that mark an asset as a surface treatment (overlay/texture/etc.) rather
+// than a hero photo. We never want these promoted into the hero pool — a 1px
+// grain doesn't read as a product shot. Caught us when SKAM's grain.png ended
+// up as the typography-slide hero.
+const NON_HERO_TAGS = new Set([
+  'texture',
+  'grain',
+  'overlay',
+  'background',
+  'pattern',
+  'noise',
+  'mask',
+]);
+
+function isHeroCandidate(name: string | undefined, tags: string[]): boolean {
+  const lowerTags = tags.map((t) => t.toLowerCase());
+  if (lowerTags.some((t) => NON_HERO_TAGS.has(t))) return false;
+  const n = (name ?? '').toLowerCase();
+  if (/\b(grain|texture|overlay|pattern|noise|mask)\b/.test(n)) return false;
+  return true;
+}
+
 export function inventoryAssets(brand: Brand): AssetInventory {
   const logoPrimary = resolveBrandLogo(brand, 'primary')?.url;
   const logoWordmark = resolveBrandLogo(brand, 'wordmark')?.url ?? logoPrimary;
@@ -142,8 +164,9 @@ export function inventoryAssets(brand: Brand): AssetInventory {
   const logoWhite = resolveBrandLogo(brand, 'mono.white')?.url;
   const logoBlack = resolveBrandLogo(brand, 'mono.black')?.url;
 
-  const images =
-    brand.brandAssets?.filter((a) => a.kind === 'image') ?? [];
+  const images = (brand.brandAssets ?? []).filter(
+    (a) => a.kind === 'image' && isHeroCandidate(a.name, a.tags ?? []),
+  );
   const imageUrls = images
     .map((a) => {
       const fmt = a.formats;
@@ -169,9 +192,9 @@ export function inventoryAssets(brand: Brand): AssetInventory {
   // Legacy assets[] fallback
   if (imageUrls.length === 0 && brand.assets?.length) {
     brand.assets.forEach((a) => {
-      if (a.type === 'image' || a.type === 'reference' || a.type === 'video') {
-        imageUrls.push(a.url);
-      }
+      if (a.type !== 'image' && a.type !== 'reference' && a.type !== 'video') return;
+      if (!isHeroCandidate(a.name, a.tags ?? [])) return;
+      if (a.url) imageUrls.push(a.url);
     });
   }
 
