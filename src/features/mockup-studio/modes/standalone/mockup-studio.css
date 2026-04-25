@@ -1,0 +1,160 @@
+/*
+ * Mockup Studio shell — overrides cosmos `.shell` to a 3-column layout
+ * (templates · canvas · properties). Lives inside [data-cosmos="workspace"]
+ * so all tokens resolve correctly.
+ */
+
+[data-cosmos="workspace"] .ms-shell {
+  display: grid;
+  grid-template-columns: minmax(232px, 280px) minmax(0, 1fr) minmax(280px, 320px);
+  gap: 20px;
+  padding: 0 20px 20px;
+  min-height: calc(100vh - 68px);
+}
+
+[data-cosmos="workspace"] .ms-panel {
+  /* Inherit cosmos .panel base, but allow taller scroll region. */
+  max-height: calc(100vh - 100px);
+}
+
+[data-cosmos="workspace"] .ms-panel-blurb {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+[data-cosmos="workspace"] .ms-template-list {
+  padding: 8px 8px 12px;
+  gap: 4px;
+}
+
+/* ── Center board ────────────────────────────────────────────────── */
+
+[data-cosmos="workspace"] .ms-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: calc(100vh - 100px);
+}
+
+[data-cosmos="workspace"] .ms-board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-cosmos="workspace"] .ms-board-toolbar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+[data-cosmos="workspace"] .ms-board-toolbar-name {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-cosmos="workspace"] .ms-board-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+[data-cosmos="workspace"] .ms-toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 6px;
+}
+
+[data-cosmos="workspace"] .ms-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease),
+    color 140ms var(--ease),
+    border-color 140ms var(--ease);
+}
+[data-cosmos="workspace"] .ms-icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+[data-cosmos="workspace"] .ms-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+[data-cosmos="workspace"] .ms-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+[data-cosmos="workspace"] .ms-board-canvas {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+/* The canvas component fills its parent. */
+[data-cosmos="workspace"] .ms-board-canvas > * {
+  height: 100%;
+  width: 100%;
+}
+
+/* ── Right properties panel (cosmos-tokenized override) ─────────── */
+
+[data-cosmos="workspace"] .ms-properties {
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Compact 3-col grid on smaller laptops — collapse the right panel. */
+@media (max-width: 1180px) {
+  [data-cosmos="workspace"] .ms-shell {
+    grid-template-columns: minmax(232px, 260px) minmax(0, 1fr);
+  }
+  [data-cosmos="workspace"] .ms-properties {
+    grid-column: 1 / -1;
+    position: static;
+    max-height: none;
+  }
+}

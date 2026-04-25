@@ -1,18 +1,20 @@
 /**
  * StandaloneMockupStudioPage — Mode A: anonymous usable.
  *
- * Route: `/tools/mockup-studio`. No brand required. User picks a template,
- * uploads a design, tweaks, exports. Draft state persists to localStorage
- * via the mockup store so a page refresh keeps the user's work.
+ * Route: `/tools/mockup-studio`. Wraps the editor in <CosmosWorkspaceShell>
+ * so it inherits the same top nav + theme toggle as /setup, /tools/typescale,
+ * and /tools/ui-color-system. Inner layout is a custom 3-column grid:
+ * templates panel · canvas · properties panel — both side panels use cosmos
+ * `.panel` chrome.
  */
 
 import { Redo2, Undo2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { SERVICE_KEYS, useService } from '@/core';
 import type { IMockupTemplatesService } from '@/core/types/services';
+import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 
 import { ExportButton } from '../../components/ExportButton';
 import { MockupCanvas } from '../../components/MockupCanvas';
@@ -21,6 +23,7 @@ import { TemplateGallery } from '../../components/TemplateGallery';
 import type { TemplateMeta } from '../../engine/types';
 import { useMockupStore } from '../../state/mockupStore';
 import { useMockupTemplates } from '../../hooks/useMockupTemplates';
+import './mockup-studio.css';
 
 export default function StandaloneMockupStudioPage() {
   const [params, setParams] = useSearchParams();
@@ -40,18 +43,14 @@ export default function StandaloneMockupStudioPage() {
   // On mount: resolve the right template + rehydrate any persisted mockup.
   useEffect(() => {
     if (templates.length === 0) return;
-    // Already hydrated a template with a matching id? Nothing to do.
     if (template && template.id === (templateParam ?? template.id)) return;
 
     const persistedId = mockup?.templateId;
-    // Priority: URL param > persisted draft > first available.
     const preferred =
       (templateParam && templates.find((t) => t.id === templateParam)) ||
       (persistedId && templates.find((t) => t.id === persistedId)) ||
       templates[0];
 
-    // If we're rehydrating the same template the persisted mockup targets,
-    // keep the persisted state; otherwise start clean.
     const seed =
       mockup && mockup.templateId === preferred.id ? mockup : undefined;
     loadTemplate(preferred, seed);
@@ -61,7 +60,6 @@ export default function StandaloneMockupStudioPage() {
     }
   }, [templates, template, mockup, templateParam, loadTemplate, setParams]);
 
-  // Keep URL in sync when user picks a different template.
   const handlePick = (t: TemplateMeta) => {
     loadTemplate(t);
     setParams({ template: t.id }, { replace: true });
@@ -87,77 +85,67 @@ export default function StandaloneMockupStudioPage() {
   const activeId = useMemo(() => template?.id ?? null, [template]);
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-background">
-      {/* Top bar ----------------------------------------------------- */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/60 bg-background px-4">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/tools"
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            ← Tools
-          </Link>
-          <div className="h-4 w-px bg-border" />
-          <div className="text-sm font-semibold">Mockup Studio</div>
-          {template && (
-            <span className="text-xs text-muted-foreground">
-              · {template.name}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={historyLen === 0}
-            onClick={undo}
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-            className="h-8 w-8"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={futureLen === 0}
-            onClick={redo}
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-            className="h-8 w-8"
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-          <div className="mx-2 h-4 w-px bg-border" />
-          <ExportButton />
-        </div>
-      </header>
-
-      {/* Main 3-panel layout ---------------------------------------- */}
-      <div className="flex min-h-0 flex-1">
-        {/* Left: template browser */}
-        <aside className="w-64 shrink-0 overflow-y-auto border-r border-border/60 bg-background">
-          <div className="border-b border-border/60 px-4 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-              Templates
-            </h2>
+    <CosmosWorkspaceShell>
+      <div className="ms-shell">
+        <aside className="panel ms-panel" aria-label="Templates">
+          <div className="panel-top">
+            <div className="panel-heading">
+              <span className="panel-heading-eyebrow">Mockup Studio</span>
+              <h1 className="panel-heading-title">Pick a template</h1>
+            </div>
+            <p className="ms-panel-blurb">
+              Drop your design onto a real product photo. Surface masks, lighting and displacement bake in automatically.
+            </p>
           </div>
-          <TemplateGallery
-            templates={templates}
-            activeId={activeId}
-            onPick={handlePick}
-          />
+          <div className="panel-list ms-template-list">
+            <TemplateGallery
+              templates={templates}
+              activeId={activeId}
+              onPick={handlePick}
+            />
+          </div>
         </aside>
 
-        {/* Center: canvas */}
-        <main className="min-w-0 flex-1">
-          <MockupCanvas template={template} state={mockup} />
+        <main className="ms-board">
+          <div className="ms-board-toolbar">
+            <div className="ms-board-toolbar-meta">
+              <span className="panel-heading-eyebrow">Active</span>
+              <span className="ms-board-toolbar-name">
+                {template?.name ?? 'No template selected'}
+              </span>
+            </div>
+            <div className="ms-board-toolbar-actions">
+              <button
+                type="button"
+                className="ms-icon-btn"
+                disabled={historyLen === 0}
+                onClick={undo}
+                aria-label="Undo"
+                title="Undo (⌘Z)"
+              >
+                <Undo2 size={14} />
+              </button>
+              <button
+                type="button"
+                className="ms-icon-btn"
+                disabled={futureLen === 0}
+                onClick={redo}
+                aria-label="Redo"
+                title="Redo (⇧⌘Z)"
+              >
+                <Redo2 size={14} />
+              </button>
+              <span className="ms-toolbar-divider" aria-hidden />
+              <ExportButton />
+            </div>
+          </div>
+          <div className="ms-board-canvas">
+            <MockupCanvas template={template} state={mockup} />
+          </div>
         </main>
 
-        {/* Right: properties */}
         <PropertiesSidebar />
       </div>
-    </div>
+    </CosmosWorkspaceShell>
   );
 }

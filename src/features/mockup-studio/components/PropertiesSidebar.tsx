@@ -36,8 +36,10 @@ export function PropertiesSidebar() {
 
   if (!template || !mockup) {
     return (
-      <aside className="w-72 shrink-0 border-l border-border/60 bg-background p-4">
-        <p className="text-xs text-muted-foreground">Pick a template to edit.</p>
+      <aside className="ms-properties" style={{ padding: 16 }} aria-label="Properties">
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+          Pick a template to edit.
+        </p>
       </aside>
     );
   }
@@ -58,20 +60,22 @@ export function PropertiesSidebar() {
   const zoneState = zone ? mockup.zones[zone.id] : null;
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-border/60 bg-background">
-      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold">Properties</h2>
-          <p className="text-[11px] text-muted-foreground">{template.name}</p>
+    <aside className="ms-properties" aria-label="Properties">
+      <div className="panel-top" style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">Properties</span>
+          <h2 className="panel-heading-title" style={{ fontSize: 18 }}>
+            {template.name}
+          </h2>
         </div>
         <button
           type="button"
           onClick={reset}
-          className="rounded p-1.5 text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          className="ms-icon-btn"
           aria-label="Reset"
           title="Reset"
         >
-          <RotateCcw className="h-4 w-4" />
+          <RotateCcw size={14} />
         </button>
       </div>
 
