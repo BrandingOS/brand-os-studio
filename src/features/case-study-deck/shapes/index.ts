@@ -16,6 +16,7 @@
 import { TYPOGRAPHY_CATALOG } from './typography';
 import { MOODBOARD_CATALOG } from './moodboard';
 import { SIGNATURE_CATALOG } from './signature';
+import { ENVIRONMENTAL_CATALOG } from './environmental';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -24,6 +25,7 @@ export type { SlideShape, ShapeCatalog, ShapeRenderProps } from './types';
 export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
 export { MOODBOARD_CATALOG, MOODBOARD_SHAPES } from './moodboard';
 export { SIGNATURE_CATALOG, SIGNATURE_SHAPES } from './signature';
+export { ENVIRONMENTAL_CATALOG, ENVIRONMENTAL_SHAPES } from './environmental';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -49,7 +51,7 @@ export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
   palette: stubCatalog('palette'),
   typography: TYPOGRAPHY_CATALOG,
   signature: SIGNATURE_CATALOG,
-  environmental: stubCatalog('environmental'),
+  environmental: ENVIRONMENTAL_CATALOG,
   digital: stubCatalog('digital'),
   stationery: stubCatalog('stationery'),
   outdoor: stubCatalog('outdoor'),

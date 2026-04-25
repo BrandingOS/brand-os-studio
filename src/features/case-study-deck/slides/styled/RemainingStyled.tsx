@@ -129,77 +129,22 @@ export function SignatureStyled({ index, profile, style, overrides, shapeId }: S
 
 /* ─────────────────────────  ENVIRONMENTAL  ─────────────────────── */
 
-export function EnvironmentalStyled({ index, profile, style, total }: StyledSlideProps) {
+export function EnvironmentalStyled({ index, profile, style, total, overrides, shapeId }: ShapedSlideProps) {
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  const colGap = style.spacing.columnGap;
-  const halfW = Math.round((region.width - colGap) / 2);
-  const descH = Math.min(160, region.height - 360);
-  // Card geometry — keep it bounded so long brand names auto-shrink.
-  const cardW = 580;
-  const cardH = 540;
-  const cardPad = 60;
-  const cardInnerW = cardW - cardPad * 2;
-  const cardLogoH = 48;
-  const cardCaptionH = 22;
-  const cardNameH = cardH - cardPad * 2 - cardLogoH - cardCaptionH - 60; // gaps
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Environmental';
+  const shape = resolveShape('environmental', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="environmental" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: colGap }}>
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-              Built<br />for the<br />street.
-            </span>
-            <FitText
-              as="div"
-              maxSize={18}
-              minSize={11}
-              width={halfW}
-              height={descH}
-              style={{
-                marginTop: 24,
-                opacity: 0.7,
-                lineHeight: 1.65,
-                color: surface.ink,
-                fontFamily: fonts.body,
-              }}
-            >
-              {profile.name} as you encounter it — signage, flagship moments, environmental presence.
-            </FitText>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: cardW, height: cardH, background: profile.palette.primary, borderRadius: style.layout.cardCorner, padding: cardPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: style.effect.shadow !== 'none' ? '0 30px 60px -12px rgba(0,0,0,0.25)' : 'none', color: surface.ink === '#FFFFFF' ? '#FFF' : '#0A0A0A' }}>
-            <LogoMark profile={profile} variant="white" height={cardLogoH} color="#FFF" />
-            <FitText
-              as="span"
-              maxSize={180}
-              minSize={48}
-              width={cardInnerW}
-              height={cardNameH}
-              style={{
-                fontFamily: fonts.heading,
-                fontWeight: 900,
-                lineHeight: 0.85,
-                letterSpacing: '-0.04em',
-                color: '#FFF',
-              }}
-            >
-              {profile.name}
-            </FitText>
-            <Body profile={profile} size={12} color="#FFF" style={{ letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.8, fontFamily: fonts.body }}>
-              Lobby installation · {style.name}
-            </Body>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Environmental" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Environmental" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
