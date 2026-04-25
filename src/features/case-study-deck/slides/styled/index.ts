@@ -7,7 +7,12 @@
  */
 
 import type { ComponentType } from 'react';
-import { CoverStyled, type StyledSlideProps } from './CoverStyled';
+import { CoverStyled, type StyledSlideProps as BaseStyledSlideProps } from './CoverStyled';
+
+export interface StyledSlideProps extends BaseStyledSlideProps {
+  /** Optional per-slide shape id; archetype renderer maps to its catalog. */
+  shapeId?: string;
+}
 import { ManifestoStyled } from './ManifestoStyled';
 import { PaletteStyled } from './PaletteStyled';
 import { TypographyStyled } from './TypographyStyled';
@@ -21,7 +26,6 @@ import {
 } from './RemainingStyled';
 import type { SlideArchetype } from '../../types';
 
-export type { StyledSlideProps };
 export { CoverStyled, ManifestoStyled, PaletteStyled, TypographyStyled };
 export { MoodboardStyled, SignatureStyled, EnvironmentalStyled, DigitalStyled, StationeryStyled, OutdoorStyled };
 

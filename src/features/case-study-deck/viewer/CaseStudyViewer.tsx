@@ -37,6 +37,7 @@ import { ARCHETYPE_LABELS } from '../slides/renderer';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '../constants';
 import type { DeckStyleId } from '../types';
 import { ALL_STYLES, STYLES, applyMaster, resolveSlideStyle } from '../styles';
+import { CATALOGS } from '../shapes';
 import { exportDeck } from '../export';
 import { toast } from 'sonner';
 import { MasterPanel } from './MasterPanel';
@@ -326,7 +327,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                       pointerEvents: 'none',
                     }}
                   >
-                    <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} />
+                    <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
                   </div>
                   <div style={{ position: 'absolute', left: 6, top: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '1px 6px' }}>
                     {String(i + 1).padStart(2, '0')}
@@ -372,7 +373,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                 }}
               >
                 <SlideScaler>
-                  <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} />
+                  <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
                 </SlideScaler>
               </section>
             );
@@ -393,7 +394,9 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                 hasStyleOverride={deck.slides[activeIndex].hasStyleOverride}
                 slideStyleId={deck.slides[activeIndex].styleId}
                 deckStyleId={activeStyleId}
+                shapeId={deck.slides[activeIndex].shapeId}
                 onSlideStyle={(s) => deck.setSlideStyle(activeIndex, s)}
+                onSlideShape={(s) => deck.setSlideShape(activeIndex, s)}
                 onOverride={(patch) => deck.setOverride(activeIndex, patch)}
                 onToggleHidden={() => deck.toggleHidden(activeIndex)}
               />
@@ -519,7 +522,9 @@ function InspectorPanel({
   hasStyleOverride,
   slideStyleId,
   deckStyleId,
+  shapeId,
   onSlideStyle,
+  onSlideShape,
   onOverride,
   onToggleHidden,
 }: {
@@ -529,18 +534,82 @@ function InspectorPanel({
   hasStyleOverride: boolean;
   slideStyleId: DeckStyleId;
   deckStyleId: DeckStyleId;
+  shapeId: string | undefined;
   onSlideStyle: (id: DeckStyleId | undefined) => void;
+  onSlideShape: (id: string | undefined) => void;
   onOverride: (patch: { headline?: string; subhead?: string; credit?: string; image?: string }) => void;
   onToggleHidden: () => void;
 }) {
+  const catalog = CATALOGS[archetype as keyof typeof CATALOGS];
+  const hasMultipleShapes = catalog && catalog.shapes.length > 1;
+  const defaultShapeId = catalog?.defaultFor(STYLES[slideStyleId]) ?? '';
+
   return (
     <div>
-      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.4, marginBottom: 4 }}>
+        Category
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
         {ARCHETYPE_LABELS[archetype] ?? archetype}
       </div>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 18 }}>
-        Override the deck-wide template just for this slide, or tweak its copy.
+      <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 22 }}>
+        {hasMultipleShapes
+          ? `${catalog!.shapes.length} shapes available · pick a different composition without changing the template.`
+          : 'Override the deck-wide template just for this slide, or tweak its copy.'}
       </div>
+
+      {hasMultipleShapes && (
+        <>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 8 }}>
+            Shape
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+            <button
+              type="button"
+              onClick={() => onSlideShape(undefined)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 8,
+                border: !shapeId ? '1px solid #fff' : '1px solid #333',
+                background: !shapeId ? '#fff' : 'transparent',
+                color: !shapeId ? '#000' : '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              title={`Auto picks the default shape for the active style — currently "${catalog!.shapes.find((s) => s.id === defaultShapeId)?.name ?? defaultShapeId}".`}
+            >
+              Auto
+            </button>
+            {catalog!.shapes.map((s) => {
+              const active = shapeId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onSlideShape(s.id)}
+                  title={s.description}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: active ? '1px solid #fff' : '1px solid #333',
+                    background: active ? '#fff' : 'transparent',
+                    color: active ? '#000' : '#fff',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {s.name}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 18 }}>
+            Shape changes the body composition only — the active template's typography, spacing, and chrome stay.
+          </div>
+        </>
+      )}
 
       <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 8 }}>
         Style

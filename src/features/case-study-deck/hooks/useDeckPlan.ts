@@ -35,6 +35,8 @@ export interface ResolvedSlide extends SlidePick {
   styleId: DeckStyleId;
   /** True if this slide has its own style override (i.e. ≠ deck default). */
   hasStyleOverride: boolean;
+  /** The shape (composition) chosen for this slide, or undefined to use the style's default. */
+  shapeId?: string;
 }
 
 export interface UseDeckPlan {
@@ -47,11 +49,13 @@ export interface UseDeckPlan {
   /** The final ordered list of slides to render. */
   slides: ResolvedSlide[];
   master: MasterOverrides;
+  slideShapes: Record<number, string>;
   regenerate: () => void;
   setVariant: (index: number, variant: VariantId) => void;
   setOverride: (index: number, patch: SlideOverrides) => void;
   setStyle: (styleId: DeckStyleId) => void;
   setSlideStyle: (index: number, styleId: DeckStyleId | undefined) => void;
+  setSlideShape: (index: number, shapeId: string | undefined) => void;
   setMaster: (patch: Partial<MasterOverrides>) => void;
   resetMaster: () => void;
   toggleHidden: (index: number) => void;
@@ -166,6 +170,20 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     [state, persist],
   );
 
+  const setSlideShape = useCallback(
+    (index: number, shapeId: string | undefined) => {
+      if (!state) return;
+      const next = { ...(state.slideShapes ?? {}) };
+      if (shapeId) {
+        next[index] = shapeId;
+      } else {
+        delete next[index];
+      }
+      persist({ ...state, slideShapes: next });
+    },
+    [state, persist],
+  );
+
   const setMaster = useCallback(
     (patch: Partial<MasterOverrides>) => {
       if (!state) return;
@@ -214,6 +232,8 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
   const deckStyle = state.plan.style;
   const slideStyles = state.slideStyles ?? {};
 
+  const slideShapes = state.slideShapes ?? {};
+
   const slides: ResolvedSlide[] = state.plan.slides.map((pick, index) => {
     const override = slideStyles[index];
     return {
@@ -224,6 +244,7 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
       hidden: state.hidden.includes(index),
       styleId: override ?? deckStyle,
       hasStyleOverride: Boolean(override),
+      shapeId: slideShapes[index],
     };
   });
 
@@ -233,6 +254,7 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     overrides: state.overrides,
     variantOverrides: state.variantOverrides as Record<number, VariantId>,
     slideStyles: slideStyles as Record<number, DeckStyleId>,
+    slideShapes: slideShapes as Record<number, string>,
     master: state.plan.master ?? {},
     hidden: state.hidden,
     slides,
@@ -241,6 +263,7 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     setOverride,
     setStyle,
     setSlideStyle,
+    setSlideShape,
     setMaster,
     resetMaster,
     toggleHidden,

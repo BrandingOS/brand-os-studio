@@ -20,6 +20,11 @@ export interface StoredDeck {
    * `plan.style`. Lets a user mix styles within one deck.
    */
   slideStyles?: Record<number, DeckStyleId>;
+  /**
+   * Per-slide shape (composition) overrides. Shape changes the body
+   * composition WITHOUT touching style/template/typography.
+   */
+  slideShapes?: Record<number, string>;
   /** Indexes the user chose to hide. */
   hidden: number[];
 }
