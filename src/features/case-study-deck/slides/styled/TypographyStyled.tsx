@@ -3,7 +3,7 @@
  */
 
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize, chromeTopPad } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, FitText, contentRegion } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import { shiftLightness } from '../../utils';
@@ -28,15 +28,29 @@ export function TypographyStyled({ index, profile, style, total }: StyledSlidePr
 }
 
 function TypographyBody({ style, surface, fonts, family, profile }: any) {
-  const padX = style.spacing.pad;
-  const topPad = chromeTopPad(style);
+  const region = contentRegion(style);
 
   // Common header. Section label is owned by chrome (TopBar) — the
-  // body just renders the typeface name as the headline.
-  const Header = () => (
-    <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
+  // body just renders the typeface name as the headline. The family
+  // string is user/brand-supplied (can be long like "Helvetica Neue
+  // Condensed") so it must auto-fit instead of overflowing.
+  const Header = ({ width = region.width, height = 120 }: { width?: number; height?: number }) => (
+    <FitText
+      as="div"
+      maxSize={headingSize(style, 96)}
+      minSize={28}
+      width={width}
+      height={height}
+      style={{
+        fontFamily: fonts.heading,
+        fontWeight: style.typography.headingWeight,
+        lineHeight: 0.92,
+        letterSpacing: style.typography.headingTracking,
+        color: surface.ink,
+      }}
+    >
       {family}.
-    </span>
+    </FitText>
   );
 
   switch (style.id) {
@@ -45,10 +59,11 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
     case 'playful': {
       const isPlayful = style.id === 'playful';
       const isBold = style.id === 'bold';
+      const colW = Math.round((region.width - 60) / 2);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
+        <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
           <div>
-            <Header />
+            <Header width={colW} height={140} />
             <Body profile={profile} size={16} color={surface.ink} style={{ marginTop: 24, opacity: 0.7, lineHeight: 1.6, maxWidth: 480 }}>
               The single typeface that carries every word of {profile.name}. Weight ladder ready for any moment.
             </Body>
@@ -69,11 +84,12 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
     }
 
     case 'editorial':
-    case 'magazine':
+    case 'magazine': {
+      const leftW = Math.round((region.width - style.spacing.columnGap) * 1 / 2.4);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: style.spacing.columnGap }}>
+        <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: style.spacing.columnGap }}>
           <div>
-            <Header />
+            <Header width={leftW} height={120} />
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 320), fontWeight: 700, lineHeight: 0.85, color: surface.ink, letterSpacing: '-0.04em', display: 'block', marginTop: 32 }}>
               Aa
             </span>
@@ -100,12 +116,13 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
           </div>
         </div>
       );
+    }
 
     case 'swiss':
     case 'minimal':
     case 'modern':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
+        <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
           <Header />
           <div style={{ marginTop: 56, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 24 }}>
             {[300, 400, 500, 600, 700, 900].map((w) => (
@@ -128,7 +145,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
 
     case 'brutalist':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
+        <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
           <Header />
           <div style={{ marginTop: 40, border: `3px solid ${surface.ink}`, padding: 40 }}>
             <span style={{ fontFamily: fonts.heading, fontSize: 240, fontWeight: 700, textTransform: 'uppercase', lineHeight: 0.9, color: surface.ink, letterSpacing: '-0.04em' }}>
@@ -153,11 +170,12 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
         </div>
       );
 
-    case 'technical':
+    case 'technical': {
+      const leftW = Math.round((region.width - 50) * 1.2 / 2.2);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 50 }}>
+        <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 50 }}>
           <div>
-            <Header />
+            <Header width={leftW} height={120} />
             <span style={{ fontFamily: fonts.heading, fontSize: 280, fontWeight: 600, lineHeight: 0.85, color: surface.ink, marginTop: 32, display: 'block' }}>Aa</span>
             <Body profile={profile} size={12} color={surface.ink} style={{ marginTop: 16, fontFamily: fonts.body, letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.65 }}>
               Stack · 400 / 500 / 600 / 700 / 900
@@ -181,6 +199,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
           </div>
         </div>
       );
+    }
 
     default:
       return null;
