@@ -29,6 +29,11 @@ import { shiftLightness, seedRandom } from '../../utils';
 import type { StyledSlideProps } from './CoverStyled';
 import type { BrandProfile } from '../../types';
 import type { DeckStyle } from '../../styles';
+import { resolveShape } from '../../shapes';
+
+interface ShapeAwareProps extends StyledSlideProps {
+  shapeId?: string;
+}
 
 interface CommonProps {
   profile: BrandProfile;
@@ -277,85 +282,23 @@ export function EnvironmentalStyled({ index, profile, style, total }: StyledSlid
 
 /* ─────────────────────────  DIGITAL  ─────────────────────── */
 
-export function DigitalStyled({ index, profile, style, total }: StyledSlideProps) {
+export function DigitalStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Browser mock dimensions (inner content region).
-  const browserH = 580;
-  const browserPad = 30;
-  const innerPad = 60;
-  const innerW = region.width - browserPad * 2 - innerPad * 2;
-  // Hero/mission stack inside the browser hero area.
-  const heroH = 220;
-  const missionH = 110;
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Digital';
+  const shape = resolveShape('digital', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="digital" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            On every screen.
-          </span>
-        </div>
-        {/* Browser mock */}
-        <div style={{ background: '#0A0A0A', borderRadius: style.layout.cardCorner, height: browserH, padding: browserPad, position: 'relative', boxShadow: style.effect.shadow !== 'none' ? '0 40px 80px -16px rgba(0,0,0,0.45)' : 'none' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#ff5f56' }} />
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#ffbd2e' }} />
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#27c93f' }} />
-          </div>
-          <div style={{ background: surface.bg, borderRadius: 12, padding: innerPad, display: 'flex', flexDirection: 'column', gap: 20, height: 480 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <LogoMark profile={profile} variant={surface.ink === '#FFFFFF' ? 'white' : 'black'} height={32} color={surface.ink} />
-              <div style={{ display: 'flex', gap: 18, fontFamily: fonts.body, fontSize: 13, color: surface.ink, opacity: 0.85 }}>
-                <span>Home</span><span>Products</span><span>About</span><span>Contact</span>
-              </div>
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 18 }}>
-              <FitText
-                as="span"
-                maxSize={70}
-                minSize={28}
-                width={innerW}
-                height={heroH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 700,
-                  lineHeight: 1.05,
-                  color: surface.ink,
-                  letterSpacing: '-0.025em',
-                }}
-              >
-                {profile.tagline}
-              </FitText>
-              <FitText
-                as="div"
-                maxSize={18}
-                minSize={11}
-                width={Math.min(innerW, 720)}
-                height={missionH}
-                style={{
-                  opacity: 0.7,
-                  lineHeight: 1.6,
-                  color: surface.ink,
-                  fontFamily: fonts.body,
-                }}
-              >
-                {profile.mission}
-              </FitText>
-              <div style={{ display: 'flex', gap: 14, marginTop: 14 }}>
-                <span style={{ padding: '12px 28px', borderRadius: style.id === 'playful' ? 999 : 12, background: profile.palette.primary, color: '#FFF', fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}>Get started</span>
-                <span style={{ padding: '12px 28px', borderRadius: style.id === 'playful' ? 999 : 12, border: `1px solid ${surface.border}`, color: surface.ink, fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}>Learn more</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Digital" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Digital" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );

@@ -14,12 +14,14 @@
  */
 
 import { TYPOGRAPHY_CATALOG } from './typography';
+import { DIGITAL_CATALOG } from './digital';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
 
 export type { SlideShape, ShapeCatalog, ShapeRenderProps } from './types';
 export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
+export { DIGITAL_CATALOG, DIGITAL_SHAPES } from './digital';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -46,7 +48,7 @@ export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
   typography: TYPOGRAPHY_CATALOG,
   signature: stubCatalog('signature'),
   environmental: stubCatalog('environmental'),
-  digital: stubCatalog('digital'),
+  digital: DIGITAL_CATALOG,
   stationery: stubCatalog('stationery'),
   outdoor: stubCatalog('outdoor'),
 };
