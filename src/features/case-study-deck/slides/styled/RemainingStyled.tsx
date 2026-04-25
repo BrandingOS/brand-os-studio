@@ -26,6 +26,7 @@ import {
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body, LogoMark } from '../shared';
 import { shiftLightness, seedRandom } from '../../utils';
+import { resolveShape } from '../../shapes';
 import type { StyledSlideProps } from './CoverStyled';
 import type { BrandProfile } from '../../types';
 import type { DeckStyle } from '../../styles';
@@ -37,69 +38,28 @@ interface CommonProps {
   fonts: ReturnType<typeof resolveFonts>;
 }
 
+interface ShapedSlideProps extends StyledSlideProps {
+  shapeId?: string;
+}
+
 /* ─────────────────────────  MOODBOARD  ─────────────────────── */
 
-export function MoodboardStyled({ index, profile, style, total, overrides }: StyledSlideProps) {
+export function MoodboardStyled({ index, profile, style, total, overrides, shapeId }: ShapedSlideProps) {
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  const swatches = profile.palette.swatches.slice(0, 4);
-  const colGap = style.spacing.columnGap;
-  // 1fr / 1.6fr split.
-  const leftW = Math.round((region.width - colGap) * 1 / 2.6);
-  const rightW = region.width - colGap - leftW;
-  const descH = Math.min(160, region.height - 200);
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Moodboard';
+  const shape = resolveShape('moodboard', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="moodboard" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'grid', gridTemplateColumns: `${leftW}px ${rightW}px`, gap: colGap }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            Mood &<br />reference.
-          </span>
-          <FitText
-            as="div"
-            maxSize={18}
-            minSize={11}
-            width={leftW}
-            height={descH}
-            style={{
-              marginTop: 28,
-              opacity: 0.7,
-              lineHeight: 1.65,
-              color: surface.ink,
-              fontFamily: fonts.body,
-            }}
-          >
-            The visual vocabulary that informs every decision across {profile.name}'s system.
-          </FitText>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(3, 1fr)', gap: style.spacing.blockGap, height: 600 }}>
-          {/* card cluster — color blocks + typography sample + iconmark */}
-          {swatches.map((s, i) => (
-            <div key={s.hex} style={{ background: s.hex, borderRadius: style.layout.cardCorner, gridColumn: i === 0 ? 'span 2' : 'span 1', padding: 20, display: 'flex', alignItems: 'flex-end' }}>
-              <Body profile={profile} size={12} color={s.hex.toLowerCase() === '#ffffff' ? '#000' : '#fff'} style={{ letterSpacing: '0.16em', textTransform: 'uppercase', opacity: 0.85 }}>
-                {s.name}
-              </Body>
-            </div>
-          ))}
-          <div style={{ gridColumn: 'span 2', background: surface.subtle, borderRadius: style.layout.cardCorner, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontFamily: fonts.heading, fontSize: 92, fontWeight: 700, color: surface.ink }}>Aa</span>
-          </div>
-          <div style={{ background: surface.bg === '#0A0A0A' ? shiftLightness('#0A0A0A', 0.08) : '#0A0A0A', color: '#fff', borderRadius: style.layout.cardCorner, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <Body profile={profile} size={11} color="#fff" style={{ letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>
-              Voice
-            </Body>
-            <span style={{ fontFamily: fonts.heading, fontSize: 28, fontWeight: 600, color: '#fff', letterSpacing: '-0.01em' }}>
-              The craft<br />is the<br />message.
-            </span>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Moodboard" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Moodboard" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
