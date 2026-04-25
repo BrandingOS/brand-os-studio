@@ -262,26 +262,24 @@ export function CornerNumeral({
   if (topBarHasPageNum && numeralIsSmall) return null;
   const fonts = resolveFonts(style, profile);
 
+  // 'oversized' was the giant page numeral that bled off-canvas — it
+  // looked unprofessional and crowded the body. Treated as 'thin' now.
   if (style.chrome.cornerNumeral === 'oversized') {
     return (
       <div
         style={{
           position: 'absolute',
-          top: '50%',
-          [position]: -60,
-          transform: 'translateY(-50%)',
+          top: 80,
+          [position]: style.spacing.pad,
           fontFamily: fonts.heading,
-          fontWeight: style.typography.headingWeight,
-          fontSize: 880,
-          lineHeight: 0.78,
-          letterSpacing: '-0.05em',
+          fontWeight: 300,
+          fontSize: 36,
+          letterSpacing: '-0.02em',
           color: surface.ink,
-          opacity: 0.18,
-          pointerEvents: 'none',
-          userSelect: 'none',
+          opacity: 0.4,
         }}
       >
-        {pageNum.replace(/^0/, '')}
+        {pageNum}
       </div>
     );
   }

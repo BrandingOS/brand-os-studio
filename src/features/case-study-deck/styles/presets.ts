@@ -28,7 +28,7 @@ export const STYLES: Record<DeckStyleId, DeckStyle> = {
   bold: {
     id: 'bold',
     name: 'Bold',
-    description: 'High-impact, full-flood. Heavy display, oversized numerals, brand color dominates.',
+    description: 'High-impact, full-flood. Heavy display, brand color dominates.',
     category: 'expressive',
     tag: 'BOLD',
     typography: {
@@ -49,7 +49,7 @@ export const STYLES: Record<DeckStyleId, DeckStyle> = {
     chrome: {
       topBar: 'minimal',
       bottomBar: 'meta',
-      cornerNumeral: 'oversized',
+      cornerNumeral: 'thin',
       pageRule: 'none',
       eyebrowCase: 'upper',
     },
@@ -281,7 +281,7 @@ export const STYLES: Record<DeckStyleId, DeckStyle> = {
     chrome: {
       topBar: 'tabular',
       bottomBar: 'tagline',
-      cornerNumeral: 'oversized',
+      cornerNumeral: 'thin',
       pageRule: 'top-bottom',
       eyebrowCase: 'upper',
     },
@@ -314,7 +314,7 @@ export const STYLES: Record<DeckStyleId, DeckStyle> = {
     chrome: {
       topBar: 'minimal',
       bottomBar: 'tagline',
-      cornerNumeral: 'oversized',
+      cornerNumeral: 'thin',
       pageRule: 'none',
       eyebrowCase: 'upper',
     },
