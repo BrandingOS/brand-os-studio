@@ -49,9 +49,6 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
       return (
         <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: style.spacing.columnGap, alignItems: 'start', paddingTop: 200 }}>
           <div>
-            <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 18 }}>
-              §02 · Manifesto
-            </Body>
             <Body profile={profile} size={15} color={surface.ink} style={{ opacity: 0.65, lineHeight: 1.7, fontStyle: 'italic' }}>
               "What we believe, why we make, and how we make it."
             </Body>
@@ -83,13 +80,10 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
     case 'swiss':
       return (
         <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16, paddingTop: 200, alignContent: 'start' }}>
-          <Body profile={profile} size={11} color={surface.ink} style={{ gridColumn: '1 / 3', letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.6 }}>
-            02 / 10
-          </Body>
-          <span style={{ gridColumn: '3 / 13', fontFamily: fonts.heading, fontSize: headingSize(style, 110), fontWeight: style.typography.headingWeight, lineHeight: 0.96, letterSpacing: style.typography.headingTracking, color: surface.ink }}>
+          <span style={{ gridColumn: '1 / 13', fontFamily: fonts.heading, fontSize: headingSize(style, 110), fontWeight: style.typography.headingWeight, lineHeight: 0.96, letterSpacing: style.typography.headingTracking, color: surface.ink }}>
             {headline}
           </span>
-          <Body profile={profile} size={14} color={surface.ink} style={{ gridColumn: '3 / 9', opacity: 0.7, marginTop: 32, lineHeight: 1.6 }}>
+          <Body profile={profile} size={14} color={surface.ink} style={{ gridColumn: '1 / 8', opacity: 0.7, marginTop: 32, lineHeight: 1.6 }}>
             {subhead}
           </Body>
         </div>
@@ -124,9 +118,6 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
       return (
         <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 60 }}>
           <div>
-            <Body profile={profile} size={11} color={surface.ink} style={{ fontFamily: fonts.body, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 22 }}>
-              02 / Manifesto / mission.txt
-            </Body>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 70), fontWeight: style.typography.headingWeight, letterSpacing: style.typography.headingTracking, lineHeight: 1.1, color: surface.ink }}>
               {headline}
             </span>
@@ -153,9 +144,6 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 320), fontWeight: 700, lineHeight: 0.7, color: surface.accent, letterSpacing: '-0.06em' }}>
               02
             </span>
-            <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.55, marginTop: 14 }}>
-              Section · Manifesto
-            </Body>
           </div>
           <div style={{ alignSelf: 'center', borderLeft: `1px solid ${surface.border}`, paddingLeft: 60 }}>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 92), fontWeight: style.typography.headingWeight, lineHeight: 1.04, color: surface.ink, fontStyle: 'italic' }}>
@@ -187,9 +175,6 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
       return (
         <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap, alignContent: 'center' }}>
           <div>
-            <Body profile={profile} size={12} color={surface.ink} style={{ opacity: 0.55, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 14 }}>
-              Section · 02
-            </Body>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 86), fontWeight: style.typography.headingWeight, lineHeight: 1.05, color: surface.ink, letterSpacing: style.typography.headingTracking }}>
               {headline}
             </span>

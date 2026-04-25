@@ -30,16 +30,12 @@ export function TypographyStyled({ index, profile, style, total }: StyledSlidePr
 function TypographyBody({ style, surface, fonts, family, profile }: any) {
   const padX = style.spacing.pad;
 
-  // Common header + sample
+  // Common header. Section label is owned by chrome (TopBar) — the
+  // body just renders the typeface name as the headline.
   const Header = () => (
-    <>
-      <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-        §05 · Typography
-      </Body>
-      <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-        {family}.
-      </span>
-    </>
+    <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
+      {family}.
+    </span>
   );
 
   switch (style.id) {

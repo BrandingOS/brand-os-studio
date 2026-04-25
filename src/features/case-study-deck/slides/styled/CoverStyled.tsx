@@ -153,9 +153,6 @@ function CoverBody({
       return (
         <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16, alignItems: 'end' }}>
           <div style={{ gridColumn: '1 / 7', gridRow: 1, alignSelf: 'start', marginTop: 180 }}>
-            <Body profile={profile} size={11} color={surface.ink} style={{ letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 14 }}>
-              §00 / Cover
-            </Body>
             <Body profile={profile} size={14} color={surface.ink} style={{ lineHeight: 1.55, opacity: 0.78, maxWidth: 460 }}>
               {tagline}
             </Body>

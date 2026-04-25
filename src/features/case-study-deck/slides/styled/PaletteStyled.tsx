@@ -31,16 +31,12 @@ export function PaletteStyled({ index, profile, style, total }: StyledSlideProps
 function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
   const padX = style.spacing.pad;
 
-  // Common header
+  // Common header. Section/page indicators are owned by the chrome's
+  // TopBar (see styles/chrome.tsx); the body just shows the headline.
   const Header = () => (
-    <>
-      <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: style.typography.eyebrowTransform === 'uppercase' ? 'uppercase' : 'none', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-        §04 · Color System
-      </Body>
-      <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-        Palette.
-      </span>
-    </>
+    <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
+      Palette.
+    </span>
   );
 
   switch (style.id) {

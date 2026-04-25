@@ -49,9 +49,6 @@ export function MoodboardStyled({ index, profile, style, total, overrides }: Sty
     <SlideFrame index={index} archetype="moodboard" variant={style.id} background={bg} ink={surface.ink}>
       <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: style.spacing.columnGap }}>
         <div>
-          <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-            §03 · Moodboard
-          </Body>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Mood &<br />reference.
           </span>
@@ -139,10 +136,9 @@ export function SignatureStyled({ index, profile, style, total }: StyledSlidePro
           Seed · {profile.id.slice(0, 8)}<br />Generative · {style.name}<br />© {new Date().getFullYear()}
         </Body>
       </div>
-      <div style={{ position: 'absolute', top: 80, left: padX, right: padX, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 2 }}>
-        <Body profile={profile} size={12} color={ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.85, fontFamily: fonts.body }}>
-          §06 · Signature · {style.name}
-        </Body>
+      {/* Section label is rendered by the chrome's TopBar; signature uses
+          its own bottom-aligned headline + corner logo for emphasis. */}
+      <div style={{ position: 'absolute', top: 80, right: padX, zIndex: 2 }}>
         <LogoMark profile={profile} variant={ink === '#FFFFFF' || ink === '#FFF' ? 'white' : 'black'} height={32} color={ink} />
       </div>
     </SlideFrame>
@@ -163,9 +159,6 @@ export function EnvironmentalStyled({ index, profile, style, total }: StyledSlid
       <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap }}>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-              §07 · Environmental
-            </Body>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
               Built<br />for the<br />street.
             </span>
@@ -206,9 +199,6 @@ export function DigitalStyled({ index, profile, style, total }: StyledSlideProps
     <SlideFrame index={index} archetype="digital" variant={style.id} background={bg} ink={surface.ink}>
       <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
-          <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-            §08 · Digital
-          </Body>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             On every screen.
           </span>
@@ -268,9 +258,6 @@ export function StationeryStyled({ index, profile, style, total }: StyledSlidePr
     <SlideFrame index={index} archetype="stationery" variant={style.id} background={bg} ink={surface.ink}>
       <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
-          <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-            §09 · Stationery
-          </Body>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Three objects, one system.
           </span>
@@ -311,9 +298,6 @@ export function OutdoorStyled({ index, profile, style, total }: StyledSlideProps
     <SlideFrame index={index} archetype="outdoor" variant={style.id} background={bg} ink={surface.ink}>
       <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
-          <Body profile={profile} size={12} color={surface.ink} style={{ letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase', opacity: 0.55, marginBottom: 14, fontFamily: fonts.body }}>
-            §10 · Outdoor
-          </Body>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Out in the wild.
           </span>
