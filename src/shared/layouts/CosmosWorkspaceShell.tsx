@@ -150,11 +150,14 @@ export function CosmosWorkspaceShell({
     if (!nav) return;
     const active = nav.querySelector<HTMLElement>('.segmented-nav-item.is-active');
     if (!active) return;
-    const navRect = nav.getBoundingClientRect();
-    const aRect = active.getBoundingClientRect();
+    // Use layout offsets (immune to ancestor transforms) rather than
+    // getBoundingClientRect. The open keyframe applies `scale(0.96)`
+    // for ~440ms; if measurePill runs during that window the rect
+    // comes back scaled and the pill sticks in the wrong place until
+    // the next nav. offsetLeft/offsetWidth give pre-transform coords.
     const next = {
-      left: aRect.left - navRect.left,
-      width: aRect.width,
+      left: active.offsetLeft,
+      width: active.offsetWidth,
     };
     lastPillStyle = next;
     setPillStyle(next);
