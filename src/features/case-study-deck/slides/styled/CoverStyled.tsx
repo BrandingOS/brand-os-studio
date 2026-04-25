@@ -299,43 +299,46 @@ function CoverBody({
       );
 
     case 'magazine': {
+      // Magazine has chrome (tabular topbar + bottombar) handle masthead/meta.
+      // Body owns CONTENT only — sits strictly inside contentRegion. The
+      // hero auto-fits the tagline; the credit row is reserved space below.
       const region = contentRegion(style);
-      // Reserve space for masthead (top) and credit caption (bottom).
-      const heroWidth = region.width;
-      const heroHeight = region.height - 100; // ~100px for the credit row + breathing
+      const creditH = 80;
+      const heroH = region.height - creditH - 20;
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-          {/* Masthead */}
-          <div style={{ position: 'absolute', top: 130, left: style.spacing.pad, right: style.spacing.pad, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', borderBottom: `2px solid ${surface.ink}`, paddingBottom: 16 }}>
-            <span style={{ fontFamily: fonts.heading, fontSize: 36, fontWeight: 700, color: surface.ink, letterSpacing: '-0.02em' }}>The {profile.name} Quarterly</span>
-            <Body profile={profile} size={11} color={surface.ink} style={{ letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7 }}>
-              Issue 01 · Brand Identity
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-start',
+          }}
+        >
+          <FitText
+            maxSize={headingSize(style, 200)}
+            minSize={48}
+            width={region.width}
+            height={heroH}
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: style.typography.headingWeight,
+              lineHeight: 0.96,
+              letterSpacing: style.typography.headingTracking,
+              color: surface.ink,
+              fontStyle: 'italic',
+            }}
+          >
+            {tagline}
+          </FitText>
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ width: 56, height: 1, background: surface.accent }} />
+            <Body profile={profile} size={14} color={surface.ink} style={{ letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: fonts.body }}>
+              A Brand Document by {credit}
             </Body>
-          </div>
-          {/* Main hero — auto-fits the tagline to the available region. */}
-          <div style={{ marginBottom: 200 }}>
-            <FitText
-              maxSize={headingSize(style, 200)}
-              minSize={48}
-              width={heroWidth}
-              height={heroHeight}
-              style={{
-                fontFamily: fonts.heading,
-                fontWeight: style.typography.headingWeight,
-                lineHeight: 0.96,
-                letterSpacing: style.typography.headingTracking,
-                color: surface.ink,
-                fontStyle: 'italic',
-              }}
-            >
-              {tagline}
-            </FitText>
-            <div style={{ marginTop: 28, display: 'flex', alignItems: 'center', gap: 20 }}>
-              <div style={{ width: 56, height: 1, background: surface.accent }} />
-              <Body profile={profile} size={14} color={surface.ink} style={{ letterSpacing: '0.16em', textTransform: 'uppercase', fontFamily: fonts.body }}>
-                A Brand Document by {credit}
-              </Body>
-            </div>
           </div>
         </div>
       );

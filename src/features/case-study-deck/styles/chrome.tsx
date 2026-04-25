@@ -170,6 +170,26 @@ export function BottomBar({ style, profile, surface, pageNum, sectionLabel, tota
   }
 
   if (style.chrome.bottomBar === 'tagline') {
+    // Cover already IS the tagline moment — printing it here duplicates
+    // the body. Fall back to a minimal page-num row instead.
+    if (sectionLabel === 'Cover') {
+      return (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 64,
+            left: padX,
+            right: padX,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={baseLabelStyle}>{profile.name} · {sectionLabel}</div>
+          <div style={baseLabelStyle}>{pageNum} / {String(total).padStart(2, '0')}</div>
+        </div>
+      );
+    }
     return (
       <div
         style={{
