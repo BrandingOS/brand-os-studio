@@ -322,7 +322,18 @@ export class MockupRenderer {
   }
 
   private async makeMaskSprite(maskUrl: string, template: TemplateMeta): Promise<Sprite | null> {
-    const tex = await this.safeLoadTexture(maskUrl);
+    // PixiJS sprite masks use `red * alpha / 255` per pixel. We accept two
+    // authoring conventions and normalize both to "white = visible, black =
+    // clipped, all opaque":
+    //   1. Procedural — white opaque inside zone, black opaque outside.
+    //   2. Hand-authored Photoshop — transparent inside zone, opaque black
+    //      outside (artists often paint everything *except* the design area).
+    // The normalization formula `visible = max(r * a, 255 - a)` returns 255
+    // for both white-opaque and any transparent pixel, and 0 for opaque
+    // black — so both conventions render correctly.
+    const normalized = await normalizeMaskUrl(maskUrl);
+    if (!normalized) return null;
+    const tex = await this.safeLoadTexture(normalized);
     if (!tex) return null;
     const sprite = new Sprite(tex);
     sprite.width = template.canvas.width;
@@ -615,6 +626,50 @@ export class MockupRenderer {
         record.lighting.alpha = intensity * shadowMult;
       }
     }
+  }
+}
+
+/** Cache for normalized mask data URLs — keyed by source URL. Mask
+ *  normalization is pure for a given source, so we never need to re-run it. */
+const maskNormalizeCache = new Map<string, string>();
+
+/**
+ * Normalize a mask image to PixiJS's expected format ("white opaque =
+ * visible, black opaque = clipped, all alpha=255"). Accepts either
+ * white-on-black-opaque or transparent-on-black-opaque source masks and
+ * collapses both to the canonical form. Returns the source URL untouched
+ * on failure so the renderer can degrade gracefully.
+ */
+async function normalizeMaskUrl(url: string): Promise<string | null> {
+  if (!url) return null;
+  const cached = maskNormalizeCache.get(url);
+  if (cached) return cached;
+  try {
+    const img = await loadImageElement(url);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return url;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i];
+      const a = px[i + 3];
+      // visible if either: (a) opaque white-ish, or (b) transparent
+      const visible = Math.max((r * a) / 255, 255 - a);
+      const v = visible >= 128 ? 255 : 0;
+      px[i] = px[i + 1] = px[i + 2] = v;
+      px[i + 3] = 255;
+    }
+    ctx.putImageData(data, 0, 0);
+    const out = canvas.toDataURL('image/png');
+    maskNormalizeCache.set(url, out);
+    return out;
+  } catch (err) {
+    console.warn('[MockupRenderer] mask normalize failed', url, err);
+    return url;
   }
 }
 

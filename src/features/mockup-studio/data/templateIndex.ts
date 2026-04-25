@@ -58,6 +58,37 @@ interface PhotoTemplateSeed {
 }
 
 /**
+ * Hand-authored mockups: a base photo plus pre-baked mask/displacement/lighting
+ * PNGs. These render with real surface curvature/clipping — no procedural
+ * approximations. Drop the four layers under `public/mockup-templates/<id>/`
+ * and reference them with absolute URLs.
+ */
+interface RealAssetSeed {
+  id: string;
+  name: string;
+  category: TemplateMeta['category'];
+  canvas: { width: number; height: number };
+  baseUrl: string;
+  maskUrl: string;
+  displacementUrl?: string;
+  lightingUrl?: string;
+  thumbnailUrl?: string;
+  /** Bounding rect of the design zone in fractional coords. The mask itself does the clipping. */
+  designZone: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+  };
+  zoneLabel: string;
+  /** 0 = no displacement (flat surface). Subtle: 4–8. Strong (cloth): 12–20. */
+  displacementScale?: number;
+  brandKitHint: 'logo_primary' | 'logo_iconmark' | 'logo_wordmark' | 'logo_secondary';
+  brandKitFallbacks?: Array<'logo_primary' | 'logo_iconmark' | 'logo_wordmark' | 'logo_secondary'>;
+}
+
+/**
  * Helper: build an Unsplash URL with consistent parameters. We always
  * crop to a square so the canvas aspect ratio is predictable.
  */
@@ -153,11 +184,77 @@ const seeds: PhotoTemplateSeed[] = [
   },
 ];
 
+const realAssetSeeds: RealAssetSeed[] = [
+  {
+    id: 'billboard-tilted',
+    name: 'Tilted billboard — metal frame',
+    category: 'signage',
+    canvas: { width: 1842, height: 2000 },
+    baseUrl: '/mockup-templates/billboard-tilted/base.png',
+    maskUrl: '/mockup-templates/billboard-tilted/mask.png',
+    // Displacement layer is essentially flat white (rigid surface). Skipping
+    // it saves a texture upload and a filter that wouldn't move pixels anyway.
+    lightingUrl: '/mockup-templates/billboard-tilted/lighting.png',
+    thumbnailUrl: '/mockup-templates/billboard-tilted/base.png',
+    // Quad bounds: tl≈(0,0.08) tr≈(0.92,0.18) br≈(0.92,0.74) bl≈(0,0.66).
+    // Center the design slightly above mid-canvas to sit inside the quad.
+    designZone: { x: 0.04, y: 0.14, width: 0.86, height: 0.5 },
+    zoneLabel: 'Display surface',
+    // Displacement layer is essentially flat white — surface is rigid.
+    displacementScale: 0,
+    brandKitHint: 'logo_primary',
+    brandKitFallbacks: ['logo_wordmark', 'logo_iconmark'],
+  },
+];
+
 let cached: TemplateMeta[] | null = null;
+
+function buildRealAssetTemplates(): TemplateMeta[] {
+  return realAssetSeeds.map((seed) => {
+    const cx = (seed.designZone.x + seed.designZone.width / 2) * seed.canvas.width;
+    const cy = (seed.designZone.y + seed.designZone.height / 2) * seed.canvas.height;
+    const w = seed.designZone.width * seed.canvas.width;
+    const h = seed.designZone.height * seed.canvas.height;
+
+    return {
+      id: seed.id,
+      name: seed.name,
+      category: seed.category,
+      canvas: seed.canvas,
+      assets: {
+        base: seed.baseUrl,
+        thumbnail: seed.thumbnailUrl ?? seed.baseUrl,
+      },
+      backgroundReplaceable: false,
+      zones: [
+        {
+          id: 'design',
+          label: seed.zoneLabel,
+          mask: seed.maskUrl,
+          displacement: seed.displacementUrl,
+          lighting: seed.lightingUrl,
+          displacementScale: seed.displacementScale ?? 0,
+          defaultTransform: {
+            x: cx,
+            y: cy,
+            width: w,
+            height: h,
+            rotation: seed.designZone.rotation ?? 0,
+          },
+          constraints: { minScale: 0.25, maxScale: 1.6, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: seed.brandKitHint,
+            fallbackAssets: seed.brandKitFallbacks,
+          },
+        },
+      ],
+    };
+  });
+}
 
 export function getBundledTemplates(): TemplateMeta[] {
   if (cached) return cached;
-  cached = seeds.map((seed) => {
+  const proceduralTemplates = seeds.map((seed) => {
     const mask = generateZoneMask({
       canvas: seed.canvas,
       zone: seed.designZone,
@@ -212,6 +309,8 @@ export function getBundledTemplates(): TemplateMeta[] {
       ],
     };
   });
+  // Real-asset templates first — they're the showcase quality bar.
+  cached = [...buildRealAssetTemplates(), ...proceduralTemplates];
   return cached;
 }
 
