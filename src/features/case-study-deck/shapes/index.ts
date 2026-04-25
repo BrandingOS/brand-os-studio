@@ -7,14 +7,15 @@
  * variants the user can swap on a single slide without changing the
  * deck-wide style.
  *
- * Today: Typography is the proof-of-concept (10 shapes). The other
- * archetypes still render via their style-driven body in slides/styled/.
- * They expose a single 'default' shape so the inspector UI can
- * surface the category label uniformly.
+ * Real catalogs: Typography, Moodboard, Signature, Environmental.
+ * Other archetypes still render via their style-driven body in
+ * slides/styled/ and expose a single 'default' shape so the
+ * inspector UI surfaces the category label uniformly.
  */
 
 import { TYPOGRAPHY_CATALOG } from './typography';
 import { MOODBOARD_CATALOG } from './moodboard';
+import { SIGNATURE_CATALOG } from './signature';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -22,6 +23,7 @@ import { ARCHETYPE_LABELS } from '../slides/renderer';
 export type { SlideShape, ShapeCatalog, ShapeRenderProps } from './types';
 export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
 export { MOODBOARD_CATALOG, MOODBOARD_SHAPES } from './moodboard';
+export { SIGNATURE_CATALOG, SIGNATURE_SHAPES } from './signature';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -46,7 +48,7 @@ export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
   moodboard: MOODBOARD_CATALOG,
   palette: stubCatalog('palette'),
   typography: TYPOGRAPHY_CATALOG,
-  signature: stubCatalog('signature'),
+  signature: SIGNATURE_CATALOG,
   environmental: stubCatalog('environmental'),
   digital: stubCatalog('digital'),
   stationery: stubCatalog('stationery'),

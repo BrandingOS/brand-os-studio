@@ -25,7 +25,7 @@ import {
 } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body, LogoMark } from '../shared';
-import { shiftLightness, seedRandom } from '../../utils';
+import { shiftLightness } from '../../utils';
 import { resolveShape } from '../../shapes';
 import type { StyledSlideProps } from './CoverStyled';
 import type { BrandProfile } from '../../types';
@@ -67,53 +67,23 @@ export function MoodboardStyled({ index, profile, style, total, overrides, shape
 
 /* ─────────────────────────  SIGNATURE  ─────────────────────── */
 
-export function SignatureStyled({ index, profile, style, total }: StyledSlideProps) {
+export function SignatureStyled({ index, profile, style, overrides, shapeId }: ShapedSlideProps) {
   const surface = resolveSurface(style, profile);
   // Always tilt signature toward brand-flood for impact regardless of style bg
   const bg = style.color.bgRole === 'brand' ? surface.bg : profile.palette.primary;
   const ink = bg === profile.palette.primary ? (surface.ink === '#FFFFFF' || profile.palette.primaryIsDark ? '#FFF' : '#0A0A0A') : surface.ink;
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
+  // Build a synthetic surface so shapes inherit ink/border that read on the brand-flood bg.
+  const sigSurface: SurfaceTokens = { ...surface, bg, ink, subtle: shiftLightness(bg, ink === '#FFF' ? 0.1 : -0.1), border: shiftLightness(bg, ink === '#FFF' ? 0.18 : -0.18) };
   const padX = style.spacing.pad;
-  const rand = seedRandom(profile.id + profile.name + style.id);
-  const swatches = profile.palette.swatches.slice(0, 4).map((s) => s.hex);
-  if (swatches.length < 2) swatches.push(profile.palette.ink);
-
-  // Generate generative tiles
-  const tiles: JSX.Element[] = [];
-  const cols = 12;
-  const rows = 7;
-  const size = 130;
-  const startX = (1920 - cols * size) / 2;
-  const startY = (1080 - rows * size) / 2;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = startX + c * size;
-      const y = startY + r * size;
-      const roll = rand();
-      const colorIdx = Math.floor(rand() * swatches.length);
-      const color = swatches[colorIdx];
-      if (roll < 0.3) {
-        tiles.push(<rect key={`s-${r}-${c}`} x={x + 22} y={y + 22} width={size - 44} height={size - 44} fill={color} opacity={0.85} />);
-      } else if (roll < 0.6) {
-        tiles.push(<circle key={`c-${r}-${c}`} cx={x + size / 2} cy={y + size / 2} r={size * 0.28} fill={color} opacity={0.85} />);
-      } else if (roll < 0.78) {
-        tiles.push(<path key={`a-${r}-${c}`} d={`M ${x} ${y + size} A ${size} ${size} 0 0 1 ${x + size} ${y}`} fill="none" stroke={color} strokeWidth={Math.max(6, Math.floor(rand() * 18))} strokeLinecap="round" opacity={0.9} />);
-      }
-    }
-  }
-
-  // Bottom headline + meta sit inside contentRegion; the generative
-  // tessellation owns the full canvas behind them.
   const region = contentRegion(style);
   const metaW = 280;
   const headW = region.width - metaW - 32;
+  const shape = resolveShape('signature', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="signature" variant={style.id} background={bg} ink={ink}>
-      <svg viewBox="0 0 1920 1080" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', mixBlendMode: 'multiply' }}>
-        {tiles}
-      </svg>
+      {shape ? shape.render({ profile, style, surface: sigSurface, fonts, region, overrides }) : null}
       <div
         style={{
           position: 'absolute',
