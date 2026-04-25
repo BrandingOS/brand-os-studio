@@ -7,16 +7,18 @@
  * variants the user can swap on a single slide without changing the
  * deck-wide style.
  *
- * Today: Typography is the proof-of-concept (10 shapes). The other
- * archetypes still render via their style-driven body in slides/styled/.
- * They expose a single 'default' shape so the inspector UI can
- * surface the category label uniformly.
+ * All 10 archetypes now ship with a 10-shape catalog. The stub helper
+ * remains for any future archetype that's added before its catalog
+ * lands.
  */
 
 import { TYPOGRAPHY_CATALOG } from './typography';
 import { COVER_CATALOG } from './cover';
 import { MANIFESTO_CATALOG } from './manifesto';
 import { PALETTE_CATALOG } from './palette';
+import { MOODBOARD_CATALOG } from './moodboard';
+import { SIGNATURE_CATALOG } from './signature';
+import { ENVIRONMENTAL_CATALOG } from './environmental';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -26,6 +28,9 @@ export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
 export { COVER_CATALOG, COVER_SHAPES } from './cover';
 export { MANIFESTO_CATALOG, MANIFESTO_SHAPES } from './manifesto';
 export { PALETTE_CATALOG, PALETTE_SHAPES } from './palette';
+export { MOODBOARD_CATALOG, MOODBOARD_SHAPES } from './moodboard';
+export { SIGNATURE_CATALOG, SIGNATURE_SHAPES } from './signature';
+export { ENVIRONMENTAL_CATALOG, ENVIRONMENTAL_SHAPES } from './environmental';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -47,11 +52,11 @@ function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
 export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
   cover: COVER_CATALOG,
   manifesto: MANIFESTO_CATALOG,
-  moodboard: stubCatalog('moodboard'),
+  moodboard: MOODBOARD_CATALOG,
   palette: PALETTE_CATALOG,
   typography: TYPOGRAPHY_CATALOG,
-  signature: stubCatalog('signature'),
-  environmental: stubCatalog('environmental'),
+  signature: SIGNATURE_CATALOG,
+  environmental: ENVIRONMENTAL_CATALOG,
   digital: stubCatalog('digital'),
   stationery: stubCatalog('stationery'),
   outdoor: stubCatalog('outdoor'),
