@@ -5,7 +5,7 @@
 
 import type { CSSProperties } from 'react';
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize, fitHeadingSize, chromeTopPad } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, fitHeadingSize, chromeTopPad, FitText, contentRegion } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import { shiftLightness } from '../../utils';
@@ -34,15 +34,27 @@ export function ManifestoStyled({ index, profile, style, overrides, total }: Sty
 function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: any) {
   const padX = style.spacing.pad;
   const topPad = chromeTopPad(style);
-  const headingFs = headingSize(style, 90);
+  const region = contentRegion(style);
 
   switch (style.id) {
     case 'bold':
       return (
         <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 130), fontWeight: style.typography.headingWeight, lineHeight: 0.95, letterSpacing: style.typography.headingTracking, color: surface.ink, maxWidth: 1500 }}>
+          <FitText
+            maxSize={headingSize(style, 150)}
+            minSize={48}
+            width={region.width}
+            height={region.height}
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: style.typography.headingWeight,
+              lineHeight: 0.95,
+              letterSpacing: style.typography.headingTracking,
+              color: surface.ink,
+            }}
+          >
             {headline}
-          </span>
+          </FitText>
         </div>
       );
 
@@ -104,16 +116,27 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
         </div>
       );
 
-    case 'monolith': {
-      const txt = headline.length > 88 ? headline.slice(0, 86) + '…' : headline;
+    case 'monolith':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 180, paddingBottom: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <span style={{ fontFamily: fonts.heading, fontSize: fitHeadingSize(style, 130, txt, 28), fontWeight: style.typography.headingWeight, lineHeight: 1.0, letterSpacing: style.typography.headingTracking, color: surface.ink, maxWidth: 1500 }}>
-            "{txt}"
-          </span>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 180, paddingBottom: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FitText
+            maxSize={headingSize(style, 150)}
+            minSize={48}
+            width={Math.min(region.width, 1500)}
+            height={region.height - 100}
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: style.typography.headingWeight,
+              lineHeight: 1.0,
+              letterSpacing: style.typography.headingTracking,
+              color: surface.ink,
+              textAlign: 'center',
+            }}
+          >
+            "{headline}"
+          </FitText>
         </div>
       );
-    }
 
     case 'technical':
       return (

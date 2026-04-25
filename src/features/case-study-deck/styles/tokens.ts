@@ -153,3 +153,82 @@ export function chromeBottomPad(style: DeckStyle): number {
   }
   return 110;
 }
+
+/* ─────────────────────────  layout regions  ───────────────────────── */
+
+/** Bounds of a rectangular region inside the 1920×1080 slide. */
+export interface SlideRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Total slide canvas. */
+export const CANVAS = { width: 1920, height: 1080 } as const;
+
+/**
+ * The body content region — what the slide body has to work with after
+ * chrome reservations. Use this for absolute placements + as the
+ * bounding box for FitText. Every slide MUST stay inside this region.
+ */
+export function contentRegion(style: DeckStyle): SlideRect {
+  const padX = style.spacing.pad;
+  const top = chromeTopPad(style);
+  const bottom = chromeBottomPad(style);
+  return {
+    x: padX,
+    y: top,
+    width: CANVAS.width - padX * 2,
+    height: CANVAS.height - top - bottom,
+  };
+}
+
+/**
+ * Common layouts: split into named regions. Each archetype picks one
+ * and reads its own region by name. Regions don't overlap and don't
+ * exceed `contentRegion(style)`.
+ *
+ *   single:        one column running full content width
+ *   split:         left half + right half (50/50)
+ *   asymmetric-l:  ~37% left + ~63% right (info / hero pattern)
+ *   asymmetric-r:  ~63% left + ~37% right (hero / info pattern)
+ */
+export type RegionLayout = 'single' | 'split' | 'asymmetric-l' | 'asymmetric-r';
+
+export interface RegionPair {
+  primary: SlideRect;
+  secondary?: SlideRect;
+}
+
+export function regionsFor(style: DeckStyle, layout: RegionLayout): RegionPair {
+  const c = contentRegion(style);
+  const gap = style.spacing.columnGap;
+  switch (layout) {
+    case 'single':
+      return { primary: c };
+    case 'split': {
+      const half = (c.width - gap) / 2;
+      return {
+        primary: { x: c.x, y: c.y, width: half, height: c.height },
+        secondary: { x: c.x + half + gap, y: c.y, width: half, height: c.height },
+      };
+    }
+    case 'asymmetric-l': {
+      const left = Math.round((c.width - gap) * 0.37);
+      const right = c.width - gap - left;
+      return {
+        primary: { x: c.x, y: c.y, width: left, height: c.height },
+        secondary: { x: c.x + left + gap, y: c.y, width: right, height: c.height },
+      };
+    }
+    case 'asymmetric-r': {
+      const left = Math.round((c.width - gap) * 0.63);
+      const right = c.width - gap - left;
+      return {
+        primary: { x: c.x, y: c.y, width: left, height: c.height },
+        secondary: { x: c.x + left + gap, y: c.y, width: right, height: c.height },
+      };
+    }
+  }
+}
