@@ -6,6 +6,7 @@ import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
+import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
 
 /**
  * Seed brands are always available regardless of database state.
@@ -31,15 +32,18 @@ export class SupabaseBrandsService implements IBrandsService {
     const dbBrands = (data ?? []).map(this.mapFromDatabase);
     const dbBrandIds = new Set(dbBrands.map((b) => b.id));
 
-    // Merge: DB brands first, then seed brands that aren't overridden
-    const seeds = SEED_BRANDS.filter((b) => !dbBrandIds.has(b.id));
+    // Merge: DB brands first, then seed brands (with any user overrides
+    // applied via the seed-override layer) that aren't already represented.
+    const seeds = SEED_BRANDS
+      .filter((b) => !dbBrandIds.has(b.id))
+      .map(applySeedOverride);
     return migrateBrands([...dbBrands, ...seeds]);
   }
 
   async getById(id: string): Promise<Brand | null> {
-    // Check seed brands first
+    // Check seed brands first — apply any saved user overrides on top.
     const seed = SEED_BRANDS.find((b) => b.id === id);
-    if (seed) return migrateBrandToCurrent(seed);
+    if (seed) return migrateBrandToCurrent(applySeedOverride(seed));
 
     const { data, error } = await supabase
       .from('brands')
@@ -52,9 +56,9 @@ export class SupabaseBrandsService implements IBrandsService {
   }
 
   async getBySlug(slug: string): Promise<Brand | null> {
-    // Check seed brands first
+    // Check seed brands first — apply any saved user overrides on top.
     const seed = SEED_BRANDS.find((b) => b.slug === slug);
-    if (seed) return migrateBrandToCurrent(seed);
+    if (seed) return migrateBrandToCurrent(applySeedOverride(seed));
 
     const { data, error } = await supabase
       .from('brands')
@@ -101,10 +105,15 @@ export class SupabaseBrandsService implements IBrandsService {
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<Brand> {
-    // Seed brands can't be updated in Supabase — return the patched seed locally
+    // Seed brands can't be updated as DB rows. Persist the patch in
+    // localStorage via the seed-override layer so it survives reload
+    // and propagates to every consumer reading the brand.
     if (SEED_BRAND_IDS.has(id)) {
       const seed = SEED_BRANDS.find((b) => b.id === id);
-      if (seed) return { ...seed, ...patch, updatedAt: new Date() };
+      if (seed) {
+        patchSeedOverride(id, { ...patch, updatedAt: new Date() });
+        return migrateBrandToCurrent(applySeedOverride(seed));
+      }
     }
 
     const updateData: Record<string, unknown> = {};

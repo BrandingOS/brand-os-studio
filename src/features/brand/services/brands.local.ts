@@ -5,6 +5,7 @@ import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
 import { safeLocalStorageSet } from '@/shared/utils/imageUpload';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
+import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
 
 export interface BrandsService {
   list(): Promise<Brand[]>;
@@ -37,9 +38,12 @@ export class LocalBrandsService implements BrandsService {
 
   private getAllBrands(): Brand[] {
     const userBrands = this.getUserBrands();
-    // Merge: seed brands that aren't overridden in localStorage + user brands
+    // Merge: seed brands (with any saved overrides applied) that aren't
+    // already represented in user brands + the user brands.
     const userBrandIds = new Set(userBrands.map(b => b.id));
-    const missingSeeds = SEED_BRANDS.filter(sb => !userBrandIds.has(sb.id));
+    const missingSeeds = SEED_BRANDS
+      .filter(sb => !userBrandIds.has(sb.id))
+      .map(applySeedOverride);
     return [...missingSeeds, ...userBrands];
   }
 
@@ -80,8 +84,15 @@ export class LocalBrandsService implements BrandsService {
     if (index === -1) throw new Error(`Brand with id ${id} not found`);
     const updatedBrand = { ...allBrands[index], ...patch, updatedAt: new Date() };
 
-    // For seed brands being edited for the first time, persist the modified
-    // version to localStorage so user edits survive refreshes.
+    // Seed brands persist as a slim diff in `seedBrandOverrides` so the
+    // canonical seed in /src/data/brands stays the source of truth and
+    // edits propagate to every consumer that reads the brand.
+    if (SEED_BRAND_IDS.has(id)) {
+      patchSeedOverride(id, { ...patch, updatedAt: new Date() });
+      return updatedBrand;
+    }
+
+    // User-authored brands persist as full snapshots in `brandos:brands`.
     const userBrands = this.getUserBrands();
     const userIdx = userBrands.findIndex(b => b.id === id);
     if (userIdx >= 0) {
