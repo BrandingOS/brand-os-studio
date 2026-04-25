@@ -7,17 +7,22 @@
  *
  * On mount we fetch the brand by slug, pass it through
  * `applyBrandKit(template, brand)`, and seed the editor with the result.
- * User can then override anything.
+ *
+ * Shares the exact same chrome as the standalone page (cosmos shell +
+ * 3-col `ms-shell` grid). The cosmos shell auto-detects `/b/:slug/*` and
+ * swaps the top-left BrandOS mark for a BrandSwitcher, so brand context
+ * comes for free.
  */
 
-import { Sparkles, Undo2, Redo2, RefreshCw } from 'lucide-react';
+import { RefreshCw, Redo2, Undo2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { SERVICE_KEYS, useService } from '@/core';
 import type { IBrandsService, IMockupTemplatesService } from '@/core/types/services';
+import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import type { Brand } from '@/shared/types/brand';
 
 import { ExportButton } from '../../components/ExportButton';
@@ -28,6 +33,7 @@ import type { TemplateMeta } from '../../engine/types';
 import { useMockupStore } from '../../state/mockupStore';
 import { useMockupTemplates } from '../../hooks/useMockupTemplates';
 import { applyBrandKit } from './applyBrandKit';
+import '../standalone/mockup-studio.css';
 
 export default function BrandMockupStudioPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -136,108 +142,101 @@ export default function BrandMockupStudioPage() {
 
   if (brandError) {
     return (
-      <div className="flex h-screen items-center justify-center p-8">
-        <div className="max-w-md rounded-lg border border-border/60 bg-card p-6 text-center">
-          <h2 className="text-lg font-semibold">Can't find that brand</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{brandError}</p>
-          <Button
-            className="mt-4"
-            variant="outline"
-            onClick={() => navigate('/dashboard/brands')}
-          >
-            Go to brands
-          </Button>
+      <CosmosWorkspaceShell>
+        <div className="ms-shell" style={{ gridTemplateColumns: '1fr', placeItems: 'center' }}>
+          <div className="panel" style={{ padding: 24, maxWidth: 420, textAlign: 'center' }}>
+            <h2 className="panel-heading-title" style={{ fontSize: 24, marginBottom: 8 }}>
+              Can't find that brand
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+              {brandError}
+            </p>
+            <Button variant="outline" onClick={() => navigate('/dashboard/brands')}>
+              Go to brands
+            </Button>
+          </div>
         </div>
-      </div>
+      </CosmosWorkspaceShell>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-background">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border/60 bg-background px-4">
-        <div className="flex items-center gap-3">
-          <Link
-            to={slug ? `/b/${slug}` : '/dashboard'}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            ← {brand?.name ?? 'Brand'}
-          </Link>
-          <div className="h-4 w-px bg-border" />
-          <div className="flex items-center gap-1.5 text-sm font-semibold">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Mockup Studio
+    <CosmosWorkspaceShell
+      rightActions={
+        <button
+          type="button"
+          className="ms-pill-btn ms-pill-btn--ghost"
+          onClick={handleReapplyBrand}
+          disabled={!brand || !template}
+          title="Reapply brand kit"
+        >
+          <RefreshCw size={13} />
+          <span>Reapply brand</span>
+        </button>
+      }
+    >
+      <div className="ms-shell">
+        <aside className="panel ms-panel" aria-label="Templates">
+          <div className="panel-top">
+            <div className="panel-heading">
+              <span className="panel-heading-eyebrow">Mockup Studio</span>
+              <h1 className="panel-heading-title">Pick a template</h1>
+            </div>
+            <p className="ms-panel-blurb">
+              {brand
+                ? `Auto-filled with ${brand.name}'s kit. Swap any zone freely.`
+                : 'Drop your design onto a real product photo. Surface masks, lighting and displacement bake in automatically.'}
+            </p>
           </div>
-          {template && (
-            <span className="text-xs text-muted-foreground">
-              · {template.name}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleReapplyBrand}
-            disabled={!brand || !template}
-            className="h-8"
-            title="Reapply brand kit"
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-            Reapply brand
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={historyLen === 0}
-            onClick={undo}
-            aria-label="Undo"
-            title="Undo (⌘Z)"
-            className="h-8 w-8"
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            disabled={futureLen === 0}
-            onClick={redo}
-            aria-label="Redo"
-            title="Redo (⇧⌘Z)"
-            className="h-8 w-8"
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-          <div className="mx-2 h-4 w-px bg-border" />
-          <ExportButton />
-        </div>
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="w-64 shrink-0 overflow-y-auto border-r border-border/60 bg-background">
-          <div className="border-b border-border/60 px-4 py-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/80">
-              Templates
-            </h2>
-            {brand && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Auto-filled with {brand.name}
-              </p>
-            )}
+          <div className="panel-list ms-template-list">
+            <TemplateGallery
+              templates={templates}
+              activeId={activeId}
+              onPick={handlePick}
+            />
           </div>
-          <TemplateGallery
-            templates={templates}
-            activeId={activeId}
-            onPick={handlePick}
-          />
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <MockupCanvas template={template} state={mockup} />
+        <main className="ms-board">
+          <div className="ms-board-toolbar">
+            <div className="ms-board-toolbar-meta">
+              <span className="panel-heading-eyebrow">Active</span>
+              <span className="ms-board-toolbar-name">
+                {template?.name ?? 'No template selected'}
+              </span>
+            </div>
+            <div className="ms-board-toolbar-actions">
+              <button
+                type="button"
+                className="ms-icon-btn"
+                disabled={historyLen === 0}
+                onClick={undo}
+                aria-label="Undo"
+                title="Undo (⌘Z)"
+              >
+                <Undo2 size={14} />
+              </button>
+              <button
+                type="button"
+                className="ms-icon-btn"
+                disabled={futureLen === 0}
+                onClick={redo}
+                aria-label="Redo"
+                title="Redo (⇧⌘Z)"
+              >
+                <Redo2 size={14} />
+              </button>
+              <span className="ms-toolbar-divider" aria-hidden />
+              <ExportButton />
+            </div>
+          </div>
+          <div className="ms-board-canvas">
+            <MockupCanvas template={template} state={mockup} />
+          </div>
         </main>
 
         <PropertiesSidebar />
       </div>
-    </div>
+    </CosmosWorkspaceShell>
   );
 }

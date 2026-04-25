@@ -41,10 +41,12 @@
 
 [data-cosmos="workspace"] .ms-board-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 16px;
+  /* Match cosmos .panel-top padding so the eyebrow + serif title in the
+   * center toolbar align horizontally with the side panels' headings. */
+  padding: 16px 16px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-elevated);
@@ -82,6 +84,41 @@
   height: 16px;
   background: var(--border);
   margin: 0 6px;
+}
+
+/* Ghost pill — used in the topbar rightActions slot (e.g. "Reapply brand"). */
+[data-cosmos="workspace"] .ms-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 140ms var(--ease),
+    border-color 140ms var(--ease),
+    color 140ms var(--ease);
+}
+[data-cosmos="workspace"] .ms-pill-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+[data-cosmos="workspace"] .ms-pill-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+[data-cosmos="workspace"] .ms-pill-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+[data-cosmos="workspace"] .ms-pill-btn--ghost {
+  background: transparent;
 }
 
 [data-cosmos="workspace"] .ms-icon-btn {
