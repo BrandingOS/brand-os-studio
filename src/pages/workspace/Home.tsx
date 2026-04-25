@@ -58,10 +58,13 @@ function formatRelative(date: Date | string | undefined): string {
 function BrandCard({ brand }: { brand: Brand }) {
   const color = brand.primaryColor || brand.colorSystem?.primary?.hex || '#0d0d0d';
   const letterColor = contrastLetter(color);
-  // Resolve the canonical primary logo through the shared helper.
-  // It handles the v3 logoSystem ref → brandAssets[] lookup and
-  // falls back to legacy `brand.logo` for unmigrated brands.
-  const logoUrl = resolveBrandLogo(brand, 'primary')?.url;
+  // Small square thumbnail prefers the iconmark — it's designed to read at
+  // tile sizes. Fall back to primary, then wordmark, then the letter mark
+  // only if the brand has none of the above.
+  const logoUrl =
+    resolveBrandLogo(brand, 'iconmark')?.url ??
+    resolveBrandLogo(brand, 'primary')?.url ??
+    resolveBrandLogo(brand, 'wordmark')?.url;
 
   return (
     <Link
