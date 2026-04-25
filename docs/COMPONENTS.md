@@ -274,6 +274,24 @@ page imports the same stylesheet rather than forking it.
 
 ---
 
+## Logo + background contrast picker
+
+| Symbol | Path | Purpose |
+|---|---|---|
+| **`pickLogoOnBackground(brand, bgHex)`** | `src/shared/brand/logoOnBackground.ts` | The canonical "which logo for this background?" decider. Scores every available logo role by WCAG contrast against the bg, using labeled tones (`mono.black` → #000, `mono.white` → #fff, colored variants → `brand.primaryColor`). Returns the highest scorer, or `undefined` if even the best is below the readability floor (1.8 ratio). **Every surface that draws a brand logo over a colored background goes through this** — card grids, brand kit, variations, presentation slides, future auto-generated guideline exports. |
+| **`bgTone(bgHex)`** | same | `'light' \| 'dark'` for picking text/icon color on a tinted surface. Threshold matches the WCAG 0.179 cutoff used by Tailwind / shadcn. |
+| **`pickFgOnBackground(bgHex, candidates[])`** | same | Highest-contrast foreground from a candidate hex list. For "what color should this caption be?" — pass `['#000', '#fff']` (or three brand neutrals) and trust it. |
+| **`relativeLuminance(hex)` / `contrastRatio(a, b)`** | same | Primitives. Use these only if you need a raw number for a custom decision; otherwise prefer the wrappers above. |
+
+**Rule.** Never write `lum > 0.5 ? blackLogo : whiteLogo` again. That picks
+right for white-vs-black backgrounds and wrong for the case the user
+actually cares about: a brand-primary-colored surface (red card / blue
+card) where neither black nor white is "obviously right" but a colored
+mono variant could be invisible. The picker's contrast model handles
+all three cases without per-surface special-casing.
+
+---
+
 ## Off-limits surfaces
 
 These exist and work — **do not refactor through them.** Tagged

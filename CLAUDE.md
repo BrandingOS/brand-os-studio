@@ -124,6 +124,26 @@ never hard-code a color/weight/spacing value there.
   editor-topbar switcher) route through `rewriteBrandPath(...)` so picking
   a new brand keeps the user on the same tool/page. Handles `/b/:slug` and
   legacy `/dashboard/brand/:slug` prefixes; preserves query string.
+- **Logo + background contrast picker**: `@/shared/brand/logoOnBackground.ts`.
+  ANY surface that places a brand logo (or text/icon) over a colored
+  background MUST go through this module. It's the one place that decides
+  which logo variant reads on a given bg and avoids same-tone collisions
+  (a primary-color logo on a primary-color background, a black mono on
+  black, a white mono on white). Three exports cover everything:
+    - `pickLogoOnBackground(brand, bgHex)` — best `ResolvedLogo` for a bg.
+      Scores every logo variant by WCAG contrast against the bg using
+      labeled tones (`mono.black` → #000, `mono.white` → #fff, colored
+      variants → `brand.primaryColor`). Returns undefined if even the
+      best candidate is below the readability floor (1.8 ratio) — caller
+      should fall back to a letter mark.
+    - `bgTone(bgHex)` — `'light' | 'dark'` for picking text/icon color.
+    - `pickFgOnBackground(bgHex, candidates[])` — highest-contrast
+      foreground from a candidate list.
+  **Don't write `bg.luminance > 0.5 ? blackLogo : whiteLogo` ever again** —
+  that loses to brand-color-on-brand-color cases. Every brand kit preview,
+  card grid, variation, presentation slide, and future auto-generated
+  guideline export goes through this helper. Caught us 2026-04-25 where
+  SKAM's red logo on a red card was invisible.
 
 ## Radix Portal + scoped CSS (gotcha)
 

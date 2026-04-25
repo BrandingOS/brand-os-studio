@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
+import { bgTone, pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import type { Brand } from '@/shared/types/brand';
 
 /**
@@ -17,24 +17,9 @@ import type { Brand } from '@/shared/types/brand';
  * - Empty: centered card inviting the user to make their first brand.
  */
 
-/** Relative luminance of a #rrggbb hex string (WCAG 2.1). */
-function relativeLuminance(hex: string): number {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return 0;
-  const int = parseInt(m[1]!, 16);
-  const channels = [(int >> 16) & 0xff, (int >> 8) & 0xff, int & 0xff].map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
-}
-
-/** Choose a readable letter color for the brand-card color block. */
+/** Letter-mark color for the brand-card color block — picked off the bg. */
 function contrastLetter(bg: string): string {
-  // Fallback to white on anything that isn't a clean hex — cards
-  // with gradients or unknown formats still want a readable letter.
-  const lum = relativeLuminance(bg);
-  return lum > 0.5 ? 'rgba(13, 13, 13, 0.88)' : 'rgba(255, 255, 255, 0.92)';
+  return bgTone(bg) === 'dark' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(13, 13, 13, 0.88)';
 }
 
 /** Compact "Updated 2 hours ago"-style formatting without date-fns. */
@@ -58,13 +43,11 @@ function formatRelative(date: Date | string | undefined): string {
 function BrandCard({ brand }: { brand: Brand }) {
   const color = brand.primaryColor || brand.colorSystem?.primary?.hex || '#0d0d0d';
   const letterColor = contrastLetter(color);
-  // Small square thumbnail prefers the iconmark — it's designed to read at
-  // tile sizes. Fall back to primary, then wordmark, then the letter mark
-  // only if the brand has none of the above.
-  const logoUrl =
-    resolveBrandLogo(brand, 'iconmark')?.url ??
-    resolveBrandLogo(brand, 'primary')?.url ??
-    resolveBrandLogo(brand, 'wordmark')?.url;
+  // Pick the logo variant that reads against this card's background.
+  // The picker scores every available variant by WCAG contrast and
+  // returns undefined if none clear the readability floor — at which
+  // point we fall through to the letter mark.
+  const logoUrl = pickLogoOnBackground(brand, color)?.url;
 
   return (
     <Link
