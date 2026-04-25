@@ -330,76 +330,23 @@ export function StationeryStyled(props: ShapeAwareProps) {
 
 /* ─────────────────────────  OUTDOOR  ─────────────────────── */
 
-export function OutdoorStyled({ index, profile, style, total }: StyledSlideProps) {
+export function OutdoorStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Banner geometry — outer dark frame + inner brand panel.
-  const bannerW = Math.min(region.width, 1200);
-  const bannerH = 480;
-  const bannerPad = 40;
-  const innerPad = 50;
-  const innerW = bannerW - bannerPad * 2 - innerPad * 2;
-  const innerH = bannerH - bannerPad * 2 - innerPad * 2;
-  // 3 stacked rows: top caption (~30) + center wordmark + bottom caption (~30) with space-between.
-  const captionH = 30;
-  const wordmarkH = innerH - captionH * 2 - 40;
-  // Headline reserve at top.
-  const headerH = 130;
-  const bannerStackH = region.height - headerH - 36;
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Outdoor';
+  const shape = resolveShape('outdoor', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="outdoor" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            Out in the wild.
-          </span>
-        </div>
-        <div style={{ height: bannerStackH, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <div style={{ background: '#1f2937', width: '100%', maxWidth: bannerW, height: bannerH, borderRadius: style.layout.cardCorner, padding: bannerPad, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: style.effect.shadow !== 'none' ? '0 30px 60px -12px rgba(0,0,0,0.4)' : 'none' }}>
-            <div style={{ background: profile.palette.primary, width: '100%', height: '100%', borderRadius: style.layout.cardCorner / 2, padding: innerPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <FitText
-                as="div"
-                maxSize={16}
-                minSize={10}
-                width={innerW}
-                height={captionH}
-                style={{ letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: fonts.body, opacity: 0.85, color: '#FFF' }}
-              >
-                Powering Growth Through {profile.name}
-              </FitText>
-              <FitText
-                as="span"
-                maxSize={280}
-                minSize={56}
-                width={innerW}
-                height={wordmarkH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 900,
-                  color: '#FFF',
-                  letterSpacing: '-0.04em',
-                  lineHeight: 0.85,
-                  textAlign: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {profile.name}
-              </FitText>
-              <Body profile={profile} size={14} color="#FFF" style={{ letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: fonts.body, opacity: 0.85, textAlign: 'right' }}>
-                Mesh banner · {style.name}
-              </Body>
-            </div>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Outdoor" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Outdoor" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
