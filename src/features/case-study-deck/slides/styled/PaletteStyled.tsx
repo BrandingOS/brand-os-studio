@@ -4,7 +4,7 @@
  */
 
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, chromeTopPad } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import type { StyledSlideProps } from './CoverStyled';
@@ -30,6 +30,7 @@ export function PaletteStyled({ index, profile, style, total }: StyledSlideProps
 
 function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   // Common header. Section/page indicators are owned by the chrome's
   // TopBar (see styles/chrome.tsx); the body just shows the headline.
@@ -44,7 +45,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
     case 'monolith':
       // Big circle stack
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
           <div>
             <Header />
             <Body profile={profile} size={16} color={surface.ink} style={{ marginTop: 24, opacity: 0.7, maxWidth: 480, lineHeight: 1.6 }}>
@@ -75,7 +76,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
     case 'editorial':
     case 'magazine':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: style.spacing.columnGap }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: style.spacing.columnGap }}>
           <div>
             <Header />
             <Body profile={profile} size={15} color={surface.ink} style={{ opacity: 0.7, marginTop: 22, lineHeight: 1.7 }}>
@@ -101,7 +102,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
     case 'minimal':
     case 'modern':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 16, marginTop: 60 }}>
             {swatches.map((s: Swatch) => (
@@ -119,7 +120,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
 
     case 'brutalist':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ marginTop: 50, border: `3px solid ${surface.ink}` }}>
             {swatches.map((s: Swatch, i: number) => (
@@ -142,7 +143,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
 
     case 'technical':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ marginTop: 40, border: `1px solid ${surface.border}`, fontFamily: fonts.body, fontSize: 12, color: surface.ink }}>
             <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 130px 180px 130px 1fr', borderBottom: `1px solid ${surface.border}`, padding: '12px 18px', opacity: 0.6, letterSpacing: '0.18em', textTransform: 'uppercase', fontSize: 10 }}>
@@ -164,7 +165,7 @@ function PaletteBody({ style, surface, fonts, swatches, profile }: any) {
 
     case 'playful':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ marginTop: 60, display: 'flex', gap: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
             {swatches.map((s: Swatch, i: number) => (

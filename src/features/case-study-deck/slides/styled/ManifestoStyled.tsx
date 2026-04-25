@@ -5,7 +5,7 @@
 
 import type { CSSProperties } from 'react';
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize, fitHeadingSize } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, fitHeadingSize, chromeTopPad } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import { shiftLightness } from '../../utils';
@@ -33,6 +33,7 @@ export function ManifestoStyled({ index, profile, style, overrides, total }: Sty
 
 function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: any) {
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
   const headingFs = headingSize(style, 90);
 
   switch (style.id) {
@@ -47,7 +48,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
 
     case 'editorial':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: style.spacing.columnGap, alignItems: 'start', paddingTop: 200 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: style.spacing.columnGap, alignItems: 'start', paddingTop: topPad }}>
           <div>
             <Body profile={profile} size={15} color={surface.ink} style={{ opacity: 0.65, lineHeight: 1.7, fontStyle: 'italic' }}>
               "What we believe, why we make, and how we make it."
@@ -79,7 +80,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
 
     case 'swiss':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16, paddingTop: 200, alignContent: 'start' }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16, paddingTop: topPad, alignContent: 'start' }}>
           <span style={{ gridColumn: '1 / 13', fontFamily: fonts.heading, fontSize: headingSize(style, 110), fontWeight: style.typography.headingWeight, lineHeight: 0.96, letterSpacing: style.typography.headingTracking, color: surface.ink }}>
             {headline}
           </span>
@@ -91,7 +92,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
 
     case 'brutalist':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 160, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'flex', flexDirection: 'column' }}>
           <div style={{ borderTop: `4px solid ${surface.ink}`, borderBottom: `4px solid ${surface.ink}`, padding: '40px 0' }}>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 120), fontWeight: style.typography.headingWeight, textTransform: 'uppercase', lineHeight: 0.94, letterSpacing: '-0.03em', color: surface.ink }}>
               {headline}
@@ -116,7 +117,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
 
     case 'technical':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 60 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 60 }}>
           <div>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 70), fontWeight: style.typography.headingWeight, letterSpacing: style.typography.headingTracking, lineHeight: 1.1, color: surface.ink }}>
               {headline}
@@ -139,7 +140,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
 
     case 'magazine':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '0.8fr 1.4fr', gap: style.spacing.columnGap }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '0.8fr 1.4fr', gap: style.spacing.columnGap }}>
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 320), fontWeight: 700, lineHeight: 0.7, color: surface.accent, letterSpacing: '-0.06em' }}>
               02
@@ -173,7 +174,7 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
     case 'modern':
     default:
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap, alignContent: 'center' }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap, alignContent: 'center' }}>
           <div>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 86), fontWeight: style.typography.headingWeight, lineHeight: 1.05, color: surface.ink, letterSpacing: style.typography.headingTracking }}>
               {headline}

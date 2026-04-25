@@ -119,3 +119,37 @@ export function fitHeadingSize(style: DeckStyle, baseSize: number, text: string,
   const factor = len <= maxChars ? 1 : Math.max(0.45, maxChars / len);
   return Math.round(baseSize * style.typography.headingScale * factor);
 }
+
+/**
+ * How much vertical room the chrome reserves at the TOP of the slide.
+ * Body paddings should use this so they automatically clear taller
+ * chrome variants instead of hand-tuning a `paddingTop: 170` literal
+ * that's wrong for a 3-line tabular meta block.
+ */
+export function chromeTopPad(style: DeckStyle): number {
+  switch (style.chrome.topBar) {
+    case 'tabular':
+      return 200; // 3-line meta + rule + breathing room
+    case 'numbered':
+      return 140; // single-bar w/ underline
+    case 'minimal':
+      return 170; // eyebrow + small logo
+    case 'none':
+      return 110;
+  }
+  return 170;
+}
+
+/** Mirrors `chromeTopPad` for the bottom band. */
+export function chromeBottomPad(style: DeckStyle): number {
+  switch (style.chrome.bottomBar) {
+    case 'meta':
+    case 'tagline':
+      return 130;
+    case 'page-num':
+      return 120;
+    case 'none':
+      return 90;
+  }
+  return 110;
+}

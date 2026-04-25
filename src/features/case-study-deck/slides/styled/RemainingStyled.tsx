@@ -19,6 +19,7 @@ import {
   resolveBackground,
   resolveFonts,
   headingSize,
+  chromeTopPad,
   type SurfaceTokens,
 } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
@@ -43,11 +44,12 @@ export function MoodboardStyled({ index, profile, style, total, overrides }: Sty
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
   const swatches = profile.palette.swatches.slice(0, 4);
 
   return (
     <SlideFrame index={index} archetype="moodboard" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: style.spacing.columnGap }}>
+      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: style.spacing.columnGap }}>
         <div>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Mood &<br />reference.
@@ -95,6 +97,7 @@ export function SignatureStyled({ index, profile, style, total }: StyledSlidePro
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
   const rand = seedRandom(profile.id + profile.name + style.id);
   const swatches = profile.palette.swatches.slice(0, 4).map((s) => s.hex);
   if (swatches.length < 2) swatches.push(profile.palette.ink);
@@ -153,10 +156,11 @@ export function EnvironmentalStyled({ index, profile, style, total }: StyledSlid
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   return (
     <SlideFrame index={index} archetype="environmental" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap }}>
+      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: style.spacing.columnGap }}>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
@@ -194,10 +198,11 @@ export function DigitalStyled({ index, profile, style, total }: StyledSlideProps
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   return (
     <SlideFrame index={index} archetype="digital" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
+      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             On every screen.
@@ -247,6 +252,7 @@ export function StationeryStyled({ index, profile, style, total }: StyledSlidePr
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   const objects: { kind: string; bg: string; ink: string; label: string; prim?: boolean }[] = [
     { kind: 'Folder', bg: profile.palette.primary, ink: '#FFF', label: profile.name, prim: true },
@@ -256,7 +262,7 @@ export function StationeryStyled({ index, profile, style, total }: StyledSlidePr
 
   return (
     <SlideFrame index={index} archetype="stationery" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
+      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Three objects, one system.
@@ -293,10 +299,11 @@ export function OutdoorStyled({ index, profile, style, total }: StyledSlideProps
   const fonts = resolveFonts(style, profile);
   const pageNum = String(index + 1).padStart(2, '0');
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   return (
     <SlideFrame index={index} archetype="outdoor" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'flex', flexDirection: 'column', gap: 36 }}>
+      <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'flex', flexDirection: 'column', gap: 36 }}>
         <div>
           <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
             Out in the wild.

@@ -7,6 +7,8 @@ export {
   headingSize,
   bodySize,
   fitHeadingSize,
+  chromeTopPad,
+  chromeBottomPad,
   type SurfaceTokens,
 } from './tokens';
 export { TopBar, BottomBar, CornerNumeral } from './chrome';

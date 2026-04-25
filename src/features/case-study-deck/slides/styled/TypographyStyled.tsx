@@ -3,7 +3,7 @@
  */
 
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, chromeTopPad } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import { shiftLightness } from '../../utils';
@@ -29,6 +29,7 @@ export function TypographyStyled({ index, profile, style, total }: StyledSlidePr
 
 function TypographyBody({ style, surface, fonts, family, profile }: any) {
   const padX = style.spacing.pad;
+  const topPad = chromeTopPad(style);
 
   // Common header. Section label is owned by chrome (TopBar) — the
   // body just renders the typeface name as the headline.
@@ -45,7 +46,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
       const isPlayful = style.id === 'playful';
       const isBold = style.id === 'bold';
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 160, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60 }}>
           <div>
             <Header />
             <Body profile={profile} size={16} color={surface.ink} style={{ marginTop: 24, opacity: 0.7, lineHeight: 1.6, maxWidth: 480 }}>
@@ -70,7 +71,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
     case 'editorial':
     case 'magazine':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: style.spacing.columnGap }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: style.spacing.columnGap }}>
           <div>
             <Header />
             <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 320), fontWeight: 700, lineHeight: 0.85, color: surface.ink, letterSpacing: '-0.04em', display: 'block', marginTop: 32 }}>
@@ -104,7 +105,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
     case 'minimal':
     case 'modern':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ marginTop: 56, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 24 }}>
             {[300, 400, 500, 600, 700, 900].map((w) => (
@@ -127,7 +128,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
 
     case 'brutalist':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad }}>
           <Header />
           <div style={{ marginTop: 40, border: `3px solid ${surface.ink}`, padding: 40 }}>
             <span style={{ fontFamily: fonts.heading, fontSize: 240, fontWeight: 700, textTransform: 'uppercase', lineHeight: 0.9, color: surface.ink, letterSpacing: '-0.04em' }}>
@@ -154,7 +155,7 @@ function TypographyBody({ style, surface, fonts, family, profile }: any) {
 
     case 'technical':
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 170, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 50 }}>
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: topPad, display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 50 }}>
           <div>
             <Header />
             <span style={{ fontFamily: fonts.heading, fontSize: 280, fontWeight: 600, lineHeight: 0.85, color: surface.ink, marginTop: 32, display: 'block' }}>Aa</span>

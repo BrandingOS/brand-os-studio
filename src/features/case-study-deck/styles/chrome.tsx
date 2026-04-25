@@ -232,6 +232,14 @@ export function CornerNumeral({
   position?: 'left' | 'right';
 }) {
   if (style.chrome.cornerNumeral === 'none') return null;
+
+  // Suppress small numerals when the TopBar already prints the page
+  // indicator (tabular / numbered). Otherwise we get "03 / 10" stacking
+  // on top of "03" in the same corner. The "oversized" treatment is
+  // intentionally kept — it's a design element, not a label.
+  const topBarHasPageNum = style.chrome.topBar === 'tabular' || style.chrome.topBar === 'numbered';
+  const numeralIsSmall = style.chrome.cornerNumeral === 'tabular' || style.chrome.cornerNumeral === 'thin';
+  if (topBarHasPageNum && numeralIsSmall) return null;
   const fonts = resolveFonts(style, profile);
 
   if (style.chrome.cornerNumeral === 'oversized') {
