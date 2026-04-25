@@ -1,297 +1,215 @@
 /**
  * Bundled template registry.
  *
- * V1 ships templates as procedural descriptors — the engine reads
- * `TemplateMeta` + data-URL assets at runtime. When real Photoshop
- * bundles land, they slot in behind the same `TemplateMeta` shape.
+ * Each template references a real product photograph (Unsplash) as its
+ * base layer and uses procedurally-generated zone masks and lighting
+ * so the user's design composites onto the right region of the photo.
+ *
+ * To add a new template:
+ *   1. Pick a product photo (Unsplash works well — license is permissive
+ *      for embedded use). Use a square crop URL: `?w=1600&h=1600&fit=crop`.
+ *   2. Eyeball the design zone in the photo. Express it as fractional
+ *      coords (0–1) in `designZone`.
+ *   3. Pick a lighting direction matching the photo's actual highlight
+ *      so the design integrates naturally.
+ *
+ * For pixel-accurate templates (true displacement, surface curvature,
+ * cutouts), drop hand-authored .webp layers into the template's data
+ * folder and skip the procedural helpers — the engine treats both
+ * paths identically.
  */
 
 import {
-  generateProceduralAssets,
-  type ProceduralTemplateDescriptor,
+  generateLightingOverlay,
+  generateZoneMask,
 } from '../engine/procedural';
 import type { TemplateMeta } from '../engine/types';
 
-interface SeedTemplate {
-  descriptor: ProceduralTemplateDescriptor;
-  meta: Omit<TemplateMeta, 'assets'>;
+interface PhotoTemplateSeed {
+  id: string;
+  name: string;
+  category: TemplateMeta['category'];
+  /** Square canvas size. Should match the cropped photo's dimensions. */
+  canvas: number;
+  /** URL of the base photograph. */
+  baseUrl: string;
+  /** Smaller version used for the gallery thumbnail. Defaults to a 512px crop. */
+  thumbnailUrl?: string;
+  /** Where the user's design lands on the product. Fractional coords. */
+  designZone: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+  };
+  /** Human-readable label for the design zone. */
+  zoneLabel: string;
+  /** Mask outline shape — `rect` (default) or `oval` for round surfaces. */
+  zoneShape?: 'rect' | 'oval';
+  /** Direction of the dominant highlight for the procedural lighting. */
+  highlight?: 'top-left' | 'top' | 'top-right' | 'left' | 'right';
+  /** 0–1 — how strong the procedural shadow is. Default 0.25. */
+  shadowStrength?: number;
+  /** Brand-aware autofill hint. */
+  brandKitHint: 'logo_primary' | 'logo_iconmark' | 'logo_wordmark' | 'logo_secondary';
+  /** Fallback assets to try if the preferred logo isn't available. */
+  brandKitFallbacks?: Array<'logo_primary' | 'logo_iconmark' | 'logo_wordmark' | 'logo_secondary'>;
 }
 
-const seeds: SeedTemplate[] = [
+/**
+ * Helper: build an Unsplash URL with consistent parameters. We always
+ * crop to a square so the canvas aspect ratio is predictable.
+ */
+function unsplash(photoId: string, size = 1600): string {
+  return `https://images.unsplash.com/${photoId}?w=${size}&h=${size}&fit=crop&crop=center&q=80&auto=format`;
+}
+
+const seeds: PhotoTemplateSeed[] = [
   {
-    descriptor: {
-      id: 'white-tshirt-flat',
-      canvas: 1600,
-      backgroundColor: '#f3ece2',
-      productColor: '#ffffff',
-      shape: 'tshirt',
-      designZone: { x: 0.33, y: 0.32, width: 0.34, height: 0.3 },
-    },
-    meta: {
-      id: 'white-tshirt-flat',
-      name: 'T-shirt — flat lay',
-      category: 'apparel',
-      canvas: { width: 1600, height: 1600 },
-      zones: [
-        {
-          id: 'chest',
-          label: 'Chest print',
-          displacementScale: 6,
-          defaultTransform: {
-            x: 800,
-            y: 750,
-            width: 520,
-            height: 520,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.25, maxScale: 1.6, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_primary',
-            fallbackAssets: ['logo_iconmark', 'logo_wordmark'],
-          },
-        },
-      ],
-      tintableRegions: [
-        {
-          id: 'shirt_color',
-          label: 'Shirt color',
-          mask: 'procedural:tintMask',
-          defaultColor: '#ffffff',
-          swatches: [
-            '#ffffff',
-            '#111827',
-            '#1f2937',
-            '#b91c1c',
-            '#1d4ed8',
-            '#15803d',
-            '#d97706',
-            '#7c3aed',
-          ],
-          brandKitHints: { preferredColorRole: 'neutral_light' },
-        },
-      ],
-      backgroundReplaceable: true,
-    },
+    id: 'white-tshirt',
+    name: 'White t-shirt — flat lay',
+    category: 'apparel',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1521572163474-6864f9cf17ab'),
+    thumbnailUrl: unsplash('photo-1521572163474-6864f9cf17ab', 256),
+    designZone: { x: 0.34, y: 0.32, width: 0.32, height: 0.32 },
+    zoneLabel: 'Chest print',
+    highlight: 'top-left',
+    shadowStrength: 0.18,
+    brandKitHint: 'logo_primary',
+    brandKitFallbacks: ['logo_iconmark', 'logo_wordmark'],
   },
   {
-    descriptor: {
-      id: 'business-card-flat',
-      canvas: 1600,
-      backgroundColor: '#1b1b1b',
-      productColor: '#fafafa',
-      shape: 'businessCard',
-      designZone: { x: 0.2, y: 0.34, width: 0.6, height: 0.32 },
-    },
-    meta: {
-      id: 'business-card-flat',
-      name: 'Business card — top down',
-      category: 'print',
-      canvas: { width: 1600, height: 1600 },
-      zones: [
-        {
-          id: 'face',
-          label: 'Card face',
-          displacementScale: 2,
-          defaultTransform: {
-            x: 800,
-            y: 800,
-            width: 820,
-            height: 440,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.4, maxScale: 1.2, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_wordmark',
-            fallbackAssets: ['logo_primary', 'logo_iconmark'],
-          },
-        },
-      ],
-      tintableRegions: [
-        {
-          id: 'card_color',
-          label: 'Card color',
-          mask: 'procedural:tintMask',
-          defaultColor: '#fafafa',
-          swatches: ['#fafafa', '#111827', '#0f172a', '#d4d4d4', '#eab308'],
-          brandKitHints: { preferredColorRole: 'neutral_light' },
-        },
-      ],
-      backgroundReplaceable: true,
-    },
+    id: 'white-mug',
+    name: 'White ceramic mug',
+    category: 'packaging',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1514228742587-6b1558fcca3d'),
+    thumbnailUrl: unsplash('photo-1514228742587-6b1558fcca3d', 256),
+    designZone: { x: 0.36, y: 0.4, width: 0.28, height: 0.28 },
+    zoneLabel: 'Mug face',
+    zoneShape: 'rect',
+    highlight: 'top-left',
+    shadowStrength: 0.2,
+    brandKitHint: 'logo_iconmark',
+    brandKitFallbacks: ['logo_primary', 'logo_wordmark'],
   },
   {
-    descriptor: {
-      id: 'greeting-card-quad',
-      canvas: 1600,
-      backgroundColor: '#f0e9df',
-      productColor: '#ffffff',
-      shape: 'poster',
-      designZone: { x: 0.3, y: 0.18, width: 0.4, height: 0.64 },
-    },
-    meta: {
-      id: 'greeting-card-quad',
-      name: 'Greeting card — 4 panels',
-      category: 'print',
-      canvas: { width: 1600, height: 1600 },
-      zones: [
-        {
-          id: 'top-left',
-          label: 'Top left',
-          displacementScale: 3,
-          defaultTransform: {
-            x: 540,
-            y: 520,
-            width: 300,
-            height: 300,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_iconmark',
-            fallbackAssets: ['logo_primary', 'logo_wordmark'],
-          },
-        },
-        {
-          id: 'top-right',
-          label: 'Top right',
-          displacementScale: 3,
-          defaultTransform: {
-            x: 1060,
-            y: 520,
-            width: 300,
-            height: 300,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_wordmark',
-            fallbackAssets: ['logo_primary', 'logo_iconmark'],
-          },
-        },
-        {
-          id: 'bottom-left',
-          label: 'Bottom left',
-          displacementScale: 3,
-          defaultTransform: {
-            x: 540,
-            y: 1040,
-            width: 300,
-            height: 300,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_primary',
-            fallbackAssets: ['logo_iconmark', 'logo_wordmark'],
-          },
-        },
-        {
-          id: 'bottom-right',
-          label: 'Bottom right',
-          displacementScale: 3,
-          defaultTransform: {
-            x: 1060,
-            y: 1040,
-            width: 300,
-            height: 300,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_secondary',
-            fallbackAssets: ['logo_primary', 'logo_iconmark'],
-          },
-        },
-      ],
-      tintableRegions: [
-        {
-          id: 'card_color',
-          label: 'Card color',
-          mask: 'procedural:tintMask',
-          defaultColor: '#ffffff',
-          swatches: ['#ffffff', '#fef3c7', '#dbeafe', '#fecaca', '#111827'],
-          brandKitHints: { preferredColorRole: 'neutral_light' },
-        },
-      ],
-      backgroundReplaceable: true,
-    },
+    id: 'business-card-pair',
+    name: 'Business card — dark surface',
+    category: 'print',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1606857521015-7f9fcf423740'),
+    thumbnailUrl: unsplash('photo-1606857521015-7f9fcf423740', 256),
+    designZone: { x: 0.24, y: 0.4, width: 0.5, height: 0.22 },
+    zoneLabel: 'Card face',
+    highlight: 'top',
+    shadowStrength: 0.12,
+    brandKitHint: 'logo_wordmark',
+    brandKitFallbacks: ['logo_primary', 'logo_iconmark'],
   },
   {
-    descriptor: {
-      id: 'white-mug',
-      canvas: 1600,
-      backgroundColor: '#ede6d9',
-      productColor: '#ffffff',
-      shape: 'mug',
-      designZone: { x: 0.33, y: 0.36, width: 0.34, height: 0.3 },
-    },
-    meta: {
-      id: 'white-mug',
-      name: 'Ceramic mug — studio',
-      category: 'packaging',
-      canvas: { width: 1600, height: 1600 },
-      zones: [
-        {
-          id: 'face',
-          label: 'Mug face',
-          displacementScale: 18,
-          defaultTransform: {
-            x: 800,
-            y: 790,
-            width: 500,
-            height: 440,
-            rotation: 0,
-          },
-          constraints: { minScale: 0.3, maxScale: 1.4, lockAspect: true },
-          brandKitHints: {
-            preferredAsset: 'logo_iconmark',
-            fallbackAssets: ['logo_primary', 'logo_wordmark'],
-          },
-        },
-      ],
-      tintableRegions: [
-        {
-          id: 'mug_color',
-          label: 'Mug color',
-          mask: 'procedural:tintMask',
-          defaultColor: '#ffffff',
-          swatches: ['#ffffff', '#111827', '#2563eb', '#16a34a', '#b91c1c'],
-          brandKitHints: { preferredColorRole: 'neutral_light' },
-        },
-      ],
-      backgroundReplaceable: true,
-    },
+    id: 'phone-screen',
+    name: 'Phone — held in hand',
+    category: 'device',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1592899677977-9c10ca588bbd'),
+    thumbnailUrl: unsplash('photo-1592899677977-9c10ca588bbd', 256),
+    designZone: { x: 0.34, y: 0.22, width: 0.32, height: 0.6 },
+    zoneLabel: 'Screen',
+    highlight: 'top',
+    shadowStrength: 0.1,
+    brandKitHint: 'logo_primary',
+    brandKitFallbacks: ['logo_iconmark', 'logo_wordmark'],
+  },
+  {
+    id: 'paper-flatlay',
+    name: 'Paper — desk flat lay',
+    category: 'print',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1517842645767-c639042777db'),
+    thumbnailUrl: unsplash('photo-1517842645767-c639042777db', 256),
+    designZone: { x: 0.28, y: 0.22, width: 0.45, height: 0.55 },
+    zoneLabel: 'Page',
+    highlight: 'top-left',
+    shadowStrength: 0.15,
+    brandKitHint: 'logo_primary',
+    brandKitFallbacks: ['logo_wordmark', 'logo_iconmark'],
+  },
+  {
+    id: 'tote-bag',
+    name: 'Canvas tote bag',
+    category: 'apparel',
+    canvas: 1600,
+    baseUrl: unsplash('photo-1591348278863-a8fb3887e2aa'),
+    thumbnailUrl: unsplash('photo-1591348278863-a8fb3887e2aa', 256),
+    designZone: { x: 0.35, y: 0.35, width: 0.3, height: 0.3 },
+    zoneLabel: 'Tote print',
+    highlight: 'top-left',
+    shadowStrength: 0.22,
+    brandKitHint: 'logo_primary',
+    brandKitFallbacks: ['logo_iconmark', 'logo_wordmark'],
   },
 ];
 
-/** Lazily-resolved template list — data URLs generated on first access. */
 let cached: TemplateMeta[] | null = null;
 
 export function getBundledTemplates(): TemplateMeta[] {
   if (cached) return cached;
-  cached = seeds.map(({ descriptor, meta }) => {
-    const assets = generateProceduralAssets(descriptor);
-    // Tintable regions reference `procedural:tintMask` — resolve to the URL.
-    const tintableRegions = meta.tintableRegions?.map((r) => ({
-      ...r,
-      mask: r.mask === 'procedural:tintMask' ? assets.tintMask : r.mask,
-    }));
+  cached = seeds.map((seed) => {
+    const mask = generateZoneMask({
+      canvas: seed.canvas,
+      zone: seed.designZone,
+      shape: seed.zoneShape ?? 'rect',
+      feather: 6,
+    });
+    const lighting = generateLightingOverlay({
+      canvas: seed.canvas,
+      zone: seed.designZone,
+      highlight: seed.highlight,
+      shadowStrength: seed.shadowStrength,
+    });
+
+    const cx = (seed.designZone.x + seed.designZone.width / 2) * seed.canvas;
+    const cy = (seed.designZone.y + seed.designZone.height / 2) * seed.canvas;
+    const w = seed.designZone.width * seed.canvas;
+    const h = seed.designZone.height * seed.canvas;
+
     return {
-      ...meta,
-      tintableRegions,
+      id: seed.id,
+      name: seed.name,
+      category: seed.category,
+      canvas: { width: seed.canvas, height: seed.canvas },
       assets: {
-        base: assets.base,
-        displacement: assets.displacement,
-        lighting: assets.lighting,
-        mask: assets.mask,
-        thumbnail: assets.thumbnail,
+        base: seed.baseUrl,
+        thumbnail: seed.thumbnailUrl ?? seed.baseUrl,
       },
-      zones: meta.zones.map((zone) => ({
-        ...zone,
-        displacement: zone.displacement ?? assets.displacement,
-        lighting: zone.lighting ?? assets.lighting,
-        mask: zone.mask ?? assets.mask,
-      })),
+      backgroundReplaceable: false,
+      zones: [
+        {
+          id: 'design',
+          label: seed.zoneLabel,
+          mask,
+          lighting,
+          // Real photos already encode surface curvature in their pixels —
+          // we don't need a procedural displacement map. (When a hand-
+          // authored Photoshop displacement.png ships, set it here.)
+          displacementScale: 0,
+          defaultTransform: {
+            x: cx,
+            y: cy,
+            width: w,
+            height: h,
+            rotation: seed.designZone.rotation ?? 0,
+          },
+          constraints: { minScale: 0.25, maxScale: 1.6, lockAspect: true },
+          brandKitHints: {
+            preferredAsset: seed.brandKitHint,
+            fallbackAssets: seed.brandKitFallbacks,
+          },
+        },
+      ],
     };
   });
   return cached;

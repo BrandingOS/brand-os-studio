@@ -588,7 +588,14 @@ export class MockupRenderer {
   private async safeLoadTexture(url: string | undefined): Promise<Texture | null> {
     if (!url) return null;
     try {
-      const tex = (await Assets.load(url)) as Texture;
+      // We bypass `Assets.load()` for two reasons:
+      //   1. Real product photos come from Unsplash with query-string URLs
+      //      and no file extension — Pixi's parser registry can't pick a
+      //      loader for them and warns "we don't know how to parse it".
+      //   2. Loading via a plain Image lets us set `crossOrigin = "anonymous"`
+      //      so the resulting texture is exportable (toBlob).
+      const img = await loadImageElement(url);
+      const tex = Texture.from(img);
       this.loadedAssetUrls.add(url);
       return tex;
     } catch (err) {
@@ -609,6 +616,24 @@ export class MockupRenderer {
       }
     }
   }
+}
+
+/** Load a URL into an HTMLImageElement so we can pass it to Texture.from.
+ *  Sets `crossOrigin = "anonymous"` so cross-origin photos are usable as
+ *  textures AND survive a `toBlob()` export without tainting the canvas. */
+function loadImageElement(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    // Don't set crossOrigin on data URLs — it's a no-op and some browsers
+    // fail-fast when crossOrigin is set on `data:`/`blob:` URLs that are
+    // already same-origin.
+    if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
+    img.src = url;
+  });
 }
 
 /** Parse "#RRGGBB" or "RRGGBB" into a uint24 number. Returns 0xffffff
