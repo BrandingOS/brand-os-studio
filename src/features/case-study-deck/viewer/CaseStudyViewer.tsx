@@ -147,8 +147,10 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0b0b0b', color: '#fff' }}>
-      {/* Topbar */}
-      <header style={{ height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', borderBottom: '1px solid #1c1c1c', background: 'rgba(12,12,12,0.85)', backdropFilter: 'blur(8px)' }}>
+      {/* Topbar — position:relative + z-index pulls the header (and any
+          absolute-positioned descendants like the Style dropdown) above
+          the slide stage, which has its own scaled stacking context. */}
+      <header style={{ position: 'relative', zIndex: 100, height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', borderBottom: '1px solid #1c1c1c', background: 'rgba(12,12,12,0.85)', backdropFilter: 'blur(8px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           {onBack && (
             <Button variant="ghost" size="sm" onClick={onBack} className="gap-2 text-white hover:bg-white/10">
@@ -193,12 +195,14 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                   position: 'absolute',
                   top: 'calc(100% + 8px)',
                   right: 0,
-                  zIndex: 50,
+                  zIndex: 1000,
                   background: '#111',
                   border: '1px solid #2a2a2a',
                   borderRadius: 12,
                   padding: 8,
                   minWidth: 320,
+                  maxHeight: 'calc(100vh - 96px)',
+                  overflowY: 'auto',
                   boxShadow: '0 30px 60px -10px rgba(0,0,0,0.7)',
                 }}
               >
