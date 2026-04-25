@@ -45,3 +45,4 @@ new-ui/
 remotion/node_modules
 remotion/out
 
+.claude/worktrees/
