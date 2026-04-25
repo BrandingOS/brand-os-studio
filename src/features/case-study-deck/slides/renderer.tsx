@@ -9,7 +9,7 @@ import { ManifestoA, ManifestoB, ManifestoC } from './ManifestoSlides';
 import { MoodboardA, MoodboardB, MoodboardC } from './MoodboardSlides';
 import { PaletteA, PaletteB, PaletteC } from './PaletteSlides';
 import { TypographyA, TypographyB, TypographyC } from './TypographySlides';
-import { SignatureA } from './SignatureSlide';
+import { SignatureA, SignatureB, SignatureC, SignatureD } from './SignatureSlide';
 import { EnvironmentalA, EnvironmentalB, EnvironmentalC } from './EnvironmentalSlides';
 import { DigitalA, DigitalB, DigitalC } from './DigitalSlides';
 import { StationeryA, StationeryB, StationeryC } from './StationerySlides';
@@ -46,6 +46,9 @@ const REGISTRY: Record<string, SlideComponent> = {
   'typography-C': TypographyC,
 
   'signature-A': SignatureA,
+  'signature-B': SignatureB,
+  'signature-C': SignatureC,
+  'signature-D': SignatureD,
 
   'environmental-A': EnvironmentalA,
   'environmental-B': EnvironmentalB,
@@ -75,7 +78,7 @@ export const SLIDE_CATALOG: Record<string, string[]> = {
   moodboard: ['A', 'B', 'C'],
   palette: ['A', 'B', 'C'],
   typography: ['A', 'B', 'C'],
-  signature: ['A'],
+  signature: ['A', 'B', 'C', 'D'],
   environmental: ['A', 'B', 'C'],
   digital: ['A', 'B', 'C'],
   stationery: ['A', 'B', 'C'],

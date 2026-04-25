@@ -59,18 +59,28 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
     };
   }, [deck]);
 
-  // Scroll-snap: track active slide.
+  // Scroll-snap: track active slide. Two subtleties caught here:
+  //   1. Depends on `deck` because the stage element only mounts after
+  //      the loading screen flips off. Without re-running, stageRef is
+  //      null at first paint and the listener never attaches — the
+  //      inspector then stays stuck on slide 1 forever.
+  //   2. Divide by the actual SECTION height, not the viewport height.
+  //      Each section has `padding: 32` which adds 64px above the
+  //      `100vh` baseline, so dividing scrollTop by clientHeight gives
+  //      the wrong index whenever a section's content overflows past
+  //      the viewport (which it always does once the slide pads itself).
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
     const onScroll = () => {
-      const { scrollTop, clientHeight } = stage;
-      const idx = Math.round(scrollTop / clientHeight);
+      const firstSection = stage.firstElementChild as HTMLElement | null;
+      const step = firstSection?.offsetHeight || stage.clientHeight;
+      const idx = Math.round(stage.scrollTop / step);
       setActiveIndex(idx);
     };
     stage.addEventListener('scroll', onScroll, { passive: true });
     return () => stage.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [deck]);
 
   const handleExport = async (format: 'pdf' | 'png-zip') => {
     if (!deck || !stageRef.current) return;

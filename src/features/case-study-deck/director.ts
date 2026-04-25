@@ -341,6 +341,9 @@ function pickVariant(
       if (mode === 'bold' || mode === 'playful') return 'C';
       return 'B';
     case 'signature':
+      if (mode === 'editorial' || mode === 'elegant') return 'D';
+      if (mode === 'technical') return 'B';
+      if (mode === 'playful') return 'C';
       return 'A';
     case 'environmental':
       if (mode === 'technical') return 'B';
