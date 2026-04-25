@@ -9,7 +9,7 @@
 import type { CSSProperties } from 'react';
 import type { BrandProfile, SlideOverrides } from '../../types';
 import type { DeckStyle } from '../../styles';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize, bodySize } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, bodySize, fitHeadingSize } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { LogoMark, TMark, Body } from '../shared';
 import { SlideFrame } from '../../SlideFrame';
@@ -200,9 +200,10 @@ function CoverBody({
         </div>
       );
 
-    case 'monolith':
+    case 'monolith': {
+      const monoText = tagline.length > 64 ? tagline.slice(0, 62) + '…' : tagline;
       return (
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: style.spacing.pad }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', padding: style.spacing.pad, paddingTop: 200, paddingBottom: 200 }}>
           <Body profile={profile} size={12} color={surface.accent} style={{ letterSpacing: '0.4em', textTransform: 'uppercase', marginBottom: 40 }}>
             Brand Doc · {profile.name}
           </Body>
@@ -210,16 +211,16 @@ function CoverBody({
             style={{
               fontFamily: fonts.heading,
               fontWeight: style.typography.headingWeight,
-              fontSize: headingSize(style, 280),
-              lineHeight: 0.86,
+              fontSize: fitHeadingSize(style, 220, monoText, 22),
+              lineHeight: 0.92,
               letterSpacing: style.typography.headingTracking,
               color: surface.ink,
-              maxWidth: 1400,
+              maxWidth: 1500,
             }}
           >
-            {tagline}.
+            {monoText}.
           </span>
-          <div style={{ marginTop: 64, display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div style={{ marginTop: 56, display: 'flex', alignItems: 'center', gap: 24 }}>
             <div style={{ width: 80, height: 1, background: surface.accent }} />
             <Body profile={profile} size={14} color={surface.ink} style={{ opacity: 0.55, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
               {credit}
@@ -227,6 +228,7 @@ function CoverBody({
           </div>
         </div>
       );
+    }
 
     case 'technical':
       return (

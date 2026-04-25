@@ -6,6 +6,8 @@ export {
   resolveFonts,
   headingSize,
   bodySize,
+  fitHeadingSize,
   type SurfaceTokens,
 } from './tokens';
 export { TopBar, BottomBar, CornerNumeral } from './chrome';
+export { applyMaster, resolveSlideStyle, MASTER_DEFAULTS, type MasterOverrides } from './master';

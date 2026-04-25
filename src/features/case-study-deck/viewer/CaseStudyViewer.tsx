@@ -21,6 +21,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  Layout,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -35,9 +36,10 @@ import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '../constants';
 import type { DeckStyleId } from '../types';
-import { ALL_STYLES, STYLES } from '../styles';
+import { ALL_STYLES, STYLES, applyMaster, resolveSlideStyle } from '../styles';
 import { exportDeck } from '../export';
 import { toast } from 'sonner';
+import { MasterPanel } from './MasterPanel';
 
 interface Props {
   brand: Brand;
@@ -50,6 +52,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showInspector, setShowInspector] = useState(false);
   const [showStyleMenu, setShowStyleMenu] = useState(false);
+  const [showMaster, setShowMaster] = useState(false);
   const [exporting, setExporting] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -144,6 +147,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
   const total = deck.slides.length;
   const activeStyleId = deck.plan.style;
   const activeStyle = STYLES[activeStyleId];
+  const masterCount = Object.keys(deck.master).length;
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0b0b0b', color: '#fff' }}>
@@ -250,6 +254,20 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
               </div>
             )}
           </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setShowMaster((v) => !v)}
+            className="gap-2 text-white hover:bg-white/10"
+          >
+            <Layout className="w-4 h-4" />
+            Master
+            {masterCount > 0 && (
+              <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 999, background: deck.profile.palette.primary, color: '#fff', fontSize: 10, fontWeight: 700 }}>
+                {masterCount}
+              </span>
+            )}
+          </Button>
           <Button size="sm" variant="ghost" onClick={deck.regenerate} className="gap-2 text-white hover:bg-white/10" disabled={exporting}>
             <RefreshCw className="w-4 h-4" /> Regenerate
           </Button>
@@ -278,7 +296,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
               const Slide = resolveStyledSlide(s.archetype);
               if (!Slide) return null;
               const isActive = activeIndex === i;
-              const styleForSlide = STYLES[s.styleId];
+              const styleForSlide = resolveSlideStyle(activeStyleId, s.hasStyleOverride ? s.styleId : undefined, deck.master);
               return (
                 <button
                   key={`thumb-${i}`}
@@ -338,7 +356,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
           {deck.slides.map((s, i) => {
             const Slide = resolveStyledSlide(s.archetype);
             if (!Slide) return null;
-            const styleForSlide = STYLES[s.styleId];
+            const styleForSlide = resolveSlideStyle(activeStyleId, s.hasStyleOverride ? s.styleId : undefined, deck.master);
             return (
               <section
                 key={`section-${i}`}
@@ -388,6 +406,15 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
           </aside>
         )}
       </div>
+
+      <MasterPanel
+        open={showMaster}
+        onClose={() => setShowMaster(false)}
+        master={deck.master}
+        deckStyleId={activeStyleId}
+        onChange={(patch) => deck.setMaster(patch)}
+        onReset={() => deck.resetMaster()}
+      />
     </div>
   );
 }

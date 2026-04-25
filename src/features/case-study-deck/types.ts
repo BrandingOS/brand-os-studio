@@ -11,7 +11,9 @@
 export type DeckMode = 'bold' | 'editorial' | 'technical' | 'elegant' | 'playful';
 
 import type { DeckStyleId } from './styles/types';
+import type { MasterOverrides } from './styles/master';
 export type { DeckStyleId } from './styles/types';
+export type { MasterOverrides } from './styles/master';
 
 export type SlideArchetype =
   | 'cover'
@@ -52,6 +54,8 @@ export interface DeckPlan {
   slides: SlidePick[];
   /** Deck-wide template/style. Every slide reads this unless overridden per-slide. */
   style: DeckStyleId;
+  /** Master-slide overrides — deck-wide token tweaks on top of the active style. */
+  master?: MasterOverrides;
   /** Hash of brand state at generation time; used to detect staleness. */
   signature: string;
   generatedAt: string;

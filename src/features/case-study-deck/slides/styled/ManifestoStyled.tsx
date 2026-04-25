@@ -5,7 +5,7 @@
 
 import type { CSSProperties } from 'react';
 import { SlideFrame } from '../../SlideFrame';
-import { resolveSurface, resolveBackground, resolveFonts, headingSize } from '../../styles';
+import { resolveSurface, resolveBackground, resolveFonts, headingSize, fitHeadingSize } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
 import { Body } from '../shared';
 import { shiftLightness } from '../../utils';
@@ -109,14 +109,16 @@ function ManifestoBody({ style, surface, fonts, headline, subhead, profile }: an
         </div>
       );
 
-    case 'monolith':
+    case 'monolith': {
+      const txt = headline.length > 88 ? headline.slice(0, 86) + '…' : headline;
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: padX, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 140), fontWeight: style.typography.headingWeight, lineHeight: 0.96, letterSpacing: style.typography.headingTracking, color: surface.ink, maxWidth: 1500 }}>
-            "{headline}"
+        <div style={{ position: 'absolute', inset: 0, padding: padX, paddingTop: 180, paddingBottom: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+          <span style={{ fontFamily: fonts.heading, fontSize: fitHeadingSize(style, 130, txt, 28), fontWeight: style.typography.headingWeight, lineHeight: 1.0, letterSpacing: style.typography.headingTracking, color: surface.ink, maxWidth: 1500 }}>
+            "{txt}"
           </span>
         </div>
       );
+    }
 
     case 'technical':
       return (

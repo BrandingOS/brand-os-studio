@@ -18,6 +18,7 @@ import type {
   BrandProfile,
   DeckPlan,
   DeckStyleId,
+  MasterOverrides,
   SlideOverrides,
   SlidePick,
   VariantId,
@@ -45,11 +46,14 @@ export interface UseDeckPlan {
   hidden: number[];
   /** The final ordered list of slides to render. */
   slides: ResolvedSlide[];
+  master: MasterOverrides;
   regenerate: () => void;
   setVariant: (index: number, variant: VariantId) => void;
   setOverride: (index: number, patch: SlideOverrides) => void;
   setStyle: (styleId: DeckStyleId) => void;
   setSlideStyle: (index: number, styleId: DeckStyleId | undefined) => void;
+  setMaster: (patch: Partial<MasterOverrides>) => void;
+  resetMaster: () => void;
   toggleHidden: (index: number) => void;
   reset: () => void;
 }
@@ -162,6 +166,27 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     [state, persist],
   );
 
+  const setMaster = useCallback(
+    (patch: Partial<MasterOverrides>) => {
+      if (!state) return;
+      const nextMaster: MasterOverrides = { ...(state.plan.master ?? {}), ...patch };
+      // Strip undefined keys so master stays clean.
+      Object.keys(nextMaster).forEach((k) => {
+        if ((nextMaster as Record<string, unknown>)[k] === undefined) {
+          delete (nextMaster as Record<string, unknown>)[k];
+        }
+      });
+      persist({ ...state, plan: { ...state.plan, master: nextMaster } });
+    },
+    [state, persist],
+  );
+
+  const resetMaster = useCallback(() => {
+    if (!state) return;
+    const { master: _ignored, ...planWithoutMaster } = state.plan;
+    persist({ ...state, plan: planWithoutMaster as typeof state.plan });
+  }, [state, persist]);
+
   const toggleHidden = useCallback(
     (index: number) => {
       if (!state) return;
@@ -208,6 +233,7 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     overrides: state.overrides,
     variantOverrides: state.variantOverrides as Record<number, VariantId>,
     slideStyles: slideStyles as Record<number, DeckStyleId>,
+    master: state.plan.master ?? {},
     hidden: state.hidden,
     slides,
     regenerate,
@@ -215,6 +241,8 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
     setOverride,
     setStyle,
     setSlideStyle,
+    setMaster,
+    resetMaster,
     toggleHidden,
     reset,
   };

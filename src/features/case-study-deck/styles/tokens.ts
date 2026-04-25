@@ -99,10 +99,23 @@ export function resolveFonts(style: DeckStyle, profile: BrandProfile) {
   };
 }
 
-/** Heading size from a base + scale multiplier, capped to a reasonable range. */
+/** Heading size from a base + scale multiplier. */
 export function headingSize(style: DeckStyle, base: number): number {
   return Math.round(base * style.typography.headingScale);
 }
 export function bodySize(style: DeckStyle, base: number): number {
   return Math.round(base * style.typography.bodyScale);
+}
+
+/**
+ * Auto-shrink an oversized headline so long brand taglines don't run
+ * off the canvas. Returns a font size that scales with the inverse of
+ * the visual character density.
+ *
+ * Tuned for the 1920×1080 canvas with ~80–120px edge padding.
+ */
+export function fitHeadingSize(style: DeckStyle, baseSize: number, text: string, maxChars = 24): number {
+  const len = (text ?? '').length;
+  const factor = len <= maxChars ? 1 : Math.max(0.45, maxChars / len);
+  return Math.round(baseSize * style.typography.headingScale * factor);
 }
