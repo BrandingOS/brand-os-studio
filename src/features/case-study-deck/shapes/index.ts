@@ -15,6 +15,7 @@
 
 import { TYPOGRAPHY_CATALOG } from './typography';
 import { COVER_CATALOG } from './cover';
+import { MANIFESTO_CATALOG } from './manifesto';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -22,6 +23,7 @@ import { ARCHETYPE_LABELS } from '../slides/renderer';
 export type { SlideShape, ShapeCatalog, ShapeRenderProps } from './types';
 export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
 export { COVER_CATALOG, COVER_SHAPES } from './cover';
+export { MANIFESTO_CATALOG, MANIFESTO_SHAPES } from './manifesto';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -42,7 +44,7 @@ function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
 
 export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
   cover: COVER_CATALOG,
-  manifesto: stubCatalog('manifesto'),
+  manifesto: MANIFESTO_CATALOG,
   moodboard: stubCatalog('moodboard'),
   palette: stubCatalog('palette'),
   typography: TYPOGRAPHY_CATALOG,
