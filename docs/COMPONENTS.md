@@ -292,6 +292,58 @@ all three cases without per-surface special-casing.
 
 ---
 
+## Brand palette / global color system
+
+Project-wide design-tokens system, Elementor "Global Colors"-shaped but
+contrast-aware. Lives at `src/shared/brand/brandPalette.ts`. Tested
+against all three seed brands in both light + dark modes
+(`brandPalette.test.ts`, 13/13 surfaces clear 4.5:1 body-text contrast).
+
+| Symbol | Path | Purpose |
+|---|---|---|
+| **`buildBrandPalette(brand, mode='light')`** | `src/shared/brand/brandPalette.ts` | Pure builder. Returns `BrandPalette` — the full set of role-named tokens for a brand: `brand.{primary,secondary,accent}`, `bg.{page,surface,elevated,subtle,inverted}`, `text.{heading,body,muted,onBrand,onBrandSecondary,onInverted}`, `border.{subtle,strong}`, `state.{success,warning,error,info}`, `mode`. Neutrals are tinted with the brand hue via `suggestNeutrals` so pages read on-brand without being pure gray. |
+| **`pickSurfaceTokens(palette, kind)`** | same | The placement decider. Pass a surface kind (`page` / `card` / `elevated` / `subtle` / `brand` / `brand-secondary` / `inverted`) and receive `{ bg, text, textMuted, border, accent }` — guaranteed readable. **This is what UI surfaces consume**, not the raw palette. |
+| **`surfacePalette(brand, kind, mode='light')`** | same | One-shot shortcut. Composes the two above for callers that don't need to hold the palette around. |
+| **`applyPaletteToRoot(palette, root?)`** | same | Writes the palette to CSS custom properties (`--bp-bg-page`, `--bp-text-heading`, …). Use when a feature wants raw-CSS reach to the palette. |
+| **`isPaletteReadable(palette, minRatio=4.5)`** | same | CI guard. True if every surface kind clears the contrast ratio. |
+
+**Surface kinds — when to pick which:**
+
+| Kind | Where it fits |
+|---|---|
+| `page` | The app/page background. Outer canvas. |
+| `card` | Inset surfaces — list rows, panel chrome, kit preview frames. |
+| `elevated` | Popovers, dialogs, modals — anything that "lifts" above cards. |
+| `subtle` | Tinted band sections — feature blocks on a marketing page, "did you know?" callouts. Brand hue at very low saturation, body-text-readable. |
+| `brand` | Hero / call-to-action — primary-color flood with `onBrand` text. |
+| `brand-secondary` | The other big section. Like `brand` but on `secondary`. Use to vary rhythm in long layouts. |
+| `inverted` | The dark band in light mode (or vice versa). Footers, "details / spec" sections, premium feel. |
+
+**Rules when extending.**
+1. Pages, cards, slides, kit previews — **all** request a surface kind,
+   never read `brand.primaryColor` directly. If you need a color the
+   palette doesn't expose, add a new field to `BrandPalette` instead of
+   reaching into `brand.colorSystem` from the consumer. The whole point
+   is centralisation.
+2. New surface kinds go in `pickSurfaceTokens`'s switch, not in callers.
+3. State colors (`success` / `warning` / etc.) come from
+   `colorSystem.semantic` first, then a brand-agnostic default. If a
+   brand needs custom state colors, set them on `colorSystem.semantic`
+   in onboarding — don't override per-surface.
+4. `applyPaletteToRoot` is the bridge for plain-CSS surfaces. Don't
+   bypass it by writing `style="--bg: ..."` ad-hoc.
+
+**Why this exists** (the user's words, 2026-04-25): "عايز نظام الوان
+برضو يكون بسيط من حيث الفكرة لكن فعال … علشان منلاقيش الوان الجايد
+لاين كلها لازقه في بعض … لو عملت براند كيت ولوجو فاريشن وبراندينج
+جايد لاين او ويبسايت كل الالوان اوتوماتيك تطلع ممتازه بدون تدخل
+بشري". Translation of intent: a simple, role-based system (Elementor
+Global Colors style) that makes brand-kit / variations / guidelines /
+website / presentation outputs come out right by construction, no
+human in the loop and no surfaces clashing.
+
+---
+
 ## Off-limits surfaces
 
 These exist and work — **do not refactor through them.** Tagged

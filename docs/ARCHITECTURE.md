@@ -9,6 +9,66 @@ that overview.
 
 ---
 
+## 2026-04-25 — Role-based brand palette (Elementor-style global colors)
+
+**Decision.** Every surface that draws "a brand" — card thumbnails,
+brand kit previews, logo variations, presentation slides, guideline
+exports, AI-generated layouts — reads its colors through
+`@/shared/brand/brandPalette.ts` by **surface kind**
+(`'page' | 'card' | 'elevated' | 'subtle' | 'brand' | 'brand-secondary' |
+'inverted'`), not by reaching into `brand.colorSystem.primary.hex`.
+The palette builder maps the brand's `colorSystem` (or legacy
+`primaryColor`/`secondaryColor`) into a fixed set of role-named tokens
+covering bg / text / border / accent / state, with hue-tinted neutrals
+derived from the primary so the page reads "on-brand" even where the
+brand color itself doesn't appear.
+
+**Reasoning.**
+- The user's recurring complaint: "الوان الجايد لاين كلها لازقه في
+  بعض" — without semantic roles, every surface gets hand-painted and
+  the resulting brand-guideline / variation / presentation looks either
+  monotone or clashing. Elementor / Tailwind / shadcn all solve this
+  the same way: name the surfaces, let the system pair colors.
+- Centralisation is the point. The next time we ship a new surface
+  type (auto-generated case-study deck, AI design output, brand portal
+  v2), the consumer doesn't think about colors at all — it asks for
+  `surfacePalette(brand, 'subtle')` and gets back a guaranteed-readable
+  bundle.
+- `pickSurfaceTokens` is the placement decider, not the data. Adding a
+  new surface kind is a one-line switch case + a doc row, never a
+  refactor of consumers.
+
+**Alternatives considered.**
+- **Per-feature palette helpers** (one in brand-kit, one in case-study
+  deck, etc.). Rejected — that's how we got into the "hand-painted"
+  hole. Adding another sibling repeats the same mistake.
+- **Pure CSS custom-prop tokens** without a TS API. Rejected — slides
+  and PNG exports run server-side / outside the DOM, where reading
+  `getComputedStyle` is unreliable. The TS palette is the source of
+  truth; `applyPaletteToRoot` is the bridge to plain-CSS surfaces.
+- **Generate the palette on the fly inside each consumer.** Rejected —
+  same neutral derivation logic in three places drifts. One pure
+  builder, one cache point if needed.
+
+**Tested with.** `brandPalette.test.ts` runs all 7 surface kinds × 3
+seed brands × 2 modes = 42 contrast assertions, all clearing 4.5:1
+body-text minimum. Plus a fallback test for brands with only
+`primaryColor` (no `colorSystem`).
+
+**Concrete follow-up.** Sweep the existing consumers and route them
+through the palette:
+- `src/features/brand/components/*` — brand pages, kit cards
+- `src/features/brandkit/*` — brand kit module renderers
+- `src/features/brand-board/preview/BrandBoardCanvas.tsx` — brand board
+- `src/features/case-study-deck/slides/*` — already reads `BrandProfile`,
+  but `BrandProfile` should be backed by the palette so future archetypes
+  inherit safe colors automatically.
+- `src/shared/design-system/PresentationStyleAdapter.ts` — currently
+  sets some `--brand-*` props on root; should compose with
+  `applyPaletteToRoot` rather than duplicating the logic.
+
+---
+
 ## 2026-04-25 — Tools mount on `CosmosWorkspaceShell` by default
 
 **Decision.** Any new tool page (anything routed under `/tools/*` or

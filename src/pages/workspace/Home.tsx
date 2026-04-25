@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import { bgTone, pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
+import { surfacePalette } from '@/shared/brand/brandPalette';
+import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import type { Brand } from '@/shared/types/brand';
 
 /**
@@ -16,11 +17,6 @@ import type { Brand } from '@/shared/types/brand';
  *   routes to the onboarding flow.
  * - Empty: centered card inviting the user to make their first brand.
  */
-
-/** Letter-mark color for the brand-card color block — picked off the bg. */
-function contrastLetter(bg: string): string {
-  return bgTone(bg) === 'dark' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(13, 13, 13, 0.88)';
-}
 
 /** Compact "Updated 2 hours ago"-style formatting without date-fns. */
 function formatRelative(date: Date | string | undefined): string {
@@ -41,13 +37,16 @@ function formatRelative(date: Date | string | undefined): string {
 }
 
 function BrandCard({ brand }: { brand: Brand }) {
-  const color = brand.primaryColor || brand.colorSystem?.primary?.hex || '#0d0d0d';
-  const letterColor = contrastLetter(color);
+  // Both halves of the card go through the canonical palette so colors
+  // come out right by construction — no per-card luminance branching,
+  // and the same logic applies to brand kit / variations / slides /
+  // anywhere else that draws "a brand's surface".
+  const brandSurface = surfacePalette(brand, 'brand');
   // Pick the logo variant that reads against this card's background.
   // The picker scores every available variant by WCAG contrast and
   // returns undefined if none clear the readability floor — at which
   // point we fall through to the letter mark.
-  const logoUrl = pickLogoOnBackground(brand, color)?.url;
+  const logoUrl = pickLogoOnBackground(brand, brandSurface.bg)?.url;
 
   return (
     <Link
@@ -57,7 +56,7 @@ function BrandCard({ brand }: { brand: Brand }) {
     >
       <div
         className="ws-brand-card-color"
-        style={{ background: color, color: letterColor }}
+        style={{ background: brandSurface.bg, color: brandSurface.text }}
       >
         {logoUrl ? (
           <img className="ws-brand-card-logo" src={logoUrl} alt="" />

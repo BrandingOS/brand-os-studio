@@ -144,6 +144,36 @@ never hard-code a color/weight/spacing value there.
   card grid, variation, presentation slide, and future auto-generated
   guideline export goes through this helper. Caught us 2026-04-25 where
   SKAM's red logo on a red card was invisible.
+- **Brand palette / surface tokens**: `@/shared/brand/brandPalette.ts`.
+  This is the bigger sibling of the logo picker — the project-wide,
+  Elementor-style global color system. Any surface (card, hero band,
+  subtle section, modal, presentation slide, brand-guideline page,
+  AI-generated layout) MUST request its colors by SURFACE KIND, not by
+  reaching into `brand.colorSystem.primary.hex`:
+    - `buildBrandPalette(brand, mode='light' | 'dark')` → derived role
+      tokens: `brand.primary/secondary/accent`, `bg.page/surface/elevated/
+      subtle/inverted`, `text.heading/body/muted/onBrand/onInverted`,
+      `border.subtle/strong`, `state.success/warning/error/info`, `mode`.
+      Neutrals are TINTED with the brand hue (via `suggestNeutrals`) so
+      pages look on-brand without being pure gray.
+    - `pickSurfaceTokens(palette, kind)` → `{ bg, text, textMuted,
+      border, accent }` bundle that's guaranteed-readable. Kinds:
+      `'page' | 'card' | 'elevated' | 'subtle' | 'brand' |
+      'brand-secondary' | 'inverted'`.
+    - `surfacePalette(brand, kind, mode)` — one-shot shortcut.
+    - `applyPaletteToRoot(palette, root?)` — sets `--bp-*` CSS custom
+      props (`--bp-bg-page`, `--bp-text-heading`, …) so plain CSS can
+      reach the palette without importing the module.
+    - `isPaletteReadable(palette)` — true if every surface kind clears
+      WCAG 4.5:1. Used as a CI guard in `brandPalette.test.ts`.
+  **Why it's mandatory.** The user's words: "علشان منلاقيش الوان
+  الجايد لاين كلها لازقه في بعض" — without role-based tokens every
+  surface gets hand-painted and guidelines / variations / auto-generated
+  presentations end up monotone or clashing. With the picker, a hero +
+  subtle band + white card + inverted footer come out reading correctly
+  for ANY brand input, no human in the loop. Tested against all three
+  seed brands (Raqm, SKAM, Vector) in both modes — 13/13 contrast
+  assertions pass.
 
 ## Radix Portal + scoped CSS (gotcha)
 
