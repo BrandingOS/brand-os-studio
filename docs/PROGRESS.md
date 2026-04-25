@@ -5,6 +5,95 @@ Newest entries at the top. One entry per working session. Keep entries concrete
 
 ---
 
+## 2026-04-25 — Mockup Studio cosmos retrofit + dashboard auth race + nav-pill bug
+
+**Accomplished** (5 commits on `dev`, `d86dfae` → `5a9ca09`):
+
+Continuation of the Mockup Studio session. Two visible-bug fixes plus a
+service-swap race that was making `/dashboard` look broken on first sign-in.
+
+- **`d86dfae` Standalone mockup studio → cosmos shell.** Wrapped
+  `StandaloneMockupStudioPage` in `<CosmosWorkspaceShell>` so it inherits
+  the centred segmented nav, B-mark, and theme toggle from `/setup`,
+  `/tools/typescale`, `/tools/ui-color-system`. Inner layout switched to
+  custom 3-column `.ms-shell` grid (templates · canvas · properties).
+  Side panels rebuilt on cosmos `.panel` / `.panel-top` / `.panel-heading-*`
+  primitives. `TemplateGallery` now renders `.panel-item` rows grouped by
+  category (Apparel · Packaging · Print · Device · Signage). New
+  `src/features/mockup-studio/modes/standalone/mockup-studio.css` holds
+  the tool-local `.ms-*` rules, all scoped under `[data-cosmos="workspace"]`.
+- **`a23be0c` Brand-aware mockup studio → cosmos shell.** Same retrofit
+  for `BrandMockupStudioPage` (route: `/b/:slug/tools/mockup-studio` and
+  legacy `/dashboard/brand/:slug/tools/mockup-studio`). Brand context
+  comes for free: `CosmosWorkspaceShell` auto-detects `/b/:slug/*` and
+  swaps the top-left B-mark for the `BrandSwitcher`. The "Reapply brand"
+  action moves into the shell's `rightActions` slot as a `.ms-pill-btn`.
+  Bumped `.ms-board-toolbar` padding to `16px 16px 12px` to match
+  `.panel-top` so the eyebrow + serif title align horizontally with the
+  side-panel headings.
+- **`968d0f7` (then reverted in `b1d8d35`) — `hasLoaded` gate on
+  workspace home.** First attempt at fixing "first dashboard open shows
+  No brands yet". Added a local gate that hid the empty/grid branch
+  until `loadAll()` resolved. Wrong fix — the symptom was a service-swap
+  race, not a render flash, and the gate left users stuck on
+  "Loading your brands…".
+- **`b1d8d35` (correct fix) — re-fetch brands after sign-in service swap.**
+  Brands service is registered as `LocalBrandsService` at boot and only
+  swapped to `SupabaseBrandsService` inside `reconfigureForAuth(true)`.
+  `AuthModal` flips `isAuthenticated` and navigates to `/dashboard`
+  synchronously, before Supabase's `SIGNED_IN` event fires the swap, so
+  Home's `loadAll()` ran against the empty Local service and the empty
+  result stuck. Now `useAuth.ts` calls
+  `useBrandStore.getState().loadAll()` immediately after each
+  `reconfigureForAuth(true)` (initial-session and SIGNED_IN paths), and
+  once on SIGNED_OUT to drop the previous user's list. `Home.tsx`'s
+  effect also re-runs when `isAuthenticated` flips, as belt-and-braces.
+- **`5a9ca09` Cosmos segmented-nav pill mispositioned on first paint.**
+  `measurePill` in `CosmosWorkspaceShell` was reading
+  `getBoundingClientRect()` while the open keyframe was applying
+  `translateY(-6px) scale(0.96)` to the nav. Empirically the pill ended
+  up at exactly 0.96× the correct values (`translateX 298 / width 57`
+  vs the correct `310 / 60`). Since `measurePill` only re-runs on route
+  change, the wrong values stuck — most visible on the rightmost tab
+  (Tools), where the pill clipped against the container's rounded right
+  corner. Switched to `offsetLeft` / `offsetWidth`, which are layout-based
+  and immune to ancestor transforms. Verified in DevTools — pill now
+  aligns to within sub-pixel rounding on first load regardless of which
+  tab is active.
+
+**Decisions / why this matters.**
+
+- "Sign-in then navigate" is a real ordering bug across the app, not just
+  Mockup Studio or Workspace Home. Any consumer that calls a service-DI
+  method during the post-sign-in render is at risk of binding to the
+  Local registration. The brand-store re-fetch in `useAuth` is a
+  quick-fix; a more durable fix is to subscribe stores to
+  `reconfigureForAuth` events.
+- `getBoundingClientRect` is unsafe when an ancestor has an active CSS
+  `transform`. Layout offsets (`offsetLeft` / `offsetWidth`) are the
+  right primitive for animated-shell measurement.
+
+**Open / next session.**
+
+- The `useDataSync` hook (`src/shared/hooks/useDataSync.ts`) is dead code
+  — nothing imports it. Either wire it up (it would have caught the
+  service-swap race) or delete it.
+- Mockup Studio still has unstyled portions inside Radix popovers
+  (image picker etc.) — same gotcha as the FontPicker fix from the
+  Typescale session. Audit the right-panel modals if any are unscoped.
+- `Brands/white-tshirt/*.png` are user-supplied raw inputs that have
+  been duplicated into `public/mockup-templates/billboard-tilted/`.
+  The `Brands/` originals are still untracked. Decide whether to commit
+  them, gitignore them, or move them under `docs/`.
+- Confirm the user is no longer seeing the "no brands yet on first nav"
+  symptom after `b1d8d35`. If still reproducing, the next layer is to
+  have `reconfigureForAuth` itself fan out to subscriber stores instead
+  of relying on `useAuth` to remember every store.
+
+**No blockers.**
+
+---
+
 ## 2026-04-24 — Adaptive Case Study Deck (Behance-style) — shipped end-to-end
 
 **Accomplished** (one commit on `dev` — `034413a`):

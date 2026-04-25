@@ -157,6 +157,28 @@ items rendered as unstyled run-on text until the scope prefix was removed.
   initial-session and OAuth paths. Keep that order.
 - The safety timeout in `useAuth` (15s) only releases loading when the user
   is NOT authenticated — never over-write a live session.
+- **DI service swaps must fan out to data stores.** `reconfigureForAuth(true)`
+  swaps `BRANDS` from `LocalBrandsService` → `SupabaseBrandsService`. Any
+  store that already populated against the local service holds stale data
+  until the next manual `loadAll()`. `useAuth` calls
+  `useBrandStore.getState().loadAll()` immediately after each
+  `reconfigureForAuth` (initial-session, SIGNED_IN, SIGNED_OUT) — when you
+  add a new auth-aware store, wire it into the same three call sites.
+  Caught us on 2026-04-25 where `/dashboard` showed "No brands yet" until
+  manual refresh after sign-in.
+
+## Measuring layout inside an animated ancestor
+
+If an ancestor has an active CSS `transform` (e.g. the cosmos shell's
+segmented-nav has a 440ms `scale(0.96) → 1` open keyframe),
+`getBoundingClientRect()` on a descendant returns the **transformed**
+rect — useless for positioning siblings off it. Use `offsetLeft` /
+`offsetWidth` instead; those are layout-based and immune to ancestor
+transforms.
+
+This caught us on `CosmosWorkspaceShell.measurePill` (2026-04-25): the
+active-tab pill landed at exactly 96% of the right values on first paint
+and only un-stuck on the next route change.
 
 ## Stack
 - **Build**: Vite 5 + React 18 + TypeScript 5.8

@@ -9,6 +9,90 @@ that overview.
 
 ---
 
+## 2026-04-25 — Tools mount on `CosmosWorkspaceShell` by default
+
+**Decision.** Any new tool page (anything routed under `/tools/*` or
+`/b/:slug/tools/*`) wraps in `<CosmosWorkspaceShell>` and uses cosmos
+design tokens (`var(--surface)`, `var(--border)`, `var(--text-primary)`,
+etc.) inside `[data-cosmos="workspace"]`. The shell is canonical for
+`/setup`, `/tools/typescale`, `/tools/ui-color-system`, and now both
+modes of Mockup Studio. Tool-local CSS goes in a single stylesheet next
+to the tool, all selectors prefixed and scoped under
+`[data-cosmos="workspace"]`.
+
+**Reasoning.**
+- The user's recurring feedback this quarter has been "make it look like
+  /setup and /tools/ui-color-system". Centralising on one shell is the
+  cheapest way to honour that without re-litigating each page.
+- The shell auto-detects `/b/:slug/*` and swaps the top-left B-mark for
+  `BrandSwitcher`, so brand-aware tools get brand context for free —
+  zero per-page wiring.
+- Cosmos tokens already cover light + dark, so theme handling lands
+  through the shell's toggle without per-tool overrides.
+
+**Alternatives considered.**
+- **Per-tool custom shells** (what mockup-studio originally did with old
+  shadcn chrome). Rejected — visual drift was the bug we kept shipping.
+- **Roll cosmos primitives into `BrandRouteLayout`** so brand pages
+  inherit them directly. Out of scope; brand-scope sections still need
+  the InnerNavRail. Tools don't, so the cosmos shell stays a peer.
+
+**Gotchas baked in from this session.**
+- Anything inside a Radix `Portal` (Popover/Dialog/Dropdown content) renders
+  outside `[data-cosmos="workspace"]`. Styles for that content must be
+  unscoped and reach tokens via `hsl(var(--muted))` etc. The trigger is
+  fine to scope.
+- The shell's segmented-nav active pill measures via `offsetLeft` /
+  `offsetWidth`, NOT `getBoundingClientRect`. The open keyframe applies a
+  `scale(0.96)` for ~440ms; rect-based measurement during that window
+  gives 96% wrong values that stick. If you add another animated chrome
+  primitive to the shell, follow the same rule.
+
+---
+
+## 2026-04-25 — DI service swaps must fan out to data stores
+
+**Decision.** When `reconfigureForAuth(true)` swaps `BRANDS` (and other
+SERVICE_KEYS) from local to Supabase implementations, any data store
+that has already populated against the old service must re-fetch.
+Today this is wired by hand in `useAuth.ts` — it calls
+`useBrandStore.getState().loadAll()` immediately after each
+`reconfigureForAuth` call (initial-session, SIGNED_IN, SIGNED_OUT).
+
+**Reasoning.**
+- `AuthModal` flips `isAuthenticated` and navigates to `/dashboard`
+  synchronously *before* Supabase's `SIGNED_IN` event runs the swap.
+  `WorkspaceHome` mounts and calls `loadAll()` — but the BRANDS service
+  is still `LocalBrandsService`, which returns whatever's in
+  `localStorage['brandos:brands']` (empty for a fresh sign-in). The
+  empty result then sticks until the user manually refreshes, because
+  no consumer listens for the swap.
+- Stores must be re-loaded on swap, otherwise the UI lies about state.
+  Patching `WorkspaceHome` to gate on `isAuthenticated` masks the
+  symptom but leaves every other consumer broken (logo-maker, social
+  picker, anywhere a brand list is read post-sign-in).
+
+**Alternatives considered.**
+- **Move the re-fetch into `reconfigureForAuth`.** Reasonable, but
+  pulls every store into the boot module. Useful next step, not done
+  here.
+- **Subscribe stores to an auth event.** Cleaner long-term. Would need
+  an event bus or Zustand-store-of-stores pattern. Out of scope this
+  session.
+- **Render-flash gate (`hasLoaded` state in `WorkspaceHome`).** Tried
+  in `968d0f7`, reverted in `b1d8d35` — fixed the wrong symptom and
+  left users stuck on "Loading…". The lesson: a stale store from a
+  service-swap race looks identical to a render flash; check which
+  before adding a gate.
+
+**Concrete follow-up.** `src/shared/hooks/useDataSync.ts` already exists
+to re-fetch on auth-mode change but **nothing imports it**. Either
+mount it under `AuthProvider` (one-line fix that would have caught
+this) or delete it. Don't leave dead code that the next person assumes
+is wired.
+
+---
+
 ## 2026-04-24 — Case-study deck: archetype × variant × director pattern
 
 **Decision.** Auto-generated brand decks (Behance-style case study at

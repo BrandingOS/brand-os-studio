@@ -47,7 +47,7 @@ doc under `docs/`.
 | Typescale | active | See above. |
 | Logo Maker | active | Brand-scoped; save-to-brand via LogoExportPanel. |
 | UI Color System / Showcase exporter | active | Vector walker for editable PDF/SVG. |
-| **Mockup Studio v2** | **planned** | Spec: `docs/BRANDINGOS_MOCKUP_STUDIO_V2.md` (2026-04-24). 3 modes (standalone / brand-aware / custom), PixiJS v8 engine, 8 phases. Phase 0 audit pending. |
+| **Mockup Studio v2** | active | Standalone (`/tools/mockup-studio`) + brand-aware (`/b/:slug/tools/mockup-studio`) shipped on Cosmos workspace shell. PixiJS v8 engine; 4-layer real-asset templates (base / mask / displacement / lighting) plus procedural fallbacks. Brand-aware mode auto-applies the brand kit via `applyBrandKit(template, brand)` and exposes a "Reapply brand" pill in the shell's right actions. Spec: `docs/BRANDINGOS_MOCKUP_STUDIO_V2.md`. |
 
 ## Public / marketing
 

@@ -37,6 +37,7 @@
 | **`BrandLayout`** | `src/features/brand/components/BrandLayout.tsx` | The actual brand chrome (AppRail + InnerNavRail + BrandNavbar + content). `BrandRouteLayout` mounts this. Pages should NOT mount it directly. |
 | **`EditorShell`** | `src/shared/layouts/EditorShell.tsx` | Fullscreen editors (design editor, brand-guides slide editor, guidelines canvas). Tagged `stable/editable-export-v1` — do not refactor. |
 | **`OnboardingShell`** | `src/shared/layouts/OnboardingShell.tsx` | First-run flows. |
+| **`CosmosWorkspaceShell`** | `src/shared/layouts/CosmosWorkspaceShell.tsx` | The cosmos-tokenized workspace chrome (centered segmented nav, B-mark or `BrandSwitcher` in top-left, theme toggle, optional `rightActions` slot). Used by `/setup`, `/tools/typescale`, `/tools/ui-color-system`, and both Mockup Studio modes (`/tools/mockup-studio`, `/b/:slug/tools/mockup-studio`). Auto-detects `/b/:slug/*` and swaps the B-mark for the brand switcher. Wraps content in `[data-cosmos="workspace"]`, so any tool-local CSS must scope under that selector — **except** styles for content portaled via Radix (popover/dialog/dropdown). The active-tab pill measures position via `offsetLeft / offsetWidth` (NOT `getBoundingClientRect`) so the open keyframe's `scale(0.96)` doesn't poison the measurement. |
 
 ### Layout helpers (for pages mounted under `BrandRouteLayout`)
 
@@ -230,6 +231,36 @@ in `director.ts` so the whole feature sees it — do not inline
 - Adding a variant? Edit the archetype's file, register in renderer.tsx, update `SLIDE_CATALOG`. Never fork a slide file.
 - Adding an archetype? Extend `SlideArchetype` (types.ts), add to `ARCHETYPE_ORDER` + `pickVariant` switch (director.ts), create the slides file, register in renderer.tsx.
 - The signature slide's artwork is seeded by `djb2(brandId + updatedAt + palette)` — do not re-seed with anything else or you lose determinism (same brand = same artwork every render).
+
+---
+
+## Mockup Studio (`src/features/mockup-studio/`)
+
+Shipped 2026-04-24/25. PixiJS v8 mockup compositor with two product modes
+(standalone + brand-aware). Both modes mount inside `<CosmosWorkspaceShell>`
+and render the same 3-column `.ms-shell` grid (templates · canvas · properties).
+Tool-local CSS lives in `modes/standalone/mockup-studio.css` and uses the
+`.ms-*` prefix scoped under `[data-cosmos="workspace"]` — the brand-aware
+page imports the same stylesheet rather than forking it.
+
+| Component | Path | Purpose |
+|---|---|---|
+| **`StandaloneMockupStudioPage`** | `modes/standalone/StandaloneMockupStudioPage.tsx` | Anonymous-usable editor at `/tools/mockup-studio`. Persists last-used template via the mockup store. |
+| **`BrandMockupStudioPage`** | `modes/brand-aware/BrandMockupStudioPage.tsx` | Brand-scoped editor at `/b/:slug/tools/mockup-studio` (and legacy `/dashboard/brand/:slug/tools/mockup-studio`). Auto-applies the brand kit on template pick via `applyBrandKit(template, brand)` and exposes a "Reapply brand" pill in the shell's `rightActions` slot. |
+| **`TemplateGallery`** | `components/TemplateGallery.tsx` | Left panel. Cosmos `.panel-item` rows grouped by category (Apparel · Packaging · Print · Device · Signage · Other). |
+| **`MockupCanvas`** | `components/MockupCanvas.tsx` | The PixiJS-backed center surface. Hosts overlays + zone tabs. |
+| **`PropertiesSidebar`** | `components/PropertiesSidebar.tsx` | Right panel. Zone transform / design upload / tints / props / background / realism / layers — all built on cosmos `.panel-top` + `.panel-heading-*` chrome. |
+| **`applyBrandKit(template, brand)`** | `modes/brand-aware/applyBrandKit.ts` | Pure function. Resolves the right brand asset (logo variant or color) for each zone using `brandResolvers.ts`, and returns a seeded `MockupState`. |
+| **`MockupRenderer`** | `engine/MockupRenderer.ts` | The PixiJS pipeline. Includes `normalizeMaskUrl()` which auto-handles both mask conventions (white-on-black-opaque AND transparent-on-black-opaque) so user-supplied mask PNGs don't have to follow a single convention. |
+| Real-asset templates | `data/templateIndex.ts` (`realAssetSeeds`) + `public/mockup-templates/<id>/{base,mask,displacement,lighting}.png` | Raster mockup templates ship as 4-layer PNG bundles. To add one: drop the four layers under `public/mockup-templates/<id>/`, append a `RealAssetSeed` entry to `realAssetSeeds`. Procedural templates remain as fallbacks. |
+
+**Rules when extending.**
+- Don't fork the cosmos shell — both pages must keep using `<CosmosWorkspaceShell>`.
+- Tool-local rules live in `modes/standalone/mockup-studio.css` (single
+  source). The brand-aware page imports the same file. Don't make a
+  brand-aware variant.
+- New brand-aware right-panel actions go in the shell's `rightActions`
+  slot, NOT inside `.ms-board-toolbar`.
 
 ---
 
