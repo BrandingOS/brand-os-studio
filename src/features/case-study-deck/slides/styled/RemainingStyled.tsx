@@ -24,7 +24,9 @@ import {
   type SurfaceTokens,
 } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
+import { Body, LogoMark } from '../shared';
 import { resolveShape } from '../../shapes';
+import { shiftLightness } from '../../utils';
 import type { StyledSlideProps } from './CoverStyled';
 
 interface ShapedSlideProps extends StyledSlideProps {
