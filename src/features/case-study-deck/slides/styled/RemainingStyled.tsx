@@ -306,67 +306,23 @@ export function DigitalStyled(props: ShapeAwareProps) {
 
 /* ─────────────────────────  STATIONERY  ─────────────────────── */
 
-export function StationeryStyled({ index, profile, style, total }: StyledSlideProps) {
+export function StationeryStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Card geometry — 3-up grid spanning region.width.
-  const cardGap = style.spacing.blockGap;
-  const cardW = Math.round((region.width - cardGap * 2) / 3);
-  const cardH = 540;
-  const cardPad = 36;
-  const cardInnerW = cardW - cardPad * 2;
-  // Reserve room for the kind label (~24) and url row (~24) inside the card.
-  const labelReserve = 80;
-  const cardLabelH = cardH - cardPad * 2 - labelReserve;
-
-  const objects: { kind: string; bg: string; ink: string; label: string; prim?: boolean }[] = [
-    { kind: 'Folder', bg: profile.palette.primary, ink: '#FFF', label: profile.name, prim: true },
-    { kind: 'Card', bg: '#FFF', ink: '#0A0A0A', label: profile.name },
-    { kind: 'Envelope', bg: '#0A0A0A', ink: profile.palette.primary, label: profile.name },
-  ];
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Stationery';
+  const shape = resolveShape('stationery', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="stationery" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            Three objects, one system.
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: cardGap, height: cardH }}>
-          {objects.map((o) => (
-            <div key={o.kind} style={{ background: o.bg, borderRadius: style.layout.cardCorner, padding: cardPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: style.effect.shadow !== 'none' ? '0 18px 40px -10px rgba(0,0,0,0.2)' : 'none' }}>
-              <Body profile={profile} size={11} color={o.ink} style={{ letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, fontFamily: fonts.body }}>
-                {o.kind}
-              </Body>
-              <FitText
-                as="span"
-                maxSize={78}
-                minSize={20}
-                width={cardInnerW}
-                height={cardLabelH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 800,
-                  color: o.ink,
-                  letterSpacing: '-0.03em',
-                  lineHeight: 0.9,
-                }}
-              >
-                {o.label}
-              </FitText>
-              <Body profile={profile} size={11} color={o.ink} style={{ opacity: 0.65, fontFamily: fonts.body }}>
-                {o.kind === 'Card' ? 'www.' + profile.name.toLowerCase().replace(/\s+/g, '') + '.com' : '—'}
-              </Body>
-            </div>
-          ))}
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Stationery" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Stationery" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
