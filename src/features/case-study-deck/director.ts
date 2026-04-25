@@ -30,6 +30,7 @@ import type {
   SlidePick,
   Swatch,
 } from './types';
+import { defaultStyleForMode } from './styles';
 
 /* ─────────────────────────  mode inference  ───────────────────────── */
 
@@ -306,6 +307,7 @@ export function directDeck(brand: Brand): DeckPlan {
     brandId: brand.id,
     mode,
     slides: picks,
+    style: defaultStyleForMode(mode),
     signature,
     generatedAt: new Date().toISOString(),
   };

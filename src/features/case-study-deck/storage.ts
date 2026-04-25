@@ -6,7 +6,7 @@
  * { plan, overrides }.
  */
 
-import type { DeckPlan, SlideOverrides, SlidePick } from './types';
+import type { DeckPlan, DeckStyleId, SlideOverrides, SlidePick } from './types';
 import { DECK_STORAGE_KEY } from './constants';
 
 export interface StoredDeck {
@@ -15,6 +15,11 @@ export interface StoredDeck {
   overrides: Record<number, SlideOverrides>;
   /** Optional per-slide variant overrides (user explicitly picked a different variant). */
   variantOverrides: Record<number, SlidePick['variant']>;
+  /**
+   * Per-slide style overrides. If a slide isn't listed, it inherits
+   * `plan.style`. Lets a user mix styles within one deck.
+   */
+  slideStyles?: Record<number, DeckStyleId>;
   /** Indexes the user chose to hide. */
   hidden: number[];
 }

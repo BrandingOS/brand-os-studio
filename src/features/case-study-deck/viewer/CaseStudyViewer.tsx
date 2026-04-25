@@ -3,26 +3,39 @@
  *
  * Layout:
  *   ┌────────────────────────────────────────────────────────────────┐
- *   │ topbar: back · title · actions (regenerate, export, edit)     │
+ *   │ topbar: back · title · style picker · actions (export, edit)   │
  *   ├──────────────┬──────────────────────────────────────────────┬──┤
  *   │  slide nav   │                                              │ i│
  *   │  (thumbs)    │          slide canvas (scroll-snap)          │ n│
  *   │              │                                              │ s│
  *   └──────────────┴──────────────────────────────────────────────┴──┘
  *
- * The slide canvas scroll-snaps between full-viewport slides; each slide is
- * the 1920×1080 frame scaled to fit. The right inspector appears only when
- * a slide is selected, exposing variant + overrides.
+ * The deck has one ACTIVE STYLE (template) that propagates across every
+ * slide. The user can override style on a single slide via the right
+ * inspector. This is the MVP for a Canva/GAMMA-style template system.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Download, Eye, EyeOff, RefreshCw, SlidersHorizontal, Sparkles, Image as ImageIcon, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  Download,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  SlidersHorizontal,
+  Sparkles,
+  Image as ImageIcon,
+  Pencil,
+  Check,
+} from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import { Button } from '@/components/ui/button';
 import { useDeckPlan } from '../hooks/useDeckPlan';
-import { resolveSlide, SLIDE_CATALOG, ARCHETYPE_LABELS } from '../slides/renderer';
+import { resolveStyledSlide } from '../slides/styled';
+import { ARCHETYPE_LABELS } from '../slides/renderer';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '../constants';
-import type { VariantId } from '../types';
+import type { DeckStyleId } from '../types';
+import { ALL_STYLES, STYLES } from '../styles';
 import { exportDeck } from '../export';
 import { toast } from 'sonner';
 
@@ -36,6 +49,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
   const deck = useDeckPlan(brand);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showInspector, setShowInspector] = useState(false);
+  const [showStyleMenu, setShowStyleMenu] = useState(false);
   const [exporting, setExporting] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -44,31 +58,42 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
   useEffect(() => {
     if (!deck) return;
     const urls = deck.profile.typography.fontUrls;
-    const added: HTMLLinkElement[] = [];
+    const links: HTMLLinkElement[] = [];
+
+    // Brand fonts (always include).
     urls.forEach((url) => {
-      const existing = document.querySelector(`link[href="${url}"]`);
-      if (existing) return;
+      if (document.querySelector(`link[href="${url}"]`)) return;
       const link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = url;
       document.head.appendChild(link);
-      added.push(link);
+      links.push(link);
     });
+
+    // Style-system staples — every preset references one of these stacks via
+    // its `headingFamily` token, so loading them all up-front means swapping
+    // styles is instant (no FOUT mid-presentation).
+    const STAPLE_FONTS = [
+      'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap',
+      'https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap',
+      'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap',
+    ];
+    STAPLE_FONTS.forEach((url) => {
+      if (document.querySelector(`link[href="${url}"]`)) return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url;
+      document.head.appendChild(link);
+      links.push(link);
+    });
+
     return () => {
-      added.forEach((el) => el.remove());
+      links.forEach((el) => el.remove());
     };
   }, [deck]);
 
-  // Scroll-snap: track active slide. Two subtleties caught here:
-  //   1. Depends on `deck` because the stage element only mounts after
-  //      the loading screen flips off. Without re-running, stageRef is
-  //      null at first paint and the listener never attaches — the
-  //      inspector then stays stuck on slide 1 forever.
-  //   2. Divide by the actual SECTION height, not the viewport height.
-  //      Each section has `padding: 32` which adds 64px above the
-  //      `100vh` baseline, so dividing scrollTop by clientHeight gives
-  //      the wrong index whenever a section's content overflows past
-  //      the viewport (which it always does once the slide pads itself).
+  // Scroll-snap: track active slide. See note inside about the section
+  // height being padded vs the viewport height — divide by section size.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -116,6 +141,9 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
 
   const visibleSlides = deck.slides.filter((s) => !s.hidden);
   const visibleCount = visibleSlides.length;
+  const total = deck.slides.length;
+  const activeStyleId = deck.plan.style;
+  const activeStyle = STYLES[activeStyleId];
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0b0b0b', color: '#fff' }}>
@@ -130,11 +158,85 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
           <div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{deck.profile.name} · Case Study</div>
             <div style={{ fontSize: 11, opacity: 0.6, letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-              Mode · {deck.plan.mode} · {visibleCount} slides
+              Template · {activeStyle.name} · {visibleCount} slides
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* Style picker */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowStyleMenu((v) => !v)}
+              style={{
+                height: 32,
+                padding: '0 14px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.18)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: deck.profile.palette.primary }} />
+              Style · {activeStyle.name}
+            </button>
+            {showStyleMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  zIndex: 50,
+                  background: '#111',
+                  border: '1px solid #2a2a2a',
+                  borderRadius: 12,
+                  padding: 8,
+                  minWidth: 320,
+                  boxShadow: '0 30px 60px -10px rgba(0,0,0,0.7)',
+                }}
+              >
+                <div style={{ padding: '6px 10px 12px', fontSize: 10, opacity: 0.55, letterSpacing: '0.24em', textTransform: 'uppercase' }}>
+                  Templates · MVP
+                </div>
+                {ALL_STYLES.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      deck.setStyle(s.id);
+                      setShowStyleMenu(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                      borderRadius: 8,
+                      border: 'none',
+                      background: s.id === activeStyleId ? 'rgba(255,255,255,0.08)' : 'transparent',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <Check className="w-4 h-4" style={{ marginTop: 2, opacity: s.id === activeStyleId ? 1 : 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
+                      <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2, lineHeight: 1.45 }}>{s.description}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button size="sm" variant="ghost" onClick={deck.regenerate} className="gap-2 text-white hover:bg-white/10" disabled={exporting}>
             <RefreshCw className="w-4 h-4" /> Regenerate
           </Button>
@@ -160,9 +262,10 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
         <aside style={{ width: 180, borderRight: '1px solid #1c1c1c', overflowY: 'auto', padding: 12, background: '#0d0d0d' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {deck.slides.map((s, i) => {
-              const Slide = resolveSlide(s);
+              const Slide = resolveStyledSlide(s.archetype);
               if (!Slide) return null;
               const isActive = activeIndex === i;
+              const styleForSlide = STYLES[s.styleId];
               return (
                 <button
                   key={`thumb-${i}`}
@@ -181,7 +284,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                     aspectRatio: `${SLIDE_WIDTH} / ${SLIDE_HEIGHT}`,
                     background: '#111',
                   }}
-                  title={`${ARCHETYPE_LABELS[s.archetype] ?? s.archetype} — variant ${s.variant}`}
+                  title={`${ARCHETYPE_LABELS[s.archetype] ?? s.archetype} — ${styleForSlide.name}`}
                 >
                   <div
                     style={{
@@ -192,18 +295,23 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                       pointerEvents: 'none',
                     }}
                   >
-                    <Slide index={i} profile={deck.profile} overrides={s.overrides} />
+                    <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} />
                   </div>
                   <div style={{ position: 'absolute', left: 6, top: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '1px 6px' }}>
                     {String(i + 1).padStart(2, '0')}
                   </div>
+                  {s.hasStyleOverride && (
+                    <div style={{ position: 'absolute', right: 6, top: 4, fontSize: 9, fontWeight: 600, color: '#fff', background: deck.profile.palette.primary, borderRadius: 4, padding: '1px 6px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      {styleForSlide.name.slice(0, 6)}
+                    </div>
+                  )}
                 </button>
               );
             })}
           </div>
         </aside>
 
-        {/* Stage — scroll-snap full-viewport slides */}
+        {/* Stage */}
         <main
           ref={stageRef}
           style={{
@@ -215,8 +323,9 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
           }}
         >
           {deck.slides.map((s, i) => {
-            const Slide = resolveSlide(s);
+            const Slide = resolveStyledSlide(s.archetype);
             if (!Slide) return null;
+            const styleForSlide = STYLES[s.styleId];
             return (
               <section
                 key={`section-${i}`}
@@ -232,7 +341,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                 }}
               >
                 <SlideScaler>
-                  <Slide index={i} profile={deck.profile} overrides={s.overrides} />
+                  <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} />
                 </SlideScaler>
               </section>
             );
@@ -248,10 +357,12 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
             {deck.slides[activeIndex] ? (
               <InspectorPanel
                 archetype={deck.slides[activeIndex].archetype}
-                variant={deck.slides[activeIndex].variant}
                 hidden={deck.slides[activeIndex].hidden}
                 overrides={deck.slides[activeIndex].overrides}
-                onVariant={(v) => deck.setVariant(activeIndex, v)}
+                hasStyleOverride={deck.slides[activeIndex].hasStyleOverride}
+                slideStyleId={deck.slides[activeIndex].styleId}
+                deckStyleId={activeStyleId}
+                onSlideStyle={(s) => deck.setSlideStyle(activeIndex, s)}
                 onOverride={(patch) => deck.setOverride(activeIndex, patch)}
                 onToggleHidden={() => deck.toggleHidden(activeIndex)}
               />
@@ -317,51 +428,79 @@ function SlideScaler({ children }: { children: React.ReactNode }) {
 
 function InspectorPanel({
   archetype,
-  variant,
   hidden,
   overrides,
-  onVariant,
+  hasStyleOverride,
+  slideStyleId,
+  deckStyleId,
+  onSlideStyle,
   onOverride,
   onToggleHidden,
 }: {
   archetype: string;
-  variant: string;
   hidden: boolean;
   overrides: { headline?: string; subhead?: string; credit?: string; image?: string } | undefined;
-  onVariant: (v: VariantId) => void;
+  hasStyleOverride: boolean;
+  slideStyleId: DeckStyleId;
+  deckStyleId: DeckStyleId;
+  onSlideStyle: (id: DeckStyleId | undefined) => void;
   onOverride: (patch: { headline?: string; subhead?: string; credit?: string; image?: string }) => void;
   onToggleHidden: () => void;
 }) {
-  const variants = useMemo(() => SLIDE_CATALOG[archetype] ?? [variant], [archetype, variant]);
-
   return (
     <div>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
         {ARCHETYPE_LABELS[archetype] ?? archetype}
       </div>
-      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 14 }}>
-        Pick a layout variant or tweak copy & imagery.
+      <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 18 }}>
+        Override the deck-wide template just for this slide, or tweak its copy.
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-        {variants.map((v) => (
-          <button
-            key={v}
-            onClick={() => onVariant(v as VariantId)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 8,
-              border: v === variant ? '1px solid #fff' : '1px solid #333',
-              background: v === variant ? '#fff' : 'transparent',
-              color: v === variant ? '#000' : '#fff',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Variant {v}
-          </button>
-        ))}
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.24em', textTransform: 'uppercase', opacity: 0.55, marginBottom: 8 }}>
+        Style
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+        <button
+          type="button"
+          onClick={() => onSlideStyle(undefined)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: !hasStyleOverride ? '1px solid #fff' : '1px solid #333',
+            background: !hasStyleOverride ? '#fff' : 'transparent',
+            color: !hasStyleOverride ? '#000' : '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Auto · {STYLES[deckStyleId].name}
+        </button>
+        {ALL_STYLES.map((s) => {
+          const active = hasStyleOverride && slideStyleId === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => onSlideStyle(s.id)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 8,
+                border: active ? '1px solid #fff' : '1px solid #333',
+                background: active ? '#fff' : 'transparent',
+                color: active ? '#000' : '#fff',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {s.name}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 18 }}>
+        Auto follows the deck-wide style; explicit picks pin this slide.
       </div>
 
       <Field label="Headline" value={overrides?.headline} onChange={(v) => onOverride({ headline: v || undefined })} />

@@ -10,6 +10,9 @@
 
 export type DeckMode = 'bold' | 'editorial' | 'technical' | 'elegant' | 'playful';
 
+import type { DeckStyleId } from './styles/types';
+export type { DeckStyleId } from './styles/types';
+
 export type SlideArchetype =
   | 'cover'
   | 'manifesto'
@@ -47,6 +50,8 @@ export interface DeckPlan {
   brandId: string;
   mode: DeckMode;
   slides: SlidePick[];
+  /** Deck-wide template/style. Every slide reads this unless overridden per-slide. */
+  style: DeckStyleId;
   /** Hash of brand state at generation time; used to detect staleness. */
   signature: string;
   generatedAt: string;
