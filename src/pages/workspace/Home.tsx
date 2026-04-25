@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -129,8 +129,20 @@ export default function WorkspaceHome() {
   const brands = useBrandStore((s) => s.list);
   const loadAll = useBrandStore((s) => s.loadAll);
 
+  // Wait for the first fetch to resolve before deciding between empty
+  // state and grid. Without this gate the initial render runs with the
+  // store's default `list: []` and flashes "No brands yet" before the
+  // async `loadAll()` completes.
+  const [hasLoaded, setHasLoaded] = useState(brands.length > 0);
+
   useEffect(() => {
-    loadAll();
+    let cancelled = false;
+    loadAll().finally(() => {
+      if (!cancelled) setHasLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadAll]);
 
   const sorted = useMemo(() => {
@@ -144,6 +156,7 @@ export default function WorkspaceHome() {
 
   const lastEdit = sorted[0]?.updatedAt;
   const count = sorted.length;
+  const ready = hasLoaded || count > 0;
 
   return (
     <WorkspaceShell>
@@ -152,13 +165,15 @@ export default function WorkspaceHome() {
           <span className="ws-hero-eyebrow">Workspace</span>
           <h1 className="ws-hero-title">Your brands</h1>
           <p className="ws-hero-sub">
-            {count === 0
-              ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
-              : `${count} brand${count === 1 ? '' : 's'} · ${formatRelative(lastEdit).toLowerCase()}`}
+            {!ready
+              ? 'Loading your brands…'
+              : count === 0
+                ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
+                : `${count} brand${count === 1 ? '' : 's'} · ${formatRelative(lastEdit).toLowerCase()}`}
           </p>
         </section>
 
-        {count === 0 ? (
+        {!ready ? null : count === 0 ? (
           <div className="ws-empty" role="region" aria-label="No brands yet">
             <h2 className="ws-empty-title">No brands yet — create your first</h2>
             <p className="ws-empty-sub">
