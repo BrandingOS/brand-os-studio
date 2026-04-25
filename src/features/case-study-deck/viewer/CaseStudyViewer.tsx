@@ -199,45 +199,54 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                   background: '#111',
                   border: '1px solid #2a2a2a',
                   borderRadius: 12,
-                  padding: 8,
-                  minWidth: 320,
+                  padding: 10,
+                  width: 720,
                   maxHeight: 'calc(100vh - 96px)',
                   overflowY: 'auto',
                   boxShadow: '0 30px 60px -10px rgba(0,0,0,0.7)',
                 }}
               >
-                <div style={{ padding: '6px 10px 12px', fontSize: 10, opacity: 0.55, letterSpacing: '0.24em', textTransform: 'uppercase' }}>
-                  Templates · MVP
+                <div style={{ padding: '4px 8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 10, opacity: 0.55, letterSpacing: '0.24em', textTransform: 'uppercase' }}>
+                    Templates · MVP
+                  </span>
+                  <span style={{ fontSize: 10, opacity: 0.45 }}>
+                    Pick one — every slide adopts it
+                  </span>
                 </div>
-                {ALL_STYLES.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      deck.setStyle(s.id);
-                      setShowStyleMenu(false);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 10,
-                      borderRadius: 8,
-                      border: 'none',
-                      background: s.id === activeStyleId ? 'rgba(255,255,255,0.08)' : 'transparent',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <Check className="w-4 h-4" style={{ marginTop: 2, opacity: s.id === activeStyleId ? 1 : 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
-                      <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2, lineHeight: 1.45 }}>{s.description}</div>
-                    </div>
-                  </button>
-                ))}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+                  {ALL_STYLES.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        deck.setStyle(s.id);
+                        setShowStyleMenu(false);
+                      }}
+                      style={{
+                        padding: 10,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                        borderRadius: 10,
+                        border: s.id === activeStyleId ? `1px solid ${deck.profile.palette.primary}` : '1px solid #222',
+                        background: s.id === activeStyleId ? 'rgba(255,255,255,0.06)' : 'transparent',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <StyleThumbnail style={s} profile={deck.profile} total={total} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Check className="w-3.5 h-3.5" style={{ opacity: s.id === activeStyleId ? 1 : 0, color: deck.profile.palette.primary }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>{s.name}</div>
+                          <div style={{ fontSize: 10, opacity: 0.55, marginTop: 2, lineHeight: 1.4 }}>{s.description}</div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -384,6 +393,52 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
 }
 
 /* ---- subcomponents ---- */
+
+/**
+ * Tiny Cover preview rendered inside the Style dropdown so users see
+ * what each template actually looks like for THEIR brand before picking.
+ * Uses the same scaled-1920×1080 trick as the left thumbnail rail.
+ */
+function StyleThumbnail({
+  style,
+  profile,
+  total,
+}: {
+  style: import('../styles').DeckStyle;
+  profile: import('../types').BrandProfile;
+  total: number;
+}) {
+  const Cover = resolveStyledSlide('cover');
+  if (!Cover) return null;
+  const previewWidth = 320;
+  const scale = previewWidth / SLIDE_WIDTH;
+  return (
+    <div
+      style={{
+        width: previewWidth,
+        height: SLIDE_HEIGHT * scale,
+        position: 'relative',
+        overflow: 'hidden',
+        borderRadius: 6,
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: '#0a0a0a',
+        flexShrink: 0,
+      }}
+    >
+      <div
+        style={{
+          width: SLIDE_WIDTH,
+          height: SLIDE_HEIGHT,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          pointerEvents: 'none',
+        }}
+      >
+        <Cover index={0} profile={profile} style={style} total={total} />
+      </div>
+    </div>
+  );
+}
 
 function SlideScaler({ children }: { children: React.ReactNode }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
