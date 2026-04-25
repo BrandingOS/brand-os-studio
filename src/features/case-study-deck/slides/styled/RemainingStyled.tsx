@@ -24,23 +24,15 @@ import {
   type SurfaceTokens,
 } from '../../styles';
 import { TopBar, BottomBar, CornerNumeral } from '../../styles/chrome';
-import { Body, LogoMark } from '../shared';
-import { shiftLightness } from '../../utils';
 import { resolveShape } from '../../shapes';
 import type { StyledSlideProps } from './CoverStyled';
-import type { BrandProfile } from '../../types';
-import type { DeckStyle } from '../../styles';
-
-interface CommonProps {
-  profile: BrandProfile;
-  style: DeckStyle;
-  surface: SurfaceTokens;
-  fonts: ReturnType<typeof resolveFonts>;
-}
 
 interface ShapedSlideProps extends StyledSlideProps {
   shapeId?: string;
 }
+
+// Backwards-compat alias for branches that referenced ShapeAwareProps.
+type ShapeAwareProps = ShapedSlideProps;
 
 /* ─────────────────────────  MOODBOARD  ─────────────────────── */
 
@@ -152,85 +144,23 @@ export function EnvironmentalStyled({ index, profile, style, total, overrides, s
 
 /* ─────────────────────────  DIGITAL  ─────────────────────── */
 
-export function DigitalStyled({ index, profile, style, total }: StyledSlideProps) {
+export function DigitalStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Browser mock dimensions (inner content region).
-  const browserH = 580;
-  const browserPad = 30;
-  const innerPad = 60;
-  const innerW = region.width - browserPad * 2 - innerPad * 2;
-  // Hero/mission stack inside the browser hero area.
-  const heroH = 220;
-  const missionH = 110;
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Digital';
+  const shape = resolveShape('digital', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="digital" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            On every screen.
-          </span>
-        </div>
-        {/* Browser mock */}
-        <div style={{ background: '#0A0A0A', borderRadius: style.layout.cardCorner, height: browserH, padding: browserPad, position: 'relative', boxShadow: style.effect.shadow !== 'none' ? '0 40px 80px -16px rgba(0,0,0,0.45)' : 'none' }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#ff5f56' }} />
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#ffbd2e' }} />
-            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#27c93f' }} />
-          </div>
-          <div style={{ background: surface.bg, borderRadius: 12, padding: innerPad, display: 'flex', flexDirection: 'column', gap: 20, height: 480 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <LogoMark profile={profile} variant={surface.ink === '#FFFFFF' ? 'white' : 'black'} height={32} color={surface.ink} />
-              <div style={{ display: 'flex', gap: 18, fontFamily: fonts.body, fontSize: 13, color: surface.ink, opacity: 0.85 }}>
-                <span>Home</span><span>Products</span><span>About</span><span>Contact</span>
-              </div>
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 18 }}>
-              <FitText
-                as="span"
-                maxSize={70}
-                minSize={28}
-                width={innerW}
-                height={heroH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 700,
-                  lineHeight: 1.05,
-                  color: surface.ink,
-                  letterSpacing: '-0.025em',
-                }}
-              >
-                {profile.tagline}
-              </FitText>
-              <FitText
-                as="div"
-                maxSize={18}
-                minSize={11}
-                width={Math.min(innerW, 720)}
-                height={missionH}
-                style={{
-                  opacity: 0.7,
-                  lineHeight: 1.6,
-                  color: surface.ink,
-                  fontFamily: fonts.body,
-                }}
-              >
-                {profile.mission}
-              </FitText>
-              <div style={{ display: 'flex', gap: 14, marginTop: 14 }}>
-                <span style={{ padding: '12px 28px', borderRadius: style.id === 'playful' ? 999 : 12, background: profile.palette.primary, color: '#FFF', fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}>Get started</span>
-                <span style={{ padding: '12px 28px', borderRadius: style.id === 'playful' ? 999 : 12, border: `1px solid ${surface.border}`, color: surface.ink, fontFamily: fonts.body, fontSize: 13, fontWeight: 600 }}>Learn more</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Digital" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Digital" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
@@ -238,67 +168,23 @@ export function DigitalStyled({ index, profile, style, total }: StyledSlideProps
 
 /* ─────────────────────────  STATIONERY  ─────────────────────── */
 
-export function StationeryStyled({ index, profile, style, total }: StyledSlideProps) {
+export function StationeryStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Card geometry — 3-up grid spanning region.width.
-  const cardGap = style.spacing.blockGap;
-  const cardW = Math.round((region.width - cardGap * 2) / 3);
-  const cardH = 540;
-  const cardPad = 36;
-  const cardInnerW = cardW - cardPad * 2;
-  // Reserve room for the kind label (~24) and url row (~24) inside the card.
-  const labelReserve = 80;
-  const cardLabelH = cardH - cardPad * 2 - labelReserve;
-
-  const objects: { kind: string; bg: string; ink: string; label: string; prim?: boolean }[] = [
-    { kind: 'Folder', bg: profile.palette.primary, ink: '#FFF', label: profile.name, prim: true },
-    { kind: 'Card', bg: '#FFF', ink: '#0A0A0A', label: profile.name },
-    { kind: 'Envelope', bg: '#0A0A0A', ink: profile.palette.primary, label: profile.name },
-  ];
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Stationery';
+  const shape = resolveShape('stationery', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="stationery" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            Three objects, one system.
-          </span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: cardGap, height: cardH }}>
-          {objects.map((o) => (
-            <div key={o.kind} style={{ background: o.bg, borderRadius: style.layout.cardCorner, padding: cardPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: style.effect.shadow !== 'none' ? '0 18px 40px -10px rgba(0,0,0,0.2)' : 'none' }}>
-              <Body profile={profile} size={11} color={o.ink} style={{ letterSpacing: '0.2em', textTransform: 'uppercase', opacity: 0.7, fontFamily: fonts.body }}>
-                {o.kind}
-              </Body>
-              <FitText
-                as="span"
-                maxSize={78}
-                minSize={20}
-                width={cardInnerW}
-                height={cardLabelH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 800,
-                  color: o.ink,
-                  letterSpacing: '-0.03em',
-                  lineHeight: 0.9,
-                }}
-              >
-                {o.label}
-              </FitText>
-              <Body profile={profile} size={11} color={o.ink} style={{ opacity: 0.65, fontFamily: fonts.body }}>
-                {o.kind === 'Card' ? 'www.' + profile.name.toLowerCase().replace(/\s+/g, '') + '.com' : '—'}
-              </Body>
-            </div>
-          ))}
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Stationery" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Stationery" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
@@ -306,76 +192,23 @@ export function StationeryStyled({ index, profile, style, total }: StyledSlidePr
 
 /* ─────────────────────────  OUTDOOR  ─────────────────────── */
 
-export function OutdoorStyled({ index, profile, style, total }: StyledSlideProps) {
+export function OutdoorStyled(props: ShapeAwareProps) {
+  const { index, profile, style, total, overrides, shapeId } = props;
   const surface = resolveSurface(style, profile);
   const bg = resolveBackground(style, surface);
   const fonts = resolveFonts(style, profile);
-  const pageNum = String(index + 1).padStart(2, '0');
   const region = contentRegion(style);
-  // Banner geometry — outer dark frame + inner brand panel.
-  const bannerW = Math.min(region.width, 1200);
-  const bannerH = 480;
-  const bannerPad = 40;
-  const innerPad = 50;
-  const innerW = bannerW - bannerPad * 2 - innerPad * 2;
-  const innerH = bannerH - bannerPad * 2 - innerPad * 2;
-  // 3 stacked rows: top caption (~30) + center wordmark + bottom caption (~30) with space-between.
-  const captionH = 30;
-  const wordmarkH = innerH - captionH * 2 - 40;
-  // Headline reserve at top.
-  const headerH = 130;
-  const bannerStackH = region.height - headerH - 36;
+  const pageNum = String(index + 1).padStart(2, '0');
+  const sectionLabel = 'Outdoor';
+  const shape = resolveShape('outdoor', shapeId, style);
 
   return (
     <SlideFrame index={index} archetype="outdoor" variant={style.id} background={bg} ink={surface.ink}>
-      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height, display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <div>
-          <span style={{ fontFamily: fonts.heading, fontSize: headingSize(style, 96), fontWeight: style.typography.headingWeight, lineHeight: 0.92, letterSpacing: style.typography.headingTracking, color: surface.ink, display: 'block' }}>
-            Out in the wild.
-          </span>
-        </div>
-        <div style={{ height: bannerStackH, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-          <div style={{ background: '#1f2937', width: '100%', maxWidth: bannerW, height: bannerH, borderRadius: style.layout.cardCorner, padding: bannerPad, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: style.effect.shadow !== 'none' ? '0 30px 60px -12px rgba(0,0,0,0.4)' : 'none' }}>
-            <div style={{ background: profile.palette.primary, width: '100%', height: '100%', borderRadius: style.layout.cardCorner / 2, padding: innerPad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <FitText
-                as="div"
-                maxSize={16}
-                minSize={10}
-                width={innerW}
-                height={captionH}
-                style={{ letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: fonts.body, opacity: 0.85, color: '#FFF' }}
-              >
-                Powering Growth Through {profile.name}
-              </FitText>
-              <FitText
-                as="span"
-                maxSize={280}
-                minSize={56}
-                width={innerW}
-                height={wordmarkH}
-                style={{
-                  fontFamily: fonts.heading,
-                  fontWeight: 900,
-                  color: '#FFF',
-                  letterSpacing: '-0.04em',
-                  lineHeight: 0.85,
-                  textAlign: 'center',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {profile.name}
-              </FitText>
-              <Body profile={profile} size={14} color="#FFF" style={{ letterSpacing: '0.18em', textTransform: 'uppercase', fontFamily: fonts.body, opacity: 0.85, textAlign: 'right' }}>
-                Mesh banner · {style.name}
-              </Body>
-            </div>
-          </div>
-        </div>
+      <div style={{ position: 'absolute', left: region.x, top: region.y, width: region.width, height: region.height }}>
+        {shape ? shape.render({ profile, style, surface, fonts, region, overrides }) : null}
       </div>
-      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Outdoor" total={total} />
-      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel="Outdoor" total={total} />
+      <TopBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
+      <BottomBar style={style} profile={profile} surface={surface} pageNum={pageNum} sectionLabel={sectionLabel} total={total} />
       <CornerNumeral style={style} profile={profile} surface={surface} pageNum={pageNum} />
     </SlideFrame>
   );
