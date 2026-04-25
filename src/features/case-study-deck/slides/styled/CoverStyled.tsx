@@ -158,67 +158,147 @@ function CoverBody({
       );
     }
 
-    case 'minimal':
+    case 'minimal': {
+      const region = contentRegion(style);
+      const nameW = Math.min(region.width, 1500);
+      const nameH = Math.min(region.height - 260, 320);
       return (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: style.spacing.pad }}>
           <div style={{ width: 64, height: style.spacing.rule, background: surface.accent, marginBottom: 80 }} />
-          <span
+          <FitText
+            as="span"
+            maxSize={headingSize(style, 140)}
+            minSize={48}
+            width={nameW}
+            height={nameH}
             style={{
               fontFamily: fonts.heading,
               fontWeight: style.typography.headingWeight,
-              fontSize: headingSize(style, 140),
               letterSpacing: '-0.03em',
               color: surface.ink,
+              lineHeight: 1.0,
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             {profile.name}
-          </span>
+          </FitText>
           <div style={{ marginTop: 64, width: 64, height: style.spacing.rule, background: surface.accent }} />
           <Body profile={profile} size={12} color={surface.ink} style={{ marginTop: 40, letterSpacing: '0.4em', textTransform: 'uppercase', opacity: 0.55 }}>
             Brand Guideline · Edition 01
           </Body>
         </div>
       );
+    }
 
-    case 'swiss':
+    case 'swiss': {
+      const region = contentRegion(style);
+      const taglineW = Math.round(region.width * 0.5);
+      const nameH = Math.round(region.height * 0.55);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 16, alignItems: 'end' }}>
-          <div style={{ gridColumn: '1 / 7', gridRow: 1, alignSelf: 'start', marginTop: 180 }}>
-            <Body profile={profile} size={14} color={surface.ink} style={{ lineHeight: 1.55, opacity: 0.78, maxWidth: 460 }}>
-              {tagline}
-            </Body>
-          </div>
-          <div style={{ gridColumn: '1 / 13', gridRow: 2 }}>
-            <span style={{ fontFamily: fonts.heading, fontWeight: style.typography.headingWeight, fontSize: headingSize(style, 320), lineHeight: 0.86, letterSpacing: style.typography.headingTracking, color: surface.ink }}>
-              {profile.name}.
-            </span>
-          </div>
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <FitText
+            as="div"
+            maxSize={headingSize(style, 18)}
+            minSize={11}
+            width={taglineW}
+            height={140}
+            style={{
+              fontFamily: fonts.body,
+              lineHeight: 1.55,
+              color: surface.ink,
+              opacity: 0.78,
+            }}
+          >
+            {tagline}
+          </FitText>
+          <FitText
+            as="div"
+            maxSize={headingSize(style, 320)}
+            minSize={80}
+            width={region.width}
+            height={nameH}
+            style={{
+              fontFamily: fonts.heading,
+              fontWeight: style.typography.headingWeight,
+              lineHeight: 0.86,
+              letterSpacing: style.typography.headingTracking,
+              color: surface.ink,
+            }}
+          >
+            {profile.name}.
+          </FitText>
         </div>
       );
+    }
 
-    case 'brutalist':
+    case 'brutalist': {
+      const region = contentRegion(style);
+      // Reserve room for the chip row (~90) and the tagline body (~120).
+      const nameH = region.height - 240;
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div style={{ marginTop: 110, paddingBottom: 32, borderBottom: `4px solid ${surface.ink}` }}>
-            <span
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ paddingBottom: 32, borderBottom: `4px solid ${surface.ink}` }}>
+            <FitText
+              as="div"
+              maxSize={headingSize(style, 280)}
+              minSize={64}
+              width={region.width}
+              height={nameH}
               style={{
                 fontFamily: fonts.heading,
                 fontWeight: style.typography.headingWeight,
-                fontSize: headingSize(style, 280),
                 lineHeight: 0.85,
                 letterSpacing: '-0.04em',
                 color: surface.ink,
                 textTransform: 'uppercase',
-                display: 'block',
               }}
             >
               {profile.name}
-            </span>
-            <Body profile={profile} size={14} color={surface.ink} style={{ marginTop: 24, fontFamily: fonts.body, letterSpacing: '0.06em', textTransform: 'uppercase', opacity: 0.85 }}>
+            </FitText>
+            <FitText
+              as="div"
+              maxSize={18}
+              minSize={11}
+              width={region.width}
+              height={48}
+              style={{
+                marginTop: 24,
+                fontFamily: fonts.body,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                opacity: 0.85,
+                color: surface.ink,
+              }}
+            >
               [CASE STUDY · 01] {tagline}
-            </Body>
+            </FitText>
           </div>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 100 }}>
+          <div style={{ display: 'flex', gap: 16 }}>
             {['BRAND', 'STRATEGY', 'IDENTITY', 'TEMPLATE'].map((tag) => (
               <span key={tag} style={{ fontFamily: fonts.body, fontSize: 12, padding: '6px 14px', border: `2px solid ${surface.ink}`, color: surface.ink, letterSpacing: '0.08em' }}>
                 {tag}
@@ -227,6 +307,7 @@ function CoverBody({
           </div>
         </div>
       );
+    }
 
     case 'monolith': {
       const region = contentRegion(style);
@@ -262,31 +343,65 @@ function CoverBody({
       );
     }
 
-    case 'technical':
+    case 'technical': {
+      const region = contentRegion(style);
+      const metaW = 360;
+      const colGap = 48;
+      const leftW = region.width - metaW - colGap;
+      const nameH = Math.round(region.height * 0.5);
+      const taglineH = region.height - nameH - 70;
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'grid', gridTemplateColumns: '1fr 360px', gap: 48, alignItems: 'start' }}>
-          <div style={{ marginTop: 110 }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'grid',
+            gridTemplateColumns: `1fr ${metaW}px`,
+            gap: colGap,
+            alignItems: 'start',
+          }}
+        >
+          <div>
             <Body profile={profile} size={11} color={surface.ink} style={{ fontFamily: fonts.body, letterSpacing: '0.18em', textTransform: 'uppercase', opacity: 0.6, marginBottom: 18 }}>
               Document · brand-spec/{profile.id.slice(0, 6)}
             </Body>
-            <span
+            <FitText
+              as="div"
+              maxSize={headingSize(style, 200)}
+              minSize={48}
+              width={leftW}
+              height={nameH}
               style={{
                 fontFamily: fonts.heading,
                 fontWeight: style.typography.headingWeight,
-                fontSize: headingSize(style, 200),
                 lineHeight: 0.9,
                 letterSpacing: style.typography.headingTracking,
                 color: surface.ink,
-                display: 'block',
               }}
             >
-              {profile.name} {' '}<span style={{ color: surface.accent }}>/</span> Brand Document
-            </span>
-            <Body profile={profile} size={14} color={surface.ink} style={{ opacity: 0.7, marginTop: 28, maxWidth: 780, lineHeight: 1.6 }}>
+              {profile.name} <span style={{ color: surface.accent }}>/</span> Brand Document
+            </FitText>
+            <FitText
+              as="div"
+              maxSize={20}
+              minSize={11}
+              width={leftW}
+              height={taglineH}
+              style={{
+                opacity: 0.7,
+                marginTop: 28,
+                lineHeight: 1.6,
+                color: surface.ink,
+                fontFamily: fonts.body,
+              }}
+            >
               {tagline}
-            </Body>
+            </FitText>
           </div>
-          <div style={{ marginTop: 110, padding: 24, border: `1px solid ${surface.border}`, fontFamily: fonts.body, color: surface.ink, fontSize: 12, lineHeight: 1.85 }}>
+          <div style={{ padding: 24, border: `1px solid ${surface.border}`, fontFamily: fonts.body, color: surface.ink, fontSize: 12, lineHeight: 1.85 }}>
             <div style={{ opacity: 0.55, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 18 }}>// META</div>
             <div>id&nbsp;&nbsp;&nbsp;{profile.id.slice(0, 8)}</div>
             <div>mode&nbsp;{profile.mode}</div>
@@ -297,6 +412,7 @@ function CoverBody({
           </div>
         </div>
       );
+    }
 
     case 'magazine': {
       // Magazine has chrome (tabular topbar + bottombar) handle masthead/meta.
@@ -344,9 +460,26 @@ function CoverBody({
       );
     }
 
-    case 'playful':
+    case 'playful': {
+      const region = contentRegion(style);
+      const nameW = Math.min(region.width, 1500);
+      const nameH = Math.round(region.height * 0.5);
+      const taglineH = Math.min(160, region.height - nameH - 140);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 28, marginBottom: 36 }}>
             <span style={{ width: 32, height: 32, borderRadius: 999, background: surface.accent }} />
             <Body profile={profile} size={14} color={surface.ink} style={{ letterSpacing: '0.32em', textTransform: 'uppercase', opacity: 0.7 }}>
@@ -354,37 +487,81 @@ function CoverBody({
             </Body>
             <span style={{ width: 32, height: 32, borderRadius: 999, background: shiftLightness(surface.accent, 0.18) }} />
           </div>
-          <span
+          <FitText
+            as="span"
+            maxSize={headingSize(style, 280)}
+            minSize={72}
+            width={nameW}
+            height={nameH}
             style={{
               fontFamily: fonts.heading,
               fontWeight: style.typography.headingWeight,
-              fontSize: headingSize(style, 280),
               lineHeight: 0.86,
               letterSpacing: style.typography.headingTracking,
               color: surface.ink,
               transform: 'rotate(-2.5deg)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
             }}
           >
             {profile.name}!
-          </span>
-          <Body profile={profile} size={22} color={surface.ink} style={{ marginTop: 32, opacity: 0.85, maxWidth: 800, lineHeight: 1.4 }}>
+          </FitText>
+          <FitText
+            as="div"
+            maxSize={26}
+            minSize={14}
+            width={Math.min(region.width, 900)}
+            height={taglineH}
+            style={{
+              marginTop: 32,
+              opacity: 0.85,
+              lineHeight: 1.4,
+              color: surface.ink,
+              fontFamily: fonts.body,
+              textAlign: 'center',
+            }}
+          >
             {tagline}
-          </Body>
+          </FitText>
         </div>
       );
+    }
 
     case 'modern':
-    default:
+    default: {
+      const region = contentRegion(style);
+      const contentW = Math.min(region.width, 1300);
+      // Reserve eyebrow ~40, gap ~28, name ~half, gap, tagline ~120, gap, button row ~60.
+      const nameH = Math.round(region.height * 0.42);
+      const taglineH = Math.max(120, region.height - nameH - 220);
       return (
-        <div style={{ position: 'absolute', inset: 0, padding: style.spacing.pad, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 28, maxWidth: 1300 }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: region.x,
+            top: region.y,
+            width: region.width,
+            height: region.height,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: 28,
+          }}
+        >
           <Body profile={profile} size={13} color={surface.ink} style={{ opacity: 0.55, letterSpacing: style.typography.eyebrowTracking, textTransform: 'uppercase' }}>
             Brand Document · 01
           </Body>
-          <span
+          <FitText
+            as="div"
+            maxSize={headingSize(style, 160)}
+            minSize={48}
+            width={contentW}
+            height={nameH}
             style={{
               fontFamily: fonts.heading,
               fontWeight: style.typography.headingWeight,
-              fontSize: headingSize(style, 160),
               lineHeight: 1.0,
               letterSpacing: style.typography.headingTracking,
               color: surface.ink,
@@ -392,10 +569,22 @@ function CoverBody({
           >
             {profile.name}
             <span style={{ color: surface.accent }}>.</span>
-          </span>
-          <Body profile={profile} size={22} color={surface.ink} style={{ opacity: 0.7, lineHeight: 1.45, maxWidth: 800 }}>
+          </FitText>
+          <FitText
+            as="div"
+            maxSize={26}
+            minSize={14}
+            width={Math.min(contentW, 900)}
+            height={taglineH}
+            style={{
+              opacity: 0.7,
+              lineHeight: 1.45,
+              color: surface.ink,
+              fontFamily: fonts.body,
+            }}
+          >
             {tagline}
-          </Body>
+          </FitText>
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ padding: '8px 18px', borderRadius: 999, border: `1px solid ${surface.accent}`, color: surface.accent, fontFamily: fonts.body, fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
               View Guidelines
@@ -406,5 +595,6 @@ function CoverBody({
           </div>
         </div>
       );
+    }
   }
 }
