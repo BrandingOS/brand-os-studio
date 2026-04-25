@@ -14,12 +14,18 @@
  */
 
 import { TYPOGRAPHY_CATALOG } from './typography';
+import { COVER_CATALOG } from './cover';
+import { MANIFESTO_CATALOG } from './manifesto';
+import { PALETTE_CATALOG } from './palette';
 import type { ShapeCatalog } from './types';
 import type { SlideArchetype } from '../types';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
 
 export type { SlideShape, ShapeCatalog, ShapeRenderProps } from './types';
 export { TYPOGRAPHY_CATALOG, TYPOGRAPHY_SHAPES } from './typography';
+export { COVER_CATALOG, COVER_SHAPES } from './cover';
+export { MANIFESTO_CATALOG, MANIFESTO_SHAPES } from './manifesto';
+export { PALETTE_CATALOG, PALETTE_SHAPES } from './palette';
 
 /** Stub catalog used by archetypes that haven't been migrated yet. */
 function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
@@ -39,10 +45,10 @@ function stubCatalog(archetype: SlideArchetype): ShapeCatalog {
 }
 
 export const CATALOGS: Record<SlideArchetype, ShapeCatalog> = {
-  cover: stubCatalog('cover'),
-  manifesto: stubCatalog('manifesto'),
+  cover: COVER_CATALOG,
+  manifesto: MANIFESTO_CATALOG,
   moodboard: stubCatalog('moodboard'),
-  palette: stubCatalog('palette'),
+  palette: PALETTE_CATALOG,
   typography: TYPOGRAPHY_CATALOG,
   signature: stubCatalog('signature'),
   environmental: stubCatalog('environmental'),
