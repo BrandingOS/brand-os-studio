@@ -8,6 +8,7 @@
  */
 
 export type UniexSlide =
+  | { kind: 'master' }
   | { kind: 'cover' }
   | { kind: 'problem' }
   | { kind: 'solution' }
@@ -23,6 +24,7 @@ export type UniexSlide =
   | { kind: 'cta' };
 
 export const UNIEX_SLIDES: UniexSlide[] = [
+  { kind: 'master' },
   { kind: 'cover' },
   { kind: 'problem' },
   { kind: 'solution' },
@@ -42,6 +44,7 @@ export const UNIEX_SLIDES: UniexSlide[] = [
 
 /** Section labels used in chrome (bilingual; chrome picks one). */
 export const SECTION_LABEL: Record<UniexSlide['kind'], string> = {
+  master: 'الستايل',
   cover: 'تقديم',
   problem: 'التحدي',
   solution: 'الحل',

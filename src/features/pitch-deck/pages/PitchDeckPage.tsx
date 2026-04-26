@@ -614,6 +614,7 @@ function PitchDeckInspector({
   onResetFrozen: () => void;
 }) {
   const KIND_LABELS: Record<UniexSlide['kind'], string> = {
+    master: 'Master Style',
     cover: 'Cover',
     problem: 'Problem',
     solution: 'Solution',

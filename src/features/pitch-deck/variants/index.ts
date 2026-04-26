@@ -8,6 +8,7 @@
  * timelines, etc.) while reading the SAME content.
  */
 
+import { MASTER_VARIANTS } from './Master';
 import { COVER_VARIANTS } from './Cover';
 import { PROBLEM_VARIANTS } from './Problem';
 import { SOLUTION_VARIANTS } from './Solution';
@@ -25,6 +26,7 @@ import { CTA_VARIANTS } from './Cta';
 export type VariantKey = 'A' | 'B' | 'C' | 'D' | 'E';
 
 export const VARIANTS = {
+  master: MASTER_VARIANTS,
   cover: COVER_VARIANTS,
   problem: PROBLEM_VARIANTS,
   solution: SOLUTION_VARIANTS,
