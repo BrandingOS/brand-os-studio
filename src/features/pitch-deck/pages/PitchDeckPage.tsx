@@ -365,23 +365,36 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
               }}
             >
               <SlideScaler>
-                <InlineEditableSlide
-                  // Re-key on variant change so the editor remounts and
-                  // re-captures a fresh baseline. Without this, the
-                  // existing docHtml from the old variant would persist
-                  // and the new variant's React children would be
-                  // ignored.
-                  key={`slide-${i}-${slideVariants[i] ?? 'A'}`}
-                  slideIndex={i}
-                  frozenHtml={slideFrozenHtml[i]}
-                  isActive={i === activeIndex}
-                  width={SLIDE_WIDTH}
-                  height={SLIDE_HEIGHT}
-                  onSave={(html) => setSlideFrozen(i, html)}
-                  onSelectionChange={i === activeIndex ? handleSelectionChange : undefined}
-                >
-                  {renderSlide(i)}
-                </InlineEditableSlide>
+                {UNIEX_SLIDES[i].kind === 'master' ? (
+                  // Master Style is a tool, not editable content.
+                  // Skip InlineEditableSlide — its freeze-to-HTML behavior
+                  // detaches React handlers on dropdowns/sliders after
+                  // ~250ms, so theme edits would silently stop working.
+                  <div
+                    data-editor-chrome="true"
+                    style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }}
+                  >
+                    {renderSlide(i)}
+                  </div>
+                ) : (
+                  <InlineEditableSlide
+                    // Re-key on variant change so the editor remounts and
+                    // re-captures a fresh baseline. Without this, the
+                    // existing docHtml from the old variant would persist
+                    // and the new variant's React children would be
+                    // ignored.
+                    key={`slide-${i}-${slideVariants[i] ?? 'A'}`}
+                    slideIndex={i}
+                    frozenHtml={slideFrozenHtml[i]}
+                    isActive={i === activeIndex}
+                    width={SLIDE_WIDTH}
+                    height={SLIDE_HEIGHT}
+                    onSave={(html) => setSlideFrozen(i, html)}
+                    onSelectionChange={i === activeIndex ? handleSelectionChange : undefined}
+                  >
+                    {renderSlide(i)}
+                  </InlineEditableSlide>
+                )}
               </SlideScaler>
             </section>
           ))}

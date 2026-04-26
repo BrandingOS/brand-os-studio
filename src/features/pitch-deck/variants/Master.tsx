@@ -14,6 +14,7 @@
  */
 
 import { useParams } from 'react-router-dom';
+import { RotateCcw } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
@@ -33,6 +34,13 @@ import type { SlideProps } from './_shared';
 
 const HEADING_WEIGHTS = [300, 400, 500, 600, 700, 800] as const;
 const BODY_WEIGHTS = [400, 500, 600] as const;
+
+const SAVE_LABEL: Record<string, string> = {
+  idle: 'Saved',
+  saving: 'Saving…',
+  saved: 'Saved',
+  error: 'Save failed',
+};
 
 export function MasterSlideA({ index, total }: SlideProps) {
   const { slug } = useParams<{ slug: string }>();
@@ -61,7 +69,7 @@ function MasterContent({
   index: number;
   total: number;
 }) {
-  const { theme, patch } = useDeckTheme(brand, 'pitch-deck');
+  const { theme, patch, reset, saveState } = useDeckTheme(brand, 'pitch-deck');
 
   const setHeadingFont = (family: string | undefined) => {
     if (family) ensureFontLoaded(family);
@@ -92,8 +100,46 @@ function MasterContent({
         <span className="deck-label" style={{ letterSpacing: '0.32em' }}>
           MASTER STYLE
         </span>
-        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {String(index).padStart(2, '0')} / {String(total).padStart(2, '0')}
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+          <span
+            className="deck-caption"
+            style={{
+              color: saveState === 'error' ? '#c11' : 'rgba(0,21,99,0.5)',
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {SAVE_LABEL[saveState] ?? 'Saved'}
+          </span>
+          <button
+            type="button"
+            data-editor-chrome="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              reset();
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              height: 32,
+              padding: '0 12px',
+              fontSize: 12,
+              fontWeight: 500,
+              border: '1px solid rgba(0,21,99,0.18)',
+              borderRadius: 999,
+              background: '#fff',
+              color: 'rgba(0,21,99,0.78)',
+              cursor: 'pointer',
+            }}
+            title="Reset all theme overrides — slides go back to brand defaults"
+          >
+            <RotateCcw size={14} /> Reset to brand
+          </button>
+          <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {String(index).padStart(2, '0')} / {String(total).padStart(2, '0')}
+          </span>
         </span>
       </div>
       <div style={ruleStyle} />
