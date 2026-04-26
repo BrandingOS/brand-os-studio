@@ -184,7 +184,17 @@ export function InlineEditableSlide({
 
     const observer = new MutationObserver(() => {
       if (isApplyingRef.current) return;
-      if (isHistoryNavRef.current) return;
+      // History-nav (undo/redo) caused this mutation. Consume the
+      // flag synchronously so a later real edit pushes normally.
+      // Previously this was reset by an 80ms timeout — but React's
+      // commit + the resulting DOM mutation often outran 80ms, so
+      // the observer saw the flag already cleared and pushed the
+      // undone state as a new history entry. Pressing Cmd+Z again
+      // would just bounce back to the version we just undid.
+      if (isHistoryNavRef.current) {
+        isHistoryNavRef.current = false;
+        return;
+      }
       const next = readSlideHtml();
       if (next === null) return;
       // Update the pending snapshot and reset the debounce. ONE
@@ -241,11 +251,17 @@ export function InlineEditableSlide({
         const html = hist.stack[nextIdx];
         historyRef.current = { stack: hist.stack, index: nextIdx };
         isHistoryNavRef.current = true;
+        // Cancel any in-flight debounced commit so the undo isn't
+        // immediately overwritten by a stale pending snapshot.
+        if (saveTimer.current) {
+          clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+          pendingHtmlRef.current = null;
+        }
         setDocHtml(html);
         onSave(html);
-        setTimeout(() => {
-          isHistoryNavRef.current = false;
-        }, 80);
+        // The observer's first firing after this consumes the flag
+        // synchronously — no timeout needed.
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
         e.preventDefault();
         const hist = historyRef.current;
@@ -254,11 +270,17 @@ export function InlineEditableSlide({
         const html = hist.stack[nextIdx];
         historyRef.current = { stack: hist.stack, index: nextIdx };
         isHistoryNavRef.current = true;
+        // Cancel any in-flight debounced commit so the undo isn't
+        // immediately overwritten by a stale pending snapshot.
+        if (saveTimer.current) {
+          clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+          pendingHtmlRef.current = null;
+        }
         setDocHtml(html);
         onSave(html);
-        setTimeout(() => {
-          isHistoryNavRef.current = false;
-        }, 80);
+        // The observer's first firing after this consumes the flag
+        // synchronously — no timeout needed.
       }
     };
     window.addEventListener('keydown', onKey);
