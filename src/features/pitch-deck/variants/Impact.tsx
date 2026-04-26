@@ -50,15 +50,15 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>التجربة الواقعية</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>التجربة الواقعية</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -198,7 +198,7 @@ export function ImpactSlideA({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 18,
+                fontSize: 22,
                 color: 'rgba(255,255,255,0.7)',
                 letterSpacing: '0.18em',
               }}
@@ -254,7 +254,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -325,7 +325,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 18,
+                fontSize: 22,
                 color: 'rgba(255,255,255,0.85)',
               }}
             >
@@ -338,7 +338,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
                 gap: 14,
                 color: GREEN,
                 fontFamily: FONT_BODY,
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: 700,
                 letterSpacing: '0.2em',
               }}
@@ -471,7 +471,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
                 left: 32,
                 color: 'rgba(255,255,255,0.7)',
                 fontFamily: FONT_BODY,
-                fontSize: 16,
+                fontSize: 20,
                 letterSpacing: '0.2em',
               }}
             >
@@ -490,7 +490,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 20,
                 color: GREEN,
                 fontWeight: 700,
                 letterSpacing: '0.32em',
@@ -544,7 +544,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 18,
+                  fontSize: 22,
                   color: NAVY,
                   fontWeight: 600,
                 }}
@@ -678,7 +678,7 @@ export function ImpactSlideD({ index, total }: SlideProps) {
                   bottom: 12,
                   right: 14,
                   fontFamily: FONT_BODY,
-                  fontSize: 12,
+                  fontSize: 16,
                   color: 'rgba(255,255,255,0.75)',
                   letterSpacing: '0.18em',
                 }}
@@ -752,7 +752,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -869,7 +869,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
                       justifyContent: 'center',
                       fontFamily: FONT_DISPLAY,
                       fontWeight: 800,
-                      fontSize: 14,
+                      fontSize: 16,
                     }}
                   >
                     {c.initials}
@@ -877,7 +877,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
                   <span
                     style={{
                       fontFamily: FONT_BODY,
-                      fontSize: 14,
+                      fontSize: 18,
                       fontWeight: 600,
                       color: fg,
                       opacity: 0.85,
@@ -897,7 +897,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
             gap: 14,
             color: GREEN,
             fontFamily: FONT_DISPLAY,
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: 700,
             letterSpacing: '0.2em',
           }}

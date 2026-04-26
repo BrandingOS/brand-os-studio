@@ -620,7 +620,7 @@ export function ProgramDetailE({ index, total, programKey }: SlideProps) {
 
         {/* Outputs (bottom) */}
         <div style={{ background: GREEN_SOFT, borderRadius: 18, padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap', ...RTL_DIR }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>📊 المخرجات</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>📊 المخرجات</span>
           {p.outputs.map((out, j) => (
             <span
               key={j}
@@ -631,7 +631,7 @@ export function ProgramDetailE({ index, total, programKey }: SlideProps) {
                 padding: '8px 16px',
                 borderRadius: 999,
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 18,
                 fontWeight: 600,
                 lineHeight: 1.4,
               }}

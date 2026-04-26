@@ -51,15 +51,15 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>مؤشرات الأثر</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>مؤشرات الأثر</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -128,7 +128,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -184,7 +184,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 22,
+                  fontSize: 24,
                   color: WHITE,
                   fontWeight: 500,
                 }}
@@ -200,7 +200,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
               key={i}
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: 600,
                 color: 'rgba(255,255,255,0.85)',
                 background: 'rgba(255,255,255,0.06)',
@@ -344,7 +344,7 @@ export function MetricsSlideB({ index, total }: SlideProps) {
               key={i}
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 16,
+                fontSize: 20,
                 fontWeight: 600,
                 color: NAVY,
                 background: WHITE,
@@ -440,7 +440,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 20,
                 color: GREEN,
                 fontWeight: 700,
                 letterSpacing: '0.32em',
@@ -488,7 +488,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
                 <span
                   style={{
                     fontFamily: FONT_BODY,
-                    fontSize: 13,
+                    fontSize: 18,
                     fontWeight: 700,
                     letterSpacing: '0.32em',
                     color: 'rgba(0,21,99,0.55)',
@@ -499,7 +499,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
                 <span
                   style={{
                     fontFamily: FONT_BODY,
-                    fontSize: 22,
+                    fontSize: 26,
                     fontWeight: 700,
                     color: NAVY,
                   }}
@@ -541,7 +541,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
                   key={i}
                   style={{
                     fontFamily: FONT_BODY,
-                    fontSize: 14,
+                    fontSize: 18,
                     fontWeight: 600,
                     color: NAVY,
                     background: GREEN_SOFT,
@@ -600,7 +600,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: NAVY,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -655,7 +655,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 14,
+                  fontSize: 20,
                   color: GREEN,
                   fontWeight: 700,
                   letterSpacing: '0.32em',
@@ -683,7 +683,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 22,
+                  fontSize: 24,
                   color: WHITE,
                   fontWeight: 600,
                   opacity: 0.92,
@@ -701,7 +701,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
                 key={i}
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 16,
+                  fontSize: 20,
                   fontWeight: 700,
                   color: NAVY,
                   background: WHITE,
@@ -765,7 +765,7 @@ export function MetricsSlideE({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -865,7 +865,7 @@ export function MetricsSlideE({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 16,
+                  fontSize: 22,
                   fontWeight: 600,
                   color: 'rgba(0,21,99,0.7)',
                 }}

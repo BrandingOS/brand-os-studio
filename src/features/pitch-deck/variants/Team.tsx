@@ -51,15 +51,15 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>الفريق والشركاء</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>الفريق والشركاء</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -178,7 +178,7 @@ export function TeamSlideA({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_DISPLAY,
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 700,
                   letterSpacing: '0.32em',
                   color: i === 1 ? GREEN : NAVY,
@@ -270,7 +270,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -589,7 +589,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -673,7 +673,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
                 <span
                   style={{
                     fontFamily: FONT_BODY,
-                    fontSize: 14,
+                    fontSize: 20,
                     fontWeight: 700,
                     letterSpacing: '0.32em',
                     color: GREEN,
@@ -816,7 +816,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 700,
                   letterSpacing: '0.32em',
                   color: 'rgba(0,21,99,0.55)',
@@ -862,7 +862,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 20,
                 color: GREEN,
                 fontWeight: 700,
                 letterSpacing: '0.32em',
@@ -892,7 +892,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
                   padding: 14,
                   fontFamily: FONT_DISPLAY,
                   fontWeight: 700,
-                  fontSize: 18,
+                  fontSize: 22,
                   color: 'rgba(255,255,255,0.85)',
                   letterSpacing: '0.06em',
                 }}
@@ -904,7 +904,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_DISPLAY,
-              fontSize: 18,
+              fontSize: 22,
               color: 'rgba(255,255,255,0.85)',
               fontWeight: 600,
               ...RTL_DIR,

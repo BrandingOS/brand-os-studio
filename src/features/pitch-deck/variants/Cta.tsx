@@ -50,15 +50,15 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>تواصل معنا</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>تواصل معنا</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -199,7 +199,7 @@ export function CtaSlideA({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -304,7 +304,7 @@ export function CtaSlideA({ index, total }: SlideProps) {
               alignItems: 'center',
               justifyContent: 'center',
               fontFamily: FONT_BODY,
-              fontSize: 12,
+              fontSize: 18,
               color: NAVY,
               fontWeight: 700,
               flexShrink: 0,
@@ -353,7 +353,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: NAVY,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -493,7 +493,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 13,
+                  fontSize: 18,
                   color: GREEN,
                   fontWeight: 700,
                   letterSpacing: '0.32em',
@@ -504,7 +504,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
               <span
                 style={{
                   fontFamily: FONT_BODY,
-                  fontSize: 16,
+                  fontSize: 20,
                   color: 'rgba(255,255,255,0.7)',
                 }}
               >
@@ -561,7 +561,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -658,7 +658,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 20,
                 color: NAVY,
                 fontWeight: 800,
                 letterSpacing: '0.32em',
@@ -697,7 +697,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 12,
+                fontSize: 16,
                 color: NAVY,
                 fontWeight: 700,
                 letterSpacing: '0.18em',
@@ -758,7 +758,7 @@ export function CtaSlideD({ index, total }: SlideProps) {
           <span
             style={{
               fontFamily: FONT_BODY,
-              fontSize: 14,
+              fontSize: 20,
               color: GREEN,
               fontWeight: 700,
               letterSpacing: '0.32em',
@@ -941,7 +941,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
         <span
           style={{
             fontFamily: FONT_BODY,
-            fontSize: 14,
+            fontSize: 20,
             color: GREEN,
             fontWeight: 700,
             letterSpacing: '0.32em',
@@ -993,7 +993,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
             <span
               style={{
                 fontFamily: FONT_BODY,
-                fontSize: 14,
+                fontSize: 20,
                 color: GREEN,
                 fontWeight: 700,
                 letterSpacing: '0.32em',
@@ -1053,7 +1053,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
                   justifyContent: 'center',
                   fontFamily: FONT_DISPLAY,
                   fontWeight: 800,
-                  fontSize: 14,
+                  fontSize: 16,
                   flexShrink: 0,
                 }}
               >
@@ -1064,7 +1064,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
                   fontFamily: FONT_DISPLAY,
                   fontWeight: 700,
                   color: NAVY,
-                  fontSize: 18,
+                  fontSize: 22,
                 }}
               >
                 {s}
