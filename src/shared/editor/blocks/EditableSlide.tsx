@@ -55,6 +55,10 @@ function removeSelectionStyles(el: HTMLElement) {
   el.style.borderRadius = '';
   el.style.boxShadow = '';
   el.style.backgroundColor = el.dataset.originalBg || '';
+  // Restore native text-selection (we disable it while selected to
+  // prevent the drag-vs-text-select conflict).
+  el.style.userSelect = '';
+  (el.style as any).webkitUserSelect = '';
   delete el.dataset.originalBg;
   if (el.contentEditable === 'true') {
     el.contentEditable = 'false';
@@ -82,6 +86,11 @@ function applySelectionStyles(el: HTMLElement) {
 
   if (canDrag) {
     el.style.cursor = 'move';
+    // Disable native text-selection on the selected element so a
+    // mousedown intended as the start of a drag doesn't paint a blue
+    // text-selection across the headline.
+    el.style.userSelect = 'none';
+    (el.style as any).webkitUserSelect = 'none';
     if (!el.dataset.draggable) {
       el.dataset.draggable = 'true';
       if (!el.style.position || el.style.position === 'static') {
@@ -404,11 +413,28 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
           // Don't drag if clicking on toolbar or resize handle
           if ((e.target as HTMLElement).closest('.resize-handle')) return;
 
+          // Suppress the browser's native text-selection that would
+          // otherwise paint as a blue highlight as soon as the user
+          // moves the cursor. Without preventDefault here, the user's
+          // first 3 pixels of movement (under our drag threshold)
+          // start a text selection that visually competes with the drag.
+          e.preventDefault();
+          // Just in case the browser has already started a selection
+          // from a prior interaction, clear it.
+          window.getSelection()?.removeAllRanges();
+
           const startX = e.clientX;
           const startY = e.clientY;
           const startLeft = parseInt(el.style.left || '0') || 0;
           const startTop = parseInt(el.style.top || '0') || 0;
           let moved = false;
+
+          // While dragging, lock user-select on the body so any
+          // browser native selection that tries to start during
+          // mousemove gets rejected — this is the second line of
+          // defense against the "drag for 1px then text-select" bug.
+          const previousUserSelect = document.body.style.userSelect;
+          document.body.style.userSelect = 'none';
 
           const onMove = (moveE: MouseEvent) => {
             const dx = moveE.clientX - startX;
@@ -422,10 +448,12 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
           const onUp = () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
+            document.body.style.userSelect = previousUserSelect;
             if (moved) {
-              // Update toolbar position
               const rect = el.getBoundingClientRect();
               setSelected(prev => prev ? { ...prev, rect } : null);
+              // Clear any selection that snuck in despite the guards.
+              window.getSelection()?.removeAllRanges();
             }
           };
           document.addEventListener('mousemove', onMove);
