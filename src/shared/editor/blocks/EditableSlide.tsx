@@ -402,26 +402,57 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
     : { children };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full" onClick={handleContainerClick}>
+    <div
+      ref={containerRef}
+      className="relative w-full h-full"
+      onClick={handleContainerClick}
+      // Slide canvas is a LAYOUT surface, not a document — disable
+      // browser-native text-selection across the whole frame so
+      // click-and-drag gestures can't trigger a partial text highlight
+      // before our React handlers run. contentEditable overrides
+      // user-select, so double-click-to-edit still works as expected.
+      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+    >
       <div
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onMouseDown={(e) => {
-          if (!selected || editing) return;
-          const el = selected.element;
-          if (!el.dataset.draggable) return;
-          // Don't drag if clicking on toolbar or resize handle
+          // Skip when in contentEditable mode — text editing has its own
+          // selection model.
+          if (editing) return;
+          // Resize handles handle their own gestures.
           if ((e.target as HTMLElement).closest('.resize-handle')) return;
 
-          // Suppress the browser's native text-selection that would
-          // otherwise paint as a blue highlight as soon as the user
-          // moves the cursor. Without preventDefault here, the user's
-          // first 3 pixels of movement (under our drag threshold)
-          // start a text selection that visually competes with the drag.
+          // Suppress the browser's native drag-selection across the
+          // whole gesture. With user-select:none on the wrapper this is
+          // belt-and-suspenders, but it also stops a stray range from
+          // forming if any descendant set user-select:auto.
           e.preventDefault();
-          // Just in case the browser has already started a selection
-          // from a prior interaction, clear it.
           window.getSelection()?.removeAllRanges();
+
+          // Resolve the candidate element NOW (without waiting for click)
+          // so click-and-drag gestures can move the element in one motion.
+          // If the user's mousedown is on an element that the click
+          // handler would select anyway, we pre-select it here.
+          const target = e.target as HTMLElement;
+          const candidate = findMeaningfulElement(target);
+          // Only leaf/image elements are draggable. Containers are
+          // selected on mouseup via the click handler but never dragged.
+          const isImage = candidate.tagName === 'IMG' || candidate.tagName === 'SVG';
+          const isLeaf = candidate.children.length === 0;
+          if (!candidate || !(isImage || isLeaf) || candidate === containerRef.current) return;
+
+          // Pre-select if it isn't already.
+          let el = candidate;
+          if (selected?.element !== el) {
+            if (selectedRef.current?.element && selectedRef.current.element !== el) {
+              removeSelectionStyles(selectedRef.current.element);
+            }
+            applySelectionStyles(el);
+            const rect = el.getBoundingClientRect();
+            const type = detectBlockType(el);
+            setSelected({ element: el, type, rect });
+          }
 
           const startX = e.clientX;
           const startY = e.clientY;
@@ -429,10 +460,7 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
           const startTop = parseInt(el.style.top || '0') || 0;
           let moved = false;
 
-          // While dragging, lock user-select on the body so any
-          // browser native selection that tries to start during
-          // mousemove gets rejected — this is the second line of
-          // defense against the "drag for 1px then text-select" bug.
+          // Lock body user-select for the gesture.
           const previousUserSelect = document.body.style.userSelect;
           document.body.style.userSelect = 'none';
 
@@ -452,7 +480,6 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
             if (moved) {
               const rect = el.getBoundingClientRect();
               setSelected(prev => prev ? { ...prev, rect } : null);
-              // Clear any selection that snuck in despite the guards.
               window.getSelection()?.removeAllRanges();
             }
           };
