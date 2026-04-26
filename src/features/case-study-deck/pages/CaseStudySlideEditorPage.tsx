@@ -1,27 +1,26 @@
 /**
- * CaseStudySlideEditorPage — Canva-grade chrome around the live
- * single-slide editor.
+ * CaseStudySlideEditorPage — single-slide live editor.
  *
- * Layout:
- *   ┌─────────────────────────────────────────────────────────┐
- *   │  EditorChrome (h=48)                                    │
- *   │  ContextToolbar (h=44, zoom + undo/redo)                │
- *   ├──────┬───────────────────────────────────┬──────────────┤
- *   │Left  │      Canvas (scrollable, scaled)  │   Right      │
- *   │Side  │                                   │   Inspector  │
- *   ├──────┴───────────────────────────────────┴──────────────┤
- *   │           BottomSlideRail (h=96)                        │
- *   └─────────────────────────────────────────────────────────┘
+ * Wraps the rendered slide in `EditableSlide` from
+ * `@/shared/editor/blocks/EditableSlide` so the user gets:
+ *   - Click any text/image element to select it
+ *   - Double-click to edit text inline (contentEditable)
+ *   - FloatingToolbar above the selection for font/color/size/align
+ *   - Drag-to-move and resize for leaf elements
+ *   - Cmd/Ctrl-Z undo via `useHistory`
  *
- * The canvas wrapper preserves the existing MutationObserver +
- * EditableSlide + useAutoSave + useHistory wiring; the new chrome
- * pieces are layout siblings, not replacements.
+ * The editor mounts the slide at NATURAL 1920×1080 inside a CSS-scaled
+ * frame so the editing math works against true canvas pixels (the
+ * exporter walks the same DOM at 1× scale).
  *
- * A small "selection bridge" syncs EditableSlide's internal click
- * selection into the global `selectionStore` so the right inspector
- * (TextInspector / ImageInspector / ShapeInspector / SlideInspector)
- * can render against it. `useSelectionStore` is the single read source
- * the inspectors share with the rest of the app.
+ * Save model:
+ *   - The first edit "freezes" the slide — we capture the inner HTML
+ *     and pass it to EditableSlide via `frozenHtml` so React doesn't
+ *     reconcile the user's mutations away on the next prop change.
+ *   - `useAutoSave` debounces a snapshot of the slide canvas and stores
+ *     it via `setSlideFrozenHtml(index, html)` on the deck.
+ *   - The viewer reads `slideFrozenHtml` and renders it verbatim when
+ *     present (a saved-edit slide bypasses the React composition).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -32,22 +31,12 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditableSlide } from '@/shared/editor/blocks/EditableSlide';
 import { EditorChrome } from '@/features/editor/core/EditorChrome';
 import { useAutoSave } from '@/features/editor/core/useAutoSave';
-import { useHistory } from '@/shared/editor/useHistory';
-import { useSelectionStore } from '@/shared/editor/selection/selectionStore';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
-import { resolveSlideStyle } from '../styles';
+import { resolveSlideStyle, STYLES } from '../styles';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '../constants';
-import { LeftSidebar } from '../editor/LeftSidebar';
-import { RightInspector } from '../editor/RightInspector';
-import { ContextToolbar } from '../editor/ContextToolbar';
-import { BottomSlideRail } from '../editor/BottomSlideRail';
-
-const LEFT_RAIL_W = 64 + 280; // icon strip + max panel width
-const RIGHT_INSPECTOR_W = 280;
-const CHROME_TOP_H = 48 + 44; // EditorChrome + ContextToolbar
-const RAIL_H = 96;
+import '@/shared/styles/cosmos-workspace.css';
 
 export default function CaseStudySlideEditorPage() {
   const { slug, idx: idxParam } = useParams<{ slug: string; idx: string }>();
@@ -57,9 +46,11 @@ export default function CaseStudySlideEditorPage() {
 
   const idx = idxParam ? parseInt(idxParam, 10) : 0;
   const canvasRef = useRef<HTMLDivElement | null>(null);
-  const stageRef = useRef<HTMLDivElement | null>(null);
 
+  // Local state mirrors the slide's HTML for auto-save debouncing.
   const [docHtml, setDocHtml] = useState<string | null>(null);
+
+  // Load any saved frozen HTML once the deck arrives.
   const initialFrozen = deck?.slideFrozenHtml[idx];
   useEffect(() => {
     if (initialFrozen !== undefined && docHtml === null) {
@@ -90,7 +81,7 @@ export default function CaseStudySlideEditorPage() {
     enabled: docHtml !== null,
   });
 
-  /* ── MutationObserver: capture innerHTML + mark dirty on every change ── */
+  // Watch the slide canvas for any mutations; capture innerHTML and mark dirty.
   useEffect(() => {
     const node = canvasRef.current;
     if (!node) return;
@@ -109,126 +100,23 @@ export default function CaseStudySlideEditorPage() {
     return () => observer.disconnect();
   }, [markDirty]);
 
-  /* ── Persisted history (Cmd+Z / Cmd+Shift+Z) ── */
-  const editorKey = useMemo(() => `case-study-${brand?.id ?? 'noop'}`, [brand?.id]);
-  const slideId = `slide-${idx}`;
-  const { undo, redo } = useHistory({
-    editorKey,
-    currentSlideId: slideId,
-    onPersistSnapshot: (_id, html) => {
-      if (deck) deck.setSlideFrozenHtml(idx, html);
-    },
-  });
-
-  /* ── Zoom: fit-to-viewport on resize, manual override stays sticky ── */
-  const [scale, setScale] = useState<number>(0.5);
-  const userScaledRef = useRef(false);
-
-  const computeFit = useCallback(() => {
-    const availW = Math.max(320, window.innerWidth - LEFT_RAIL_W - RIGHT_INSPECTOR_W - 64);
-    const availH = Math.max(240, window.innerHeight - CHROME_TOP_H - RAIL_H - 64);
-    return Math.min(availW / SLIDE_WIDTH, availH / SLIDE_HEIGHT, 1);
+  // Compute scale to fit the canvas within the available viewport area.
+  const [scale, setScale] = useState(0.5);
+  useEffect(() => {
+    const compute = () => {
+      const sx = (window.innerWidth - 360) / SLIDE_WIDTH;
+      const sy = (window.innerHeight - 140) / SLIDE_HEIGHT;
+      setScale(Math.min(sx, sy, 1));
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
   }, []);
 
-  useEffect(() => {
-    const apply = () => {
-      if (!userScaledRef.current) setScale(computeFit());
-    };
-    apply();
-    window.addEventListener('resize', apply);
-    return () => window.removeEventListener('resize', apply);
-  }, [computeFit]);
-
-  const setScaleManual = useCallback((n: number) => {
-    userScaledRef.current = true;
-    setScale(n);
-  }, []);
-
-  const fitToScreen = useCallback(() => {
-    userScaledRef.current = false;
-    setScale(computeFit());
-  }, [computeFit]);
-
-  /* ── Keyboard: Cmd+0 fit, Cmd+= zoom in, Cmd+- zoom out (Cmd+Z handled by useHistory) ── */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const cmd = isMac ? e.metaKey : e.ctrlKey;
-      if (!cmd) return;
-      if (e.key === '0') { e.preventDefault(); fitToScreen(); return; }
-      if (e.key === '=' || e.key === '+') { e.preventDefault(); setScaleManual(Math.min(2, scale + 0.1)); return; }
-      if (e.key === '-' || e.key === '_') { e.preventDefault(); setScaleManual(Math.max(0.25, scale - 0.1)); return; }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [fitToScreen, setScaleManual, scale]);
-
-  /* ── Selection bridge — sync EditableSlide selection into selectionStore ── */
-  useEffect(() => {
-    const node = canvasRef.current;
-    if (!node) return;
-    const select = useSelectionStore.getState().select;
-
-    const detect = (el: HTMLElement): 'text' | 'image' | 'shape' | 'slide' => {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'img' || tag === 'svg' || tag === 'picture') return 'image';
-      if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'blockquote') return 'text';
-      const directText = Array.from(el.childNodes)
-        .filter((n) => n.nodeType === Node.TEXT_NODE)
-        .map((n) => (n.textContent ?? '').trim())
-        .join('');
-      if (directText.length > 0) return 'text';
-      if (el.children.length > 0) return 'shape';
-      const text = (el.textContent ?? '').trim();
-      return text.length > 0 ? 'text' : 'shape';
-    };
-
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!node.contains(target)) return;
-      // The click handler in EditableSlide may walk to a parent; we read
-      // the styled-outline element it just selected via dataset.originalBg.
-      // Fallback: use the click target itself.
-      const candidate = (node.querySelector('[data-original-bg]') as HTMLElement | null)
-        ?? (target.closest('[style*="outline"]') as HTMLElement | null)
-        ?? target;
-      const type = detect(candidate);
-      select({ surface: 'case-study-editor', slideId, type, el: candidate });
-    };
-
-    const onDocClick = (e: MouseEvent) => {
-      if (!node.contains(e.target as Node)) {
-        select({ surface: 'case-study-editor', slideId, type: 'slide', el: node.firstElementChild as HTMLElement | null });
-      }
-    };
-
-    node.addEventListener('click', onClick, true);
-    document.addEventListener('mousedown', onDocClick);
-    return () => {
-      node.removeEventListener('click', onClick, true);
-      document.removeEventListener('mousedown', onDocClick);
-    };
-  }, [slideId]);
-
-  // Expose current selection element to the LeftSidebar's brand-color
-  // / asset-click application — it's outside the inspector but needs
-  // to know what the user picked.
-  useEffect(() => {
-    (window as unknown as { __getCurrentEditorSelection?: () => HTMLElement | null }).__getCurrentEditorSelection = () => {
-      const sel = useSelectionStore.getState().selected;
-      return sel?.el ?? null;
-    };
-    return () => {
-      delete (window as unknown as { __getCurrentEditorSelection?: () => HTMLElement | null }).__getCurrentEditorSelection;
-    };
-  }, []);
-
-  /* ── Loading state ── */
-  if (isLoading || !deck || !slide || !Slide || !styleForSlide || !brand) {
+  if (isLoading || !deck || !slide || !Slide || !styleForSlide) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', color: '#fff' }}>
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white" />
+      <div data-cosmos="workspace" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)' }}>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--text-secondary)' }} />
       </div>
     );
   }
@@ -237,7 +125,7 @@ export default function CaseStudySlideEditorPage() {
   const usingFrozen = slide.frozenHtml !== undefined;
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0b0b0b', color: '#fff', overflow: 'hidden' }}>
+    <div data-cosmos="workspace" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)', color: 'var(--text-primary)' }}>
       <EditorChrome
         backTo={`/b/${slug}/case-study`}
         breadcrumb={[deck.profile.name, 'Case Study']}
@@ -255,7 +143,7 @@ export default function CaseStudySlideEditorPage() {
                   setDocHtml(null);
                   window.location.reload();
                 }}
-                className="gap-2 text-white hover:bg-white/10"
+                className="gap-2"
               >
                 Reset to template
               </Button>
@@ -274,97 +162,77 @@ export default function CaseStudySlideEditorPage() {
         }
       />
 
-      <ContextToolbar
-        scale={scale}
-        setScale={setScaleManual}
-        fitScale={computeFit()}
-        onFit={fitToScreen}
-        onUndo={undo}
-        onRedo={redo}
-        presentPath={`/b/${slug}/case-study`}
-      />
-
-      {/* Body — three columns */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
-        <LeftSidebar brand={brand} slug={slug ?? ''} deck={deck} currentIndex={idx} />
-
-        {/* Stage — scrollable canvas area */}
-        <main
-          ref={stageRef}
+      <main
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          background: 'var(--background)',
+          position: 'relative',
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(13,13,13,0.04) 1px, transparent 0)',
+          backgroundSize: '24px 24px',
+        }}
+      >
+        <div
           style={{
-            flex: 1,
-            overflow: 'auto',
-            background: '#0a0a0a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: SLIDE_WIDTH * scale,
+            height: SLIDE_HEIGHT * scale,
             position: 'relative',
-            padding: 32,
+            boxShadow: '0 30px 60px -20px rgba(13,13,13,0.18), 0 8px 24px -8px rgba(13,13,13,0.10)',
+            borderRadius: 8,
+            overflow: 'hidden',
+            background: '#fff',
           }}
         >
           <div
+            ref={canvasRef}
+            data-slide-canvas
             style={{
-              width: SLIDE_WIDTH * scale,
-              height: SLIDE_HEIGHT * scale,
+              width: SLIDE_WIDTH,
+              height: SLIDE_HEIGHT,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
               position: 'relative',
-              boxShadow: '0 30px 60px -12px rgba(0,0,0,0.6)',
-              borderRadius: 8,
-              overflow: 'hidden',
-              background: '#fff',
-              flexShrink: 0,
             }}
           >
-            <div
-              ref={canvasRef}
-              data-slide-canvas
-              style={{
-                width: SLIDE_WIDTH,
-                height: SLIDE_HEIGHT,
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-                position: 'relative',
-              }}
-            >
-              <EditableSlide frozenHtml={docHtml ?? undefined}>
-                {docHtml === null && (
-                  <Slide
-                    index={idx}
-                    profile={deck.profile}
-                    style={styleForSlide}
-                    overrides={slide.overrides}
-                    total={total}
-                    shapeId={slide.shapeId}
-                  />
-                )}
-              </EditableSlide>
-            </div>
+            <EditableSlide frozenHtml={docHtml ?? undefined}>
+              {docHtml === null && (
+                <Slide
+                  index={idx}
+                  profile={deck.profile}
+                  style={styleForSlide}
+                  overrides={slide.overrides}
+                  total={total}
+                  shapeId={slide.shapeId}
+                />
+              )}
+            </EditableSlide>
           </div>
-        </main>
+        </div>
+      </main>
 
-        <RightInspector />
-      </div>
-
-      <BottomSlideRail deck={deck} slug={slug ?? ''} currentIndex={idx} />
-
-      <div
+      <footer
         style={{
-          height: 24,
+          height: 44,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 14px',
-          borderTop: '1px solid #161616',
-          background: '#0d0d0d',
-          fontSize: 9,
-          opacity: 0.55,
+          padding: '0 18px',
+          borderTop: '1px solid var(--border)',
+          background: 'var(--surface-elevated)',
+          color: 'var(--text-muted)',
+          fontSize: 11,
           letterSpacing: '0.16em',
           textTransform: 'uppercase',
-          flexShrink: 0,
         }}
       >
-        <span>{usingFrozen ? 'Editing saved' : 'Editing template'}</span>
-        <span>Click select · dbl-click edit · drag move · Esc clear</span>
-      </div>
+        <div>
+          {usingFrozen ? 'Editing your saved version' : 'Editing template (a snapshot will save on first change)'}
+        </div>
+        <div>Click to select · double-click text to edit · drag to move · Esc to clear</div>
+      </footer>
     </div>
   );
 }

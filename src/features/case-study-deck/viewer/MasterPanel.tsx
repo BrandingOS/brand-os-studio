@@ -61,13 +61,13 @@ export function MasterPanel({ open, onClose, master, deckStyleId, onChange, onRe
     fontWeight: 700,
     letterSpacing: '0.22em',
     textTransform: 'uppercase',
-    opacity: 0.55,
+    color: 'var(--text-muted)',
     marginBottom: 8,
   };
 
   const sectionStyle: CSSProperties = {
     paddingTop: 22,
-    borderTop: '1px solid #1c1c1c',
+    borderTop: '1px solid var(--border)',
     marginTop: 22,
   };
 
@@ -81,17 +81,17 @@ export function MasterPanel({ open, onClose, master, deckStyleId, onChange, onRe
         right: 0,
         bottom: 0,
         width: 380,
-        background: '#0d0d0d',
-        borderLeft: '1px solid #1c1c1c',
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--border)',
         zIndex: 50,
         overflowY: 'auto',
         boxShadow: '-30px 0 60px -10px rgba(0,0,0,0.6)',
       }}
     >
-      <div style={{ position: 'sticky', top: 0, background: '#0d0d0d', borderBottom: '1px solid #1c1c1c', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 }}>
+      <div style={{ position: 'sticky', top: 0, background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 1 }}>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Master Slide</div>
-          <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Master Slide</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
             Edits apply to every slide on <strong>{baseStyle.name}</strong>
           </div>
         </div>
@@ -99,7 +99,7 @@ export function MasterPanel({ open, onClose, master, deckStyleId, onChange, onRe
           type="button"
           onClick={onClose}
           aria-label="Close master panel"
-          style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: 6, borderRadius: 6 }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 6, borderRadius: 6 }}
         >
           <X className="w-4 h-4" />
         </button>
@@ -186,7 +186,7 @@ export function MasterPanel({ open, onClose, master, deckStyleId, onChange, onRe
           format={(v) => `${v}px`}
         />
 
-        <div style={{ marginTop: 32, paddingTop: 22, borderTop: '1px solid #1c1c1c' }}>
+        <div style={{ marginTop: 32, paddingTop: 22, borderTop: '1px solid var(--border)' }}>
           <Button
             size="sm"
             variant="ghost"
@@ -220,7 +220,7 @@ function SegmentedControl<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 4, background: '#161616', borderRadius: 8, border: '1px solid #2a2a2a' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 4, padding: 4, background: 'var(--surface-elevated)', borderRadius: 8, border: '1px solid var(--border)' }}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -235,8 +235,8 @@ function SegmentedControl<T extends string>({
               letterSpacing: '0.04em',
               borderRadius: 6,
               border: 'none',
-              background: active ? '#fff' : 'transparent',
-              color: active ? '#000' : '#fff',
+              background: active ? 'var(--accent)' : 'transparent',
+              color: active ? 'var(--accent-contrast)' : 'var(--text-primary)',
               cursor: 'pointer',
             }}
           >
@@ -268,8 +268,8 @@ function Slider({
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, color: '#fff', opacity: 0.75 }}>{label}</span>
-        <span style={{ fontSize: 11, color: '#fff', opacity: 0.55, fontFamily: 'ui-monospace, monospace' }}>{format(value)}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'ui-monospace, monospace' }}>{format(value)}</span>
       </div>
       <input
         type="range"
@@ -278,7 +278,7 @@ function Slider({
         step={step}
         value={value}
         onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
-        style={{ width: '100%', accentColor: '#fff' }}
+        style={{ width: '100%', accentColor: 'var(--accent)' }}
       />
     </div>
   );
