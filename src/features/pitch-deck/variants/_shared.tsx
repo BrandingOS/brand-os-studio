@@ -84,9 +84,9 @@ export function PageChrome({
       <div
         style={{
           position: 'absolute',
-          top: 64,
-          left: 96,
-          right: 96,
+          top: 'var(--deck-chrome-pad-y, 64px)',
+          left: 'var(--deck-chrome-pad-x, 96px)',
+          right: 'var(--deck-chrome-pad-x, 96px)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -115,9 +115,9 @@ export function PageChrome({
       <div
         style={{
           position: 'absolute',
-          left: 96,
-          right: 96,
-          top: 88,
+          left: 'var(--deck-chrome-pad-x, 96px)',
+          right: 'var(--deck-chrome-pad-x, 96px)',
+          top: 'calc(var(--deck-chrome-pad-y, 64px) + 24px)',
           height: 1,
           background: ruleColor,
           zIndex: 5,
@@ -142,8 +142,20 @@ export function Frame({
   ink?: string;
   children: ReactNode;
 }) {
-  const resolvedBg = bg ?? (variant === 'flood' ? NAVY : variant === 'dark' ? NAVY_DEEP : PAPER);
-  const resolvedInk = ink ?? (variant === 'light' ? NAVY : WHITE);
+  // Light slides read their bg + ink from the deck-theme tokens —
+  // that's how the user's "Page background" / "Heading text" overrides
+  // in Customize actually paint over PAPER/NAVY defaults. Flood/dark
+  // hero bands stay opinionated (NAVY/NAVY_DEEP) — those represent
+  // the brand's bold-color expression, not the page surface.
+  const resolvedBg = bg ?? (
+    variant === 'flood' ? NAVY
+    : variant === 'dark' ? NAVY_DEEP
+    : 'var(--deck-bg-page, #F5F7FB)'
+  );
+  const resolvedInk = ink ?? (
+    variant === 'light' ? 'var(--deck-text-heading, #001563)'
+    : WHITE
+  );
   return (
     <div
       data-pitch-slide={index}

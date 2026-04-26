@@ -7,10 +7,18 @@ import type { SemanticRole, SemanticEntry, ScaleSurface, FontRef } from '@/share
 import type { PresentationTheme, DeckDensity, DeckRadiusKind, DeckShadowKind } from './types';
 
 /* ── Density ─────────────────────────────────────────────────────── */
-const DENSITY: Record<DeckDensity, { padX: number; padY: number; gap: number }> = {
-  compact:     { padX: 32, padY: 24, gap: 16 },
-  comfortable: { padX: 56, padY: 40, gap: 24 },
-  spacious:    { padX: 88, padY: 64, gap: 32 },
+// `pad`/`gap` are the small-component tokens (cards, callouts).
+// `chromePadX`/`chromePadY` are the SLIDE-CHROME tokens (the 1920×1080
+// canvas's outer margins where PageChrome lives). The slide canvas
+// is huge, so chrome padding is a much bigger scale than the
+// component padding.
+const DENSITY: Record<DeckDensity, {
+  padX: number; padY: number; gap: number;
+  chromePadX: number; chromePadY: number;
+}> = {
+  compact:     { padX: 32, padY: 24, gap: 16, chromePadX:  56, chromePadY: 36 },
+  comfortable: { padX: 56, padY: 40, gap: 24, chromePadX:  96, chromePadY: 64 },
+  spacious:    { padX: 88, padY: 64, gap: 32, chromePadX: 144, chromePadY: 96 },
 };
 
 /* ── Radius ─────────────────────────────────────────────────────── */
@@ -155,6 +163,11 @@ export function buildDeckCssVars(brand: Brand, theme: PresentationTheme): CSSPro
     '--deck-pad-x': `${dens.padX}px`,
     '--deck-pad-y': `${dens.padY}px`,
     '--deck-gap':   `${dens.gap}px`,
+
+    // Slide chrome (the page edges where PageChrome lives) — bigger
+    // numbers than --deck-pad-x/y because the slide canvas is large.
+    '--deck-chrome-pad-x': `${dens.chromePadX}px`,
+    '--deck-chrome-pad-y': `${dens.chromePadY}px`,
 
     '--deck-radius': RADIUS[theme.style.borderRadius],
     '--deck-shadow': SHADOW[theme.style.shadow],

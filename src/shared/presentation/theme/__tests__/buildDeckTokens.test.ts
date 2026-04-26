@@ -66,6 +66,20 @@ describe('buildDeckCssVars', () => {
     expect(spacious['--deck-gap']).toBe('32px');
   });
 
+  it('density emits chrome-pad tokens for slide-canvas edges', () => {
+    const compact = buildDeckCssVars(baseBrand, { ...EMPTY_THEME, density: 'compact' });
+    expect(compact['--deck-chrome-pad-x']).toBe('56px');
+    expect(compact['--deck-chrome-pad-y']).toBe('36px');
+
+    const comfortable = buildDeckCssVars(baseBrand, { ...EMPTY_THEME, density: 'comfortable' });
+    expect(comfortable['--deck-chrome-pad-x']).toBe('96px');
+    expect(comfortable['--deck-chrome-pad-y']).toBe('64px');
+
+    const spacious = buildDeckCssVars(baseBrand, { ...EMPTY_THEME, density: 'spacious' });
+    expect(spacious['--deck-chrome-pad-x']).toBe('144px');
+    expect(spacious['--deck-chrome-pad-y']).toBe('96px');
+  });
+
   it('style maps borderRadius / shadow', () => {
     const sharp = buildDeckCssVars(baseBrand, { ...EMPTY_THEME, style: { ...EMPTY_THEME.style, borderRadius: 'sharp', shadow: 'none' } });
     expect(sharp['--deck-radius']).toBe('0px');
