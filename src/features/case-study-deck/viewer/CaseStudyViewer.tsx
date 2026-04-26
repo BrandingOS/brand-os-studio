@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { EditableSlide } from '@/shared/editor/blocks/EditableSlide';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -319,11 +320,13 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
                 }}
               >
                 <SlideScaler>
-                  {s.frozenHtml ? (
-                    <div style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }} dangerouslySetInnerHTML={{ __html: s.frozenHtml }} />
-                  ) : (
+                  <InlineEditableSlide
+                    slideIndex={i}
+                    frozenHtml={s.frozenHtml}
+                    onSave={(html) => deck.setSlideFrozenHtml(i, html)}
+                  >
                     <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
-                  )}
+                  </InlineEditableSlide>
                 </SlideScaler>
               </section>
             );
@@ -746,6 +749,103 @@ function StyleThumbnail({
       >
         <Cover index={0} profile={profile} style={style} total={total} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * InlineEditableSlide — wraps a slide composition in `EditableSlide`
+ * and auto-saves any DOM mutation as `slideFrozenHtml` for that index.
+ *
+ * Strategy:
+ *   - First render uses React children (or the previously-saved
+ *     frozenHtml if one exists).
+ *   - On the first user mutation (text edit, image swap, drag) we
+ *     capture the slide's innerHTML — specifically the content INSIDE
+ *     EditableSlide's editor divs, not the wrappers themselves, so
+ *     re-saves don't nest. Then we switch to `frozenHtml` mode so
+ *     React stops reconciling the user's edits away on the next
+ *     prop change (style/shape/master/regenerate).
+ *   - Mutations debounce a save back to the deck. Viewer consumers
+ *     (thumbnail rail, exporter) read `frozenHtml` and render verbatim.
+ *   - A short suppression window after docHtml flips silences the
+ *     observer's own self-triggered mutation when EditableSlide
+ *     re-renders with dangerouslySetInnerHTML.
+ */
+function InlineEditableSlide({
+  slideIndex,
+  frozenHtml,
+  onSave,
+  children,
+}: {
+  slideIndex: number;
+  frozenHtml: string | undefined;
+  onSave: (html: string | undefined) => void;
+  children: React.ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [docHtml, setDocHtml] = useState<string | null>(frozenHtml ?? null);
+  const isApplyingRef = useRef(false);
+
+  // When the deck loads a different frozenHtml (reset, brand change), sync.
+  useEffect(() => {
+    setDocHtml(frozenHtml ?? null);
+  }, [frozenHtml, slideIndex]);
+
+  // Suppress observer reactions to our own React-driven swap.
+  useEffect(() => {
+    isApplyingRef.current = true;
+    const t = setTimeout(() => {
+      isApplyingRef.current = false;
+    }, 60);
+    return () => clearTimeout(t);
+  }, [docHtml]);
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  // Capture target = the editable inner div that holds slide content.
+  // EditableSlide renders <div.relative.w-full.h-full><div onClick=...>...</div></div>.
+  // We want the innerHTML of the inner-inner div (the slide content), so
+  // re-saves don't accumulate EditableSlide's own wrappers.
+  const readSlideHtml = (): string | null => {
+    const root = containerRef.current;
+    if (!root) return null;
+    const editableOuter = root.firstElementChild as HTMLElement | null;
+    const editableInner = editableOuter?.firstElementChild as HTMLElement | null;
+    return editableInner?.innerHTML ?? null;
+  };
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const observer = new MutationObserver(() => {
+      if (isApplyingRef.current) return;
+      const next = readSlideHtml();
+      if (next === null) return;
+      setDocHtml(next);
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => onSave(next), 800);
+    });
+    observer.observe(node, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+    });
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slideIndex]);
+
+  return (
+    <div ref={containerRef} style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }}>
+      <EditableSlide frozenHtml={docHtml ?? undefined}>
+        {docHtml === null ? children : null}
+      </EditableSlide>
     </div>
   );
 }
