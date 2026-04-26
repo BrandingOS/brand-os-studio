@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { SCHOOL_BENEFITS } from '../uniexPitchContent';
 import { GraduationCap } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -225,7 +226,13 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
                 overflow: 'hidden',
               }}
             >
-              <GraduationCap size={560} transparent />
+              <ReplaceableArtwork
+                slotId="school-benefits-B-graduation"
+                defaultQuery="graduation"
+                style={{ width: 560, height: 560 }}
+              >
+                <GraduationCap size={560} transparent />
+              </ReplaceableArtwork>
             </div>
             <div
               style={{

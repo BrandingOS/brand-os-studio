@@ -16,6 +16,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { PROGRAMS } from '../uniexPitchContent';
 import { OpenBookKnowledge } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -308,7 +309,13 @@ export function ProgramDetailC({ index, total, programKey }: SlideProps) {
             overflow: 'hidden',
           }}
         >
-          <OpenBookKnowledge size={520} transparent style={{ opacity: 0.95 }} />
+          <ReplaceableArtwork
+            slotId="program-detail-C-openbook"
+            defaultQuery="open book learning"
+            style={{ width: 520, height: 520, opacity: 0.95 }}
+          >
+            <OpenBookKnowledge size={520} transparent />
+          </ReplaceableArtwork>
         </div>
         <div
           style={{

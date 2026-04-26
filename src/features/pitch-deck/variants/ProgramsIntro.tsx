@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { PROGRAMS_INTRO } from '../uniexPitchContent';
 import { StudentClimbingChart } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -240,7 +241,13 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
           overflow: 'hidden',
         }}
       >
-        <StudentClimbingChart size={780} transparent />
+        <ReplaceableArtwork
+          slotId="programs-intro-C-chart"
+          defaultQuery="student progress chart"
+          style={{ width: 780, height: 780 }}
+        >
+          <StudentClimbingChart size={780} transparent />
+        </ReplaceableArtwork>
       </div>
       <div
         style={{
