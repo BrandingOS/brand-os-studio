@@ -117,6 +117,13 @@ function applySelectionStyles(el: HTMLElement) {
  * Add resize handles overlay for the selected element. Works for
  * images, text blocks, divs — any element that can take an explicit
  * width / height. Text blocks reflow inside the new bounding box.
+ *
+ * Eight handles: four corners + four edge midpoints. The corner /
+ * edge directions encode in `cursor`:
+ *   n → top, s → bottom, w → left, e → right.
+ *
+ * For absolutely-positioned elements, dragging the n/w sides also
+ * adjusts left/top so the OPPOSITE corner stays anchored.
  */
 function addResizeHandles(el: HTMLElement, container: HTMLElement) {
   // Remove existing handles
@@ -132,46 +139,99 @@ function addResizeHandles(el: HTMLElement, container: HTMLElement) {
   const rect = el.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
 
-  const positions = [
-    { cursor: 'nw-resize', top: rect.top - containerRect.top - 4, left: rect.left - containerRect.left - 4 },
-    { cursor: 'ne-resize', top: rect.top - containerRect.top - 4, left: rect.right - containerRect.left - 4 },
-    { cursor: 'sw-resize', top: rect.bottom - containerRect.top - 4, left: rect.left - containerRect.left - 4 },
-    { cursor: 'se-resize', top: rect.bottom - containerRect.top - 4, left: rect.right - containerRect.left - 4 },
+  // Position relative to container, accounting for handle size (HALF
+  // of HANDLE_SIZE so the dot centers on the corner / midpoint).
+  const HANDLE_SIZE = 12;
+  const off = HANDLE_SIZE / 2;
+  const top = rect.top - containerRect.top;
+  const left = rect.left - containerRect.left;
+  const right = rect.right - containerRect.left;
+  const bottom = rect.bottom - containerRect.top;
+  const midX = (left + right) / 2;
+  const midY = (top + bottom) / 2;
+
+  const positions: Array<{ cursor: string; top: number; left: number }> = [
+    { cursor: 'nw-resize', top: top - off,    left: left - off },
+    { cursor: 'n-resize',  top: top - off,    left: midX - off },
+    { cursor: 'ne-resize', top: top - off,    left: right - off },
+    { cursor: 'e-resize',  top: midY - off,   left: right - off },
+    { cursor: 'se-resize', top: bottom - off, left: right - off },
+    { cursor: 's-resize',  top: bottom - off, left: midX - off },
+    { cursor: 'sw-resize', top: bottom - off, left: left - off },
+    { cursor: 'w-resize',  top: midY - off,   left: left - off },
   ];
 
   positions.forEach(pos => {
     const handle = document.createElement('div');
     handle.className = 'resize-handle';
-    handle.style.cssText = `position:absolute;width:8px;height:8px;background:#3B82F6;border:1px solid white;border-radius:2px;cursor:${pos.cursor};z-index:50;top:${pos.top}px;left:${pos.left}px;`;
+    handle.style.cssText = [
+      'position:absolute',
+      `width:${HANDLE_SIZE}px`,
+      `height:${HANDLE_SIZE}px`,
+      'background:#3B82F6',
+      'border:2px solid #fff',
+      'border-radius:50%',
+      `cursor:${pos.cursor}`,
+      'z-index:60',
+      `top:${pos.top}px`,
+      `left:${pos.left}px`,
+      'box-shadow:0 1px 4px rgba(0,0,0,0.25)',
+      'pointer-events:auto',
+    ].join(';');
+
+    const startResize = (clientX: number, clientY: number) => {
+      const startX = clientX;
+      const startY = clientY;
+      const startW = el.offsetWidth;
+      const startH = el.offsetHeight;
+      const computed = window.getComputedStyle(el);
+      const isAbsolute = computed.position === 'absolute' || computed.position === 'fixed';
+      const startLeft = parseFloat(el.style.left || '0') || 0;
+      const startTop  = parseFloat(el.style.top  || '0') || 0;
+      const cursor = pos.cursor;
+
+      const onMove = (moveX: number, moveY: number) => {
+        const dx = moveX - startX;
+        const dy = moveY - startY;
+        let newW = startW;
+        let newH = startH;
+        let newL = startLeft;
+        let newT = startTop;
+
+        if (cursor.includes('e')) newW = Math.max(20, startW + dx);
+        if (cursor.includes('w')) {
+          newW = Math.max(20, startW - dx);
+          if (isAbsolute) newL = startLeft + dx;
+        }
+        if (cursor.includes('s')) newH = Math.max(20, startH + dy);
+        if (cursor.includes('n')) {
+          newH = Math.max(20, startH - dy);
+          if (isAbsolute) newT = startTop + dy;
+        }
+
+        if (cursor.includes('e') || cursor.includes('w')) el.style.width  = `${Math.round(newW)}px`;
+        if (cursor.includes('s') || cursor.includes('n')) el.style.height = `${Math.round(newH)}px`;
+        if (isAbsolute) {
+          if (cursor.includes('w')) el.style.left = `${Math.round(newL)}px`;
+          if (cursor.includes('n')) el.style.top  = `${Math.round(newT)}px`;
+        }
+      };
+
+      const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        // Re-place the handles so they track the new size.
+        addResizeHandles(el, container);
+      };
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    };
 
     handle.addEventListener('mousedown', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startW = el.offsetWidth;
-      const startH = el.offsetHeight;
-
-      const onMove = (moveE: MouseEvent) => {
-        const dx = moveE.clientX - startX;
-        const dy = moveE.clientY - startY;
-        if (pos.cursor.includes('e')) {
-          el.style.width = Math.max(20, startW + dx) + 'px';
-        }
-        if (pos.cursor.includes('s')) {
-          el.style.height = Math.max(20, startH + dy) + 'px';
-        }
-        if (pos.cursor === 'nw-resize') {
-          el.style.width = Math.max(20, startW - dx) + 'px';
-          el.style.height = Math.max(20, startH - dy) + 'px';
-        }
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      startResize(e.clientX, e.clientY);
     });
 
     container.appendChild(handle);
@@ -291,9 +351,9 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     applySelectionStyles(el);
     if (containerRef.current) {
       removeResizeHandles(containerRef.current);
-      if (type === 'image' || type === 'logo') {
-        addResizeHandles(el, containerRef.current);
-      }
+      // Resize handles for ANY selected element — text blocks reflow
+      // inside the new bounding box, images / logos scale.
+      addResizeHandles(el, containerRef.current);
     }
     setSelected({ element: el, type, rect });
     setEditing(false);
