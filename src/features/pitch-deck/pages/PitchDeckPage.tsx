@@ -22,7 +22,9 @@ import { InlineEditableSlide } from '@/shared/editor/InlineEditableSlide';
 import { SelectionInspector } from '@/shared/editor/SelectionInspector';
 import type { SelectedElement } from '@/shared/editor/blocks/EditableSlide';
 import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider';
+import { DeckThemePanel } from '@/shared/presentation/theme/DeckThemePanel';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
@@ -150,6 +152,7 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   }, []);
 
   const [showInspector, setShowInspector] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'slide' | 'theme'>('slide');
   // Currently-selected layer reported by the active slide. Used to
   // populate the Customize panel with property controls. Auto-opens
   // the inspector on the first selection so users discover the panel.
@@ -413,20 +416,33 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            {/* Selection-aware property panel — shown above slide-level
-                controls when a layer is selected. */}
-            <SelectionInspector selection={selection} onClearSelection={clearSelection} />
-            <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
-              <PitchDeckInspector
-                activeKind={UNIEX_SLIDES[activeIndex].kind}
-                activeVariant={slideVariants[activeIndex] ?? 'A'}
-                onVariant={(k) => setSlideVariant(activeIndex, k)}
-                isHidden={hiddenSlides.includes(activeIndex)}
-                onToggleHidden={() => toggleHidden(activeIndex)}
-                hasFrozen={Boolean(slideFrozenHtml[activeIndex])}
-                onResetFrozen={() => setSlideFrozen(activeIndex, undefined)}
-              />
-            </div>
+            {/* Slide / Theme tabs — Slide tab has the existing
+                selection + per-slide controls (unchanged). Theme tab
+                hosts the deck-wide DeckThemePanel (typography, colors,
+                density, style). */}
+            <Tabs value={inspectorTab} onValueChange={(v) => setInspectorTab(v as 'slide' | 'theme')}>
+              <TabsList style={{ width: '100%', display: 'inline-grid', gridTemplateColumns: '1fr 1fr' }}>
+                <TabsTrigger value="slide">Slide</TabsTrigger>
+                <TabsTrigger value="theme">Theme</TabsTrigger>
+              </TabsList>
+              <TabsContent value="slide" style={{ marginTop: 16 }}>
+                <SelectionInspector selection={selection} onClearSelection={clearSelection} />
+                <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+                  <PitchDeckInspector
+                    activeKind={UNIEX_SLIDES[activeIndex].kind}
+                    activeVariant={slideVariants[activeIndex] ?? 'A'}
+                    onVariant={(k) => setSlideVariant(activeIndex, k)}
+                    isHidden={hiddenSlides.includes(activeIndex)}
+                    onToggleHidden={() => toggleHidden(activeIndex)}
+                    hasFrozen={Boolean(slideFrozenHtml[activeIndex])}
+                    onResetFrozen={() => setSlideFrozen(activeIndex, undefined)}
+                  />
+                </div>
+              </TabsContent>
+              <TabsContent value="theme" style={{ marginTop: 16 }}>
+                <DeckThemePanel brand={brand} deckKind="pitch-deck" />
+              </TabsContent>
+            </Tabs>
           </aside>
         )}
 
