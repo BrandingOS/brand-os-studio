@@ -18,8 +18,9 @@ const GREEN = '#68BE69';
 const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
+const BODY_FAMILY = 'var(--deck-font-body)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -36,8 +37,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -49,16 +52,12 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>التجربة الواقعية</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>التجربة الواقعية</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -69,7 +68,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
           zIndex: 4,
         }}
       />
@@ -98,7 +97,6 @@ function Frame({
         overflow: 'hidden',
         background: bg,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -130,7 +128,7 @@ export function ImpactSlideA({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={130}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -139,14 +137,7 @@ export function ImpactSlideA({ index, total }: SlideProps) {
         >
           {IMPACT.title}
         </FitText>
-        <div
-          style={{
-            fontFamily: FONT_BODY,
-            fontSize: 24,
-            color: 'rgba(0,21,99,0.7)',
-            maxWidth: 1100,
-          }}
-        >
+        <div className="deck-h3" style={{ color: 'rgba(0,21,99,0.7)', maxWidth: 1100 }}>
           {IMPACT.caption}
         </div>
         <div
@@ -171,7 +162,7 @@ export function ImpactSlideA({ index, total }: SlideProps) {
             width={1500}
             height={140}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 700,
               color: WHITE,
               lineHeight: 1.4,
@@ -195,14 +186,7 @@ export function ImpactSlideA({ index, total }: SlideProps) {
             >
               ▶
             </span>
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 22,
-                color: 'rgba(255,255,255,0.7)',
-                letterSpacing: '0.18em',
-              }}
-            >
+            <span className="deck-body" style={{ color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>
               🎥 {IMPACT.videoPlaceholder}
             </span>
           </div>
@@ -251,17 +235,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            REAL EXPERIENCE
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>REAL EXPERIENCE</span>
           <FitText
             as="div"
             maxSize={108}
@@ -269,7 +243,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={150}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.18,
@@ -294,7 +268,8 @@ export function ImpactSlideB({ index, total }: SlideProps) {
             ...RTL_DIR,
           }}
         >
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 96, color: GREEN, lineHeight: 0.6 }}>
+          {/* Decorative giant glyph */}
+          <span style={{ fontFamily: HEADING_FAMILY, fontSize: 96, color: GREEN, lineHeight: 0.6 }}>
             "
           </span>
           <FitText
@@ -304,7 +279,7 @@ export function ImpactSlideB({ index, total }: SlideProps) {
             width={1380}
             height={170}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 700,
               color: WHITE,
               lineHeight: 1.4,
@@ -322,23 +297,16 @@ export function ImpactSlideB({ index, total }: SlideProps) {
               paddingTop: 22,
             }}
           >
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 22,
-                color: 'rgba(255,255,255,0.85)',
-              }}
-            >
+            <span className="deck-body" style={{ color: 'rgba(255,255,255,0.85)' }}>
               {IMPACT.caption}
             </span>
             <div
+              className="deck-body"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 14,
                 color: GREEN,
-                fontFamily: FONT_BODY,
-                fontSize: 20,
                 fontWeight: 700,
                 letterSpacing: '0.2em',
               }}
@@ -391,7 +359,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={110}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -465,13 +433,12 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               <span style={{ color: NAVY, fontSize: 56, fontWeight: 900, marginLeft: 8 }}>▶</span>
             </div>
             <span
+              className="deck-body"
               style={{
                 position: 'absolute',
                 bottom: 28,
                 left: 32,
                 color: 'rgba(255,255,255,0.7)',
-                fontFamily: FONT_BODY,
-                fontSize: 20,
                 letterSpacing: '0.2em',
               }}
             >
@@ -487,17 +454,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               ...RTL_DIR,
             }}
           >
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
-                color: GREEN,
-                fontWeight: 700,
-                letterSpacing: '0.32em',
-              }}
-            >
-              السؤال
-            </span>
+            <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>السؤال</span>
             <FitText
               as="div"
               maxSize={56}
@@ -505,7 +462,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               width={720}
               height={360}
               style={{
-                fontFamily: FONT_DISPLAY,
+                fontFamily: HEADING_FAMILY,
                 fontWeight: 700,
                 color: NAVY,
                 lineHeight: 1.4,
@@ -541,14 +498,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               >
                 ✦
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 22,
-                  color: NAVY,
-                  fontWeight: 600,
-                }}
-              >
+              <span className="deck-body" style={{ color: NAVY, fontWeight: 600 }}>
                 {IMPACT.caption}
               </span>
             </div>
@@ -589,7 +539,7 @@ export function ImpactSlideD({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={110}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -598,14 +548,7 @@ export function ImpactSlideD({ index, total }: SlideProps) {
         >
           {IMPACT.title}
         </FitText>
-        <span
-          style={{
-            fontFamily: FONT_BODY,
-            fontSize: 22,
-            color: 'rgba(0,21,99,0.7)',
-            ...RTL_DIR,
-          }}
-        >
+        <span className="deck-body" style={{ color: 'rgba(0,21,99,0.7)', ...RTL_DIR }}>
           {IMPACT.caption}
         </span>
         {/* Film strip */}
@@ -673,12 +616,12 @@ export function ImpactSlideD({ index, total }: SlideProps) {
                 ▶
               </div>
               <span
+                className="deck-caption"
                 style={{
                   position: 'absolute',
                   bottom: 12,
                   right: 14,
-                  fontFamily: FONT_BODY,
-                  fontSize: 16,
+                  fontFamily: BODY_FAMILY,
                   color: 'rgba(255,255,255,0.75)',
                   letterSpacing: '0.18em',
                 }}
@@ -701,7 +644,8 @@ export function ImpactSlideD({ index, total }: SlideProps) {
             ...RTL_DIR,
           }}
         >
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 60, color: GREEN, lineHeight: 0.6 }}>
+          {/* Decorative giant glyph */}
+          <span style={{ fontFamily: HEADING_FAMILY, fontSize: 60, color: GREEN, lineHeight: 0.6 }}>
             "
           </span>
           <FitText
@@ -711,7 +655,7 @@ export function ImpactSlideD({ index, total }: SlideProps) {
             width={1500}
             height={120}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 600,
               color: WHITE,
               lineHeight: 1.55,
@@ -749,17 +693,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            VOICES · أصوات من التجربة
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>VOICES · أصوات من التجربة</span>
           <FitText
             as="div"
             maxSize={88}
@@ -767,7 +701,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={120}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: NAVY,
               lineHeight: 1.18,
@@ -778,14 +712,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
             {IMPACT.title}
           </FitText>
         </div>
-        <span
-          style={{
-            fontFamily: FONT_BODY,
-            fontSize: 22,
-            color: 'rgba(0,21,99,0.7)',
-            ...RTL_DIR,
-          }}
-        >
+        <span className="deck-body" style={{ color: 'rgba(0,21,99,0.7)', ...RTL_DIR }}>
           {IMPACT.caption}
         </span>
         <div
@@ -819,9 +746,10 @@ export function ImpactSlideE({ index, total }: SlideProps) {
                   ...RTL_DIR,
                 }}
               >
+                {/* Decorative giant glyph */}
                 <span
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontSize: 64,
                     color: accent,
                     lineHeight: 0.5,
@@ -836,7 +764,7 @@ export function ImpactSlideE({ index, total }: SlideProps) {
                   width={420}
                   height={220}
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 700,
                     lineHeight: 1.5,
                     color: fg,
@@ -867,22 +795,14 @@ export function ImpactSlideE({ index, total }: SlideProps) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontFamily: FONT_DISPLAY,
+                      fontFamily: HEADING_FAMILY,
                       fontWeight: 800,
                       fontSize: 16,
                     }}
                   >
                     {c.initials}
                   </span>
-                  <span
-                    style={{
-                      fontFamily: FONT_BODY,
-                      fontSize: 18,
-                      fontWeight: 600,
-                      color: fg,
-                      opacity: 0.85,
-                    }}
-                  >
+                  <span className="deck-caption" style={{ fontWeight: 600, color: fg, opacity: 0.85 }}>
                     {c.role}
                   </span>
                 </div>
@@ -891,13 +811,12 @@ export function ImpactSlideE({ index, total }: SlideProps) {
           })}
         </div>
         <div
+          className="deck-h3"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 14,
             color: GREEN,
-            fontFamily: FONT_DISPLAY,
-            fontSize: 22,
             fontWeight: 700,
             letterSpacing: '0.2em',
           }}

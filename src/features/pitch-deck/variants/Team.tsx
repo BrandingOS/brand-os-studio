@@ -19,8 +19,9 @@ const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 const GREEN_SOFT = 'rgba(104, 190, 105, 0.12)';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
+const BODY_FAMILY = 'var(--deck-font-body)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -37,8 +38,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -50,16 +53,12 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>الفريق والشركاء</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>الفريق والشركاء</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -70,7 +69,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
           zIndex: 4,
         }}
       />
@@ -99,7 +98,6 @@ function Frame({
         overflow: 'hidden',
         background: bg,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -131,7 +129,7 @@ export function TeamSlideA({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={130}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -141,9 +139,8 @@ export function TeamSlideA({ index, total }: SlideProps) {
           {TEAM.title}
         </FitText>
         <div
+          className="deck-h3"
           style={{
-            fontFamily: FONT_BODY,
-            fontSize: 26,
             color: 'rgba(0,21,99,0.78)',
             maxWidth: 1300,
             fontWeight: 500,
@@ -176,10 +173,8 @@ export function TeamSlideA({ index, total }: SlideProps) {
               }}
             >
               <span
+                className="deck-label"
                 style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontSize: 20,
-                  fontWeight: 700,
                   letterSpacing: '0.32em',
                   color: i === 1 ? GREEN : NAVY,
                   opacity: i === 1 ? 1 : 0.55,
@@ -188,11 +183,10 @@ export function TeamSlideA({ index, total }: SlideProps) {
                 0{i + 1}
               </span>
               <span
+                className="deck-h2"
                 style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontSize: 32,
                   fontWeight: 800,
-                  lineHeight: 1.3,
+                  color: i === 1 ? WHITE : NAVY,
                 }}
               >
                 {s}
@@ -213,9 +207,8 @@ export function TeamSlideA({ index, total }: SlideProps) {
         >
           <span style={{ width: 40, height: 2, background: GREEN }} />
           <span
+            className="deck-h3"
             style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
               color: NAVY,
               fontWeight: 600,
             }}
@@ -267,17 +260,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            TEAM · فريق متخصص
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>TEAM · فريق متخصص</span>
           <FitText
             as="div"
             maxSize={120}
@@ -285,7 +268,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={170}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.1,
@@ -302,7 +285,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
             width={1100}
             height={70}
             style={{
-              fontFamily: FONT_BODY,
+              fontFamily: BODY_FAMILY,
               color: 'rgba(255,255,255,0.85)',
               lineHeight: 1.6,
               fontWeight: 500,
@@ -317,6 +300,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
           {TEAM.specialties.map((s, i) => (
             <div
               key={i}
+              className="deck-h3"
               style={{
                 background: i === 0 ? GREEN : 'rgba(255,255,255,0.10)',
                 border: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.30)',
@@ -326,9 +310,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 18,
-                fontFamily: FONT_DISPLAY,
                 fontWeight: 800,
-                fontSize: 28,
                 backdropFilter: 'blur(12px)',
               }}
             >
@@ -342,7 +324,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontSize: 16,
                   fontWeight: 800,
                 }}
@@ -367,14 +349,7 @@ export function TeamSlideB({ index, total }: SlideProps) {
           }}
         >
           <span style={{ width: 40, height: 2, background: GREEN }} />
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
-              color: WHITE,
-              fontWeight: 600,
-            }}
-          >
+          <span className="deck-h3" style={{ color: WHITE, fontWeight: 600 }}>
             {TEAM.closer}
           </span>
         </div>
@@ -414,7 +389,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={120}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -473,17 +448,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
               alt=""
               style={{ width: 130, height: 130 }}
             />
-            <span
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 18,
-                color: WHITE,
-                fontWeight: 800,
-                letterSpacing: '0.32em',
-              }}
-            >
-              uniex
-            </span>
+            <span className="deck-label" style={{ color: WHITE, letterSpacing: '0.32em' }}>uniex</span>
           </div>
           {/* Specialty satellites */}
           {TEAM.specialties.map((s, i) => {
@@ -518,7 +483,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 800,
                     fontSize: 18,
                     flexShrink: 0,
@@ -533,7 +498,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
                   width={360}
                   height={80}
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 800,
                     color: NAVY,
                     lineHeight: 1.3,
@@ -547,14 +512,13 @@ export function TeamSlideC({ index, total }: SlideProps) {
           })}
         </div>
         <div
+          className="deck-h3"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 18,
             color: NAVY,
-            fontFamily: FONT_DISPLAY,
-            fontSize: 22,
             fontWeight: 700,
           }}
         >
@@ -586,17 +550,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            TEAM
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>TEAM</span>
           <FitText
             as="div"
             maxSize={108}
@@ -604,7 +558,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={150}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.18,
@@ -621,7 +575,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
             width={1300}
             height={70}
             style={{
-              fontFamily: FONT_BODY,
+              fontFamily: BODY_FAMILY,
               color: 'rgba(255,255,255,0.85)',
               lineHeight: 1.6,
               fontWeight: 500,
@@ -670,17 +624,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
               />
               <span style={{ fontSize: 88, lineHeight: 1 }}>{icons[i]}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <span
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 20,
-                    fontWeight: 700,
-                    letterSpacing: '0.32em',
-                    color: GREEN,
-                  }}
-                >
-                  مجال 0{i + 1}
-                </span>
+                <span className="deck-label" style={{ letterSpacing: '0.32em', color: GREEN }}>مجال 0{i + 1}</span>
                 <FitText
                   as="div"
                   maxSize={36}
@@ -688,7 +632,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
                   width={460}
                   height={120}
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 800,
                     color: WHITE,
                     lineHeight: 1.3,
@@ -713,14 +657,7 @@ export function TeamSlideD({ index, total }: SlideProps) {
           }}
         >
           <span style={{ width: 40, height: 2, background: NAVY }} />
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
-              color: NAVY,
-              fontWeight: 800,
-            }}
-          >
+          <span className="deck-h3" style={{ color: NAVY, fontWeight: 800 }}>
             {TEAM.closer}
           </span>
         </div>
@@ -754,7 +691,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={120}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -770,7 +707,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={70}
           style={{
-            fontFamily: FONT_BODY,
+            fontFamily: BODY_FAMILY,
             color: 'rgba(0,21,99,0.78)',
             lineHeight: 1.6,
             fontWeight: 500,
@@ -814,10 +751,8 @@ export function TeamSlideE({ index, total }: SlideProps) {
                 }}
               />
               <span
+                className="deck-label"
                 style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 20,
-                  fontWeight: 700,
                   letterSpacing: '0.32em',
                   color: 'rgba(0,21,99,0.55)',
                   marginTop: 28,
@@ -832,7 +767,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
                 width={460}
                 height={110}
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 800,
                   color: NAVY,
                   lineHeight: 1.3,
@@ -859,17 +794,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <span style={{ width: 40, height: 2, background: GREEN }} />
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
-                color: GREEN,
-                fontWeight: 700,
-                letterSpacing: '0.32em',
-              }}
-            >
-              PARTNERS · شركاء يدعمون التجربة
-            </span>
+            <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>PARTNERS · شركاء يدعمون التجربة</span>
           </div>
           <div
             style={{
@@ -882,6 +807,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
             {partners.map((p, i) => (
               <div
                 key={i}
+                className="deck-h3"
                 style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.16)',
@@ -890,9 +816,7 @@ export function TeamSlideE({ index, total }: SlideProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: 14,
-                  fontFamily: FONT_DISPLAY,
                   fontWeight: 700,
-                  fontSize: 22,
                   color: 'rgba(255,255,255,0.85)',
                   letterSpacing: '0.06em',
                 }}
@@ -902,9 +826,8 @@ export function TeamSlideE({ index, total }: SlideProps) {
             ))}
           </div>
           <span
+            className="deck-h3"
             style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
               color: 'rgba(255,255,255,0.85)',
               fontWeight: 600,
               ...RTL_DIR,
@@ -927,5 +850,3 @@ export const TEAM_VARIANTS = {
   D: TeamSlideD,
   E: TeamSlideE,
 } as const;
-
-export type TeamVariantKey = keyof typeof TEAM_VARIANTS;

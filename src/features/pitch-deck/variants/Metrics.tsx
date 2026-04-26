@@ -19,8 +19,8 @@ const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 const GREEN_SOFT = 'rgba(104, 190, 105, 0.12)';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -37,8 +37,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -50,16 +52,12 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>مؤشرات الأثر</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>مؤشرات الأثر</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -70,7 +68,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
           zIndex: 4,
         }}
       />
@@ -99,7 +97,6 @@ function Frame({
         overflow: 'hidden',
         background: bg,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -125,17 +122,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            METRICS
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>METRICS</span>
           <FitText
             as="div"
             maxSize={96}
@@ -143,7 +130,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={140}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.18,
@@ -169,9 +156,10 @@ export function MetricsSlideA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
+              {/* Decorative giant numeral — keep inline */}
               <span
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontSize: 96,
                   fontWeight: 800,
                   color: GREEN,
@@ -181,14 +169,7 @@ export function MetricsSlideA({ index, total }: SlideProps) {
               >
                 {s.value}
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 24,
-                  color: WHITE,
-                  fontWeight: 500,
-                }}
-              >
+              <span className="deck-body" style={{ color: WHITE, fontWeight: 500 }}>
                 {s.label}
               </span>
             </div>
@@ -198,9 +179,8 @@ export function MetricsSlideA({ index, total }: SlideProps) {
           {METRICS.notes.map((n, i) => (
             <span
               key={i}
+              className="deck-body"
               style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
                 fontWeight: 600,
                 color: 'rgba(255,255,255,0.85)',
                 background: 'rgba(255,255,255,0.06)',
@@ -214,14 +194,13 @@ export function MetricsSlideA({ index, total }: SlideProps) {
           ))}
         </div>
         <div
+          className="deck-h3"
           style={{
             marginTop: 'auto',
             display: 'flex',
             alignItems: 'center',
             gap: 18,
             color: GREEN,
-            fontFamily: FONT_DISPLAY,
-            fontSize: 26,
             fontWeight: 700,
           }}
         >
@@ -258,7 +237,7 @@ export function MetricsSlideB({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 192}
           height={130}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -307,7 +286,7 @@ export function MetricsSlideB({ index, total }: SlideProps) {
                   width={300}
                   height={140}
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 800,
                     color: WHITE,
                     lineHeight: 1,
@@ -318,14 +297,7 @@ export function MetricsSlideB({ index, total }: SlideProps) {
                   {s.value}
                 </FitText>
               </div>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 24,
-                  fontWeight: 700,
-                  color: NAVY,
-                }}
-              >
+              <span className="deck-body" style={{ fontWeight: 700, color: NAVY }}>
                 {s.label}
               </span>
             </div>
@@ -342,9 +314,8 @@ export function MetricsSlideB({ index, total }: SlideProps) {
           {METRICS.notes.map((n, i) => (
             <span
               key={i}
+              className="deck-body"
               style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
                 fontWeight: 600,
                 color: NAVY,
                 background: WHITE,
@@ -358,14 +329,13 @@ export function MetricsSlideB({ index, total }: SlideProps) {
           ))}
         </div>
         <div
+          className="deck-h3"
           style={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             gap: 18,
             color: GREEN,
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
             fontWeight: 700,
           }}
         >
@@ -437,17 +407,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
               gap: 12,
             }}
           >
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
-                color: GREEN,
-                fontWeight: 700,
-                letterSpacing: '0.32em',
-              }}
-            >
-              METRICS
-            </span>
+            <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>METRICS</span>
             <FitText
               as="div"
               maxSize={64}
@@ -455,7 +415,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
               width={520}
               height={180}
               style={{
-                fontFamily: FONT_DISPLAY,
+                fontFamily: HEADING_FAMILY,
                 fontWeight: 800,
                 color: WHITE,
                 lineHeight: 1.2,
@@ -485,27 +445,8 @@ export function MetricsSlideC({ index, total }: SlideProps) {
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <span
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 18,
-                    fontWeight: 700,
-                    letterSpacing: '0.32em',
-                    color: 'rgba(0,21,99,0.55)',
-                  }}
-                >
-                  0{i + 1}
-                </span>
-                <span
-                  style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 26,
-                    fontWeight: 700,
-                    color: NAVY,
-                  }}
-                >
-                  {s.label}
-                </span>
+                <span className="deck-label" style={{ letterSpacing: '0.32em', color: 'rgba(0,21,99,0.55)' }}>0{i + 1}</span>
+                <span className="deck-h3" style={{ fontWeight: 700, color: NAVY }}>{s.label}</span>
               </div>
               <FitText
                 as="span"
@@ -514,7 +455,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
                 width={320}
                 height={110}
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 800,
                   color: GREEN,
                   lineHeight: 1,
@@ -539,9 +480,8 @@ export function MetricsSlideC({ index, total }: SlideProps) {
               {METRICS.notes.map((n, i) => (
                 <span
                   key={i}
+                  className="deck-caption"
                   style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 18,
                     fontWeight: 600,
                     color: NAVY,
                     background: GREEN_SOFT,
@@ -553,16 +493,7 @@ export function MetricsSlideC({ index, total }: SlideProps) {
                 </span>
               ))}
             </div>
-            <span
-              style={{
-                fontFamily: FONT_DISPLAY,
-                fontSize: 22,
-                fontWeight: 700,
-                color: NAVY,
-              }}
-            >
-              {METRICS.closer}
-            </span>
+            <span className="deck-h3" style={{ fontWeight: 700, color: NAVY }}>{METRICS.closer}</span>
           </div>
         </div>
       </div>
@@ -597,18 +528,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: NAVY,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-              opacity: 0.7,
-            }}
-          >
-            METRICS · مؤشرات الأثر
-          </span>
+          <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.32em', opacity: 0.7 }}>METRICS · مؤشرات الأثر</span>
           <FitText
             as="div"
             maxSize={108}
@@ -616,7 +536,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={150}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: NAVY,
               lineHeight: 1.18,
@@ -652,17 +572,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 20,
-                  color: GREEN,
-                  fontWeight: 700,
-                  letterSpacing: '0.32em',
-                }}
-              >
-                0{i + 1}
-              </span>
+              <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>0{i + 1}</span>
               <FitText
                 as="div"
                 maxSize={140}
@@ -670,7 +580,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
                 width={460}
                 height={170}
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 800,
                   color: WHITE,
                   lineHeight: 1,
@@ -680,15 +590,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
               >
                 {s.value}
               </FitText>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 24,
-                  color: WHITE,
-                  fontWeight: 600,
-                  opacity: 0.92,
-                }}
-              >
+              <span className="deck-body" style={{ color: WHITE, fontWeight: 600, opacity: 0.92 }}>
                 {s.label}
               </span>
             </div>
@@ -699,9 +601,8 @@ export function MetricsSlideD({ index, total }: SlideProps) {
             {METRICS.notes.map((n, i) => (
               <span
                 key={i}
+                className="deck-body"
                 style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 20,
                   fontWeight: 700,
                   color: NAVY,
                   background: WHITE,
@@ -713,16 +614,7 @@ export function MetricsSlideD({ index, total }: SlideProps) {
               </span>
             ))}
           </div>
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
-              fontWeight: 800,
-              color: NAVY,
-            }}
-          >
-            {METRICS.closer}
-          </span>
+          <span className="deck-h3" style={{ fontWeight: 800, color: NAVY }}>{METRICS.closer}</span>
         </div>
       </div>
     </Frame>
@@ -762,17 +654,7 @@ export function MetricsSlideE({ index, total }: SlideProps) {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            METRICS · مؤشرات
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>METRICS · مؤشرات</span>
           <FitText
             as="div"
             maxSize={56}
@@ -780,7 +662,7 @@ export function MetricsSlideE({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={80}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 700,
               color: NAVY,
               lineHeight: 1.2,
@@ -808,7 +690,7 @@ export function MetricsSlideE({ index, total }: SlideProps) {
             width={1500}
             height={520}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: GREEN,
               lineHeight: 0.9,
@@ -819,9 +701,8 @@ export function MetricsSlideE({ index, total }: SlideProps) {
             {hero}
           </FitText>
           <span
+            className="deck-h3"
             style={{
-              fontFamily: FONT_BODY,
-              fontSize: 28,
               fontWeight: 600,
               color: NAVY,
               textAlign: 'center',
@@ -851,25 +732,10 @@ export function MetricsSlideE({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span
-                style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontSize: 36,
-                  fontWeight: 800,
-                  color: NAVY,
-                  letterSpacing: '-0.01em',
-                }}
-              >
+              <span className="deck-h2" style={{ fontWeight: 800, color: NAVY, letterSpacing: '-0.01em' }}>
                 {s.value}
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 22,
-                  fontWeight: 600,
-                  color: 'rgba(0,21,99,0.7)',
-                }}
-              >
+              <span className="deck-body" style={{ fontWeight: 600, color: 'rgba(0,21,99,0.7)' }}>
                 {s.label}
               </span>
             </div>
