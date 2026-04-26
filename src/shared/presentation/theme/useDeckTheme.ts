@@ -1,6 +1,6 @@
 // src/shared/presentation/theme/useDeckTheme.ts
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useAutoSave } from '@/features/editor/core';
 import type { EditorSaveState } from '@/features/editor/core';
@@ -34,10 +34,15 @@ export function useDeckTheme(brand: Brand, deckKind: DeckKind): Result {
   const resetStore = useDeckThemeStore((s) => s.reset);
   const updateBrand = useBrandStore((s) => s.update);
 
-  // Hydrate from brand on mount + when brand swaps.
+  // Hydrate once per (brandId, deckKind). We DON'T depend on
+  // `brand.presentationThemes` because `brandStore.update` mints a new
+  // brand reference on every mutation (logo upload, palette tweak,
+  // anything) — re-running this effect would clobber an in-flight
+  // draft mid-edit. Only swap deck or brand triggers re-hydrate.
   useEffect(() => {
     hydrate(brand.id, deckKind, brand.presentationThemes?.[deckKind]);
-  }, [brand.id, deckKind, brand.presentationThemes, hydrate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand.id, deckKind, hydrate]);
 
   const { saveState, markDirty } = useAutoSave<PresentationTheme>({
     value: theme,
@@ -48,15 +53,19 @@ export function useDeckTheme(brand: Brand, deckKind: DeckKind): Result {
     },
   });
 
-  return {
-    theme,
-    saveState,
-    patch: (p) => { patchTheme(brand.id, deckKind, p); markDirty(); },
-    reset: () => {
-      resetStore(brand.id, deckKind);
-      // Setting an explicit empty draft makes the auto-save fire.
-      setTheme(brand.id, deckKind, EMPTY_THEME);
-      markDirty();
-    },
-  };
+  // Memoize the action closures so panel sections that take them as
+  // props don't re-render on every keystroke.
+  const patch = useCallback((p: Partial<PresentationTheme>) => {
+    patchTheme(brand.id, deckKind, p);
+    markDirty();
+  }, [brand.id, deckKind, patchTheme, markDirty]);
+
+  const reset = useCallback(() => {
+    resetStore(brand.id, deckKind);
+    // Setting an explicit empty draft makes the auto-save fire.
+    setTheme(brand.id, deckKind, EMPTY_THEME);
+    markDirty();
+  }, [brand.id, deckKind, resetStore, setTheme, markDirty]);
+
+  return { theme, saveState, patch, reset };
 }

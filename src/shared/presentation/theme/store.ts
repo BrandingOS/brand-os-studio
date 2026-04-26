@@ -19,6 +19,12 @@ interface DeckThemeStore {
   reset: (brandId: string, kind: DeckKind) => void;
 }
 
+/**
+ * Deep-merge `patch` over `base`. Plain objects merge recursively;
+ * arrays REPLACE wholesale (the patch's array wins). `undefined`
+ * patch keys leave the base value untouched — use `null` if you
+ * actually want to clear a value.
+ */
 function deepMerge<T>(base: T, patch: DeepPartial<T>): T {
   if (patch === undefined || patch === null) return base;
   if (typeof base !== 'object' || base === null) return (patch as T) ?? base;
