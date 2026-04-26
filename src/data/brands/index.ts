@@ -2,10 +2,12 @@ import type { Brand } from '@/shared/types/brand';
 import { raqmBrand } from './raqm';
 import { skamBrand } from './skam';
 import { vectorBrand } from './vector';
+import { uniexBrand } from './uniex';
 
 export { raqmBrand, RAQM_LOGO_URL, RAQM_LOGO_WHITE_URL, RAQM_LOGO_BLACK_URL } from './raqm';
 export { skamBrand, SKAM_LOGO_URL, SKAM_LOGO_WHITE_URL, SKAM_LOGO_BLACK_URL } from './skam';
 export { vectorBrand } from './vector';
+export { uniexBrand } from './uniex';
 
 /**
  * All seed brands that ship with the client bundle. Exposed as a
@@ -17,7 +19,7 @@ export { vectorBrand } from './vector';
  * into the authoritative `useBrandStore.list` — this export is only
  * for first-paint synchronous access.
  */
-export const SEED_BRANDS: readonly Brand[] = [raqmBrand, skamBrand, vectorBrand];
+export const SEED_BRANDS: readonly Brand[] = [raqmBrand, skamBrand, vectorBrand, uniexBrand];
 
 export function getSeedBrandBySlug(slug: string): Brand | undefined {
   return SEED_BRANDS.find((b) => b.slug === slug);

@@ -5,6 +5,7 @@ import { demoBrandIdentity } from '@/data/demo';
 import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
+import { uniexBrand } from '@/data/brands/uniex';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
 
@@ -12,7 +13,7 @@ import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOv
  * Seed brands are always available regardless of database state.
  * They appear as read-only examples for all users.
  */
-const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, demoBrandIdentity];
+const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, uniexBrand, demoBrandIdentity];
 const SEED_BRAND_IDS = new Set(SEED_BRANDS.map((b) => b.id));
 
 export class SupabaseBrandsService implements IBrandsService {

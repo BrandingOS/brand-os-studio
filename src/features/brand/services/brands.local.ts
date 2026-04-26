@@ -3,6 +3,7 @@ import { demoBrandIdentity } from '@/data/demo';
 import { raqmBrand } from '@/data/brands/raqm';
 import { skamBrand } from '@/data/brands/skam';
 import { vectorBrand } from '@/data/brands/vector';
+import { uniexBrand } from '@/data/brands/uniex';
 import { safeLocalStorageSet } from '@/shared/utils/imageUpload';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
@@ -21,7 +22,7 @@ export interface BrandsService {
  * from the app's seed data modules so they always exist regardless
  * of browser storage state.
  */
-const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, demoBrandIdentity];
+const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, uniexBrand, demoBrandIdentity];
 const SEED_BRAND_IDS = new Set(SEED_BRANDS.map(b => b.id));
 
 export class LocalBrandsService implements BrandsService {
