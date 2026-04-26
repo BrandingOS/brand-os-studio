@@ -18,7 +18,6 @@
   font-size: var(--deck-text-display);
   line-height: var(--deck-leading-display);
   color: var(--deck-text-heading);
-  letter-spacing: -0.02em;
 }
 
 .deck-h1 {
@@ -27,7 +26,6 @@
   font-size: var(--deck-text-h1);
   line-height: var(--deck-leading-h1);
   color: var(--deck-text-heading);
-  letter-spacing: -0.015em;
 }
 
 .deck-h2 {
@@ -69,7 +67,18 @@
   line-height: 1.2;
   color: var(--deck-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+}
+
+/* User opted out of letter-spacing entirely. Nuke any inline-styled
+ * letter-spacing across the whole deck — including chrome wordmarks
+ * and section labels in variant files that still set it explicitly.
+ * !important is needed to win against inline styles on per-variant
+ * elements that this CSS module hasn't been swept through yet. */
+[data-deck="pitch-deck"],
+[data-deck="pitch-deck"] *,
+[data-deck="pitch-deck"] *::before,
+[data-deck="pitch-deck"] *::after {
+  letter-spacing: normal !important;
 }
 
 .deck-card {

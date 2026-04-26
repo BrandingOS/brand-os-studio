@@ -23,6 +23,7 @@ import { SelectionInspector } from '@/shared/editor/SelectionInspector';
 import type { SelectedElement } from '@/shared/editor/blocks/EditableSlide';
 import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider';
 import { DeckThemePanel } from '@/shared/presentation/theme/DeckThemePanel';
+import { useArtworkStore } from '../artwork/artworkStore';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Brand } from '@/shared/types/brand';
@@ -166,6 +167,12 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const total = UNIEX_SLIDES.length;
+
+  // Hydrate per-deck artwork overrides (uploaded photos / Unsplash
+  // picks for replaceable SVG illustrations) from localStorage.
+  useEffect(() => {
+    useArtworkStore.getState().hydrate(slug);
+  }, [slug]);
 
   // Inject Arabic fonts once.
   useEffect(() => {
