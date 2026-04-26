@@ -64,14 +64,14 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>مسار: {programName}</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>مسار: {programName}</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -147,15 +147,15 @@ export function ProgramDetailA({ index, total, programKey }: SlideProps) {
         <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: 22, flex: 1 }}>
           <div style={{ background: NAVY, color: WHITE, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>🎯</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, lineHeight: 1.7 }}>{p.goal}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.7 }}>{p.goal}</span>
           </div>
           <div style={{ background: WHITE, border: `2px solid ${tinted}`, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>🧭</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
             <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.phases.map((phase, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
                   <span style={{ minWidth: 22, fontWeight: 800, color: tinted }}>{j + 1}.</span>
                   <span>{phase}</span>
                 </li>
@@ -164,10 +164,10 @@ export function ProgramDetailA({ index, total, programKey }: SlideProps) {
           </div>
           <div style={{ background: GREEN_SOFT, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>📊</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.outputs.map((out, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
                   <span style={{ color: GREEN, fontWeight: 800 }}>•</span>
                   <span>{out}</span>
                 </li>
@@ -192,7 +192,7 @@ export function ProgramDetailB({ index, total, programKey }: SlideProps) {
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 28, ...RTL_DIR }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
           <div>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
             <FitText as="div" maxSize={104} minSize={48} width={1100} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.1, marginTop: 8, ...RTL_DIR }}>
               {p.name}
             </FitText>
@@ -220,8 +220,8 @@ export function ProgramDetailB({ index, total, programKey }: SlideProps) {
             }}
           >
             <span style={{ fontSize: 32 }}>🎯</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, lineHeight: 1.7, color: WHITE }}>{p.goal}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.7, color: WHITE }}>{p.goal}</span>
           </div>
           <div
             style={{
@@ -236,10 +236,10 @@ export function ProgramDetailB({ index, total, programKey }: SlideProps) {
             }}
           >
             <span style={{ fontSize: 32 }}>🧭</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>مراحل المسار</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>مراحل المسار</span>
             <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.phases.map((phase, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: WHITE, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 22, color: WHITE, fontWeight: 500, lineHeight: 1.55 }}>
                   <span style={{ minWidth: 22, fontWeight: 800, color: GREEN }}>{j + 1}.</span>
                   <span>{phase}</span>
                 </li>
@@ -260,10 +260,10 @@ export function ProgramDetailB({ index, total, programKey }: SlideProps) {
             }}
           >
             <span style={{ fontSize: 32 }}>📊</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.outputs.map((out, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: WHITE, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 22, color: WHITE, fontWeight: 500, lineHeight: 1.55 }}>
                   <span style={{ color: GREEN, fontWeight: 800 }}>•</span>
                   <span>{out}</span>
                 </li>
@@ -320,7 +320,7 @@ export function ProgramDetailC({ index, total, programKey }: SlideProps) {
         />
         <div style={{ position: 'absolute', inset: 0, padding: 44, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', ...RTL_DIR }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
             <span style={{ background: GREEN, color: NAVY, padding: '12px 24px', borderRadius: 999, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22 }}>
               {p.duration}
             </span>
@@ -340,15 +340,15 @@ export function ProgramDetailC({ index, total, programKey }: SlideProps) {
       <div style={{ position: 'absolute', top: 490, left: 96, right: 96, bottom: 130, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 22 }}>
         <div style={{ background: NAVY, color: WHITE, borderRadius: 22, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
           <span style={{ fontSize: 32 }}>🎯</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 17, fontWeight: 500, lineHeight: 1.65 }}>{p.goal}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.65 }}>{p.goal}</span>
         </div>
         <div style={{ background: WHITE, border: `2px solid ${tinted}`, borderRadius: 22, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
           <span style={{ fontSize: 32 }}>🧭</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
           <ol style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, margin: 0, listStyle: 'none' }}>
             {p.phases.map((phase, j) => (
-              <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 15, color: NAVY, fontWeight: 500, lineHeight: 1.5 }}>
+              <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.5 }}>
                 <span style={{ minWidth: 20, fontWeight: 800, color: tinted }}>{j + 1}.</span>
                 <span>{phase}</span>
               </li>
@@ -357,10 +357,10 @@ export function ProgramDetailC({ index, total, programKey }: SlideProps) {
         </div>
         <div style={{ background: GREEN_SOFT, borderRadius: 22, padding: 28, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
           <span style={{ fontSize: 32 }}>📊</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
           <ul style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 0, margin: 0, listStyle: 'none' }}>
             {p.outputs.map((out, j) => (
-              <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 15, color: NAVY, fontWeight: 500, lineHeight: 1.5 }}>
+              <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.5 }}>
                 <span style={{ color: GREEN, fontWeight: 800 }}>•</span>
                 <span>{out}</span>
               </li>
@@ -410,7 +410,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ fontSize: 28 }}>🎯</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
               </div>
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, lineHeight: 1.5 }}>{p.goal}</span>
             </div>
@@ -429,7 +429,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ fontSize: 28 }}>🧭</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {p.phases.map((phase, j) => (
@@ -443,7 +443,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
                       background: GREEN_SOFT,
                       borderRadius: 12,
                       fontFamily: FONT_BODY,
-                      fontSize: 15,
+                      fontSize: 22,
                       color: NAVY,
                       fontWeight: 500,
                       lineHeight: 1.5,
@@ -460,7 +460,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: 800,
-                        fontSize: 13,
+                        fontSize: 14,
                       }}
                     >
                       {j + 1}
@@ -487,7 +487,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
             }}
           >
             <span style={{ fontSize: 44 }}>📊</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: NAVY }}>المخرجات</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: NAVY }}>المخرجات</span>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.outputs.map((out, j) => (
                 <li
@@ -497,7 +497,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
                     gap: 14,
                     alignItems: 'flex-start',
                     fontFamily: FONT_DISPLAY,
-                    fontSize: 19,
+                    fontSize: 24,
                     color: NAVY,
                     fontWeight: 700,
                     lineHeight: 1.45,
@@ -505,7 +505,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
                     borderBottom: j < p.outputs.length - 1 ? '1px solid rgba(0,21,99,0.18)' : 'none',
                   }}
                 >
-                  <span style={{ minWidth: 28, height: 28, borderRadius: '50%', background: NAVY, color: GREEN, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+                  <span style={{ minWidth: 28, height: 28, borderRadius: '50%', background: NAVY, color: GREEN, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
                     {j + 1}
                   </span>
                   <span>{out}</span>
@@ -531,7 +531,7 @@ export function ProgramDetailE({ index, total, programKey }: SlideProps) {
         {/* Goal (top) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'flex-start' }}>
           <div>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAM · {programKey.toUpperCase()}</span>
             <FitText as="div" maxSize={84} minSize={40} width={1200} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.1, marginTop: 8, ...RTL_DIR }}>
               {p.name}
             </FitText>
@@ -553,8 +553,8 @@ export function ProgramDetailE({ index, total, programKey }: SlideProps) {
           }}
         >
           <span style={{ fontSize: 26 }}>🎯</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: GREEN, whiteSpace: 'nowrap' }}>الهدف</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, lineHeight: 1.6, flex: 1 }}>{p.goal}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN, whiteSpace: 'nowrap' }}>الهدف</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.6, flex: 1 }}>{p.goal}</span>
         </div>
 
         {/* Timeline */}
@@ -611,8 +611,8 @@ export function ProgramDetailE({ index, total, programKey }: SlideProps) {
                 >
                   {j + 1}
                 </div>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.24em', color: tinted, opacity: 0.8 }}>المرحلة {j + 1}</span>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: 1.4, flex: 1 }}>{phase}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700, letterSpacing: '0.24em', color: tinted, opacity: 0.8 }}>المرحلة {j + 1}</span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: NAVY, lineHeight: 1.4, flex: 1 }}>{phase}</span>
               </div>
             ))}
           </div>

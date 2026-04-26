@@ -48,7 +48,7 @@ export function CoverVariantA({ index, total }: SlideProps) {
           ...RTL_DIR,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, color: GREEN, fontSize: 16, letterSpacing: '0.18em', fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, color: GREEN, fontSize: 20, letterSpacing: '0.18em', fontWeight: 600 }}>
           <span>{COVER.brand} · uniex</span>
           <span style={{ width: 36, height: 1, background: GREEN }} />
         </div>
@@ -84,7 +84,7 @@ export function CoverVariantA({ index, total }: SlideProps) {
             </FitText>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: FONT_BODY, fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.65)' }}>
           <span style={{ color: GREEN, fontWeight: 700, letterSpacing: '0.16em' }}>{COVER.tag}</span>
           <span>Pitch Deck · {new Date().getFullYear()}</span>
         </div>
@@ -144,7 +144,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO_WHITE} alt="uniex" style={{ height: 42 }} />
           <span style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.45)' }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 600, color: GREEN, letterSpacing: '0.32em' }}>{COVER.brandSub.toUpperCase()}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 600, color: GREEN, letterSpacing: '0.32em' }}>{COVER.brandSub.toUpperCase()}</span>
         </div>
         <div>
           <FitText
@@ -171,7 +171,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
             </FitText>
           </div>
         </div>
-        <div style={{ color: GREEN, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.tag}</div>
+        <div style={{ color: GREEN, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.tag}</div>
       </div>
     </Frame>
   );
@@ -185,9 +185,9 @@ export function CoverVariantC({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="تقديم" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 0', display: 'flex', flexDirection: 'column', ...RTL_DIR }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 28 }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>UNIEX · {COVER.brand}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>UNIEX · {COVER.brand}</span>
           <span style={{ width: 36, height: 1, background: GREEN }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: 'rgba(0,21,99,0.55)', letterSpacing: '0.18em' }}>{COVER.tag}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.55)', letterSpacing: '0.18em' }}>{COVER.tag}</span>
         </div>
         <FitText
           as="div"
@@ -268,9 +268,9 @@ export function CoverVariantD({ index, total }: SlideProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, color: NAVY }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, letterSpacing: '0.32em' }}>EDITION · 01</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, letterSpacing: '0.32em' }}>EDITION · 01</span>
           <span style={{ width: 36, height: 1, background: NAVY }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.brand} / uniex</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.brand} / uniex</span>
         </div>
         <div>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: NAVY, marginBottom: 18, letterSpacing: '0.06em' }}>
@@ -313,7 +313,7 @@ export function CoverVariantD({ index, total }: SlideProps) {
             </FitText>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: NAVY, fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: NAVY, fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700 }}>
           <span style={{ letterSpacing: '0.32em' }}>{COVER.tag}</span>
           <span style={{ letterSpacing: '0.18em' }}>PITCH · {new Date().getFullYear()}</span>
         </div>
@@ -341,7 +341,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
         }}
       >
         <img src={ICON_GREEN} alt="" style={{ width: 88, marginBottom: 36, opacity: 0.95 }} />
-        <div style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.4em', marginBottom: 24 }}>
+        <div style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.4em', marginBottom: 24 }}>
           {COVER.brand.toUpperCase()} · UNIEX
         </div>
         <FitText
@@ -392,7 +392,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
         >
           {COVER.subhead}
         </FitText>
-        <div style={{ marginTop: 28, fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>{COVER.tag}</div>
+        <div style={{ marginTop: 28, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>{COVER.tag}</div>
       </div>
     </Frame>
   );

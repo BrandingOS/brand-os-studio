@@ -29,7 +29,7 @@ export function SolutionVariantA({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="الحل" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 50, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
           <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.18, color: NAVY, marginTop: 12, ...RTL_DIR }}>
             {SOLUTION.title}
           </FitText>
@@ -78,7 +78,7 @@ export function SolutionVariantB({ index, total }: SlideProps) {
         {/* Right column: stacked pillars + closer */}
         <div style={{ flex: 1, padding: '170px 64px 130px 96px', display: 'flex', flexDirection: 'column', gap: 24, ...RTL_DIR }}>
           <div>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// SOLUTION</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// SOLUTION</span>
             <FitText
               as="div"
               maxSize={68}
@@ -109,7 +109,7 @@ export function SolutionVariantB({ index, total }: SlideProps) {
                 <span style={{ fontSize: 64, lineHeight: 1, flexShrink: 0 }}>{p.icon}</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <span style={{ fontFamily: FONT_DISPLAY, fontSize: 38, fontWeight: 800, lineHeight: 1.1 }}>{p.title}</span>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, lineHeight: 1.55, opacity: 0.95 }}>{p.body}</span>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.55, opacity: 0.95 }}>{p.body}</span>
                 </div>
               </div>
             ))}
@@ -163,7 +163,7 @@ export function SolutionVariantC({ index, total }: SlideProps) {
       </div>
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
           <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={140} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.18, color: WHITE, marginTop: 12, ...RTL_DIR }}>
             {SOLUTION.title}
           </FitText>
@@ -191,7 +191,7 @@ export function SolutionVariantC({ index, total }: SlideProps) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                   <span style={{ fontSize: 64, lineHeight: 1 }}>{p.icon}</span>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: isFirst ? NAVY : GREEN, letterSpacing: '0.32em' }}>0{i + 1} / 02</span>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: isFirst ? NAVY : GREEN, letterSpacing: '0.32em' }}>0{i + 1} / 02</span>
                 </div>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 52, fontWeight: 800, display: 'block', lineHeight: 1.1, color: isFirst ? NAVY : WHITE }}>{p.title}</span>
                 <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.6, marginTop: 16, display: 'block', color: isFirst ? 'rgba(0,21,99,0.85)' : 'rgba(255,255,255,0.92)' }}>{p.body}</span>
@@ -216,7 +216,7 @@ export function SolutionVariantD({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="الحل" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>
           <FitText as="div" maxSize={92} minSize={42} width={SLIDE_WIDTH - 192} height={140} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.2, color: NAVY, marginTop: 10, ...RTL_DIR }}>
             {SOLUTION.title}
           </FitText>
@@ -239,11 +239,11 @@ export function SolutionVariantD({ index, total }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 56, lineHeight: 1 }}>{p.icon}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: i === 0 ? NAVY : GREEN, letterSpacing: '0.32em' }}>STEP 0{i + 1}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: i === 0 ? NAVY : GREEN, letterSpacing: '0.32em' }}>STEP 0{i + 1}</span>
               </div>
               <div>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 44, fontWeight: 800, color: NAVY, lineHeight: 1.1, display: 'block' }}>{p.title}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 19, fontWeight: 500, color: 'rgba(0,21,99,0.78)', lineHeight: 1.6, marginTop: 14, display: 'block' }}>{p.body}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, color: 'rgba(0,21,99,0.78)', lineHeight: 1.6, marginTop: 14, display: 'block' }}>{p.body}</span>
               </div>
             </div>
           ))}
@@ -262,11 +262,11 @@ export function SolutionVariantD({ index, total }: SlideProps) {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 56, lineHeight: 1 }}>✨</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>OUTCOME</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>OUTCOME</span>
             </div>
             <div>
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 800, color: WHITE, lineHeight: 1.2, display: 'block' }}>قرار واعٍ</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, color: 'rgba(255,255,255,0.92)', lineHeight: 1.65, marginTop: 14, display: 'block' }}>{SOLUTION.closer}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, color: 'rgba(255,255,255,0.92)', lineHeight: 1.65, marginTop: 14, display: 'block' }}>{SOLUTION.closer}</span>
             </div>
           </div>
         </div>
@@ -284,7 +284,7 @@ export function SolutionVariantE({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="الحل" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 32, ...RTL_DIR }}>
         <div style={{ textAlign: 'center', ...RTL_DIR }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 800, letterSpacing: '0.4em' }}>// SOLUTION</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 800, letterSpacing: '0.4em' }}>// SOLUTION</span>
           <FitText
             as="div"
             maxSize={80}
@@ -321,7 +321,7 @@ export function SolutionVariantE({ index, total }: SlideProps) {
               >
                 <span style={{ fontSize: 96, lineHeight: 1, marginBottom: 12 }}>{p.icon}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 44, fontWeight: 800, lineHeight: 1.1, marginBottom: 12 }}>{p.title}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 17, fontWeight: 500, lineHeight: 1.6, opacity: 0.92, direction: 'rtl' }}>{p.body}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.6, opacity: 0.92, direction: 'rtl' }}>{p.body}</span>
               </div>
             ))}
           </div>
@@ -345,7 +345,7 @@ export function SolutionVariantE({ index, total }: SlideProps) {
             }}
           />
           {/* offsets */}
-          <span style={{ position: 'absolute', top: 10, left: 10, fontFamily: FONT_BODY, fontSize: 13, color: 'rgba(0,21,99,0.4)', letterSpacing: '0.32em' }}>0{SLIDE_HEIGHT > 0 ? 1 : 1}</span>
+          <span style={{ position: 'absolute', top: 10, left: 10, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.4)', letterSpacing: '0.32em' }}>0{SLIDE_HEIGHT > 0 ? 1 : 1}</span>
         </div>
         <div style={{ textAlign: 'center', fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: NAVY, lineHeight: 1.5, direction: 'rtl' }}>
           {SOLUTION.closer}

@@ -51,14 +51,14 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>برامج «أثر»</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>برامج «أثر»</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -116,7 +116,7 @@ export function ProgramsIntroA({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="dark" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 50, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
           <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
@@ -141,7 +141,7 @@ export function ProgramsIntroA({ index, total }: SlideProps) {
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 96, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 800, color: WHITE, lineHeight: 1.15 }}>{p.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 16, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>{p.tagline}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>{p.tagline}</span>
                 <span style={{ marginTop: 10, fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: GREEN }}>{p.duration}</span>
               </div>
             </div>
@@ -201,14 +201,14 @@ export function ProgramsIntroB({ index, total }: SlideProps) {
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 12, fontWeight: 700, letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN, opacity: i === 0 ? 0.7 : 1 }}>0{i + 1} · {p.tagline}</span>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700, letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN, opacity: i === 0 ? 0.7 : 1 }}>0{i + 1} · {p.tagline}</span>
                   <span style={{ fontFamily: FONT_DISPLAY, fontSize: 32, fontWeight: 800, lineHeight: 1.2 }}>{p.name}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, justifyContent: 'flex-start' }}>
                   <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em', color: i === 0 ? NAVY : WHITE }}>
                     {p.duration.split(' ')[0]}
                   </span>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 16, opacity: 0.85, fontWeight: 600 }}>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 22, opacity: 0.85, fontWeight: 600 }}>
                     {p.duration.split(' ').slice(1).join(' ')}
                   </span>
                 </div>
@@ -258,11 +258,11 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
           <FitText as="div" maxSize={80} minSize={40} width={1000} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
-          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{PROGRAMS_INTRO.subtitle}</div>
+          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{PROGRAMS_INTRO.subtitle}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
           {PROGRAMS_INTRO.paths.map((p, i) => (
@@ -283,9 +283,9 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 40, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: WHITE, lineHeight: 1.25 }}>{p.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>{p.tagline}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>{p.tagline}</span>
               </div>
-              <span style={{ background: GREEN, color: NAVY, padding: '8px 18px', borderRadius: 999, fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              <span style={{ background: GREEN, color: NAVY, padding: '8px 18px', borderRadius: 999, fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>
                 {p.duration}
               </span>
             </div>
@@ -309,7 +309,7 @@ export function ProgramsIntroD({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', top: 130, left: 96, right: 96, ...RTL_DIR }}>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
+        <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
         <FitText as="div" maxSize={64} minSize={32} width={SLIDE_WIDTH - 192} height={88} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, marginTop: 6, ...RTL_DIR }}>
           {PROGRAMS_INTRO.title}
         </FitText>
@@ -344,14 +344,14 @@ export function ProgramsIntroD({ index, total }: SlideProps) {
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 56, fontWeight: 800, color: isInner ? GREEN : layer.accent, lineHeight: 1 }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, color: isInner ? WHITE : NAVY, lineHeight: 1.25 }}>{path.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: isInner ? 'rgba(255,255,255,0.7)' : 'rgba(0,21,99,0.62)' }}>{path.tagline} · {path.duration}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: isInner ? 'rgba(255,255,255,0.7)' : 'rgba(0,21,99,0.62)' }}>{path.tagline} · {path.duration}</span>
               </div>
             </div>
           </div>
         );
       })}
 
-      <div style={{ position: 'absolute', bottom: 90, left: 96, right: 96, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
+      <div style={{ position: 'absolute', bottom: 90, left: 96, right: 96, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
         {PROGRAMS_INTRO.subtitle}
       </div>
     </Frame>
@@ -366,7 +366,7 @@ export function ProgramsIntroE({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 38, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: NAVY, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: NAVY, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
           <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
@@ -408,13 +408,13 @@ export function ProgramsIntroE({ index, total }: SlideProps) {
                 }}
               >
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, lineHeight: 1, color: GREEN }}>{p.duration.split(' ')[0]}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{p.duration.split(' ').slice(1).join(' ')}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{p.duration.split(' ').slice(1).join(' ')}</span>
               </div>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: NAVY, opacity: 0.55, marginTop: 28 }}>0{i + 1}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: NAVY, opacity: 0.55, marginTop: 28 }}>0{i + 1}</span>
               <FitText as="div" maxSize={42} minSize={26} width={400} height={110} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, ...RTL_DIR }}>
                 {p.name}
               </FitText>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.78)', fontWeight: 600, lineHeight: 1.55 }}>{p.tagline}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', fontWeight: 600, lineHeight: 1.55 }}>{p.tagline}</span>
               <div style={{ marginTop: 'auto', height: 4, background: NAVY, opacity: 0.18, borderRadius: 4 }} />
             </div>
           ))}

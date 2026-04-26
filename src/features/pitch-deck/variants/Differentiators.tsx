@@ -63,7 +63,7 @@ export function DifferentiatorsVariantA({ index, total }: SlideProps) {
               >
                 ✓
               </span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 600, lineHeight: 1.55 }}>{item}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 24, color: NAVY, fontWeight: 600, lineHeight: 1.55 }}>{item}</span>
             </div>
           ))}
         </div>
@@ -80,7 +80,7 @@ export function DifferentiatorsVariantB({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="ما الذي يميز التجربة" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>WHY UNIEX</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>WHY UNIEX</span>
           <FitText as="div" maxSize={80} minSize={36} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, marginTop: 10, ...RTL_DIR }}>
             {DIFFERENTIATORS.title}
           </FitText>
@@ -104,7 +104,7 @@ export function DifferentiatorsVariantB({ index, total }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <img src={ICON_GREEN} alt="" style={{ width: 32, height: 32 }} />
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 13, fontWeight: 800, color: i % 2 === 0 ? GREEN : NAVY, letterSpacing: '0.32em' }}>0{i + 1}</span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, color: i % 2 === 0 ? GREEN : NAVY, letterSpacing: '0.32em' }}>0{i + 1}</span>
               </div>
               <FitText
                 as="div"
@@ -171,7 +171,7 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
             pointerEvents: 'none',
           }}
         />
-        <span style={{ position: 'relative', fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// DIFFERENTIATORS</span>
+        <span style={{ position: 'relative', fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// DIFFERENTIATORS</span>
         <FitText
           as="div"
           maxSize={68}
@@ -246,7 +246,7 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
         {/* Right column: title + image accent */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>
           <div>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// VALUE</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// VALUE</span>
             <FitText as="div" maxSize={64} minSize={28} width={SLIDE_WIDTH * 0.4 - 96} height={260} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, marginTop: 12, ...RTL_DIR }}>
               {DIFFERENTIATORS.title}
             </FitText>
@@ -272,7 +272,7 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,21,99,0.2) 0%, rgba(0,21,99,0.7) 100%)', pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 40, height: 3, background: GREEN }} />
-              <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, letterSpacing: '0.32em', color: GREEN }}>UNIEX EDGE</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, letterSpacing: '0.32em', color: GREEN }}>UNIEX EDGE</span>
             </div>
           </div>
         </div>
@@ -311,8 +311,8 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
                 ✓
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>0{i + 1}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 600, color: NAVY, lineHeight: 1.55 }}>{item}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>0{i + 1}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 22, fontWeight: 600, color: NAVY, lineHeight: 1.55 }}>{item}</span>
               </div>
             </li>
           ))}
@@ -332,7 +332,7 @@ export function DifferentiatorsVariantE({ index, total }: SlideProps) {
       <img src={ICON_GREEN} alt="" style={{ position: 'absolute', top: -200, left: -200, width: 760, opacity: 0.1 }} />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// 5 KEY DIFFERENTIATORS</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// 5 KEY DIFFERENTIATORS</span>
           <FitText as="div" maxSize={80} minSize={36} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.2, marginTop: 10, ...RTL_DIR }}>
             {DIFFERENTIATORS.title}
           </FitText>

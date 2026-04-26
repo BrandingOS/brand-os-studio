@@ -54,14 +54,14 @@ function PageChrome({
           justifyContent: 'space-between',
           alignItems: 'center',
           fontFamily: FONT_BODY,
-          fontSize: 14,
+          fontSize: 18,
           color: muted,
           letterSpacing: '0.04em',
         }}
       >
         <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 13 }}>الأسس</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>الأسس</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -140,9 +140,9 @@ export function FoundationsA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, letterSpacing: '0.18em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
+              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 16, color: 'rgba(0,21,99,0.78)', lineHeight: 1.65 }}>{p.body}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', lineHeight: 1.65 }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -163,7 +163,7 @@ export function FoundationsB({ index, total }: SlideProps) {
           <FitText as="div" maxSize={84} minSize={36} width={1200} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
             {FOUNDATIONS.title}
           </FitText>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 16, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS · 04</div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS · 04</div>
         </div>
         <div style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 24, flex: 1 }}>
@@ -200,9 +200,9 @@ export function FoundationsB({ index, total }: SlideProps) {
                 <img src={icons[i]} alt="" style={{ width: 72, height: 72, objectFit: 'contain' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 0 }}>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: i % 3 === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>0{i + 1}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: i % 3 === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>0{i + 1}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 30, fontWeight: 800, lineHeight: 1.25 }}>{p.title}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 16, opacity: 0.85, lineHeight: 1.65 }}>{p.body}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 22, opacity: 0.85, lineHeight: 1.65 }}>{p.body}</span>
               </div>
             </div>
           ))}
@@ -260,7 +260,7 @@ export function FoundationsC({ index, total }: SlideProps) {
             >
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 800, color: i % 2 === 0 ? NAVY : GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 17, color: 'rgba(0,21,99,0.78)', lineHeight: 1.6 }}>{p.body}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', lineHeight: 1.6 }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -279,7 +279,7 @@ export function FoundationsD({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS</span>
           <FitText as="div" maxSize={84} minSize={40} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
             {FOUNDATIONS.title}
           </FitText>
@@ -316,7 +316,7 @@ export function FoundationsD({ index, total }: SlideProps) {
               />
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 56, fontWeight: 800, color: GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
               <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 800, color: WHITE, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 15, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{p.body}</span>
+              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -387,8 +387,8 @@ export function FoundationsE({ index, total }: SlideProps) {
         }}
       >
         <img src="/brands/uniex/logos/iconGreen.svg" alt="" style={{ width: 56, height: 56 }} />
-        <span style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 800, color: WHITE, textAlign: 'center', lineHeight: 1.4 }}>تجربة يونكس</span>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 12, color: GREEN, letterSpacing: '0.2em', fontWeight: 700 }}>04 PILLARS</span>
+        <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: WHITE, textAlign: 'center', lineHeight: 1.4 }}>تجربة يونكس</span>
+        <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: GREEN, letterSpacing: '0.2em', fontWeight: 700 }}>04 PILLARS</span>
       </div>
 
       {/* surrounding pillars */}
@@ -416,9 +416,9 @@ export function FoundationsE({ index, total }: SlideProps) {
               ...RTL_DIR,
             }}
           >
-            <span style={{ fontFamily: FONT_BODY, fontSize: 12, fontWeight: 700, letterSpacing: '0.32em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
-            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, color: 'rgba(0,21,99,0.75)', lineHeight: 1.6 }}>{p.body}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700, letterSpacing: '0.32em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
+            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.75)', lineHeight: 1.6 }}>{p.body}</span>
           </div>
         );
       })}

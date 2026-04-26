@@ -63,7 +63,7 @@ export function ProblemVariantA({ index, total }: SlideProps) {
           <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 700, lineHeight: 1.5 }}>{PROBLEM.outcome}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ width: 40, height: 2, background: GREEN }} />
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.86)' }}>{PROBLEM.schoolRole}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.86)' }}>{PROBLEM.schoolRole}</span>
           </div>
         </div>
       </div>
@@ -79,7 +79,7 @@ export function ProblemVariantB({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="التحدي" variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>PROBLEM · 01</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>PROBLEM · 01</span>
           <FitText
             as="div"
             maxSize={88}
@@ -108,7 +108,7 @@ export function ProblemVariantB({ index, total }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 168, fontWeight: 900, color: GREEN, lineHeight: 0.9, letterSpacing: '-0.04em' }}>{i + 1}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, color: NAVY, letterSpacing: '0.18em' }}>OF 03</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: NAVY, letterSpacing: '0.18em' }}>OF 03</span>
               </div>
               <span style={{ fontFamily: FONT_BODY, fontSize: 24, fontWeight: 600, lineHeight: 1.55, color: NAVY }}>{pain}</span>
             </div>
@@ -119,7 +119,7 @@ export function ProblemVariantB({ index, total }: SlideProps) {
             <span style={{ width: 48, height: 3, background: GREEN }} />
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, lineHeight: 1.4 }}>{PROBLEM.outcome}</span>
           </div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 16, color: GREEN, fontWeight: 700 }}>{PROBLEM.schoolRole}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: GREEN, fontWeight: 700 }}>{PROBLEM.schoolRole}</span>
         </div>
       </div>
     </Frame>
@@ -151,7 +151,7 @@ export function ProblemVariantC({ index, total }: SlideProps) {
         {/* Left side: content */}
         <div style={{ flex: 1, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
           <div>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>THE PROBLEM</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>THE PROBLEM</span>
             <FitText
               as="div"
               maxSize={68}
@@ -180,14 +180,14 @@ export function ProblemVariantC({ index, total }: SlideProps) {
                   lineHeight: 1.5,
                 }}
               >
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.18em', minWidth: 36, marginTop: 6 }}>0{i + 1}</span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.18em', minWidth: 36, marginTop: 6 }}>0{i + 1}</span>
                 <span>{pain}</span>
               </li>
             ))}
           </ol>
           <div style={{ marginTop: 'auto', padding: '20px 24px', background: NAVY, color: WHITE, borderRadius: 16, fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, lineHeight: 1.5, ...RTL_DIR }}>
             {PROBLEM.outcome}
-            <div style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 15, color: GREEN, fontWeight: 700, letterSpacing: '0.04em' }}>{PROBLEM.schoolRole}</div>
+            <div style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 22, color: GREEN, fontWeight: 700, letterSpacing: '0.04em' }}>{PROBLEM.schoolRole}</div>
           </div>
         </div>
       </div>
@@ -260,7 +260,7 @@ export function ProblemVariantD({ index, total }: SlideProps) {
                 {i + 1}
               </span>
               <div style={{ flex: 1 }}>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em', display: 'block' }}>STAGE {i + 1}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em', display: 'block' }}>STAGE {i + 1}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 700, color: NAVY, lineHeight: 1.5, display: 'block', marginTop: 6 }}>{pain}</span>
               </div>
             </div>
@@ -268,7 +268,7 @@ export function ProblemVariantD({ index, total }: SlideProps) {
         </div>
         <div style={{ marginTop: 'auto', display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'center', padding: '22px 28px', background: GREEN_SOFT, borderRadius: 18, ...RTL_DIR }}>
           <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: NAVY, lineHeight: 1.5 }}>{PROBLEM.outcome}</span>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: NAVY, fontWeight: 700, letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>{PROBLEM.schoolRole}</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: NAVY, fontWeight: 700, letterSpacing: '0.18em', whiteSpace: 'nowrap' }}>{PROBLEM.schoolRole}</span>
         </div>
       </div>
     </Frame>
@@ -283,7 +283,7 @@ export function ProblemVariantE({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="التحدي" variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: NAVY, letterSpacing: '0.32em' }}>// CHALLENGE</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: NAVY, letterSpacing: '0.32em' }}>// CHALLENGE</span>
           <FitText
             as="div"
             maxSize={92}
@@ -323,7 +323,7 @@ export function ProblemVariantE({ index, total }: SlideProps) {
           <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 800, lineHeight: 1.5, color: WHITE }}>{PROBLEM.outcome}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ width: 36, height: 2, background: GREEN }} />
-            <span style={{ fontFamily: FONT_BODY, fontSize: 17, color: GREEN, fontWeight: 700 }}>{PROBLEM.schoolRole}</span>
+            <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: GREEN, fontWeight: 700 }}>{PROBLEM.schoolRole}</span>
           </div>
         </div>
       </div>

@@ -13,11 +13,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, SlidersHorizontal, Sparkles, X } from 'lucide-react';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { exportDeck } from '@/features/case-study-deck/export';
+import { InlineEditableSlide } from '@/shared/editor/InlineEditableSlide';
 import { toast } from 'sonner';
 import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
 import { VARIANTS, type SlideKind, type VariantKey } from '../variants';
@@ -58,6 +59,58 @@ export default function PitchDeckPage() {
   const setSlideVariant = useCallback((idx: number, key: VariantKey) => {
     setSlideVariants((prev) => ({ ...prev, [idx]: key }));
   }, []);
+
+  // Per-slide live-edit HTML snapshots — when a slide has one, we
+  // render that HTML verbatim instead of the React composition.
+  const FROZEN_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:frozen`;
+  const [slideFrozenHtml, setSlideFrozenHtml] = useState<Record<number, string>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(FROZEN_KEY);
+      return raw ? (JSON.parse(raw) as Record<number, string>) : {};
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FROZEN_KEY, JSON.stringify(slideFrozenHtml));
+    } catch {
+      /* quota — ignore */
+    }
+  }, [FROZEN_KEY, slideFrozenHtml]);
+  const setSlideFrozen = useCallback((idx: number, html: string | undefined) => {
+    setSlideFrozenHtml((prev) => {
+      const next = { ...prev };
+      if (html) next[idx] = html;
+      else delete next[idx];
+      return next;
+    });
+  }, []);
+
+  // Per-slide hidden state (skipped from export/view when true).
+  const HIDDEN_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:hidden`;
+  const [hiddenSlides, setHiddenSlides] = useState<number[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = window.localStorage.getItem(HIDDEN_KEY);
+      return raw ? (JSON.parse(raw) as number[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenSlides));
+    } catch {
+      /* quota — ignore */
+    }
+  }, [HIDDEN_KEY, hiddenSlides]);
+  const toggleHidden = useCallback((idx: number) => {
+    setHiddenSlides((prev) => (prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]));
+  }, []);
+
+  const [showInspector, setShowInspector] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -181,6 +234,8 @@ export default function PitchDeckPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {UNIEX_SLIDES.map((_, i) => {
               const isActive = activeIndex === i;
+              const isHidden = hiddenSlides.includes(i);
+              const frozen = slideFrozenHtml[i];
               return (
                 <button
                   key={`thumb-${i}`}
@@ -196,9 +251,10 @@ export default function PitchDeckPage() {
                     aspectRatio: `${SLIDE_WIDTH} / ${SLIDE_HEIGHT}`,
                     background: 'var(--surface)',
                     boxShadow: isActive ? 'var(--shadow-md)' : 'var(--shadow-xs)',
+                    opacity: isHidden ? 0.4 : 1,
                     transition: 'box-shadow 0.18s var(--ease)',
                   }}
-                  title={`Slide ${i + 1}`}
+                  title={`Slide ${i + 1}${isHidden ? ' (hidden)' : ''}`}
                 >
                   <div
                     style={{
@@ -209,7 +265,11 @@ export default function PitchDeckPage() {
                       pointerEvents: 'none',
                     }}
                   >
-                    {renderSlide(i, true)}
+                    {frozen ? (
+                      <div style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }} dangerouslySetInnerHTML={{ __html: frozen }} />
+                    ) : (
+                      renderSlide(i)
+                    )}
                   </div>
                   <div
                     style={{
@@ -226,6 +286,9 @@ export default function PitchDeckPage() {
                   >
                     {String(i + 1).padStart(2, '0')}
                   </div>
+                  {frozen && (
+                    <div title="Live-edited slide" style={{ position: 'absolute', right: 6, bottom: 4, width: 8, height: 8, borderRadius: 999, background: '#68BE69', boxShadow: '0 0 0 2px rgba(255,255,255,0.6)' }} />
+                  )}
                 </button>
               );
             })}
@@ -252,17 +315,65 @@ export default function PitchDeckPage() {
                 height: '100%',
                 minHeight: '100vh',
                 scrollSnapAlign: 'start',
-                display: 'flex',
+                display: hiddenSlides.includes(i) ? 'none' : 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: 32,
                 paddingBottom: 120,
               }}
             >
-              <SlideScaler>{renderSlide(i)}</SlideScaler>
+              <SlideScaler>
+                <InlineEditableSlide
+                  slideIndex={i}
+                  frozenHtml={slideFrozenHtml[i]}
+                  isActive={i === activeIndex}
+                  width={SLIDE_WIDTH}
+                  height={SLIDE_HEIGHT}
+                  onSave={(html) => setSlideFrozen(i, html)}
+                >
+                  {renderSlide(i)}
+                </InlineEditableSlide>
+              </SlideScaler>
             </section>
           ))}
         </main>
+
+        {/* Right inspector — Customize panel */}
+        {showInspector && (
+          <aside
+            style={{
+              width: 360,
+              borderLeft: '1px solid var(--border)',
+              overflowY: 'auto',
+              padding: 20,
+              background: 'var(--surface)',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Slide {String(activeIndex + 1).padStart(2, '0')}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInspector(false)}
+                aria-label="Close inspector"
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 4, borderRadius: 6 }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <PitchDeckInspector
+              activeKind={UNIEX_SLIDES[activeIndex].kind}
+              activeVariant={slideVariants[activeIndex] ?? 'A'}
+              onVariant={(k) => setSlideVariant(activeIndex, k)}
+              isHidden={hiddenSlides.includes(activeIndex)}
+              onToggleHidden={() => toggleHidden(activeIndex)}
+              hasFrozen={Boolean(slideFrozenHtml[activeIndex])}
+              onResetFrozen={() => setSlideFrozen(activeIndex, undefined)}
+            />
+          </aside>
+        )}
 
         {/* Floating bottom dock */}
         <div
@@ -353,6 +464,27 @@ export default function PitchDeckPage() {
           </button>
           <button
             type="button"
+            onClick={() => setShowInspector((v) => !v)}
+            style={{
+              height: 36,
+              padding: '0 14px',
+              borderRadius: 999,
+              border: 'none',
+              background: showInspector ? 'var(--accent-muted)' : 'transparent',
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            title="Customize this slide"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Customize
+          </button>
+          <button
+            type="button"
             onClick={() => handleExport('pdf')}
             disabled={exporting}
             style={{
@@ -379,6 +511,136 @@ export default function PitchDeckPage() {
 }
 
 /* ─────────────────────────  helpers  ─────────────────────── */
+
+/**
+ * PitchDeckInspector — right-side Customize panel for the active slide.
+ * Variant chips, hide toggle, reset-edits button. Inline edits happen
+ * directly on the slide via InlineEditableSlide (no copy override
+ * fields needed; just edit the text).
+ */
+function PitchDeckInspector({
+  activeKind,
+  activeVariant,
+  onVariant,
+  isHidden,
+  onToggleHidden,
+  hasFrozen,
+  onResetFrozen,
+}: {
+  activeKind: UniexSlide['kind'];
+  activeVariant: VariantKey;
+  onVariant: (k: VariantKey) => void;
+  isHidden: boolean;
+  onToggleHidden: () => void;
+  hasFrozen: boolean;
+  onResetFrozen: () => void;
+}) {
+  const KIND_LABELS: Record<UniexSlide['kind'], string> = {
+    cover: 'Cover',
+    problem: 'Problem',
+    solution: 'Solution',
+    process: 'Process',
+    differentiators: 'Differentiators',
+    foundations: 'Foundations',
+    'programs-intro': 'Programs Intro',
+    'program-detail': 'Program Detail',
+    'school-benefits': 'School Benefits',
+    metrics: 'Metrics',
+    impact: 'Impact',
+    team: 'Team',
+    cta: 'CTA',
+  };
+  const variants: VariantKey[] = ['A', 'B', 'C', 'D', 'E'];
+  return (
+    <div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>
+        Category
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+        {KIND_LABELS[activeKind]}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 22, lineHeight: 1.5 }}>
+        Pick a different composition or edit the text directly on the slide.
+      </div>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
+        Variant
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+        {variants.map((k) => {
+          const active = k === activeVariant;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onVariant(k)}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 999,
+                border: active ? '1px solid #001563' : '1px solid var(--border)',
+                background: active ? '#001563' : 'var(--surface-elevated)',
+                color: active ? '#fff' : 'var(--text-primary)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              title={`Variant ${k}`}
+            >
+              {k}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+        <button
+          type="button"
+          onClick={onToggleHidden}
+          style={{
+            width: '100%',
+            height: 36,
+            padding: '0 12px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--surface-elevated)',
+            color: 'var(--text-secondary)',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: 'pointer',
+            marginBottom: 10,
+          }}
+        >
+          {isHidden ? (<><Eye className="w-4 h-4" /> Show in deck</>) : (<><EyeOff className="w-4 h-4" /> Hide from deck</>)}
+        </button>
+        <button
+          type="button"
+          onClick={onResetFrozen}
+          disabled={!hasFrozen}
+          style={{
+            width: '100%',
+            height: 36,
+            padding: '0 12px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--surface-elevated)',
+            color: hasFrozen ? 'var(--critical)' : 'var(--text-muted)',
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: hasFrozen ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {hasFrozen ? 'Reset live edits' : 'No live edits'}
+        </button>
+        <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 8, background: 'var(--surface-elevated)', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+          Click any text on the slide to select it. Double-click to edit. Drag corners to resize. <strong style={{ color: 'var(--text-primary)' }}>⌘Z</strong> undo, <strong style={{ color: 'var(--text-primary)' }}>⌘⇧Z</strong> redo.
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DockBtn({ children, onClick, title, aria }: { children: React.ReactNode; onClick: () => void; title?: string; aria?: string }) {
   return (

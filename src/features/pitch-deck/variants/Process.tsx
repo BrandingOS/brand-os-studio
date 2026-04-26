@@ -51,18 +51,18 @@ export function ProcessVariantA({ index, total }: SlideProps) {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 700, color: WHITE, background: i === 0 ? NAVY : GREEN, padding: '6px 18px', borderRadius: 999 }}>{phase.label}</span>
+                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 700, color: WHITE, background: i === 0 ? NAVY : GREEN, padding: '6px 18px', borderRadius: 999 }}>{phase.label}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 44, fontWeight: 800, color: NAVY }}>{phase.title}</span>
               </div>
               <ol style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 0, margin: 0, listStyle: 'none' }}>
                 {phase.steps.map((step, j) => (
-                  <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, fontFamily: FONT_BODY, fontSize: 20, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
-                    <span style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 700, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
+                  <li key={j} style={{ display: 'flex', alignItems: 'flex-start', gap: 16, fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                    <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
                     <span>{step}</span>
                   </li>
                 ))}
               </ol>
-              {phase.footer && <span style={{ marginTop: 'auto', fontFamily: FONT_BODY, fontSize: 16, color: 'rgba(0,21,99,0.65)', fontStyle: 'italic' }}>{phase.footer}</span>}
+              {phase.footer && <span style={{ marginTop: 'auto', fontFamily: FONT_BODY, fontSize: 20, color: 'rgba(0,21,99,0.65)', fontStyle: 'italic' }}>{phase.footer}</span>}
             </div>
           ))}
         </div>
@@ -80,7 +80,7 @@ export function ProcessVariantB({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="كيف نبني القرار" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>PROCESS</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>PROCESS</span>
           <FitText as="div" maxSize={72} minSize={32} width={SLIDE_WIDTH - 192} height={110} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, marginTop: 10, ...RTL_DIR }}>
             {PROCESS.title}
           </FitText>
@@ -106,19 +106,19 @@ export function ProcessVariantB({ index, total }: SlideProps) {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 18 }}>
                   <span style={{ fontFamily: FONT_DISPLAY, fontSize: 110, fontWeight: 900, lineHeight: 0.9, letterSpacing: '-0.04em', color: i === 0 ? GREEN : NAVY }}>0{i + 1}</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: i === 0 ? GREEN : NAVY, letterSpacing: '0.32em' }}>{phase.label}</span>
+                    <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: i === 0 ? GREEN : NAVY, letterSpacing: '0.32em' }}>{phase.label}</span>
                     <span style={{ fontFamily: FONT_DISPLAY, fontSize: 38, fontWeight: 800, lineHeight: 1.1 }}>{phase.title}</span>
                   </div>
                 </div>
                 <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none', flex: 1 }}>
                   {phase.steps.map((step, j) => (
-                    <li key={j} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 17, fontWeight: 500, lineHeight: 1.55, color: i === 0 ? 'rgba(255,255,255,0.92)' : NAVY }}>
+                    <li key={j} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.55, color: i === 0 ? 'rgba(255,255,255,0.92)' : NAVY }}>
                       <span style={{ color: i === 0 ? GREEN : NAVY, fontWeight: 800 }}>›</span>
                       <span>{step}</span>
                     </li>
                   ))}
                 </ul>
-                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: i === 0 ? 'rgba(255,255,255,0.78)' : 'rgba(0,21,99,0.7)', fontStyle: 'italic', marginTop: 'auto' }}>{phase.footer}</span>}
+                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: i === 0 ? 'rgba(255,255,255,0.78)' : 'rgba(0,21,99,0.7)', fontStyle: 'italic', marginTop: 'auto' }}>{phase.footer}</span>}
               </div>
               {i < PROCESS.phases.length - 1 && (
                 <div
@@ -174,11 +174,11 @@ export function ProcessVariantC({ index, total }: SlideProps) {
       <div style={{ position: 'absolute', top: 130, bottom: 100, right: 96, width: 380, borderRadius: 28, background: 'linear-gradient(180deg, rgba(0,21,99,0.05) 0%, rgba(0,21,99,0.35) 100%)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 540px 130px 96px', display: 'flex', flexDirection: 'column', gap: 28, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>PROCESS</span>
+          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>PROCESS</span>
           <FitText as="div" maxSize={64} minSize={28} width={SLIDE_WIDTH - 540 - 192} height={140} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.2, marginTop: 10, ...RTL_DIR }}>
             {PROCESS.title}
           </FitText>
-          <div style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.78)' }}>{PROCESS.intro}</div>
+          <div style={{ marginTop: 8, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)' }}>{PROCESS.intro}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1 }}>
           {PROCESS.phases.map((phase, i) => (
@@ -212,18 +212,18 @@ export function ProcessVariantC({ index, total }: SlideProps) {
               </span>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, letterSpacing: '0.32em', opacity: 0.8 }}>{phase.label}</span>
+                  <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, letterSpacing: '0.32em', opacity: 0.8 }}>{phase.label}</span>
                   <span style={{ fontFamily: FONT_DISPLAY, fontSize: 32, fontWeight: 800 }}>{phase.title}</span>
                 </div>
                 <ul style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 0, margin: 0, listStyle: 'none' }}>
                   {phase.steps.map((step, j) => (
-                    <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 16, fontWeight: 500, lineHeight: 1.5 }}>
+                    <li key={j} style={{ display: 'flex', gap: 10, fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.5 }}>
                       <span style={{ fontWeight: 800, opacity: 0.6 }}>·</span>
                       <span>{step}</span>
                     </li>
                   ))}
                 </ul>
-                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontStyle: 'italic', opacity: 0.78 }}>{phase.footer}</span>}
+                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontStyle: 'italic', opacity: 0.78 }}>{phase.footer}</span>}
               </div>
             </div>
           ))}
@@ -244,7 +244,7 @@ export function ProcessVariantD({ index, total }: SlideProps) {
           <FitText as="div" maxSize={72} minSize={32} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, ...RTL_DIR }}>
             {PROCESS.title}
           </FitText>
-          <div style={{ marginTop: 10, fontFamily: FONT_BODY, fontSize: 20, color: 'rgba(0,21,99,0.65)' }}>{PROCESS.intro}</div>
+          <div style={{ marginTop: 10, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)' }}>{PROCESS.intro}</div>
         </div>
         <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Side rail (right side for RTL) */}
@@ -263,7 +263,7 @@ export function ProcessVariantD({ index, total }: SlideProps) {
             >
               {/* Side label area (RTL → first column on right) */}
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', paddingTop: 14 }}>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN }}>{phase.label}</span>
+                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN }}>{phase.label}</span>
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 56, fontWeight: 900, color: NAVY, lineHeight: 1, marginTop: 6 }}>0{i + 1}</span>
                 {/* Bullet circle on rail */}
                 <span
@@ -297,13 +297,13 @@ export function ProcessVariantD({ index, total }: SlideProps) {
                 <span style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 800, color: NAVY, lineHeight: 1.15 }}>{phase.title}</span>
                 <ul style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
                   {phase.steps.map((step, j) => (
-                    <li key={j} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontFamily: FONT_BODY, fontSize: 16, fontWeight: 600, color: NAVY, padding: '8px 14px', background: i === 0 ? NAVY_DEEP + '0F' : GREEN_SOFT, border: `1px solid ${i === 0 ? 'rgba(0,21,99,0.18)' : 'rgba(104,190,105,0.35)'}`, borderRadius: 999 }}>
+                    <li key={j} style={{ display: 'inline-flex', gap: 8, alignItems: 'center', fontFamily: FONT_BODY, fontSize: 20, fontWeight: 600, color: NAVY, padding: '8px 14px', background: i === 0 ? NAVY_DEEP + '0F' : GREEN_SOFT, border: `1px solid ${i === 0 ? 'rgba(0,21,99,0.18)' : 'rgba(104,190,105,0.35)'}`, borderRadius: 999 }}>
                       <span style={{ color: i === 0 ? NAVY : GREEN, fontWeight: 800 }}>0{j + 1}</span>
                       <span>{step}</span>
                     </li>
                   ))}
                 </ul>
-                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: 'rgba(0,21,99,0.6)', fontStyle: 'italic' }}>{phase.footer}</span>}
+                {phase.footer && <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.6)', fontStyle: 'italic' }}>{phase.footer}</span>}
               </div>
             </div>
           ))}
@@ -327,17 +327,17 @@ export function ProcessVariantE({ index, total }: SlideProps) {
         <FitText as="div" maxSize={64} minSize={28} width={SLIDE_WIDTH - 192} height={86} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, ...RTL_DIR }}>
           {PROCESS.title}
         </FitText>
-        <div style={{ marginTop: 6, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.65)' }}>{PROCESS.intro}</div>
+        <div style={{ marginTop: 6, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)' }}>{PROCESS.intro}</div>
       </div>
       {/* Phase 1 (right half — primary, navy bg, white ink) */}
       <div style={{ position: 'absolute', top: 280, bottom: 130, right: 96, width: 'calc(50% - 96px - 22px)', ...RTL_DIR, color: WHITE, padding: 28, display: 'flex', flexDirection: 'column', gap: 18, zIndex: 3 }}>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>{first.label}</span>
+        <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>{first.label}</span>
         <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 900, lineHeight: 1.1 }}>{first.title}</span>
         <span style={{ width: 60, height: 4, background: GREEN }} />
         <ol style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 0, margin: 0, listStyle: 'none' }}>
           {first.steps.map((step, j) => (
-            <li key={j} style={{ display: 'flex', gap: 14, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 500, lineHeight: 1.5 }}>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 800, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
+            <li key={j} style={{ display: 'flex', gap: 14, fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.5 }}>
+              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
               <span>{step}</span>
             </li>
           ))}
@@ -345,18 +345,18 @@ export function ProcessVariantE({ index, total }: SlideProps) {
       </div>
       {/* Phase 2 (left half — light side) */}
       <div style={{ position: 'absolute', top: 280, bottom: 130, left: 96, width: 'calc(50% - 96px - 22px)', ...RTL_DIR, color: NAVY, padding: 28, display: 'flex', flexDirection: 'column', gap: 18, zIndex: 3 }}>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>{second.label}</span>
+        <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>{second.label}</span>
         <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 900, lineHeight: 1.1, color: NAVY }}>{second.title}</span>
         <span style={{ width: 60, height: 4, background: NAVY }} />
         <ol style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 0, margin: 0, listStyle: 'none' }}>
           {second.steps.map((step, j) => (
-            <li key={j} style={{ display: 'flex', gap: 14, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 500, lineHeight: 1.5, color: NAVY }}>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 16, fontWeight: 800, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
+            <li key={j} style={{ display: 'flex', gap: 14, fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.5, color: NAVY }}>
+              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, color: GREEN, minWidth: 28 }}>0{j + 1}</span>
               <span>{step}</span>
             </li>
           ))}
         </ol>
-        {second.footer && <span style={{ marginTop: 'auto', fontFamily: FONT_BODY, fontSize: 14, color: 'rgba(0,21,99,0.6)', fontStyle: 'italic' }}>{second.footer}</span>}
+        {second.footer && <span style={{ marginTop: 'auto', fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.6)', fontStyle: 'italic' }}>{second.footer}</span>}
       </div>
       {/* Center seam mark */}
       <span
