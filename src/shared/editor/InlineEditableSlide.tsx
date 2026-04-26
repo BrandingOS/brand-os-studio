@@ -55,6 +55,13 @@ export function InlineEditableSlide({
 }: InlineEditableSlideProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [docHtml, setDocHtml] = useState<string | null>(frozenHtml ?? null);
+  // Mirrors `docHtml` for use inside callbacks/observers without making
+  // the observer effect re-run (which would tear down + recreate the
+  // observer mid-edit and lose state).
+  const docHtmlRef = useRef<string | null>(frozenHtml ?? null);
+  useEffect(() => {
+    docHtmlRef.current = docHtml;
+  }, [docHtml]);
   const isApplyingRef = useRef(false);
   const didMountRef = useRef(false);
 
@@ -72,6 +79,7 @@ export function InlineEditableSlide({
     const currentTop = hist.stack[hist.index];
     if (frozenHtml && currentTop === frozenHtml) return;
     setDocHtml(frozenHtml ?? null);
+    docHtmlRef.current = frozenHtml ?? null;
     historyRef.current = {
       stack: frozenHtml ? [frozenHtml] : [],
       index: frozenHtml ? 0 : -1,
@@ -143,33 +151,41 @@ export function InlineEditableSlide({
       if (next === null) return;
       const hist = historyRef.current;
       if (next === hist.stack[hist.index]) return;
-      // CRITICAL: do NOT call setDocHtml(next) here.
-      //
-      // Why this used to be a bug: the user drags a text element. The first
-      // pointermove sets `style.left` on the dragged node. The observer
-      // sees the mutation and called setDocHtml(next), which on the next
-      // render passed a new `frozenHtml` prop into <EditableSlide>, which
-      // re-fed it to `dangerouslySetInnerHTML`. React then REPLACED the
-      // entire inner DOM tree — including the node currently being dragged
-      // — with a freshly-parsed copy. The drag handler's closure kept
-      // holding a reference to the now-detached old node, so subsequent
-      // pointermoves wrote `.style.left` to a node that no longer existed
-      // visually. End result: "element moves 1px and stops."
-      //
-      // The DOM is the source of truth between user gestures. We only need
-      // to (a) snapshot it for the history/undo stack and (b) persist via
-      // onSave. We do NOT need to reseed React's `dangerouslySetInnerHTML`
-      // — the live DOM already reflects the user's edit.
-      //
-      // setDocHtml is still called when the HOST hands down a new
-      // frozenHtml prop (reset, brand swap, slide-variant change) — that
-      // path is the only legitimate reseed path.
+
+      // Push to history + schedule save unconditionally — these don't
+      // touch the live DOM.
       const trimmed = hist.stack.slice(0, hist.index + 1);
       trimmed.push(next);
       while (trimmed.length > 100) trimmed.shift();
       historyRef.current = { stack: trimmed, index: trimmed.length - 1 };
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onSave(next), 800);
+
+      // CRITICAL: only flip docHtml on the FIRST edit. Why:
+      //
+      // 1. While docHtml is null, React renders the original children.
+      //    If the user edits text via contentEditable AND any other
+      //    parent state changes (scroll, hover, anything), React would
+      //    reconcile the children and REVERT the user's text edits.
+      //    Setting docHtml = current DOM snapshot once ensures React
+      //    switches to dangerouslySetInnerHTML mode, where it stops
+      //    reconciling the inner tree.
+      //
+      // 2. After the flip, calling setDocHtml AGAIN from inside this
+      //    observer would feed a fresh innerHTML into React, which
+      //    re-parses and REPLACES the live DOM tree — including any
+      //    element currently being dragged. The drag handler's closure
+      //    would then hold a detached node, and the gesture stalls
+      //    after the first pointermove. (This was the original drag bug.)
+      //
+      // So: flip once, then never again from inside the observer.
+      // Reseeds only happen when the HOST hands down a new frozenHtml
+      // prop (reset / brand swap / variant change) — handled in the
+      // separate effect above.
+      if (docHtmlRef.current === null) {
+        docHtmlRef.current = next;
+        setDocHtml(next);
+      }
     });
     observer.observe(node, {
       childList: true,
