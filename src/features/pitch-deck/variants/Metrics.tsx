@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { METRICS } from '../uniexPitchContent';
 import { TrophyCelebration } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -387,7 +388,13 @@ export function MetricsSlideC({ index, total }: SlideProps) {
               overflow: 'hidden',
             }}
           >
-            <TrophyCelebration size={560} transparent />
+            <ReplaceableArtwork
+              slotId="metrics-C-trophy"
+              defaultQuery="trophy celebration"
+              style={{ width: 560, height: 560 }}
+            >
+              <TrophyCelebration size={560} transparent />
+            </ReplaceableArtwork>
           </div>
           <div
             style={{

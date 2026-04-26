@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { TEAM } from '../uniexPitchContent';
 import { HandshakePartners } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -236,7 +237,16 @@ export function TeamSlideB({ index, total }: SlideProps) {
           opacity: 0.8,
         }}
       >
-        <HandshakePartners size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        <ReplaceableArtwork
+          slotId="team-B-handshake"
+          defaultQuery="partnership handshake"
+          style={{
+            width: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+            height: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+          }}
+        >
+          <HandshakePartners size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        </ReplaceableArtwork>
       </div>
       <div
         style={{

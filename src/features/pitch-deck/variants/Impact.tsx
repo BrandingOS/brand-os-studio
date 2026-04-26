@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { IMPACT } from '../uniexPitchContent';
 import { VideoPlayCard } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -211,7 +212,16 @@ export function ImpactSlideB({ index, total }: SlideProps) {
           opacity: 0.7,
         }}
       >
-        <VideoPlayCard size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        <ReplaceableArtwork
+          slotId="impact-B-video"
+          defaultQuery="video play classroom"
+          style={{
+            width: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+            height: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+          }}
+        >
+          <VideoPlayCard size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        </ReplaceableArtwork>
       </div>
       <div
         style={{

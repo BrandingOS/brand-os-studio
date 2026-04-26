@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { CTA } from '../uniexPitchContent';
 import { GlobeWithFlags } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import { getLogoCornerStyle } from './_shared';
 
 const NAVY = '#001563';
@@ -485,7 +486,16 @@ export function CtaSlideC({ index, total }: SlideProps) {
           opacity: 0.78,
         }}
       >
-        <GlobeWithFlags size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        <ReplaceableArtwork
+          slotId="cta-C-globe"
+          defaultQuery="world map students"
+          style={{
+            width: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+            height: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
+          }}
+        >
+          <GlobeWithFlags size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+        </ReplaceableArtwork>
       </div>
       <div
         style={{
