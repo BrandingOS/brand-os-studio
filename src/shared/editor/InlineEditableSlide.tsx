@@ -158,27 +158,40 @@ export function InlineEditableSlide({
     return clone.innerHTML;
   };
 
+  // Pending HTML to commit when the coalesce window closes. Refresh
+  // on each mutation; commit ONCE after 300ms of idle. This is
+  // critical for drag/resize: 60+ mutations per second would create
+  // 60+ history entries and make Cmd+Z step back pixel-by-pixel
+  // instead of undoing the whole gesture.
+  const pendingHtmlRef = useRef<string | null>(null);
+
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
+
+    const commit = () => {
+      const html = pendingHtmlRef.current;
+      pendingHtmlRef.current = null;
+      if (html === null) return;
+      const hist = historyRef.current;
+      if (html === hist.stack[hist.index]) return;
+      const trimmed = hist.stack.slice(0, hist.index + 1);
+      trimmed.push(html);
+      while (trimmed.length > 100) trimmed.shift();
+      historyRef.current = { stack: trimmed, index: trimmed.length - 1 };
+      onSave(html);
+    };
+
     const observer = new MutationObserver(() => {
       if (isApplyingRef.current) return;
       if (isHistoryNavRef.current) return;
       const next = readSlideHtml();
       if (next === null) return;
-      const hist = historyRef.current;
-      if (next === hist.stack[hist.index]) return;
-
-      // Push to history + schedule save. We DO NOT call setDocHtml
-      // here — the inner tree is already in frozen mode (flipped once
-      // on mount), and feeding fresh innerHTML mid-edit would detach
-      // any element currently being dragged.
-      const trimmed = hist.stack.slice(0, hist.index + 1);
-      trimmed.push(next);
-      while (trimmed.length > 100) trimmed.shift();
-      historyRef.current = { stack: trimmed, index: trimmed.length - 1 };
+      // Update the pending snapshot and reset the debounce. ONE
+      // history entry will be pushed once mutations settle.
+      pendingHtmlRef.current = next;
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => onSave(next), 800);
+      saveTimer.current = setTimeout(commit, 300);
     });
     observer.observe(node, {
       childList: true,
@@ -186,7 +199,15 @@ export function InlineEditableSlide({
       characterData: true,
       attributes: true,
     });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      // Flush any pending edit before unmount so an in-flight resize
+      // doesn't get lost on slide switch.
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        commit();
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
 
