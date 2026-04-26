@@ -21,6 +21,9 @@ import { exportDeck } from '@/features/case-study-deck/export';
 import { InlineEditableSlide } from '@/shared/editor/InlineEditableSlide';
 import { SelectionInspector } from '@/shared/editor/SelectionInspector';
 import type { SelectedElement } from '@/shared/editor/blocks/EditableSlide';
+import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider';
+import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
+import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
 import { VARIANTS, type SlideKind, type VariantKey } from '../variants';
@@ -35,7 +38,30 @@ const ARABIC_FONTS = [
 export default function PitchDeckPage() {
   const { slug } = useParams<{ slug: string }>();
   const { brand, isLoading } = useBrandBySlug(slug);
+
+  if (isLoading || !brand) {
+    return (
+      <CosmosWorkspaceShell>
+        <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
+            <Sparkles className="animate-pulse" />
+            <span>Composing your pitch deck…</span>
+          </div>
+        </div>
+      </CosmosWorkspaceShell>
+    );
+  }
+
+  // After this point `brand` is non-null. Move the rest of the page into
+  // `PitchDeckShell` so we can call `useDeckTheme(brand, ...)` without
+  // breaking rules-of-hooks (the hook needs a non-null brand and must
+  // not sit below a conditional `return`).
+  return <PitchDeckShell brand={brand} slug={slug ?? ''} />;
+}
+
+function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const navigate = useNavigate();
+  const { theme } = useDeckTheme(brand, 'pitch-deck');
   const [activeIndex, setActiveIndex] = useState(0);
   const [exporting, setExporting] = useState(false);
   // Per-slide variant picks. Default = 'A' for every slide (the original
@@ -197,19 +223,6 @@ export default function PitchDeckPage() {
     }
   }, []);
 
-  if (isLoading || !brand) {
-    return (
-      <CosmosWorkspaceShell>
-        <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
-            <Sparkles className="animate-pulse" />
-            <span>Composing your pitch deck…</span>
-          </div>
-        </div>
-      </CosmosWorkspaceShell>
-    );
-  }
-
   const renderSlide = (i: number) => {
     const cfg: UniexSlide = UNIEX_SLIDES[i];
     const idx = i + 1;
@@ -231,17 +244,21 @@ export default function PitchDeckPage() {
     </>
   );
 
+  // The DeckThemeProvider renders a wrapping <div> that emits the
+  // --deck-* CSS vars. Wrap the rail + stage + inspector subtree once so
+  // the entire deck UI (including thumbnails) consumes the same tokens.
   return (
     <CosmosWorkspaceShell rightActions={shellRightActions}>
-      <div
-        style={{
-          height: 'calc(100vh - 64px)',
-          display: 'flex',
-          overflow: 'hidden',
-          position: 'relative',
-          background: 'var(--background)',
-        }}
-      >
+      <DeckThemeProvider brand={brand} theme={theme} deckKind="pitch-deck">
+        <div
+          style={{
+            height: 'calc(100vh - 64px)',
+            display: 'flex',
+            overflow: 'hidden',
+            position: 'relative',
+            background: 'var(--background)',
+          }}
+        >
         {/* Thumbnail rail */}
         <aside
           style={{
@@ -549,7 +566,8 @@ export default function PitchDeckPage() {
             <Download className="w-3.5 h-3.5" /> {exporting ? 'Exporting…' : 'Export PDF'}
           </button>
         </div>
-      </div>
+        </div>
+      </DeckThemeProvider>
     </CosmosWorkspaceShell>
   );
 }
