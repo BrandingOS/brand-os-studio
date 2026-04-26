@@ -113,12 +113,21 @@ function applySelectionStyles(el: HTMLElement) {
   // contentEditable when the user double-clicks into edit mode.
 }
 
-/** Add resize handles overlay for images */
+/**
+ * Add resize handles overlay for the selected element. Works for
+ * images, text blocks, divs — any element that can take an explicit
+ * width / height. Text blocks reflow inside the new bounding box.
+ */
 function addResizeHandles(el: HTMLElement, container: HTMLElement) {
   // Remove existing handles
   container.querySelectorAll('.resize-handle').forEach(h => h.remove());
 
-  if (el.tagName !== 'IMG') return;
+  // Inline / inline-block elements need 'inline-block' display to
+  // honor explicit width. <span> defaults to inline; force it.
+  const display = window.getComputedStyle(el).display;
+  if (display === 'inline') {
+    el.style.display = 'inline-block';
+  }
 
   const rect = el.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();

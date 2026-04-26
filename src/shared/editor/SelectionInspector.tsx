@@ -179,6 +179,77 @@ export function SelectionInspector({ selection, onClearSelection }: SelectionIns
         </div>
       </div>
 
+      <Section title="Size">
+        <Field label="Width × Height (px)">
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="number"
+              min={10}
+              max={2400}
+              placeholder="Auto"
+              value={el.style.width ? parseInt(el.style.width, 10) : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) el.style.removeProperty('width');
+                else el.style.width = `${v}px`;
+                bump();
+              }}
+              style={{ ...numberStyle, flex: 1 }}
+            />
+            <span style={{ alignSelf: 'center', color: 'var(--text-muted)', fontSize: 12 }}>×</span>
+            <input
+              type="number"
+              min={10}
+              max={2400}
+              placeholder="Auto"
+              value={el.style.height ? parseInt(el.style.height, 10) : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) el.style.removeProperty('height');
+                else el.style.height = `${v}px`;
+                bump();
+              }}
+              style={{ ...numberStyle, flex: 1 }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                el.style.removeProperty('width');
+                el.style.removeProperty('height');
+                bump();
+              }}
+              title="Reset to auto"
+              style={{
+                padding: '0 10px',
+                fontSize: 11,
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+            >
+              Auto
+            </button>
+          </div>
+        </Field>
+        <Field label="Quick width">
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[400, 600, 800, 1200, 1600].map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => set('width', `${w}px`)}
+                style={chipStyle(el.style.width === `${w}px`)}
+                title={`${w}px wide`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </Section>
+
       {isText && (
         <>
           <Section title="Typography">
