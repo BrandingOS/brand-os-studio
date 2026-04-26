@@ -6,9 +6,9 @@
 // just falls back to a system font the user can't tell from the
 // previous one.
 //
-// `family` is the value we write into `theme.typography.headingFont`
-// or `bodyFont`. Fallbacks mean the var is safe even if the load
-// races the first paint.
+// `family` is the value we write into a role's `font` field
+// (`theme.typography.roles.h1.font`, etc.). Fallbacks mean the var
+// is safe even if the load races the first paint.
 
 export type FontKind = 'sans' | 'serif' | 'display' | 'mono' | 'arabic';
 

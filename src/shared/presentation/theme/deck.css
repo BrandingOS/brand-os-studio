@@ -4,44 +4,52 @@
  * <DeckThemeProvider>. Slides should style themselves with these
  * classes instead of inline font/color values.
  *
- * Naming note: `--deck-text-{role}` are SIZES (px). Body text COLOR
- * uses `--deck-color-body` to avoid colliding with the body size var.
- * Heading color stays on `--deck-text-heading` (no size collision).
+ * Each role has its OWN font / size / weight / line-height / color
+ * vars. Sidebar Customize edits per-role overrides; the var bag from
+ * buildDeckCssVars walks every role and emits all of them.
  */
 
 .deck-page-bg { background: var(--deck-bg-page); }
 .deck-card-bg { background: var(--deck-bg-card); }
 
 .deck-display {
-  font-family: var(--deck-font-heading);
-  font-weight: var(--deck-weight-heading);
+  font-family: var(--deck-font-display);
+  font-weight: var(--deck-weight-display);
   font-size: var(--deck-text-display);
   line-height: var(--deck-leading-display);
-  color: var(--deck-text-heading);
+  color: var(--deck-color-display);
 }
 
 .deck-h1 {
-  font-family: var(--deck-font-heading);
-  font-weight: var(--deck-weight-heading);
+  font-family: var(--deck-font-h1);
+  font-weight: var(--deck-weight-h1);
   font-size: var(--deck-text-h1);
   line-height: var(--deck-leading-h1);
-  color: var(--deck-text-heading);
+  color: var(--deck-color-h1);
 }
 
 .deck-h2 {
-  font-family: var(--deck-font-heading);
-  font-weight: var(--deck-weight-heading);
+  font-family: var(--deck-font-h2);
+  font-weight: var(--deck-weight-h2);
   font-size: var(--deck-text-h2);
   line-height: var(--deck-leading-h2);
-  color: var(--deck-text-heading);
+  color: var(--deck-color-h2);
 }
 
 .deck-h3 {
-  font-family: var(--deck-font-heading);
-  font-weight: var(--deck-weight-heading);
+  font-family: var(--deck-font-h3);
+  font-weight: var(--deck-weight-h3);
   font-size: var(--deck-text-h3);
   line-height: var(--deck-leading-h3);
-  color: var(--deck-text-heading);
+  color: var(--deck-color-h3);
+}
+
+.deck-h4 {
+  font-family: var(--deck-font-h4);
+  font-weight: var(--deck-weight-h4);
+  font-size: var(--deck-text-h4);
+  line-height: var(--deck-leading-h4);
+  color: var(--deck-color-h4);
 }
 
 .deck-body {
@@ -53,32 +61,20 @@
 }
 
 .deck-caption {
-  font-family: var(--deck-font-body);
-  font-weight: var(--deck-weight-body);
+  font-family: var(--deck-font-caption);
+  font-weight: var(--deck-weight-caption);
   font-size: var(--deck-text-caption);
   line-height: var(--deck-leading-caption);
-  color: var(--deck-text-muted);
+  color: var(--deck-color-caption);
 }
 
 .deck-label {
-  font-family: var(--deck-font-body);
-  font-weight: 600;
+  font-family: var(--deck-font-label);
+  font-weight: var(--deck-weight-label);
   font-size: var(--deck-text-label);
-  line-height: 1.2;
-  color: var(--deck-text-muted);
+  line-height: var(--deck-leading-label);
+  color: var(--deck-color-label);
   text-transform: uppercase;
-}
-
-/* User opted out of letter-spacing entirely. Nuke any inline-styled
- * letter-spacing across the whole deck — including chrome wordmarks
- * and section labels in variant files that still set it explicitly.
- * !important is needed to win against inline styles on per-variant
- * elements that this CSS module hasn't been swept through yet. */
-[data-deck="pitch-deck"],
-[data-deck="pitch-deck"] *,
-[data-deck="pitch-deck"] *::before,
-[data-deck="pitch-deck"] *::after {
-  letter-spacing: normal !important;
 }
 
 .deck-card {
@@ -92,3 +88,12 @@
 .deck-gap   { gap: var(--deck-gap); }
 .deck-accent{ color: var(--deck-accent); }
 .deck-border{ border-color: var(--deck-border-subtle); }
+
+/* User opted out of letter-spacing across the deck. !important wins
+ * against any inline letter-spacing in the variant files. */
+[data-deck="pitch-deck"],
+[data-deck="pitch-deck"] *,
+[data-deck="pitch-deck"] *::before,
+[data-deck="pitch-deck"] *::after {
+  letter-spacing: normal !important;
+}

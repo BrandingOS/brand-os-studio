@@ -22,18 +22,18 @@ interface Props {
   onPatch: (patch: Partial<PresentationTheme>) => void;
 }
 
-type ColorKey = 'bg' | 'heading' | 'body' | 'accent' | 'cardBg';
+type ColorKey = 'bg' | 'cardBg' | 'accent';
 
+// Heading + body text colors moved into per-role Typography rows.
+// This panel only handles surface + accent colors now.
 const FIELDS: Array<{
   key: ColorKey;
   label: string;
   defaultFrom: (b: Brand) => string;
 }> = [
-  { key: 'bg',      label: 'Page background', defaultFrom: (b) => buildBrandPalette(b).bg.page },
-  { key: 'heading', label: 'Heading text',    defaultFrom: (b) => buildBrandPalette(b).text.heading },
-  { key: 'body',    label: 'Body text',       defaultFrom: (b) => buildBrandPalette(b).text.body },
-  { key: 'accent',  label: 'Accent',          defaultFrom: (b) => buildBrandPalette(b).brand.accent },
-  { key: 'cardBg',  label: 'Card background', defaultFrom: (b) => buildBrandPalette(b).bg.surface },
+  { key: 'bg',     label: 'Page background', defaultFrom: (b) => buildBrandPalette(b).bg.page },
+  { key: 'cardBg', label: 'Card background', defaultFrom: (b) => buildBrandPalette(b).bg.surface },
+  { key: 'accent', label: 'Accent',          defaultFrom: (b) => buildBrandPalette(b).brand.accent },
 ];
 
 export function ColorsSection({ brand, theme, onPatch }: Props) {

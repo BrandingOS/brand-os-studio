@@ -18,11 +18,19 @@ describe('useDeckThemeStore', () => {
     expect(useDeckThemeStore.getState().draftFor('b1', 'pitch-deck').density).toBe('spacious');
   });
 
-  it('patchTheme deep-merges typography', () => {
-    useDeckThemeStore.getState().patchTheme('b1', 'pitch-deck', { typography: { scaleMultiplier: 1.15 } });
+  it('patchTheme deep-merges per-role typography overrides', () => {
+    useDeckThemeStore.getState().patchTheme('b1', 'pitch-deck', {
+      typography: { roles: { h1: { sizePx: 80 } } },
+    });
     const t = useDeckThemeStore.getState().draftFor('b1', 'pitch-deck');
-    expect(t.typography.scaleMultiplier).toBe(1.15);
-    expect(t.typography.leadingMultiplier).toBe(1);   // preserved from EMPTY_THEME
+    expect(t.typography.roles.h1?.sizePx).toBe(80);
+    // Patching another role preserves the first
+    useDeckThemeStore.getState().patchTheme('b1', 'pitch-deck', {
+      typography: { roles: { body: { font: 'Inter' } } },
+    });
+    const t2 = useDeckThemeStore.getState().draftFor('b1', 'pitch-deck');
+    expect(t2.typography.roles.h1?.sizePx).toBe(80);
+    expect(t2.typography.roles.body?.font).toBe('Inter');
   });
 
   it('reset clears the draft', () => {
