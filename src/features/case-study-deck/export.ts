@@ -45,26 +45,46 @@ export async function exportDeck(container: HTMLElement, opts: ExportOptions): P
     throw new Error('No slides to export.');
   }
 
-  const { default: html2canvas } = await import('html2canvas');
+  // html-to-image renders into an SVG <foreignObject> and lets the
+  // BROWSER do the layout + text shaping. That preserves Arabic
+  // ligatures, RTL bidi, font features, and ::before/::after content
+  // — all of which html2canvas mangles because it walks the DOM
+  // and re-paints glyph-by-glyph.
+  const { toCanvas } = await import('html-to-image');
+
+  // Make sure all webfonts are loaded before we start capturing —
+  // otherwise the browser falls back to a system font for the SVG
+  // render and Arabic glyphs may visibly shift.
+  if (typeof document !== 'undefined' && document.fonts?.ready) {
+    try { await document.fonts.ready; } catch { /* non-fatal */ }
+  }
 
   // Capture each slide at native 1920×1080, at retina `scale`.
   const canvases: HTMLCanvasElement[] = [];
   for (let i = 0; i < slideEls.length; i++) {
     const el = slideEls[i];
-    // Temporarily strip CSS transforms so html2canvas captures at natural size.
+    // Temporarily strip CSS transforms so the capture lands at
+    // natural 1920×1080 instead of the on-screen scaled size.
     const prevTransform = el.style.transform;
     el.style.transform = 'none';
-    const canvas = await html2canvas(el, {
-      width: SLIDE_WIDTH,
-      height: SLIDE_HEIGHT,
-      scale,
-      backgroundColor: null,
-      useCORS: true,
-      allowTaint: true,
-      logging: false,
-    });
-    el.style.transform = prevTransform;
-    canvases.push(canvas);
+    try {
+      const canvas = await toCanvas(el, {
+        width: SLIDE_WIDTH,
+        height: SLIDE_HEIGHT,
+        pixelRatio: scale,
+        cacheBust: true,
+        // Skip resize-handle overlays etc. so they don't pollute the export.
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          if (node.classList?.contains('resize-handle')) return false;
+          if (node.dataset?.editorChrome === 'true') return false;
+          return true;
+        },
+      });
+      canvases.push(canvas);
+    } finally {
+      el.style.transform = prevTransform;
+    }
     onProgress?.((i + 1) / (slideEls.length + 1));
   }
 
