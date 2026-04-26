@@ -1,0 +1,85 @@
+/* src/shared/presentation/theme/deck.css
+ *
+ * Shared role-based classes that read --deck-* CSS vars set by
+ * <DeckThemeProvider>. Slides should style themselves with these
+ * classes instead of inline font/color values.
+ *
+ * Naming note: `--deck-text-{role}` are SIZES (px). Body text COLOR
+ * uses `--deck-color-body` to avoid colliding with the body size var.
+ * Heading color stays on `--deck-text-heading` (no size collision).
+ */
+
+.deck-page-bg { background: var(--deck-bg-page); }
+.deck-card-bg { background: var(--deck-bg-card); }
+
+.deck-display {
+  font-family: var(--deck-font-heading);
+  font-weight: var(--deck-weight-heading);
+  font-size: var(--deck-text-display);
+  line-height: var(--deck-leading-display);
+  color: var(--deck-text-heading);
+  letter-spacing: -0.02em;
+}
+
+.deck-h1 {
+  font-family: var(--deck-font-heading);
+  font-weight: var(--deck-weight-heading);
+  font-size: var(--deck-text-h1);
+  line-height: var(--deck-leading-h1);
+  color: var(--deck-text-heading);
+  letter-spacing: -0.015em;
+}
+
+.deck-h2 {
+  font-family: var(--deck-font-heading);
+  font-weight: var(--deck-weight-heading);
+  font-size: var(--deck-text-h2);
+  line-height: var(--deck-leading-h2);
+  color: var(--deck-text-heading);
+}
+
+.deck-h3 {
+  font-family: var(--deck-font-heading);
+  font-weight: var(--deck-weight-heading);
+  font-size: var(--deck-text-h3);
+  line-height: var(--deck-leading-h3);
+  color: var(--deck-text-heading);
+}
+
+.deck-body {
+  font-family: var(--deck-font-body);
+  font-weight: var(--deck-weight-body);
+  font-size: var(--deck-text-body);
+  line-height: var(--deck-leading-body);
+  color: var(--deck-color-body);
+}
+
+.deck-caption {
+  font-family: var(--deck-font-body);
+  font-weight: var(--deck-weight-body);
+  font-size: var(--deck-text-caption);
+  line-height: var(--deck-leading-caption);
+  color: var(--deck-text-muted);
+}
+
+.deck-label {
+  font-family: var(--deck-font-body);
+  font-weight: 600;
+  font-size: var(--deck-text-label);
+  line-height: 1.2;
+  color: var(--deck-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.deck-card {
+  background: var(--deck-bg-card);
+  border: 1px solid var(--deck-border-subtle);
+  border-radius: var(--deck-radius);
+  box-shadow: var(--deck-shadow);
+}
+
+.deck-pad   { padding: var(--deck-pad-y) var(--deck-pad-x); }
+.deck-gap   { gap: var(--deck-gap); }
+.deck-accent{ color: var(--deck-accent); }
+.deck-border{ border-color: var(--deck-border-subtle); }
