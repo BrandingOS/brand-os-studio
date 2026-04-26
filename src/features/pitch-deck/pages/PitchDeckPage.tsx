@@ -23,6 +23,8 @@ import { SelectionInspector } from '@/shared/editor/SelectionInspector';
 import type { SelectedElement } from '@/shared/editor/blocks/EditableSlide';
 import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider';
 import { DeckThemePanel } from '@/shared/presentation/theme/DeckThemePanel';
+import { useDeckThemeStore } from '@/shared/presentation/theme/store';
+import { detectRoleFromElement } from '@/shared/presentation/theme/detectRole';
 import { useArtworkStore } from '../artwork/artworkStore';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -160,7 +162,15 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const [selection, setSelection] = useState<SelectedElement | null>(null);
   const handleSelectionChange = useCallback((sel: SelectedElement | null) => {
     setSelection(sel);
-    if (sel) setShowInspector(true);
+    if (sel) {
+      setShowInspector(true);
+      // Always detect the role and broadcast it. If the user is on the
+      // Theme tab the TypographySection will auto-expand+scroll to it;
+      // if they're on the Slide tab nothing visible happens, but the
+      // moment they switch tabs the focus is already in place.
+      const role = detectRoleFromElement(sel.element);
+      if (role) useDeckThemeStore.getState().setFocusedRole(role);
+    }
   }, []);
   const clearSelection = useCallback(() => setSelection(null), []);
   const stageRef = useRef<HTMLDivElement | null>(null);

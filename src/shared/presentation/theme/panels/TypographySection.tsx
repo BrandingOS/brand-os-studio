@@ -5,17 +5,17 @@
 // weight, line-height, color independently. Each field clears via the
 // "Inherit from brand" path.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, RotateCcw } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import {
-  DECK_TYPE_ROLES,
   ROLE_LABEL,
   type DeckTypeRole,
   type PresentationTheme,
   type RoleStyle,
 } from '../types';
 import { Slider } from '@/components/ui/slider';
+import { useDeckThemeStore } from '../store';
 import {
   ensureFontLoaded,
   findDeckFont,
@@ -56,6 +56,9 @@ export function TypographySection({ theme, onPatch }: Props) {
     onPatch({ typography: { roles: nextRoles } });
   };
 
+  const focusedRole = useDeckThemeStore((s) => s.focusedRole);
+  const focusTick = useDeckThemeStore((s) => s.focusTick);
+
   const renderRows = (roles: DeckTypeRole[]) =>
     roles.map((role) => (
       <RoleRow
@@ -64,6 +67,8 @@ export function TypographySection({ theme, onPatch }: Props) {
         value={theme.typography.roles[role]}
         onChange={(next) => setRole(role, next)}
         onClear={() => clearRole(role)}
+        focusedRole={focusedRole}
+        focusTick={focusTick}
       />
     ));
 
@@ -84,26 +89,48 @@ function RoleRow({
   value,
   onChange,
   onClear,
+  focusedRole,
+  focusTick,
 }: {
   role: DeckTypeRole;
   value: RoleStyle | undefined;
   onChange: (next: RoleStyle) => void;
   onClear: () => void;
+  focusedRole: DeckTypeRole | null;
+  focusTick: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
   const v: RoleStyle = value ?? {};
   const hasOverrides = Object.keys(v).length > 0;
   const weights = (HEADING_ROLES as readonly DeckTypeRole[]).includes(role)
     ? HEADING_WEIGHTS
     : BODY_WEIGHTS;
 
+  // External focus pulse: when the user clicks an element on the slide
+  // and detectRoleFromElement returns this role, expand + scroll +
+  // highlight briefly.
+  useEffect(() => {
+    if (focusedRole !== role) return;
+    setOpen(true);
+    setHighlight(true);
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const t = setTimeout(() => setHighlight(false), 1200);
+    return () => clearTimeout(t);
+    // focusTick re-fires the effect when the role is selected again.
+  }, [focusedRole, focusTick, role]);
+
   return (
     <div
+      ref={ref}
       style={{
-        border: '1px solid hsl(var(--border))',
+        border: highlight ? '1px solid hsl(var(--primary))' : '1px solid hsl(var(--border))',
         borderRadius: 8,
         background: open ? 'hsl(var(--muted) / 0.4)' : 'transparent',
         overflow: 'hidden',
+        boxShadow: highlight ? '0 0 0 3px hsl(var(--primary) / 0.18)' : 'none',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
       }}
     >
       <button

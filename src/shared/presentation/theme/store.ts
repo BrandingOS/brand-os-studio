@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { DeckKind, PresentationTheme } from './types';
+import type { DeckKind, DeckTypeRole, PresentationTheme } from './types';
 import { EMPTY_THEME, normalizeTheme } from './types';
 
 type Key = `${string}:${DeckKind}`;
@@ -12,11 +12,20 @@ type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]>
 
 interface DeckThemeStore {
   byKey: Partial<Record<Key, PresentationTheme>>;
+  /** Role focused for editing in the Customize sidebar — set when the
+   *  user clicks a text element on the slide while the Theme tab is
+   *  active. The TypographySection auto-expands the matching row. */
+  focusedRole: DeckTypeRole | null;
+  /** Bumped each time `focusedRole` is set (even to the same role) so
+   *  consumers can re-trigger the highlight + scroll animation. */
+  focusTick: number;
+
   draftFor: (brandId: string, kind: DeckKind) => PresentationTheme;
   hydrate: (brandId: string, kind: DeckKind, theme: PresentationTheme | undefined) => void;
   setTheme: (brandId: string, kind: DeckKind, next: PresentationTheme) => void;
   patchTheme: (brandId: string, kind: DeckKind, patch: DeepPartial<PresentationTheme>) => void;
   reset: (brandId: string, kind: DeckKind) => void;
+  setFocusedRole: (role: DeckTypeRole | null) => void;
 }
 
 /**
@@ -43,6 +52,9 @@ function deepMerge<T>(base: T, patch: DeepPartial<T>): T {
 export const useDeckThemeStore = create<DeckThemeStore>()(
   devtools((set, get) => ({
     byKey: {},
+    focusedRole: null,
+    focusTick: 0,
+    setFocusedRole: (role) => set((s) => ({ focusedRole: role, focusTick: s.focusTick + 1 })),
     // Normalize on read so legacy theme shapes saved in
     // brand.presentationThemes from the previous flat model don't
     // crash consumers that expect the new per-role contract.
