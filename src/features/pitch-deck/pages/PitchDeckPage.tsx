@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, SlidersHorizontal, Sparkles, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, SlidersHorizontal, Sparkles, Type, X } from 'lucide-react';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
@@ -521,6 +521,30 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
             })}
           </div>
           <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
+          <button
+            type="button"
+            onClick={() => {
+              const masterIdx = UNIEX_SLIDES.findIndex((s) => s.kind === 'master');
+              if (masterIdx >= 0) goTo(masterIdx);
+            }}
+            style={{
+              height: 36,
+              padding: '0 14px',
+              borderRadius: 999,
+              border: 'none',
+              background: activeIndex === UNIEX_SLIDES.findIndex((s) => s.kind === 'master') ? 'var(--accent-muted)' : 'transparent',
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            title="Open Master Style slide — global typography editor"
+          >
+            <Type className="w-3.5 h-3.5" /> Master Style
+          </button>
           <button
             type="button"
             onClick={() => navigate(`/b/${slug}/setup`)}
