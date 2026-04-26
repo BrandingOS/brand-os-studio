@@ -36,7 +36,7 @@ export default function CaseStudyPage() {
     <CaseStudyViewer
       brand={brand}
       onBack={() => navigate(`/b/${slug}/share?tab=exports`)}
-      onOpenFabric={() => navigate(`/b/${slug}/guidelines/canvas?source=case-study`)}
+      onOpenLiveEditor={(slideIndex) => navigate(`/b/${slug}/case-study/edit/${slideIndex}`)}
     />
   );
 }

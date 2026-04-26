@@ -45,10 +45,11 @@ import { MasterPanel } from './MasterPanel';
 interface Props {
   brand: Brand;
   onBack?: () => void;
-  onOpenFabric?: () => void;
+  /** Open the live (Canva-style) editor for a single slide by index. */
+  onOpenLiveEditor?: (slideIndex: number) => void;
 }
 
-export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
+export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
   const deck = useDeckPlan(brand);
   const [activeIndex, setActiveIndex] = useState(0);
   const [showInspector, setShowInspector] = useState(false);
@@ -275,9 +276,15 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
           <Button size="sm" variant="ghost" onClick={() => setShowInspector((v) => !v)} className="gap-2 text-white hover:bg-white/10">
             <SlidersHorizontal className="w-4 h-4" /> {showInspector ? 'Hide' : 'Customize'}
           </Button>
-          {onOpenFabric && (
-            <Button size="sm" variant="ghost" onClick={onOpenFabric} className="gap-2 text-white hover:bg-white/10">
-              <Pencil className="w-4 h-4" /> Canvas edit
+          {onOpenLiveEditor && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onOpenLiveEditor(activeIndex)}
+              className="gap-2 text-white hover:bg-white/10"
+              title="Open this slide in the live editor"
+            >
+              <Pencil className="w-4 h-4" /> Edit slide
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => handleExport('png-zip')} className="gap-2 border-white/30 text-white hover:bg-white/10" disabled={exporting}>
@@ -327,7 +334,11 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                       pointerEvents: 'none',
                     }}
                   >
-                    <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
+                    {s.frozenHtml ? (
+                      <div style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }} dangerouslySetInnerHTML={{ __html: s.frozenHtml }} />
+                    ) : (
+                      <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
+                    )}
                   </div>
                   <div style={{ position: 'absolute', left: 6, top: 4, fontSize: 10, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '1px 6px' }}>
                     {String(i + 1).padStart(2, '0')}
@@ -373,7 +384,11 @@ export function CaseStudyViewer({ brand, onBack, onOpenFabric }: Props) {
                 }}
               >
                 <SlideScaler>
-                  <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
+                  {s.frozenHtml ? (
+                    <div style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }} dangerouslySetInnerHTML={{ __html: s.frozenHtml }} />
+                  ) : (
+                    <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
+                  )}
                 </SlideScaler>
               </section>
             );

@@ -25,6 +25,13 @@ export interface StoredDeck {
    * composition WITHOUT touching style/template/typography.
    */
   slideShapes?: Record<number, string>;
+  /**
+   * Frozen HTML snapshots from the live editor. When set, the viewer
+   * renders this raw HTML for the slide instead of the React
+   * composition — so user edits (text, image swaps, drag-resize)
+   * persist verbatim.
+   */
+  slideFrozenHtml?: Record<number, string>;
   /** Indexes the user chose to hide. */
   hidden: number[];
 }
