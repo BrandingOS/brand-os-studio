@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, SlidersHorizontal, Sparkles, Type, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, SlidersHorizontal, Sparkles, Type, Type as TypeText, X } from 'lucide-react';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
@@ -26,6 +26,7 @@ import { DeckThemePanel } from '@/shared/presentation/theme/DeckThemePanel';
 import { useDeckThemeStore } from '@/shared/presentation/theme/store';
 import { detectRoleFromElement } from '@/shared/presentation/theme/detectRole';
 import { useArtworkStore } from '../artwork/artworkStore';
+import { ArtworkPicker } from '../artwork/ArtworkPicker';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Brand } from '@/shared/types/brand';
@@ -156,6 +157,54 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
 
   const [showInspector, setShowInspector] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<'slide' | 'theme'>('slide');
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [addImagePickerOpen, setAddImagePickerOpen] = useState(false);
+
+  /**
+   * Inject a new element into the active slide's canvas. The
+   * MutationObserver inside InlineEditableSlide picks it up and
+   * persists it in the frozenHtml snapshot. Skips master slides
+   * (rendered raw, no observer, would re-mount on next render).
+   */
+  const addToActiveSlide = useCallback((build: () => HTMLElement) => {
+    const cfg = UNIEX_SLIDES[activeIndex];
+    if (!cfg || cfg.kind === 'master') return;
+    const section = slideRefs.current[activeIndex];
+    if (!section) return;
+    const target = section.querySelector('[data-pitch-slide]') as HTMLElement | null;
+    if (!target) return;
+    const node = build();
+    target.appendChild(node);
+    setAddMenuOpen(false);
+  }, [activeIndex]);
+
+  const addTextBlock = useCallback(() => {
+    addToActiveSlide(() => {
+      const div = document.createElement('div');
+      div.className = 'deck-body';
+      div.contentEditable = 'true';
+      div.textContent = 'New text — click to edit';
+      div.style.cssText =
+        'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+        'max-width:600px;padding:16px 20px;cursor:move;' +
+        'background:rgba(255,255,255,0.92);' +
+        'border:1px dashed rgba(0,21,99,0.32);border-radius:10px;';
+      return div;
+    });
+  }, [addToActiveSlide]);
+
+  const addImageFromUrl = useCallback((url: string) => {
+    addToActiveSlide(() => {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      img.style.cssText =
+        'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+        'width:520px;height:auto;border-radius:8px;';
+      return img;
+    });
+    setAddImagePickerOpen(false);
+  }, [addToActiveSlide]);
   // Currently-selected layer reported by the active slide. Used to
   // populate the Customize panel with property controls. Auto-opens
   // the inspector on the first selection so users discover the panel.
@@ -551,6 +600,94 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
             })}
           </div>
           <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
+          {/* Add element popover */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              disabled={UNIEX_SLIDES[activeIndex]?.kind === 'master'}
+              onClick={() => setAddMenuOpen((o) => !o)}
+              title={UNIEX_SLIDES[activeIndex]?.kind === 'master' ? 'Master slide is read-only' : 'Add text or image to this slide'}
+              style={{
+                height: 36,
+                padding: '0 14px',
+                borderRadius: 999,
+                border: 'none',
+                background: addMenuOpen ? 'var(--accent-muted)' : 'transparent',
+                color: 'var(--text-primary)',
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: UNIEX_SLIDES[activeIndex]?.kind === 'master' ? 'not-allowed' : 'pointer',
+                opacity: UNIEX_SLIDES[activeIndex]?.kind === 'master' ? 0.4 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" /> Add
+            </button>
+            {addMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  boxShadow: 'var(--shadow-lg)',
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 2,
+                  minWidth: 180,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={addTextBlock}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    textAlign: 'left',
+                  }}
+                >
+                  <TypeText className="w-4 h-4" /> Add text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddMenuOpen(false);
+                    setAddImagePickerOpen(true);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    textAlign: 'left',
+                  }}
+                >
+                  <ImageIcon className="w-4 h-4" /> Add image
+                </button>
+              </div>
+            )}
+          </div>
+          <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
           <button
             type="button"
             onClick={() => {
@@ -614,6 +751,12 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
           >
             <SlidersHorizontal className="w-3.5 h-3.5" /> Customize
           </button>
+          <ArtworkPicker
+            open={addImagePickerOpen}
+            onClose={() => setAddImagePickerOpen(false)}
+            onPick={(o) => addImageFromUrl(o.url)}
+            defaultQuery="presentation"
+          />
           <button
             type="button"
             onClick={() => handleExport('pdf')}
