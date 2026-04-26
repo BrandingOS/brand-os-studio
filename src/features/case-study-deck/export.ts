@@ -19,18 +19,26 @@ export interface ExportOptions {
   scale?: number;
   /** Optional progress callback (0..1). */
   onProgress?: (ratio: number) => void;
+  /**
+   * CSS selector for slide-frame elements within the container.
+   * Defaults to the case-study attribute; pitch-deck callers should
+   * pass `'[data-pitch-slide]'`. Multiple comma-separated selectors
+   * are supported when a deck mixes both.
+   */
+  slideSelector?: string;
 }
 
 /**
- * Given a container DOM element that holds all slide frames with
- * `[data-case-study-slide]` attributes, render each to a canvas, then bundle.
+ * Given a container DOM element that holds all slide frames matched
+ * by `slideSelector` (default `[data-case-study-slide]`), render each
+ * to a canvas, then bundle.
  *
  * Slides hidden (`style.display==='none'`) or marked `data-hidden="true"`
  * are skipped.
  */
 export async function exportDeck(container: HTMLElement, opts: ExportOptions): Promise<void> {
-  const { format, fileName, scale = 2, onProgress } = opts;
-  const slideEls = Array.from(container.querySelectorAll<HTMLElement>('[data-case-study-slide]'))
+  const { format, fileName, scale = 2, onProgress, slideSelector = '[data-case-study-slide]' } = opts;
+  const slideEls = Array.from(container.querySelectorAll<HTMLElement>(slideSelector))
     .filter((el) => el.dataset.hidden !== 'true' && el.offsetParent !== null);
 
   if (slideEls.length === 0) {

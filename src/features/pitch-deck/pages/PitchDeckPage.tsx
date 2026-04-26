@@ -319,6 +319,11 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
         format,
         fileName: 'uniex-pitch-deck',
         scale: 2,
+        // Pitch-deck slides tag their 1920×1080 frame with this attr
+        // (see variants/_shared.tsx Frame). Without this override the
+        // exporter would default to the case-study selector and find
+        // zero matches.
+        slideSelector: '[data-pitch-slide]',
         onProgress: (r) => toast.loading(`Exporting… ${Math.round(r * 100)}%`, { id: toastId }),
       });
       toast.success(`Pitch deck exported as ${format === 'pdf' ? 'PDF' : 'PNG zip'}`, { id: toastId });
