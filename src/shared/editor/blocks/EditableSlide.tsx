@@ -139,14 +139,24 @@ function addResizeHandles(el: HTMLElement, container: HTMLElement) {
   const rect = el.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
 
-  // Position relative to container, accounting for handle size (HALF
-  // of HANDLE_SIZE so the dot centers on the corner / midpoint).
-  const HANDLE_SIZE = 12;
+  // The pitch-deck stage scales 1920×1080 down to fit the viewport via
+  // SlideScaler's `transform: scale(s)`. getBoundingClientRect returns
+  // SCREEN-space coords (scaled), but handles are positioned in the
+  // CONTAINER's local 1920-space. Divide every offset by the scale so
+  // handles land on the actual element corners.
+  const scale = containerRect.width && container.offsetWidth
+    ? containerRect.width / container.offsetWidth
+    : 1;
+
+  // Keep handles ~12px on screen regardless of the slide zoom.
+  const HANDLE_SCREEN_PX = 12;
+  const HANDLE_SIZE = HANDLE_SCREEN_PX / scale;
+  const BORDER_PX = 2 / scale;
   const off = HANDLE_SIZE / 2;
-  const top = rect.top - containerRect.top;
-  const left = rect.left - containerRect.left;
-  const right = rect.right - containerRect.left;
-  const bottom = rect.bottom - containerRect.top;
+  const top = (rect.top - containerRect.top) / scale;
+  const left = (rect.left - containerRect.left) / scale;
+  const right = (rect.right - containerRect.left) / scale;
+  const bottom = (rect.bottom - containerRect.top) / scale;
   const midX = (left + right) / 2;
   const midY = (top + bottom) / 2;
 
@@ -169,13 +179,13 @@ function addResizeHandles(el: HTMLElement, container: HTMLElement) {
       `width:${HANDLE_SIZE}px`,
       `height:${HANDLE_SIZE}px`,
       'background:#3B82F6',
-      'border:2px solid #fff',
+      `border:${BORDER_PX}px solid #fff`,
       'border-radius:50%',
       `cursor:${pos.cursor}`,
       'z-index:60',
       `top:${pos.top}px`,
       `left:${pos.left}px`,
-      'box-shadow:0 1px 4px rgba(0,0,0,0.25)',
+      `box-shadow:0 ${1 / scale}px ${4 / scale}px rgba(0,0,0,0.25)`,
       'pointer-events:auto',
     ].join(';');
 
@@ -191,8 +201,11 @@ function addResizeHandles(el: HTMLElement, container: HTMLElement) {
       const cursor = pos.cursor;
 
       const onMove = (moveX: number, moveY: number) => {
-        const dx = moveX - startX;
-        const dy = moveY - startY;
+        // Mouse events are in screen pixels; the element lives in
+        // local 1920-space. Convert by the same scale factor used to
+        // place the handles.
+        const dx = (moveX - startX) / scale;
+        const dy = (moveY - startY) / scale;
         let newW = startW;
         let newH = startH;
         let newL = startLeft;
