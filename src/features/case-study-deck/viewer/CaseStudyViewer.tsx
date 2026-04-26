@@ -323,6 +323,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
                   <InlineEditableSlide
                     slideIndex={i}
                     frozenHtml={s.frozenHtml}
+                    isActive={i === activeIndex}
                     onSave={(html) => deck.setSlideFrozenHtml(i, html)}
                   >
                     <Slide index={i} profile={deck.profile} style={styleForSlide} overrides={s.overrides} total={total} shapeId={s.shapeId} />
@@ -771,15 +772,21 @@ function StyleThumbnail({
  *   - A short suppression window after docHtml flips silences the
  *     observer's own self-triggered mutation when EditableSlide
  *     re-renders with dangerouslySetInnerHTML.
+ *   - Maintains a per-slide undo/redo snapshot stack. Cmd+Z /
+ *     Cmd+Shift+Z keyboard shortcuts apply to whichever slide is
+ *     currently active — gated by the `isActive` prop so a multi-slide
+ *     viewer doesn't fire ten handlers per keystroke.
  */
 function InlineEditableSlide({
   slideIndex,
   frozenHtml,
+  isActive,
   onSave,
   children,
 }: {
   slideIndex: number;
   frozenHtml: string | undefined;
+  isActive: boolean;
   onSave: (html: string | undefined) => void;
   children: React.ReactNode;
 }) {
@@ -788,10 +795,45 @@ function InlineEditableSlide({
   const isApplyingRef = useRef(false);
   const didMountRef = useRef(false);
 
-  // When the deck loads a different frozenHtml (reset, brand change), sync.
+  // Per-slide undo/redo history. Each entry is the slide's content HTML
+  // at a moment in time. `index` points at the currently-displayed entry.
+  // When the user edits, we PUSH a new entry and trim anything past it
+  // (standard undo stack semantics).
+  const historyRef = useRef<{ stack: string[]; index: number }>({
+    stack: [],
+    index: -1,
+  });
+  const isHistoryNavRef = useRef(false);
+
+  // When the deck loads a different frozenHtml (reset, brand change), sync
+  // — but skip when the incoming frozenHtml is the same content we just
+  // saved ourselves. Without this guard, every auto-save echoes back through
+  // the prop and wipes the history stack mid-edit.
   useEffect(() => {
+    const hist = historyRef.current;
+    const currentTop = hist.stack[hist.index];
+    if (frozenHtml && currentTop === frozenHtml) return; // our own save echo
     setDocHtml(frozenHtml ?? null);
+    historyRef.current = { stack: frozenHtml ? [frozenHtml] : [], index: frozenHtml ? 0 : -1 };
   }, [frozenHtml, slideIndex]);
+
+  // Capture the React-rendered baseline AFTER the slide finishes mounting.
+  // Without this, the user's first edit becomes history[0] and there's
+  // nothing to undo back to. The setTimeout buys time for React + FitText
+  // useLayoutEffects to settle their fontSize / position styles.
+  useEffect(() => {
+    if (frozenHtml !== undefined) return; // baseline only matters when starting from React render
+    const t = setTimeout(() => {
+      const baseline = readSlideHtml();
+      if (!baseline) return;
+      // Only seed if we haven't already (user might have edited within 250ms).
+      if (historyRef.current.stack.length === 0) {
+        historyRef.current = { stack: [baseline], index: 0 };
+      }
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slideIndex, frozenHtml]);
 
   // Suppress observer reactions to our own React-driven swap. Skip the
   // initial mount run — there's nothing to suppress yet, and it would
@@ -819,12 +861,25 @@ function InlineEditableSlide({
   // EditableSlide renders <div.relative.w-full.h-full><div onClick=...>...</div></div>.
   // We want the innerHTML of the inner-inner div (the slide content), so
   // re-saves don't accumulate EditableSlide's own wrappers.
+  // Strip EditableSlide's selection markers (outline/box-shadow/dataset)
+  // before reading so our history isn't filled with click-noise.
   const readSlideHtml = (): string | null => {
     const root = containerRef.current;
     if (!root) return null;
     const editableOuter = root.firstElementChild as HTMLElement | null;
     const editableInner = editableOuter?.firstElementChild as HTMLElement | null;
-    return editableInner?.innerHTML ?? null;
+    if (!editableInner) return null;
+    const clone = editableInner.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[style*="outline"]').forEach((el) => {
+      const e = el as HTMLElement;
+      e.style.outline = '';
+      e.style.outlineOffset = '';
+      e.style.boxShadow = '';
+      e.style.borderRadius = '';
+      e.removeAttribute('data-original-bg');
+    });
+    clone.querySelectorAll('.resize-handle').forEach((el) => el.remove());
+    return clone.innerHTML;
   };
 
   useEffect(() => {
@@ -832,9 +887,20 @@ function InlineEditableSlide({
     if (!node) return;
     const observer = new MutationObserver(() => {
       if (isApplyingRef.current) return;
+      // Don't capture mutations triggered by our own undo/redo apply.
+      if (isHistoryNavRef.current) return;
       const next = readSlideHtml();
       if (next === null) return;
+      // Dedupe: if the captured HTML is identical to the current
+      // history top, this was a no-op edit (selection styles already
+      // stripped) — skip the state churn and history push.
+      const hist = historyRef.current;
+      if (next === hist.stack[hist.index]) return;
       setDocHtml(next);
+      const trimmed = hist.stack.slice(0, hist.index + 1);
+      trimmed.push(next);
+      while (trimmed.length > 100) trimmed.shift();
+      historyRef.current = { stack: trimmed, index: trimmed.length - 1 };
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onSave(next), 800);
     });
@@ -847,6 +913,48 @@ function InlineEditableSlide({
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
+
+  // Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z (or Ctrl+Y) — gated to the active
+  // slide so a 10-slide deck doesn't fire 10 handlers per keystroke.
+  useEffect(() => {
+    if (!isActive) return;
+    const onKey = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (!cmd) return;
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        const hist = historyRef.current;
+        if (hist.index <= 0) return;
+        const nextIdx = hist.index - 1;
+        const html = hist.stack[nextIdx];
+        historyRef.current = { stack: hist.stack, index: nextIdx };
+        isHistoryNavRef.current = true;
+        setDocHtml(html);
+        onSave(html);
+        setTimeout(() => {
+          isHistoryNavRef.current = false;
+        }, 80);
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault();
+        const hist = historyRef.current;
+        if (hist.index >= hist.stack.length - 1) return;
+        const nextIdx = hist.index + 1;
+        const html = hist.stack[nextIdx];
+        historyRef.current = { stack: hist.stack, index: nextIdx };
+        isHistoryNavRef.current = true;
+        setDocHtml(html);
+        onSave(html);
+        setTimeout(() => {
+          isHistoryNavRef.current = false;
+        }, 80);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isActive, onSave]);
 
   return (
     <div ref={containerRef} style={{ width: SLIDE_WIDTH, height: SLIDE_HEIGHT, position: 'relative' }}>
