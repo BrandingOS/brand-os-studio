@@ -19,22 +19,8 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { exportDeck } from '@/features/case-study-deck/export';
 import { toast } from 'sonner';
-import {
-  CoverSlide,
-  ProblemSlide,
-  SolutionSlide,
-  ProcessSlide,
-  DifferentiatorsSlide,
-  FoundationsSlide,
-  ProgramsIntroSlide,
-  ProgramDetailSlide,
-  SchoolBenefitsSlide,
-  MetricsSlide,
-  ImpactSlide,
-  TeamSlide,
-  CtaSlide,
-} from '../slides/UniexPitchSlides';
-import { UNIEX_SLIDES } from '../uniexPitchContent';
+import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
+import { VARIANTS, type SlideKind, type VariantKey } from '../variants';
 import '@/shared/styles/cosmos-workspace.css';
 
 const ARABIC_FONTS = [
@@ -49,6 +35,29 @@ export default function PitchDeckPage() {
   const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
   const [exporting, setExporting] = useState(false);
+  // Per-slide variant picks. Default = 'A' for every slide (the original
+  // hand-tuned implementation). Persisted to localStorage so picks
+  // survive reload.
+  const VARIANT_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:variants`;
+  const [slideVariants, setSlideVariants] = useState<Record<number, VariantKey>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem(VARIANT_KEY);
+      return raw ? (JSON.parse(raw) as Record<number, VariantKey>) : {};
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VARIANT_KEY, JSON.stringify(slideVariants));
+    } catch {
+      /* quota — ignore */
+    }
+  }, [VARIANT_KEY, slideVariants]);
+  const setSlideVariant = useCallback((idx: number, key: VariantKey) => {
+    setSlideVariants((prev) => ({ ...prev, [idx]: key }));
+  }, []);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -121,25 +130,17 @@ export default function PitchDeckPage() {
     );
   }
 
-  const renderSlide = (i: number, scaled = false) => {
-    const cfg = UNIEX_SLIDES[i];
+  const renderSlide = (i: number) => {
+    const cfg: UniexSlide = UNIEX_SLIDES[i];
     const idx = i + 1;
-    switch (cfg.kind) {
-      case 'cover':           return <CoverSlide index={idx} total={total} />;
-      case 'problem':         return <ProblemSlide index={idx} total={total} />;
-      case 'solution':        return <SolutionSlide index={idx} total={total} />;
-      case 'process':         return <ProcessSlide index={idx} total={total} />;
-      case 'differentiators': return <DifferentiatorsSlide index={idx} total={total} />;
-      case 'foundations':     return <FoundationsSlide index={idx} total={total} />;
-      case 'programs-intro':  return <ProgramsIntroSlide index={idx} total={total} />;
-      case 'program-detail':  return <ProgramDetailSlide index={idx} total={total} programKey={cfg.key} />;
-      case 'school-benefits': return <SchoolBenefitsSlide index={idx} total={total} />;
-      case 'metrics':         return <MetricsSlide index={idx} total={total} />;
-      case 'impact':          return <ImpactSlide index={idx} total={total} />;
-      case 'team':            return <TeamSlide index={idx} total={total} />;
-      case 'cta':             return <CtaSlide index={idx} total={total} />;
-      default:                return null;
+    const kind = cfg.kind as SlideKind;
+    const variantKey = slideVariants[i] ?? 'A';
+    const Variant = (VARIANTS[kind] as Record<VariantKey, any>)[variantKey] ?? (VARIANTS[kind] as Record<VariantKey, any>).A;
+    if (!Variant) return null;
+    if (cfg.kind === 'program-detail') {
+      return <Variant index={idx} total={total} programKey={cfg.key} />;
     }
+    return <Variant index={idx} total={total} />;
   };
 
   const shellRightActions = (
@@ -297,6 +298,35 @@ export default function PitchDeckPage() {
           <DockBtn onClick={() => goTo(Math.min(total - 1, activeIndex + 1))} title="Next slide" aria="Next slide">
             <ChevronRight className="w-4 h-4" />
           </DockBtn>
+          <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
+          {/* Variant picker — A/B/C/D/E for the active slide. */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '0 6px', fontFamily: 'inherit' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.2em', textTransform: 'uppercase', marginRight: 4 }}>Variant</span>
+            {(['A', 'B', 'C', 'D', 'E'] as const).map((k) => {
+              const active = (slideVariants[activeIndex] ?? 'A') === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setSlideVariant(activeIndex, k)}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 999,
+                    border: 'none',
+                    background: active ? '#001563' : 'transparent',
+                    color: active ? '#FFFFFF' : 'var(--text-secondary)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                  title={`Variant ${k}`}
+                >
+                  {k}
+                </button>
+              );
+            })}
+          </div>
           <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
           <button
             type="button"
