@@ -370,6 +370,10 @@ export default function PitchDeckPage() {
         {/* Right inspector — Customize panel */}
         {showInspector && (
           <aside
+            // Tells EditableSlide's outside-click handler to leave the
+            // slide selection alone when the user is interacting with
+            // chrome (chips, sliders, color pickers, etc.).
+            data-editor-chrome="true"
             style={{
               width: 360,
               borderLeft: '1px solid var(--border)',
@@ -411,6 +415,12 @@ export default function PitchDeckPage() {
 
         {/* Floating bottom dock */}
         <div
+          // Editor chrome — clicks on the dock (variant chips,
+          // Customize toggle, etc.) shouldn't deselect the active
+          // layer. Variant chip changes still wipe the slide via the
+          // remount path; this just stops the eager outside-click
+          // handler from racing them.
+          data-editor-chrome="true"
           style={{
             position: 'fixed',
             bottom: 24,

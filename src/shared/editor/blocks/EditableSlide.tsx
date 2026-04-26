@@ -344,12 +344,22 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
     }
   }, [clearSelection]);
 
-  // Close selection when clicking outside the entire editor
+  // Close selection when clicking outside the entire editor.
+  //
+  // Caveat: a host page typically renders editor chrome (a property
+  // inspector aside, a floating dock, etc.) OUTSIDE this container.
+  // Clicks on those should NOT clear selection — otherwise every
+  // weight-chip / color-picker / alignment-button click would deselect
+  // and snap the inspector back to "Nothing selected" before the
+  // mutation could even land. We opt-in via `data-editor-chrome="true"`
+  // on any wrapper the host wants protected.
   useEffect(() => {
     const handleDocClick = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        clearSelection();
-      }
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (containerRef.current?.contains(target)) return;
+      if (target.closest('[data-editor-chrome="true"]')) return;
+      clearSelection();
     };
     document.addEventListener('mousedown', handleDocClick);
     return () => document.removeEventListener('mousedown', handleDocClick);
