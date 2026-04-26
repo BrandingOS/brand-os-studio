@@ -10,22 +10,29 @@
  *   - Per-slide undo/redo snapshot stack with Cmd+Z / Cmd+Shift+Z
  *   - Debounced auto-save (800ms) via the `onSave` callback
  *
- * The component flips between two render modes:
- *   - "react": children are rendered fresh each render
- *   - "frozen": the captured HTML is mounted via dangerouslySetInnerHTML
- *     so React stops reconciling away the user's mutations
+ * Render-mode lifecycle:
+ *   - On mount: render React children. After ~250ms (so FitText and
+ *     useLayoutEffects settle), snapshot innerHTML → setDocHtml(baseline)
+ *     → from now on the inner tree is mounted via dangerouslySetInnerHTML
+ *     and React no longer reconciles it.
+ *   - During edits: live DOM mutations are observed; we push history +
+ *     debounce-save, but we DO NOT call setDocHtml again — feeding
+ *     fresh innerHTML mid-gesture rebuilds the inner tree and detaches
+ *     the element being dragged.
+ *   - On reset (host clears `frozenHtml`): we drop back to React render
+ *     mode and re-capture a fresh baseline.
  *
- * It transitions from react→frozen on the first user mutation, then
- * from frozen→frozen on every subsequent edit. The `frozenHtml` prop
- * (received from the host) only re-seeds state on RESET (e.g. the user
- * clicked "Reset to template") — auto-save echoes are guarded against.
+ * The flip-once-on-mount design is critical. Earlier versions flipped
+ * on the first MutationObserver callback, but that lands inside the
+ * very gesture (drag start) that creates the mutation, so the inner
+ * DOM is replaced mid-drag and selection drops on mouseup.
  *
  * Selection styles (outline, box-shadow, data-original-bg) are stripped
  * from each captured snapshot so click-noise doesn't pollute history.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { EditableSlide } from './blocks/EditableSlide';
+import { EditableSlide, type SelectedElement } from './blocks/EditableSlide';
 
 interface InlineEditableSlideProps {
   /** Stable index for keyboard-shortcut gating + observer reset. */
@@ -40,6 +47,8 @@ interface InlineEditableSlideProps {
   height: number;
   /** Save callback. Called debounced after each edit. */
   onSave: (html: string | undefined) => void;
+  /** Selection-change callback for host-rendered property panels. */
+  onSelectionChange?: (sel: SelectedElement | null) => void;
   /** The React composition to render on first mount. */
   children: ReactNode;
 }
@@ -51,6 +60,7 @@ export function InlineEditableSlide({
   width,
   height,
   onSave,
+  onSelectionChange,
   children,
 }: InlineEditableSlideProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -86,20 +96,27 @@ export function InlineEditableSlide({
     };
   }, [frozenHtml, slideIndex]);
 
-  // Capture the React-rendered baseline so the user's first edit has
-  // something to undo back to. 250ms gives FitText / useLayoutEffects
-  // time to settle.
+  // Capture the React-rendered baseline AND flip into frozen mode.
+  // 250ms gives FitText / useLayoutEffects time to settle.
+  //
+  // The flip happens here (on mount), NOT in the MutationObserver. If
+  // we waited for the first user mutation to flip, the swap to
+  // dangerouslySetInnerHTML would land mid-drag and detach the dragged
+  // element — see header comment.
   useEffect(() => {
     if (frozenHtml !== undefined) return;
+    if (docHtmlRef.current !== null) return;
     const t = setTimeout(() => {
+      if (docHtmlRef.current !== null) return;
       const baseline = readSlideHtml();
       if (!baseline) return;
       if (historyRef.current.stack.length === 0) {
         historyRef.current = { stack: [baseline], index: 0 };
       }
+      docHtmlRef.current = baseline;
+      setDocHtml(baseline);
     }, 250);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex, frozenHtml]);
 
   // Suppress observer reactions to our own swap. Skip the first run.
@@ -152,40 +169,16 @@ export function InlineEditableSlide({
       const hist = historyRef.current;
       if (next === hist.stack[hist.index]) return;
 
-      // Push to history + schedule save unconditionally — these don't
-      // touch the live DOM.
+      // Push to history + schedule save. We DO NOT call setDocHtml
+      // here — the inner tree is already in frozen mode (flipped once
+      // on mount), and feeding fresh innerHTML mid-edit would detach
+      // any element currently being dragged.
       const trimmed = hist.stack.slice(0, hist.index + 1);
       trimmed.push(next);
       while (trimmed.length > 100) trimmed.shift();
       historyRef.current = { stack: trimmed, index: trimmed.length - 1 };
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => onSave(next), 800);
-
-      // CRITICAL: only flip docHtml on the FIRST edit. Why:
-      //
-      // 1. While docHtml is null, React renders the original children.
-      //    If the user edits text via contentEditable AND any other
-      //    parent state changes (scroll, hover, anything), React would
-      //    reconcile the children and REVERT the user's text edits.
-      //    Setting docHtml = current DOM snapshot once ensures React
-      //    switches to dangerouslySetInnerHTML mode, where it stops
-      //    reconciling the inner tree.
-      //
-      // 2. After the flip, calling setDocHtml AGAIN from inside this
-      //    observer would feed a fresh innerHTML into React, which
-      //    re-parses and REPLACES the live DOM tree — including any
-      //    element currently being dragged. The drag handler's closure
-      //    would then hold a detached node, and the gesture stalls
-      //    after the first pointermove. (This was the original drag bug.)
-      //
-      // So: flip once, then never again from inside the observer.
-      // Reseeds only happen when the HOST hands down a new frozenHtml
-      // prop (reset / brand swap / variant change) — handled in the
-      // separate effect above.
-      if (docHtmlRef.current === null) {
-        docHtmlRef.current = next;
-        setDocHtml(next);
-      }
     });
     observer.observe(node, {
       childList: true,
@@ -239,7 +232,7 @@ export function InlineEditableSlide({
 
   return (
     <div ref={containerRef} style={{ width, height, position: 'relative' }}>
-      <EditableSlide frozenHtml={docHtml ?? undefined}>
+      <EditableSlide frozenHtml={docHtml ?? undefined} onSelectionChange={onSelectionChange}>
         {docHtml === null ? children : null}
       </EditableSlide>
     </div>

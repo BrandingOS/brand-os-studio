@@ -22,9 +22,17 @@ interface EditableSlideProps {
    * to the outer wrapper, which delegates events from any child DOM node.
    */
   frozenHtml?: string;
+  /**
+   * Fires when the selected element changes (or selection clears).
+   * Lets a host page render a side-panel property inspector for the
+   * currently-selected layer. The host may keep the HTMLElement ref
+   * and mutate its style directly; the MutationObserver will pick up
+   * the change and persist it.
+   */
+  onSelectionChange?: (sel: SelectedElement | null) => void;
 }
 
-interface SelectedElement {
+export interface SelectedElement {
   element: HTMLElement;
   type: BlockType;
   rect: DOMRect;
@@ -55,11 +63,11 @@ function removeSelectionStyles(el: HTMLElement) {
   el.style.borderRadius = '';
   el.style.boxShadow = '';
   el.style.backgroundColor = el.dataset.originalBg || '';
-  // Restore native text-selection (we disable it while selected to
-  // prevent the drag-vs-text-select conflict).
   el.style.userSelect = '';
   (el.style as any).webkitUserSelect = '';
+  el.style.cursor = '';
   delete el.dataset.originalBg;
+  delete el.dataset.draggable;
   if (el.contentEditable === 'true') {
     el.contentEditable = 'false';
     el.blur();
@@ -86,11 +94,6 @@ function applySelectionStyles(el: HTMLElement) {
 
   if (canDrag) {
     el.style.cursor = 'move';
-    // Disable native text-selection on the selected element so a
-    // mousedown intended as the start of a drag doesn't paint a blue
-    // text-selection across the headline.
-    el.style.userSelect = 'none';
-    (el.style as any).webkitUserSelect = 'none';
     if (!el.dataset.draggable) {
       el.dataset.draggable = 'true';
       if (!el.style.position || el.style.position === 'static') {
@@ -101,6 +104,13 @@ function applySelectionStyles(el: HTMLElement) {
     el.style.cursor = 'default';
     delete el.dataset.draggable;
   }
+  // Don't put userSelect:'none' on the element. The canvas-wide rule
+  // already blocks accidental selection in non-editable areas, and the
+  // pointer handler defers preventDefault until movement crosses the
+  // drag threshold — so a static click won't paint a text-selection,
+  // and a real drag is owned by setPointerCapture before native
+  // selection extends. Putting userSelect:'none' here would also fight
+  // contentEditable when the user double-clicks into edit mode.
 }
 
 /** Add resize handles overlay for images */
@@ -163,16 +173,38 @@ function removeResizeHandles(container: HTMLElement) {
   container.querySelectorAll('.resize-handle').forEach(h => h.remove());
 }
 
-export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
+export function EditableSlide({ children, frozenHtml, onSelectionChange }: EditableSlideProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<SelectedElement | null>(null);
   const [editing, setEditing] = useState(false);
   const selectedRef = useRef<SelectedElement | null>(null);
+  const editingRef = useRef(false);
 
-  // Keep ref in sync with state for event handlers
+  // Keep refs in sync with state for event handlers
   useEffect(() => {
     selectedRef.current = selected;
   }, [selected]);
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
+
+  // Notify host on selection change so it can render a property panel.
+  useEffect(() => {
+    onSelectionChange?.(selected);
+  }, [selected, onSelectionChange]);
+
+  // When the host re-feeds frozenHtml (undo/redo, brand reset, variant
+  // swap), the previously-selected DOM ref points to a detached node.
+  // Clear selection so the FloatingToolbar doesn't render at (0,0,0,0)
+  // and the host's property panel doesn't reference stale state.
+  useEffect(() => {
+    if (selectedRef.current) {
+      setSelected(null);
+      setEditing(false);
+      if (containerRef.current) removeResizeHandles(containerRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frozenHtml]);
 
   // Find the nearest meaningful element from a click target.
   //
@@ -230,6 +262,15 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
 
     const el = findMeaningfulElement(target);
 
+    // If the clicked element is the SAME one already selected and we
+    // are currently in editing mode, this is the user clicking inside
+    // the contentEditable to position the cursor — leave edit state
+    // alone. (Otherwise we'd kick them out of edit mode every time
+    // they click to place a caret or start a text-selection range.)
+    if (selectedRef.current?.element === el && editingRef.current) {
+      return;
+    }
+
     // Clear previous selection styles
     if (selectedRef.current?.element && selectedRef.current.element !== el) {
       removeSelectionStyles(selectedRef.current.element);
@@ -257,10 +298,18 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
 
     if (type === 'text' || type === 'heading') {
       el.contentEditable = 'true';
+      // Make sure the editable element can receive caret/selection.
+      // Canvas-wide user-select:none does NOT block contentEditable
+      // selection in modern browsers, but force it just in case any
+      // ancestor inline style was leaking.
+      el.style.userSelect = 'text';
+      (el.style as any).webkitUserSelect = 'text';
+      el.style.cursor = 'text';
       el.focus();
       setEditing(true);
 
-      // Select all text in the element
+      // Select all text in the element so the user can immediately
+      // overtype, or click to position the caret precisely.
       const range = document.createRange();
       range.selectNodeContents(el);
       const sel = window.getSelection();
@@ -270,6 +319,9 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
       // Update selected to this element
       const rect = el.getBoundingClientRect();
       applySelectionStyles(el);
+      // applySelectionStyles set cursor:'move' — we want the text
+      // caret cursor while editing.
+      el.style.cursor = 'text';
       setSelected({ element: el, type, rect });
     }
   }, [findMeaningfulElement]);
@@ -304,9 +356,6 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
   }, [clearSelection]);
 
   // Escape and Delete key handling
-  const editingRef = useRef(editing);
-  editingRef.current = editing;
-
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Skip if user is typing in an input/textarea
@@ -419,23 +468,39 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
         // Native HTML5 drag — disable; we own dragging via Pointer Events.
         onDragStart={(e) => e.preventDefault()}
         onPointerDown={(e) => {
-          // Pointer Events give us setPointerCapture, which routes ALL
-          // subsequent pointermove/up to this element regardless of what
-          // browser-default behavior would do. Combined with the
-          // canvas-wide user-select:none, this guarantees the drag never
-          // collides with text-selection.
-          if (editing) return;
+          // Two-phase pointer handler:
+          //   Phase A — "armed": pointerdown lands. We pre-select the
+          //   element visually but do NOT preventDefault, NOT capture,
+          //   NOT touch user-select. Native browser stuff still runs:
+          //   focus moves, contentEditable caret sets, click event
+          //   will fire if no movement.
+          //   Phase B — "committed": once pointermove crosses 3px, we
+          //   commit to a drag — capture the pointer, lock body
+          //   user-select, clear native text selection, mutate
+          //   style.left/top.
+          //
+          // This split is what lets text selection inside a
+          // double-click contentEditable work. The previous version
+          // preventDefault'd on pointerdown, killing native focus and
+          // selection-range start.
           if (e.button !== 0) return; // primary button only
           const targetEl = e.target as HTMLElement;
           if (targetEl.closest('.resize-handle')) return;
+
+          // If we're inside an actively-editing element, let the
+          // browser handle native selection / caret entirely.
+          if (editingRef.current && selectedRef.current?.element?.contains(targetEl)) {
+            return;
+          }
 
           const candidate = findMeaningfulElement(targetEl);
           const isImage = candidate.tagName === 'IMG' || candidate.tagName === 'SVG';
           const isLeaf = candidate.children.length === 0;
           if (!candidate || !(isImage || isLeaf) || candidate === containerRef.current) return;
 
-          // Pre-select so the click-and-drag works in a single gesture.
-          if (selected?.element !== candidate) {
+          // Phase A — pre-select. Click-then-no-drag still works as
+          // selection. Click event downstream confirms the same thing.
+          if (selectedRef.current?.element !== candidate) {
             if (selectedRef.current?.element && selectedRef.current.element !== candidate) {
               removeSelectionStyles(selectedRef.current.element);
             }
@@ -443,28 +508,32 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
             setSelected({ element: candidate, type: detectBlockType(candidate), rect: candidate.getBoundingClientRect() });
           }
 
-          // Take exclusive ownership of this pointer — browser stops
-          // dispatching to anyone else, including its own selection
-          // engine.
           const dispatcher = e.currentTarget as HTMLElement;
-          try { dispatcher.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-          e.preventDefault();
-          window.getSelection()?.removeAllRanges();
-
           const startX = e.clientX;
           const startY = e.clientY;
           const startLeft = parseInt(candidate.style.left || '0') || 0;
           const startTop = parseInt(candidate.style.top || '0') || 0;
-          let moved = false;
-          const previousBodySelect = document.body.style.userSelect;
-          document.body.style.userSelect = 'none';
+          let committed = false;
+          let previousBodySelect = '';
+
+          const commit = (moveE: PointerEvent) => {
+            if (committed) return;
+            committed = true;
+            try { dispatcher.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+            previousBodySelect = document.body.style.userSelect;
+            document.body.style.userSelect = 'none';
+            window.getSelection()?.removeAllRanges();
+            moveE.preventDefault();
+          };
 
           const onMove = (moveE: PointerEvent) => {
             if (moveE.pointerId !== e.pointerId) return;
             const dx = moveE.clientX - startX;
             const dy = moveE.clientY - startY;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-            if (!moved) return;
+            if (!committed) {
+              if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return;
+              commit(moveE);
+            }
             candidate.style.position = 'relative';
             candidate.style.left = (startLeft + dx) + 'px';
             candidate.style.top = (startTop + dy) + 'px';
@@ -474,9 +543,9 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
             dispatcher.removeEventListener('pointermove', onMove);
             dispatcher.removeEventListener('pointerup', onUp);
             dispatcher.removeEventListener('pointercancel', onUp);
-            try { dispatcher.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-            document.body.style.userSelect = previousBodySelect;
-            if (moved) {
+            if (committed) {
+              try { dispatcher.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+              document.body.style.userSelect = previousBodySelect;
               setSelected((prev) => (prev ? { ...prev, rect: candidate.getBoundingClientRect() } : null));
               window.getSelection()?.removeAllRanges();
             }

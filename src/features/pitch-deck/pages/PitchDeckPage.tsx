@@ -19,6 +19,8 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { exportDeck } from '@/features/case-study-deck/export';
 import { InlineEditableSlide } from '@/shared/editor/InlineEditableSlide';
+import { SelectionInspector } from '@/shared/editor/SelectionInspector';
+import type { SelectedElement } from '@/shared/editor/blocks/EditableSlide';
 import { toast } from 'sonner';
 import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
 import { VARIANTS, type SlideKind, type VariantKey } from '../variants';
@@ -57,7 +59,18 @@ export default function PitchDeckPage() {
     }
   }, [VARIANT_KEY, slideVariants]);
   const setSlideVariant = useCallback((idx: number, key: VariantKey) => {
-    setSlideVariants((prev) => ({ ...prev, [idx]: key }));
+    setSlideVariants((prev) => {
+      if (prev[idx] === key) return prev;
+      return { ...prev, [idx]: key };
+    });
+    // Variant switch = different layout; old per-element edits don't
+    // apply. Drop the frozen snapshot so the new variant mounts clean.
+    setSlideFrozenHtml((prev) => {
+      if (!prev[idx]) return prev;
+      const next = { ...prev };
+      delete next[idx];
+      return next;
+    });
   }, []);
 
   // Per-slide live-edit HTML snapshots — when a slide has one, we
@@ -111,6 +124,15 @@ export default function PitchDeckPage() {
   }, []);
 
   const [showInspector, setShowInspector] = useState(false);
+  // Currently-selected layer reported by the active slide. Used to
+  // populate the Customize panel with property controls. Auto-opens
+  // the inspector on the first selection so users discover the panel.
+  const [selection, setSelection] = useState<SelectedElement | null>(null);
+  const handleSelectionChange = useCallback((sel: SelectedElement | null) => {
+    setSelection(sel);
+    if (sel) setShowInspector(true);
+  }, []);
+  const clearSelection = useCallback(() => setSelection(null), []);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -324,12 +346,19 @@ export default function PitchDeckPage() {
             >
               <SlideScaler>
                 <InlineEditableSlide
+                  // Re-key on variant change so the editor remounts and
+                  // re-captures a fresh baseline. Without this, the
+                  // existing docHtml from the old variant would persist
+                  // and the new variant's React children would be
+                  // ignored.
+                  key={`slide-${i}-${slideVariants[i] ?? 'A'}`}
                   slideIndex={i}
                   frozenHtml={slideFrozenHtml[i]}
                   isActive={i === activeIndex}
                   width={SLIDE_WIDTH}
                   height={SLIDE_HEIGHT}
                   onSave={(html) => setSlideFrozen(i, html)}
+                  onSelectionChange={i === activeIndex ? handleSelectionChange : undefined}
                 >
                   {renderSlide(i)}
                 </InlineEditableSlide>
@@ -363,15 +392,20 @@ export default function PitchDeckPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <PitchDeckInspector
-              activeKind={UNIEX_SLIDES[activeIndex].kind}
-              activeVariant={slideVariants[activeIndex] ?? 'A'}
-              onVariant={(k) => setSlideVariant(activeIndex, k)}
-              isHidden={hiddenSlides.includes(activeIndex)}
-              onToggleHidden={() => toggleHidden(activeIndex)}
-              hasFrozen={Boolean(slideFrozenHtml[activeIndex])}
-              onResetFrozen={() => setSlideFrozen(activeIndex, undefined)}
-            />
+            {/* Selection-aware property panel — shown above slide-level
+                controls when a layer is selected. */}
+            <SelectionInspector selection={selection} onClearSelection={clearSelection} />
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: '1px solid var(--border)' }}>
+              <PitchDeckInspector
+                activeKind={UNIEX_SLIDES[activeIndex].kind}
+                activeVariant={slideVariants[activeIndex] ?? 'A'}
+                onVariant={(k) => setSlideVariant(activeIndex, k)}
+                isHidden={hiddenSlides.includes(activeIndex)}
+                onToggleHidden={() => toggleHidden(activeIndex)}
+                hasFrozen={Boolean(slideFrozenHtml[activeIndex])}
+                onResetFrozen={() => setSlideFrozen(activeIndex, undefined)}
+              />
+            </div>
           </aside>
         )}
 
