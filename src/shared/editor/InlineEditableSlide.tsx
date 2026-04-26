@@ -84,7 +84,21 @@ export function InlineEditableSlide({
   // Re-seed when the host hands down a new frozenHtml (e.g. brand
   // change or reset). Skip self-save echoes by comparing to the
   // history top.
+  //
+  // Critical: when the new frozenHtml arrives because the user just
+  // pressed Cmd+Z (we ourselves called onSave with the older entry),
+  // we MUST NOT reset history. The undo handler already updated
+  // historyRef.current.index, so only sync the local docHtml state
+  // here. Without this guard the second Cmd+Z would find a freshly-
+  // reset stack of length 1 and silently bail.
   useEffect(() => {
+    if (isHistoryNavRef.current) {
+      if (frozenHtml !== docHtmlRef.current) {
+        setDocHtml(frozenHtml ?? null);
+        docHtmlRef.current = frozenHtml ?? null;
+      }
+      return;
+    }
     const hist = historyRef.current;
     const currentTop = hist.stack[hist.index];
     if (frozenHtml && currentTop === frozenHtml) return;
