@@ -36,6 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
+import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -140,12 +141,14 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
 
   if (!deck) {
     return (
-      <div data-cosmos="workspace" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
-          <Sparkles className="animate-pulse" />
-          <span>Composing your deck…</span>
+      <CosmosWorkspaceShell>
+        <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
+            <Sparkles className="animate-pulse" />
+            <span>Composing your deck…</span>
+          </div>
         </div>
-      </div>
+      </CosmosWorkspaceShell>
     );
   }
 
@@ -156,82 +159,49 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
   const masterCount = Object.keys(deck.master).length;
   const accent = deck.profile.palette.primary;
 
-  return (
-    <div
-      data-cosmos="workspace"
-      style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)', color: 'var(--text-primary)' }}
-    >
-      {/* Minimal top bar */}
-      <header
+  // Show "Case Study · <Style>" subtitle + Regenerate in the shell's
+  // top bar so this page sits next to /setup, /brand-kit, /tools as a
+  // peer surface in the cosmos shell.
+  const shellRightActions = (
+    <>
+      <span
         style={{
-          position: 'relative',
-          zIndex: 100,
-          height: 56,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 18px',
-          borderBottom: '1px solid var(--border)',
-          background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
-          backdropFilter: 'blur(8px)',
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          marginRight: 6,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          {onBack && (
-            <button
-              type="button"
-              onClick={onBack}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                height: 32,
-                padding: '0 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--surface)',
-                color: 'var(--text-primary)',
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
-            </button>
-          )}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{deck.profile.name} · Case Study</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-              Template · {activeStyle.name} · {visibleCount} slides
-            </div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={deck.regenerate}
-            disabled={exporting}
-            title="Regenerate deck from brand"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              height: 32,
-              padding: '0 12px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-secondary)',
-              fontSize: 12,
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Regenerate
-          </button>
-        </div>
-      </header>
+        Case Study · {activeStyle.name} · {visibleCount} slides
+      </span>
+      <button
+        type="button"
+        onClick={deck.regenerate}
+        disabled={exporting}
+        title="Regenerate deck from brand"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          height: 30,
+          padding: '0 12px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          background: 'var(--surface)',
+          color: 'var(--text-secondary)',
+          fontSize: 12,
+          cursor: 'pointer',
+        }}
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+      </button>
+    </>
+  );
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+  return (
+    <CosmosWorkspaceShell rightActions={shellRightActions}>
+      <div style={{ height: 'calc(100vh - 64px)', display: 'flex', overflow: 'hidden', position: 'relative', background: 'var(--background)' }}>
         {/* Left thumbnail rail */}
         <aside
           style={{
@@ -458,7 +428,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
         onChange={(patch) => deck.setMaster(patch)}
         onReset={() => deck.resetMaster()}
       />
-    </div>
+    </CosmosWorkspaceShell>
   );
 }
 
@@ -543,7 +513,7 @@ function FloatingDock(props: {
   return (
     <div
       style={{
-        position: 'absolute',
+        position: 'fixed',
         bottom: 24,
         left: '50%',
         transform: 'translateX(-50%)',

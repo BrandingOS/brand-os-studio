@@ -31,6 +31,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditableSlide } from '@/shared/editor/blocks/EditableSlide';
 import { EditorChrome } from '@/features/editor/core/EditorChrome';
 import { useAutoSave } from '@/features/editor/core/useAutoSave';
+import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -115,9 +116,11 @@ export default function CaseStudySlideEditorPage() {
 
   if (isLoading || !deck || !slide || !Slide || !styleForSlide) {
     return (
-      <div data-cosmos="workspace" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--text-secondary)' }} />
-      </div>
+      <CosmosWorkspaceShell>
+        <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)' }}>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--text-secondary)' }} />
+        </div>
+      </CosmosWorkspaceShell>
     );
   }
 
@@ -125,7 +128,8 @@ export default function CaseStudySlideEditorPage() {
   const usingFrozen = slide.frozenHtml !== undefined;
 
   return (
-    <div data-cosmos="workspace" style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--background)', color: 'var(--text-primary)' }}>
+    <CosmosWorkspaceShell>
+      <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', background: 'var(--background)', color: 'var(--text-primary)' }}>
       <EditorChrome
         backTo={`/b/${slug}/case-study`}
         breadcrumb={[deck.profile.name, 'Case Study']}
@@ -233,6 +237,7 @@ export default function CaseStudySlideEditorPage() {
         </div>
         <div>Click to select · double-click text to edit · drag to move · Esc to clear</div>
       </footer>
-    </div>
+      </div>
+    </CosmosWorkspaceShell>
   );
 }
