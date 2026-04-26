@@ -143,7 +143,27 @@ export function InlineEditableSlide({
       if (next === null) return;
       const hist = historyRef.current;
       if (next === hist.stack[hist.index]) return;
-      setDocHtml(next);
+      // CRITICAL: do NOT call setDocHtml(next) here.
+      //
+      // Why this used to be a bug: the user drags a text element. The first
+      // pointermove sets `style.left` on the dragged node. The observer
+      // sees the mutation and called setDocHtml(next), which on the next
+      // render passed a new `frozenHtml` prop into <EditableSlide>, which
+      // re-fed it to `dangerouslySetInnerHTML`. React then REPLACED the
+      // entire inner DOM tree — including the node currently being dragged
+      // — with a freshly-parsed copy. The drag handler's closure kept
+      // holding a reference to the now-detached old node, so subsequent
+      // pointermoves wrote `.style.left` to a node that no longer existed
+      // visually. End result: "element moves 1px and stops."
+      //
+      // The DOM is the source of truth between user gestures. We only need
+      // to (a) snapshot it for the history/undo stack and (b) persist via
+      // onSave. We do NOT need to reseed React's `dangerouslySetInnerHTML`
+      // — the live DOM already reflects the user's edit.
+      //
+      // setDocHtml is still called when the HOST hands down a new
+      // frozenHtml prop (reset, brand swap, slide-variant change) — that
+      // path is the only legitimate reseed path.
       const trimmed = hist.stack.slice(0, hist.index + 1);
       trimmed.push(next);
       while (trimmed.length > 100) trimmed.shift();
