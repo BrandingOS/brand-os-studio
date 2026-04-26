@@ -22,6 +22,7 @@ import {
   Bold,
   ImageUp,
   Italic,
+  RotateCcw,
   Trash2,
   Type as TypeIcon,
 } from 'lucide-react';
@@ -98,6 +99,40 @@ export function SelectionInspector({ selection, onClearSelection }: SelectionIns
     bump();
   };
 
+  /**
+   * Wipe inline style overrides set on this element so it inherits
+   * from the .deck-* role token again (font, size, weight, color,
+   * line-height, letter-spacing, width/height).  Caller's preserved:
+   * positioning (left/top/transform), background, opacity, etc.
+   */
+  const resetToDefault = () => {
+    const props = [
+      'fontFamily',
+      'fontSize',
+      'fontWeight',
+      'fontStyle',
+      'lineHeight',
+      'letterSpacing',
+      'textAlign',
+      'color',
+      'width',
+      'height',
+      'maxWidth',
+      'maxHeight',
+      'minWidth',
+      'minHeight',
+    ] as const;
+    for (const k of props) {
+      el.style.removeProperty(k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`));
+    }
+    bump();
+  };
+
+  const hasInlineOverrides = (() => {
+    const props = ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'textAlign', 'color', 'width', 'height'];
+    return props.some((p) => (el.style as any)[p]);
+  })();
+
   const fontSizePx = parseFloat(readStyle('fontSize') as string) || 16;
   const fontWeight = String(readStyle('fontWeight') || '400');
   const fontStyle = readStyle('fontStyle') as string;
@@ -109,8 +144,32 @@ export function SelectionInspector({ selection, onClearSelection }: SelectionIns
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>
-          Layer
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.32em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Layer
+          </div>
+          {hasInlineOverrides && (
+            <button
+              type="button"
+              onClick={resetToDefault}
+              title="Reset this element back to the theme default"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 8px',
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 999,
+                cursor: 'pointer',
+              }}
+            >
+              <RotateCcw size={11} /> Reset
+            </button>
+          )}
         </div>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <TagBadge type={selection.type} />
