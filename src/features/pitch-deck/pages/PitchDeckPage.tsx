@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, SlidersHorizontal, Sparkles, Type, Type as TypeText, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, Save, SlidersHorizontal, Sparkles, Type, Type as TypeText, X } from 'lucide-react';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
@@ -67,7 +67,45 @@ export default function PitchDeckPage() {
 
 function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const navigate = useNavigate();
-  const { theme } = useDeckTheme(brand, 'pitch-deck');
+  const { theme, saveState: themeSaveState, flush: flushTheme } = useDeckTheme(brand, 'pitch-deck');
+  const [savingNow, setSavingNow] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  const saveAll = useCallback(async () => {
+    setSavingNow(true);
+    setSavedFlash(false);
+    try {
+      // 1. Flush any pending per-slide DOM edits (resize/move/typing).
+      window.dispatchEvent(new Event('deck-flush-edits'));
+      // 2. Flush the deck-theme draft to brand.presentationThemes.
+      await flushTheme();
+      // 3. Per-slide variants / hidden / artwork all auto-save to
+      //    localStorage on every state change, so they're already on
+      //    disk by the time the user clicks Save. Nothing to do here.
+      setSavedFlash(true);
+      toast.success('All changes saved');
+      setTimeout(() => setSavedFlash(false), 1800);
+    } catch (e) {
+      console.error('Save failed', e);
+      toast.error('Save failed');
+    } finally {
+      setSavingNow(false);
+    }
+  }, [flushTheme]);
+
+  // Cmd/Ctrl+S → Save All
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (cmd && e.key === 's') {
+        e.preventDefault();
+        void saveAll();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saveAll]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [exporting, setExporting] = useState(false);
   // Per-slide variant picks. Default = 'A' for every slide (the original
@@ -757,6 +795,41 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
             onPick={(o) => addImageFromUrl(o.url)}
             defaultQuery="presentation"
           />
+          <button
+            type="button"
+            onClick={saveAll}
+            disabled={savingNow}
+            title="Save all changes (⌘S)"
+            style={{
+              height: 36,
+              padding: '0 14px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: savedFlash ? '#16a34a' : (themeSaveState === 'saving' || savingNow ? 'var(--accent-muted)' : 'var(--surface)'),
+              color: savedFlash ? '#fff' : 'var(--text-primary)',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: savingNow ? 'wait' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'background 0.15s ease, color 0.15s ease',
+            }}
+          >
+            {savedFlash ? (
+              <>
+                <Check className="w-3.5 h-3.5" /> Saved
+              </>
+            ) : savingNow || themeSaveState === 'saving' ? (
+              <>
+                <Save className="w-3.5 h-3.5" /> Saving…
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5" /> Save
+              </>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => handleExport('pdf')}

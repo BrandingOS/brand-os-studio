@@ -199,8 +199,22 @@ export function InlineEditableSlide({
       characterData: true,
       attributes: true,
     });
+
+    // Listen for a global "flush all pending edits" signal — fired by
+    // the dock's manual Save button so the user gets immediate
+    // confirmation that everything is on disk.
+    const onFlush = () => {
+      if (saveTimer.current) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      commit();
+    };
+    window.addEventListener('deck-flush-edits', onFlush);
+
     return () => {
       observer.disconnect();
+      window.removeEventListener('deck-flush-edits', onFlush);
       // Flush any pending edit before unmount so an in-flight resize
       // doesn't get lost on slide switch.
       if (saveTimer.current) {

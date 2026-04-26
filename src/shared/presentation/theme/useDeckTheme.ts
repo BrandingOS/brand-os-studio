@@ -14,6 +14,8 @@ interface Result {
   saveState: EditorSaveState;
   patch: (patch: Partial<PresentationTheme>) => void;
   reset: () => void;
+  /** Force an immediate save of the current theme, bypassing the debounce. */
+  flush: () => Promise<void>;
 }
 
 /**
@@ -44,7 +46,7 @@ export function useDeckTheme(brand: Brand, deckKind: DeckKind): Result {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brand.id, deckKind, hydrate]);
 
-  const { saveState, markDirty } = useAutoSave<PresentationTheme>({
+  const { saveState, markDirty, flush } = useAutoSave<PresentationTheme>({
     value: theme,
     debounceMs: 600,
     save: async (next) => {
@@ -67,5 +69,5 @@ export function useDeckTheme(brand: Brand, deckKind: DeckKind): Result {
     markDirty();
   }, [brand.id, deckKind, resetStore, setTheme, markDirty]);
 
-  return { theme, saveState, patch, reset };
+  return { theme, saveState, patch, reset, flush };
 }
