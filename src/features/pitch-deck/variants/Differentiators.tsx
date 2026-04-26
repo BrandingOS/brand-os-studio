@@ -6,6 +6,7 @@
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { DIFFERENTIATORS } from '../uniexPitchContent';
 import { HandshakePartners, TrophyCelebration } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
   GREEN,
@@ -160,10 +161,15 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
             justifyContent: 'flex-end',
             paddingRight: 24,
             opacity: 0.55,
-            pointerEvents: 'none',
           }}
         >
-          <HandshakePartners size={420} transparent />
+          <ReplaceableArtwork
+            slotId="differentiators-C-handshake"
+            defaultQuery="partnership handshake"
+            style={{ width: 420, height: 420 }}
+          >
+            <HandshakePartners size={420} transparent />
+          </ReplaceableArtwork>
         </div>
         <div
           style={{
@@ -268,8 +274,14 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
               ...RTL_DIR,
             }}
           >
-            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85, pointerEvents: 'none' }}>
-              <TrophyCelebration size={360} transparent />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85 }}>
+              <ReplaceableArtwork
+                slotId="differentiators-D-trophy"
+                defaultQuery="trophy celebration"
+                style={{ width: 360, height: 360 }}
+              >
+                <TrophyCelebration size={360} transparent />
+              </ReplaceableArtwork>
             </div>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,21,99,0.2) 0%, rgba(0,21,99,0.7) 100%)', pointerEvents: 'none' }} />
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>

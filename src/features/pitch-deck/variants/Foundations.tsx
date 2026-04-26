@@ -14,6 +14,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { FOUNDATIONS } from '../uniexPitchContent';
 import { GraduationCap } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -227,10 +228,15 @@ export function FoundationsC({ index, total }: SlideProps) {
           opacity: 0.45,
           maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
           WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-          pointerEvents: 'none',
         }}
       >
-        <GraduationCap size={680} transparent />
+        <ReplaceableArtwork
+          slotId="foundations-C-graduation"
+          defaultQuery="graduation"
+          style={{ width: 680, height: 680 }}
+        >
+          <GraduationCap size={680} transparent />
+        </ReplaceableArtwork>
       </div>
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>

@@ -6,6 +6,7 @@
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROCESS } from '../uniexPitchContent';
 import { MentorConversation } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
   GREEN,
@@ -171,7 +172,13 @@ export function ProcessVariantC({ index, total }: SlideProps) {
           boxShadow: '0 30px 60px -20px rgba(0,0,0,0.4)',
         }}
       >
-        <MentorConversation size={460} transparent />
+        <ReplaceableArtwork
+          slotId="process-C-mentor"
+          defaultQuery="mentor conversation"
+          style={{ width: 460, height: 460 }}
+        >
+          <MentorConversation size={460} transparent />
+        </ReplaceableArtwork>
       </div>
       <div style={{ position: 'absolute', top: 130, bottom: 100, right: 96, width: 380, borderRadius: 28, background: 'linear-gradient(180deg, rgba(0,21,99,0.05) 0%, rgba(0,21,99,0.35) 100%)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 540px 130px 96px', display: 'flex', flexDirection: 'column', gap: 28, ...RTL_DIR }}>
