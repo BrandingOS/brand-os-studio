@@ -786,14 +786,21 @@ function InlineEditableSlide({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [docHtml, setDocHtml] = useState<string | null>(frozenHtml ?? null);
   const isApplyingRef = useRef(false);
+  const didMountRef = useRef(false);
 
   // When the deck loads a different frozenHtml (reset, brand change), sync.
   useEffect(() => {
     setDocHtml(frozenHtml ?? null);
   }, [frozenHtml, slideIndex]);
 
-  // Suppress observer reactions to our own React-driven swap.
+  // Suppress observer reactions to our own React-driven swap. Skip the
+  // initial mount run — there's nothing to suppress yet, and it would
+  // gate the user's very first edit behind a 60ms window.
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     isApplyingRef.current = true;
     const t = setTimeout(() => {
       isApplyingRef.current = false;
