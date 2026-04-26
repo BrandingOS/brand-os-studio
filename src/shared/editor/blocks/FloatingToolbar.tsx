@@ -3,6 +3,7 @@
  * Every button is functional.
  */
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, MoreHorizontal, Maximize2, Trash2, Copy, AlignLeft, AlignCenter, AlignRight, Upload, FolderOpen, ImageIcon } from 'lucide-react';
 import type { BlockType } from './BlockTypes';
 import { TURN_INTO_OPTIONS } from './BlockTypes';
@@ -107,13 +108,18 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
     toast.success('Image replaced');
   };
 
-  return (
+  // Portal to document.body so the toolbar escapes any ancestor that
+  // has `transform: scale(...)` — without it, position:fixed gets
+  // anchored to the transformed parent and the toolbar shrinks with
+  // the slide canvas. (Slides render at 1920×1080 inside a CSS-scaled
+  // wrapper; the toolbar must live above that wrapper at 1×.)
+  return createPortal(
     <div
       ref={toolbarRef}
-      className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-1 py-1 shadow-2xl border border-white/[0.08] animate-in fade-in slide-in-from-top-2 duration-200"
+      className="fixed z-[60] flex items-center gap-0.5 bg-[#2a2a2a] rounded-xl px-2 py-2 shadow-2xl border border-white/[0.08] animate-in fade-in slide-in-from-top-2 duration-200"
       // Canva-style: ALWAYS pinned at the top center of the editor.
       // Position never changes — only the toolbar contents adapt to the selected element.
-      style={{ top: 52, left: '50%', transform: 'translateX(-50%)' }}
+      style={{ top: 80, left: '50%', transform: 'translateX(-50%)' }}
       onMouseDown={e => e.stopPropagation()}
     >
       {/* Hidden file input for image replace */}
@@ -121,9 +127,9 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
       {/* Block type / Turn Into */}
       <div className="relative">
-        <button onClick={() => toggleDropdown('turnInto')} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+        <button onClick={() => toggleDropdown('turnInto')} className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] text-white/70 hover:text-white hover:bg-white/10 transition-colors">
           {isText ? (blockType === 'heading' ? 'Heading' : 'Paragraph') : isImage ? 'Image' : blockType}
-          <ChevronDown className="h-3 w-3 text-white/30" />
+          <ChevronDown className="h-3.5 w-3.5 text-white/30" />
         </button>
         {openDropdown === 'turnInto' && (
           <div className="absolute top-full left-0 mt-1 w-48 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50">
@@ -146,14 +152,14 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
           {/* Font weight dropdown */}
           <div className="relative">
-            <button onClick={() => toggleDropdown('weight')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-              {currentWeightLabel} <ChevronDown className="h-3 w-3 text-white/20" />
+            <button onClick={() => toggleDropdown('weight')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[13px] text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+              {currentWeightLabel} <ChevronDown className="h-3.5 w-3.5 text-white/20" />
             </button>
             {openDropdown === 'weight' && (
               <div className="absolute top-full left-0 mt-1 w-36 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50">
                 {FONT_WEIGHTS.map(w => (
                   <button key={w.value} onClick={() => { onChangeStyle('fontWeight', w.value); setOpenDropdown(null); }}
-                    className={`w-full px-3 py-1.5 text-left text-[12px] transition-colors ${style.fontWeight === w.value ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
+                    className={`w-full px-3 py-1.5 text-left text-[13px] transition-colors ${style.fontWeight === w.value ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}
                     style={{ fontWeight: Number(w.value) }}>{w.label}</button>
                 ))}
               </div>
@@ -162,14 +168,14 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
           {/* Font size dropdown */}
           <div className="relative">
-            <button onClick={() => toggleDropdown('fontSize')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-              {currentFontSize} <ChevronDown className="h-3 w-3 text-white/20" />
+            <button onClick={() => toggleDropdown('fontSize')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[13px] text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+              {currentFontSize} <ChevronDown className="h-3.5 w-3.5 text-white/20" />
             </button>
             {openDropdown === 'fontSize' && (
               <div className="absolute top-full left-0 mt-1 w-28 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50 max-h-48 overflow-auto">
                 {FONT_SIZES.map(s => (
                   <button key={s.value} onClick={() => { onChangeStyle('fontSize', s.value); setOpenDropdown(null); }}
-                    className={`w-full px-3 py-1 text-left text-[12px] transition-colors ${style.fontSize === s.value ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>{s.label}px</button>
+                    className={`w-full px-3 py-1 text-left text-[13px] transition-colors ${style.fontSize === s.value ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>{s.label}px</button>
                 ))}
               </div>
             )}
@@ -181,7 +187,7 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
           <div className="relative">
             <button onClick={() => toggleDropdown('color')} className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
               <div className="w-4 h-4 rounded-full border border-white/20" style={{ backgroundColor: style.color || '#ffffff' }} />
-              <ChevronDown className="h-3 w-3 text-white/20" />
+              <ChevronDown className="h-3.5 w-3.5 text-white/20" />
             </button>
             {openDropdown === 'color' && (
               <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-[#2a2a2a] rounded-xl border border-white/[0.08] p-2 shadow-2xl z-50">
@@ -208,8 +214,8 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
           {/* Alignment */}
           <div className="relative">
-            <button onClick={() => toggleDropdown('align')} className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg text-[12px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-              <AlignIcon className="h-3.5 w-3.5" /> <ChevronDown className="h-3 w-3 text-white/20" />
+            <button onClick={() => toggleDropdown('align')} className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg text-[13px] text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+              <AlignIcon className="h-3.5 w-3.5" /> <ChevronDown className="h-3.5 w-3.5 text-white/20" />
             </button>
             {openDropdown === 'align' && (
               <div className="absolute top-full left-0 mt-1 w-28 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50">
@@ -217,7 +223,7 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
                   const Icon = ALIGN_ICONS[a];
                   return (
                     <button key={a} onClick={() => { onChangeStyle('textAlign', a); setOpenDropdown(null); }}
-                      className={`w-full px-3 py-1.5 text-left text-[12px] capitalize transition-colors flex items-center gap-2 ${style.textAlign === a ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
+                      className={`w-full px-3 py-1.5 text-left text-[13px] capitalize transition-colors flex items-center gap-2 ${style.textAlign === a ? 'text-white bg-white/5' : 'text-white/50 hover:text-white hover:bg-white/5'}`}>
                       <Icon className="h-3.5 w-3.5" />
                       {a}
                     </button>
@@ -247,14 +253,14 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
               onClick={() => toggleDropdown('replace')}
               className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] text-white/50 hover:text-white hover:bg-white/10 transition-colors"
             >
-              Replace <ChevronDown className="h-3 w-3" />
+              Replace <ChevronDown className="h-3.5 w-3.5" />
             </button>
             {openDropdown === 'replace' && (
               <div className="absolute top-full left-0 mt-1 w-72 bg-[#2a2a2a] rounded-xl border border-white/[0.08] shadow-2xl z-50 overflow-hidden">
                 {/* Upload from device */}
                 <button
                   onClick={() => { fileInputRef.current?.click(); setOpenDropdown(null); }}
-                  className="w-full px-3 py-2.5 text-left text-[12px] text-white/70 hover:text-white hover:bg-white/5 flex items-center gap-2 border-b border-white/[0.04]"
+                  className="w-full px-3 py-2.5 text-left text-[13px] text-white/70 hover:text-white hover:bg-white/5 flex items-center gap-2 border-b border-white/[0.04]"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   <div className="flex-1">
@@ -265,7 +271,7 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
                 {/* Brand Assets section */}
                 <div className="px-3 py-2 flex items-center gap-2 text-[10px] text-white/30 uppercase tracking-wider border-b border-white/[0.04]">
-                  <FolderOpen className="h-3 w-3" />
+                  <FolderOpen className="h-3.5 w-3.5" />
                   Brand Assets ({imageAssets.length})
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -330,13 +336,14 @@ export function FloatingToolbar({ blockType, style, onChangeType, onChangeStyle,
 
       {openDropdown === 'more' && (
         <div className="absolute top-full right-0 mt-1 w-40 bg-[#2a2a2a] rounded-xl border border-white/[0.08] py-1 shadow-2xl z-50">
-          <button onClick={() => { onDuplicate?.(); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[12px] text-white/50 hover:text-white hover:bg-white/5 flex items-center gap-2"><Copy className="h-3 w-3" /> Duplicate</button>
-          <button onClick={() => { onChangeStyle('opacity', '0.5'); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[12px] text-white/50 hover:text-white hover:bg-white/5">Set opacity 50%</button>
-          <button onClick={() => { onChangeStyle('opacity', '1'); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[12px] text-white/50 hover:text-white hover:bg-white/5">Reset opacity</button>
+          <button onClick={() => { onDuplicate?.(); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[13px] text-white/50 hover:text-white hover:bg-white/5 flex items-center gap-2"><Copy className="h-3.5 w-3.5" /> Duplicate</button>
+          <button onClick={() => { onChangeStyle('opacity', '0.5'); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[13px] text-white/50 hover:text-white hover:bg-white/5">Set opacity 50%</button>
+          <button onClick={() => { onChangeStyle('opacity', '1'); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[13px] text-white/50 hover:text-white hover:bg-white/5">Reset opacity</button>
           <div className="my-1 mx-2 border-t border-white/[0.06]" />
-          <button onClick={() => { onDelete?.(); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[12px] text-red-400 hover:bg-red-400/10 flex items-center gap-2"><Trash2 className="h-3 w-3" /> Delete</button>
+          <button onClick={() => { onDelete?.(); setOpenDropdown(null); }} className="w-full px-3 py-1.5 text-left text-[13px] text-red-400 hover:bg-red-400/10 flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
