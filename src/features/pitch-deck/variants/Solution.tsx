@@ -6,6 +6,7 @@
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SOLUTION } from '../uniexPitchContent';
 import { ConnectedLaptop, OpenBookKnowledge } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
   GREEN,
@@ -134,7 +135,13 @@ export function SolutionVariantB({ index, total }: SlideProps) {
             overflow: 'hidden',
           }}
         >
-          <ConnectedLaptop size={SLIDE_WIDTH * 0.55} transparent />
+          <ReplaceableArtwork
+            slotId="solution-B-laptop"
+            defaultQuery="laptop study online"
+            style={{ width: SLIDE_WIDTH * 0.55, height: SLIDE_WIDTH * 0.55 }}
+          >
+            <ConnectedLaptop size={SLIDE_WIDTH * 0.55} transparent />
+          </ReplaceableArtwork>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(245,247,251,0) 0%, rgba(245,247,251,0.45) 100%)' }} />
         </div>
       </div>
@@ -162,7 +169,13 @@ export function SolutionVariantC({ index, total }: SlideProps) {
           pointerEvents: 'none',
         }}
       >
-        <OpenBookKnowledge size={760} transparent />
+        <ReplaceableArtwork
+          slotId="solution-C-openbook"
+          defaultQuery="open book learning"
+          style={{ width: 760, height: 760 }}
+        >
+          <OpenBookKnowledge size={760} transparent />
+        </ReplaceableArtwork>
       </div>
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>

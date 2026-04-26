@@ -6,6 +6,7 @@
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROBLEM } from '../uniexPitchContent';
 import { CompassChoice } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
   GREEN,
@@ -149,7 +150,13 @@ export function ProblemVariantC({ index, total }: SlideProps) {
             overflow: 'hidden',
           }}
         >
-          <CompassChoice size={SLIDE_WIDTH * 0.5} transparent />
+          <ReplaceableArtwork
+            slotId="problem-C-compass"
+            defaultQuery="compass direction choice"
+            style={{ width: SLIDE_WIDTH * 0.5, height: SLIDE_WIDTH * 0.5 }}
+          >
+            <CompassChoice size={SLIDE_WIDTH * 0.5} transparent />
+          </ReplaceableArtwork>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,21,99,0.18) 0%, rgba(0,21,99,0) 50%)' }} />
         </div>
         {/* Left side: content */}

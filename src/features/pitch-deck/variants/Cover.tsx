@@ -9,6 +9,7 @@
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { COVER } from '../uniexPitchContent';
 import { ConnectedLaptop, GlobeWithFlags } from '../illustrations';
+import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
   GREEN,
@@ -130,7 +131,13 @@ export function CoverVariantB({ index, total }: SlideProps) {
           overflow: 'hidden',
         }}
       >
-        <GlobeWithFlags size={SLIDE_WIDTH * 0.5} transparent style={{ marginRight: '-6%' }} />
+        <ReplaceableArtwork
+          slotId="cover-B-globe"
+          defaultQuery="world map students"
+          style={{ width: SLIDE_WIDTH * 0.5, height: SLIDE_WIDTH * 0.5, marginRight: '-6%' }}
+        >
+          <GlobeWithFlags size={SLIDE_WIDTH * 0.5} transparent />
+        </ReplaceableArtwork>
       </div>
       {/* Tint over the image to push toward navy/green family */}
       <div
@@ -244,7 +251,13 @@ export function CoverVariantC({ index, total }: SlideProps) {
           background: GREEN,
         }}
       >
-        <ConnectedLaptop size={680} transparent style={{ marginTop: -90 }} />
+        <ReplaceableArtwork
+          slotId="cover-C-laptop"
+          defaultQuery="laptop study online"
+          style={{ width: 680, height: 680, marginTop: -90 }}
+        >
+          <ConnectedLaptop size={680} transparent />
+        </ReplaceableArtwork>
       </div>
       <div
         style={{
