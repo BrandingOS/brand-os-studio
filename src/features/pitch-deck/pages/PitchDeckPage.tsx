@@ -79,7 +79,12 @@ export default function PitchDeckPage() {
     };
   }, []);
 
-  // Track active slide via scroll-snap math.
+  // Track active slide via scroll-snap math. Depends on `brand` because
+  // the stage element only mounts AFTER brand resolves — the loading
+  // branch returns earlier and stageRef.current is null at first run.
+  // Without the dep, the listener never attaches and activeIndex stays
+  // stuck at 0 (page indicator never updates, thumbnails don't track,
+  // variant picker only ever modifies slide 0).
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
@@ -91,7 +96,7 @@ export default function PitchDeckPage() {
     };
     stage.addEventListener('scroll', onScroll, { passive: true });
     return () => stage.removeEventListener('scroll', onScroll);
-  }, []);
+  }, [brand]);
 
   const goTo = (i: number) => {
     slideRefs.current[i]?.scrollIntoView({ behavior: 'smooth' });
