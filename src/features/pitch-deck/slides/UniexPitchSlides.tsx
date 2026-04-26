@@ -620,31 +620,31 @@ export function ProgramDetailSlide({ index, total, programKey }: SlideProps & { 
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
           <div>
-            <FitText as="div" maxSize={108} minSize={48} width={1100} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.1, ...RTL_DIR }}>
+            <FitText as="div" maxSize={108} minSize={48} width={1100} height={130} className="deck-display" style={{ ...RTL_DIR }}>
               {p.name}
             </FitText>
           </div>
-          <div style={{ background: tinted, color: WHITE, padding: '18px 32px', borderRadius: 999, fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 28 }}>
+          <div className="deck-h3" style={{ background: tinted, color: WHITE, padding: '18px 32px', borderRadius: 999 }}>
             {p.duration}
           </div>
         </div>
-        <FitText as="div" maxSize={26} minSize={16} width={SLIDE_WIDTH - 192} height={88} style={{ fontFamily: FONT_BODY, color: 'rgba(0,21,99,0.78)', lineHeight: 1.7, fontWeight: 500, ...RTL_DIR }}>
+        <FitText as="div" maxSize={26} minSize={16} width={SLIDE_WIDTH - 192} height={88} className="deck-body" style={{ color: 'rgba(0,21,99,0.78)', fontWeight: 500, ...RTL_DIR }}>
           {p.description}
         </FitText>
         <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: 22, flex: 1 }}>
           {/* Goal */}
           <div style={{ background: NAVY, color: WHITE, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>🎯</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>الهدف</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 500, lineHeight: 1.7 }}>{p.goal}</span>
+            <span className="deck-label" style={{ color: GREEN }}>الهدف</span>
+            <span className="deck-body" style={{ color: WHITE, fontWeight: 500 }}>{p.goal}</span>
           </div>
           {/* Phases */}
           <div style={{ background: WHITE, border: `2px solid ${tinted}`, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>🧭</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: tinted }}>مراحل المسار</span>
+            <span className="deck-label" style={{ color: tinted }}>مراحل المسار</span>
             <ol style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.phases.map((phase, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} className="deck-body" style={{ display: 'flex', gap: 12, fontWeight: 500 }}>
                   <span style={{ minWidth: 22, fontWeight: 800, color: tinted }}>{j + 1}.</span>
                   <span>{phase}</span>
                 </li>
@@ -654,10 +654,10 @@ export function ProgramDetailSlide({ index, total, programKey }: SlideProps & { 
           {/* Outputs */}
           <div style={{ background: GREEN_SOFT, borderRadius: 22, padding: 32, display: 'flex', flexDirection: 'column', gap: 14, ...RTL_DIR }}>
             <span style={{ fontSize: 36 }}>📊</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>المخرجات</span>
+            <span className="deck-label" style={{ color: GREEN }}>المخرجات</span>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
               {p.outputs.map((out, j) => (
-                <li key={j} style={{ display: 'flex', gap: 12, fontFamily: FONT_BODY, fontSize: 16, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                <li key={j} className="deck-body" style={{ display: 'flex', gap: 12, fontWeight: 500 }}>
                   <span style={{ color: GREEN, fontWeight: 800 }}>•</span>
                   <span>{out}</span>
                 </li>
@@ -677,7 +677,7 @@ export function SchoolBenefitsSlide({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} section="فوائد المدرسة" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
-        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} className="deck-h1" style={{ ...RTL_DIR }}>
           {SCHOOL_BENEFITS.title}
         </FitText>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 30, flex: 1 }}>
@@ -697,12 +697,12 @@ export function SchoolBenefitsSlide({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: i === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>
+              <span className="deck-label" style={{ color: i === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>
                 {g.heading}
               </span>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 0, margin: 0, listStyle: 'none' }}>
                 {g.items.map((item, j) => (
-                  <li key={j} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.55 }}>
+                  <li key={j} className="deck-body" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', fontWeight: 500, color: i === 0 ? WHITE : undefined }}>
                     <span style={{ color: GREEN, fontWeight: 800, fontSize: 24 }}>✓</span>
                     <span>{item}</span>
                   </li>
@@ -711,7 +711,7 @@ export function SchoolBenefitsSlide({ index, total }: SlideProps) {
             </div>
           ))}
         </div>
-        <div style={{ background: GREEN, borderRadius: 18, padding: '24px 32px', color: WHITE, fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, lineHeight: 1.5, ...RTL_DIR }}>
+        <div className="deck-h3" style={{ background: GREEN, borderRadius: 18, padding: '24px 32px', color: WHITE, ...RTL_DIR }}>
           {SCHOOL_BENEFITS.closer}
         </div>
       </div>
@@ -727,8 +727,8 @@ export function MetricsSlide({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="مؤشرات الأثر" variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 50, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>METRICS</span>
-          <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={140} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN }}>METRICS</span>
+          <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={140} className="deck-h1" style={{ color: WHITE, marginTop: 12, ...RTL_DIR }}>
             {METRICS.title}
           </FitText>
         </div>
@@ -747,10 +747,10 @@ export function MetricsSlide({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 96, fontWeight: 800, color: GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>
+              <span className="deck-display" style={{ color: GREEN, letterSpacing: '-0.02em' }}>
                 {s.value}
               </span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: WHITE, fontWeight: 500 }}>{s.label}</span>
+              <span className="deck-body" style={{ color: WHITE, fontWeight: 500 }}>{s.label}</span>
             </div>
           ))}
         </div>
@@ -758,9 +758,8 @@ export function MetricsSlide({ index, total }: SlideProps) {
           {METRICS.notes.map((n, i) => (
             <span
               key={i}
+              className="deck-caption"
               style={{
-                fontFamily: FONT_BODY,
-                fontSize: 16,
                 fontWeight: 600,
                 color: 'rgba(255,255,255,0.85)',
                 background: 'rgba(255,255,255,0.06)',
@@ -773,7 +772,7 @@ export function MetricsSlide({ index, total }: SlideProps) {
             </span>
           ))}
         </div>
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 18, color: GREEN, fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700 }}>
+        <div className="deck-h3" style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 18, color: GREEN }}>
           <span style={{ width: 50, height: 4, background: GREEN }} />
           <span>{METRICS.closer}</span>
         </div>
@@ -789,10 +788,10 @@ export function ImpactSlide({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} section="التجربة الواقعية" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
-        <FitText as="div" maxSize={96} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={96} minSize={40} width={SLIDE_WIDTH - 192} height={130} className="deck-h1" style={{ ...RTL_DIR }}>
           {IMPACT.title}
         </FitText>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 24, color: 'rgba(0,21,99,0.7)', maxWidth: 1100 }}>{IMPACT.caption}</div>
+        <div className="deck-body" style={{ color: 'rgba(0,21,99,0.7)', maxWidth: 1100 }}>{IMPACT.caption}</div>
         <div
           style={{
             flex: 1,
@@ -808,12 +807,12 @@ export function ImpactSlide({ index, total }: SlideProps) {
             ...RTL_DIR,
           }}
         >
-          <FitText as="div" maxSize={48} minSize={22} width={1500} height={140} style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, color: WHITE, lineHeight: 1.4, ...RTL_DIR }}>
+          <FitText as="div" maxSize={48} minSize={22} width={1500} height={140} className="deck-h2" style={{ color: WHITE, ...RTL_DIR }}>
             "{IMPACT.question}"
           </FitText>
           <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 80, height: 80, borderRadius: 999, background: GREEN, fontSize: 32 }}>▶</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>🎥 {IMPACT.videoPlaceholder}</span>
+            <span className="deck-caption" style={{ color: 'rgba(255,255,255,0.7)', letterSpacing: '0.18em' }}>🎥 {IMPACT.videoPlaceholder}</span>
           </div>
         </div>
       </div>
@@ -828,10 +827,10 @@ export function TeamSlide({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} section="الفريق والشركاء" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
-        <FitText as="div" maxSize={96} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={96} minSize={40} width={SLIDE_WIDTH - 192} height={130} className="deck-h1" style={{ ...RTL_DIR }}>
           {TEAM.title}
         </FitText>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 26, color: 'rgba(0,21,99,0.78)', maxWidth: 1300, fontWeight: 500 }}>{TEAM.intro}</div>
+        <div className="deck-body" style={{ color: 'rgba(0,21,99,0.78)', maxWidth: 1300, fontWeight: 500 }}>{TEAM.intro}</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flex: 1 }}>
           {TEAM.specialties.map((s, i) => (
             <div
@@ -849,10 +848,10 @@ export function TeamSlide({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 14, fontWeight: 700, letterSpacing: '0.32em', color: i === 1 ? GREEN : NAVY, opacity: i === 1 ? 1 : 0.55 }}>
+              <span className="deck-label" style={{ color: i === 1 ? GREEN : NAVY, opacity: i === 1 ? 1 : 0.55 }}>
                 0{i + 1}
               </span>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 32, fontWeight: 800, lineHeight: 1.3 }}>
+              <span className="deck-h3" style={{ color: i === 1 ? WHITE : undefined }}>
                 {s}
               </span>
             </div>
@@ -860,7 +859,7 @@ export function TeamSlide({ index, total }: SlideProps) {
         </div>
         <div style={{ background: GREEN_SOFT, borderRadius: 18, padding: '20px 28px', display: 'flex', alignItems: 'center', gap: 18, ...RTL_DIR }}>
           <span style={{ width: 40, height: 2, background: GREEN }} />
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, color: NAVY, fontWeight: 600 }}>{TEAM.closer}</span>
+          <span className="deck-h3" style={{ fontWeight: 600 }}>{TEAM.closer}</span>
         </div>
       </div>
     </Frame>
@@ -872,16 +871,17 @@ export function TeamSlide({ index, total }: SlideProps) {
 export function CtaSlide({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="flood">
+      {/* Decorative iconmark watermark — positioned by `theme.style.logoPlacement`. */}
       <img
         src="/brands/uniex/logos/iconGreen.svg"
         alt=""
-        style={{ position: 'absolute', bottom: -180, left: -180, width: 720, opacity: 0.16 }}
+        style={{ position: 'absolute', width: 720, opacity: 0.16, ...getLogoCornerStyle() }}
       />
       <PageChrome pageNum={index} total={total} section="تواصل معنا" variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 50, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>NEXT STEP</span>
-          <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={170} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN }}>NEXT STEP</span>
+          <FitText as="div" maxSize={96} minSize={48} width={SLIDE_WIDTH - 192} height={170} className="deck-h1" style={{ color: WHITE, marginTop: 12, ...RTL_DIR }}>
             {CTA.title}
           </FitText>
         </div>
@@ -900,14 +900,15 @@ export function CtaSlide({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 700, color: WHITE, lineHeight: 1.4 }}>{s}</span>
+              <span className="deck-h2" style={{ color: GREEN }}>0{i + 1}</span>
+              <span className="deck-h3" style={{ color: WHITE }}>{s}</span>
             </div>
           ))}
         </div>
         <div style={{ background: GREEN, borderRadius: 22, padding: '36px 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, ...RTL_DIR }}>
-          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, color: NAVY, lineHeight: 1.4 }}>{CTA.cta}</span>
+          <span className="deck-h3" style={{ color: NAVY, fontWeight: 800 }}>{CTA.cta}</span>
           <div
+            className="deck-caption"
             style={{
               width: 110,
               height: 110,
@@ -916,8 +917,6 @@ export function CtaSlide({ index, total }: SlideProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: FONT_BODY,
-              fontSize: 12,
               color: NAVY,
               fontWeight: 700,
               flexShrink: 0,
