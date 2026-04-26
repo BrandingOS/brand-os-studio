@@ -100,3 +100,44 @@ export const EMPTY_THEME: PresentationTheme = {
     logoPlacement: 'tl',
   },
 };
+
+/**
+ * Coerces any object (including the legacy flat-typography shape that
+ * pre-existing brands may have saved in `brand.presentationThemes`)
+ * into the current `PresentationTheme` shape. Always returns a value
+ * with `typography.roles` present so consumers can safely read it.
+ */
+export function normalizeTheme(input: unknown): PresentationTheme {
+  if (!input || typeof input !== 'object') return EMPTY_THEME;
+  const raw = input as Record<string, unknown>;
+  const typoIn = (raw.typography ?? {}) as Record<string, unknown>;
+  const colorsIn = (raw.colors ?? {}) as Record<string, unknown>;
+  const styleIn = (raw.style ?? {}) as Record<string, unknown>;
+
+  // Drop legacy color text fields (heading/body moved into per-role
+  // typography). Drop unknown keys silently.
+  const colors: PresentationTheme['colors'] = {};
+  if (typeof colorsIn.bg === 'string')     colors.bg = colorsIn.bg;
+  if (typeof colorsIn.cardBg === 'string') colors.cardBg = colorsIn.cardBg;
+  if (typeof colorsIn.accent === 'string') colors.accent = colorsIn.accent;
+
+  const allowedDensity: PresentationTheme['density'][] = ['compact', 'comfortable', 'spacious'];
+
+  return {
+    typography: {
+      roles: (typoIn.roles && typeof typoIn.roles === 'object')
+        ? (typoIn.roles as PresentationTheme['typography']['roles'])
+        : {},
+    },
+    colors,
+    density: allowedDensity.includes(raw.density as PresentationTheme['density'])
+      ? (raw.density as PresentationTheme['density'])
+      : 'comfortable',
+    style: {
+      bgKind: (styleIn.bgKind as PresentationTheme['style']['bgKind']) ?? 'solid',
+      borderRadius: (styleIn.borderRadius as PresentationTheme['style']['borderRadius']) ?? 'soft',
+      shadow: (styleIn.shadow as PresentationTheme['style']['shadow']) ?? 'soft',
+      logoPlacement: (styleIn.logoPlacement as PresentationTheme['style']['logoPlacement']) ?? 'tl',
+    },
+  };
+}

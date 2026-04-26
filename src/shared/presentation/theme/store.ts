@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { DeckKind, PresentationTheme } from './types';
-import { EMPTY_THEME } from './types';
+import { EMPTY_THEME, normalizeTheme } from './types';
 
 type Key = `${string}:${DeckKind}`;
 const k = (brandId: string, kind: DeckKind): Key => `${brandId}:${kind}` as Key;
@@ -43,11 +43,18 @@ function deepMerge<T>(base: T, patch: DeepPartial<T>): T {
 export const useDeckThemeStore = create<DeckThemeStore>()(
   devtools((set, get) => ({
     byKey: {},
-    draftFor: (brandId, kind) => get().byKey[k(brandId, kind)] ?? EMPTY_THEME,
-    hydrate: (brandId, kind, theme) => set((s) => ({ byKey: { ...s.byKey, [k(brandId, kind)]: theme ?? EMPTY_THEME } })),
-    setTheme: (brandId, kind, next) => set((s) => ({ byKey: { ...s.byKey, [k(brandId, kind)]: next } })),
+    // Normalize on read so legacy theme shapes saved in
+    // brand.presentationThemes from the previous flat model don't
+    // crash consumers that expect the new per-role contract.
+    draftFor: (brandId, kind) => normalizeTheme(get().byKey[k(brandId, kind)] ?? EMPTY_THEME),
+    hydrate: (brandId, kind, theme) => set((s) => ({
+      byKey: { ...s.byKey, [k(brandId, kind)]: normalizeTheme(theme ?? EMPTY_THEME) },
+    })),
+    setTheme: (brandId, kind, next) => set((s) => ({
+      byKey: { ...s.byKey, [k(brandId, kind)]: normalizeTheme(next) },
+    })),
     patchTheme: (brandId, kind, patch) => set((s) => {
-      const base = s.byKey[k(brandId, kind)] ?? EMPTY_THEME;
+      const base = normalizeTheme(s.byKey[k(brandId, kind)] ?? EMPTY_THEME);
       return { byKey: { ...s.byKey, [k(brandId, kind)]: deepMerge(base, patch) } };
     }),
     reset: (brandId, kind) => set((s) => {

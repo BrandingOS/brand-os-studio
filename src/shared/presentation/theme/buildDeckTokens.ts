@@ -11,6 +11,7 @@ import type {
   DeckShadowKind,
   DeckTypeRole,
 } from './types';
+import { normalizeTheme } from './types';
 
 /* ── Density ─────────────────────────────────────────────────────── */
 const DENSITY: Record<DeckDensity, {
@@ -101,6 +102,10 @@ function fontFamily(ref: FontRef | undefined, fallback: string): string {
  *   --deck-text-muted (alias for caption color)
  */
 export function buildDeckCssVars(brand: Brand, theme: PresentationTheme): CSSProperties {
+  // Defensive: a stale theme shape (legacy flat typography from before
+  // the per-role rewrite) would crash on `theme.typography.roles[role]`.
+  // Normalize once at the entry so the rest of the function is safe.
+  const t = normalizeTheme(theme);
   const palette = buildBrandPalette(brand, 'light');
   const presentationSurface = brand.typescale?.surfaces.presentation;
 
@@ -109,7 +114,7 @@ export function buildDeckCssVars(brand: Brand, theme: PresentationTheme): CSSPro
 
   // Resolve each role to a final set of CSS values.
   const resolveRole = (role: DeckTypeRole) => {
-    const override = theme.typography.roles[role];
+    const override = t.typography.roles[role];
     const def = ROLE_DEFAULTS[role];
     const brandStep = findStep(presentationSurface, BRAND_ROLE_KEY[role]);
     const baseFont = def.fontSlot === 'heading' ? brandHeadingFont : brandBodyFont;
@@ -133,14 +138,14 @@ export function buildDeckCssVars(brand: Brand, theme: PresentationTheme): CSSPro
   const label = resolveRole('label');
 
   /* Colors */
-  const bgPage    = theme.colors.bg     ?? palette.bg.page;
-  const bgCard    = theme.colors.cardBg ?? palette.bg.surface;
+  const bgPage    = t.colors.bg     ?? palette.bg.page;
+  const bgCard    = t.colors.cardBg ?? palette.bg.surface;
   const bgInverted = palette.bg.inverted;
-  const accent    = theme.colors.accent ?? palette.brand.accent;
+  const accent    = t.colors.accent ?? palette.brand.accent;
   const borderSub = palette.border.subtle;
 
   /* Density */
-  const dens = DENSITY[theme.density];
+  const dens = DENSITY[t.density];
 
   return {
     /* Per-role tokens — the new contract */
@@ -215,7 +220,7 @@ export function buildDeckCssVars(brand: Brand, theme: PresentationTheme): CSSPro
     '--deck-chrome-pad-y': `${dens.chromePadY}px`,
 
     /* Style */
-    '--deck-radius': RADIUS[theme.style.borderRadius],
-    '--deck-shadow': SHADOW[theme.style.shadow],
+    '--deck-radius': RADIUS[t.style.borderRadius],
+    '--deck-shadow': SHADOW[t.style.shadow],
   } as CSSProperties;
 }
