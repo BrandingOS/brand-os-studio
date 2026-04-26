@@ -10,8 +10,6 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { COVER } from '../uniexPitchContent';
 import { ConnectedLaptop, GlobeWithFlags } from '../illustrations';
 import {
-  FONT_BODY,
-  FONT_DISPLAY,
   Frame,
   GREEN,
   ICON_GREEN,
@@ -25,6 +23,10 @@ import {
   type SlideProps,
   WHITE,
 } from './_shared';
+
+// Local font fallbacks (kept until inline fontSize usages are migrated to .deck-* classes).
+const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
+const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
 
 /* ─────────────  A — Navy flood + huge headline (current)  ───────────── */
 
