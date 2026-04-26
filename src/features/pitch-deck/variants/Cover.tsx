@@ -22,21 +22,35 @@ import {
   SLIDE_WIDTH,
   type SlideProps,
   WHITE,
+  getLogoCornerStyle,
 } from './_shared';
 
-// Local font fallbacks (kept until inline fontSize usages are migrated to .deck-* classes).
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
+const BODY_FAMILY = 'var(--deck-font-body)';
 
 /* ─────────────  A — Navy flood + huge headline (current)  ───────────── */
 
 export function CoverVariantA({ index, total }: SlideProps) {
+  // Iconmark watermark — honours the user's logo-placement setting via
+  // data-logo-pos on the deck root (set by DeckThemeProvider).
+  const logoPos = getLogoCornerStyle();
   return (
     <Frame index={index} variant="flood">
       <img
         src={ICON_GREEN}
         alt=""
-        style={{ position: 'absolute', top: -120, right: -120, width: 720, opacity: 0.16, filter: 'blur(0.5px)' }}
+        style={{
+          position: 'absolute',
+          width: 720,
+          opacity: 0.16,
+          filter: 'blur(0.5px)',
+          // Default for Cover A is top-right with negative offset; honour
+          // logo placement when explicit, but keep big-watermark scale.
+          ...(logoPos.display === 'none'
+            ? { display: 'none' }
+            : { top: -120, right: -120 }),
+        }}
       />
       <PageChrome pageNum={index} total={total} section="تقديم" variant="flood" />
       <div
@@ -50,7 +64,7 @@ export function CoverVariantA({ index, total }: SlideProps) {
           ...RTL_DIR,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, color: GREEN, fontSize: 20, letterSpacing: '0.18em', fontWeight: 600 }}>
+        <div className="deck-label" style={{ display: 'flex', alignItems: 'center', gap: 24, color: GREEN, letterSpacing: '0.18em' }}>
           <span>{COVER.brand} · uniex</span>
           <span style={{ width: 36, height: 1, background: GREEN }} />
         </div>
@@ -62,7 +76,7 @@ export function CoverVariantA({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={520}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               lineHeight: 1.18,
               color: WHITE,
@@ -80,13 +94,13 @@ export function CoverVariantA({ index, total }: SlideProps) {
               minSize={16}
               width={1200}
               height={150}
-              style={{ fontFamily: FONT_BODY, fontWeight: 400, lineHeight: 1.7, color: 'rgba(255,255,255,0.86)', ...RTL_DIR }}
+              style={{ fontFamily: BODY_FAMILY, fontWeight: 400, lineHeight: 1.7, color: 'rgba(255,255,255,0.86)', ...RTL_DIR }}
             >
               {COVER.subhead}
             </FitText>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(255,255,255,0.65)' }}>
+        <div className="deck-caption" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'rgba(255,255,255,0.65)' }}>
           <span style={{ color: GREEN, fontWeight: 700, letterSpacing: '0.16em' }}>{COVER.tag}</span>
           <span>Pitch Deck · {new Date().getFullYear()}</span>
         </div>
@@ -146,7 +160,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO_WHITE} alt="uniex" style={{ height: 42 }} />
           <span style={{ width: 28, height: 1, background: 'rgba(255,255,255,0.45)' }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 600, color: GREEN, letterSpacing: '0.32em' }}>{COVER.brandSub.toUpperCase()}</span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>{COVER.brandSub.toUpperCase()}</span>
         </div>
         <div>
           <FitText
@@ -155,7 +169,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
             minSize={42}
             width={SLIDE_WIDTH * 0.6 - 192}
             height={420}
-            style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.2, color: WHITE, ...RTL_DIR }}
+            style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, lineHeight: 1.2, color: WHITE, ...RTL_DIR }}
           >
             {COVER.headline}
           </FitText>
@@ -167,13 +181,13 @@ export function CoverVariantB({ index, total }: SlideProps) {
               minSize={14}
               width={SLIDE_WIDTH * 0.6 - 280}
               height={170}
-              style={{ fontFamily: FONT_BODY, fontWeight: 400, lineHeight: 1.7, color: 'rgba(255,255,255,0.84)', ...RTL_DIR }}
+              style={{ fontFamily: BODY_FAMILY, fontWeight: 400, lineHeight: 1.7, color: 'rgba(255,255,255,0.84)', ...RTL_DIR }}
             >
               {COVER.subhead}
             </FitText>
           </div>
         </div>
-        <div style={{ color: GREEN, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.tag}</div>
+        <div className="deck-label" style={{ color: GREEN, letterSpacing: '0.18em' }}>{COVER.tag}</div>
       </div>
     </Frame>
   );
@@ -187,9 +201,9 @@ export function CoverVariantC({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} section="تقديم" variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 0', display: 'flex', flexDirection: 'column', ...RTL_DIR }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 28 }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>UNIEX · {COVER.brand}</span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>UNIEX · {COVER.brand}</span>
           <span style={{ width: 36, height: 1, background: GREEN }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.55)', letterSpacing: '0.18em' }}>{COVER.tag}</span>
+          <span className="deck-caption" style={{ color: 'rgba(0,21,99,0.55)', letterSpacing: '0.18em' }}>{COVER.tag}</span>
         </div>
         <FitText
           as="div"
@@ -197,7 +211,7 @@ export function CoverVariantC({ index, total }: SlideProps) {
           minSize={48}
           width={SLIDE_WIDTH - 192}
           height={300}
-          style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.18, color: NAVY, ...RTL_DIR }}
+          style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, lineHeight: 1.18, color: NAVY, ...RTL_DIR }}
         >
           {COVER.headline}
         </FitText>
@@ -209,7 +223,7 @@ export function CoverVariantC({ index, total }: SlideProps) {
             minSize={14}
             width={1300}
             height={120}
-            style={{ fontFamily: FONT_BODY, fontWeight: 500, lineHeight: 1.7, color: 'rgba(0,21,99,0.78)', ...RTL_DIR }}
+            style={{ fontFamily: BODY_FAMILY, fontWeight: 500, lineHeight: 1.7, color: 'rgba(0,21,99,0.78)', ...RTL_DIR }}
           >
             {COVER.subhead}
           </FitText>
@@ -270,12 +284,12 @@ export function CoverVariantD({ index, total }: SlideProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, color: NAVY }}>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, letterSpacing: '0.32em' }}>EDITION · 01</span>
+          <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.32em' }}>EDITION · 01</span>
           <span style={{ width: 36, height: 1, background: NAVY }} />
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em' }}>{COVER.brand} / uniex</span>
+          <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.18em' }}>{COVER.brand} / uniex</span>
         </div>
         <div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: NAVY, marginBottom: 18, letterSpacing: '0.06em' }}>
+          <div className="deck-body" style={{ fontWeight: 700, color: NAVY, marginBottom: 18, letterSpacing: '0.06em' }}>
             // {new Date().getFullYear()} pitch
           </div>
           <FitText
@@ -284,7 +298,7 @@ export function CoverVariantD({ index, total }: SlideProps) {
             minSize={48}
             width={SLIDE_WIDTH - 192}
             height={460}
-            style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, lineHeight: 1.1, color: NAVY, letterSpacing: '-0.02em', ...RTL_DIR }}
+            style={{ fontFamily: HEADING_FAMILY, fontWeight: 900, lineHeight: 1.1, color: NAVY, letterSpacing: '-0.02em', ...RTL_DIR }}
           >
             {COVER.headline}
           </FitText>
@@ -309,13 +323,13 @@ export function CoverVariantD({ index, total }: SlideProps) {
               minSize={14}
               width={1380}
               height={100}
-              style={{ fontFamily: FONT_BODY, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,0.92)', ...RTL_DIR }}
+              style={{ fontFamily: BODY_FAMILY, fontWeight: 500, lineHeight: 1.65, color: 'rgba(255,255,255,0.92)', ...RTL_DIR }}
             >
               {COVER.subhead}
             </FitText>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: NAVY, fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700 }}>
+        <div className="deck-caption" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: NAVY, fontWeight: 700 }}>
           <span style={{ letterSpacing: '0.32em' }}>{COVER.tag}</span>
           <span style={{ letterSpacing: '0.18em' }}>PITCH · {new Date().getFullYear()}</span>
         </div>
@@ -343,7 +357,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
         }}
       >
         <img src={ICON_GREEN} alt="" style={{ width: 88, marginBottom: 36, opacity: 0.95 }} />
-        <div style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 800, color: GREEN, letterSpacing: '0.4em', marginBottom: 24 }}>
+        <div className="deck-label" style={{ color: GREEN, letterSpacing: '0.4em', marginBottom: 24 }}>
           {COVER.brand.toUpperCase()} · UNIEX
         </div>
         <FitText
@@ -353,7 +367,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 280}
           height={420}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             lineHeight: 1.22,
             color: NAVY,
@@ -384,7 +398,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
           width={1200}
           height={140}
           style={{
-            fontFamily: FONT_BODY,
+            fontFamily: BODY_FAMILY,
             fontWeight: 500,
             lineHeight: 1.75,
             color: 'rgba(0,21,99,0.72)',
@@ -394,7 +408,7 @@ export function CoverVariantE({ index, total }: SlideProps) {
         >
           {COVER.subhead}
         </FitText>
-        <div style={{ marginTop: 28, fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, color: GREEN, letterSpacing: '0.32em' }}>{COVER.tag}</div>
+        <div className="deck-label" style={{ marginTop: 28, color: GREEN, letterSpacing: '0.32em' }}>{COVER.tag}</div>
       </div>
     </Frame>
   );
