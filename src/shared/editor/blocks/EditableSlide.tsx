@@ -411,80 +411,79 @@ export function EditableSlide({ children, frozenHtml }: EditableSlideProps) {
       // click-and-drag gestures can't trigger a partial text highlight
       // before our React handlers run. contentEditable overrides
       // user-select, so double-click-to-edit still works as expected.
-      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+      style={{ userSelect: 'none', WebkitUserSelect: 'none', touchAction: 'none' }}
     >
       <div
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
-        onMouseDown={(e) => {
-          // Skip when in contentEditable mode — text editing has its own
-          // selection model.
+        // Native HTML5 drag — disable; we own dragging via Pointer Events.
+        onDragStart={(e) => e.preventDefault()}
+        onPointerDown={(e) => {
+          // Pointer Events give us setPointerCapture, which routes ALL
+          // subsequent pointermove/up to this element regardless of what
+          // browser-default behavior would do. Combined with the
+          // canvas-wide user-select:none, this guarantees the drag never
+          // collides with text-selection.
           if (editing) return;
-          // Resize handles handle their own gestures.
-          if ((e.target as HTMLElement).closest('.resize-handle')) return;
+          if (e.button !== 0) return; // primary button only
+          const targetEl = e.target as HTMLElement;
+          if (targetEl.closest('.resize-handle')) return;
 
-          // Suppress the browser's native drag-selection across the
-          // whole gesture. With user-select:none on the wrapper this is
-          // belt-and-suspenders, but it also stops a stray range from
-          // forming if any descendant set user-select:auto.
-          e.preventDefault();
-          window.getSelection()?.removeAllRanges();
-
-          // Resolve the candidate element NOW (without waiting for click)
-          // so click-and-drag gestures can move the element in one motion.
-          // If the user's mousedown is on an element that the click
-          // handler would select anyway, we pre-select it here.
-          const target = e.target as HTMLElement;
-          const candidate = findMeaningfulElement(target);
-          // Only leaf/image elements are draggable. Containers are
-          // selected on mouseup via the click handler but never dragged.
+          const candidate = findMeaningfulElement(targetEl);
           const isImage = candidate.tagName === 'IMG' || candidate.tagName === 'SVG';
           const isLeaf = candidate.children.length === 0;
           if (!candidate || !(isImage || isLeaf) || candidate === containerRef.current) return;
 
-          // Pre-select if it isn't already.
-          let el = candidate;
-          if (selected?.element !== el) {
-            if (selectedRef.current?.element && selectedRef.current.element !== el) {
+          // Pre-select so the click-and-drag works in a single gesture.
+          if (selected?.element !== candidate) {
+            if (selectedRef.current?.element && selectedRef.current.element !== candidate) {
               removeSelectionStyles(selectedRef.current.element);
             }
-            applySelectionStyles(el);
-            const rect = el.getBoundingClientRect();
-            const type = detectBlockType(el);
-            setSelected({ element: el, type, rect });
+            applySelectionStyles(candidate);
+            setSelected({ element: candidate, type: detectBlockType(candidate), rect: candidate.getBoundingClientRect() });
           }
+
+          // Take exclusive ownership of this pointer — browser stops
+          // dispatching to anyone else, including its own selection
+          // engine.
+          const dispatcher = e.currentTarget as HTMLElement;
+          try { dispatcher.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+          e.preventDefault();
+          window.getSelection()?.removeAllRanges();
 
           const startX = e.clientX;
           const startY = e.clientY;
-          const startLeft = parseInt(el.style.left || '0') || 0;
-          const startTop = parseInt(el.style.top || '0') || 0;
+          const startLeft = parseInt(candidate.style.left || '0') || 0;
+          const startTop = parseInt(candidate.style.top || '0') || 0;
           let moved = false;
-
-          // Lock body user-select for the gesture.
-          const previousUserSelect = document.body.style.userSelect;
+          const previousBodySelect = document.body.style.userSelect;
           document.body.style.userSelect = 'none';
 
-          const onMove = (moveE: MouseEvent) => {
+          const onMove = (moveE: PointerEvent) => {
+            if (moveE.pointerId !== e.pointerId) return;
             const dx = moveE.clientX - startX;
             const dy = moveE.clientY - startY;
             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
             if (!moved) return;
-            el.style.position = 'relative';
-            el.style.left = (startLeft + dx) + 'px';
-            el.style.top = (startTop + dy) + 'px';
+            candidate.style.position = 'relative';
+            candidate.style.left = (startLeft + dx) + 'px';
+            candidate.style.top = (startTop + dy) + 'px';
           };
-          const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-            document.body.style.userSelect = previousUserSelect;
+          const onUp = (upE: PointerEvent) => {
+            if (upE.pointerId !== e.pointerId) return;
+            dispatcher.removeEventListener('pointermove', onMove);
+            dispatcher.removeEventListener('pointerup', onUp);
+            dispatcher.removeEventListener('pointercancel', onUp);
+            try { dispatcher.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+            document.body.style.userSelect = previousBodySelect;
             if (moved) {
-              const rect = el.getBoundingClientRect();
-              setSelected(prev => prev ? { ...prev, rect } : null);
+              setSelected((prev) => (prev ? { ...prev, rect: candidate.getBoundingClientRect() } : null));
               window.getSelection()?.removeAllRanges();
             }
           };
-          document.addEventListener('mousemove', onMove);
-          document.addEventListener('mouseup', onUp);
+          dispatcher.addEventListener('pointermove', onMove);
+          dispatcher.addEventListener('pointerup', onUp);
+          dispatcher.addEventListener('pointercancel', onUp);
         }}
         className="w-full h-full"
         {...innerProps}
