@@ -11,6 +11,7 @@ import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { CTA } from '../uniexPitchContent';
 import { GlobeWithFlags } from '../illustrations';
+import { getLogoCornerStyle } from './_shared';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -18,8 +19,9 @@ const GREEN = '#68BE69';
 const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
+const BODY_FAMILY = 'var(--deck-font-body)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -36,8 +38,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -49,16 +53,12 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
           zIndex: 4,
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>تواصل معنا</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>تواصل معنا</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -69,7 +69,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
           zIndex: 4,
         }}
       />
@@ -98,7 +98,6 @@ function Frame({
         overflow: 'hidden',
         background: bg,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -169,6 +168,8 @@ function QrPlaceholder({ size, dark, light }: { size: number; dark: string; ligh
 /* ────────────────  Variant A — original navy flood  ──────────────── */
 
 export function CtaSlideA({ index, total }: SlideProps) {
+  // Iconmark watermark — honour user's logo placement when set.
+  const logoPos = getLogoCornerStyle();
   return (
     <Frame index={index} bg={NAVY} ink={WHITE}>
       <img
@@ -176,10 +177,11 @@ export function CtaSlideA({ index, total }: SlideProps) {
         alt=""
         style={{
           position: 'absolute',
-          bottom: -180,
-          left: -180,
           width: 720,
           opacity: 0.16,
+          ...(logoPos.display === 'none'
+            ? { display: 'none' }
+            : { bottom: -180, left: -180 }),
         }}
       />
       <PageChrome pageNum={index} total={total} variant="flood" />
@@ -196,17 +198,7 @@ export function CtaSlideA({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            NEXT STEP
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>NEXT STEP</span>
           <FitText
             as="div"
             maxSize={96}
@@ -214,7 +206,7 @@ export function CtaSlideA({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={170}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.18,
@@ -246,9 +238,10 @@ export function CtaSlideA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
+              {/* Decorative giant numeral */}
               <span
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontSize: 64,
                   fontWeight: 800,
                   color: GREEN,
@@ -257,15 +250,7 @@ export function CtaSlideA({ index, total }: SlideProps) {
               >
                 0{i + 1}
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: WHITE,
-                  lineHeight: 1.4,
-                }}
-              >
+              <span className="deck-h3" style={{ fontWeight: 700, color: WHITE }}>
                 {s}
               </span>
             </div>
@@ -283,18 +268,11 @@ export function CtaSlideA({ index, total }: SlideProps) {
             ...RTL_DIR,
           }}
         >
-          <span
-            style={{
-              fontFamily: FONT_DISPLAY,
-              fontSize: 28,
-              fontWeight: 800,
-              color: NAVY,
-              lineHeight: 1.4,
-            }}
-          >
+          <span className="deck-h3" style={{ fontWeight: 800, color: NAVY }}>
             {CTA.cta}
           </span>
           <div
+            className="deck-body"
             style={{
               width: 110,
               height: 110,
@@ -303,8 +281,6 @@ export function CtaSlideA({ index, total }: SlideProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: FONT_BODY,
-              fontSize: 18,
               color: NAVY,
               fontWeight: 700,
               flexShrink: 0,
@@ -350,18 +326,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: NAVY,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-              opacity: 0.7,
-            }}
-          >
-            NEXT STEP · ابدأ الآن
-          </span>
+          <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.32em', opacity: 0.7 }}>NEXT STEP · ابدأ الآن</span>
           <FitText
             as="div"
             maxSize={120}
@@ -369,7 +334,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={200}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: NAVY,
               lineHeight: 1.15,
@@ -418,7 +383,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 800,
                   fontSize: 24,
                   flexShrink: 0,
@@ -433,7 +398,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
                 width={420}
                 height={70}
                 style={{
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 700,
                   color: NAVY,
                   lineHeight: 1.4,
@@ -465,7 +430,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
             width={1300}
             height={120}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.4,
@@ -490,24 +455,10 @@ export function CtaSlideB({ index, total }: SlideProps) {
                 gap: 6,
               }}
             >
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 18,
-                  color: GREEN,
-                  fontWeight: 700,
-                  letterSpacing: '0.32em',
-                }}
-              >
+              <span className="deck-caption" style={{ color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>
                 {CTA.contact}
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_BODY,
-                  fontSize: 20,
-                  color: 'rgba(255,255,255,0.7)',
-                }}
-              >
+              <span className="deck-body" style={{ color: 'rgba(255,255,255,0.7)' }}>
                 WhatsApp
               </span>
             </div>
@@ -558,17 +509,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            CONTACT · تواصل معنا
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>CONTACT · تواصل معنا</span>
           <FitText
             as="div"
             maxSize={110}
@@ -576,7 +517,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
             width={SLIDE_WIDTH - 192}
             height={200}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: WHITE,
               lineHeight: 1.15,
@@ -611,12 +552,10 @@ export function CtaSlideC({ index, total }: SlideProps) {
               }}
             >
               <span
+                className="deck-h2"
                 style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontSize: 36,
                   fontWeight: 800,
                   color: GREEN,
-                  lineHeight: 1,
                   flexShrink: 0,
                 }}
               >
@@ -629,7 +568,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
                 width={360}
                 height={60}
                 style={{
-                  fontFamily: FONT_BODY,
+                  fontFamily: BODY_FAMILY,
                   fontWeight: 700,
                   color: WHITE,
                   lineHeight: 1.4,
@@ -655,18 +594,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
-                color: NAVY,
-                fontWeight: 800,
-                letterSpacing: '0.32em',
-                opacity: 0.7,
-              }}
-            >
-              CALL TO ACTION
-            </span>
+            <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.32em', opacity: 0.7 }}>CALL TO ACTION</span>
             <FitText
               as="span"
               maxSize={42}
@@ -674,7 +602,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
               width={1100}
               height={140}
               style={{
-                fontFamily: FONT_DISPLAY,
+                fontFamily: HEADING_FAMILY,
                 fontWeight: 800,
                 color: NAVY,
                 lineHeight: 1.35,
@@ -694,15 +622,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
             }}
           >
             <QrPlaceholder size={140} dark={NAVY} light={WHITE} />
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 16,
-                color: NAVY,
-                fontWeight: 700,
-                letterSpacing: '0.18em',
-              }}
-            >
+            <span className="deck-caption" style={{ color: NAVY, fontWeight: 700, letterSpacing: '0.18em' }}>
               {CTA.contact}
             </span>
           </div>
@@ -755,26 +675,15 @@ export function CtaSlideD({ index, total }: SlideProps) {
               background: GREEN,
             }}
           />
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontSize: 20,
-              color: GREEN,
-              fontWeight: 700,
-              letterSpacing: '0.32em',
-            }}
-          >
-            SCAN · امسح للتواصل
-          </span>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>SCAN · امسح للتواصل</span>
           <QrPlaceholder size={460} dark={WHITE} light={NAVY} />
           <div
+            className="deck-h3"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 14,
               color: WHITE,
-              fontFamily: FONT_DISPLAY,
-              fontSize: 22,
               fontWeight: 700,
             }}
           >
@@ -798,7 +707,7 @@ export function CtaSlideD({ index, total }: SlideProps) {
             width={1000}
             height={220}
             style={{
-              fontFamily: FONT_DISPLAY,
+              fontFamily: HEADING_FAMILY,
               fontWeight: 800,
               color: NAVY,
               lineHeight: 1.18,
@@ -842,7 +751,7 @@ export function CtaSlideD({ index, total }: SlideProps) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 800,
                     fontSize: 20,
                     flexShrink: 0,
@@ -857,7 +766,7 @@ export function CtaSlideD({ index, total }: SlideProps) {
                   width={780}
                   height={60}
                   style={{
-                    fontFamily: FONT_DISPLAY,
+                    fontFamily: HEADING_FAMILY,
                     fontWeight: 700,
                     color: NAVY,
                     lineHeight: 1.4,
@@ -889,7 +798,7 @@ export function CtaSlideD({ index, total }: SlideProps) {
               width={840}
               height={90}
               style={{
-                fontFamily: FONT_DISPLAY,
+                fontFamily: HEADING_FAMILY,
                 fontWeight: 800,
                 color: NAVY,
                 lineHeight: 1.4,
@@ -938,18 +847,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
           ...RTL_DIR,
         }}
       >
-        <span
-          style={{
-            fontFamily: FONT_BODY,
-            fontSize: 20,
-            color: GREEN,
-            fontWeight: 700,
-            letterSpacing: '0.32em',
-            textAlign: 'center',
-          }}
-        >
-          NEXT STEP · الخطوة التالية
-        </span>
+        <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em', textAlign: 'center' }}>NEXT STEP · الخطوة التالية</span>
         <FitText
           as="div"
           maxSize={108}
@@ -957,7 +855,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
           width={SLIDE_WIDTH - 240}
           height={220}
           style={{
-            fontFamily: FONT_DISPLAY,
+            fontFamily: HEADING_FAMILY,
             fontWeight: 800,
             color: NAVY,
             lineHeight: 1.18,
@@ -990,17 +888,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
               maxWidth: 760,
             }}
           >
-            <span
-              style={{
-                fontFamily: FONT_BODY,
-                fontSize: 20,
-                color: GREEN,
-                fontWeight: 700,
-                letterSpacing: '0.32em',
-              }}
-            >
-              {CTA.contact}
-            </span>
+            <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>{CTA.contact}</span>
             <FitText
               as="span"
               maxSize={36}
@@ -1008,7 +896,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
               width={760}
               height={140}
               style={{
-                fontFamily: FONT_DISPLAY,
+                fontFamily: HEADING_FAMILY,
                 fontWeight: 800,
                 color: NAVY,
                 lineHeight: 1.35,
@@ -1051,7 +939,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontFamily: FONT_DISPLAY,
+                  fontFamily: HEADING_FAMILY,
                   fontWeight: 800,
                   fontSize: 16,
                   flexShrink: 0,
@@ -1059,14 +947,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
               >
                 0{i + 1}
               </span>
-              <span
-                style={{
-                  fontFamily: FONT_DISPLAY,
-                  fontWeight: 700,
-                  color: NAVY,
-                  fontSize: 22,
-                }}
-              >
+              <span className="deck-body" style={{ fontWeight: 700, color: NAVY }}>
                 {s}
               </span>
             </div>
