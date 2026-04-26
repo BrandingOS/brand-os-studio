@@ -22,8 +22,8 @@ const GREEN_SOFT = 'rgba(104, 190, 105, 0.12)';
 const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -40,8 +40,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -53,15 +55,11 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>الأسس</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>الأسس</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -72,7 +70,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
         }}
       />
     </>
@@ -103,7 +101,6 @@ function Frame({
         overflow: 'hidden',
         background: bg ?? fallback,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -119,10 +116,10 @@ export function FoundationsA({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <FitText as="div" maxSize={80} minSize={36} width={SLIDE_WIDTH - 192} height={110} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+          <FitText as="div" maxSize={80} minSize={36} width={SLIDE_WIDTH - 192} height={110} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
             {FOUNDATIONS.title}
           </FitText>
-          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
+          <div className="deck-body" style={{ marginTop: 14, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 22, flex: 1 }}>
           {FOUNDATIONS.pillars.map((p, i) => (
@@ -140,9 +137,9 @@ export function FoundationsA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, letterSpacing: '0.18em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', lineHeight: 1.65 }}>{p.body}</span>
+              <span className="deck-label" style={{ letterSpacing: '0.18em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
+              <span className="deck-h3" style={{ fontWeight: 800, color: NAVY }}>{p.title}</span>
+              <span className="deck-body" style={{ color: 'rgba(0,21,99,0.78)' }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -160,12 +157,12 @@ export function FoundationsB({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap' }}>
-          <FitText as="div" maxSize={84} minSize={36} width={1200} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+          <FitText as="div" maxSize={84} minSize={36} width={1200} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
             {FOUNDATIONS.title}
           </FitText>
-          <div style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS · 04</div>
+          <div className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>FOUNDATIONS · 04</div>
         </div>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
+        <div className="deck-body" style={{ color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: 24, flex: 1 }}>
           {FOUNDATIONS.pillars.map((p, i) => (
             <div
@@ -200,9 +197,9 @@ export function FoundationsB({ index, total }: SlideProps) {
                 <img src={icons[i]} alt="" style={{ width: 72, height: 72, objectFit: 'contain' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, minWidth: 0 }}>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: i % 3 === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>0{i + 1}</span>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 30, fontWeight: 800, lineHeight: 1.25 }}>{p.title}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 22, opacity: 0.85, lineHeight: 1.65 }}>{p.body}</span>
+                <span className="deck-label" style={{ letterSpacing: '0.32em', color: i % 3 === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>0{i + 1}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, color: i % 3 === 0 ? WHITE : NAVY }}>{p.title}</span>
+                <span className="deck-body" style={{ opacity: 0.85, color: i % 3 === 0 ? WHITE : NAVY }}>{p.body}</span>
               </div>
             </div>
           ))}
@@ -237,10 +234,10 @@ export function FoundationsC({ index, total }: SlideProps) {
       </div>
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>
-        <FitText as="div" maxSize={84} minSize={36} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={84} minSize={36} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
           {FOUNDATIONS.title}
         </FitText>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
+        <div className="deck-body" style={{ color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1, marginTop: 8 }}>
           {FOUNDATIONS.pillars.map((p, i) => (
             <div
@@ -258,9 +255,10 @@ export function FoundationsC({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 800, color: i % 2 === 0 ? NAVY : GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', lineHeight: 1.6 }}>{p.body}</span>
+              {/* Decorative giant numeral */}
+              <span style={{ fontFamily: HEADING_FAMILY, fontSize: 64, fontWeight: 800, color: i % 2 === 0 ? NAVY : GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
+              <span className="deck-h3" style={{ fontWeight: 800, color: NAVY }}>{p.title}</span>
+              <span className="deck-body" style={{ color: 'rgba(0,21,99,0.78)' }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -279,11 +277,11 @@ export function FoundationsD({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>FOUNDATIONS</span>
-          <FitText as="div" maxSize={84} minSize={40} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>FOUNDATIONS</span>
+          <FitText as="div" maxSize={84} minSize={40} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
             {FOUNDATIONS.title}
           </FitText>
-          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
+          <div className="deck-body" style={{ marginTop: 14, color: 'rgba(255,255,255,0.78)', maxWidth: 1200 }}>{FOUNDATIONS.intro}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, flex: 1 }}>
           {FOUNDATIONS.pillars.map((p, i) => (
@@ -314,9 +312,10 @@ export function FoundationsD({ index, total }: SlideProps) {
                   background: i % 2 === 0 ? GREEN : 'rgba(255,255,255,0.4)',
                 }}
               />
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 56, fontWeight: 800, color: GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 800, color: WHITE, lineHeight: 1.3 }}>{p.title}</span>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{p.body}</span>
+              {/* Decorative giant numeral */}
+              <span style={{ fontFamily: HEADING_FAMILY, fontSize: 56, fontWeight: 800, color: GREEN, lineHeight: 1, letterSpacing: '-0.02em' }}>0{i + 1}</span>
+              <span className="deck-h3" style={{ fontWeight: 800, color: WHITE }}>{p.title}</span>
+              <span className="deck-body" style={{ color: 'rgba(255,255,255,0.78)' }}>{p.body}</span>
             </div>
           ))}
         </div>
@@ -342,7 +341,7 @@ export function FoundationsE({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', top: 130, left: 96, right: 96, ...RTL_DIR }}>
-        <FitText as="div" maxSize={64} minSize={32} width={SLIDE_WIDTH - 192} height={90} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={64} minSize={32} width={SLIDE_WIDTH - 192} height={90} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
           {FOUNDATIONS.title}
         </FitText>
       </div>
@@ -387,8 +386,8 @@ export function FoundationsE({ index, total }: SlideProps) {
         }}
       >
         <img src="/brands/uniex/logos/iconGreen.svg" alt="" style={{ width: 56, height: 56 }} />
-        <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: WHITE, textAlign: 'center', lineHeight: 1.4 }}>تجربة يونكس</span>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: GREEN, letterSpacing: '0.2em', fontWeight: 700 }}>04 PILLARS</span>
+        <span className="deck-h3" style={{ fontWeight: 800, color: WHITE, textAlign: 'center' }}>تجربة يونكس</span>
+        <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.2em' }}>04 PILLARS</span>
       </div>
 
       {/* surrounding pillars */}
@@ -416,14 +415,14 @@ export function FoundationsE({ index, total }: SlideProps) {
               ...RTL_DIR,
             }}
           >
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700, letterSpacing: '0.32em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
-            <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: NAVY, lineHeight: 1.3 }}>{p.title}</span>
-            <span style={{ fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.75)', lineHeight: 1.6 }}>{p.body}</span>
+            <span className="deck-label" style={{ letterSpacing: '0.32em', color: i % 2 === 0 ? NAVY : GREEN }}>0{i + 1}</span>
+            <span className="deck-h3" style={{ fontWeight: 800, color: NAVY }}>{p.title}</span>
+            <span className="deck-body" style={{ color: 'rgba(0,21,99,0.75)' }}>{p.body}</span>
           </div>
         );
       })}
 
-      <div style={{ position: 'absolute', bottom: 70, left: 96, right: 96, fontFamily: FONT_BODY, fontSize: 18, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
+      <div className="deck-caption" style={{ position: 'absolute', bottom: 70, left: 96, right: 96, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
         {FOUNDATIONS.intro}
       </div>
     </Frame>

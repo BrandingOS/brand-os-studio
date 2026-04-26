@@ -19,8 +19,8 @@ const GREEN_SOFT = 'rgba(104, 190, 105, 0.12)';
 const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -37,8 +37,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -50,15 +52,11 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>فوائد المدرسة</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>فوائد المدرسة</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -69,7 +67,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
         }}
       />
     </>
@@ -100,7 +98,6 @@ function Frame({
         overflow: 'hidden',
         background: bg ?? fallback,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -115,7 +112,7 @@ export function SchoolBenefitsA({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
-        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
           {SCHOOL_BENEFITS.title}
         </FitText>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 30, flex: 1 }}>
@@ -135,12 +132,12 @@ export function SchoolBenefitsA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: i === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>
+              <span className="deck-label" style={{ letterSpacing: '0.32em', color: i === 0 ? GREEN : 'rgba(0,21,99,0.55)' }}>
                 {g.heading}
               </span>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 0, margin: 0, listStyle: 'none' }}>
                 {g.items.map((item, j) => (
-                  <li key={j} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 22, fontWeight: 500, lineHeight: 1.55 }}>
+                  <li key={j} className="deck-body" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', fontWeight: 500, color: i === 0 ? WHITE : NAVY }}>
                     <span style={{ color: GREEN, fontWeight: 800, fontSize: 24 }}>✓</span>
                     <span>{item}</span>
                   </li>
@@ -149,7 +146,7 @@ export function SchoolBenefitsA({ index, total }: SlideProps) {
             </div>
           ))}
         </div>
-        <div style={{ background: GREEN, borderRadius: 18, padding: '24px 32px', color: WHITE, fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 700, lineHeight: 1.5, ...RTL_DIR }}>
+        <div className="deck-h3" style={{ background: GREEN, borderRadius: 18, padding: '24px 32px', color: WHITE, fontWeight: 700, ...RTL_DIR }}>
           {SCHOOL_BENEFITS.closer}
         </div>
       </div>
@@ -167,7 +164,7 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 580px', gap: 32, alignItems: 'stretch' }}>
           {/* Left: title + benefits */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, ...RTL_DIR }}>
-            <FitText as="div" maxSize={72} minSize={36} width={1100} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.15, ...RTL_DIR }}>
+            <FitText as="div" maxSize={72} minSize={36} width={1100} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.15, ...RTL_DIR }}>
               {SCHOOL_BENEFITS.title}
             </FitText>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
@@ -186,10 +183,8 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
                   }}
                 >
                   <span
+                    className="deck-label"
                     style={{
-                      fontFamily: FONT_BODY,
-                      fontSize: 18,
-                      fontWeight: 700,
                       letterSpacing: '0.32em',
                       color: i === 0 ? GREEN : NAVY,
                     }}
@@ -198,7 +193,7 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
                   </span>
                   <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
                     {g.items.map((item, j) => (
-                      <li key={j} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 22, color: NAVY, fontWeight: 500, lineHeight: 1.55 }}>
+                      <li key={j} className="deck-body" style={{ display: 'flex', gap: 10, alignItems: 'flex-start', color: NAVY, fontWeight: 500 }}>
                         <span style={{ color: GREEN, fontWeight: 800, fontSize: 18 }}>✓</span>
                         <span>{item}</span>
                       </li>
@@ -240,8 +235,8 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
               }}
             />
             <div style={{ position: 'absolute', bottom: 32, left: 32, right: 32, color: WHITE, ...RTL_DIR }}>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>RESULT</span>
-              <FitText as="div" maxSize={28} minSize={18} width={500} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, color: WHITE, lineHeight: 1.45, marginTop: 10, ...RTL_DIR }}>
+              <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>RESULT</span>
+              <FitText as="div" maxSize={28} minSize={18} width={500} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 700, color: WHITE, lineHeight: 1.45, marginTop: 10, ...RTL_DIR }}>
                 {SCHOOL_BENEFITS.closer}
               </FitText>
             </div>
@@ -260,7 +255,7 @@ export function SchoolBenefitsC({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 22, ...RTL_DIR }}>
-        <FitText as="div" maxSize={84} minSize={40} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={84} minSize={40} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
           {SCHOOL_BENEFITS.title}
         </FitText>
 
@@ -270,23 +265,19 @@ export function SchoolBenefitsC({ index, total }: SlideProps) {
               {/* divider with heading */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, ...RTL_DIR }}>
                 <span
+                  className="deck-h3"
                   style={{
-                    fontFamily: FONT_DISPLAY,
-                    fontSize: 24,
                     fontWeight: 800,
                     color: i === 0 ? GREEN : NAVY,
                     letterSpacing: '-0.01em',
-                    lineHeight: 1.2,
                   }}
                 >
                   {g.heading}
                 </span>
                 <span style={{ flex: 1, height: 2, background: i === 0 ? GREEN : NAVY, opacity: 0.18 }} />
                 <span
+                  className="deck-label"
                   style={{
-                    fontFamily: FONT_BODY,
-                    fontSize: 18,
-                    fontWeight: 700,
                     letterSpacing: '0.32em',
                     color: 'rgba(0,21,99,0.4)',
                   }}
@@ -306,16 +297,14 @@ export function SchoolBenefitsC({ index, total }: SlideProps) {
                 {g.items.map((item, j) => (
                   <div
                     key={j}
+                    className="deck-body"
                     style={{
                       background: WHITE,
                       borderRight: `4px solid ${i === 0 ? GREEN : NAVY}`,
                       borderRadius: 14,
                       padding: '20px 22px',
-                      fontFamily: FONT_BODY,
-                      fontSize: 22,
                       fontWeight: 600,
                       color: NAVY,
-                      lineHeight: 1.55,
                       display: 'flex',
                       gap: 12,
                       alignItems: 'flex-start',
@@ -333,15 +322,13 @@ export function SchoolBenefitsC({ index, total }: SlideProps) {
         </div>
 
         <div
+          className="deck-h3"
           style={{
             background: NAVY,
             borderRadius: 18,
             padding: '22px 32px',
             color: WHITE,
-            fontFamily: FONT_DISPLAY,
-            fontSize: 22,
             fontWeight: 700,
-            lineHeight: 1.5,
             display: 'flex',
             alignItems: 'center',
             gap: 18,
@@ -366,8 +353,8 @@ export function SchoolBenefitsD({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SCHOOL · BENEFITS</span>
-          <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 10, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>SCHOOL · BENEFITS</span>
+          <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 10, ...RTL_DIR }}>
             {SCHOOL_BENEFITS.title}
           </FitText>
         </div>
@@ -389,11 +376,11 @@ export function SchoolBenefitsD({ index, total }: SlideProps) {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <span style={{ width: 12, height: 12, borderRadius: 999, background: GREEN }} />
-                <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: GREEN }}>{g.heading}</span>
+                <span className="deck-label" style={{ letterSpacing: '0.32em', color: GREEN }}>{g.heading}</span>
               </div>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 0, margin: 0, listStyle: 'none' }}>
                 {g.items.map((item, j) => (
-                  <li key={j} style={{ display: 'flex', gap: 14, alignItems: 'flex-start', fontFamily: FONT_BODY, fontSize: 22, color: WHITE, fontWeight: 500, lineHeight: 1.55 }}>
+                  <li key={j} className="deck-body" style={{ display: 'flex', gap: 14, alignItems: 'flex-start', color: WHITE, fontWeight: 500 }}>
                     <span
                       style={{
                         minWidth: 28,
@@ -419,15 +406,13 @@ export function SchoolBenefitsD({ index, total }: SlideProps) {
           ))}
         </div>
         <div
+          className="deck-h3"
           style={{
             background: GREEN,
             color: NAVY,
             borderRadius: 18,
             padding: '22px 32px',
-            fontFamily: FONT_DISPLAY,
-            fontSize: 24,
             fontWeight: 800,
-            lineHeight: 1.5,
             display: 'flex',
             alignItems: 'center',
             gap: 18,
@@ -454,7 +439,7 @@ export function SchoolBenefitsE({ index, total }: SlideProps) {
       />
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 28, ...RTL_DIR }}>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SCHOOL · {SCHOOL_BENEFITS.title.split(' ').slice(0, 2).join(' ')}</span>
+        <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>SCHOOL · {SCHOOL_BENEFITS.title.split(' ').slice(0, 2).join(' ')}</span>
 
         {/* Hero closer quote */}
         <div
@@ -471,13 +456,14 @@ export function SchoolBenefitsE({ index, total }: SlideProps) {
             ...RTL_DIR,
           }}
         >
+          {/* Decorative giant glyph */}
           <span style={{ position: 'absolute', top: 24, right: 32, fontSize: 140, lineHeight: 0.8, color: GREEN, opacity: 0.45, fontFamily: 'Georgia, serif' }}>"</span>
-          <FitText as="div" maxSize={56} minSize={28} width={1500} height={150} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.35, ...RTL_DIR }}>
+          <FitText as="div" maxSize={56} minSize={28} width={1500} height={150} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: WHITE, lineHeight: 1.35, ...RTL_DIR }}>
             {SCHOOL_BENEFITS.closer}
           </FitText>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <span style={{ width: 56, height: 4, background: GREEN }} />
-            <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>{SCHOOL_BENEFITS.title}</span>
+            <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>{SCHOOL_BENEFITS.title}</span>
           </div>
         </div>
 
@@ -494,22 +480,20 @@ export function SchoolBenefitsE({ index, total }: SlideProps) {
                   borderBottom: `2px solid ${i === 0 ? GREEN : NAVY}`,
                 }}
               >
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 800, color: i === 0 ? GREEN : NAVY }}>0{i + 1}</span>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: NAVY, letterSpacing: '-0.01em' }}>{g.heading}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, color: i === 0 ? GREEN : NAVY }}>0{i + 1}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, color: NAVY, letterSpacing: '-0.01em' }}>{g.heading}</span>
               </div>
               <ul style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 0, margin: 0, listStyle: 'none' }}>
                 {g.items.map((item, j) => (
                   <li
                     key={j}
+                    className="deck-body"
                     style={{
                       display: 'flex',
                       gap: 12,
                       alignItems: 'flex-start',
-                      fontFamily: FONT_BODY,
-                      fontSize: 22,
                       color: 'rgba(0,21,99,0.85)',
                       fontWeight: 500,
-                      lineHeight: 1.6,
                     }}
                   >
                     <span style={{ color: i === 0 ? GREEN : NAVY, fontWeight: 800, fontSize: 16, marginTop: 4 }}>—</span>

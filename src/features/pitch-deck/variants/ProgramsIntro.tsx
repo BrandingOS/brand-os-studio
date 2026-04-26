@@ -19,8 +19,8 @@ const GREEN_SOFT = 'rgba(104, 190, 105, 0.12)';
 const PAPER = '#F5F7FB';
 const WHITE = '#FFFFFF';
 
-const FONT_DISPLAY = `'IBM Plex Sans Arabic', 'Cairo', 'Inter', sans-serif`;
-const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
+// FitText sizes itself dynamically; reach the theme font family via the var.
+const HEADING_FAMILY = 'var(--deck-font-heading)';
 const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
 interface SlideProps {
@@ -37,8 +37,10 @@ function PageChrome({
   total: number;
   variant: 'light' | 'dark' | 'flood';
 }) {
-  const ink = variant === 'light' ? NAVY : WHITE;
-  const muted = variant === 'light' ? 'rgba(0, 21, 99, 0.55)' : 'rgba(255, 255, 255, 0.7)';
+  const isDark = variant !== 'light';
+  const wordmarkColor = isDark ? WHITE : undefined;
+  const chromeColor = isDark ? 'rgba(255, 255, 255, 0.7)' : undefined;
+  const ruleColor = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(0,21,99,0.10)';
   return (
     <>
       <div
@@ -50,15 +52,11 @@ function PageChrome({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontFamily: FONT_BODY,
-          fontSize: 18,
-          color: muted,
-          letterSpacing: '0.04em',
         }}
       >
-        <span style={{ fontWeight: 700, color: ink, letterSpacing: '0.06em' }}>uniex</span>
-        <span style={{ ...RTL_DIR, fontWeight: 600, fontSize: 17 }}>برامج «أثر»</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 17 }}>
+        <span className="deck-label" style={{ color: wordmarkColor, letterSpacing: '0.06em' }}>uniex</span>
+        <span className="deck-caption" style={{ ...RTL_DIR, fontWeight: 600, color: chromeColor }}>برامج «أثر»</span>
+        <span className="deck-caption" style={{ fontVariantNumeric: 'tabular-nums', color: chromeColor }}>
           {String(pageNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
         </span>
       </div>
@@ -69,7 +67,7 @@ function PageChrome({
           right: 96,
           top: 88,
           height: 1,
-          background: variant === 'light' ? 'rgba(0,21,99,0.10)' : 'rgba(255,255,255,0.16)',
+          background: ruleColor,
         }}
       />
     </>
@@ -100,7 +98,6 @@ function Frame({
         overflow: 'hidden',
         background: bg ?? fallback,
         color: ink,
-        fontFamily: FONT_DISPLAY,
       }}
     >
       {children}
@@ -116,11 +113,11 @@ export function ProgramsIntroA({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="dark" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 50, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
-          <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>PROGRAMS</span>
+          <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: WHITE, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
-          <div style={{ marginTop: 18, fontFamily: FONT_BODY, fontSize: 24, color: 'rgba(255,255,255,0.82)' }}>{PROGRAMS_INTRO.subtitle}</div>
+          <div className="deck-body" style={{ marginTop: 18, color: 'rgba(255,255,255,0.82)' }}>{PROGRAMS_INTRO.subtitle}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, flex: 1 }}>
           {PROGRAMS_INTRO.paths.map((p, i) => (
@@ -138,11 +135,12 @@ export function ProgramsIntroA({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 96, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
+              {/* Decorative giant numeral */}
+              <span style={{ fontFamily: HEADING_FAMILY, fontSize: 96, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 800, color: WHITE, lineHeight: 1.15 }}>{p.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>{p.tagline}</span>
-                <span style={{ marginTop: 10, fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: GREEN }}>{p.duration}</span>
+                <span className="deck-h2" style={{ fontWeight: 800, color: WHITE }}>{p.name}</span>
+                <span className="deck-body" style={{ color: 'rgba(255,255,255,0.7)', letterSpacing: '0.04em' }}>{p.tagline}</span>
+                <span className="deck-body" style={{ marginTop: 10, fontWeight: 600, color: GREEN }}>{p.duration}</span>
               </div>
             </div>
           ))}
@@ -161,10 +159,10 @@ export function ProgramsIntroB({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 24, ...RTL_DIR }}>
-        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
+        <FitText as="div" maxSize={88} minSize={40} width={SLIDE_WIDTH - 192} height={130} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>
           {PROGRAMS_INTRO.title}
         </FitText>
-        <div style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{PROGRAMS_INTRO.subtitle}</div>
+        <div className="deck-body" style={{ color: 'rgba(0,21,99,0.65)', maxWidth: 1200 }}>{PROGRAMS_INTRO.subtitle}</div>
 
         <div
           style={{
@@ -201,14 +199,15 @@ export function ProgramsIntroB({ index, total }: SlideProps) {
                 }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 18, fontWeight: 700, letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN, opacity: i === 0 ? 0.7 : 1 }}>0{i + 1} · {p.tagline}</span>
-                  <span style={{ fontFamily: FONT_DISPLAY, fontSize: 32, fontWeight: 800, lineHeight: 1.2 }}>{p.name}</span>
+                  <span className="deck-label" style={{ letterSpacing: '0.32em', color: i === 0 ? NAVY : GREEN, opacity: i === 0 ? 0.7 : 1 }}>0{i + 1} · {p.tagline}</span>
+                  <span className="deck-h2" style={{ fontWeight: 800, color: fg }}>{p.name}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, justifyContent: 'flex-start' }}>
-                  <span style={{ fontFamily: FONT_DISPLAY, fontSize: 64, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em', color: i === 0 ? NAVY : WHITE }}>
+                  {/* Decorative giant numeral */}
+                  <span style={{ fontFamily: HEADING_FAMILY, fontSize: 64, fontWeight: 800, lineHeight: 1, letterSpacing: '-0.03em', color: i === 0 ? NAVY : WHITE }}>
                     {p.duration.split(' ')[0]}
                   </span>
-                  <span style={{ fontFamily: FONT_BODY, fontSize: 22, opacity: 0.85, fontWeight: 600 }}>
+                  <span className="deck-body" style={{ opacity: 0.85, fontWeight: 600, color: fg }}>
                     {p.duration.split(' ').slice(1).join(' ')}
                   </span>
                 </div>
@@ -258,11 +257,11 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
         }}
       >
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
-          <FitText as="div" maxSize={80} minSize={40} width={1000} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
+          <FitText as="div" maxSize={80} minSize={40} width={1000} height={120} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: WHITE, lineHeight: 1.18, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
-          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(255,255,255,0.78)', lineHeight: 1.7 }}>{PROGRAMS_INTRO.subtitle}</div>
+          <div className="deck-body" style={{ marginTop: 14, color: 'rgba(255,255,255,0.78)' }}>{PROGRAMS_INTRO.subtitle}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
           {PROGRAMS_INTRO.paths.map((p, i) => (
@@ -280,12 +279,12 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
                 ...RTL_DIR,
               }}
             >
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 40, fontWeight: 800, color: GREEN, lineHeight: 1 }}>0{i + 1}</span>
+              <span className="deck-h2" style={{ fontWeight: 800, color: GREEN }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 800, color: WHITE, lineHeight: 1.25 }}>{p.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: 'rgba(255,255,255,0.6)' }}>{p.tagline}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, color: WHITE }}>{p.name}</span>
+                <span className="deck-body" style={{ color: 'rgba(255,255,255,0.6)' }}>{p.tagline}</span>
               </div>
-              <span style={{ background: GREEN, color: NAVY, padding: '8px 18px', borderRadius: 999, fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 800, whiteSpace: 'nowrap' }}>
+              <span className="deck-body" style={{ background: GREEN, color: NAVY, padding: '8px 18px', borderRadius: 999, fontWeight: 800, whiteSpace: 'nowrap' }}>
                 {p.duration}
               </span>
             </div>
@@ -309,8 +308,8 @@ export function ProgramsIntroD({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', top: 130, left: 96, right: 96, ...RTL_DIR }}>
-        <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS</span>
-        <FitText as="div" maxSize={64} minSize={32} width={SLIDE_WIDTH - 192} height={88} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, marginTop: 6, ...RTL_DIR }}>
+        <span className="deck-label" style={{ color: GREEN, letterSpacing: '0.32em' }}>PROGRAMS</span>
+        <FitText as="div" maxSize={64} minSize={32} width={SLIDE_WIDTH - 192} height={88} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.18, marginTop: 6, ...RTL_DIR }}>
           {PROGRAMS_INTRO.title}
         </FitText>
       </div>
@@ -341,17 +340,18 @@ export function ProgramsIntroD({ index, total }: SlideProps) {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-              <span style={{ fontFamily: FONT_DISPLAY, fontSize: 56, fontWeight: 800, color: isInner ? GREEN : layer.accent, lineHeight: 1 }}>0{i + 1}</span>
+              {/* Decorative giant numeral */}
+              <span style={{ fontFamily: HEADING_FAMILY, fontSize: 56, fontWeight: 800, color: isInner ? GREEN : layer.accent, lineHeight: 1 }}>0{i + 1}</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, color: isInner ? WHITE : NAVY, lineHeight: 1.25 }}>{path.name}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: isInner ? 'rgba(255,255,255,0.7)' : 'rgba(0,21,99,0.62)' }}>{path.tagline} · {path.duration}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, color: isInner ? WHITE : NAVY }}>{path.name}</span>
+                <span className="deck-body" style={{ color: isInner ? 'rgba(255,255,255,0.7)' : 'rgba(0,21,99,0.62)' }}>{path.tagline} · {path.duration}</span>
               </div>
             </div>
           </div>
         );
       })}
 
-      <div style={{ position: 'absolute', bottom: 90, left: 96, right: 96, fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
+      <div className="deck-body" style={{ position: 'absolute', bottom: 90, left: 96, right: 96, color: 'rgba(0,21,99,0.62)', textAlign: 'center', ...RTL_DIR }}>
         {PROGRAMS_INTRO.subtitle}
       </div>
     </Frame>
@@ -366,11 +366,11 @@ export function ProgramsIntroE({ index, total }: SlideProps) {
       <PageChrome pageNum={index} total={total} variant="flood" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 38, ...RTL_DIR }}>
         <div>
-          <span style={{ fontFamily: FONT_BODY, fontSize: 20, color: NAVY, fontWeight: 700, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
-          <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
+          <span className="deck-label" style={{ color: NAVY, letterSpacing: '0.32em' }}>PROGRAMS · أثر</span>
+          <FitText as="div" maxSize={140} minSize={56} width={SLIDE_WIDTH - 192} height={180} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.1, marginTop: 12, ...RTL_DIR }}>
             {PROGRAMS_INTRO.title}
           </FitText>
-          <div style={{ marginTop: 14, fontFamily: FONT_BODY, fontSize: 24, color: 'rgba(0,21,99,0.78)' }}>{PROGRAMS_INTRO.subtitle}</div>
+          <div className="deck-body" style={{ marginTop: 14, color: 'rgba(0,21,99,0.78)' }}>{PROGRAMS_INTRO.subtitle}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, flex: 1 }}>
           {PROGRAMS_INTRO.paths.map((p, i) => (
@@ -407,14 +407,14 @@ export function ProgramsIntroE({ index, total }: SlideProps) {
                   boxShadow: '0 12px 24px -8px rgba(0,21,99,0.4)',
                 }}
               >
-                <span style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 800, lineHeight: 1, color: GREEN }}>{p.duration.split(' ')[0]}</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: 16, fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{p.duration.split(' ').slice(1).join(' ')}</span>
+                <span className="deck-h3" style={{ fontWeight: 800, lineHeight: 1, color: GREEN }}>{p.duration.split(' ')[0]}</span>
+                <span className="deck-caption" style={{ fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{p.duration.split(' ').slice(1).join(' ')}</span>
               </div>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 20, fontWeight: 700, letterSpacing: '0.32em', color: NAVY, opacity: 0.55, marginTop: 28 }}>0{i + 1}</span>
-              <FitText as="div" maxSize={42} minSize={26} width={400} height={110} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.2, ...RTL_DIR }}>
+              <span className="deck-label" style={{ letterSpacing: '0.32em', color: NAVY, opacity: 0.55, marginTop: 28 }}>0{i + 1}</span>
+              <FitText as="div" maxSize={42} minSize={26} width={400} height={110} style={{ fontFamily: HEADING_FAMILY, fontWeight: 800, color: NAVY, lineHeight: 1.2, ...RTL_DIR }}>
                 {p.name}
               </FitText>
-              <span style={{ fontFamily: FONT_BODY, fontSize: 22, color: 'rgba(0,21,99,0.78)', fontWeight: 600, lineHeight: 1.55 }}>{p.tagline}</span>
+              <span className="deck-body" style={{ color: 'rgba(0,21,99,0.78)', fontWeight: 600 }}>{p.tagline}</span>
               <div style={{ marginTop: 'auto', height: 4, background: NAVY, opacity: 0.18, borderRadius: 4 }} />
             </div>
           ))}
