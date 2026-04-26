@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, Save, SlidersHorizontal, Sparkles, Type, Type as TypeText, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, Redo2, Save, SlidersHorizontal, Sparkles, Type, Type as TypeText, Undo2, X } from 'lucide-react';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
@@ -588,6 +588,13 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
             boxShadow: 'var(--shadow-lg)',
           }}
         >
+          <DockBtn onClick={() => window.dispatchEvent(new Event('deck-undo'))} title="Undo (⌘Z)" aria="Undo">
+            <Undo2 className="w-4 h-4" />
+          </DockBtn>
+          <DockBtn onClick={() => window.dispatchEvent(new Event('deck-redo'))} title="Redo (⌘⇧Z)" aria="Redo">
+            <Redo2 className="w-4 h-4" />
+          </DockBtn>
+          <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
           <DockBtn onClick={() => goTo(Math.max(0, activeIndex - 1))} title="Previous slide" aria="Previous slide">
             <ChevronLeft className="w-4 h-4" />
           </DockBtn>

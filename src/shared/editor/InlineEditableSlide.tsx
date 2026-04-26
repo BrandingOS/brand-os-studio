@@ -31,7 +31,7 @@
  * from each captured snapshot so click-noise doesn't pollute history.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { EditableSlide, type SelectedElement } from './blocks/EditableSlide';
 
 interface InlineEditableSlideProps {
@@ -81,27 +81,28 @@ export function InlineEditableSlide({
   });
   const isHistoryNavRef = useRef(false);
 
-  // Re-seed when the host hands down a new frozenHtml (e.g. brand
-  // change or reset). Skip self-save echoes by comparing to the
-  // history top.
-  //
-  // Critical: when the new frozenHtml arrives because the user just
-  // pressed Cmd+Z (we ourselves called onSave with the older entry),
-  // we MUST NOT reset history. The undo handler already updated
-  // historyRef.current.index, so only sync the local docHtml state
-  // here. Without this guard the second Cmd+Z would find a freshly-
-  // reset stack of length 1 and silently bail.
+  // Re-seed when the host hands down a new frozenHtml. We REBUILD
+  // history only when frozenHtml is genuinely new (e.g. variant
+  // swap, brand reset, page reload). For any frozenHtml that's
+  // already in our stack — self-save echo, undo navigation, redo
+  // navigation — we sync local state but preserve history.
   useEffect(() => {
-    if (isHistoryNavRef.current) {
+    const hist = historyRef.current;
+    const knownIndex = frozenHtml ? hist.stack.indexOf(frozenHtml) : -1;
+
+    if (frozenHtml && knownIndex >= 0) {
+      // Already in our history — this is an echo of our own save or
+      // a navigation. Sync the index so it points at the right entry,
+      // sync local docHtml state, leave the stack alone.
+      historyRef.current = { stack: hist.stack, index: knownIndex };
       if (frozenHtml !== docHtmlRef.current) {
-        setDocHtml(frozenHtml ?? null);
-        docHtmlRef.current = frozenHtml ?? null;
+        setDocHtml(frozenHtml);
+        docHtmlRef.current = frozenHtml;
       }
       return;
     }
-    const hist = historyRef.current;
-    const currentTop = hist.stack[hist.index];
-    if (frozenHtml && currentTop === frozenHtml) return;
+
+    // Never seen this html before → seed fresh history.
     setDocHtml(frozenHtml ?? null);
     docHtmlRef.current = frozenHtml ?? null;
     historyRef.current = {
@@ -249,57 +250,56 @@ export function InlineEditableSlide({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slideIndex]);
 
+  // Shared step. Used by keyboard handler AND the dock's Undo/Redo
+  // buttons (which dispatch deck-undo / deck-redo window events).
+  const stepHistory = useCallback((dir: -1 | 1) => {
+    const hist = historyRef.current;
+    const nextIdx = hist.index + dir;
+    if (nextIdx < 0 || nextIdx >= hist.stack.length) return false;
+    const html = hist.stack[nextIdx];
+    historyRef.current = { stack: hist.stack, index: nextIdx };
+    isHistoryNavRef.current = true;
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      pendingHtmlRef.current = null;
+    }
+    setDocHtml(html);
+    onSave(html);
+    return true;
+  }, [onSave]);
+
   // Cmd/Ctrl+Z + Cmd/Ctrl+Shift+Z + Ctrl+Y — only on the active slide.
+  // ALSO listen for `deck-undo` / `deck-redo` window events so the
+  // dock buttons drive the same logic.
   useEffect(() => {
     if (!isActive) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmd = isMac ? e.metaKey : e.ctrlKey;
       if (!cmd) return;
       if (e.key === 'z' && !e.shiftKey) {
+        // ALWAYS preventDefault — we don't want the browser's native
+        // contentEditable undo running in parallel and fighting our
+        // history stack character-by-character.
         e.preventDefault();
-        const hist = historyRef.current;
-        if (hist.index <= 0) return;
-        const nextIdx = hist.index - 1;
-        const html = hist.stack[nextIdx];
-        historyRef.current = { stack: hist.stack, index: nextIdx };
-        isHistoryNavRef.current = true;
-        // Cancel any in-flight debounced commit so the undo isn't
-        // immediately overwritten by a stale pending snapshot.
-        if (saveTimer.current) {
-          clearTimeout(saveTimer.current);
-          saveTimer.current = null;
-          pendingHtmlRef.current = null;
-        }
-        setDocHtml(html);
-        onSave(html);
-        // The observer's first firing after this consumes the flag
-        // synchronously — no timeout needed.
+        stepHistory(-1);
       } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
         e.preventDefault();
-        const hist = historyRef.current;
-        if (hist.index >= hist.stack.length - 1) return;
-        const nextIdx = hist.index + 1;
-        const html = hist.stack[nextIdx];
-        historyRef.current = { stack: hist.stack, index: nextIdx };
-        isHistoryNavRef.current = true;
-        // Cancel any in-flight debounced commit so the undo isn't
-        // immediately overwritten by a stale pending snapshot.
-        if (saveTimer.current) {
-          clearTimeout(saveTimer.current);
-          saveTimer.current = null;
-          pendingHtmlRef.current = null;
-        }
-        setDocHtml(html);
-        onSave(html);
-        // The observer's first firing after this consumes the flag
-        // synchronously — no timeout needed.
+        stepHistory(1);
       }
     };
+    const onUndo = () => { stepHistory(-1); };
+    const onRedo = () => { stepHistory(1); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isActive, onSave]);
+    window.addEventListener('deck-undo', onUndo);
+    window.addEventListener('deck-redo', onRedo);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('deck-undo', onUndo);
+      window.removeEventListener('deck-redo', onRedo);
+    };
+  }, [isActive, stepHistory]);
 
   return (
     <div ref={containerRef} style={{ width, height, position: 'relative' }}>
