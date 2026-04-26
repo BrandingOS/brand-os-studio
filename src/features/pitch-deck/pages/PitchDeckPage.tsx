@@ -27,6 +27,7 @@ import { useDeckThemeStore } from '@/shared/presentation/theme/store';
 import { detectRoleFromElement } from '@/shared/presentation/theme/detectRole';
 import { useArtworkStore } from '../artwork/artworkStore';
 import { ArtworkPicker } from '../artwork/ArtworkPicker';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Brand } from '@/shared/types/brand';
@@ -74,20 +75,36 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const saveAll = useCallback(async () => {
     setSavingNow(true);
     setSavedFlash(false);
+    console.log('[Save] start');
     try {
-      // 1. Flush any pending per-slide DOM edits (resize/move/typing).
+      // 1. Flush any pending per-slide DOM edits — resize, move,
+      //    typing — so the in-flight 300ms debounce commits NOW
+      //    and onSave fires for each affected slide.
       window.dispatchEvent(new Event('deck-flush-edits'));
+
+      // Give React one tick to flush the state updates that the
+      // commit() calls scheduled, so the localStorage-writing
+      // useEffects can fire before we call it "saved".
+      await new Promise<void>((r) => setTimeout(r, 0));
+
       // 2. Flush the deck-theme draft to brand.presentationThemes.
+      //    `updateBrand` swallows its own errors internally; we
+      //    re-check brandStore.error afterwards to surface them.
+      console.log('[Save] flushing theme…');
       await flushTheme();
-      // 3. Per-slide variants / hidden / artwork all auto-save to
-      //    localStorage on every state change, so they're already on
-      //    disk by the time the user clicks Save. Nothing to do here.
+
+      const brandError = useBrandStore.getState().error;
+      if (brandError) {
+        throw new Error(brandError);
+      }
+
+      console.log('[Save] done');
       setSavedFlash(true);
       toast.success('All changes saved');
       setTimeout(() => setSavedFlash(false), 1800);
     } catch (e) {
-      console.error('Save failed', e);
-      toast.error('Save failed');
+      console.error('[Save] failed', e);
+      toast.error(`Save failed: ${e instanceof Error ? e.message : 'unknown error'}`);
     } finally {
       setSavingNow(false);
     }
