@@ -24,7 +24,6 @@ export type UniexSlide =
   | { kind: 'cta' };
 
 export const UNIEX_SLIDES: UniexSlide[] = [
-  { kind: 'master' },
   { kind: 'cover' },
   { kind: 'problem' },
   { kind: 'solution' },
@@ -40,6 +39,9 @@ export const UNIEX_SLIDES: UniexSlide[] = [
   { kind: 'impact' },
   { kind: 'team' },
   { kind: 'cta' },
+  // Style master sits at the END so it doesn't displace Cover.
+  // Hide-from-deck toggle works on it like any other slide.
+  { kind: 'master' },
 ];
 
 /** Section labels used in chrome (bilingual; chrome picks one). */
