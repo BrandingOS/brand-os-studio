@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { IMPACT } from '../uniexPitchContent';
+import { VideoPlayCard } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -216,18 +217,18 @@ export function ImpactSlideA({ index, total }: SlideProps) {
 export function ImpactSlideB({ index, total }: SlideProps) {
   return (
     <Frame index={index} bg={NAVY_DEEP} ink={WHITE}>
-      <img
-        src="/brands/uniex/designs/3.jpg"
-        alt=""
+      <div
         style={{
           position: 'absolute',
           inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: 0.58,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.7,
         }}
-      />
+      >
+        <VideoPlayCard size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+      </div>
       <div
         style={{
           position: 'absolute',

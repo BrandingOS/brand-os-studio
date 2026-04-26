@@ -8,9 +8,8 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { COVER } from '../uniexPitchContent';
+import { ConnectedLaptop, GlobeWithFlags } from '../illustrations';
 import {
-  DESIGN_1,
-  DESIGN_3,
   FONT_BODY,
   FONT_DISPLAY,
   Frame,
@@ -100,7 +99,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="flood">
       <PageChrome pageNum={index} total={total} section="تقديم" variant="flood" />
-      {/* Right half: design illustration #3 (globe person) */}
+      {/* Right half: globe-with-flags illustration */}
       <div
         style={{
           position: 'absolute',
@@ -108,11 +107,15 @@ export function CoverVariantB({ index, total }: SlideProps) {
           right: 0,
           width: SLIDE_WIDTH * 0.46,
           height: '100%',
-          backgroundImage: `url(${DESIGN_3})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          background: `linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(0,21,99,0.4) 100%), ${PAPER}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <GlobeWithFlags size={SLIDE_WIDTH * 0.5} transparent style={{ marginRight: '-6%' }} />
+      </div>
       {/* Tint over the image to push toward navy/green family */}
       <div
         style={{
@@ -122,6 +125,7 @@ export function CoverVariantB({ index, total }: SlideProps) {
           width: SLIDE_WIDTH * 0.46,
           height: '100%',
           background: `linear-gradient(270deg, rgba(0,21,99,0) 0%, rgba(0,21,99,0.55) 100%)`,
+          pointerEvents: 'none',
         }}
       />
       {/* Left half content */}
@@ -217,11 +221,15 @@ export function CoverVariantC({ index, total }: SlideProps) {
           right: 0,
           bottom: 0,
           height: 360,
-          backgroundImage: `url(${DESIGN_1})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 35%',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          overflow: 'hidden',
+          background: GREEN,
         }}
-      />
+      >
+        <ConnectedLaptop size={680} transparent style={{ marginTop: -90 }} />
+      </div>
       <div
         style={{
           position: 'absolute',

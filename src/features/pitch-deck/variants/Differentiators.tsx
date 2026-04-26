@@ -5,8 +5,8 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { DIFFERENTIATORS } from '../uniexPitchContent';
+import { HandshakePartners, TrophyCelebration } from '../illustrations';
 import {
-  DESIGN_3,
   FONT_BODY,
   FONT_DISPLAY,
   Frame,
@@ -130,7 +130,7 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} section="ما الذي يميز التجربة" variant="light" />
-      {/* Hero band with image #3 */}
+      {/* Hero band with handshake-partners illustration */}
       <div
         style={{
           position: 'absolute',
@@ -139,9 +139,7 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
           right: 96,
           height: 360,
           borderRadius: 28,
-          backgroundImage: `linear-gradient(180deg, rgba(0,21,99,0.5) 0%, rgba(0,21,99,0.85) 100%), url(${DESIGN_3})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center 40%',
+          background: NAVY,
           padding: 44,
           display: 'flex',
           flexDirection: 'column',
@@ -151,14 +149,36 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
           ...RTL_DIR,
         }}
       >
-        <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// DIFFERENTIATORS</span>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            paddingRight: 24,
+            opacity: 0.55,
+            pointerEvents: 'none',
+          }}
+        >
+          <HandshakePartners size={420} transparent />
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(90deg, rgba(0,21,99,0.92) 0%, rgba(0,21,99,0.55) 60%, rgba(0,21,99,0.5) 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <span style={{ position: 'relative', fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>// DIFFERENTIATORS</span>
         <FitText
           as="div"
           maxSize={68}
           minSize={32}
           width={SLIDE_WIDTH - 192 - 88}
           height={120}
-          style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.2, color: WHITE, marginTop: 10, ...RTL_DIR }}
+          style={{ position: 'relative', fontFamily: FONT_DISPLAY, fontWeight: 800, lineHeight: 1.2, color: WHITE, marginTop: 10, ...RTL_DIR }}
         >
           {DIFFERENTIATORS.title}
         </FitText>
@@ -235,18 +255,22 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
             style={{
               flex: 1,
               borderRadius: 22,
-              backgroundImage: `linear-gradient(180deg, rgba(0,21,99,0) 0%, rgba(0,21,99,0.4) 100%), url(${DESIGN_3})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              background: NAVY,
               minHeight: 240,
               padding: 24,
               display: 'flex',
               alignItems: 'flex-end',
               color: WHITE,
+              position: 'relative',
+              overflow: 'hidden',
               ...RTL_DIR,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.85, pointerEvents: 'none' }}>
+              <TrophyCelebration size={360} transparent />
+            </div>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,21,99,0.2) 0%, rgba(0,21,99,0.7) 100%)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 40, height: 3, background: GREEN }} />
               <span style={{ fontFamily: FONT_BODY, fontSize: 14, fontWeight: 800, letterSpacing: '0.32em', color: GREEN }}>UNIEX EDGE</span>
             </div>

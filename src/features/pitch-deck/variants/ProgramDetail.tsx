@@ -15,6 +15,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { PROGRAMS } from '../uniexPitchContent';
+import { OpenBookKnowledge } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -297,11 +298,19 @@ export function ProgramDetailC({ index, total, programKey }: SlideProps) {
           ...RTL_DIR,
         }}
       >
-        <img
-          src="/brands/uniex/designs/1.jpg"
-          alt=""
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
-        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: NAVY,
+            overflow: 'hidden',
+          }}
+        >
+          <OpenBookKnowledge size={520} transparent style={{ opacity: 0.95 }} />
+        </div>
         <div
           style={{
             position: 'absolute',

@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { SCHOOL_BENEFITS } from '../uniexPitchContent';
+import { GraduationCap } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -218,11 +219,19 @@ export function SchoolBenefitsB({ index, total }: SlideProps) {
               background: NAVY,
             }}
           >
-            <img
-              src="/brands/uniex/designs/2.jpg"
-              alt=""
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: NAVY,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <GraduationCap size={560} transparent />
+            </div>
             <div
               style={{
                 position: 'absolute',

@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { METRICS } from '../uniexPitchContent';
+import { TrophyCelebration } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -405,17 +406,19 @@ export function MetricsSlideC({ index, total }: SlideProps) {
             padding: 36,
           }}
         >
-          <img
-            src="/brands/uniex/designs/2.jpg"
-            alt=""
+          <div
             style={{
               position: 'absolute',
               inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: NAVY,
+              overflow: 'hidden',
             }}
-          />
+          >
+            <TrophyCelebration size={560} transparent />
+          </div>
           <div
             style={{
               position: 'absolute',

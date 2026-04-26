@@ -5,9 +5,8 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SOLUTION } from '../uniexPitchContent';
+import { ConnectedLaptop, OpenBookKnowledge } from '../illustrations';
 import {
-  DESIGN_1,
-  DESIGN_3,
   FONT_BODY,
   FONT_DISPLAY,
   Frame,
@@ -120,17 +119,20 @@ export function SolutionVariantB({ index, total }: SlideProps) {
             <span style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 700, color: NAVY, lineHeight: 1.5 }}>{SOLUTION.closer}</span>
           </div>
         </div>
-        {/* Left column: full-bleed image (visual right per RTL is left of canvas) */}
+        {/* Left column: full-bleed illustration (visual right per RTL is left of canvas) */}
         <div
           style={{
             width: SLIDE_WIDTH * 0.45,
-            backgroundImage: `url(${DESIGN_1})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            background: GREEN,
             position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(245,247,251,0) 0%, rgba(245,247,251,0.7) 100%)' }} />
+          <ConnectedLaptop size={SLIDE_WIDTH * 0.55} transparent />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(245,247,251,0) 0%, rgba(245,247,251,0.45) 100%)' }} />
         </div>
       </div>
     </Frame>
@@ -143,7 +145,7 @@ export function SolutionVariantC({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="flood">
       <PageChrome pageNum={index} total={total} section="الحل" variant="flood" />
-      {/* Watermark */}
+      {/* Watermark — open-book illustration tinted into the navy */}
       <div
         style={{
           position: 'absolute',
@@ -151,15 +153,14 @@ export function SolutionVariantC({ index, total }: SlideProps) {
           bottom: -160,
           width: 760,
           height: 760,
-          backgroundImage: `url(${DESIGN_3})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: 0.18,
-          filter: 'grayscale(0.4)',
+          opacity: 0.22,
           maskImage: 'radial-gradient(circle at center, black 40%, transparent 75%)',
           WebkitMaskImage: 'radial-gradient(circle at center, black 40%, transparent 75%)',
+          pointerEvents: 'none',
         }}
-      />
+      >
+        <OpenBookKnowledge size={760} transparent />
+      </div>
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 40, ...RTL_DIR }}>
         <div>
           <span style={{ fontFamily: FONT_BODY, fontSize: 14, color: GREEN, fontWeight: 700, letterSpacing: '0.32em' }}>SOLUTION</span>

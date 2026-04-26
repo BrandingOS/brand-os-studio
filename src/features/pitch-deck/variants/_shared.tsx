@@ -23,9 +23,11 @@ export const FONT_BODY = `'Cairo', 'IBM Plex Sans Arabic', 'Inter', sans-serif`;
 
 export const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
-export const DESIGN_1 = '/brands/uniex/designs/1.jpg';
-export const DESIGN_2 = '/brands/uniex/designs/2.jpg';
-export const DESIGN_3 = '/brands/uniex/designs/3.jpg';
+// Reference JPGs (`/brands/uniex/designs/{1,2,3}.jpg`) were replaced with
+// hand-coded SVG illustrations in `../illustrations`. Each variant now
+// imports a specific component (e.g. `GlobeWithFlags`, `ConnectedLaptop`)
+// instead of pulling from a shared raster, so all 16 variant slots
+// render distinct visuals.
 export const ICON_GREEN = '/brands/uniex/logos/iconGreen.svg';
 export const ICON_NAVY = '/brands/uniex/logos/iconBlue.svg';
 export const ICON_WHITE = '/brands/uniex/logos/iconWhite.svg';

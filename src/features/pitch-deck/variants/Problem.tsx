@@ -5,8 +5,8 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROBLEM } from '../uniexPitchContent';
+import { CompassChoice } from '../illustrations';
 import {
-  DESIGN_2,
   FONT_BODY,
   FONT_DISPLAY,
   Frame,
@@ -133,17 +133,20 @@ export function ProblemVariantC({ index, total }: SlideProps) {
     <Frame index={index} variant="light">
       <PageChrome pageNum={index} total={total} section="التحدي" variant="light" />
       <div style={{ position: 'absolute', inset: 0, display: 'flex' }}>
-        {/* Right side: image (RTL → image visually on right is here at right) */}
+        {/* Right side: illustration (RTL → image visually on right is here at right) */}
         <div
           style={{
             width: SLIDE_WIDTH * 0.42,
-            backgroundImage: `url(${DESIGN_2})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
             position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#EEF1F8',
+            overflow: 'hidden',
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,21,99,0.45) 0%, rgba(0,21,99,0) 50%)' }} />
+          <CompassChoice size={SLIDE_WIDTH * 0.5} transparent />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,21,99,0.18) 0%, rgba(0,21,99,0) 50%)' }} />
         </div>
         {/* Left side: content */}
         <div style={{ flex: 1, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 36, ...RTL_DIR }}>

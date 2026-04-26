@@ -10,6 +10,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { PROGRAMS_INTRO } from '../uniexPitchContent';
+import { StudentClimbingChart } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -226,18 +227,22 @@ export function ProgramsIntroC({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="light" bg={NAVY}>
       <PageChrome pageNum={index} total={total} variant="flood" />
-      <img
-        src="/brands/uniex/designs/2.jpg"
-        alt=""
+      <div
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
           width: 760,
           height: SLIDE_HEIGHT,
-          objectFit: 'cover',
+          background: NAVY,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
         }}
-      />
+      >
+        <StudentClimbingChart size={780} transparent />
+      </div>
       <div
         style={{
           position: 'absolute',

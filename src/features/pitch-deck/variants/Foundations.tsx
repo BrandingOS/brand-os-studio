@@ -13,6 +13,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { FOUNDATIONS } from '../uniexPitchContent';
+import { GraduationCap } from '../illustrations';
 
 const NAVY = '#001563';
 const NAVY_DEEP = '#0A0F2E';
@@ -216,21 +217,24 @@ export function FoundationsB({ index, total }: SlideProps) {
 export function FoundationsC({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="light">
-      <img
-        src="/brands/uniex/designs/3.jpg"
-        alt=""
+      <div
         style={{
           position: 'absolute',
           top: 0,
           right: 0,
           width: 720,
           height: SLIDE_HEIGHT,
-          objectFit: 'cover',
-          opacity: 0.18,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.45,
           maskImage: 'linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
           WebkitMaskImage: 'linear-gradient(to left, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
+          pointerEvents: 'none',
         }}
-      />
+      >
+        <GraduationCap size={680} transparent />
+      </div>
       <PageChrome pageNum={index} total={total} variant="light" />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 96px 130px', display: 'flex', flexDirection: 'column', gap: 30, ...RTL_DIR }}>
         <FitText as="div" maxSize={84} minSize={36} width={SLIDE_WIDTH - 192} height={120} style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, color: NAVY, lineHeight: 1.18, ...RTL_DIR }}>

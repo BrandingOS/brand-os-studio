@@ -5,8 +5,8 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROCESS } from '../uniexPitchContent';
+import { MentorConversation } from '../illustrations';
 import {
-  DESIGN_2,
   FONT_BODY,
   FONT_DISPLAY,
   Frame,
@@ -152,7 +152,7 @@ export function ProcessVariantC({ index, total }: SlideProps) {
   return (
     <Frame index={index} variant="flood">
       <PageChrome pageNum={index} total={total} section="كيف نبني القرار" variant="flood" />
-      {/* Right edge: image #2 with mask */}
+      {/* Right edge: mentor conversation illustration card */}
       <div
         style={{
           position: 'absolute',
@@ -160,15 +160,18 @@ export function ProcessVariantC({ index, total }: SlideProps) {
           bottom: 100,
           right: 96,
           width: 380,
-          backgroundImage: `url(${DESIGN_2})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          background: PAPER,
           borderRadius: 28,
-          opacity: 0.92,
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           boxShadow: '0 30px 60px -20px rgba(0,0,0,0.4)',
         }}
-      />
-      <div style={{ position: 'absolute', top: 130, bottom: 100, right: 96, width: 380, borderRadius: 28, background: 'linear-gradient(180deg, rgba(0,21,99,0.1) 0%, rgba(0,21,99,0.5) 100%)' }} />
+      >
+        <MentorConversation size={460} transparent />
+      </div>
+      <div style={{ position: 'absolute', top: 130, bottom: 100, right: 96, width: 380, borderRadius: 28, background: 'linear-gradient(180deg, rgba(0,21,99,0.05) 0%, rgba(0,21,99,0.35) 100%)', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', inset: 0, padding: '170px 540px 130px 96px', display: 'flex', flexDirection: 'column', gap: 28, ...RTL_DIR }}>
         <div>
           <span style={{ fontFamily: FONT_BODY, fontSize: 13, fontWeight: 800, color: GREEN, letterSpacing: '0.32em' }}>PROCESS</span>
