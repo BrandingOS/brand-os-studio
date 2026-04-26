@@ -109,7 +109,7 @@ function MasterContent({
                 value={theme.typography.headingFont}
                 onChange={setHeadingFont}
               />
-              <Segmented<number>
+              <Segmented
                 value={theme.typography.headingWeight}
                 options={HEADING_WEIGHTS.map((w) => ({ value: w, label: String(w) }))}
                 onChange={setHeadingWeight}
@@ -135,7 +135,7 @@ function MasterContent({
                 value={theme.typography.bodyFont}
                 onChange={setBodyFont}
               />
-              <Segmented<number>
+              <Segmented
                 value={theme.typography.bodyWeight}
                 options={BODY_WEIGHTS.map((w) => ({ value: w, label: String(w) }))}
                 onChange={setBodyWeight}
@@ -183,7 +183,7 @@ function MasterContent({
         </div>
         <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <span className="deck-label">Density</span>
-          <Segmented<DeckDensity>
+          <Segmented
             value={theme.density}
             options={[
               { value: 'compact', label: 'Compact' },
