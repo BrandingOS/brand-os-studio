@@ -5,6 +5,7 @@ import type {
   TypographySystem,
 } from './brandAssets';
 import type { Typescale } from './typescale';
+import type { DeckKind, PresentationTheme } from '@/shared/presentation/theme/types';
 
 export interface Brand {
   id: string;
@@ -59,6 +60,8 @@ export interface Brand {
   neutrals?: string[];
   /** @deprecated use brandAssets (v3) */
   assets: Asset[];
+  /** Per-deck Customize theme overrides. Each deck kind owns its own theme; brand typescale + brandPalette are the defaults when an override is undefined. */
+  presentationThemes?: Partial<Record<DeckKind, PresentationTheme>>;
   isPublic?: boolean;
   publicUrl?: string;
   customDomain?: string;
