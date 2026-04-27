@@ -1,19 +1,15 @@
-// Step 5 UI direction — Variant 4 (Canva-Pure).
+// Step 5 UI direction — Variant 4 (Canva-Pure, cosmos-skinned).
 //
-// Layout:
-//   • Header w/ brand picker top-left, Edit/Preview/Comments pill
-//     tabs centered, dark mode + Export top-right
-//   • Two-bar left sidebar:
-//       - App Rail (~64px): Generate, Templates, Insert, Brand
-//       - Secondary Panel (~280px): contents change per active rail item
-//   • Canvas center w/ "Untitled design" overlay label (Canva-style)
-//   • Floating contextual toolbar above selected layer w/ scope
-//     toggle pill on its LEFT edge ("This page" / "All pages")
-//   • Right Page Navigator (~120px) — visible since this mock is a
-//     multi-page presentation context for the demo
-//
-// Canva-Pure means tighter density, more controls visible, scope
-// toggle inline in the toolbar.
+// Same structural content as before — App Rail, Secondary Panel,
+// floating toolbar w/ scope toggle, Page Navigator — but the visual
+// language now matches /setup (CosmosWorkspaceShell):
+//   • Warm paper background, off-white panels with soft shadows
+//   • Cosmos accent (black-on-light / white-on-dark) for primary CTAs
+//   • pill-btn shapes, 12px panel radii, Instrument Serif headings
+//   • theme toggled via data-theme="dark" on the cosmos root, not
+//     Tailwind's `dark:` (so all CSS vars switch in lockstep)
+//   • Selection ring uses --link blue, the closest semantic the
+//     cosmos system has to "active editor selection"
 //
 // MOCKUP ONLY. Local useState for visual toggles.
 
@@ -25,7 +21,6 @@ import {
   ChevronRight,
   Italic,
   LayoutGrid,
-  Maximize2,
   Moon,
   MoreHorizontal,
   Palette,
@@ -33,8 +28,7 @@ import {
   Search,
   Sparkles,
   Sun,
-  Type,
-  ArrowUpRight,
+  ArrowRight,
   Square,
   Circle as CircleIcon,
   Minus,
@@ -65,12 +59,17 @@ import {
   type MockLayer,
 } from '@/_dev/ui-preview/mockData';
 import { cn } from '@/lib/utils';
+import '@/shared/styles/cosmos-workspace.css';
 
-const ACCENT = '#7c3aed';
+// Editor selection blue — fixed across themes (cosmos --link is the
+// nearest semantic, but we lock it so the ring reads consistently
+// against any canvas color).
+const SELECTION = '#2965f6';
+
 type RailItem = 'generate' | 'templates' | 'insert' | 'brand';
 
 export default function Step5Variant4Page() {
-  const [dark, setDark] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [activeRail, setActiveRail] = useState<RailItem>('generate');
   const [activeTab, setActiveTab] = useState<'edit' | 'preview' | 'comments'>('edit');
   const [secondaryOpen, setSecondaryOpen] = useState(true);
@@ -78,38 +77,60 @@ export default function Step5Variant4Page() {
   const [scope, setScope] = useState<'page' | 'all'>('page');
 
   return (
-    <div className={cn(dark && 'dark')}>
-      <div className="min-h-screen w-full bg-stone-50 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
+    <div data-cosmos="workspace" data-theme={theme}>
+      <div
+        className="min-h-screen w-full"
+        style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
+      >
         {/* ─── Header ──────────────────────────────────────────────── */}
-        <header className="flex h-14 items-center gap-3 border-b border-stone-200 bg-white px-3 dark:border-stone-800 dark:bg-stone-900">
+        <header
+          className="flex h-14 items-center gap-3 px-4"
+          style={{
+            background: 'var(--surface)',
+            borderBottom: '1px solid var(--border)',
+          }}
+        >
           <BrandPicker brand={mockBrand} />
 
           {/* Pill tabs — Edit / Preview / Comments */}
-          <div className="mx-auto flex items-center gap-1 rounded-full bg-stone-100 p-1 text-[12px] dark:bg-stone-800">
-            {(['edit', 'preview', 'comments'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'rounded-full px-4 py-1.5 capitalize transition-all',
-                  activeTab === tab
-                    ? 'bg-stone-900 text-white shadow-sm dark:bg-stone-100 dark:text-stone-900'
-                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200',
-                )}
-              >
-                {tab}
-              </button>
-            ))}
+          <div
+            className="mx-auto flex items-center gap-1 rounded-full p-1 text-[12px]"
+            style={{ background: 'var(--surface-sunken)' }}
+          >
+            {(['edit', 'preview', 'comments'] as const).map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className="rounded-full px-4 py-1.5 capitalize transition-all"
+                  style={{
+                    background: isActive ? 'var(--accent)' : 'transparent',
+                    color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+                    boxShadow: isActive ? 'var(--shadow-xs)' : undefined,
+                  }}
+                >
+                  {tab}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setDark((v) => !v)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              aria-label="Toggle theme"
             >
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <ExportButton />
+            <button type="button" className="pill-btn pill-btn--primary">
+              <span>Export</span>
+              <ArrowRight size={14} className="pill-btn-arrow" />
+            </button>
           </div>
         </header>
 
@@ -133,10 +154,20 @@ export default function Step5Variant4Page() {
           ) : null}
 
           {/* Canvas */}
-          <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-stone-100 dark:bg-zinc-900">
+          <main
+            className="relative flex flex-1 items-center justify-center overflow-hidden"
+            style={{ background: 'var(--surface-sunken)' }}
+          >
             {/* Doc title overlay (Canva-style, sits ABOVE the canvas) */}
             <div className="absolute left-1/2 top-6 -translate-x-1/2 text-center">
-              <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[11px] text-stone-600 backdrop-blur-md dark:bg-stone-900/80 dark:text-stone-400">
+              <div
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] backdrop-blur-md"
+                style={{
+                  background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                }}
+              >
                 <span>Untitled design</span>
                 <ChevronDown className="h-3 w-3" />
               </div>
@@ -152,8 +183,18 @@ export default function Step5Variant4Page() {
             </div>
 
             {/* Annotated "All pages" preview hint — small ghost frame */}
-            <div className="absolute bottom-6 right-6 max-w-[200px] rounded-lg border border-dashed border-stone-300 bg-white/70 p-3 text-[10px] text-stone-500 backdrop-blur-md dark:border-stone-700 dark:bg-stone-900/70 dark:text-stone-400">
-              <p className="mb-1.5 font-medium text-stone-700 dark:text-stone-300">
+            <div
+              className="absolute bottom-6 right-6 max-w-[200px] rounded-xl p-3 text-[10px] backdrop-blur-md"
+              style={{
+                background: 'color-mix(in srgb, var(--surface) 70%, transparent)',
+                border: '1px dashed var(--dash)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <p
+                className="mb-1.5 font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
                 Scope toggle preview
               </p>
               <p className="mb-2 leading-tight">
@@ -172,7 +213,12 @@ export default function Step5Variant4Page() {
           ) : (
             <button
               onClick={() => setNavigatorOpen(true)}
-              className="flex w-4 items-center justify-center border-l border-stone-200 bg-white text-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800"
+              className="flex w-4 items-center justify-center transition-colors"
+              style={{
+                background: 'var(--surface)',
+                borderLeft: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+              }}
             >
               <ChevronRight className="h-3 w-3 rotate-180" />
             </button>
@@ -188,10 +234,20 @@ export default function Step5Variant4Page() {
 function BrandPicker({ brand }: { brand: MockBrand }) {
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="flex items-center gap-2 rounded-md px-1.5 py-1 hover:bg-stone-50 dark:hover:bg-stone-800">
+      <DropdownMenu.Trigger
+        className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors"
+        style={{ color: 'var(--text-primary)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+      >
         <div
           className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
-          style={{ background: brand.colors.primary, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 18 }}
+          style={{
+            background: brand.colors.primary,
+            fontFamily: 'Georgia, serif',
+            fontStyle: 'italic',
+            fontSize: 18,
+          }}
         >
           {brand.name[0]}
         </div>
@@ -201,38 +257,67 @@ function BrandPicker({ brand }: { brand: MockBrand }) {
         >
           {brand.name}
         </span>
-        <ChevronDown className="h-3.5 w-3.5 text-stone-400" />
+        <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="start"
           sideOffset={6}
-          className="z-50 min-w-[220px] rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg dark:border-stone-800 dark:bg-stone-900"
+          className="z-50 min-w-[220px] rounded-xl p-1.5"
+          style={{
+            background: 'var(--surface-elevated)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-md)',
+            color: 'var(--text-primary)',
+          }}
         >
-          <p className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-stone-400">
+          <p
+            className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider"
+            style={{ color: 'var(--text-muted)' }}
+          >
             Switch brand
           </p>
-          <div className="flex items-center gap-2 rounded-lg bg-stone-50 px-2 py-1.5 dark:bg-stone-800">
+          <div
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+            style={{ background: 'var(--accent-muted)' }}
+          >
             <div
               className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
-              style={{ background: brand.colors.primary, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 16 }}
+              style={{
+                background: brand.colors.primary,
+                fontFamily: 'Georgia, serif',
+                fontStyle: 'italic',
+                fontSize: 16,
+              }}
             >
               {brand.name[0]}
             </div>
             <span className="text-sm" style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
               {brand.name}
             </span>
-            <span className="ml-auto text-[10px] text-stone-400">current</span>
+            <span className="ml-auto text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              current
+            </span>
           </div>
-          <DropdownMenu.Separator className="my-1 h-px bg-stone-100 dark:bg-stone-800" />
+          <DropdownMenu.Separator
+            className="my-1 h-px"
+            style={{ background: 'var(--border)' }}
+          />
           {mockOtherBrands.map((b) => (
             <DropdownMenu.Item
               key={b.id}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 outline-none hover:bg-stone-50 dark:hover:bg-stone-800"
+              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 outline-none transition-colors"
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <div
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
-                style={{ background: b.avatarColor, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 16 }}
+                style={{
+                  background: b.avatarColor,
+                  fontFamily: 'Georgia, serif',
+                  fontStyle: 'italic',
+                  fontSize: 16,
+                }}
               >
                 {b.name[0]}
               </div>
@@ -242,15 +327,6 @@ function BrandPicker({ brand }: { brand: MockBrand }) {
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
-  );
-}
-
-function ExportButton() {
-  return (
-    <button className="flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-1.5 text-[13px] font-medium text-white hover:bg-stone-800 dark:bg-white dark:text-stone-900">
-      Export
-      <ArrowUpRight className="h-3.5 w-3.5" />
-    </button>
   );
 }
 
@@ -264,7 +340,13 @@ function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailIte
     { id: 'brand', label: 'Brand', Icon: Palette },
   ];
   return (
-    <aside className="flex w-16 flex-col items-center gap-1 border-r border-stone-200 bg-white py-3 dark:border-stone-800 dark:bg-stone-900">
+    <aside
+      className="flex w-16 flex-col items-center gap-1 py-3"
+      style={{
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--border)',
+      }}
+    >
       {items.map(({ id, label, Icon }) => {
         const isActive = id === active;
         return (
@@ -272,12 +354,17 @@ function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailIte
             key={id}
             onClick={() => onChange(id)}
             title={label}
-            className={cn(
-              'group relative flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-xl transition-colors',
-              isActive
-                ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
-                : 'text-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50',
-            )}
+            className="group relative flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-xl transition-colors"
+            style={{
+              background: isActive ? 'var(--accent-muted)' : 'transparent',
+              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive) e.currentTarget.style.background = 'var(--surface-hover)';
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) e.currentTarget.style.background = 'transparent';
+            }}
           >
             <Icon className="h-5 w-5" strokeWidth={1.5} />
             <span className="text-[9px] font-medium">{label}</span>
@@ -298,11 +385,24 @@ function SecondaryPanel({
   onCollapse: () => void;
 }) {
   return (
-    <aside className="relative flex w-72 flex-col rounded-r-2xl border-r border-stone-200 bg-white shadow-[4px_0_12px_-8px_rgba(0,0,0,0.08)] dark:border-stone-800 dark:bg-stone-900">
+    <aside
+      className="relative flex w-72 flex-col rounded-r-2xl"
+      style={{
+        background: 'var(--surface-elevated)',
+        borderRight: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
       <button
         onClick={onCollapse}
         title="Collapse panel"
-        className="absolute -right-2.5 top-6 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 hover:text-stone-700 dark:border-stone-700 dark:bg-stone-900"
+        className="absolute -right-2.5 top-6 z-10 flex h-5 w-5 items-center justify-center rounded-full transition-colors"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-muted)',
+          boxShadow: 'var(--shadow-xs)',
+        }}
       >
         <ChevronRight className="h-3 w-3 rotate-180" />
       </button>
@@ -315,37 +415,80 @@ function SecondaryPanel({
   );
 }
 
+function PanelHeading({ eyebrow, title }: { eyebrow?: string; title: string }) {
+  return (
+    <header className="flex flex-col gap-1">
+      {eyebrow ? (
+        <p
+          className="text-[10px] font-medium uppercase"
+          style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
+        >
+          {eyebrow}
+        </p>
+      ) : null}
+      <h3
+        style={{
+          fontFamily: '"Instrument Serif", "DM Serif Display", "Playfair Display", serif',
+          fontSize: 22,
+          lineHeight: 1,
+          letterSpacing: '-0.015em',
+          color: 'var(--text-primary)',
+          fontWeight: 400,
+        }}
+      >
+        {title}
+      </h3>
+    </header>
+  );
+}
+
 function GeneratePanel() {
   return (
     <div className="flex flex-col gap-3 p-4">
-      <header>
-        <h3 className="text-[13px] font-semibold">Generate</h3>
-        <p className="mt-0.5 text-[11px] text-stone-500 dark:text-stone-400">
-          Describe what you want to create
-        </p>
-      </header>
+      <PanelHeading eyebrow="AI" title="Generate" />
+      <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+        Describe what you want to create
+      </p>
 
-      <div className="rounded-xl border border-stone-200 bg-stone-50 p-2 dark:border-stone-800 dark:bg-stone-800/40">
+      <div
+        className="rounded-xl p-2"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+        }}
+      >
         <textarea
           rows={3}
           placeholder='Try "Instagram post for our product launch"…'
-          className="w-full resize-none bg-transparent text-[12px] outline-none placeholder:text-stone-400"
+          className="w-full resize-none bg-transparent text-[12px] outline-none"
+          style={{ color: 'var(--text-primary)' }}
         />
         <div className="mt-1 flex items-center justify-between">
-          <button className="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] text-stone-500 hover:bg-stone-200 dark:bg-stone-700 dark:text-stone-300">
+          <button
+            className="rounded-full px-2 py-0.5 text-[10px] transition-colors"
+            style={{
+              background: 'var(--surface-sunken)',
+              color: 'var(--text-secondary)',
+            }}
+          >
             Social post ▾
           </button>
           <button
-            className="flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium text-white"
-            style={{ background: ACCENT }}
+            type="button"
+            className="pill-btn pill-btn--primary"
+            style={{ height: 28, padding: '0 12px', fontSize: 11 }}
           >
-            <Sparkles className="h-3 w-3" /> Generate
+            <Sparkles className="h-3 w-3" />
+            <span>Generate</span>
           </button>
         </div>
       </div>
 
       <div>
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+        <p
+          className="mb-2 text-[10px] font-semibold uppercase"
+          style={{ color: 'var(--text-muted)', letterSpacing: '0.1em' }}
+        >
           Recent
         </p>
         <ul className="space-y-1">
@@ -357,7 +500,9 @@ function GeneratePanel() {
           ].map((label, i) => (
             <li
               key={i}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/50"
+              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               <div
                 className="h-7 w-7 shrink-0 rounded"
@@ -380,37 +525,49 @@ function TemplatesPanel() {
     cat === 'All' ? mockTemplates : mockTemplates.filter((t) => t.category === cat);
   return (
     <div className="flex flex-col gap-3 p-4">
-      <header>
-        <h3 className="text-[13px] font-semibold">Templates</h3>
-      </header>
+      <PanelHeading title="Templates" />
       <div className="relative">
-        <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-stone-400" />
+        <Search
+          className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2"
+          style={{ color: 'var(--text-muted)' }}
+        />
         <input
           placeholder="Search…"
-          className="w-full rounded-lg border border-stone-200 bg-stone-50 py-1.5 pl-7 pr-2 text-[11px] outline-none focus:border-stone-300 dark:border-stone-800 dark:bg-stone-800/40"
+          className="w-full rounded-lg py-1.5 pl-7 pr-2 text-[11px] outline-none"
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-primary)',
+          }}
         />
       </div>
       <div className="flex gap-1 overflow-x-auto">
-        {(['All', 'Social', 'Presentation', 'Print'] as const).map((c) => (
-          <button
-            key={c}
-            onClick={() => setCat(c)}
-            className={cn(
-              'shrink-0 rounded-full px-2.5 py-0.5 text-[10px]',
-              cat === c
-                ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
-                : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400',
-            )}
-          >
-            {c}
-          </button>
-        ))}
+        {(['All', 'Social', 'Presentation', 'Print'] as const).map((c) => {
+          const isActive = cat === c;
+          return (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] transition-colors"
+              style={{
+                background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
+                color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+              }}
+            >
+              {c}
+            </button>
+          );
+        })}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {filtered.map((t) => (
           <button
             key={t.id}
-            className="group overflow-hidden rounded-lg ring-1 ring-stone-200 hover:ring-stone-300 dark:ring-stone-800"
+            className="group overflow-hidden rounded-lg transition-colors"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+            }}
           >
             <div
               className="aspect-[3/4]"
@@ -418,9 +575,7 @@ function TemplatesPanel() {
                 background: `linear-gradient(135deg, ${t.gradient[0]} 0%, ${t.gradient[1]} 100%)`,
               }}
             />
-            <p className="truncate bg-white px-1.5 py-1 text-left text-[10px] dark:bg-stone-900">
-              {t.name}
-            </p>
+            <p className="truncate px-1.5 py-1 text-left text-[10px]">{t.name}</p>
           </button>
         ))}
       </div>
@@ -431,9 +586,7 @@ function TemplatesPanel() {
 function InsertPanel() {
   return (
     <div className="flex flex-col gap-4 p-4">
-      <header>
-        <h3 className="text-[13px] font-semibold">Insert</h3>
-      </header>
+      <PanelHeading title="Insert" />
 
       <Group title="Shapes">
         <div className="grid grid-cols-3 gap-2">
@@ -442,13 +595,7 @@ function InsertPanel() {
             { Icon: CircleIcon, label: 'Ellipse' },
             { Icon: Minus, label: 'Line' },
           ].map(({ Icon, label }) => (
-            <button
-              key={label}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"
-            >
-              <Icon className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-[9px]">{label}</span>
-            </button>
+            <InsertTile key={label} Icon={Icon} label={label} />
           ))}
         </div>
       </Group>
@@ -460,13 +607,7 @@ function InsertPanel() {
             { Icon: Pilcrow, label: 'Body' },
             { Icon: List, label: 'List' },
           ].map(({ Icon, label }) => (
-            <button
-              key={label}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"
-            >
-              <Icon className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-[9px]">{label}</span>
-            </button>
+            <InsertTile key={label} Icon={Icon} label={label} />
           ))}
         </div>
       </Group>
@@ -478,13 +619,7 @@ function InsertPanel() {
             { Icon: Bookmark, label: 'Logo' },
             { Icon: PaintBucket, label: 'SVG' },
           ].map(({ Icon, label }) => (
-            <button
-              key={label}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-stone-200 bg-white text-stone-600 hover:border-stone-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400"
-            >
-              <Icon className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-[9px]">{label}</span>
-            </button>
+            <InsertTile key={label} Icon={Icon} label={label} />
           ))}
         </div>
       </Group>
@@ -492,10 +627,37 @@ function InsertPanel() {
   );
 }
 
+function InsertTile({ Icon, label }: { Icon: typeof Square; label: string }) {
+  return (
+    <button
+      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg transition-colors"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        color: 'var(--text-secondary)',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--surface-hover)';
+        e.currentTarget.style.borderColor = 'var(--border-strong)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'var(--surface)';
+        e.currentTarget.style.borderColor = 'var(--border)';
+      }}
+    >
+      <Icon className="h-4 w-4" strokeWidth={1.5} />
+      <span className="text-[9px]">{label}</span>
+    </button>
+  );
+}
+
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+      <p
+        className="mb-1.5 text-[10px] font-semibold uppercase"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.1em' }}
+      >
         {title}
       </p>
       {children}
@@ -507,37 +669,47 @@ function BrandPanel() {
   const [tab, setTab] = useState<'logos' | 'images' | 'colors' | 'fonts'>('logos');
   return (
     <div className="flex flex-col gap-3 p-4">
-      <header>
-        <h3 className="text-[13px] font-semibold">Brand · {mockBrand.name}</h3>
-      </header>
+      <PanelHeading eyebrow={mockBrand.name} title="Brand" />
       <div className="flex gap-1">
-        {(['logos', 'images', 'colors', 'fonts'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              'rounded-full px-2.5 py-0.5 text-[10px] capitalize',
-              tab === t
-                ? 'bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
-                : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400',
-            )}
-          >
-            {t}
-          </button>
-        ))}
+        {(['logos', 'images', 'colors', 'fonts'] as const).map((t) => {
+          const isActive = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="rounded-full px-2.5 py-0.5 text-[10px] capitalize transition-colors"
+              style={{
+                background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
+                color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
+              }}
+            >
+              {t}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'logos' && (
         <div className="grid grid-cols-2 gap-2">
           {mockLogoVariants.map((v) => (
-            <div key={v.id} className="overflow-hidden rounded-lg border border-stone-200 dark:border-stone-800">
+            <div
+              key={v.id}
+              className="overflow-hidden rounded-lg"
+              style={{ border: '1px solid var(--border)' }}
+            >
               <div
                 className="flex aspect-square items-center justify-center"
-                style={{ background: v.background, color: v.fg, fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: v.letter.length > 1 ? 18 : 32 }}
+                style={{
+                  background: v.background,
+                  color: v.fg,
+                  fontFamily: 'Georgia, serif',
+                  fontStyle: 'italic',
+                  fontSize: v.letter.length > 1 ? 18 : 32,
+                }}
               >
                 {v.letter}
               </div>
-              <p className="truncate bg-white px-1.5 py-1 text-[9px] dark:bg-stone-900">{v.label}</p>
+              <p className="truncate px-1.5 py-1 text-[9px]">{v.label}</p>
             </div>
           ))}
         </div>
@@ -548,8 +720,8 @@ function BrandPanel() {
           {mockBrandImages.map((img) => (
             <div
               key={img.id}
-              className="aspect-square rounded-lg ring-1 ring-stone-200 dark:ring-stone-800"
-              style={{ background: img.tint }}
+              className="aspect-square rounded-lg"
+              style={{ background: img.tint, boxShadow: '0 0 0 1px var(--border)' }}
             />
           ))}
         </div>
@@ -560,12 +732,14 @@ function BrandPanel() {
           {mockColorSwatches.map((c) => (
             <div key={c.name} className="flex flex-col gap-1">
               <div
-                className="aspect-square rounded-lg ring-1 ring-stone-200 dark:ring-stone-800"
-                style={{ background: c.hex }}
+                className="aspect-square rounded-lg"
+                style={{ background: c.hex, boxShadow: '0 0 0 1px var(--border)' }}
               />
               <div className="text-[9px]">
                 <p className="font-medium">{c.name}</p>
-                <p className="font-mono text-stone-400">{c.hex}</p>
+                <p className="font-mono" style={{ color: 'var(--text-muted)' }}>
+                  {c.hex}
+                </p>
               </div>
             </div>
           ))}
@@ -584,15 +758,26 @@ function BrandPanel() {
 
 function FontCard({ label, family }: { label: string; family: string }) {
   return (
-    <div className="rounded-lg border border-stone-200 p-3 dark:border-stone-800">
-      <p className="text-[9px] font-medium uppercase tracking-wider text-stone-400">{label}</p>
+    <div
+      className="rounded-lg p-3"
+      style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+    >
+      <p
+        className="text-[9px] font-medium uppercase"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
+      >
+        {label}
+      </p>
       <p
         className="mt-1 text-[20px] tracking-tight"
         style={{ fontFamily: `${family}, sans-serif`, fontWeight: 600 }}
       >
         {family}
       </p>
-      <p className="mt-1 text-[10px] text-stone-500" style={{ fontFamily: `${family}, sans-serif` }}>
+      <p
+        className="mt-1 text-[10px]"
+        style={{ fontFamily: `${family}, sans-serif`, color: 'var(--text-secondary)' }}
+      >
         Aa Bb Cc 1234
       </p>
     </div>
@@ -608,37 +793,37 @@ function FloatingToolbar({
   scope: 'page' | 'all';
   onScopeChange: (s: 'page' | 'all') => void;
 }) {
-  // Position above the headline (which sits at canvas y=200, so place
-  // the toolbar at y=160 in canvas coordinates, but as the canvas is
-  // centered we use absolute positioning relative to the canvas wrapper).
   return (
     <div
-      className={cn(
-        'absolute z-10 flex items-center gap-0.5 rounded-full border border-stone-200 bg-white px-1 py-1 shadow-lg transition-colors dark:border-stone-700 dark:bg-stone-900',
-        scope === 'all' && 'ring-2 ring-purple-400/40',
-      )}
+      className="absolute z-10 flex items-center gap-0.5 rounded-full px-1 py-1 transition-colors"
       style={{
-        top: 156, // sits above headline at y=200 in 540x540 canvas
+        top: 156,
         left: 24,
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-md)',
+        outline: scope === 'all' ? `2px solid color-mix(in srgb, ${SELECTION} 45%, transparent)` : 'none',
+        outlineOffset: 2,
       }}
     >
       {/* Scope toggle pill — distinct LEFT edge of the toolbar */}
       <button
         onClick={() => onScopeChange(scope === 'page' ? 'all' : 'page')}
-        className={cn(
-          'flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors',
-          scope === 'all'
-            ? 'text-white'
-            : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400',
-        )}
-        style={{ background: scope === 'all' ? ACCENT : undefined }}
+        className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors"
+        style={{
+          background: scope === 'all' ? SELECTION : 'var(--surface-sunken)',
+          color: scope === 'all' ? '#fff' : 'var(--text-secondary)',
+        }}
         title="Toggle whole-document scope"
       >
         <Globe2 className="h-3 w-3" />
         {scope === 'all' ? 'All pages' : 'This page'}
       </button>
 
-      <span className="mx-0.5 h-4 w-px bg-stone-200 dark:bg-stone-700" />
+      <span
+        className="mx-0.5 h-4 w-px"
+        style={{ background: 'var(--border)' }}
+      />
 
       {/* Text controls — Canva-density, 6-7 visible */}
       <ToolbarSelect label="DM Sans" />
@@ -647,11 +832,12 @@ function FloatingToolbar({
       <ToolbarIcon Icon={Italic} />
       <ToolbarIcon Icon={AlignLeft} />
       <ToolbarColor swatch={mockBrand.colors.primary} />
-      <ToolbarPill>
-        Effects
-      </ToolbarPill>
+      <ToolbarPill>Effects</ToolbarPill>
 
-      <span className="mx-0.5 h-4 w-px bg-stone-200 dark:bg-stone-700" />
+      <span
+        className="mx-0.5 h-4 w-px"
+        style={{ background: 'var(--border)' }}
+      />
 
       <ToolbarIcon Icon={MoreHorizontal} />
     </div>
@@ -660,16 +846,24 @@ function FloatingToolbar({
 
 function ToolbarSelect({ label }: { label: string }) {
   return (
-    <button className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] hover:bg-stone-100 dark:hover:bg-stone-800">
+    <button
+      className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors"
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
       {label}
-      <ChevronDown className="h-3 w-3 text-stone-400" />
+      <ChevronDown className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
     </button>
   );
 }
 
 function ToolbarPill({ children }: { children: React.ReactNode }) {
   return (
-    <button className="rounded-md px-2 py-1 text-[11px] hover:bg-stone-100 dark:hover:bg-stone-800">
+    <button
+      className="rounded-md px-2 py-1 text-[11px] transition-colors"
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
       {children}
     </button>
   );
@@ -677,7 +871,11 @@ function ToolbarPill({ children }: { children: React.ReactNode }) {
 
 function ToolbarIcon({ Icon }: { Icon: typeof Bold }) {
   return (
-    <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-stone-100 dark:hover:bg-stone-800">
+    <button
+      className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
       <Icon className="h-3.5 w-3.5" />
     </button>
   );
@@ -685,8 +883,15 @@ function ToolbarIcon({ Icon }: { Icon: typeof Bold }) {
 
 function ToolbarColor({ swatch }: { swatch: string }) {
   return (
-    <button className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-stone-100 dark:hover:bg-stone-800">
-      <span className="h-3.5 w-3.5 rounded-full ring-1 ring-stone-300" style={{ background: swatch }} />
+    <button
+      className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
+      <span
+        className="h-3.5 w-3.5 rounded-full"
+        style={{ background: swatch, boxShadow: '0 0 0 1px var(--border-strong)' }}
+      />
     </button>
   );
 }
@@ -696,11 +901,11 @@ function ScopePillPreview({ state }: { state: 'page' | 'all' }) {
     <div
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium',
-        state === 'all'
-          ? 'text-white'
-          : 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
       )}
-      style={{ background: state === 'all' ? ACCENT : undefined }}
+      style={{
+        background: state === 'all' ? SELECTION : 'var(--surface-sunken)',
+        color: state === 'all' ? '#fff' : 'var(--text-secondary)',
+      }}
     >
       <Globe2 className="h-2.5 w-2.5" />
       {state === 'all' ? 'All pages' : 'This page'}
@@ -712,56 +917,128 @@ function ScopePillPreview({ state }: { state: 'page' | 'all' }) {
 
 function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
   return (
-    <aside className="relative flex w-32 flex-col border-l border-stone-200 bg-white py-2 dark:border-stone-800 dark:bg-stone-900">
+    <aside
+      className="relative flex w-32 flex-col py-2"
+      style={{
+        background: 'var(--surface)',
+        borderLeft: '1px solid var(--border)',
+      }}
+    >
       <button
         onClick={onCollapse}
-        className="absolute -left-2.5 top-3 z-10 flex h-5 w-5 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-400 hover:text-stone-700 dark:border-stone-700 dark:bg-stone-900"
+        className="absolute -left-2.5 top-3 z-10 flex h-5 w-5 items-center justify-center rounded-full"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-muted)',
+          boxShadow: 'var(--shadow-xs)',
+        }}
       >
         <ChevronRight className="h-3 w-3" />
       </button>
-      <p className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-stone-400">
+      <p
+        className="px-3 py-1 text-[9px] font-semibold uppercase"
+        style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
+      >
         Pages
       </p>
       <ul className="flex-1 space-y-1.5 overflow-auto px-2">
-        {mockPages.map((p, i) => (
-          <li key={p.id}>
-            <button
-              className={cn(
-                'group relative flex w-full flex-col items-center gap-1 rounded-lg p-1.5 transition-colors',
-                p.isActive
-                  ? 'bg-stone-100 ring-1 ring-stone-300 dark:bg-stone-800 dark:ring-stone-700'
-                  : 'hover:bg-stone-50 dark:hover:bg-stone-800/50',
-              )}
-            >
-              <div
-                className="aspect-square w-full rounded ring-1 ring-stone-200 dark:ring-stone-700"
-                style={{ background: i === 0 ? '#fafaf9' : '#f5f5f4' }}
-              />
-              <span className="text-[9px] text-stone-500">{p.name}</span>
-            </button>
-          </li>
-        ))}
+        {mockPages.map((p, i) => {
+          const isActive = p.isActive;
+          return (
+            <li key={p.id}>
+              <button
+                className="group relative flex w-full flex-col items-center gap-1 rounded-lg p-1.5 transition-colors"
+                style={{
+                  background: isActive ? 'var(--accent-muted)' : 'transparent',
+                  border: isActive ? '1px solid var(--border)' : '1px solid transparent',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'var(--surface-hover)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <div
+                  className="aspect-square w-full rounded"
+                  style={{
+                    background: i === 0 ? 'var(--surface-elevated)' : 'var(--surface-sunken)',
+                    boxShadow: '0 0 0 1px var(--border)',
+                  }}
+                />
+                <span className="text-[9px]" style={{ color: 'var(--text-secondary)' }}>
+                  {p.name}
+                </span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
-      <button className="m-2 flex items-center justify-center gap-1 rounded-lg border border-dashed border-stone-300 py-1.5 text-[10px] text-stone-500 hover:border-stone-400 dark:border-stone-700 dark:hover:border-stone-600">
+      <button
+        className="m-2 flex items-center justify-center gap-1 rounded-lg py-1.5 text-[10px] transition-colors"
+        style={{
+          border: '1px dashed var(--dash)',
+          color: 'var(--text-secondary)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--dash-strong)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--dash)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }}
+      >
         <Plus className="h-3 w-3" /> Add
       </button>
 
       {/* Right-click menu — open by default for demo */}
-      <div className="absolute left-2 top-12 z-20 w-36 rounded-lg border border-stone-200 bg-white p-1 shadow-xl dark:border-stone-700 dark:bg-stone-900">
-        <p className="px-2 py-1 text-[8px] uppercase tracking-wider text-stone-400">
+      <div
+        className="absolute left-2 top-12 z-20 w-36 rounded-lg p-1"
+        style={{
+          background: 'var(--surface-elevated)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
+      >
+        <p
+          className="px-2 py-1 text-[8px] uppercase"
+          style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
+        >
           Right-click ↑
         </p>
-        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] hover:bg-stone-50 dark:hover:bg-stone-800">
-          <Copy className="h-3 w-3" /> Duplicate
-        </button>
-        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] hover:bg-stone-50 dark:hover:bg-stone-800">
-          <Layers className="h-3 w-3" /> Apply master
-        </button>
-        <button className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30">
-          <Trash2 className="h-3 w-3" /> Delete
-        </button>
+        <CtxItem Icon={Copy} label="Duplicate" />
+        <CtxItem Icon={Layers} label="Apply master" />
+        <CtxItem Icon={Trash2} label="Delete" tone="critical" />
       </div>
     </aside>
+  );
+}
+
+function CtxItem({
+  Icon,
+  label,
+  tone = 'default',
+}: {
+  Icon: typeof Copy;
+  label: string;
+  tone?: 'default' | 'critical';
+}) {
+  return (
+    <button
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] transition-colors"
+      style={{ color: tone === 'critical' ? 'var(--critical)' : 'var(--text-primary)' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background =
+          tone === 'critical' ? 'var(--critical-soft)' : 'var(--surface-hover)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <Icon className="h-3 w-3" /> {label}
+    </button>
   );
 }
 
@@ -777,11 +1054,12 @@ function MockCanvas({
   const page = mockDocument.page;
   return (
     <div
-      className="relative overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/5"
+      className="relative overflow-hidden rounded-xl"
       style={{
         width: page.displayWidth,
         height: page.displayHeight,
         background: page.background,
+        boxShadow: 'var(--shadow-lg)',
       }}
     >
       {page.layers.map((layer) => (
@@ -796,7 +1074,15 @@ function MockCanvas({
   );
 }
 
-function LayerNode({ layer, brand, selected }: { layer: MockLayer; brand: MockBrand; selected: boolean }) {
+function LayerNode({
+  layer,
+  brand,
+  selected,
+}: {
+  layer: MockLayer;
+  brand: MockBrand;
+  selected: boolean;
+}) {
   const style: React.CSSProperties = {
     position: 'absolute',
     left: layer.x,
@@ -805,10 +1091,22 @@ function LayerNode({ layer, brand, selected }: { layer: MockLayer; brand: MockBr
     height: layer.height,
   };
   if (layer.kind === 'logo') {
-    return <div style={style}><img src={brand.logoDataUrl} alt="" className="h-full w-full" /></div>;
+    return (
+      <div style={style}>
+        <img src={brand.logoDataUrl} alt="" className="h-full w-full" />
+      </div>
+    );
   }
   if (layer.kind === 'shape') {
-    return <div style={{ ...style, background: resolveMockColor(layer.fill, brand), borderRadius: layer.cornerRadius ?? 0 }} />;
+    return (
+      <div
+        style={{
+          ...style,
+          background: resolveMockColor(layer.fill, brand),
+          borderRadius: layer.cornerRadius ?? 0,
+        }}
+      />
+    );
   }
   return (
     <div
@@ -828,14 +1126,21 @@ function LayerNode({ layer, brand, selected }: { layer: MockLayer; brand: MockBr
     >
       {layer.content}
       {selected && (
-        <div className="pointer-events-none absolute -inset-2 rounded" style={{ boxShadow: `0 0 0 1.5px ${ACCENT}` }}>
+        <div
+          className="pointer-events-none absolute -inset-2 rounded"
+          style={{ boxShadow: `0 0 0 1.5px ${SELECTION}` }}
+        >
           {[
             { top: -3, left: -3 },
             { top: -3, right: -3 },
             { bottom: -3, left: -3 },
             { bottom: -3, right: -3 },
           ].map((pos, i) => (
-            <span key={i} className="absolute h-1.5 w-1.5 rounded-full bg-white" style={{ ...pos, boxShadow: `0 0 0 1.5px ${ACCENT}` }} />
+            <span
+              key={i}
+              className="absolute h-1.5 w-1.5 rounded-full bg-white"
+              style={{ ...pos, boxShadow: `0 0 0 1.5px ${SELECTION}` }}
+            />
           ))}
         </div>
       )}
