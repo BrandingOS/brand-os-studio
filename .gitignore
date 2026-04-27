@@ -46,3 +46,6 @@ remotion/node_modules
 remotion/out
 
 .claude/worktrees/
+
+# Vitest browser test failure screenshots
+**/__screenshots__/

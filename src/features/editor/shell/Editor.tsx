@@ -32,9 +32,22 @@ interface EditorProps {
   breadcrumb?: string[];
   /** Document title shown in the chrome top bar. */
   title: string;
+  /**
+   * Optional hook fired once the adapter is constructed. Used by browser
+   * E2E tests to assert canvas state through the adapter API. Production
+   * call sites omit this.
+   */
+  onAdapterReady?: (adapter: EditorAdapter) => void;
 }
 
-export function Editor({ initialDocument, save, backTo, breadcrumb, title }: EditorProps) {
+export function Editor({
+  initialDocument,
+  save,
+  backTo,
+  breadcrumb,
+  title,
+  onAdapterReady,
+}: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
   const [selection, setSelection] = useState<SelectionState>({
@@ -51,13 +64,14 @@ export function Editor({ initialDocument, save, backTo, breadcrumb, title }: Edi
   // selection mirrors via setSelection. Both feed `useAutoSave`.
   useEffect(() => {
     adapterRef.current = adapter;
+    onAdapterReady?.(adapter);
     const offChange = adapter.on('change', (next) => setDoc(next));
     const offSelection = adapter.on('selection', (sel) => setSelection(sel));
     return () => {
       offChange();
       offSelection();
     };
-  }, [adapter]);
+  }, [adapter, onAdapterReady]);
 
   const { saveState, markDirty, flush, retry } = useAutoSave<BrandOSDocument>({
     value: doc,

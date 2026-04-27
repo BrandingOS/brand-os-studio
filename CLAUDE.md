@@ -329,6 +329,20 @@ The landing page's `early_access` table uses RLS: anon INSERT-only, no SELECT �
 
 > **AI proxy migration paused at Step 1 — see issue #2. MUST complete before public launch.**
 
+## Test coverage requirements
+
+Every phase / feature / non-trivial change must land with **all three layers** of test coverage green before it's "done." The human only opens a browser for genuinely visual concerns (color palette feel, animation polish, layout density) — functional verification is automated, end to end.
+
+The three layers, configured as Vitest projects in `vite.config.ts`:
+
+1. **Unit (jsdom)** — pure logic, schemas, math, hooks, state machines. Lives anywhere as `*.test.ts(x)`. Runs in jsdom.
+2. **Adapter integration (jsdom)** — tests that drive an adapter's API and assert on its document mirror + Fabric (mocked) object state. Lives next to the adapter being tested. Same `*.test.ts(x)` suffix; `vi.mock('fabric', …)` provides a faithful stand-in because jsdom has no working Canvas 2D context.
+3. **Browser E2E (Chromium via Playwright)** — real DOM, real canvas, real Fabric.js. Lives in `*.browser.test.tsx`. Renders the actual React component(s), interacts via `@testing-library/react` `fireEvent` + DOM clicks, asserts on canvas state through whatever ref/callback the component exposes for testing (e.g. `<Editor onAdapterReady={…}>`). This layer catches data-flow regressions where a panel input must reach the canvas — the bug class that costs the most when manual review misses it. Phase 1's broken `applyPatchToFabric` would have failed this layer's first run.
+
+`npm run test` runs all three projects in parallel via the workspace config. Don't add a separate `test:browser` script — there's one gate. To run a single project: `npx vitest run --project unit` or `--project browser`.
+
+When adding a feature: write tests at every layer that applies. New schema → unit. New adapter method → adapter integration. New user-facing flow (panel input, button, drag, etc.) → browser E2E. Skipping a layer because "it's covered at a different level" is the rationalization that lets production bugs through.
+
 ## TypeScript Config
 
 `strictNullChecks` is OFF. `noImplicitAny` is OFF. Be aware when writing new code — nullable values won't cause compile errors but can still crash at runtime.

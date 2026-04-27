@@ -48,15 +48,50 @@ export default defineConfig(({ mode }) => ({
     },
   },
   test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Three coverage layers in one `npm run test`:
+    //
+    //   • unit (jsdom)    — pure logic, schemas, math, hooks, state machines.
+    //                       Adapter integration tests use a mocked `fabric`
+    //                       module since jsdom has no real Canvas 2D context.
+    //   • browser (chromium) — real DOM, real canvas, real Fabric.js. Catches
+    //                       data-flow regressions where a panel input must
+    //                       reach the canvas. Files: `*.browser.test.tsx`.
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.*', 'src/test/**'],
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'unit',
+          environment: 'jsdom',
+          globals: true,
+          setupFiles: ['./src/test/setup.ts'],
+          include: ['src/**/*.{test,spec}.{ts,tsx}'],
+          exclude: [
+            'node_modules/**',
+            'src/**/*.browser.{test,spec}.{ts,tsx}',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'browser',
+          globals: true,
+          include: ['src/**/*.browser.{test,spec}.{ts,tsx}'],
+          setupFiles: ['./src/test/setup.ts'],
+          browser: {
+            enabled: true,
+            provider: 'playwright',
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
   },
 }));
