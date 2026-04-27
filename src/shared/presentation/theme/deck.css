@@ -75,6 +75,12 @@
   line-height: var(--deck-leading-label);
   color: var(--deck-color-label);
   text-transform: uppercase;
+  /* Auto-detect direction per-label from the text itself. Latin tags
+   * like "#One_Platform" render LTR (so the # stays at the start);
+   * Arabic tags like "ابدأ" render RTL. Without this, an RTL parent
+   * pulled bi-neutral chars (#, /, ., …) to the wrong side of the
+   * tag (e.g. "ONE_PLATFORM#"). */
+  unicode-bidi: plaintext;
 }
 
 .deck-card {
