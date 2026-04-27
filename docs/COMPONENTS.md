@@ -362,10 +362,13 @@ work around them.
 
 ## Routing reference
 
-- Brand-scope canonical paths live under `/dashboard/brand/:slug/...`,
-  with short-form aliases at `/b/:slug/...`. Both are nested under
-  `BrandRouteLayout`. Add new in-shell brand routes as nested children
-  inside both parent routes in `src/App.tsx`.
+- Brand-scope canonical paths live under `/b/:slug/...` (the short
+  form is the production-target canonical; see
+  `docs/brandos-editor-vision.md` §2). The longer
+  `/dashboard/brand/:slug/...` form is kept as an alias for backward
+  compatibility with internal code that pre-dates the short form.
+  Both are nested under `BrandRouteLayout`. Add new in-shell brand
+  routes as nested children inside both parent routes in `src/App.tsx`.
 - Fullscreen editor routes (brand-guides, guidelines/canvas, etc.) stay
   as flat sibling routes — they intentionally bypass the brand shell.
 - Legacy paths that have been renamed (e.g. `/dam` → `/folders`) are kept
