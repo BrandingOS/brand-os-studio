@@ -247,9 +247,11 @@ export default function DeckV2Page() {
                       }}
                     />
                   )}
-                  <button
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => goTo(i)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goTo(i); } }}
                     draggable
                     onDragStart={(e) => {
                       setDragSrc(i);
@@ -359,7 +361,7 @@ export default function DeckV2Page() {
                     >
                       {meta?.name ?? slide.layout}
                     </span>
-                  </button>
+                  </div>
                   {/* Drop-indicator line below */}
                   {showInsertAfter && (
                     <div
