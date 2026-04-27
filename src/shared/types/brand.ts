@@ -6,6 +6,7 @@ import type {
 } from './brandAssets';
 import type { Typescale } from './typescale';
 import type { DeckKind, PresentationTheme } from '@/shared/presentation/theme/types';
+import type { Deck as DeckV2 } from '@/shared/presentation/v2/types';
 
 export interface Brand {
   id: string;
@@ -62,6 +63,11 @@ export interface Brand {
   assets: Asset[];
   /** Per-deck Customize theme overrides. Each deck kind owns its own theme; brand typescale + brandPalette are the defaults when an override is undefined. */
   presentationThemes?: Partial<Record<DeckKind, PresentationTheme>>;
+  /** v2 decks — Deck OS instances built from templates (Pitch Deck,
+   *  Quarterly Review, etc.). Each is a typed-data Deck object the
+   *  v2 engine renders. The v1 `presentationThemes` field continues
+   *  to drive the legacy /pitch-deck route until Phase 4 migration. */
+  decks?: DeckV2[];
   isPublic?: boolean;
   publicUrl?: string;
   customDomain?: string;

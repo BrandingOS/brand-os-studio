@@ -10,9 +10,10 @@
  * variant.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Check, Save, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
@@ -20,6 +21,7 @@ import { DeckRenderer } from './DeckRenderer';
 import { PITCH_DECK_TEMPLATE } from '../templates/pitch-deck';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
 import type { Deck } from '../types';
+import { useDeck, useEnsureDeck } from '../store/deckStore';
 import '@/shared/presentation/theme/deck.css';
 import '@/shared/styles/cosmos-workspace.css';
 
@@ -30,13 +32,15 @@ export default function DeckV2Page() {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slideRefs = useRef<(HTMLElement | null)[]>([]);
 
-  // Build a Deck from the Pitch Deck template every time the brand
-  // changes. Phase 1 keeps this in-memory; Phase 5 will persist via
-  // brand.decks[].
-  const deck = useMemo<Deck | null>(() => {
-    if (!brand) return null;
+  // Pick a stable deck id for this brand's pitch deck. One deck per
+  // (brand, template) for now — Phase 5 introduces multi-deck.
+  const deckId = brand ? `deck-${brand.id}-pitch` : '';
+
+  // Hydrate from brand.decks[] OR build from template.
+  const factory = useCallback<() => Deck>(() => {
+    if (!brand) throw new Error('factory called without a brand');
     return {
-      id: `deck-${brand.id}-pitch`,
+      id: deckId,
       brandId: brand.id,
       templateId: PITCH_DECK_TEMPLATE.id,
       title: PITCH_DECK_TEMPLATE.name,
@@ -52,7 +56,42 @@ export default function DeckV2Page() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-  }, [brand]);
+  }, [brand, deckId]);
+
+  const ensuredId = useEnsureDeck(brand, deckId, factory);
+  const result = useDeck(brand!, ensuredId ?? deckId);
+  const deck = result?.deck ?? null;
+  const saveState = result?.saveState;
+  const flush = result?.flush;
+
+  // Save button handler — flush pending debounced save NOW.
+  const [savedFlash, setSavedFlash] = useState(false);
+  const saveAll = useCallback(async () => {
+    if (!flush) return;
+    try {
+      await flush();
+      setSavedFlash(true);
+      toast.success('All changes saved');
+      setTimeout(() => setSavedFlash(false), 1800);
+    } catch (e) {
+      console.error('[deck-v2] save failed', e);
+      toast.error(`Save failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    }
+  }, [flush]);
+
+  // Cmd/Ctrl+S → save
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const cmd = isMac ? e.metaKey : e.ctrlKey;
+      if (cmd && e.key === 's') {
+        e.preventDefault();
+        void saveAll();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [saveAll]);
 
   // Track active slide via scroll-snap math — same pattern as the
   // legacy PitchDeckPage.
@@ -87,8 +126,38 @@ export default function DeckV2Page() {
 
   return (
     <CosmosWorkspaceShell rightActions={
-      <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-        Deck v2 · {total} slides
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+          Deck v2 · {total} slides
+        </span>
+        <button
+          type="button"
+          onClick={saveAll}
+          title="Save (⌘S)"
+          style={{
+            height: 32,
+            padding: '0 14px',
+            borderRadius: 999,
+            border: '1px solid var(--border)',
+            background: savedFlash ? '#16a34a' : (saveState === 'saving' ? 'var(--accent-muted)' : 'var(--surface)'),
+            color: savedFlash ? '#fff' : 'var(--text-primary)',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            transition: 'background 0.15s ease, color 0.15s ease',
+          }}
+        >
+          {savedFlash ? (
+            <><Check className="w-3.5 h-3.5" /> Saved</>
+          ) : saveState === 'saving' ? (
+            <><Save className="w-3.5 h-3.5" /> Saving…</>
+          ) : (
+            <><Save className="w-3.5 h-3.5" /> Save</>
+          )}
+        </button>
       </span>
     }>
       <div
