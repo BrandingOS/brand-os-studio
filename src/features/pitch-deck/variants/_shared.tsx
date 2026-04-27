@@ -27,11 +27,11 @@ export const WHITE = '#FFFFFF';
 
 export const RTL_DIR: CSSProperties = { direction: 'rtl', textAlign: 'right' };
 
-// Reference JPGs (`/brands/uniex/designs/{1,2,3}.jpg`) were replaced with
-// hand-coded SVG illustrations in `../illustrations`. Each variant now
-// imports a specific component (e.g. `GlobeWithFlags`, `ConnectedLaptop`)
-// instead of pulling from a shared raster, so all 16 variant slots
-// render distinct visuals.
+// Illustration slots are wrapped in `<ReplaceableArtwork>` and start
+// empty. Clicking a slot opens the picker (3D Illustrations / Unsplash /
+// Upload) so each variant can be filled with a brand-fitting visual at
+// runtime. The hand-coded SVGs that lived in `../illustrations/` were
+// removed once the picker shipped.
 export const ICON_GREEN = '/brands/uniex/logos/iconGreen.svg';
 export const ICON_NAVY = '/brands/uniex/logos/iconBlue.svg';
 export const ICON_WHITE = '/brands/uniex/logos/iconWhite.svg';

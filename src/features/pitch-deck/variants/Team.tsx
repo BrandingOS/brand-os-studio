@@ -10,7 +10,6 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { TEAM } from '../uniexPitchContent';
-import { HandshakePartners } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
@@ -239,13 +238,22 @@ export function TeamSlideB({ index, total }: SlideProps) {
       >
         <ReplaceableArtwork
           slotId="team-B-handshake"
-          defaultQuery="partnership handshake"
+          defaultQuery="team people"
           style={{
             width: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
             height: Math.max(SLIDE_WIDTH, SLIDE_HEIGHT),
           }}
         >
-          <HandshakePartners size={Math.max(SLIDE_WIDTH, SLIDE_HEIGHT)} transparent />
+          <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+            color: 'rgba(0,21,99,0.35)',
+            fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+            textAlign: 'center', padding: 12,
+          }}>
+            Click to add illustration
+          </div>
         </ReplaceableArtwork>
       </div>
       <div

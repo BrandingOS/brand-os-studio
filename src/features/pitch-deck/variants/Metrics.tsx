@@ -10,7 +10,6 @@ import type { CSSProperties, ReactNode } from 'react';
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { METRICS } from '../uniexPitchContent';
-import { TrophyCelebration } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 
 const NAVY = '#001563';
@@ -390,10 +389,19 @@ export function MetricsSlideC({ index, total }: SlideProps) {
           >
             <ReplaceableArtwork
               slotId="metrics-C-trophy"
-              defaultQuery="trophy celebration"
+              defaultQuery="trophy"
               style={{ width: 560, height: 560 }}
             >
-              <TrophyCelebration size={560} transparent />
+              <div style={{
+                width: '100%', height: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+                color: 'rgba(0,21,99,0.35)',
+                fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+                textAlign: 'center', padding: 12,
+              }}>
+                Click to add illustration
+              </div>
             </ReplaceableArtwork>
           </div>
           <div
