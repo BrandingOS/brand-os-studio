@@ -18,12 +18,15 @@ import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { DeckRenderer } from './DeckRenderer';
+import { SlideRenderer } from './SlideRenderer';
 import { EditContextProvider } from './EditContext';
 import { AddSlidePopover } from './AddSlidePopover';
 import { GeneratePanel } from './GeneratePanel';
 import { PITCH_DECK_TEMPLATE } from '../templates/pitch-deck';
+import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
-import type { Deck, LayoutId } from '../types';
+import type { Deck, LayoutId, Slide } from '../types';
+import type { Brand } from '@/shared/types/brand';
 import { useDeck, useDeckStore, useEnsureDeck } from '../store/deckStore';
 import { buildEmptySlide, getLayoutMeta } from '../layouts/catalog';
 import '@/shared/presentation/theme/deck.css';
@@ -181,11 +184,52 @@ export default function DeckV2Page() {
     setDragOver(null);
   };
 
+  // Truncate long deck titles for the topbar; full title is in the title attribute.
+  const titleForTopbar = (() => {
+    const t = deck.title ?? 'Deck';
+    return t.length > 40 ? `${t.slice(0, 38)}…` : t;
+  })();
+  const dirtyDot = saveState === 'saving' || saveState === 'dirty';
+
   return (
     <CosmosWorkspaceShell rightActions={
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-          Deck v2 · {total} slides
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 12,
+            color: 'var(--text-muted)',
+            maxWidth: 360,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={deck.title}
+        >
+          <span
+            style={{
+              color: 'var(--text-primary)',
+              fontWeight: 600,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {titleForTopbar}
+          </span>
+          <span style={{ opacity: 0.45 }}>·</span>
+          <span
+            style={{
+              fontSize: 11,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {total} slides
+          </span>
         </span>
         <button
           type="button"
@@ -196,17 +240,47 @@ export default function DeckV2Page() {
             padding: '0 14px',
             borderRadius: 999,
             border: '1px solid var(--border)',
-            background: savedFlash ? '#16a34a' : (saveState === 'saving' ? 'var(--accent-muted)' : 'var(--surface)'),
+            background: savedFlash
+              ? '#16a34a'
+              : saveState === 'saving'
+                ? 'var(--accent-muted)'
+                : 'var(--surface)',
             color: savedFlash ? '#fff' : 'var(--text-primary)',
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            transition: 'background 0.15s ease, color 0.15s ease',
+            gap: 8,
+            transition: 'background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            if (savedFlash) return;
+            const el = e.currentTarget;
+            el.style.background = 'var(--surface-elevated)';
+            el.style.transform = 'translateY(-1px)';
+            el.style.boxShadow = 'var(--shadow-sm)';
+          }}
+          onMouseLeave={(e) => {
+            if (savedFlash) return;
+            const el = e.currentTarget;
+            el.style.background = saveState === 'saving' ? 'var(--accent-muted)' : 'var(--surface)';
+            el.style.transform = 'translateY(0)';
+            el.style.boxShadow = 'none';
           }}
         >
+          {dirtyDot && !savedFlash && (
+            <span
+              aria-hidden
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: saveState === 'saving' ? 'var(--accent, #001563)' : '#f59e0b',
+                flexShrink: 0,
+              }}
+            />
+          )}
           {savedFlash ? (
             <><Check className="w-3.5 h-3.5" /> Saved</>
           ) : saveState === 'saving' ? (
@@ -228,17 +302,93 @@ export default function DeckV2Page() {
         {/* Thumbnail rail */}
         <aside
           style={{
-            width: 168,
+            width: 184,
             borderRight: '1px solid var(--border)',
             overflowY: 'auto',
-            padding: 12,
-            background: 'var(--surface-elevated)',
+            background:
+              'linear-gradient(180deg, var(--surface-elevated) 0%, var(--surface) 100%)',
             flexShrink: 0,
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
           }}
         >
+          {/* Sticky rail header — brand + deck title + slide count */}
+          <div
+            style={{
+              position: 'sticky',
+              top: 0,
+              background: 'var(--surface-elevated)',
+              borderBottom: '1px solid var(--border)',
+              padding: '14px 12px 12px',
+              zIndex: 1,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                textTransform: 'uppercase',
+                color: 'var(--text-muted)',
+                marginBottom: 6,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%',
+              }}
+              title={brand.name}
+            >
+              <span
+                aria-hidden
+                style={{
+                  display: 'inline-block',
+                  width: 6,
+                  height: 6,
+                  borderRadius: 999,
+                  background: 'var(--accent, #001563)',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {brand.name}
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={deck.title}
+            >
+              {deck.title}
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                marginTop: 4,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {deck.slides.length} slide{deck.slides.length === 1 ? '' : 's'}
+            </div>
+          </div>
+
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <DeckThemeProvider brand={brand} theme={deck.theme} deckKind="pitch-deck">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {deck.slides.map((slide, i) => {
               const isActive = activeIndex === i;
@@ -313,10 +463,30 @@ export default function DeckV2Page() {
                       background: 'var(--surface)',
                       boxShadow: isActive ? 'var(--shadow-md)' : 'var(--shadow-xs)',
                       opacity: isDragging ? 0.4 : 1,
-                      transition: 'box-shadow 0.18s var(--ease), opacity 0.12s ease',
+                      transition: 'box-shadow 0.18s var(--ease), opacity 0.12s ease, transform 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isActive) return;
+                      const el = e.currentTarget;
+                      el.style.boxShadow = '0 0 0 2px var(--accent-muted, rgba(0,21,99,0.18)), var(--shadow-sm)';
+                      el.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (isActive) return;
+                      const el = e.currentTarget;
+                      el.style.boxShadow = 'var(--shadow-xs)';
+                      el.style.transform = 'translateY(0)';
                     }}
                     title={meta?.name ? `${meta.name} — drag to reorder` : `Slide ${i + 1}`}
                   >
+                    {/* Scaled mini-render of the actual slide. */}
+                    <ThumbSlide
+                      slide={slide}
+                      index={i + 1}
+                      total={total}
+                      brand={brand}
+                      rtl={brand.guidelines?.language?.direction === 'rtl'}
+                    />
                     <div
                       style={{
                         position: 'absolute',
@@ -328,6 +498,8 @@ export default function DeckV2Page() {
                         background: 'rgba(0,21,99,0.7)',
                         borderRadius: 4,
                         padding: '1px 6px',
+                        zIndex: 2,
+                        pointerEvents: 'none',
                       }}
                     >
                       {String(i + 1).padStart(2, '0')}
@@ -362,24 +534,6 @@ export default function DeckV2Page() {
                         <Trash2 className="w-3 h-3" />
                       </button>
                     )}
-                    <span
-                      style={{
-                        position: 'absolute',
-                        inset: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 10,
-                        color: 'var(--text-muted)',
-                        letterSpacing: '0.18em',
-                        textTransform: 'uppercase',
-                        pointerEvents: 'none',
-                        textAlign: 'center',
-                        padding: '0 8px',
-                      }}
-                    >
-                      {meta?.name ?? slide.layout}
-                    </span>
                   </div>
                   {/* Drop-indicator line below */}
                   {showInsertAfter && (
@@ -401,8 +555,10 @@ export default function DeckV2Page() {
               );
             })}
           </div>
+          </DeckThemeProvider>
           {/* + Add slide trigger at the bottom of the rail */}
           <AddSlidePopover onPick={handleAddSlide} side="right" variant="inline" />
+          </div>
         </aside>
 
         {/* Stage column — scroll area + bottom dock */}
@@ -445,18 +601,24 @@ export default function DeckV2Page() {
             </EditContextProvider>
           </main>
 
-          {/* Bottom dock — page indicator + prev/next + Add */}
+          {/* Bottom dock — frosted-glass floating pill cluster */}
           <div
             style={{
-              height: 48,
-              flexShrink: 0,
-              borderTop: '1px solid var(--border)',
-              background: 'var(--surface-elevated)',
-              display: 'flex',
+              position: 'fixed',
+              bottom: 18,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              padding: '0 16px',
+              gap: 4,
+              padding: 6,
+              background: 'color-mix(in srgb, var(--surface) 88%, transparent)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid var(--border)',
+              borderRadius: 999,
+              boxShadow: '0 12px 32px -12px rgba(0,0,0,0.18), 0 4px 12px -4px rgba(0,0,0,0.08)',
+              zIndex: 50,
             }}
           >
             <button
@@ -464,10 +626,32 @@ export default function DeckV2Page() {
               onClick={() => goTo(Math.max(0, activeIndex - 1))}
               disabled={activeIndex <= 0}
               title="Previous slide"
-              style={dockBtnStyle(activeIndex <= 0)}
+              style={dockIconBtnStyle(activeIndex <= 0)}
+              onMouseEnter={onDockBtnEnter}
+              onMouseLeave={onDockBtnLeave}
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
+            <button
+              type="button"
+              onClick={() => goTo(Math.min(total - 1, activeIndex + 1))}
+              disabled={activeIndex >= total - 1}
+              title="Next slide"
+              style={dockIconBtnStyle(activeIndex >= total - 1)}
+              onMouseEnter={onDockBtnEnter}
+              onMouseLeave={onDockBtnLeave}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 20,
+                background: 'var(--border)',
+                margin: '0 4px',
+              }}
+            />
             <span
               style={{
                 fontSize: 11,
@@ -475,32 +659,46 @@ export default function DeckV2Page() {
                 letterSpacing: '0.12em',
                 fontVariantNumeric: 'tabular-nums',
                 minWidth: 56,
+                padding: '0 8px',
                 textAlign: 'center',
               }}
             >
-              {String(activeIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                {String(activeIndex + 1).padStart(2, '0')}
+              </span>
+              <span style={{ opacity: 0.4, margin: '0 4px' }}>/</span>
+              <span>{String(total).padStart(2, '0')}</span>
             </span>
-            <button
-              type="button"
-              onClick={() => goTo(Math.min(total - 1, activeIndex + 1))}
-              disabled={activeIndex >= total - 1}
-              title="Next slide"
-              style={dockBtnStyle(activeIndex >= total - 1)}
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-            <span style={{ width: 1, height: 18, background: 'var(--border)' }} />
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 20,
+                background: 'var(--border)',
+                margin: '0 4px',
+              }}
+            />
             <AddSlidePopover onPick={handleAddSlide} side="top" variant="pill" label="Add slide" />
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 20,
+                background: 'var(--border)',
+                margin: '0 4px',
+              }}
+            />
             <button
               type="button"
               onClick={() => setGenerateOpen(true)}
               title="Generate from a script"
               style={{
-                height: 28,
-                padding: '0 12px',
+                height: 32,
+                padding: '0 14px',
                 borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'linear-gradient(90deg, rgba(124,58,237,0.10), rgba(59,130,246,0.10))',
+                border: '1px solid color-mix(in srgb, var(--accent, #001563) 22%, var(--border))',
+                background:
+                  'linear-gradient(90deg, color-mix(in srgb, var(--accent, #7c3aed) 14%, transparent), color-mix(in srgb, #3b82f6 14%, transparent))',
                 color: 'var(--text-primary)',
                 fontSize: 12,
                 fontWeight: 600,
@@ -508,6 +706,21 @@ export default function DeckV2Page() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease',
+                boxShadow:
+                  '0 1px 2px 0 rgba(0,0,0,0.04), inset 0 0 0 1px rgba(255,255,255,0.4)',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget;
+                el.style.transform = 'translateY(-1px)';
+                el.style.boxShadow =
+                  '0 6px 14px -4px rgba(124,58,237,0.25), 0 2px 4px 0 rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.5)';
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.style.transform = 'translateY(0)';
+                el.style.boxShadow =
+                  '0 1px 2px 0 rgba(0,0,0,0.04), inset 0 0 0 1px rgba(255,255,255,0.4)';
               }}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -526,21 +739,108 @@ export default function DeckV2Page() {
   );
 }
 
-function dockBtnStyle(disabled: boolean): React.CSSProperties {
+function dockIconBtnStyle(disabled: boolean): React.CSSProperties {
   return {
-    width: 28,
-    height: 28,
+    width: 36,
+    height: 36,
     padding: 0,
     borderRadius: 999,
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
+    border: '1px solid transparent',
+    background: 'transparent',
     color: 'var(--text-primary)',
     cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.45 : 1,
+    opacity: disabled ? 0.35 : 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
+    transition: 'background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
   };
+}
+
+function onDockBtnEnter(e: React.MouseEvent<HTMLButtonElement>) {
+  if (e.currentTarget.disabled) return;
+  const el = e.currentTarget;
+  el.style.background = 'var(--surface-elevated)';
+  el.style.borderColor = 'var(--border)';
+  el.style.transform = 'translateY(-1px)';
+  el.style.boxShadow = 'var(--shadow-sm)';
+}
+
+function onDockBtnLeave(e: React.MouseEvent<HTMLButtonElement>) {
+  const el = e.currentTarget;
+  el.style.background = 'transparent';
+  el.style.borderColor = 'transparent';
+  el.style.transform = 'translateY(0)';
+  el.style.boxShadow = 'none';
+}
+
+/**
+ * ThumbSlide — renders a real, scaled-down `SlideRenderer` to fill its
+ * parent thumbnail tile. The parent is a fixed-aspect 16:9 box; this
+ * component measures the parent's width and applies a CSS scale so the
+ * 1920×1080 slide fits exactly. Uses `mode="thumbnail"` so layouts
+ * suppress edit affordances. The mini-slides inherit `--deck-*` tokens
+ * from a `<DeckThemeProvider>` wrapping the rail.
+ */
+function ThumbSlide({
+  slide,
+  index,
+  total,
+  brand,
+  rtl,
+}: {
+  slide: Slide;
+  index: number;
+  total: number;
+  brand: Brand;
+  rtl: boolean;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(0.07);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(w / SLIDE_WIDTH);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const wordmark = brand.name?.toLowerCase();
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+      }}
+    >
+      <div
+        style={{
+          width: SLIDE_WIDTH,
+          height: SLIDE_HEIGHT,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+      >
+        <SlideRenderer
+          slide={slide}
+          index={index}
+          total={total}
+          mode="thumbnail"
+          brandWordmark={wordmark}
+          rtl={rtl}
+        />
+      </div>
+    </div>
+  );
 }
 
 /** Scales a 1920×1080 slide to fit its parent without distortion. */
