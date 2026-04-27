@@ -25,6 +25,18 @@ export interface ExportOptions {
   quality?: number;
 }
 
+/**
+ * Result returned by `applyLayerPatchAcrossPages`. Tells callers
+ * (UI or AI) what actually changed, so they can confirm to the user
+ * (e.g. "Updated 4 headlines across 3 pages").
+ */
+export interface ApplyLayerPatchAcrossPagesResult {
+  /** Ids of layers whose properties were patched. */
+  mutatedLayerIds: string[];
+  /** Ids of pages that contained at least one mutated layer. */
+  affectedPageIds: string[];
+}
+
 export type EditorEvent = 'change' | 'selection';
 export type EditorEventHandler<E extends EditorEvent> = E extends 'change'
   ? (doc: BrandOSDocument) => void
@@ -74,6 +86,41 @@ export interface EditorAdapter {
   updateLayer(pageId: string, layerId: string, patch: Partial<Layer>): void;
   removeLayer(pageId: string, layerId: string): void;
   reorderLayer(pageId: string, layerId: string, newIndex: number): void;
+
+  /**
+   * Cross-page bulk mutation: walk every layer in `doc.pages` (NOT
+   * master pages), apply `patch` to layers where `predicate` returns
+   * true, and commit the entire set as a single batch (one undo
+   * entry, one change event, labeled with `batchLabel`).
+   *
+   * Used by:
+   *   • Phase 3 step 6 — the cross-page Sonner prompt's
+   *     "Apply to all N pages" / "Similar layers only on this page"
+   *     actions. The Sonner constructs the predicate from the
+   *     reference layer's SlotRef + property.
+   *   • Phase 3.5 AI Mode 3 — natural-language commands like
+   *     "change all headlines to the accent color" parse into a
+   *     predicate + patch + label and call this directly.
+   *
+   * Returns the layer ids that actually mutated and the page ids
+   * affected, so callers (UI or AI) can confirm to the user what
+   * changed. When `predicate` matches no layers, the function is a
+   * no-op: no batch, no change event, no undo entry — and the
+   * returned arrays are empty.
+   *
+   * Master pages are intentionally excluded from the search, matching
+   * `findSimilarLayers`'s scope rule. Master-layer edits propagate
+   * through the master overlay rendering, which is a separate
+   * propagation model.
+   *
+   * Group children ARE recursed (predicate is called for every layer
+   * in the tree, not just top-level page layers).
+   */
+  applyLayerPatchAcrossPages(
+    predicate: (layer: Layer, pageId: string) => boolean,
+    patch: Partial<Layer>,
+    batchLabel: string,
+  ): ApplyLayerPatchAcrossPagesResult;
 
   // Selection
   getSelection(): SelectionState;

@@ -33,6 +33,7 @@ const newUuid = (): string =>
         .toString(36)
         .slice(2)}`;
 import type {
+  ApplyLayerPatchAcrossPagesResult,
   EditorAdapter,
   EditorEvent,
   EditorEventHandler,
@@ -40,6 +41,7 @@ import type {
   SelectionState,
   Unsubscribe,
 } from './EditorAdapter';
+import type { GroupLayer } from '@/features/editor/schema';
 import { HistoryRing } from './historyRing';
 import {
   applyLayerToFabric,
@@ -381,6 +383,67 @@ export class FabricAdapter implements EditorAdapter {
     this.emitChange();
   }
 
+  // ─── Cross-page bulk mutation (Phase 3 step 4b) ───────────────────────
+
+  applyLayerPatchAcrossPages(
+    predicate: (layer: Layer, pageId: string) => boolean,
+    patch: Partial<Layer>,
+    batchLabel: string,
+  ): ApplyLayerPatchAcrossPagesResult {
+    if (!this.doc) throw new Error('No document loaded');
+
+    // Phase 1 — collect matches via the predicate. NO mutation yet, so
+    // we can early-out cleanly when nothing matches (no batch, no
+    // change event, no undo entry — the no-op contract).
+    //
+    // Master pages are intentionally NOT walked. Master-layer
+    // propagation goes through the master overlay rendering, which is
+    // a separate model from cross-page propagation. The predicate is
+    // never even called for master layers — the caller cannot
+    // accidentally include them.
+    const matches: Array<{ pageId: string; layer: Layer }> = [];
+    for (const page of this.doc.pages) {
+      walkLayersForPredicate(page.layers, page.id, predicate, matches);
+    }
+
+    if (matches.length === 0) {
+      return { mutatedLayerIds: [], affectedPageIds: [] };
+    }
+
+    // Phase 2 — mutate atomically inside batch. The batch wrapper
+    // suppresses per-mutation history.commit and emitChange; one
+    // labeled commit + one change event fire when the batch closes.
+    const mutatedLayerIds: string[] = [];
+    const affectedPageIds = new Set<string>();
+    let activePageAffected = false;
+
+    this.batch(batchLabel, () => {
+      for (const { pageId, layer } of matches) {
+        // Mutate the mirror layer in place. The mirror IS this.doc;
+        // mutating here is what the change event will reflect.
+        // `Object.assign(layer, patch)` is the same shape updateLayer
+        // produces with `{ ...layer, ...patch }`, but in place — which
+        // is correct here because we're inside the batch's snapshot
+        // boundary (the snapshot is taken AFTER fn returns).
+        Object.assign(layer as object, patch);
+        mutatedLayerIds.push(layer.id);
+        affectedPageIds.add(pageId);
+        if (pageId === this.activePageId) activePageAffected = true;
+      }
+    });
+
+    // Re-render the active page once if any of its layers changed.
+    // applyLayerToFabric per-layer would be a smaller delta but
+    // requires the prevLayer state that we just mutated away; full
+    // re-render is correct and simple. Future polish can optimize.
+    if (activePageAffected) void this.renderActivePage();
+
+    return {
+      mutatedLayerIds,
+      affectedPageIds: Array.from(affectedPageIds),
+    };
+  }
+
   // ─── Selection ────────────────────────────────────────────────────────
 
   getSelection(): SelectionState {
@@ -718,3 +781,29 @@ function reIdLayer(layer: Layer): Layer {
 // layerMapping.ts. The patch-only version only forwarded transform/opacity/
 // visible/locked and silently dropped fontSize/color/fill/etc — that was
 // the data-flow bug surfaced in Phase 1 review.
+
+/**
+ * Walk every layer in a tree (including group children) and collect
+ * those for which the predicate returns true. Used by
+ * `applyLayerPatchAcrossPages` to find candidates across all pages
+ * (the caller iterates pages; this function handles each page's
+ * layer tree).
+ */
+function walkLayersForPredicate(
+  layers: Layer[],
+  pageId: string,
+  predicate: (layer: Layer, pageId: string) => boolean,
+  out: Array<{ pageId: string; layer: Layer }>,
+): void {
+  for (const layer of layers) {
+    if (predicate(layer, pageId)) out.push({ pageId, layer });
+    if (layer.kind === 'group') {
+      walkLayersForPredicate(
+        (layer as GroupLayer).children,
+        pageId,
+        predicate,
+        out,
+      );
+    }
+  }
+}

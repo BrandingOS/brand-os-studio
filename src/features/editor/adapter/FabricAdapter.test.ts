@@ -1007,6 +1007,281 @@ describe('FabricAdapter — batch (Phase 3 step 3)', () => {
   });
 });
 
+describe('FabricAdapter — applyLayerPatchAcrossPages (Phase 3 step 4b)', () => {
+  beforeEach(installFetchStub);
+
+  function makeText(id: string, color: unknown) {
+    return {
+      id,
+      name: id,
+      kind: 'text' as const,
+      transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+      text: '',
+      fontFamily: 'Helvetica',
+      fontSize: 24,
+      fontWeight: 400,
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      textAlign: 'left' as const,
+      direction: 'auto' as const,
+      color,
+    };
+  }
+
+  /** Build a fixture-shaped doc with N pages each carrying a brand-color text layer. */
+  async function makeMultiPageDoc(pageCount: number) {
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    const pages = Array.from({ length: pageCount }, (_, i) => ({
+      id: `page-${i}`,
+      name: `Slide ${i + 1}`,
+      width: 1080,
+      height: 1080,
+      background: '#ffffff' as const,
+      masterPageId: null,
+      layers: [makeText(`text-p${i}`, { type: 'brand.color.primary' as const })],
+    }));
+    baseDoc.pages = pages;
+    baseDoc.masterPages = [];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+    return adapter;
+  }
+
+  it('mutation across multiple pages produces exactly ONE change event', async () => {
+    const adapter = await makeMultiPageDoc(3);
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+
+    const result = adapter.applyLayerPatchAcrossPages(
+      (l) => l.kind === 'text' && (l as { color: unknown }).color != null
+        && typeof (l as { color: unknown }).color === 'object',
+      { color: '#ff00ff' },
+      'reapply-brand',
+    );
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(result.mutatedLayerIds).toHaveLength(3);
+    expect(result.affectedPageIds.sort()).toEqual(['page-0', 'page-1', 'page-2']);
+
+    // The single change event payload reflects all three mutations.
+    const lastDoc = onChange.mock.lastCall![0] as BrandOSDocument;
+    for (const page of lastDoc.pages) {
+      expect((page.layers[0] as { color: unknown }).color).toBe('#ff00ff');
+    }
+  });
+
+  it('single undo entry restores ALL changes', async () => {
+    const adapter = await makeMultiPageDoc(3);
+    const before = adapter.getDocument();
+    adapter.applyLayerPatchAcrossPages(
+      () => true,
+      { color: '#aabbcc' },
+      'bulk',
+    );
+    expect(adapter.getDocument()).not.toEqual(before);
+    adapter.undo();
+    await flushPromises();
+    expect(adapter.getDocument()).toEqual(before);
+  });
+
+  it('predicate matching no layers is a no-op (no change event, no history entry)', async () => {
+    const adapter = await makeMultiPageDoc(3);
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    const histBefore = (adapter as unknown as {
+      history: { getStateForTesting(): { past: unknown[] } };
+    }).history.getStateForTesting().past.length;
+
+    const result = adapter.applyLayerPatchAcrossPages(
+      () => false,
+      { color: '#000000' },
+      'should-not-fire',
+    );
+
+    expect(result.mutatedLayerIds).toEqual([]);
+    expect(result.affectedPageIds).toEqual([]);
+    expect(onChange).not.toHaveBeenCalled();
+    const histAfter = (adapter as unknown as {
+      history: { getStateForTesting(): { past: unknown[] } };
+    }).history.getStateForTesting().past.length;
+    expect(histAfter).toBe(histBefore);
+  });
+
+  it('predicate matching layers on a single page still uses batch (one event, one history entry)', async () => {
+    // Build a doc with multiple text layers on the SAME page; apply a
+    // patch to all of them. Must still be a single batch.
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages = [{
+      id: 'p1',
+      name: 'p',
+      width: 1080,
+      height: 1080,
+      background: '#ffffff',
+      masterPageId: null,
+      layers: [
+        makeText('a', { type: 'brand.color.primary' as const }),
+        makeText('b', { type: 'brand.color.primary' as const }),
+        makeText('c', { type: 'brand.color.primary' as const }),
+      ],
+    }];
+    baseDoc.masterPages = [];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    const histBefore = (adapter as unknown as {
+      history: { getStateForTesting(): { past: unknown[] } };
+    }).history.getStateForTesting().past.length;
+
+    const result = adapter.applyLayerPatchAcrossPages(
+      (l) => l.kind === 'text',
+      { color: '#abcdef' },
+      'single-page-bulk',
+    );
+
+    expect(result.mutatedLayerIds).toHaveLength(3);
+    expect(result.affectedPageIds).toEqual(['p1']);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const histAfter = (adapter as unknown as {
+      history: { getStateForTesting(): { past: unknown[]; labels: (string | undefined)[] } };
+    }).history.getStateForTesting();
+    expect(histAfter.past.length - histBefore).toBe(1);
+    expect(histAfter.labels[histAfter.labels.length - 1]).toBe('single-page-bulk');
+  });
+
+  it('master-page exclusion holds at the adapter layer (predicate not even called for master layers)', async () => {
+    // 2 master-page layers + 5 regular-page layers.
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages = Array.from({ length: 5 }, (_, i) => ({
+      id: `page-${i}`,
+      name: `p${i}`,
+      width: 1080,
+      height: 1080,
+      background: '#ffffff' as const,
+      masterPageId: null,
+      layers: [makeText(`reg-${i}`, '#ffffff')],
+    }));
+    baseDoc.masterPages = [
+      {
+        id: 'master-1',
+        name: 'master 1',
+        width: 1080,
+        height: 1080,
+        background: '#ffffff',
+        masterPageId: null,
+        layers: [
+          makeText('master-l1', '#ffffff'),
+          makeText('master-l2', '#ffffff'),
+        ],
+      },
+    ];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    // Predicate returns true for everything AND records every layer
+    // it sees, so we can assert it was NEVER asked about master layers.
+    const seenLayerIds: string[] = [];
+    const result = adapter.applyLayerPatchAcrossPages(
+      (l) => {
+        seenLayerIds.push(l.id);
+        return true;
+      },
+      { color: '#deadbe' },
+      'master-exclusion',
+    );
+
+    expect(seenLayerIds).toHaveLength(5);
+    expect(seenLayerIds.sort()).toEqual(['reg-0', 'reg-1', 'reg-2', 'reg-3', 'reg-4']);
+    expect(result.mutatedLayerIds).toHaveLength(5);
+    // Master pages stayed untouched.
+    const after = adapter.getDocument();
+    for (const m of after.masterPages) {
+      for (const l of m.layers) {
+        expect((l as { color: unknown }).color).toBe('#ffffff');
+      }
+    }
+  });
+
+  it('returns mutatedLayerIds and affectedPageIds correctly for AI/UI consumption', async () => {
+    const adapter = await makeMultiPageDoc(4);
+    // Predicate matches only pages 0 and 2.
+    const result = adapter.applyLayerPatchAcrossPages(
+      (_l, pageId) => pageId === 'page-0' || pageId === 'page-2',
+      { color: '#444444' },
+      'targeted',
+    );
+    expect(result.mutatedLayerIds.sort()).toEqual(['text-p0', 'text-p2']);
+    expect(result.affectedPageIds.sort()).toEqual(['page-0', 'page-2']);
+  });
+
+  it('group children ARE mutated (predicate sees them via recursion)', async () => {
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages = [{
+      id: 'p1',
+      name: 'p',
+      width: 1080,
+      height: 1080,
+      background: '#ffffff',
+      masterPageId: null,
+      layers: [
+        {
+          id: 'g',
+          name: 'g',
+          kind: 'group',
+          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          opacity: 1,
+          visible: true,
+          locked: false,
+          brandLocked: false,
+          children: [
+            makeText('inner-1', '#ffffff'),
+            makeText('inner-2', '#ffffff'),
+          ],
+        },
+      ],
+    }];
+    baseDoc.masterPages = [];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    const result = adapter.applyLayerPatchAcrossPages(
+      (l) => l.kind === 'text',
+      { color: '#abcdef' },
+      'group-recurse',
+    );
+    expect(result.mutatedLayerIds.sort()).toEqual(['inner-1', 'inner-2']);
+    const doc = adapter.getDocument();
+    const group = doc.pages[0].layers[0] as { children: Array<{ color: unknown }> };
+    expect(group.children[0].color).toBe('#abcdef');
+    expect(group.children[1].color).toBe('#abcdef');
+  });
+});
+
 describe('FabricAdapter — brand engine integration (Phase 3 step 2)', () => {
   beforeEach(installFetchStub);
 
