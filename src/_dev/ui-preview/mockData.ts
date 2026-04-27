@@ -180,6 +180,94 @@ export const mockDocument = {
 export const SELECTED_LAYER_ID = 'headline';
 
 /**
+ * Mock data for variants 4 and 5 — extends the base mockBrand /
+ * mockDocument with the surfaces those variants need (other brands
+ * for the picker, templates for the grid, pages for the navigator,
+ * brand-asset thumbnails for the Brand panel).
+ */
+
+export interface MockOtherBrand {
+  id: string;
+  name: string;
+  avatarColor: string;
+}
+
+export const mockOtherBrands: MockOtherBrand[] = [
+  { id: 'b2', name: 'raqm', avatarColor: '#dc2626' },
+  { id: 'b3', name: 'meridian', avatarColor: '#0891b2' },
+  { id: 'b4', name: 'kahero', avatarColor: '#16a34a' },
+];
+
+export interface MockTemplate {
+  id: string;
+  name: string;
+  category: 'Social' | 'Presentation' | 'Print';
+  /** Gradient pair used to generate a placeholder thumbnail. */
+  gradient: [string, string];
+}
+
+export const mockTemplates: MockTemplate[] = [
+  { id: 't1', name: 'Product launch', category: 'Social', gradient: ['#1a1a2e', '#16a34a'] },
+  { id: 't2', name: 'Quote card', category: 'Social', gradient: ['#7c3aed', '#ec4899'] },
+  { id: 't3', name: 'Pitch deck', category: 'Presentation', gradient: ['#0f172a', '#3b82f6'] },
+  { id: 't4', name: 'Business card', category: 'Print', gradient: ['#fafaf9', '#1a1a2e'] },
+  { id: 't5', name: 'Story post', category: 'Social', gradient: ['#f59e0b', '#dc2626'] },
+  { id: 't6', name: 'Banner', category: 'Social', gradient: ['#0891b2', '#22d3ee'] },
+];
+
+export interface MockPage {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export const mockPages: MockPage[] = [
+  { id: 'p1', name: 'Slide 1', isActive: true },
+  { id: 'p2', name: 'Slide 2', isActive: false },
+  { id: 'p3', name: 'Slide 3', isActive: false },
+];
+
+export interface MockBrandImage {
+  id: string;
+  name: string;
+  /** A muted color for the placeholder thumbnail. */
+  tint: string;
+}
+
+export const mockBrandImages: MockBrandImage[] = [
+  { id: 'img-1', name: 'Hero photo', tint: '#fde68a' },
+  { id: 'img-2', name: 'Product shot', tint: '#a7f3d0' },
+  { id: 'img-3', name: 'Team photo', tint: '#bfdbfe' },
+  { id: 'img-4', name: 'Pattern A', tint: '#fbcfe8' },
+  { id: 'img-5', name: 'Texture', tint: '#ddd6fe' },
+  { id: 'img-6', name: 'Background', tint: '#fed7aa' },
+];
+
+export const mockColorSwatches = [
+  { name: 'Primary', hex: '#1a1a2e' },
+  { name: 'Secondary', hex: '#16a34a' },
+  { name: 'Accent', hex: '#f59e0b' },
+  { name: 'Neutral', hex: '#737373' },
+  { name: 'Surface', hex: '#fafaf9' },
+  { name: 'Ink', hex: '#0a0a0a' },
+];
+
+export interface MockLogoVariant {
+  id: string;
+  label: string;
+  background: string;
+  fg: string;
+  letter: string;
+}
+
+export const mockLogoVariants: MockLogoVariant[] = [
+  { id: 'primary', label: 'Primary', background: '#1a1a2e', fg: '#ffffff', letter: 's' },
+  { id: 'secondary', label: 'Secondary', background: '#ffffff', fg: '#1a1a2e', letter: 's' },
+  { id: 'wordmark', label: 'Wordmark', background: '#1a1a2e', fg: '#ffffff', letter: 'selfix' },
+  { id: 'mono.black', label: 'Mono · black', background: '#000000', fg: '#ffffff', letter: 's' },
+];
+
+/**
  * Resolve a 'brand:primary' / 'brand:secondary' style color reference
  * against a mock brand kit. Pure presentational — the real resolver
  * lives in the brand engine.

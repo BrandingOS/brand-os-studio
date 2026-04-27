@@ -57,6 +57,8 @@ const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const Step5Variant1Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-1"));
 const Step5Variant2Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-2"));
 const Step5Variant3Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-3"));
+const Step5Variant4Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-4"));
+const Step5Variant5Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-5"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -711,6 +713,8 @@ const App = () => (
           <Route path="/_dev/ui-preview/step-5-variant-1" element={<Step5Variant1Page />} />
           <Route path="/_dev/ui-preview/step-5-variant-2" element={<Step5Variant2Page />} />
           <Route path="/_dev/ui-preview/step-5-variant-3" element={<Step5Variant3Page />} />
+          <Route path="/_dev/ui-preview/step-5-variant-4" element={<Step5Variant4Page />} />
+          <Route path="/_dev/ui-preview/step-5-variant-5" element={<Step5Variant5Page />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />
