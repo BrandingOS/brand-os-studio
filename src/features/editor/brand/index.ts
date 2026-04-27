@@ -15,3 +15,9 @@ export {
 // file owns it.
 export type { BrandResolution } from '@/features/editor/schema';
 export { convertToTemplate } from './convertToTemplate';
+export {
+  findSimilarLayers,
+  type SimilarityLevel,
+  type SimilarityReference,
+  type SimilarLayerMatch,
+} from './findSimilarLayers';
