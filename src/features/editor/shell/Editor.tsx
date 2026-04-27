@@ -16,7 +16,12 @@ import { EditorCanvasMount } from './EditorCanvasMount';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorLayersPanel } from './EditorLayersPanel';
 import { EditorPropertiesPanel } from './EditorPropertiesPanel';
+import { PageNavigator } from './PageNavigator';
 import { useEditorUIStore } from '@/features/editor/store/editorUIStore';
+import {
+  getContentTypeConfig,
+  type ContentTypeConfig,
+} from '@/features/editor/content-types';
 
 interface EditorProps {
   /** Initial document to load. */
@@ -54,18 +59,43 @@ export function Editor({
     layerIds: [],
     pageId: initialDocument.pages[0]?.id ?? '',
   });
+  const [activePageId, setActivePageId] = useState<string>(
+    initialDocument.pages[0]?.id ?? '',
+  );
+  const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
 
   const { showLayersPanel, showPropertiesPanel } = useEditorUIStore();
+
+  // Resolve the content-type config. Unknown ids fall back to a
+  // single-page social-post — the registry throws on truly unknown
+  // ids, so this fallback only fires when a doc was created against a
+  // type that's been removed from the registry since.
+  const contentType = useMemo<ContentTypeConfig>(() => {
+    try {
+      return getContentTypeConfig(doc.contentType);
+    } catch {
+      return getContentTypeConfig('social-post');
+    }
+  }, [doc.contentType]);
 
   // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
   const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
 
   // Subscribe to adapter events. Document state mirrors via setDoc;
-  // selection mirrors via setSelection. Both feed `useAutoSave`.
+  // selection mirrors via setSelection. The active-page + master-mode
+  // markers also refresh on every change so the navigator stays in sync.
   useEffect(() => {
     adapterRef.current = adapter;
     onAdapterReady?.(adapter);
-    const offChange = adapter.on('change', (next) => setDoc(next));
+    const offChange = adapter.on('change', (next) => {
+      setDoc(next);
+      try {
+        setActivePageId(adapter.getActivePageId());
+      } catch {
+        /* no active page yet — early load */
+      }
+      setEditingMasterId(adapter.getEditingMasterId());
+    });
     const offSelection = adapter.on('selection', (sel) => setSelection(sel));
     return () => {
       offChange();
@@ -104,17 +134,41 @@ export function Editor({
         saveState={saveState}
         onRetry={retry}
       />
+      {editingMasterId ? (
+        <div className="flex items-center justify-between border-b bg-amber-50 px-4 py-1.5 text-[11px] text-amber-900">
+          <span>
+            Editing master ·{' '}
+            {doc.masterPages.find((m) => m.id === editingMasterId)?.name ?? 'unknown'}
+          </span>
+          <button
+            type="button"
+            onClick={() => adapter.exitMasterMode()}
+            className="rounded px-2 py-0.5 text-[11px] underline hover:bg-amber-100"
+          >
+            Exit master
+          </button>
+        </div>
+      ) : null}
       <div className="flex flex-1 min-h-0">
         <EditorToolbar adapter={adapter} pageId={selection.pageId} />
+        {contentType.panels.pageNavigator ? (
+          <PageNavigator
+            adapter={adapter}
+            doc={doc}
+            activePageId={activePageId}
+            editingMasterId={editingMasterId}
+            contentType={contentType}
+          />
+        ) : null}
         <div className="flex flex-1 min-w-0 items-center justify-center overflow-auto p-8">
           <div className="rounded-md bg-white shadow-2xl ring-1 ring-black/5">
             <EditorCanvasMount adapter={adapter} initialDocument={initialDocument} />
           </div>
         </div>
-        {showLayersPanel ? (
+        {contentType.panels.layers && showLayersPanel ? (
           <EditorLayersPanel adapter={adapter} doc={doc} selection={selection} />
         ) : null}
-        {showPropertiesPanel ? (
+        {contentType.panels.properties && showPropertiesPanel ? (
           <EditorPropertiesPanel adapter={adapter} doc={doc} selection={selection} />
         ) : null}
       </div>

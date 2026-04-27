@@ -58,6 +58,11 @@ export default tseslint.config(
     ignores: [
       "src/features/editor/adapter/**",
       // Legacy editor surfaces — must shrink, never grow.
+      // Each carve-out path renders with Fabric's default royal-blue
+      // selection styling instead of the brand-purple from
+      // `editor/adapter/layerMapping.ts`. This is a known visual
+      // inconsistency tracked in issue #2 (pre-launch hardening) — it
+      // resolves automatically as each path migrates onto EditorAdapter.
       "src/features/design-ai/**",
       "src/features/logo-maker/flow/**",
       "src/features/brandkit/components/editor/**",

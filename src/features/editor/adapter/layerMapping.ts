@@ -412,19 +412,53 @@ export function applyTextEdits(textbox: Textbox): Pick<TextLayer, 'text'> {
 // ─── Page rendering ──────────────────────────────────────────────────────
 
 /**
- * Wipe the canvas and render every layer of the given page. Returns a
- * map of layerId → FabricObject so the adapter can map events back to
- * layers.
+ * Wipe the canvas and render the active page. When the page references
+ * a master and the editor is NOT in "Edit Master" mode, the master's
+ * layers render first as a non-selectable, non-evented overlay at z=0;
+ * the page's own layers stack on top.
+ *
+ * Returns a map of layerId → FabricObject for the page's OWN layers
+ * only — master layers are read-only at this view and aren't tracked
+ * here. The adapter routes events through this map; an event for a
+ * master layer simply produces no `brandosId` match.
  */
 export async function renderPage(
   canvas: Canvas,
   page: Page,
+  doc: BrandOSDocument,
+  options: { editingMaster: boolean } = { editingMaster: false },
 ): Promise<Map<string, FabricObject>> {
   canvas.clear();
   canvas.setDimensions({ width: page.width, height: page.height });
   const bg = typeof page.background === 'string' ? page.background : DEFAULT_FILL;
   canvas.backgroundColor = resolveResolvedValue(page.background, bg);
 
+  // 1. Master overlay (only when this page has a master AND we're not
+  // editing it directly).
+  if (!options.editingMaster && page.masterPageId) {
+    const master = doc.masterPages.find((m) => m.id === page.masterPageId);
+    if (master) {
+      for (const layer of master.layers) {
+        const obj = await layerToFabric(layer);
+        // Master layers are decorative-from-this-view: locked from any
+        // canvas-level interaction so the user has to enter master mode
+        // to edit them.
+        obj.set({
+          selectable: false,
+          evented: false,
+          lockMovementX: true,
+          lockMovementY: true,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockRotation: true,
+          hoverCursor: 'default',
+        });
+        canvas.add(obj);
+      }
+    }
+  }
+
+  // 2. The page's own layers on top of the master overlay.
   const objsById = new Map<string, FabricObject>();
   for (const layer of page.layers) {
     const obj = await layerToFabric(layer);

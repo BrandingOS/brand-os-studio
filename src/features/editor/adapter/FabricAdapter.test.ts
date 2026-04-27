@@ -650,6 +650,246 @@ describe('FabricAdapter — exportAs', () => {
   });
 });
 
+describe('FabricAdapter — multi-page CRUD (Phase 2)', () => {
+  beforeEach(installFetchStub);
+
+  function makeBlankPage(name = 'Slide 2') {
+    return {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f9001',
+      name,
+      width: 1920,
+      height: 1080,
+      background: '#ffffff' as const,
+      masterPageId: null,
+      layers: [],
+    };
+  }
+
+  it('addPage appends to pages and emits change', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    adapter.addPage(makeBlankPage());
+    const doc = adapter.getDocument();
+    expect(doc.pages).toHaveLength(2);
+    expect(doc.pages[1].name).toBe('Slide 2');
+    expect(onChange).toHaveBeenCalled();
+  });
+
+  it('addPage with explicit index inserts at that index', async () => {
+    const { adapter } = await makeMountedAdapter();
+    adapter.addPage(makeBlankPage('Inserted'), 0);
+    const doc = adapter.getDocument();
+    expect(doc.pages[0].name).toBe('Inserted');
+  });
+
+  it('removePage drops the page; falls through to a different active page if active was removed', async () => {
+    const { adapter } = await makeMountedAdapter();
+    adapter.addPage(makeBlankPage('Slide 2'));
+    adapter.addPage(makeBlankPage('Slide 3'));
+    expect(adapter.getDocument().pages).toHaveLength(3);
+    adapter.removePage(adapter.getActivePageId()); // remove the original active page
+    await flushPromises();
+    expect(adapter.getDocument().pages).toHaveLength(2);
+    expect(adapter.getActivePageId()).toBeTruthy();
+  });
+
+  it('removePage refuses to remove the last remaining page', async () => {
+    const { adapter } = await makeMountedAdapter();
+    expect(() => adapter.removePage(adapter.getActivePageId())).toThrow(/last page/);
+  });
+
+  it('duplicatePage clones layers with fresh ids', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const originalId = adapter.getActivePageId();
+    const newId = adapter.duplicatePage(originalId);
+    const doc = adapter.getDocument();
+    expect(doc.pages).toHaveLength(2);
+    const original = doc.pages.find((p) => p.id === originalId)!;
+    const copy = doc.pages.find((p) => p.id === newId)!;
+    expect(copy.layers.length).toBe(original.layers.length);
+    // Every layer id in the copy must be DIFFERENT from the original.
+    const originalIds = new Set(original.layers.map((l) => l.id));
+    for (const l of copy.layers) {
+      expect(originalIds.has(l.id)).toBe(false);
+    }
+  });
+
+  it('reorderPage moves a page to the requested index', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const p1 = adapter.getActivePageId();
+    adapter.addPage(makeBlankPage('Slide 2'));
+    const p2 = adapter.getDocument().pages[1].id;
+    adapter.reorderPage(p1, 1); // move page 1 to last position
+    expect(adapter.getDocument().pages.map((p) => p.id)).toEqual([p2, p1]);
+  });
+
+  it('updatePageDimensions writes to the mirror and resizes the active canvas', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const pageId = adapter.getActivePageId();
+    adapter.updatePageDimensions(pageId, 800, 600);
+    const page = adapter.getDocument().pages[0];
+    expect(page.width).toBe(800);
+    expect(page.height).toBe(600);
+  });
+
+  it('setActivePage triggers a re-render and emits change', async () => {
+    const { adapter } = await makeMountedAdapter();
+    adapter.addPage(makeBlankPage('Second'));
+    const newPageId = adapter.getDocument().pages[1].id;
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    adapter.setActivePage(newPageId);
+    await flushPromises();
+    expect(adapter.getActivePageId()).toBe(newPageId);
+    expect(onChange).toHaveBeenCalled();
+  });
+});
+
+describe('FabricAdapter — master pages (Phase 2)', () => {
+  beforeEach(installFetchStub);
+
+  function makeMaster(): Page {
+    return {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1fA001',
+      name: 'Default master',
+      width: 1080,
+      height: 1080,
+      background: '#000000',
+      masterPageId: null,
+      layers: [
+        {
+          id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1fA002',
+          kind: 'shape',
+          name: 'master-rect',
+          transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+          opacity: 1,
+          visible: true,
+          locked: false,
+          brandLocked: false,
+          shape: 'rectangle',
+          fill: '#ff0000',
+          stroke: null,
+          strokeWidth: 0,
+          cornerRadius: 0,
+        },
+      ],
+    } as Page;
+  }
+
+  type Page = typeof FIXTURE.pages[0];
+
+  it('addMasterPage / removeMasterPage round-trip via the mirror', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    expect(adapter.getDocument().masterPages).toHaveLength(1);
+    adapter.removeMasterPage(master.id);
+    expect(adapter.getDocument().masterPages).toHaveLength(0);
+  });
+
+  it('applyMasterToPage records the masterPageId on the page', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    const pageId = adapter.getActivePageId();
+    adapter.applyMasterToPage(pageId, master.id);
+    expect(adapter.getDocument().pages[0].masterPageId).toBe(master.id);
+    adapter.applyMasterToPage(pageId, null);
+    expect(adapter.getDocument().pages[0].masterPageId).toBe(null);
+  });
+
+  it('removeMasterPage detaches every page that referenced it', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    adapter.applyMasterToPage(adapter.getActivePageId(), master.id);
+    adapter.removeMasterPage(master.id);
+    expect(adapter.getDocument().pages[0].masterPageId).toBe(null);
+  });
+
+  it('master layers render as part of the canvas when a page references them', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    adapter.applyMasterToPage(adapter.getActivePageId(), master.id);
+    await flushPromises();
+    const objects = (adapter as unknown as {
+      canvas: { getObjects(): Array<{ width?: number; height?: number; selectable?: boolean }> };
+    }).canvas.getObjects();
+    // Original fixture had 3 page-layer objects; with the master overlay
+    // we should have at least one MORE (the master's red rect).
+    expect(objects.length).toBeGreaterThanOrEqual(4);
+    // The master overlay objects must not be selectable from the page view.
+    const masterOverlay = objects.find(
+      (o) => o.width === 100 && o.height === 100,
+    );
+    expect(masterOverlay).toBeDefined();
+    expect(masterOverlay!.selectable).toBe(false);
+  });
+
+  it('enterMasterMode + exitMasterMode flip the editing state and re-render', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    expect(adapter.getEditingMasterId()).toBe(null);
+    adapter.enterMasterMode(master.id);
+    expect(adapter.getEditingMasterId()).toBe(master.id);
+    adapter.exitMasterMode();
+    expect(adapter.getEditingMasterId()).toBe(null);
+  });
+
+  it('layer mutations during master mode go to the master, not the active page', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    adapter.enterMasterMode(master.id);
+    await flushPromises();
+
+    // Mutate a layer inside the master — pageId is the masterId here.
+    adapter.updateLayer(master.id, master.layers[0].id, { fill: '#0000ff' });
+    expect(adapter.getDocument().masterPages[0].layers[0]).toMatchObject({
+      fill: '#0000ff',
+    });
+    // The original page's layers are untouched.
+    expect(adapter.getDocument().pages[0].layers[0]).not.toMatchObject({
+      fill: '#0000ff',
+    });
+  });
+
+  it('master edits propagate visually: after editing master, switching to a page using it shows the new master state', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    adapter.applyMasterToPage(adapter.getActivePageId(), master.id);
+    adapter.enterMasterMode(master.id);
+    await flushPromises();
+
+    adapter.updateLayer(master.id, master.layers[0].id, { fill: '#00ff00' });
+    adapter.exitMasterMode();
+    await flushPromises();
+
+    // Find the master-overlay object on the canvas and verify its fill
+    // reflects the post-edit value.
+    const objects = (adapter as unknown as {
+      canvas: { getObjects(): Array<{ width?: number; height?: number; fill?: unknown }> };
+    }).canvas.getObjects();
+    const masterOverlay = objects.find((o) => o.width === 100 && o.height === 100);
+    expect(masterOverlay).toBeDefined();
+    expect(masterOverlay!.fill).toBe('#00ff00');
+  });
+
+  it('setActivePage exits master mode if it was active', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const master = makeMaster();
+    adapter.addMasterPage(master);
+    adapter.enterMasterMode(master.id);
+    expect(adapter.getEditingMasterId()).toBe(master.id);
+    adapter.setActivePage(adapter.getActivePageId());
+    expect(adapter.getEditingMasterId()).toBe(null);
+  });
+});
+
 describe('FabricAdapter — selection sync', () => {
   beforeEach(installFetchStub);
 

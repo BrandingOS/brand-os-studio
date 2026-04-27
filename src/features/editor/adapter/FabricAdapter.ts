@@ -22,6 +22,16 @@ import type {
   Page,
   TextLayer,
 } from '@/features/editor/schema';
+
+// node-side crypto.randomUUID is enough for our test/dev uses; in browsers
+// crypto.randomUUID is a standard global. Wrapped here so the adapter can
+// be used in either environment without a polyfill import.
+const newUuid = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random()
+        .toString(36)
+        .slice(2)}`;
 import type {
   EditorAdapter,
   EditorEvent,
@@ -57,6 +67,8 @@ export class FabricAdapter implements EditorAdapter {
   /** Mirror of the document — runtime source of truth. */
   private doc: BrandOSDocument | null = null;
   private activePageId: string | null = null;
+  /** Master id when "Edit Master" mode is active. Null otherwise. */
+  private editingMasterId: string | null = null;
 
   /** Map from layer id to its current Fabric representation on the canvas. */
   private fabricByLayerId = new Map<string, FabricObject>();
@@ -140,9 +152,12 @@ export class FabricAdapter implements EditorAdapter {
     if (!this.doc.pages.find((p) => p.id === pageId)) {
       throw new Error(`Page ${pageId} not found`);
     }
+    // Setting the active page exits master mode if we were in it.
+    this.editingMasterId = null;
     if (this.activePageId === pageId) return;
     this.activePageId = pageId;
     void this.renderActivePage();
+    this.emitChange();
   }
 
   getActivePageId(): string {
@@ -150,12 +165,144 @@ export class FabricAdapter implements EditorAdapter {
     return this.activePageId;
   }
 
+  // ─── Page CRUD (Phase 2) ──────────────────────────────────────────────
+
+  addPage(page: Page, index?: number): void {
+    if (!this.doc) throw new Error('No document loaded');
+    const insertAt = index ?? this.doc.pages.length;
+    this.doc.pages.splice(insertAt, 0, clone(page));
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  removePage(pageId: string): void {
+    if (!this.doc) throw new Error('No document loaded');
+    if (this.doc.pages.length <= 1) {
+      throw new Error('Cannot remove the last page; document must have at least one.');
+    }
+    const idx = this.doc.pages.findIndex((p) => p.id === pageId);
+    if (idx < 0) return;
+    this.doc.pages.splice(idx, 1);
+    // If the active page was removed, fall through to the previous one
+    // (or the first if we deleted the leftmost).
+    if (this.activePageId === pageId) {
+      this.activePageId = this.doc.pages[Math.max(0, idx - 1)].id;
+      void this.renderActivePage();
+    }
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  duplicatePage(pageId: string): string {
+    if (!this.doc) throw new Error('No document loaded');
+    const idx = this.doc.pages.findIndex((p) => p.id === pageId);
+    if (idx < 0) throw new Error(`Page ${pageId} not found`);
+    const original = this.doc.pages[idx];
+    const copy: Page = {
+      ...clone(original),
+      id: newUuid(),
+      name: `${original.name} copy`,
+      // Recursively re-id every layer (and group children) so the duplicate
+      // doesn't share ids with the original.
+      layers: original.layers.map(reIdLayer),
+    };
+    this.doc.pages.splice(idx + 1, 0, copy);
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+    return copy.id;
+  }
+
+  reorderPage(pageId: string, newIndex: number): void {
+    if (!this.doc) throw new Error('No document loaded');
+    const idx = this.doc.pages.findIndex((p) => p.id === pageId);
+    if (idx < 0) return;
+    const [page] = this.doc.pages.splice(idx, 1);
+    const clamped = Math.max(0, Math.min(newIndex, this.doc.pages.length));
+    this.doc.pages.splice(clamped, 0, page);
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  updatePageDimensions(pageId: string, width: number, height: number): void {
+    if (!this.doc) throw new Error('No document loaded');
+    const page = this.requirePage(pageId);
+    page.width = width;
+    page.height = height;
+    if (pageId === this.activePageId || this.editingMasterId === pageId) {
+      this.canvas?.setDimensions({ width, height });
+      this.canvas?.requestRenderAll();
+    }
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  // ─── Master pages (Phase 2) ───────────────────────────────────────────
+
+  addMasterPage(master: Page): void {
+    if (!this.doc) throw new Error('No document loaded');
+    this.doc.masterPages.push(clone(master));
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  removeMasterPage(masterId: string): void {
+    if (!this.doc) throw new Error('No document loaded');
+    const idx = this.doc.masterPages.findIndex((m) => m.id === masterId);
+    if (idx < 0) return;
+    this.doc.masterPages.splice(idx, 1);
+    // Detach the deleted master from any pages that reference it.
+    for (const page of this.doc.pages) {
+      if (page.masterPageId === masterId) page.masterPageId = null;
+    }
+    if (this.editingMasterId === masterId) {
+      this.editingMasterId = null;
+      void this.renderActivePage();
+    }
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  applyMasterToPage(pageId: string, masterId: string | null): void {
+    if (!this.doc) throw new Error('No document loaded');
+    const page = this.requirePage(pageId);
+    if (masterId !== null && !this.doc.masterPages.find((m) => m.id === masterId)) {
+      throw new Error(`Master page ${masterId} not found`);
+    }
+    page.masterPageId = masterId;
+    if (this.isActiveSurface(pageId)) {
+      void this.renderActivePage();
+    }
+    this.history.commit(clone(this.doc));
+    this.emitChange();
+  }
+
+  enterMasterMode(masterId: string): void {
+    if (!this.doc) throw new Error('No document loaded');
+    if (!this.doc.masterPages.find((m) => m.id === masterId)) {
+      throw new Error(`Master page ${masterId} not found`);
+    }
+    this.editingMasterId = masterId;
+    void this.renderActivePage();
+    this.emitChange();
+  }
+
+  exitMasterMode(): void {
+    if (this.editingMasterId == null) return;
+    this.editingMasterId = null;
+    void this.renderActivePage();
+    this.emitChange();
+  }
+
+  getEditingMasterId(): string | null {
+    return this.editingMasterId;
+  }
+
   // ─── Layer operations ─────────────────────────────────────────────────
 
   addLayer(pageId: string, layer: Layer): void {
     const page = this.requirePage(pageId);
     page.layers.push(clone(layer));
-    if (pageId === this.activePageId) {
+    if (this.isActiveSurface(pageId)) {
       void layerToFabric(layer).then((obj) => {
         this.canvas?.add(obj);
         this.fabricByLayerId.set(layer.id, obj);
@@ -174,7 +321,7 @@ export class FabricAdapter implements EditorAdapter {
     const nextLayer = { ...prevLayer, ...patch } as Layer;
     page.layers[idx] = nextLayer;
     // Reflect onto the canvas if active page.
-    if (pageId === this.activePageId) {
+    if (this.isActiveSurface(pageId)) {
       const obj = this.fabricByLayerId.get(layerId);
       if (obj) {
         const { needsRecreate } = applyLayerToFabric(obj, prevLayer, nextLayer);
@@ -200,7 +347,7 @@ export class FabricAdapter implements EditorAdapter {
   removeLayer(pageId: string, layerId: string): void {
     const page = this.requirePage(pageId);
     page.layers = page.layers.filter((l) => l.id !== layerId);
-    if (pageId === this.activePageId) {
+    if (this.isActiveSurface(pageId)) {
       const obj = this.fabricByLayerId.get(layerId);
       if (obj) this.canvas?.remove(obj);
       this.fabricByLayerId.delete(layerId);
@@ -216,7 +363,7 @@ export class FabricAdapter implements EditorAdapter {
     if (idx < 0) return;
     const [layer] = page.layers.splice(idx, 1);
     page.layers.splice(newIndex, 0, layer);
-    if (pageId === this.activePageId) {
+    if (this.isActiveSurface(pageId)) {
       const obj = this.fabricByLayerId.get(layerId);
       if (obj && this.canvas) {
         this.canvas.moveObjectTo(obj, newIndex);
@@ -330,17 +477,49 @@ export class FabricAdapter implements EditorAdapter {
   // ─── Internal: rendering & event wiring ───────────────────────────────
 
   private async renderActivePage(): Promise<void> {
-    if (!this.canvas || !this.doc || !this.activePageId) return;
+    if (!this.canvas || !this.doc) return;
+    // In master-edit mode the canvas mirrors the master itself — its
+    // layers become the editable surface. Otherwise render the active
+    // page (with master overlay if it has one).
+    if (this.editingMasterId) {
+      const master = this.doc.masterPages.find((m) => m.id === this.editingMasterId);
+      if (!master) return;
+      this.fabricByLayerId = await renderPage(this.canvas, master, this.doc, {
+        editingMaster: true,
+      });
+      return;
+    }
+    if (!this.activePageId) return;
     const page = this.doc.pages.find((p) => p.id === this.activePageId);
     if (!page) return;
-    this.fabricByLayerId = await renderPage(this.canvas, page);
+    this.fabricByLayerId = await renderPage(this.canvas, page, this.doc, {
+      editingMaster: false,
+    });
   }
 
+  /**
+   * Returns true when the given pageId IS the surface currently
+   * mirrored on the canvas — the active page in normal mode, or the
+   * edited master in master mode. Used to decide whether layer CRUD
+   * needs to update the canvas in addition to the document mirror.
+   */
+  private isActiveSurface(pageId: string): boolean {
+    if (this.editingMasterId) return pageId === this.editingMasterId;
+    return pageId === this.activePageId;
+  }
+
+  /**
+   * Resolve a page id to either a regular page or the currently edited
+   * master. `addLayer`/`updateLayer`/`removeLayer` accept either —
+   * during master mode, the "page" being edited is the master.
+   */
   private requirePage(pageId: string): Page {
     if (!this.doc) throw new Error('No document loaded');
     const page = this.doc.pages.find((p) => p.id === pageId);
-    if (!page) throw new Error(`Page ${pageId} not found`);
-    return page;
+    if (page) return page;
+    const master = this.doc.masterPages.find((m) => m.id === pageId);
+    if (master) return master;
+    throw new Error(`Page ${pageId} not found (neither in pages nor masterPages)`);
   }
 
   private attachCanvasListeners(): void {
@@ -471,6 +650,18 @@ export class FabricAdapter implements EditorAdapter {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
+ * Recursively re-id a layer (and any group children) so a duplicate
+ * doesn't share ids with the original. Used by `duplicatePage`.
+ */
+function reIdLayer(layer: Layer): Layer {
+  const copy: Layer = { ...layer, id: newUuid() };
+  if (copy.kind === 'group') {
+    return { ...copy, children: copy.children.map(reIdLayer) };
+  }
+  return copy;
 }
 
 // applyPatchToFabric (Phase 1 stub) was replaced by applyLayerToFabric in

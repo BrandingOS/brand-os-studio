@@ -84,6 +84,11 @@ export default defineConfig(({ mode }) => ({
           globals: true,
           include: ['src/**/*.browser.{test,spec}.{ts,tsx}'],
           setupFiles: ['./src/test/setup.ts'],
+          // Browser test files share a single Chromium instance; running
+          // them in parallel races the browser connection and triggers
+          // "Browser connection was closed" flakes. Serial keeps the run
+          // ~deterministic at the cost of a few extra seconds.
+          fileParallelism: false,
           browser: {
             enabled: true,
             provider: 'playwright',
