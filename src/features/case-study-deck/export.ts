@@ -67,6 +67,13 @@ export async function exportDeck(container: HTMLElement, opts: ExportOptions): P
     // natural 1920×1080 instead of the on-screen scaled size.
     const prevTransform = el.style.transform;
     el.style.transform = 'none';
+    // Strip every descendant's inline box-shadow before capture.
+    // html-to-image renders via SVG foreignObject; the browser's
+    // SVG-side handling of box-shadow drifts (offset/blur amplified,
+    // sometimes turning into a colored aura that misses the parent's
+    // overflow:hidden clip). Restoring the values after toCanvas keeps
+    // the live preview exactly as the user authored it.
+    const shadowSnapshot = stripBoxShadows(el);
     try {
       const canvas = await toCanvas(el, {
         width: SLIDE_WIDTH,
@@ -84,6 +91,7 @@ export async function exportDeck(container: HTMLElement, opts: ExportOptions): P
       canvases.push(canvas);
     } finally {
       el.style.transform = prevTransform;
+      restoreBoxShadows(shadowSnapshot);
     }
     onProgress?.((i + 1) / (slideEls.length + 1));
   }
@@ -124,6 +132,39 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('canvas blob failed'))), 'image/png');
   });
+}
+
+/**
+ * Walk the slide subtree, capture every element's inline box-shadow,
+ * and clear it. Returns a snapshot we can use to restore the values
+ * after the export capture is done.
+ *
+ * Why: html-to-image's SVG-foreignObject path drifts on box-shadow
+ * (the colored aura we see far off to the side of round elements).
+ * Clearing inline shadows during capture gives a clean export; the
+ * live preview is unaffected because we restore.
+ */
+function stripBoxShadows(root: HTMLElement): Array<{ el: HTMLElement; value: string }> {
+  const snapshot: Array<{ el: HTMLElement; value: string }> = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let cur: Node | null = root;
+  while (cur) {
+    if (cur instanceof HTMLElement) {
+      const v = cur.style.boxShadow;
+      if (v) {
+        snapshot.push({ el: cur, value: v });
+        cur.style.boxShadow = 'none';
+      }
+    }
+    cur = walker.nextNode();
+  }
+  return snapshot;
+}
+
+function restoreBoxShadows(snapshot: Array<{ el: HTMLElement; value: string }>) {
+  for (const { el, value } of snapshot) {
+    el.style.boxShadow = value;
+  }
 }
 
 function triggerDownload(blob: Blob, name: string) {
