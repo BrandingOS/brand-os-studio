@@ -19,7 +19,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Search, Upload } from 'lucide-react';
+import { Loader2, Search, Sparkles, Upload } from 'lucide-react';
 import { unsplashProvider } from '@/features/bento/lib/stockPhotos/unsplash';
 import type { StockPhoto } from '@/features/bento/lib/stockPhotos/types';
 import type { ArtworkOverride } from './artworkStore';
@@ -42,20 +42,26 @@ export function ArtworkPicker({ open, onClose, onPick, defaultQuery }: Props) {
             Upload an image from your device or pick one from Unsplash.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="upload" className="mt-2">
+        <Tabs defaultValue="illustrations" className="mt-2">
           <TabsList>
-            <TabsTrigger value="upload">
-              <Upload className="w-4 h-4 mr-2" /> Upload
+            <TabsTrigger value="illustrations">
+              <Sparkles className="w-4 h-4 mr-2" /> 3D Illustrations
             </TabsTrigger>
             <TabsTrigger value="unsplash">
               <Search className="w-4 h-4 mr-2" /> Unsplash
             </TabsTrigger>
+            <TabsTrigger value="upload">
+              <Upload className="w-4 h-4 mr-2" /> Upload
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="upload" className="mt-4">
-            <UploadPane onPick={onPick} />
+          <TabsContent value="illustrations" className="mt-4">
+            <IllustrationsPane onPick={onPick} defaultQuery={defaultQuery} />
           </TabsContent>
           <TabsContent value="unsplash" className="mt-4">
             <UnsplashPane onPick={onPick} defaultQuery={defaultQuery} />
+          </TabsContent>
+          <TabsContent value="upload" className="mt-4">
+            <UploadPane onPick={onPick} />
           </TabsContent>
         </Tabs>
       </DialogContent>
@@ -157,6 +163,198 @@ function UploadPane({ onPick }: { onPick: (o: ArtworkOverride) => void }) {
       )}
       <div style={{ marginTop: 18, fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>
         PNG · JPG · WebP · SVG · up to 8 MB
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────── Illustrations pane (Iconify) ───────────────────── */
+
+/**
+ * Iconify is a free, no-key icon/illustration library aggregator.
+ * The `flat-color-icons`, `fluent-emoji`, `noto`, `streamline-emojis`
+ * collections give us 3D / colored illustrations. We restrict the
+ * search via the `prefixes` parameter to keep results illustration-y
+ * (not stroke-only icons that are too lightweight for a slide).
+ */
+const ILLUSTRATION_PREFIXES = [
+  'fluent-emoji',     // Microsoft 3D emoji — best 3D look
+  'noto',             // Google Noto emoji — friendly 3D-ish
+  'streamline-emojis',// Streamline 3D emojis
+  'flat-color-icons', // Flat colored business icons
+  'twemoji',          // Twitter colored emojis
+].join(',');
+
+interface IconifyResult {
+  prefix: string;
+  name: string;
+  /** Full id `prefix:name` for rendering. */
+  id: string;
+}
+
+async function searchIconify(query: string): Promise<IconifyResult[]> {
+  if (!query.trim()) return [];
+  const url = `https://api.iconify.design/search?query=${encodeURIComponent(query)}&prefixes=${ILLUSTRATION_PREFIXES}&limit=48`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Iconify ${res.status}`);
+  const data = (await res.json()) as { icons: string[] };
+  return (data.icons ?? []).map((id) => {
+    const [prefix, name] = id.split(':');
+    return { prefix, name, id };
+  });
+}
+
+/** SVG render URL — height controls quality, browser caches it. */
+function iconifyImageUrl(id: string, size = 480): string {
+  return `https://api.iconify.design/${id.replace(':', '/')}.svg?height=${size}`;
+}
+
+function IllustrationsPane({
+  onPick,
+  defaultQuery,
+}: {
+  onPick: (o: ArtworkOverride) => void;
+  defaultQuery?: string;
+}) {
+  const [query, setQuery] = useState(defaultQuery ?? 'team');
+  const [debounced, setDebounced] = useState(query);
+  const [results, setResults] = useState<IconifyResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  useEffect(() => {
+    if (!debounced.trim()) {
+      setResults([]);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    searchIconify(debounced.trim())
+      .then((res) => {
+        if (cancelled) return;
+        setResults(res);
+        setLoading(false);
+      })
+      .catch((e: Error) => {
+        if (cancelled) return;
+        setError(e.message);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debounced]);
+
+  return (
+    <div>
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        <Search
+          className="w-4 h-4"
+          style={{
+            position: 'absolute',
+            left: 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'hsl(var(--muted-foreground))',
+          }}
+        />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search 3D illustrations — team, mentor, graduation, chart, trophy"
+          style={{
+            width: '100%',
+            padding: '10px 14px 10px 40px',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 10,
+            fontSize: 13,
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            outline: 'none',
+          }}
+          autoFocus
+        />
+      </div>
+
+      {loading && (
+        <div style={{ padding: 32, textAlign: 'center', color: 'hsl(var(--muted-foreground))' }}>
+          <Loader2 className="w-5 h-5 animate-spin inline-block" />
+        </div>
+      )}
+
+      {error && (
+        <div style={{ padding: 16, fontSize: 12, color: 'hsl(var(--destructive))' }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && results.length === 0 && debounced.trim() && (
+        <div style={{ padding: 32, textAlign: 'center', fontSize: 13, color: 'hsl(var(--muted-foreground))' }}>
+          No illustrations for "{debounced}". Try: graduation, laptop, chart, mentor, handshake.
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(6, 1fr)',
+            gap: 10,
+            maxHeight: 420,
+            overflowY: 'auto',
+            paddingRight: 4,
+          }}
+        >
+          {results.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() =>
+                onPick({
+                  url: iconifyImageUrl(r.id, 800),
+                  source: 'illustration',
+                  authorName: r.prefix,
+                  authorUrl: `https://icon-sets.iconify.design/${r.prefix}/`,
+                })
+              }
+              style={{
+                position: 'relative',
+                aspectRatio: '1 / 1',
+                padding: 10,
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 10,
+                background: 'hsl(var(--background))',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title={`${r.prefix}: ${r.name}`}
+            >
+              <img
+                src={iconifyImageUrl(r.id, 200)}
+                alt={r.name}
+                loading="lazy"
+                style={{ maxWidth: '100%', maxHeight: '100%', display: 'block' }}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>
+        Powered by{' '}
+        <a href="https://iconify.design/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline', color: 'inherit' }}>
+          Iconify
+        </a>{' '}
+        · Fluent Emoji 3D · Noto · Streamline · Flat Color Icons · Twemoji
       </div>
     </div>
   );

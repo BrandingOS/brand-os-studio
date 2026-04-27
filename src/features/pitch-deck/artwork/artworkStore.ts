@@ -15,13 +15,13 @@
 import { create } from 'zustand';
 
 export type ArtworkOverride = {
-  /** Final URL the slide should render. data: URL for uploads, https for Unsplash. */
+  /** Final URL the slide should render. data: URL for uploads, https for Unsplash / Iconify. */
   url: string;
-  /** 'upload' | 'unsplash' — kept so we can show provenance + reset. */
-  source: 'upload' | 'unsplash';
-  /** For Unsplash: the photographer's name (attribution). Optional. */
+  /** Source of the artwork — kept so we can show provenance + reset. */
+  source: 'upload' | 'unsplash' | 'illustration';
+  /** Photographer or illustration set name (attribution). Optional. */
   authorName?: string;
-  /** For Unsplash: link to the photographer's profile. Optional. */
+  /** Link to source / profile. Optional. */
   authorUrl?: string;
 };
 
