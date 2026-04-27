@@ -1252,6 +1252,219 @@ describe('FabricAdapter — _lockedBindings recording (Phase 3 step 4c.2)', () =
   });
 });
 
+describe('FabricAdapter — full round-trip with locked-bindings recovery (Phase 3 step 4c.3)', () => {
+  beforeEach(installFetchStub);
+
+  function getLayer(adapter: FabricAdapter, pageId: string, layerId: string): Layer {
+    const layer = adapter
+      .getDocument()
+      .pages.find((p) => p.id === pageId)
+      ?.layers.find((l) => l.id === layerId);
+    if (!layer) throw new Error(`Layer ${layerId} not found in page ${pageId}`);
+    return layer;
+  }
+
+  it('end-to-end: override locked color → adapter.loadDocument(applyBrandToDocument(doc, kit)) → original color restored', async () => {
+    const { applyBrandToDocument } = await import('@/features/editor/brand/applyBrandToDocument');
+
+    const kit = {
+      id: 'k1',
+      name: 'k',
+      colors: {
+        primary: { hex: '#3366ff' },
+        neutrals: ['#fafafa', '#dddddd', '#aaaaaa', '#777777', '#444444', '#111111'],
+      },
+      typography: { heading: { family: 'Inter' }, body: { family: 'Georgia' } },
+      logos: { mono: {} },
+      spacing: { unit: 8, cornerRadius: 4 },
+      _diagnostics: { warnings: [] },
+    };
+
+    // Document starts with a brandLocked text layer carrying a SlotRef color.
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages[0].layers = [
+      {
+        id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f4d01',
+        name: 'locked-headline',
+        kind: 'text',
+        transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked: true,
+        text: 'hi',
+        fontFamily: 'Inter',
+        fontSize: 24,
+        fontWeight: 400,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        direction: 'auto',
+        color: { type: 'brand.color.primary' },
+      },
+    ];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    const pageId = baseDoc.pages[0].id;
+    const layerId = baseDoc.pages[0].layers[0].id;
+
+    // Step 1 — User (or AI) overrides the brand-locked color with a literal.
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    expect((getLayer(adapter, pageId, layerId) as { color: unknown }).color).toBe('#ff00ff');
+    // _lockedBindings was recorded by 4c.2.
+    expect((getLayer(adapter, pageId, layerId) as { _lockedBindings?: unknown })._lockedBindings)
+      .toEqual({ color: { type: 'brand.color.primary' } });
+
+    // Step 2 — Re-apply brand. 4c.3 recovers the SlotRef from
+    // _lockedBindings, then resolves it back to the brand primary.
+    const repaired = applyBrandToDocument(adapter.getDocument(), kit);
+    await adapter.loadDocument(repaired);
+    await flushPromises();
+
+    // Color is back to the brand primary; _lockedBindings is cleared.
+    const after = getLayer(adapter, pageId, layerId) as { color: unknown; _lockedBindings?: unknown };
+    expect(after.color).toBe('#3366ff');
+    expect(after._lockedBindings).toBeUndefined();
+
+    // And the Fabric Textbox on the canvas reflects it.
+    const fabricByLayerId = (adapter as unknown as {
+      fabricByLayerId: Map<string, Record<string, unknown>>;
+    }).fabricByLayerId;
+    expect(fabricByLayerId.get(layerId)!.fill).toBe('#3366ff');
+  });
+
+  it('end-to-end: unlocking the layer + override + re-apply leaves the override intact', async () => {
+    const { applyBrandToDocument } = await import('@/features/editor/brand/applyBrandToDocument');
+
+    const kit = {
+      id: 'k1',
+      name: 'k',
+      colors: {
+        primary: { hex: '#3366ff' },
+        neutrals: ['#fafafa', '#dddddd', '#aaaaaa', '#777777', '#444444', '#111111'],
+      },
+      typography: { heading: { family: 'Inter' }, body: { family: 'Georgia' } },
+      logos: { mono: {} },
+      spacing: { unit: 8, cornerRadius: 4 },
+      _diagnostics: { warnings: [] },
+    };
+
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages[0].layers = [
+      {
+        id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f4d02',
+        name: 'unlockable-headline',
+        kind: 'text',
+        transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked: true,
+        text: 'hi',
+        fontFamily: 'Inter',
+        fontSize: 24,
+        fontWeight: 400,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        direction: 'auto',
+        color: { type: 'brand.color.primary' },
+      },
+    ];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    const pageId = baseDoc.pages[0].id;
+    const layerId = baseDoc.pages[0].layers[0].id;
+
+    // Override (records into _lockedBindings since brandLocked=true)
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    // Now unlock the layer.
+    adapter.updateLayer(pageId, layerId, { brandLocked: false });
+
+    // Re-apply brand. The layer is now unlocked; recovery is skipped.
+    const repaired = applyBrandToDocument(adapter.getDocument(), kit);
+    await adapter.loadDocument(repaired);
+    await flushPromises();
+
+    // The literal override persists.
+    expect((getLayer(adapter, pageId, layerId) as { color: unknown }).color).toBe('#ff00ff');
+  });
+
+  it('respectLocks: false bypasses recovery (template-authoring escape hatch)', async () => {
+    const { applyBrandToDocument } = await import('@/features/editor/brand/applyBrandToDocument');
+
+    const kit = {
+      id: 'k1',
+      name: 'k',
+      colors: {
+        primary: { hex: '#3366ff' },
+        neutrals: ['#fafafa', '#dddddd', '#aaaaaa', '#777777', '#444444', '#111111'],
+      },
+      typography: { heading: { family: 'Inter' }, body: { family: 'Georgia' } },
+      logos: { mono: {} },
+      spacing: { unit: 8, cornerRadius: 4 },
+      _diagnostics: { warnings: [] },
+    };
+
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages[0].layers = [
+      {
+        id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f4d03',
+        name: 'l',
+        kind: 'text',
+        transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked: true,
+        text: 'hi',
+        fontFamily: 'Inter',
+        fontSize: 24,
+        fontWeight: 400,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        direction: 'auto',
+        color: { type: 'brand.color.primary' },
+      },
+    ];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    const pageId = baseDoc.pages[0].id;
+    const layerId = baseDoc.pages[0].layers[0].id;
+
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    const repaired = applyBrandToDocument(adapter.getDocument(), kit, { respectLocks: false });
+    await adapter.loadDocument(repaired);
+    await flushPromises();
+
+    // Override persists even though the layer is brandLocked, because
+    // respectLocks: false explicitly disabled recovery.
+    expect((getLayer(adapter, pageId, layerId) as { color: unknown }).color).toBe('#ff00ff');
+    // _lockedBindings stays untouched (no recovery happened).
+    expect((getLayer(adapter, pageId, layerId) as { _lockedBindings?: unknown })._lockedBindings)
+      .toEqual({ color: { type: 'brand.color.primary' } });
+  });
+});
+
 describe('FabricAdapter — applyLayerPatchAcrossPages (Phase 3 step 4b)', () => {
   beforeEach(installFetchStub);
 

@@ -36,11 +36,21 @@ export interface ApplyBrandOptions {
   /** Default `'apply'`. */
   mode?: ApplyMode;
   /**
-   * Reserved for future enforcement of brand-locked layers when
-   * override-detection lands. In Phase 3 step 2 the option is accepted
-   * but does not change behavior — SlotRefs always resolve, literals
-   * always stay literal. The PropertiesPanel already prevents users
-   * from overriding brand-locked properties at the UI layer.
+   * When `true` (default), brand-locked layers' overridden properties
+   * are RESTORED from `_lockedBindings` (recorded by the adapter on
+   * override per Phase 3 step 4c.2) before slot resolution runs. The
+   * effect: a user who literalized `color` on a brandLocked layer
+   * gets reverted on the next `applyBrandToDocument` — the
+   * brand-managed contract wins.
+   *
+   * When `false`, `_lockedBindings` is ignored. Used by template-
+   * authoring tools and any caller that wants a snapshot of the
+   * current literal state regardless of brand-lock recovery.
+   *
+   * The PropertiesPanel UI also prevents overriding brand-locked
+   * properties at the UI layer (Phase 1), but `_lockedBindings`
+   * recovery covers any drift that slips through (programmatic
+   * mutation, migration import, AI agent emit).
    */
   respectLocks?: boolean;
 }
@@ -75,6 +85,18 @@ export function applyBrandToDocument(
     layers: {},
     pages: {},
   };
+
+  // Phase 3 step 4c.3 — recover locked bindings BEFORE slot resolution.
+  // Any layer with brandLocked=true and a non-empty _lockedBindings has
+  // its overridden properties restored to the original SlotRefs. The
+  // resolver then walks those SlotRefs alongside any others on the
+  // layer. _lockedBindings is cleared after restoration — it has
+  // served its purpose.
+  if (opts.respectLocks) {
+    for (const page of [...next.pages, ...next.masterPages]) {
+      for (const layer of page.layers) recoverLockedBindings(layer);
+    }
+  }
 
   for (const page of [...next.pages, ...next.masterPages]) {
     resolvePage(page, brandKit, opts, annotation);
@@ -290,6 +312,51 @@ function isSlotRef(value: unknown): value is SlotRef {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+/**
+ * Phase 3 step 4c.3 — restore SlotRefs from `_lockedBindings` on
+ * brand-locked layers. Recursively applied to group children.
+ *
+ * For each entry in `_lockedBindings`, write the SlotRef back to the
+ * corresponding property path. Top-level paths target direct fields
+ * (`color`, `fontFamily`, etc.). Dotted paths target nested
+ * SvgLayer.fillOverrides keys (`fillOverrides.<svg-path-id>`).
+ *
+ * `_lockedBindings` is deleted after restoration — its purpose was
+ * carrying the SlotRef through a literal-override window; once the
+ * SlotRef is back on the field, the recording is stale.
+ *
+ * Layers without brandLocked=true are skipped, even if they happen
+ * to carry _lockedBindings (e.g. a layer that was locked → unlocked
+ * after recording happened). The lock state is the gate.
+ */
+function recoverLockedBindings(layer: Layer): void {
+  // Recurse into group children first; the parent group's `brandLocked`
+  // flag doesn't determine its children's recovery.
+  if (layer.kind === 'group') {
+    for (const child of (layer as { children: Layer[] }).children) {
+      recoverLockedBindings(child);
+    }
+  }
+  if (!layer.brandLocked) return;
+  const bindings = (layer as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings;
+  if (!bindings || Object.keys(bindings).length === 0) return;
+
+  for (const path of Object.keys(bindings)) {
+    setLayerPropertyByPath(layer, path, clone(bindings[path]));
+  }
+  delete (layer as { _lockedBindings?: unknown })._lockedBindings;
+}
+
+function setLayerPropertyByPath(layer: Layer, path: string, value: SlotRef): void {
+  if (path.startsWith('fillOverrides.')) {
+    if (layer.kind !== 'svg') return;
+    const key = path.slice('fillOverrides.'.length);
+    (layer as { fillOverrides: Record<string, unknown> }).fillOverrides[key] = value;
+    return;
+  }
+  (layer as unknown as Record<string, unknown>)[path] = value;
 }
 
 // Re-export the slot-ref test guard so callers (e.g. convertToTemplate)

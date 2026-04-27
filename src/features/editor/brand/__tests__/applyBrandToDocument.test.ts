@@ -17,7 +17,9 @@ import type {
   BrandOSDocument,
   GroupLayer,
   Page,
+  ResolvedValue,
   ShapeLayer,
+  SlotRef,
   SvgLayer,
   TextLayer,
 } from '@/features/editor/schema';
@@ -361,6 +363,189 @@ describe('applyBrandToDocument — preview mode', () => {
     const parsed = BrandOSDocumentSchema.parse(result);
     expect(parsed.brandResolution).toBeDefined();
     expect(parsed.brandResolution!.layers[layerId]).toBeDefined();
+  });
+});
+
+// ─── Phase 3 step 4c.3 — locked bindings recovery ─────────────────────
+
+describe('applyBrandToDocument — _lockedBindings recovery', () => {
+  const kit = makeBrandKit();
+
+  /** Build a doc with a single brand-locked text layer carrying both
+   *  a literal override AND the recorded SlotRef in _lockedBindings. */
+  function makeDocWithLockedDrift(opts: {
+    brandLocked: boolean;
+    bindings?: Record<string, SlotRef>;
+    color?: ResolvedValue;
+    fontFamily?: ResolvedValue;
+  }): BrandOSDocument {
+    const layer = makeTextLayer({
+      id: 'l-locked',
+      brandLocked: opts.brandLocked,
+      color: opts.color ?? '#abcdef',
+      fontFamily: opts.fontFamily ?? 'Comic Sans MS',
+    });
+    if (opts.bindings) {
+      (layer as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings = opts.bindings;
+    }
+    return makeDoc([makePage([layer])]);
+  }
+
+  it("respectLocks: true (default) restores the original SlotRef for a brand-locked layer's overridden property", () => {
+    const doc = makeDocWithLockedDrift({
+      brandLocked: true,
+      color: '#abcdef', // user-overridden literal
+      bindings: { color: { type: 'brand.color.primary' } },
+    });
+    const result = applyBrandToDocument(doc, kit);
+    // SlotRef restored, then resolved → kit.colors.primary.hex.
+    expect((result.pages[0].layers[0] as TextLayer).color).toBe('#3366ff');
+  });
+
+  it('clears _lockedBindings after successful restoration', () => {
+    const doc = makeDocWithLockedDrift({
+      brandLocked: true,
+      bindings: { color: { type: 'brand.color.primary' } },
+    });
+    const result = applyBrandToDocument(doc, kit);
+    const layer = result.pages[0].layers[0] as { _lockedBindings?: unknown };
+    expect(layer._lockedBindings).toBeUndefined();
+  });
+
+  it('respects multiple bindings on the same layer', () => {
+    const doc = makeDocWithLockedDrift({
+      brandLocked: true,
+      color: '#abcdef',
+      fontFamily: 'Comic Sans MS',
+      bindings: {
+        color: { type: 'brand.color.primary' },
+        fontFamily: { type: 'brand.font.heading' },
+      },
+    });
+    const result = applyBrandToDocument(doc, kit);
+    const out = result.pages[0].layers[0] as TextLayer;
+    expect(out.color).toBe('#3366ff');
+    expect(out.fontFamily).toBe('Inter, sans-serif');
+  });
+
+  it('does NOT recover on UNLOCKED layers, even if _lockedBindings is present (stale recording)', () => {
+    // Edge case: a layer was brandLocked at recording time, then
+    // unlocked. The recording is stale; the user authority on the
+    // unlocked literal should persist.
+    const doc = makeDocWithLockedDrift({
+      brandLocked: false, // UNLOCKED
+      color: '#abcdef',
+      bindings: { color: { type: 'brand.color.primary' } },
+    });
+    const result = applyBrandToDocument(doc, kit);
+    // Literal preserved, NOT replaced by brand primary.
+    expect((result.pages[0].layers[0] as TextLayer).color).toBe('#abcdef');
+    // Bindings stay (untouched on unlocked layers — caller may want
+    // them when re-locking).
+    expect(
+      (result.pages[0].layers[0] as { _lockedBindings?: unknown })._lockedBindings,
+    ).toEqual({ color: { type: 'brand.color.primary' } });
+  });
+
+  it('respectLocks: false ignores _lockedBindings entirely (escape hatch)', () => {
+    const doc = makeDocWithLockedDrift({
+      brandLocked: true,
+      color: '#abcdef',
+      bindings: { color: { type: 'brand.color.primary' } },
+    });
+    const result = applyBrandToDocument(doc, kit, { respectLocks: false });
+    // Literal preserved.
+    expect((result.pages[0].layers[0] as TextLayer).color).toBe('#abcdef');
+    // Bindings still present (no recovery happened, so nothing to clear).
+    expect(
+      (result.pages[0].layers[0] as { _lockedBindings?: unknown })._lockedBindings,
+    ).toEqual({ color: { type: 'brand.color.primary' } });
+  });
+
+  it('preview mode also recovers bindings (the brand-managed contract holds in preview)', () => {
+    const doc = makeDocWithLockedDrift({
+      brandLocked: true,
+      color: '#abcdef',
+      bindings: { color: { type: 'brand.color.primary' } },
+    });
+    const result = applyBrandToDocument(doc, kit, { mode: 'preview' });
+    // SlotRef is RESTORED to the layer (preview keeps SlotRefs in place
+    // post-recovery; the recovery happens before the slot-vs-literal
+    // mode branching).
+    expect((result.pages[0].layers[0] as TextLayer).color).toEqual({
+      type: 'brand.color.primary',
+    });
+    // Annotation reflects the resolved value.
+    expect(result.brandResolution!.layers['l-locked'].color).toBe('#3366ff');
+    // _lockedBindings cleared.
+    expect(
+      (result.pages[0].layers[0] as { _lockedBindings?: unknown })._lockedBindings,
+    ).toBeUndefined();
+  });
+
+  it('a brand-locked layer with a SlotRef already in place + empty _lockedBindings is a no-op for recovery', () => {
+    // Normal post-load state: layer has SlotRef on color, no
+    // override has happened, _lockedBindings absent. Recovery
+    // should not interfere.
+    const doc = makeDoc([
+      makePage([
+        makeTextLayer({
+          id: 'l-clean',
+          brandLocked: true,
+          color: { type: 'brand.color.primary' },
+        }),
+      ]),
+    ]);
+    const result = applyBrandToDocument(doc, kit);
+    // Resolves normally.
+    expect((result.pages[0].layers[0] as TextLayer).color).toBe('#3366ff');
+  });
+
+  it('recovers SlotRefs nested in group children when the inner layer is brandLocked', () => {
+    const innerText = makeTextLayer({
+      id: 'inner',
+      brandLocked: true,
+      color: '#abcdef',
+    });
+    (innerText as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings = {
+      color: { type: 'brand.color.primary' },
+    };
+    const group: GroupLayer = {
+      id: 'g',
+      name: 'g',
+      kind: 'group',
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false, // GROUP not locked, but inner IS
+      children: [innerText],
+    };
+    const result = applyBrandToDocument(makeDoc([makePage([group])]), kit);
+    const inner = (result.pages[0].layers[0] as GroupLayer).children[0] as TextLayer;
+    expect(inner.color).toBe('#3366ff');
+  });
+
+  it('recovers SvgLayer fillOverrides via dotted path', () => {
+    const svgLayer = {
+      id: 'l-svg',
+      name: 'svg',
+      kind: 'svg' as const,
+      transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: true,
+      src: 'https://example.com/i.svg',
+      fillOverrides: { '#path-1': '#abcdef' as ResolvedValue }, // overridden literal
+      _lockedBindings: {
+        'fillOverrides.#path-1': { type: 'brand.color.accent' as const },
+      },
+    };
+    const result = applyBrandToDocument(makeDoc([makePage([svgLayer])]), kit);
+    const out = result.pages[0].layers[0] as { fillOverrides: Record<string, unknown>; _lockedBindings?: unknown };
+    expect(out.fillOverrides['#path-1']).toBe('#33cc66'); // brand.color.accent resolved
+    expect(out._lockedBindings).toBeUndefined();
   });
 });
 
