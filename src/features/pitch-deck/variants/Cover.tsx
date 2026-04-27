@@ -8,7 +8,6 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { COVER } from '../uniexPitchContent';
-import { ConnectedLaptop, GlobeWithFlags } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
@@ -133,10 +132,19 @@ export function CoverVariantB({ index, total }: SlideProps) {
       >
         <ReplaceableArtwork
           slotId="cover-B-globe"
-          defaultQuery="world map students"
+          defaultQuery="globe team students"
           style={{ width: SLIDE_WIDTH * 0.5, height: SLIDE_WIDTH * 0.5, marginRight: '-6%' }}
         >
-          <GlobeWithFlags size={SLIDE_WIDTH * 0.5} transparent />
+          <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+            color: 'rgba(0,21,99,0.35)',
+            fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+            textAlign: 'center', padding: 12,
+          }}>
+            Click to add illustration
+          </div>
         </ReplaceableArtwork>
       </div>
       {/* Tint over the image to push toward navy/green family */}
@@ -256,7 +264,16 @@ export function CoverVariantC({ index, total }: SlideProps) {
           defaultQuery="laptop study online"
           style={{ width: 680, height: 680, marginTop: -90 }}
         >
-          <ConnectedLaptop size={680} transparent />
+          <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+            color: 'rgba(0,21,99,0.35)',
+            fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+            textAlign: 'center', padding: 12,
+          }}>
+            Click to add illustration
+          </div>
         </ReplaceableArtwork>
       </div>
       <div

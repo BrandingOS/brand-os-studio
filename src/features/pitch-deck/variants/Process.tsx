@@ -5,7 +5,6 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROCESS } from '../uniexPitchContent';
-import { MentorConversation } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
@@ -174,10 +173,19 @@ export function ProcessVariantC({ index, total }: SlideProps) {
       >
         <ReplaceableArtwork
           slotId="process-C-mentor"
-          defaultQuery="mentor conversation"
+          defaultQuery="mentor teacher"
           style={{ width: 460, height: 460 }}
         >
-          <MentorConversation size={460} transparent />
+          <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+            color: 'rgba(0,21,99,0.35)',
+            fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+            textAlign: 'center', padding: 12,
+          }}>
+            Click to add illustration
+          </div>
         </ReplaceableArtwork>
       </div>
       <div style={{ position: 'absolute', top: 130, bottom: 100, right: 96, width: 380, borderRadius: 28, background: 'linear-gradient(180deg, rgba(0,21,99,0.05) 0%, rgba(0,21,99,0.35) 100%)', pointerEvents: 'none' }} />

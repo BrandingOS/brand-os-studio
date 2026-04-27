@@ -5,7 +5,6 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { PROBLEM } from '../uniexPitchContent';
-import { CompassChoice } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
@@ -152,10 +151,19 @@ export function ProblemVariantC({ index, total }: SlideProps) {
         >
           <ReplaceableArtwork
             slotId="problem-C-compass"
-            defaultQuery="compass direction choice"
+            defaultQuery="compass direction"
             style={{ width: SLIDE_WIDTH * 0.5, height: SLIDE_WIDTH * 0.5 }}
           >
-            <CompassChoice size={SLIDE_WIDTH * 0.5} transparent />
+            <div style={{
+              width: '100%', height: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+              color: 'rgba(0,21,99,0.35)',
+              fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+              textAlign: 'center', padding: 12,
+            }}>
+              Click to add illustration
+            </div>
           </ReplaceableArtwork>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,21,99,0.18) 0%, rgba(0,21,99,0) 50%)' }} />
         </div>
