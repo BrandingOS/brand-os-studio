@@ -1,12 +1,13 @@
 # Slot resolver — design spec
 
-> **Status.** Phase 0. The slot enum in
-> `src/features/editor/schema/index.ts` is the contract. The resolver
-> implementation lands in Phase 3 at
-> `src/features/editor/brand/applyBrand.ts`. This document is the
-> rationale that contract carries — it tells the future contributor
-> *why* each fallback exists, so they can judge edge cases without
-> re-deriving from scratch.
+> **Status.** Phase 0 contract; Phase 3 step 1 ships
+> `brandToBrandKit` (the priority-chain implementation) at
+> `src/features/editor/brand/brandToBrandKit.ts`. The slot enum in
+> `src/features/editor/schema/index.ts` is the contract. The full
+> resolver (`applyBrandToDocument`) is Phase 3 step 2. This document
+> is the rationale that contract carries — it tells the future
+> contributor *why* each fallback exists, so they can judge edge
+> cases without re-deriving from scratch.
 
 ## Purpose
 
@@ -207,6 +208,59 @@ hand-painted and clash" failure mode the user flagged on
 `surfaceKind` is optional. When absent, the brand engine resolves
 slots one at a time (no surface coordination). Use it when the layer
 plays a known compositional role; leave it off for one-off elements.
+
+## Memoization is required, not optional
+
+`brandToBrandKit(brand)` walks the entire priority chain every call.
+On a multi-page document with frequent selection changes, calling
+this on every render is wasted work that compounds.
+
+**Every React call site MUST memoize via `useBrandKit(brand)`** from
+`src/features/editor/brand/useBrandKit.ts`. The hook keys on the
+brand reference identity AND `brand.updatedAt` so it catches both
+Zustand-style replacements and in-place mutations.
+
+Non-React call sites (services, AI pipeline, headless export)
+should memoize per-request: derive the BrandKit once at the boundary
+and pass it down. Do NOT call `brandToBrandKit` inside a loop.
+
+If you find yourself reaching for `brandToBrandKit` directly in a
+React component, ask whether `useBrandKit` would be the right home
+for that call instead.
+
+## Neutrals normalization
+
+`normalizeNeutrals(source)` from `./neutrals.ts` always returns 6
+hex strings, lightest → darkest. Behaviour by input length:
+
+| Input length | Output |
+|---|---|
+| 0 | throws — caller falls back to `suggestNeutrals(primary)` |
+| 1 | 6 copies (degenerate; caller should generally avoid) |
+| 2..5 | linear HSL interpolation between sorted-by-luminance stops |
+| 6 | returned as-is, sorted by luminance |
+| 7+ | even-spacing downsample after sort |
+
+The original spec said "pad by repeating the last entry" — that was
+rejected during Phase 3 review because it produces visually broken
+brands (slots 4/5/6 all rendering as the darkest color). HSL-space
+interpolation guarantees a monotonic luminance ramp regardless of
+input length.
+
+## Diagnostic warnings
+
+`brandToBrandKit` populates `BrandKit._diagnostics.warnings: string[]`
+whenever a fallback is taken at a step where the source brand could
+have been more complete. Cases that emit a warning:
+
+- No primary color defined (falling back to `#888888`)
+- No neutrals defined (generating ramp from primary hue)
+- No body font defined (falling back to heading family) — also
+  emits `console.warn` in dev (not prod)
+
+Empty `warnings` is the success case. Phase 3 just populates the
+field; future "brand health" UI will display it. The presence of a
+warning is not an error — it's a hint that the brand is incomplete.
 
 ## What this resolver does NOT do
 
