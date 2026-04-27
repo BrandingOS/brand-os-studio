@@ -54,6 +54,9 @@ const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
+const Step5Variant1Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-1"));
+const Step5Variant2Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-2"));
+const Step5Variant3Page = lazy(() => import("./pages/_dev/ui-preview/step-5-variant-3"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -704,6 +707,10 @@ const App = () => (
           <Route path="/_dev/features" element={<DevFeaturesPage />} />
           {/* Phase 1 unified editor demo — fixture social-post + localStorage save. */}
           <Route path="/_dev/editor" element={<DevEditorPage />} />
+          {/* Step 5 UI direction mockups — three variants for review. */}
+          <Route path="/_dev/ui-preview/step-5-variant-1" element={<Step5Variant1Page />} />
+          <Route path="/_dev/ui-preview/step-5-variant-2" element={<Step5Variant2Page />} />
+          <Route path="/_dev/ui-preview/step-5-variant-3" element={<Step5Variant3Page />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />
