@@ -6,16 +6,18 @@
  * Anything visual goes through `var(--deck-*)` tokens emitted by the
  * deck-theme provider.
  *
- * `<SlotText>` and `<SlotImage>` accept `slideId` + `slot` so future
- * edit-mode behavior can route per-block writes back through the
- * `EditContext` without each layout having to thread setters through
- * props. Phase 2B/2C wires up the actual edit primitives; this file
- * just establishes the API and keeps the present render path intact.
+ * Phase 2B: `<SlotText>` reads the nearest EditContext and, when edits
+ * are enabled and the layout is in `mode='edit'`, renders a
+ * contentEditable element. On blur we read the new text and push a
+ * fresh TextBlock through `editCtx.setBlock`. Phase 2C will do the
+ * matching work for `<SlotImage>`.
  */
 
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Block, ImageBlock, SlotId, TextBlock } from '../types';
 import { isText } from '../types';
+import { useEditContext } from '../components/EditContext';
 
 /* ─── RTL detection ────────────────────────────────────────────────── */
 
@@ -169,18 +171,20 @@ interface SlotTextProps {
 
 /**
  * Renders a text slot using `.deck-{role}` classes. Honors
- * block.align/weight/color from the block. In edit mode, empty text
- * shows a soft outline so the user knows it's a fillable slot.
+ * block.align/weight/color from the block.
  *
- * `slideId` and `slot` are accepted for API parity — Phase 2B wires
- * them through a contentEditable element that calls `setBlock` on
- * blur.
+ * In present/thumbnail mode (or when no EditContext is enabled), this
+ * renders a static element. In edit mode WITH an enabled context, the
+ * element is contentEditable and `editCtx.setBlock(slideId, slot, …)`
+ * is called on blur. We render the editable element as **uncontrolled**
+ * with `key={slideId+slot+block.text}` so the cursor doesn't jump
+ * mid-typing — only when the canonical store value changes does the
+ * element remount. Same Gamma-style trade-off: keystrokes don't update
+ * the store, blur (or Enter) does.
  */
 export function SlotText({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  slideId: _slideId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  slot: _slot,
+  slideId,
+  slot,
   block,
   roleClass,
   mode,
@@ -189,6 +193,68 @@ export function SlotText({
   as = 'span',
   align,
 }: SlotTextProps) {
+  const editCtx = useEditContext();
+  const editing = mode === 'edit' && !!editCtx?.enabled;
+  const empty = isEmptyText(block);
+
+  if (!editing) {
+    return (
+      <PresentText
+        block={block}
+        roleClass={roleClass}
+        mode={mode}
+        hint={hint}
+        style={style}
+        as={as}
+        align={align}
+      />
+    );
+  }
+
+  const t = isText(block) ? block : undefined;
+  const text = t?.text ?? '';
+  const Tag = as as keyof JSX.IntrinsicElements;
+  const textAlign: CSSProperties['textAlign'] =
+    align ?? t?.align ? mapAlign(align ?? t?.align) : undefined;
+
+  return (
+    <EditableText
+      key={`${slideId}:${slot}:${text}`}
+      Tag={Tag}
+      initialText={text}
+      empty={empty}
+      hint={hint}
+      roleClass={roleClass}
+      style={{
+        textAlign,
+        fontWeight: t?.weight,
+        color: t?.color,
+        ...style,
+      }}
+      onCommit={(nextText) => {
+        if (nextText === text) return;
+        const base: TextBlock = t
+          ? { ...t, text: nextText }
+          : {
+              kind: 'text',
+              text: nextText,
+              role: roleFromClass(roleClass),
+            };
+        editCtx?.setBlock(slideId, slot, base);
+      }}
+    />
+  );
+}
+
+function PresentText({
+  block,
+  roleClass,
+  mode,
+  hint,
+  style,
+  as = 'span',
+  align,
+}: Omit<SlotTextProps, 'slideId' | 'slot'>) {
   const empty = isEmptyText(block);
 
   if (empty) {
@@ -233,11 +299,117 @@ export function SlotText({
   );
 }
 
+interface EditableTextProps {
+  Tag: keyof JSX.IntrinsicElements;
+  initialText: string;
+  empty: boolean;
+  hint?: string;
+  roleClass: string;
+  style?: CSSProperties;
+  onCommit: (next: string) => void;
+}
+
+/**
+ * The editable text leaf. Uncontrolled — types reflect into the DOM
+ * directly until blur. We track hover/focus for a soft outline so the
+ * user knows the element is editable; pointerdown/click stop
+ * propagation so future "select slide" handlers don't fire.
+ */
+function EditableText({
+  Tag,
+  initialText,
+  empty,
+  hint,
+  roleClass,
+  style,
+  onCommit,
+}: EditableTextProps) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+
+  const ringStyle: CSSProperties = empty
+    ? {
+        opacity: 0.55,
+        outline: '1.5px dashed var(--deck-border-subtle, rgba(0,21,99,0.18))',
+        outlineOffset: 4,
+        borderRadius: 6,
+        padding: '2px 8px',
+        minWidth: 80,
+        display: 'inline-block',
+      }
+    : hovered || focused
+      ? {
+          outline: '1.5px solid var(--deck-accent, rgba(0,21,99,0.45))',
+          outlineOffset: 3,
+          borderRadius: 4,
+        }
+      : {};
+
+  return (
+    <Tag
+      className={roleClass}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onBlur={(e) => {
+        setFocused(false);
+        const nextText = (e.currentTarget as HTMLElement).innerText.trim();
+        if (empty && nextText.length === 0) return;
+        onCommit(nextText);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).blur();
+        }
+      }}
+      style={{
+        cursor: 'text',
+        ...ringStyle,
+        ...style,
+      }}
+      data-editor-chrome="true"
+    >
+      {empty ? hint ?? 'Click to edit' : initialText}
+    </Tag>
+  );
+}
+
 function mapAlign(a?: 'start' | 'center' | 'end'): CSSProperties['textAlign'] {
   if (a === 'start') return 'left';
   if (a === 'end') return 'right';
   if (a === 'center') return 'center';
   return undefined;
+}
+
+/** Translate a deck-{role} class into the matching DeckTypeRole, used
+ *  when we synthesize a TextBlock for a previously-empty slot. */
+function roleFromClass(cls: string): TextBlock['role'] {
+  const m = /^deck-([a-zA-Z0-9]+)$/.exec(cls);
+  if (!m) return 'body';
+  const role = m[1];
+  switch (role) {
+    case 'display':
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'body':
+    case 'caption':
+    case 'label':
+      return role;
+    default:
+      return 'body';
+  }
 }
 
 /* ─── Slide-content area sizing ────────────────────────────────────── */
