@@ -20,10 +20,11 @@ import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants'
 import { DeckRenderer } from './DeckRenderer';
 import { EditContextProvider } from './EditContext';
 import { AddSlidePopover } from './AddSlidePopover';
+import { GeneratePanel } from './GeneratePanel';
 import { PITCH_DECK_TEMPLATE } from '../templates/pitch-deck';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
 import type { Deck, LayoutId } from '../types';
-import { useDeck, useEnsureDeck } from '../store/deckStore';
+import { useDeck, useDeckStore, useEnsureDeck } from '../store/deckStore';
 import { buildEmptySlide, getLayoutMeta } from '../layouts/catalog';
 import '@/shared/presentation/theme/deck.css';
 import '@/shared/styles/cosmos-workspace.css';
@@ -73,6 +74,24 @@ export default function DeckV2Page() {
   // Drag-to-reorder state for the thumbnail rail.
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
+
+  // AI generation drawer.
+  const [generateOpen, setGenerateOpen] = useState(false);
+
+  const handleAcceptGenerated = useCallback((generated: Deck) => {
+    // Replace the current deck in-place — keep the SAME id so the
+    // existing useDeck() subscription stays bound and auto-save flushes
+    // the new slides into brand.decks[]. (Phase 5 introduces
+    // multi-deck and a clean "save as new deck" path.)
+    const replacement: Deck = {
+      ...generated,
+      id: deckId,
+      version: (deck?.version ?? 0) + 1,
+    };
+    useDeckStore.getState().setDeck(replacement);
+    setActiveIndex(0);
+    toast.success(`Replaced deck with ${generated.slides.length} AI-generated slides`);
+  }, [deckId, deck?.version]);
 
   // Save button handler — flush pending debounced save NOW.
   const [savedFlash, setSavedFlash] = useState(false);
@@ -472,9 +491,37 @@ export default function DeckV2Page() {
             </button>
             <span style={{ width: 1, height: 18, background: 'var(--border)' }} />
             <AddSlidePopover onPick={handleAddSlide} side="top" variant="pill" label="Add slide" />
+            <button
+              type="button"
+              onClick={() => setGenerateOpen(true)}
+              title="Generate from a script"
+              style={{
+                height: 28,
+                padding: '0 12px',
+                borderRadius: 999,
+                border: '1px solid var(--border)',
+                background: 'linear-gradient(90deg, rgba(124,58,237,0.10), rgba(59,130,246,0.10))',
+                color: 'var(--text-primary)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Generate
+            </button>
           </div>
         </div>
       </div>
+      <GeneratePanel
+        brand={brand}
+        open={generateOpen}
+        onClose={() => setGenerateOpen(false)}
+        onAccept={handleAcceptGenerated}
+      />
     </CosmosWorkspaceShell>
   );
 }
