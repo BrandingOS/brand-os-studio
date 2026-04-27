@@ -22,7 +22,7 @@ import {
   detectDirection,
   isEmptyText,
 } from './_helpers';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 
 const Cta: LayoutComponent = (props: LayoutComponentProps) => {
   const { blocks, mode } = props;

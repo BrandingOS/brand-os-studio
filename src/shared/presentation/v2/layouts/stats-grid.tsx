@@ -16,7 +16,7 @@
 import type { CSSProperties } from 'react';
 import type { LayoutComponent, LayoutComponentProps, StatBlock } from '../types';
 import { isStat } from '../types';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 import { CHROME_TOP_INSET, SlotText, detectDirection } from './_helpers';
 
 const STAT_KEY = /^stat(\d+)$/;

@@ -12,7 +12,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { Block, LayoutComponent, LayoutComponentProps, StatBlock } from '../types';
 import { isStat } from '../types';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 import { CHROME_TOP_INSET, SlotText, detectDirection } from './_helpers';
 
 function trendGlyph(trend?: StatBlock['trend']): ReactNode {

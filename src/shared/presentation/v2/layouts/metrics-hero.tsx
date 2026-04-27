@@ -15,7 +15,7 @@ import {
   SlotText,
   detectDirection,
 } from './_helpers';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 
 const MetricsHero: LayoutComponent = (props: LayoutComponentProps) => {
   const { blocks, mode } = props;

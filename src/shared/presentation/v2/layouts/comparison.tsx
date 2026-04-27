@@ -21,7 +21,7 @@ import {
   SlotText,
   detectDirection,
 } from './_helpers';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 
 function ComparisonList({
   block,

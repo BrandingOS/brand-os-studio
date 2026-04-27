@@ -27,7 +27,7 @@ import {
   isEmptyImage,
   isEmptyText,
 } from './_helpers';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 
 const MAX_MEMBERS = 6;
 

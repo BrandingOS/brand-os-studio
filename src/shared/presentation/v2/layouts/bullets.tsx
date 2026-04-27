@@ -11,7 +11,7 @@
 import type { CSSProperties } from 'react';
 import type { LayoutComponent, LayoutComponentProps, ListBlock } from '../types';
 import { isList } from '../types';
-import { registerLayout } from './index';
+import { registerLayout } from './registry';
 import {
   CHROME_TOP_INSET,
   SlotImage,
