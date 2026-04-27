@@ -327,6 +327,8 @@ The landing page's `early_access` table uses RLS: anon INSERT-only, no SELECT �
 
 **Security constraint**: `VITE_ANTHROPIC_API_KEY` is currently inlined into the client bundle at build time. This MUST be moved behind a server proxy (Supabase Edge Function) before deploying the main app publicly. The landing page does not use this key and is safe to deploy as-is.
 
+> **AI proxy migration paused at Step 1 — see issue #2. MUST complete before public launch.**
+
 ## TypeScript Config
 
 `strictNullChecks` is OFF. `noImplicitAny` is OFF. Be aware when writing new code — nullable values won't cause compile errors but can still crash at runtime.
