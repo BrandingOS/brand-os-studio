@@ -52,6 +52,8 @@ CREATE INDEX IF NOT EXISTS ai_rate_limits_called_at_idx
 ALTER TABLE public.ai_rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Block all client access. Only service role (Edge Functions) reads/writes.
+-- Idempotent: drop-then-create so re-runs against a drifted DB succeed.
+DROP POLICY IF EXISTS "ai_rate_limits_no_client_access" ON public.ai_rate_limits;
 CREATE POLICY "ai_rate_limits_no_client_access"
 ON public.ai_rate_limits FOR ALL
 TO authenticated, anon
@@ -60,10 +62,26 @@ WITH CHECK (false);
 
 -- ─── Backfill existing rate-limit history ──────────────────────────────────
 -- Preserve in-flight onboarding session rate-limit state so we don't
--- silently reset everyone's limits on deploy.
-INSERT INTO public.ai_rate_limits (session_id, function_name, called_at)
-SELECT session_id, function_name, called_at
-FROM public.onboarding_rate_limits;
+-- silently reset everyone's limits on deploy. Best-effort: filter source
+-- rows to those that satisfy the new XOR identity check, so a single
+-- malformed legacy row (null/empty session_id, null function_name) does
+-- not fail the entire migration. Wrapped in a DO block guarded by a
+-- table-exists check so re-runs after the legacy table is dropped pass
+-- through silently.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'onboarding_rate_limits'
+  ) THEN
+    INSERT INTO public.ai_rate_limits (session_id, function_name, called_at)
+    SELECT session_id, function_name, called_at
+    FROM public.onboarding_rate_limits
+    WHERE session_id IS NOT NULL
+      AND session_id <> ''
+      AND function_name IS NOT NULL;
+  END IF;
+END $$;
 
 -- ─── Drop legacy table ─────────────────────────────────────────────────────
 DROP TABLE IF EXISTS public.onboarding_rate_limits;
