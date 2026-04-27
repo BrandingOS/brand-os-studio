@@ -21,6 +21,7 @@ export type UniexSlide =
   | { kind: 'metrics' }
   | { kind: 'impact' }
   | { kind: 'team' }
+  | { kind: 'team-detail' }
   | { kind: 'cta' };
 
 export const UNIEX_SLIDES: UniexSlide[] = [
@@ -38,6 +39,7 @@ export const UNIEX_SLIDES: UniexSlide[] = [
   { kind: 'metrics' },
   { kind: 'impact' },
   { kind: 'team' },
+  { kind: 'team-detail' },
   { kind: 'cta' },
   // Style master sits at the END so it doesn't displace Cover.
   // Hide-from-deck toggle works on it like any other slide.
@@ -59,6 +61,7 @@ export const SECTION_LABEL: Record<UniexSlide['kind'], string> = {
   metrics: 'مؤشرات الأثر',
   impact: 'التجربة الواقعية',
   team: 'الفريق والشركاء',
+  'team-detail': 'الفريق والشركاء',
   cta: 'تواصل معنا',
 };
 
@@ -251,6 +254,24 @@ export const TEAM = {
   intro: 'يقف خلف هذه المنظومة فريق متخصص في:',
   specialties: ['الإرشاد الأكاديمي', 'بناء البرامج التعليمية', 'العمل مع المدارس'],
   closer: 'بدعم من شركاء في القطاع التعليمي والتقني.',
+};
+
+export const TEAM_DETAIL = {
+  team: [
+    { id: 'turk',  name: 'Ahmet Turk',     role: 'CEO' },
+    { id: 'kakkah', name: 'Memduh Kakkah', role: 'COO' },
+    { id: 'emre',  name: 'Ahmet Emre',     role: 'Operations Manager' },
+  ],
+  board: [
+    { id: 'mahdy',  name: 'Ahmed Mahdy',     role: 'Business Advisor' },
+    { id: 'gawish', name: 'Muhammad Gawish', role: 'Edtech Advisor' },
+    { id: 'tork',   name: 'Magdy Tork',      role: 'Legal Advisor' },
+  ],
+  partners: [
+    { id: 'supercharger', name: 'Supercharger Ventures' },
+    { id: 'classera',     name: 'Classera' },
+    { id: 'falak',        name: 'Falak Investment Hub' },
+  ],
 };
 
 export const CTA = {

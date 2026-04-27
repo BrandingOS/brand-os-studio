@@ -21,6 +21,7 @@ import { SCHOOL_BENEFITS_VARIANTS } from './SchoolBenefits';
 import { METRICS_VARIANTS } from './Metrics';
 import { IMPACT_VARIANTS } from './Impact';
 import { TEAM_VARIANTS } from './Team';
+import { TEAM_DETAIL_VARIANTS } from './TeamDetail';
 import { CTA_VARIANTS } from './Cta';
 
 export type VariantKey = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -39,6 +40,7 @@ export const VARIANTS = {
   metrics: METRICS_VARIANTS,
   impact: IMPACT_VARIANTS,
   team: TEAM_VARIANTS,
+  'team-detail': TEAM_DETAIL_VARIANTS,
   cta: CTA_VARIANTS,
 } as const;
 

@@ -926,6 +926,7 @@ function PitchDeckInspector({
     metrics: 'Metrics',
     impact: 'Impact',
     team: 'Team',
+    'team-detail': 'Team & Partners',
     cta: 'CTA',
   };
   const variants: VariantKey[] = ['A', 'B', 'C', 'D', 'E'];
