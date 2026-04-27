@@ -28,6 +28,35 @@ import { detectRoleFromElement } from '@/shared/presentation/theme/detectRole';
 import { useArtworkStore } from '../artwork/artworkStore';
 import { ArtworkPicker } from '../artwork/ArtworkPicker';
 import { useBrandStore } from '@/shared/store/brandStore';
+
+/**
+ * Persist-to-localStorage with loud error reporting. The previous
+ * silent `try { … } catch { /* ignore *\/ }` swallowed quota errors,
+ * so when the slide-edit blob outgrew the ~5 MB limit, save looked
+ * fine but reload found nothing on disk. Now we toast the failure.
+ */
+let _quotaToasted = false;
+function safeSetItem(key: string, value: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.error('[localStorage] write failed', { key, valueSize: value.length, error: e });
+    if (!_quotaToasted) {
+      _quotaToasted = true;
+      try {
+        toast.error(
+          `Storage full — recent edits may not persist. Try removing large uploaded images.`,
+          { duration: 8000 },
+        );
+      } catch { /* toaster not mounted */ }
+      // Re-allow toasting after 30s so the user sees subsequent failures.
+      setTimeout(() => { _quotaToasted = false; }, 30000);
+    }
+    return false;
+  }
+}
 import { useDeckTheme } from '@/shared/presentation/theme/useDeckTheme';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { Brand } from '@/shared/types/brand';
@@ -98,7 +127,15 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
         throw new Error(brandError);
       }
 
-      console.log('[Save] done');
+      // Diagnostic: confirm what's on disk after the save.
+      const sizes = {
+        frozen: window.localStorage.getItem(`brandos:pitch-deck:${slug}:frozen`)?.length ?? 0,
+        variants: window.localStorage.getItem(`brandos:pitch-deck:${slug}:variants`)?.length ?? 0,
+        hidden: window.localStorage.getItem(`brandos:pitch-deck:${slug}:hidden`)?.length ?? 0,
+        artwork: window.localStorage.getItem(`brandos:pitch-deck:${slug}:artworkOverrides`)?.length ?? 0,
+        seedOverrides: window.localStorage.getItem('brandos:seed-brand-overrides')?.length ?? 0,
+      };
+      console.log('[Save] done — localStorage sizes:', sizes);
       setSavedFlash(true);
       toast.success('All changes saved');
       setTimeout(() => setSavedFlash(false), 1800);
@@ -139,16 +176,14 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
     }
   });
   useEffect(() => {
-    try {
-      window.localStorage.setItem(VARIANT_KEY, JSON.stringify(slideVariants));
-    } catch {
-      /* quota — ignore */
-    }
+    safeSetItem(VARIANT_KEY, JSON.stringify(slideVariants));
   }, [VARIANT_KEY, slideVariants]);
   const setSlideVariant = useCallback((idx: number, key: VariantKey) => {
     setSlideVariants((prev) => {
       if (prev[idx] === key) return prev;
-      return { ...prev, [idx]: key };
+      const next = { ...prev, [idx]: key };
+      safeSetItem(VARIANT_KEY, JSON.stringify(next));
+      return next;
     });
     // Variant switch = different layout; old per-element edits don't
     // apply. Drop the frozen snapshot so the new variant mounts clean.
@@ -156,9 +191,10 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
       if (!prev[idx]) return prev;
       const next = { ...prev };
       delete next[idx];
+      safeSetItem(FROZEN_KEY, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [VARIANT_KEY, FROZEN_KEY]);
 
   // Per-slide live-edit HTML snapshots — when a slide has one, we
   // render that HTML verbatim instead of the React composition.
@@ -173,20 +209,20 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
     }
   });
   useEffect(() => {
-    try {
-      window.localStorage.setItem(FROZEN_KEY, JSON.stringify(slideFrozenHtml));
-    } catch {
-      /* quota — ignore */
-    }
+    safeSetItem(FROZEN_KEY, JSON.stringify(slideFrozenHtml));
   }, [FROZEN_KEY, slideFrozenHtml]);
   const setSlideFrozen = useCallback((idx: number, html: string | undefined) => {
     setSlideFrozenHtml((prev) => {
       const next = { ...prev };
       if (html) next[idx] = html;
       else delete next[idx];
+      // Synchronous write — don't wait for the useEffect to fire.
+      // If a tab closes between now and the effect, we'd lose the
+      // edit. Writing here guarantees persistence on every commit.
+      safeSetItem(FROZEN_KEY, JSON.stringify(next));
       return next;
     });
-  }, []);
+  }, [FROZEN_KEY]);
 
   // Per-slide hidden state (skipped from export/view when true).
   const HIDDEN_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:hidden`;
@@ -200,15 +236,15 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
     }
   });
   useEffect(() => {
-    try {
-      window.localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenSlides));
-    } catch {
-      /* quota — ignore */
-    }
+    safeSetItem(HIDDEN_KEY, JSON.stringify(hiddenSlides));
   }, [HIDDEN_KEY, hiddenSlides]);
   const toggleHidden = useCallback((idx: number) => {
-    setHiddenSlides((prev) => (prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]));
-  }, []);
+    setHiddenSlides((prev) => {
+      const next = prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx];
+      safeSetItem(HIDDEN_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, [HIDDEN_KEY]);
 
   const [showInspector, setShowInspector] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<'slide' | 'theme'>('slide');
