@@ -5,7 +5,7 @@
 // layers panel / properties panel. No fabric imports here — everything
 // canvas-shaped goes through the adapter interface.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FabricAdapter } from '@/features/editor/adapter/FabricAdapter';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, SelectionState } from '@/features/editor/schema';
@@ -63,6 +63,10 @@ export function Editor({ initialDocument, save, backTo, breadcrumb, title }: Edi
     value: doc,
     save,
     debounceMs: 1200,
+    // Hold "Saved" on screen long enough to register before fading. Default
+    // 1500 was indistinguishable from idle on fast saves (e.g. localStorage)
+    // — the indicator looked broken in the Phase 1 review.
+    savedFadeMs: 2500,
   });
 
   // Mark dirty whenever the adapter emits a change (drag, type, add, etc.).
@@ -77,8 +81,6 @@ export function Editor({ initialDocument, save, backTo, breadcrumb, title }: Edi
     onFlushSave: flush,
   });
 
-  const handleFlush = useCallback(() => void flush(), [flush]);
-
   return (
     <div className="flex h-screen w-screen flex-col bg-muted/30">
       <EditorChrome
@@ -87,17 +89,6 @@ export function Editor({ initialDocument, save, backTo, breadcrumb, title }: Edi
         title={title}
         saveState={saveState}
         onRetry={retry}
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleFlush}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Save now
-            </button>
-          </div>
-        }
       />
       <div className="flex flex-1 min-h-0">
         <EditorToolbar adapter={adapter} pageId={selection.pageId} />

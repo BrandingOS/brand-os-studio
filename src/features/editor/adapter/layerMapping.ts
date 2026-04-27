@@ -84,6 +84,17 @@ const DEFAULT_FILL = '#cccccc';
 const DEFAULT_TEXT_COLOR = '#111111';
 const DEFAULT_FONT = 'system-ui, -apple-system, Segoe UI, sans-serif';
 
+// ─── Selection styling ──────────────────────────────────────────────────
+// Fabric's defaults are a heavy royal blue with semi-transparent fills that
+// can read like an overlay over text. We override with a softer brand-ish
+// purple, outline-only (no fill), and white-stroked filled corner handles
+// for clean Figma-like selection. Applied per-object via `baseProps` and
+// canvas-wide in FabricAdapter.mount via `selectionColor`.
+export const SELECTION_BORDER_COLOR = '#7c3aed';
+export const SELECTION_HANDLE_COLOR = '#7c3aed';
+export const SELECTION_HANDLE_STROKE = '#ffffff';
+export const SELECTION_MARQUEE_FILL = 'rgba(124, 58, 237, 0.08)';
+
 // ─── Layer → Fabric ──────────────────────────────────────────────────────
 
 const baseProps = (layer: Layer) => ({
@@ -101,6 +112,15 @@ const baseProps = (layer: Layer) => ({
   lockScalingX: layer.locked || layer.brandLocked,
   lockScalingY: layer.locked || layer.brandLocked,
   lockRotation: layer.locked || layer.brandLocked,
+  // Outline-only selection styling (overrides Fabric's blue overlay defaults).
+  borderColor: SELECTION_BORDER_COLOR,
+  cornerColor: SELECTION_HANDLE_COLOR,
+  cornerStrokeColor: SELECTION_HANDLE_STROKE,
+  cornerStyle: 'circle' as const,
+  transparentCorners: false,
+  cornerSize: 8,
+  padding: 0,
+  borderScaleFactor: 1.5,
 });
 
 function textLayerToFabric(layer: TextLayer): Textbox {
@@ -223,6 +243,129 @@ function placeholderRect(layer: Layer, fill: string, stroke: string): Rect {
   });
   setLayerId(r, layer.id);
   return r;
+}
+
+/**
+ * Reconcile every relevant prop from a layer onto its existing Fabric
+ * object. Use this after `updateLayer` mutates the document mirror so
+ * the canvas reflects ALL changed fields, not just transform.
+ *
+ * Returns `needsRecreate: true` when the change requires the Fabric
+ * object to be rebuilt (image/svg src change, kind change). The
+ * adapter handles the recreate; we don't try to mutate the source URL
+ * in place because Fabric's image/svg pipelines are construction-time.
+ *
+ * Selection styling lives in `baseProps` and is re-applied here on
+ * every reconcile so toggles like `locked` correctly flip
+ * `selectable`/`evented`.
+ */
+export function applyLayerToFabric(
+  obj: FabricObject,
+  prevLayer: Layer | null,
+  nextLayer: Layer,
+): { needsRecreate: boolean } {
+  // Kind change → always recreate.
+  if (prevLayer && prevLayer.kind !== nextLayer.kind) {
+    return { needsRecreate: true };
+  }
+
+  // Common: transform, opacity, visibility, lock + selection styling.
+  obj.set({
+    left: nextLayer.transform.x,
+    top: nextLayer.transform.y,
+    width: nextLayer.transform.width,
+    height: nextLayer.transform.height,
+    angle: nextLayer.transform.rotation,
+    scaleX: nextLayer.transform.scaleX,
+    scaleY: nextLayer.transform.scaleY,
+    opacity: nextLayer.opacity,
+    visible: nextLayer.visible,
+    selectable: !nextLayer.locked,
+    evented: !nextLayer.locked,
+    lockMovementX: nextLayer.locked || nextLayer.brandLocked,
+    lockMovementY: nextLayer.locked || nextLayer.brandLocked,
+    lockScalingX: nextLayer.locked || nextLayer.brandLocked,
+    lockScalingY: nextLayer.locked || nextLayer.brandLocked,
+    lockRotation: nextLayer.locked || nextLayer.brandLocked,
+    borderColor: SELECTION_BORDER_COLOR,
+    cornerColor: SELECTION_HANDLE_COLOR,
+    cornerStrokeColor: SELECTION_HANDLE_STROKE,
+  });
+
+  switch (nextLayer.kind) {
+    case 'text': {
+      if (!(obj instanceof Textbox)) return { needsRecreate: true };
+      obj.set({
+        text: nextLayer.text,
+        fontFamily: resolveResolvedValue(nextLayer.fontFamily, DEFAULT_FONT),
+        fontSize: nextLayer.fontSize,
+        fontWeight: nextLayer.fontWeight,
+        lineHeight: nextLayer.lineHeight,
+        // Fabric's charSpacing is 1/1000 em — convert from our em-based letterSpacing.
+        charSpacing: nextLayer.letterSpacing * 1000,
+        textAlign: nextLayer.textAlign,
+        fill: resolveResolvedValue(nextLayer.color, DEFAULT_TEXT_COLOR),
+        direction: nextLayer.direction === 'rtl' ? 'rtl' : 'ltr',
+      });
+      // Textbox-specific: editing-mode colors should match selection.
+      const tb = obj as Textbox & {
+        editingBorderColor?: string;
+        cursorColor?: string;
+      };
+      tb.editingBorderColor = SELECTION_BORDER_COLOR;
+      tb.cursorColor = SELECTION_BORDER_COLOR;
+      return { needsRecreate: false };
+    }
+    case 'shape': {
+      const fill = nextLayer.fill ? resolveResolvedValue(nextLayer.fill, DEFAULT_FILL) : null;
+      const stroke = nextLayer.stroke
+        ? resolveResolvedValue(nextLayer.stroke, '#000000')
+        : null;
+      obj.set({ fill, stroke, strokeWidth: nextLayer.strokeWidth });
+      if (nextLayer.shape === 'rectangle' && obj instanceof Rect) {
+        obj.set({ rx: nextLayer.cornerRadius, ry: nextLayer.cornerRadius });
+      }
+      return { needsRecreate: false };
+    }
+    case 'image': {
+      // Image src is construction-time; if it changed, recreate.
+      if (
+        prevLayer &&
+        prevLayer.kind === 'image' &&
+        srcKey(prevLayer.src) !== srcKey(nextLayer.src)
+      ) {
+        return { needsRecreate: true };
+      }
+      // Otherwise common props are already applied above.
+      return { needsRecreate: false };
+    }
+    case 'svg': {
+      if (
+        prevLayer &&
+        prevLayer.kind === 'svg' &&
+        srcKey(prevLayer.src) !== srcKey(nextLayer.src)
+      ) {
+        return { needsRecreate: true };
+      }
+      return { needsRecreate: false };
+    }
+    case 'logo': {
+      // Logo variant change: in Phase 1 we render a placeholder regardless of
+      // variant, so no recreate needed. Phase 3 will recreate when variant
+      // resolves to a different brand asset.
+      return { needsRecreate: false };
+    }
+    case 'group':
+      return { needsRecreate: false };
+  }
+}
+
+function srcKey(src: unknown): string {
+  if (typeof src === 'string') return `url:${src}`;
+  if (src && typeof src === 'object' && 'assetId' in src) {
+    return `asset:${(src as { assetId: string }).assetId}`;
+  }
+  return '';
 }
 
 /** Convert a layer to its Fabric representation. */

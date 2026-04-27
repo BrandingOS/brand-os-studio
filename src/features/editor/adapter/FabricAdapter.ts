@@ -10,11 +10,7 @@
 
 import {
   Canvas,
-  Ellipse,
-  FabricImage,
   Line,
-  Polygon,
-  Rect,
   Textbox,
   type FabricObject,
   type TPointerEventInfo,
@@ -22,12 +18,8 @@ import {
 
 import type {
   BrandOSDocument,
-  ImageLayer,
   Layer,
-  LogoLayer,
   Page,
-  ShapeLayer,
-  SvgLayer,
   TextLayer,
 } from '@/features/editor/schema';
 import type {
@@ -40,12 +32,14 @@ import type {
 } from './EditorAdapter';
 import { HistoryRing } from './historyRing';
 import {
+  applyLayerToFabric,
   fabricToTransform,
   findLayer,
   getLayerId,
   layerToFabric,
   renderPage,
-  setLayerId,
+  SELECTION_BORDER_COLOR,
+  SELECTION_MARQUEE_FILL,
 } from './layerMapping';
 import { computeSnap, SNAP_THRESHOLD_PX, type BBox } from './snapGuides';
 
@@ -95,6 +89,13 @@ export class FabricAdapter implements EditorAdapter {
       height: DEFAULT_PAGE_HEIGHT,
       backgroundColor: '#ffffff',
       preserveObjectStacking: true,
+      // Override Fabric's heavy royal-blue defaults — the marquee fill,
+      // selection border, and per-object selection styling all read as a
+      // softer brand-purple outline (no overlay over content). Per-object
+      // overrides also live in `baseProps` (layerMapping.ts).
+      selectionColor: SELECTION_MARQUEE_FILL,
+      selectionBorderColor: SELECTION_BORDER_COLOR,
+      selectionLineWidth: 1,
     });
 
     this.attachCanvasListeners();
@@ -169,13 +170,27 @@ export class FabricAdapter implements EditorAdapter {
     const page = this.requirePage(pageId);
     const idx = page.layers.findIndex((l) => l.id === layerId);
     if (idx < 0) return;
-    page.layers[idx] = { ...page.layers[idx], ...patch } as Layer;
-    // Reflect onto the canvas if active page
+    const prevLayer = page.layers[idx];
+    const nextLayer = { ...prevLayer, ...patch } as Layer;
+    page.layers[idx] = nextLayer;
+    // Reflect onto the canvas if active page.
     if (pageId === this.activePageId) {
       const obj = this.fabricByLayerId.get(layerId);
       if (obj) {
-        applyPatchToFabric(obj, patch);
-        this.canvas?.requestRenderAll();
+        const { needsRecreate } = applyLayerToFabric(obj, prevLayer, nextLayer);
+        if (needsRecreate) {
+          this.canvas?.remove(obj);
+          this.fabricByLayerId.delete(layerId);
+          void layerToFabric(nextLayer).then((newObj) => {
+            if (!this.canvas) return;
+            this.canvas.add(newObj);
+            this.canvas.moveObjectTo(newObj, idx);
+            this.fabricByLayerId.set(layerId, newObj);
+            this.canvas.requestRenderAll();
+          });
+        } else {
+          this.canvas?.requestRenderAll();
+        }
       }
     }
     this.history.commit(clone(this.doc!));
@@ -458,38 +473,7 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/**
- * Apply a layer patch to a Fabric object's properties. Phase 1 handles
- * the common geometry + visibility + lock fields; deeper per-kind props
- * (text content, shape fill) round-trip via `loadDocument` after the
- * mirror is updated.
- */
-function applyPatchToFabric(obj: FabricObject, patch: Partial<Layer>): void {
-  if (patch.transform) {
-    obj.set({
-      left: patch.transform.x,
-      top: patch.transform.y,
-      width: patch.transform.width,
-      height: patch.transform.height,
-      angle: patch.transform.rotation,
-      scaleX: patch.transform.scaleX,
-      scaleY: patch.transform.scaleY,
-    });
-  }
-  if (patch.opacity != null) obj.set({ opacity: patch.opacity });
-  if (patch.visible != null) obj.set({ visible: patch.visible });
-  if (patch.locked != null) {
-    obj.set({
-      selectable: !patch.locked,
-      evented: !patch.locked,
-      lockMovementX: patch.locked,
-      lockMovementY: patch.locked,
-      lockScalingX: patch.locked,
-      lockScalingY: patch.locked,
-      lockRotation: patch.locked,
-    });
-  }
-  if (patch.kind === 'text' && patch.text != null && obj instanceof Textbox) {
-    obj.set({ text: patch.text });
-  }
-}
+// applyPatchToFabric (Phase 1 stub) was replaced by applyLayerToFabric in
+// layerMapping.ts. The patch-only version only forwarded transform/opacity/
+// visible/locked and silently dropped fontSize/color/fill/etc — that was
+// the data-flow bug surfaced in Phase 1 review.

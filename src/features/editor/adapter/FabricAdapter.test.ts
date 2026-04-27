@@ -422,6 +422,186 @@ describe('FabricAdapter — undo / redo at the document level', () => {
   });
 });
 
+describe('FabricAdapter — updateLayer reaches the Fabric object (regression)', () => {
+  // Phase 1 review surfaced a real bug: the Properties panel calls
+  // adapter.updateLayer({ fontSize: 98 }), the mirror got patched, but
+  // the Fabric object on the canvas was never updated because the old
+  // applyPatchToFabric only forwarded transform/opacity/visible/locked.
+  // This block guards every per-kind property the panel can edit.
+  beforeEach(installFetchStub);
+
+  function fabricObjFor(adapter: FabricAdapter, layerId: string) {
+    const fabricByLayerId = (adapter as unknown as {
+      fabricByLayerId: Map<string, Record<string, unknown>>;
+    }).fabricByLayerId;
+    return fabricByLayerId.get(layerId);
+  }
+
+  it('text: fontSize change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id; // headline (text)
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { fontSize: 98 });
+    expect(fabricObjFor(adapter, layerId)!.fontSize).toBe(98);
+  });
+
+  it('text: fontWeight change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { fontWeight: 200 });
+    expect(fabricObjFor(adapter, layerId)!.fontWeight).toBe(200);
+  });
+
+  it('text: fontFamily literal change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { fontFamily: 'Inter, sans-serif' });
+    expect(fabricObjFor(adapter, layerId)!.fontFamily).toBe('Inter, sans-serif');
+  });
+
+  it('text: text content change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { text: 'Replaced!' });
+    expect(fabricObjFor(adapter, layerId)!.text).toBe('Replaced!');
+  });
+
+  it('text: literal color change reaches the Fabric Textbox fill', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { color: '#ff00ff' });
+    expect(fabricObjFor(adapter, layerId)!.fill).toBe('#ff00ff');
+  });
+
+  it('text: textAlign change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { textAlign: 'center' });
+    expect(fabricObjFor(adapter, layerId)!.textAlign).toBe('center');
+  });
+
+  it('text: lineHeight change reaches the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { lineHeight: 1.6 });
+    expect(fabricObjFor(adapter, layerId)!.lineHeight).toBe(1.6);
+  });
+
+  it('text: letterSpacing change converts to Fabric charSpacing (1/1000 em)', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { letterSpacing: 0.05 });
+    expect(fabricObjFor(adapter, layerId)!.charSpacing).toBe(50);
+  });
+
+  it('text: direction=rtl propagates to the Fabric Textbox', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    adapter.updateLayer(FIXTURE.pages[0].id, layerId, { direction: 'rtl' });
+    expect(fabricObjFor(adapter, layerId)!.direction).toBe('rtl');
+  });
+
+  it('shape: fill change reaches the Fabric object', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const newShape: Layer = {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f5001',
+      kind: 'shape',
+      name: 'r',
+      transform: { x: 0, y: 0, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+      shape: 'rectangle',
+      fill: '#000',
+      stroke: null,
+      strokeWidth: 0,
+      cornerRadius: 0,
+    };
+    adapter.addLayer(FIXTURE.pages[0].id, newShape);
+    await flushPromises();
+    adapter.updateLayer(FIXTURE.pages[0].id, newShape.id, { fill: '#abcdef' });
+    expect(fabricObjFor(adapter, newShape.id)!.fill).toBe('#abcdef');
+  });
+
+  it('shape: stroke and strokeWidth changes reach the Fabric object', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const newShape: Layer = {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f5002',
+      kind: 'shape',
+      name: 'r',
+      transform: { x: 0, y: 0, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+      shape: 'rectangle',
+      fill: '#000',
+      stroke: null,
+      strokeWidth: 0,
+      cornerRadius: 0,
+    };
+    adapter.addLayer(FIXTURE.pages[0].id, newShape);
+    await flushPromises();
+    adapter.updateLayer(FIXTURE.pages[0].id, newShape.id, {
+      stroke: '#0000ff',
+      strokeWidth: 4,
+    });
+    const obj = fabricObjFor(adapter, newShape.id)!;
+    expect(obj.stroke).toBe('#0000ff');
+    expect(obj.strokeWidth).toBe(4);
+  });
+
+  it('rectangle: cornerRadius change reaches the Fabric object as rx/ry', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const newShape: Layer = {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f5003',
+      kind: 'shape',
+      name: 'r',
+      transform: { x: 0, y: 0, width: 50, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+      shape: 'rectangle',
+      fill: '#000',
+      stroke: null,
+      strokeWidth: 0,
+      cornerRadius: 0,
+    };
+    adapter.addLayer(FIXTURE.pages[0].id, newShape);
+    await flushPromises();
+    adapter.updateLayer(FIXTURE.pages[0].id, newShape.id, { cornerRadius: 16 });
+    const obj = fabricObjFor(adapter, newShape.id)!;
+    expect(obj.rx).toBe(16);
+    expect(obj.ry).toBe(16);
+  });
+
+  it('image: src change triggers a recreate (Fabric image src is construction-time)', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const newImage: Layer = {
+      id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f5010',
+      kind: 'image',
+      name: 'img',
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+      src: 'https://example.com/a.png',
+      fit: 'cover',
+    };
+    adapter.addLayer(FIXTURE.pages[0].id, newImage);
+    await flushPromises();
+    const oldObj = fabricObjFor(adapter, newImage.id);
+    adapter.updateLayer(FIXTURE.pages[0].id, newImage.id, { src: 'https://example.com/b.png' });
+    await flushPromises();
+    const newObj = fabricObjFor(adapter, newImage.id);
+    expect(newObj).toBeDefined();
+    // Recreate path replaces the Fabric object with a fresh instance.
+    expect(newObj).not.toBe(oldObj);
+  });
+});
+
 describe('FabricAdapter — change event payload', () => {
   beforeEach(installFetchStub);
 
