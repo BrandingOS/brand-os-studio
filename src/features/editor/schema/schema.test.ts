@@ -37,6 +37,54 @@ describe('BrandOSDocumentSchema', () => {
   });
 });
 
+describe('BaseLayer._lockedBindings (Phase 3 step 4c.1)', () => {
+  it('passes parse when omitted (default state for non-locked layers)', () => {
+    const parsed = BrandOSDocumentSchema.parse(socialPostFixture);
+    for (const layer of parsed.pages[0].layers) {
+      expect(layer._lockedBindings).toBeUndefined();
+    }
+  });
+
+  it('round-trips a layer carrying _lockedBindings on multiple property paths', () => {
+    const fixture = JSON.parse(JSON.stringify(socialPostFixture));
+    fixture.pages[0].layers[0]._lockedBindings = {
+      color: { type: 'brand.color.primary' },
+      fontFamily: { type: 'brand.font.heading' },
+    };
+    const parsed = BrandOSDocumentSchema.parse(fixture);
+    expect(parsed.pages[0].layers[0]._lockedBindings).toEqual({
+      color: { type: 'brand.color.primary' },
+      fontFamily: { type: 'brand.font.heading' },
+    });
+    // And the reverse parse is stable.
+    expect(BrandOSDocumentSchema.parse(parsed)).toEqual(parsed);
+  });
+
+  it('accepts a neutral SlotRef with neutralIndex', () => {
+    const fixture = JSON.parse(JSON.stringify(socialPostFixture));
+    fixture.pages[0].layers[0]._lockedBindings = {
+      color: { type: 'brand.color.neutral', neutralIndex: 3 },
+    };
+    expect(() => BrandOSDocumentSchema.parse(fixture)).not.toThrow();
+  });
+
+  it("accepts dotted property paths for SvgLayer.fillOverrides", () => {
+    const fixture = JSON.parse(JSON.stringify(socialPostFixture));
+    fixture.pages[0].layers[0]._lockedBindings = {
+      'fillOverrides.#path-1': { type: 'brand.color.accent' },
+    };
+    expect(() => BrandOSDocumentSchema.parse(fixture)).not.toThrow();
+  });
+
+  it('rejects non-SlotRef values in the binding map', () => {
+    const fixture = JSON.parse(JSON.stringify(socialPostFixture));
+    fixture.pages[0].layers[0]._lockedBindings = {
+      color: '#3366ff', // literal, not a SlotRef — must fail parse
+    };
+    expect(() => BrandOSDocumentSchema.parse(fixture)).toThrow();
+  });
+});
+
 describe('SlotRefSchema', () => {
   it('accepts every slot type the resolver contract names', () => {
     const types = [

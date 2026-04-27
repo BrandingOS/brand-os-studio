@@ -80,6 +80,22 @@ const BaseLayerSchema = z.object({
   surfaceKind: z
     .enum(['page', 'card', 'elevated', 'subtle', 'brand', 'brand-secondary', 'inverted'])
     .optional(),
+  /**
+   * Recoverable SlotRef bindings for properties that were brand-bound
+   * before a literal override happened. Populated by the adapter when
+   * a literal value is written to a property whose previous value
+   * was a SlotRef AND the layer has `brandLocked: true`. Cleared by
+   * `applyBrandToDocument({ respectLocks: true })` after restoration.
+   *
+   * Property paths use the same dotted notation as `findSimilarLayers`
+   * (`'color'`, `'fontFamily'`, `'fill'`, `'stroke'`, or
+   * `'fillOverrides.<svg-path-id>'`).
+   *
+   * Phase 3 step 4c.1 ships the schema only. Step 4c.2 wires the
+   * recording in the adapter; step 4c.3 wires recovery in
+   * applyBrandToDocument.
+   */
+  _lockedBindings: z.record(z.string(), SlotRefSchema).optional(),
 });
 
 export const TextLayerSchema = BaseLayerSchema.extend({
