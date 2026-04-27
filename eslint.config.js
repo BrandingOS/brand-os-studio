@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", ".claude/**", "supabase/.temp/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -38,5 +38,61 @@ export default tseslint.config(
       "prefer-const": "warn",
       "react-hooks/rules-of-hooks": "warn",
     },
-  }
+  },
+
+  // ─── Editor adapter boundary (Phase 0) ────────────────────────────────
+  // Fabric.js may only be imported from `src/features/editor/adapter/`.
+  // Every other surface goes through the EditorAdapter interface (see
+  // `src/features/editor/adapter/EditorAdapter.ts`).
+  //
+  // Patterns covered: static imports, namespace imports, dynamic
+  // `import('fabric')`, `require('fabric')`, and re-exports.
+  //
+  // The legacy paths in `ignores` below are pre-existing fabric users
+  // that pre-date the adapter pattern. They are tracked for migration
+  // (see `src/features/editor/core/README.md` §3 — adoption status).
+  // This list MUST shrink as editors migrate to the adapter; never add
+  // new entries.
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: [
+      "src/features/editor/adapter/**",
+      // Legacy editor surfaces — must shrink, never grow.
+      "src/features/design-ai/**",
+      "src/features/logo-maker/flow/**",
+      "src/features/brandkit/components/editor/**",
+      "src/features/editor/components/**",
+      "src/shared/templates/renderers/FabricRenderer.ts",
+      // The `[slug]` segment is glob-special; use ** to match the literal route folder.
+      "src/pages/dashboard/brand/**/design-ai.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "fabric",
+              message:
+                "Import from `@/features/editor/adapter` instead. Fabric.js is an implementation detail of the EditorAdapter — see src/features/editor/adapter/EditorAdapter.ts. Covers static imports, namespace imports, dynamic import('fabric'), and re-exports.",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.name='require'][arguments.0.value='fabric']",
+          message:
+            "require('fabric') is forbidden outside src/features/editor/adapter/. Use the EditorAdapter interface.",
+        },
+        {
+          selector: "ImportExpression[source.value='fabric']",
+          message:
+            "Dynamic import('fabric') is forbidden outside src/features/editor/adapter/. Use the EditorAdapter interface.",
+        },
+      ],
+    },
+  },
 );

@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f0001",
+  "contentType": "social-post",
+  "brandId": "raqm",
+  "masterPages": [],
+  "pages": [
+    {
+      "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f1001",
+      "name": "Square 1080",
+      "width": 1080,
+      "height": 1080,
+      "background": { "type": "brand.color.primary" },
+      "masterPageId": null,
+      "layers": [
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2001",
+          "name": "headline",
+          "kind": "text",
+          "transform": {
+            "x": 80,
+            "y": 360,
+            "width": 920,
+            "height": 240,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "Launch your brand in minutes.",
+          "fontFamily": { "type": "brand.font.heading" },
+          "fontSize": 96,
+          "fontWeight": 700,
+          "lineHeight": 1.1,
+          "letterSpacing": -0.02,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.neutral", "neutralIndex": 0 }
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2002",
+          "name": "cta",
+          "kind": "text",
+          "transform": {
+            "x": 80,
+            "y": 660,
+            "width": 920,
+            "height": 80,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "Try it free →",
+          "fontFamily": { "type": "brand.font.body" },
+          "fontSize": 36,
+          "fontWeight": 500,
+          "lineHeight": 1.3,
+          "letterSpacing": 0,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.accent" }
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2003",
+          "name": "logo",
+          "kind": "logo",
+          "transform": {
+            "x": 80,
+            "y": 80,
+            "width": 200,
+            "height": 80,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": true,
+          "variant": "auto"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdBy": "phase-0-fixture",
+    "purpose": "Exercises every Phase 0 schema feature: SlotRef in background/color/fontFamily, neutralIndex, brandLocked, RTL-friendly direction='auto', logo variant='auto', and a non-UUID brandId."
+  }
+}
