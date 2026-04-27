@@ -890,6 +890,115 @@ describe('FabricAdapter — master pages (Phase 2)', () => {
   });
 });
 
+describe('FabricAdapter — brand engine integration (Phase 3 step 2)', () => {
+  beforeEach(installFetchStub);
+
+  it('loadDocument(applyBrandToDocument(template, brandKit)) → Fabric object reads the resolved literal', async () => {
+    // Dynamically import so the Phase 3 module is treated as a peer
+    // of the adapter, not a hard import dependency on the test file.
+    const { applyBrandToDocument } = await import('@/features/editor/brand/applyBrandToDocument');
+
+    const kit = {
+      id: 'k1',
+      name: 'k',
+      colors: {
+        primary: { hex: '#aa00ff' },
+        neutrals: ['#fafafa', '#dddddd', '#aaaaaa', '#777777', '#444444', '#111111'],
+      },
+      typography: {
+        heading: { family: 'Inter, sans-serif' },
+        body: { family: 'Georgia, serif' },
+      },
+      logos: { mono: {} },
+      spacing: { unit: 8, cornerRadius: 4 },
+      _diagnostics: { warnings: [] },
+    };
+
+    // Build a template-style document with a TextLayer carrying a SlotRef.
+    const templateDoc = {
+      ...FIXTURE,
+      pages: [
+        {
+          ...FIXTURE.pages[0],
+          layers: [
+            {
+              ...FIXTURE.pages[0].layers[0],
+              fontFamily: { type: 'brand.font.heading' as const },
+              color: { type: 'brand.color.primary' as const },
+            },
+          ],
+        },
+      ],
+    };
+
+    const resolved = applyBrandToDocument(templateDoc, kit);
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(resolved);
+    await flushPromises();
+
+    const layerId = templateDoc.pages[0].layers[0].id;
+    const fabricByLayerId = (adapter as unknown as {
+      fabricByLayerId: Map<string, Record<string, unknown>>;
+    }).fabricByLayerId;
+    const obj = fabricByLayerId.get(layerId)!;
+    expect(obj.fill).toBe('#aa00ff');
+    expect(obj.fontFamily).toBe('Inter, sans-serif');
+  });
+
+  it("preview mode renders with the placeholder color (SlotRef stays); annotation lives in metadata", async () => {
+    const { applyBrandToDocument } = await import('@/features/editor/brand/applyBrandToDocument');
+    const kit = {
+      id: 'k1',
+      name: 'k',
+      colors: {
+        primary: { hex: '#00ff00' },
+        neutrals: ['#fafafa', '#dddddd', '#aaaaaa', '#777777', '#444444', '#111111'],
+      },
+      typography: {
+        heading: { family: 'Inter, sans-serif' },
+        body: { family: 'Georgia, serif' },
+      },
+      logos: { mono: {} },
+      spacing: { unit: 8, cornerRadius: 4 },
+      _diagnostics: { warnings: [] },
+    };
+    const previewed = applyBrandToDocument(
+      {
+        ...FIXTURE,
+        pages: [
+          {
+            ...FIXTURE.pages[0],
+            layers: [
+              {
+                ...FIXTURE.pages[0].layers[0],
+                color: { type: 'brand.color.primary' as const },
+              },
+            ],
+          },
+        ],
+      },
+      kit,
+      { mode: 'preview' },
+    );
+
+    // SlotRef stays on the layer.
+    expect((previewed.pages[0].layers[0] as { color: unknown }).color).toEqual({
+      type: 'brand.color.primary',
+    });
+    // Resolution annotation is stashed under metadata.
+    const annotation = previewed.metadata._brandResolution as {
+      brandKitId: string;
+      layers: Record<string, Record<string, string>>;
+    };
+    expect(annotation.brandKitId).toBe('k1');
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    expect(annotation.layers[layerId].color).toBe('#00ff00');
+  });
+});
+
 describe('FabricAdapter — selection sync', () => {
   beforeEach(installFetchStub);
 

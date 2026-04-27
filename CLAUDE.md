@@ -102,6 +102,11 @@ never hard-code a color/weight/spacing value there.
 
 ## Editor primitives (from `src/features/editor/core/README.md`)
 
+> **Read this for product strategy:** `docs/brandos-editor-vision.md`
+> contains the canonical product vision for the unified editor + AI
+> integration model. All editor work from Phase 3 onward must align
+> with this vision. Refer to it before scoping any new editor feature.
+
 - `EditorChrome` (`@/features/editor/core`) — canonical editor topbar.
   Use this in every editor.
 - `useAutoSave` (same import) — debounced auto-save with normalized
