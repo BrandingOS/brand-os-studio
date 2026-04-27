@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, Save, Sparkles, Trash2 } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Save, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
@@ -384,46 +384,114 @@ export default function DeckV2Page() {
           <AddSlidePopover onPick={handleAddSlide} side="right" variant="inline" />
         </aside>
 
-        {/* Stage — scroll-snap of full slides at native 1920×1080 scaled to fit */}
-        <main
-          ref={stageRef}
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            scrollSnapType: 'y mandatory',
-            background: 'var(--background)',
-            backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(13,13,13,0.04) 1px, transparent 0)',
-            backgroundSize: '24px 24px',
-          }}
-        >
-          <EditContextProvider value={{ enabled: true, setBlock: result?.setBlock ?? (() => {}) }}>
-            <DeckRenderer
-              deck={deck}
-              brand={brand}
-              mode="edit"
-              slideWrapper={(slide, i) => (
-                <section
-                  key={`section-${i}`}
-                  ref={(el) => { slideRefs.current[i] = el; }}
-                  style={{
-                    height: '100%',
-                    minHeight: '100vh',
-                    scrollSnapAlign: 'start',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 32,
-                  }}
-                >
-                  <SlideScaler>{slide}</SlideScaler>
-                </section>
-              )}
-            />
-          </EditContextProvider>
-        </main>
+        {/* Stage column — scroll area + bottom dock */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* Stage — scroll-snap of full slides at native 1920×1080 scaled to fit */}
+          <main
+            ref={stageRef}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              scrollSnapType: 'y mandatory',
+              background: 'var(--background)',
+              backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(13,13,13,0.04) 1px, transparent 0)',
+              backgroundSize: '24px 24px',
+            }}
+          >
+            <EditContextProvider value={{ enabled: true, setBlock: result?.setBlock ?? (() => {}) }}>
+              <DeckRenderer
+                deck={deck}
+                brand={brand}
+                mode="edit"
+                slideWrapper={(slide, i) => (
+                  <section
+                    key={`section-${i}`}
+                    ref={(el) => { slideRefs.current[i] = el; }}
+                    style={{
+                      height: '100%',
+                      minHeight: '100vh',
+                      scrollSnapAlign: 'start',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 32,
+                    }}
+                  >
+                    <SlideScaler>{slide}</SlideScaler>
+                  </section>
+                )}
+              />
+            </EditContextProvider>
+          </main>
+
+          {/* Bottom dock — page indicator + prev/next + Add */}
+          <div
+            style={{
+              height: 48,
+              flexShrink: 0,
+              borderTop: '1px solid var(--border)',
+              background: 'var(--surface-elevated)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              padding: '0 16px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => goTo(Math.max(0, activeIndex - 1))}
+              disabled={activeIndex <= 0}
+              title="Previous slide"
+              style={dockBtnStyle(activeIndex <= 0)}
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                letterSpacing: '0.12em',
+                fontVariantNumeric: 'tabular-nums',
+                minWidth: 56,
+                textAlign: 'center',
+              }}
+            >
+              {String(activeIndex + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+            </span>
+            <button
+              type="button"
+              onClick={() => goTo(Math.min(total - 1, activeIndex + 1))}
+              disabled={activeIndex >= total - 1}
+              title="Next slide"
+              style={dockBtnStyle(activeIndex >= total - 1)}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <span style={{ width: 1, height: 18, background: 'var(--border)' }} />
+            <AddSlidePopover onPick={handleAddSlide} side="top" variant="pill" label="Add slide" />
+          </div>
+        </div>
       </div>
     </CosmosWorkspaceShell>
   );
+}
+
+function dockBtnStyle(disabled: boolean): React.CSSProperties {
+  return {
+    width: 28,
+    height: 28,
+    padding: 0,
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    color: 'var(--text-primary)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.45 : 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
 }
 
 /** Scales a 1920×1080 slide to fit its parent without distortion. */
