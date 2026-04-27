@@ -120,7 +120,9 @@ export class FabricAdapter implements EditorAdapter {
     if (!this.canvas) throw new Error('FabricAdapter not mounted');
     this.doc = clone(doc);
     this.activePageId = doc.pages[0]?.id ?? null;
-    this.history.reset(this.doc);
+    // Clone so the history's first entry is an immutable snapshot. Without
+    // this, subsequent mutations to `this.doc` would also mutate past[0].
+    this.history.reset(clone(this.doc));
     await this.renderActivePage();
     this.emitChange();
   }
@@ -159,7 +161,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas?.requestRenderAll();
       });
     }
-    this.history.commit(this.doc!);
+    this.history.commit(clone(this.doc!));
     this.emitChange();
   }
 
@@ -176,7 +178,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas?.requestRenderAll();
       }
     }
-    this.history.commit(this.doc!);
+    this.history.commit(clone(this.doc!));
     this.emitChange();
   }
 
@@ -189,7 +191,7 @@ export class FabricAdapter implements EditorAdapter {
       this.fabricByLayerId.delete(layerId);
       this.canvas?.requestRenderAll();
     }
-    this.history.commit(this.doc!);
+    this.history.commit(clone(this.doc!));
     this.emitChange();
   }
 
@@ -205,7 +207,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas.moveObjectTo(obj, newIndex);
       }
     }
-    this.history.commit(this.doc!);
+    this.history.commit(clone(this.doc!));
     this.emitChange();
   }
 
@@ -369,7 +371,7 @@ export class FabricAdapter implements EditorAdapter {
     const found = findLayer(this.doc, id);
     if (!found || found.layer.kind !== 'text') return;
     (found.layer as TextLayer).text = target.text ?? '';
-    this.history.snapshot(this.doc);
+    this.history.snapshot(clone(this.doc));
     this.emitChange();
   }
 
@@ -379,8 +381,8 @@ export class FabricAdapter implements EditorAdapter {
     const found = findLayer(this.doc, id);
     if (!found) return;
     found.layer.transform = fabricToTransform(obj);
-    if (discrete) this.history.commit(this.doc);
-    else this.history.snapshot(this.doc);
+    if (discrete) this.history.commit(clone(this.doc));
+    else this.history.snapshot(clone(this.doc));
     this.emitChange();
   }
 
