@@ -68,6 +68,7 @@ const PresentationsPage = lazy(() => import("./pages/dashboard/brand/[slug]/pres
 const CaseStudyPage = lazy(() => import("./features/case-study-deck/pages/CaseStudyPage"));
 const CaseStudySlideEditorPage = lazy(() => import("./features/case-study-deck/pages/CaseStudySlideEditorPage"));
 const PitchDeckPage = lazy(() => import("./features/pitch-deck/pages/PitchDeckPage"));
+const DeckV2Page = lazy(() => import("./shared/presentation/v2/components/DeckV2Page"));
 const SocialMediaPage = lazy(() => import("./pages/dashboard/brand/[slug]/social-media"));
 const GuidelinesHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines"));
 const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines/canvas"));
@@ -398,6 +399,11 @@ const App = () => (
           <Route path="/b/:slug/pitch-deck" element={
             <ProtectedRoute>
               <PitchDeckPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/b/:slug/deck-v2" element={
+            <ProtectedRoute>
+              <DeckV2Page />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/brand/:slug/social-media" element={
