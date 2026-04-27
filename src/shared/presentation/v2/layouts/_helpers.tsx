@@ -6,18 +6,24 @@
  * Anything visual goes through `var(--deck-*)` tokens emitted by the
  * deck-theme provider.
  *
- * Phase 2B: `<SlotText>` reads the nearest EditContext and, when edits
- * are enabled and the layout is in `mode='edit'`, renders a
- * contentEditable element. On blur we read the new text and push a
- * fresh TextBlock through `editCtx.setBlock`. Phase 2C will do the
- * matching work for `<SlotImage>`.
+ * Phase 2B/2C wires both leaf primitives (`<SlotText>` / `<SlotImage>`)
+ * into the EditContext. When edits are enabled and the layout is in
+ * `mode='edit'`:
+ *   - `<SlotText>` becomes a contentEditable element. On blur the new
+ *     text is pushed through `editCtx.setBlock(slideId, slot, …)`.
+ *   - `<SlotImage>` is wrapped in `<ReplaceableArtwork>` which opens
+ *     the ArtworkPicker on click. Picks are mirrored from the
+ *     artworkStore into the deck store via an effect so the deck-store
+ *     is the v2 source of truth.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { Block, ImageBlock, SlotId, TextBlock } from '../types';
-import { isText } from '../types';
+import { isImage, isText } from '../types';
 import { useEditContext } from '../components/EditContext';
+import { ReplaceableArtwork } from '@/shared/artwork/ReplaceableArtwork';
+import { useArtworkSlot } from '@/shared/artwork/artworkStore';
 
 /* ─── RTL detection ────────────────────────────────────────────────── */
 
@@ -94,19 +100,19 @@ interface SlotImageProps {
 }
 
 /**
- * Renders an image slot. If the block is empty:
- *   - In `edit` mode: render a dashed placeholder.
- *   - In `present` / `thumbnail` mode: render nothing (returns null).
+ * Renders an image slot.
  *
- * `slideId` and `slot` are accepted for API parity — Phase 2C wires
- * them through `<ReplaceableArtwork>` so the picker can route picks
- * back into the deck store.
+ * - In `present` / `thumbnail` mode: `<img>` if a url is set, else
+ *   nothing.
+ * - In `edit` mode WITHOUT an EditContext: dashed placeholder fallback
+ *   (legacy behavior).
+ * - In `edit` mode WITH an enabled EditContext: wraps in
+ *   `<ReplaceableArtwork>`. Clicking opens the picker; on pick, the
+ *   override is mirrored into the deck store as a fresh ImageBlock.
  */
 export function SlotImage({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  slideId: _slideId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  slot: _slot,
+  slideId,
+  slot,
   block,
   mode,
   style,
@@ -114,6 +120,43 @@ export function SlotImage({
   fit,
   shape = 'rect',
 }: SlotImageProps) {
+  const editCtx = useEditContext();
+  const editing = mode === 'edit' && !!editCtx?.enabled;
+
+  if (!editing) {
+    return (
+      <PresentImage
+        block={block}
+        mode={mode}
+        style={style}
+        hint={hint}
+        fit={fit}
+        shape={shape}
+      />
+    );
+  }
+
+  return (
+    <EditableImageSlot
+      slideId={slideId}
+      slot={slot}
+      block={block}
+      style={style}
+      hint={hint}
+      fit={fit}
+      shape={shape}
+    />
+  );
+}
+
+function PresentImage({
+  block,
+  mode,
+  style,
+  hint,
+  fit,
+  shape = 'rect',
+}: Omit<SlotImageProps, 'slideId' | 'slot'>) {
   const empty = isEmptyImage(block);
 
   if (empty) {
@@ -146,6 +189,123 @@ export function SlotImage({
         ...style,
       }}
     />
+  );
+}
+
+interface EditableImageSlotProps {
+  slideId: string;
+  slot: SlotId;
+  block: Block | undefined;
+  style?: CSSProperties;
+  hint?: string;
+  fit?: 'cover' | 'contain';
+  shape?: 'rect' | 'circle';
+}
+
+/**
+ * Edit-mode image cell.
+ *
+ * `<ReplaceableArtwork>` already implements the click → ArtworkPicker
+ * flow and writes overrides into `useArtworkStore`. Here we:
+ *
+ *   1. Hand it the deck-store image (wrapped in `<img>`) as children,
+ *      or a soft dashed placeholder when no image is set yet.
+ *   2. Subscribe to that artwork slot via `useArtworkSlot` and forward
+ *      any picked override into the deck store as a fresh ImageBlock.
+ *
+ * Both stores end up holding the same url; the deck store is the v2
+ * source of truth (it auto-saves into `brand.decks[]`). On reload the
+ * deck-store value matches what `ReplaceableArtwork` would render so
+ * there's no flicker.
+ */
+function EditableImageSlot({
+  slideId,
+  slot,
+  block,
+  style,
+  hint,
+  fit,
+  shape = 'rect',
+}: EditableImageSlotProps) {
+  const editCtx = useEditContext();
+  const url = isImage(block) ? block.url : undefined;
+  const alt = isImage(block) ? block.alt : undefined;
+
+  // Scope per-slide so a slot key like `image` or `member1` doesn't
+  // collide across slides in the same deck.
+  const scopeId = `deck-v2:${slideId}`;
+  const slotId = String(slot);
+  const [override] = useArtworkSlot(scopeId, slotId);
+
+  // Mirror artwork-store picks into the deck store. Effect runs when
+  // the override identity changes; the equality check against the
+  // current block url avoids infinite loops on store-write.
+  useEffect(() => {
+    if (!override) return;
+    if (url === override.url) return;
+    const next: ImageBlock = {
+      kind: 'image',
+      url: override.url,
+      alt,
+      fit: isImage(block) ? block.fit : undefined,
+      source: override.source,
+      hint: isImage(block) ? block.hint : undefined,
+    };
+    editCtx?.setBlock(slideId, slot, next);
+    // We intentionally only watch override identity — `block` / `url`
+    // change on store-write and would re-fire the effect needlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [override?.url, override?.source]);
+
+  const radius = shape === 'circle' ? '50%' : 'var(--deck-radius, 12px)';
+  const wrapperStyle: CSSProperties = {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius,
+    overflow: 'hidden',
+    ...style,
+  };
+
+  // ReplaceableArtwork renders an `<img>` itself when there's an
+  // active artwork-store override; when there's none, it renders the
+  // children we hand it. We hand it either the deck-store image or a
+  // soft placeholder.
+  const inner = url ? (
+    <img
+      src={url}
+      alt={alt ?? ''}
+      style={{
+        display: 'block',
+        width: '100%',
+        height: '100%',
+        objectFit: fit ?? (isImage(block) ? block.fit : undefined) ?? 'cover',
+        borderRadius: radius,
+      }}
+    />
+  ) : (
+    <div
+      style={placeholderStyle({
+        width: '100%',
+        height: '100%',
+        borderRadius: radius,
+      })}
+    >
+      <span>{hint ?? 'Click to add image'}</span>
+    </div>
+  );
+
+  return (
+    <ReplaceableArtwork
+      slotId={slotId}
+      scopeId={scopeId}
+      defaultQuery={
+        (isImage(block) && (block.hint ?? block.alt)) || hint || 'illustration'
+      }
+      style={wrapperStyle}
+      fit={fit ?? (isImage(block) ? block.fit : undefined) ?? 'cover'}
+    >
+      {inner}
+    </ReplaceableArtwork>
   );
 }
 

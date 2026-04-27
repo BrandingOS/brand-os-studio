@@ -18,6 +18,7 @@ import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { DeckRenderer } from './DeckRenderer';
+import { EditContextProvider } from './EditContext';
 import { PITCH_DECK_TEMPLATE } from '../templates/pitch-deck';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
 import type { Deck } from '../types';
@@ -251,28 +252,30 @@ export default function DeckV2Page() {
             backgroundSize: '24px 24px',
           }}
         >
-          <DeckRenderer
-            deck={deck}
-            brand={brand}
-            mode="present"
-            slideWrapper={(slide, i) => (
-              <section
-                key={`section-${i}`}
-                ref={(el) => { slideRefs.current[i] = el; }}
-                style={{
-                  height: '100%',
-                  minHeight: '100vh',
-                  scrollSnapAlign: 'start',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 32,
-                }}
-              >
-                <SlideScaler>{slide}</SlideScaler>
-              </section>
-            )}
-          />
+          <EditContextProvider value={{ enabled: true, setBlock: result?.setBlock ?? (() => {}) }}>
+            <DeckRenderer
+              deck={deck}
+              brand={brand}
+              mode="edit"
+              slideWrapper={(slide, i) => (
+                <section
+                  key={`section-${i}`}
+                  ref={(el) => { slideRefs.current[i] = el; }}
+                  style={{
+                    height: '100%',
+                    minHeight: '100vh',
+                    scrollSnapAlign: 'start',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 32,
+                  }}
+                >
+                  <SlideScaler>{slide}</SlideScaler>
+                </section>
+              )}
+            />
+          </EditContextProvider>
         </main>
       </div>
     </CosmosWorkspaceShell>
