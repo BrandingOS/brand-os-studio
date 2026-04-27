@@ -5,7 +5,6 @@
 
 import { FitText } from '@/features/case-study-deck/styles/FitText';
 import { DIFFERENTIATORS } from '../uniexPitchContent';
-import { HandshakePartners, TrophyCelebration } from '../illustrations';
 import { ReplaceableArtwork } from '../artwork/ReplaceableArtwork';
 import {
   Frame,
@@ -165,10 +164,19 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
         >
           <ReplaceableArtwork
             slotId="differentiators-C-handshake"
-            defaultQuery="partnership handshake"
+            defaultQuery="handshake partnership"
             style={{ width: 420, height: 420 }}
           >
-            <HandshakePartners size={420} transparent />
+            <div style={{
+              width: '100%', height: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+              color: 'rgba(0,21,99,0.35)',
+              fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+              textAlign: 'center', padding: 12,
+            }}>
+              Click to add illustration
+            </div>
           </ReplaceableArtwork>
         </div>
         <div
@@ -280,7 +288,16 @@ export function DifferentiatorsVariantD({ index, total }: SlideProps) {
                 defaultQuery="trophy celebration"
                 style={{ width: 360, height: 360 }}
               >
-                <TrophyCelebration size={360} transparent />
+                <div style={{
+                  width: '100%', height: '100%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,21,99,0.04)', borderRadius: 16,
+                  color: 'rgba(0,21,99,0.35)',
+                  fontFamily: 'var(--deck-font-body)', fontSize: 13, fontWeight: 600,
+                  textAlign: 'center', padding: 12,
+                }}>
+                  Click to add illustration
+                </div>
               </ReplaceableArtwork>
             </div>
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,21,99,0.2) 0%, rgba(0,21,99,0.7) 100%)', pointerEvents: 'none' }} />
