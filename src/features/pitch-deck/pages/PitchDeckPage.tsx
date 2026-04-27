@@ -165,7 +165,13 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   // Per-slide variant picks. Default = 'A' for every slide (the original
   // hand-tuned implementation). Persisted to localStorage so picks
   // survive reload.
+  // Storage keys are declared together up-front so callbacks defined
+  // below can reference them all without TDZ ("Cannot access X before
+  // initialization") errors. Hot-reload sometimes re-evaluates the
+  // useCallback factory before the const below it is reached.
   const VARIANT_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:variants`;
+  const FROZEN_KEY  = `brandos:pitch-deck:${slug ?? 'unknown'}:frozen`;
+  const HIDDEN_KEY  = `brandos:pitch-deck:${slug ?? 'unknown'}:hidden`;
   const [slideVariants, setSlideVariants] = useState<Record<number, VariantKey>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -198,7 +204,6 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
 
   // Per-slide live-edit HTML snapshots — when a slide has one, we
   // render that HTML verbatim instead of the React composition.
-  const FROZEN_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:frozen`;
   const [slideFrozenHtml, setSlideFrozenHtml] = useState<Record<number, string>>(() => {
     if (typeof window === 'undefined') return {};
     try {
@@ -225,7 +230,7 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   }, [FROZEN_KEY]);
 
   // Per-slide hidden state (skipped from export/view when true).
-  const HIDDEN_KEY = `brandos:pitch-deck:${slug ?? 'unknown'}:hidden`;
+  // HIDDEN_KEY declared at the top with the other storage keys.
   const [hiddenSlides, setHiddenSlides] = useState<number[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -794,15 +799,15 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
           <button
             type="button"
             onClick={() => {
-              const masterIdx = UNIEX_SLIDES.findIndex((s) => s.kind === 'master');
-              if (masterIdx >= 0) goTo(masterIdx);
+              setShowInspector(true);
+              setInspectorTab('theme');
             }}
             style={{
               height: 36,
               padding: '0 14px',
               borderRadius: 999,
               border: 'none',
-              background: activeIndex === UNIEX_SLIDES.findIndex((s) => s.kind === 'master') ? 'var(--accent-muted)' : 'transparent',
+              background: showInspector && inspectorTab === 'theme' ? 'var(--accent-muted)' : 'transparent',
               color: 'var(--text-primary)',
               fontSize: 12,
               fontWeight: 500,
@@ -811,9 +816,9 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
               alignItems: 'center',
               gap: 6,
             }}
-            title="Open Master Style slide — global typography editor"
+            title="Open the Theme editor — global typography & colors"
           >
-            <Type className="w-3.5 h-3.5" /> Master Style
+            <Type className="w-3.5 h-3.5" /> Theme
           </button>
           <button
             type="button"

@@ -38,12 +38,13 @@ export const UNIEX_SLIDES: UniexSlide[] = [
   { kind: 'school-benefits' },
   { kind: 'metrics' },
   { kind: 'impact' },
-  { kind: 'team' },
+  // 'team' (the old Arabic-intro variant) and 'master' (style guide)
+  // are removed from the deck — the user only wants the team grid
+  // (`team-detail`) shown, and the master slide isn't part of the
+  // presentation anymore. Both kinds remain in the type union so any
+  // legacy localStorage variant pick / hidden flag still type-checks.
   { kind: 'team-detail' },
   { kind: 'cta' },
-  // Style master sits at the END so it doesn't displace Cover.
-  // Hide-from-deck toggle works on it like any other slide.
-  { kind: 'master' },
 ];
 
 /** Section labels used in chrome (bilingual; chrome picks one). */
