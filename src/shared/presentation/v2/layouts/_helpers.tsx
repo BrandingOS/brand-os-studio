@@ -804,6 +804,11 @@ export function ImagePlaceholder({
     }
   })();
 
+  // Per-variant gradient halo position so a 6-tile gallery doesn't
+  // render six identical placeholders.
+  const haloPositions = ['top left', 'top right', 'bottom right', 'bottom left', 'center', 'top'];
+  const haloPos = haloPositions[variant % haloPositions.length];
+
   return (
     <div
       aria-hidden
@@ -820,40 +825,111 @@ export function ImagePlaceholder({
         ...style,
       }}
     >
+      {/* Soft radial halo seeded by variant */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `radial-gradient(ellipse at ${haloPos}, color-mix(in srgb, var(--deck-accent) 9%, transparent), transparent 60%)`,
+          pointerEvents: 'none',
+        }}
+      />
       <div
         style={{
           position: 'absolute',
           inset: 0,
           backgroundImage: dotGrid,
           backgroundSize: dotSize,
-          opacity: 0.7,
+          opacity: 0.55,
         }}
       />
       <div style={corner} />
+      {/* Centered "+" with dashed-circle aura + caption underneath */}
       <div
         style={{
           position: 'absolute',
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          background: 'color-mix(in srgb, var(--deck-accent) 14%, transparent)',
-          border:
-            '1px solid color-mix(in srgb, var(--deck-accent) 30%, transparent)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--deck-accent)',
-          fontFamily: 'var(--deck-font-display)',
-          fontWeight: 600,
-          fontSize: 22,
-          lineHeight: 1,
-          opacity: 0.75,
+          gap: 10,
+          pointerEvents: 'none',
         }}
       >
-        +
+        <div
+          style={{
+            position: 'relative',
+            width: 60,
+            height: 60,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Faint dashed aura ring */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              border:
+                '1px dashed color-mix(in srgb, var(--deck-accent) 28%, transparent)',
+              opacity: 0.7,
+            }}
+          />
+          {/* Tinted center disc */}
+          <span
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background:
+                'color-mix(in srgb, var(--deck-accent) 14%, transparent)',
+              border:
+                '1px solid color-mix(in srgb, var(--deck-accent) 30%, transparent)',
+            }}
+          />
+          {/* Plus glyph */}
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              position: 'relative',
+              color: 'var(--deck-accent)',
+              opacity: 0.4,
+            }}
+          >
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+        </div>
+        <span
+          style={{
+            fontSize: 10,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            fontFamily: 'var(--deck-font-caption, inherit)',
+            color: 'var(--deck-color-caption, rgba(0,21,99,0.55))',
+            opacity: 0.5,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Drop image or click
+        </span>
       </div>
     </div>
   );
