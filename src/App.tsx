@@ -53,6 +53,7 @@ const WorkspaceSettingsPageV2 = lazy(() => import("./pages/workspace/Settings"))
 const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"));
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
+const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -701,6 +702,8 @@ const App = () => (
           {/* Dev-only all-features inventory. Self-gated on import.meta.env.DEV
               or ?dev=1. Not linked from any user nav. */}
           <Route path="/_dev/features" element={<DevFeaturesPage />} />
+          {/* Phase 1 unified editor demo — fixture social-post + localStorage save. */}
+          <Route path="/_dev/editor" element={<DevEditorPage />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />
