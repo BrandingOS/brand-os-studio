@@ -21,7 +21,7 @@ import {
 } from './_helpers';
 
 const Cover: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const hasImage = !isEmptyImage(blocks.image);
 
@@ -46,6 +46,8 @@ const Cover: LayoutComponent = (props: LayoutComponentProps) => {
         }}
       >
         <SlotText
+          slideId={slideId}
+          slot="tag"
           block={blocks.tag}
           roleClass="deck-label"
           mode={mode}
@@ -54,6 +56,8 @@ const Cover: LayoutComponent = (props: LayoutComponentProps) => {
           style={{ color: 'var(--deck-accent)' }}
         />
         <SlotText
+          slideId={slideId}
+          slot="title"
           block={blocks.title}
           roleClass="deck-display"
           mode={mode}
@@ -61,6 +65,8 @@ const Cover: LayoutComponent = (props: LayoutComponentProps) => {
           hint="Slide title"
         />
         <SlotText
+          slideId={slideId}
+          slot="subtitle"
           block={blocks.subtitle}
           roleClass="deck-h3"
           mode={mode}
@@ -73,6 +79,8 @@ const Cover: LayoutComponent = (props: LayoutComponentProps) => {
       {(hasImage || mode === 'edit') && (
         <div style={{ position: 'relative', minHeight: 0 }}>
           <SlotImage
+            slideId={slideId}
+            slot="image"
             block={blocks.image}
             mode={mode}
             hint="Cover image"

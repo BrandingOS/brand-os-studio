@@ -5,10 +5,16 @@
  *
  * Anything visual goes through `var(--deck-*)` tokens emitted by the
  * deck-theme provider.
+ *
+ * `<SlotText>` and `<SlotImage>` accept `slideId` + `slot` so future
+ * edit-mode behavior can route per-block writes back through the
+ * `EditContext` without each layout having to thread setters through
+ * props. Phase 2B/2C wires up the actual edit primitives; this file
+ * just establishes the API and keeps the present render path intact.
  */
 
 import type { CSSProperties } from 'react';
-import type { Block, ImageBlock, TextBlock } from '../types';
+import type { Block, ImageBlock, SlotId, TextBlock } from '../types';
 import { isText } from '../types';
 
 /* ─── RTL detection ────────────────────────────────────────────────── */
@@ -69,6 +75,10 @@ export function placeholderStyle(extra?: CSSProperties): CSSProperties {
 /* ─── Image rendering ──────────────────────────────────────────────── */
 
 interface SlotImageProps {
+  /** Stable slide id — needed so edits route back to `setBlock`. */
+  slideId: string;
+  /** Slot key on the slide's `blocks` map. */
+  slot: SlotId;
   block: Block | undefined;
   mode: 'present' | 'edit' | 'thumbnail';
   /** Style applied to the wrapper. */
@@ -85,8 +95,16 @@ interface SlotImageProps {
  * Renders an image slot. If the block is empty:
  *   - In `edit` mode: render a dashed placeholder.
  *   - In `present` / `thumbnail` mode: render nothing (returns null).
+ *
+ * `slideId` and `slot` are accepted for API parity — Phase 2C wires
+ * them through `<ReplaceableArtwork>` so the picker can route picks
+ * back into the deck store.
  */
 export function SlotImage({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  slideId: _slideId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  slot: _slot,
   block,
   mode,
   style,
@@ -132,6 +150,10 @@ export function SlotImage({
 /* ─── Text rendering ───────────────────────────────────────────────── */
 
 interface SlotTextProps {
+  /** Stable slide id — needed so edits route back to `setBlock`. */
+  slideId: string;
+  /** Slot key on the slide's `blocks` map. */
+  slot: SlotId;
   block: Block | undefined;
   /** Role class fallback if block.role isn't suitable. */
   roleClass: string;
@@ -149,8 +171,16 @@ interface SlotTextProps {
  * Renders a text slot using `.deck-{role}` classes. Honors
  * block.align/weight/color from the block. In edit mode, empty text
  * shows a soft outline so the user knows it's a fillable slot.
+ *
+ * `slideId` and `slot` are accepted for API parity — Phase 2B wires
+ * them through a contentEditable element that calls `setBlock` on
+ * blur.
  */
 export function SlotText({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  slideId: _slideId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  slot: _slot,
   block,
   roleClass,
   mode,

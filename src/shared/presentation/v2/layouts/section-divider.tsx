@@ -13,7 +13,7 @@ import { registerLayout } from './registry';
 import { CHROME_TOP_INSET, SlotText, detectDirection } from './_helpers';
 
 const SectionDivider: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const accentBlock = blocks.accent;
@@ -35,6 +35,8 @@ const SectionDivider: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="label"
         block={blocks.label}
         roleClass="deck-label"
         mode={mode}
@@ -43,6 +45,8 @@ const SectionDivider: LayoutComponent = (props: LayoutComponentProps) => {
         style={{ color: 'var(--deck-accent)' }}
       />
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-display"
         mode={mode}

@@ -19,7 +19,7 @@ import {
 } from './_helpers';
 
 const ImageText: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const wrapper: CSSProperties = {
@@ -36,6 +36,8 @@ const ImageText: LayoutComponent = (props: LayoutComponentProps) => {
     <div style={wrapper}>
       <div style={{ position: 'relative', minHeight: 0 }}>
         <SlotImage
+          slideId={slideId}
+          slot="image"
           block={blocks.image}
           mode={mode}
           hint="Click to add image"
@@ -52,6 +54,8 @@ const ImageText: LayoutComponent = (props: LayoutComponentProps) => {
         }}
       >
         <SlotText
+          slideId={slideId}
+          slot="title"
           block={blocks.title}
           roleClass="deck-h1"
           mode={mode}
@@ -59,6 +63,8 @@ const ImageText: LayoutComponent = (props: LayoutComponentProps) => {
           hint="Slide title"
         />
         <SlotText
+          slideId={slideId}
+          slot="body"
           block={blocks.body}
           roleClass="deck-body"
           mode={mode}
@@ -67,6 +73,8 @@ const ImageText: LayoutComponent = (props: LayoutComponentProps) => {
           style={{ maxWidth: 720 }}
         />
         <SlotText
+          slideId={slideId}
+          slot="cta"
           block={blocks.cta}
           roleClass="deck-label"
           mode={mode}

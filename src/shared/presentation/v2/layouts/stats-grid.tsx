@@ -39,7 +39,7 @@ function collectStats(blocks: Record<string, unknown>): Array<{ key: string; sta
 }
 
 const StatsGrid: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const stats = collectStats(blocks as unknown as Record<string, unknown>);
 
@@ -69,6 +69,8 @@ const StatsGrid: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}

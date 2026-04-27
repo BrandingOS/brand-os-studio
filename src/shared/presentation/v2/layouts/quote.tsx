@@ -21,7 +21,7 @@ import {
 } from './_helpers';
 
 const Quote: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const q = isQuote(blocks.quote) ? blocks.quote : undefined;
   const hasAvatar = !isEmptyImage(blocks.image) || mode === 'edit';
@@ -99,6 +99,8 @@ const Quote: LayoutComponent = (props: LayoutComponentProps) => {
             }}
           >
             <SlotImage
+              slideId={slideId}
+              slot="image"
               block={blocks.image}
               mode={mode}
               shape="circle"
@@ -119,6 +121,8 @@ const Quote: LayoutComponent = (props: LayoutComponentProps) => {
             </span>
           )}
           <SlotText
+            slideId={slideId}
+            slot="attribution"
             block={blocks.attribution}
             roleClass="deck-caption"
             mode={mode}

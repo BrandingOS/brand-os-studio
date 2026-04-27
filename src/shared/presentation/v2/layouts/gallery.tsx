@@ -33,7 +33,7 @@ function collectImages(blocks: Record<string, Block>): Array<{ n: number; block:
 }
 
 const Gallery: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const all = collectImages(blocks);
   const populated = all.filter((m) => !m.empty);
@@ -57,6 +57,8 @@ const Gallery: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -85,6 +87,8 @@ const Gallery: LayoutComponent = (props: LayoutComponentProps) => {
             }}
           >
             <SlotImage
+              slideId={slideId}
+              slot={`image${n}`}
               block={block}
               mode={mode}
               hint={`Image ${n}`}
@@ -94,6 +98,8 @@ const Gallery: LayoutComponent = (props: LayoutComponentProps) => {
         ))}
       </div>
       <SlotText
+        slideId={slideId}
+        slot="caption"
         block={blocks.caption}
         roleClass="deck-caption"
         mode={mode}

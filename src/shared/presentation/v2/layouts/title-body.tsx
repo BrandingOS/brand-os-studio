@@ -13,7 +13,7 @@ import { registerLayout } from './registry';
 import { CHROME_TOP_INSET, SlotText, detectDirection } from './_helpers';
 
 const TitleBody: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const wrapper: CSSProperties = {
@@ -29,6 +29,8 @@ const TitleBody: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="label"
         block={blocks.label}
         roleClass="deck-label"
         mode={mode}
@@ -37,6 +39,8 @@ const TitleBody: LayoutComponent = (props: LayoutComponentProps) => {
         style={{ color: 'var(--deck-accent)' }}
       />
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -45,6 +49,8 @@ const TitleBody: LayoutComponent = (props: LayoutComponentProps) => {
         style={{ maxWidth: 1400 }}
       />
       <SlotText
+        slideId={slideId}
+        slot="body"
         block={blocks.body}
         roleClass="deck-body"
         mode={mode}

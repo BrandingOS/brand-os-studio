@@ -43,7 +43,7 @@ function collectSteps(blocks: Record<string, Block>): Step[] {
 }
 
 const Process: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const all = collectSteps(blocks);
   const populated = all.filter((s) => !s.empty);
@@ -75,6 +75,8 @@ const Process: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -105,6 +107,8 @@ const Process: LayoutComponent = (props: LayoutComponentProps) => {
                 STEP {String(n).padStart(2, '0')}
               </span>
               <SlotText
+                slideId={slideId}
+                slot={`step${n}`}
                 block={titleBlock}
                 roleClass="deck-h3"
                 mode={mode}
@@ -112,6 +116,8 @@ const Process: LayoutComponent = (props: LayoutComponentProps) => {
                 hint={`Step ${n} title`}
               />
               <SlotText
+                slideId={slideId}
+                slot={`step${n}Body`}
                 block={bodyBlock}
                 roleClass="deck-body"
                 mode={mode}

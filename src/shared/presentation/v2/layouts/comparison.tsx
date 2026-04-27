@@ -89,7 +89,7 @@ function ComparisonList({
 }
 
 const Comparison: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const wrapper: CSSProperties = {
@@ -124,6 +124,8 @@ const Comparison: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -141,6 +143,8 @@ const Comparison: LayoutComponent = (props: LayoutComponentProps) => {
       >
         <div style={leftCol}>
           <SlotText
+            slideId={slideId}
+            slot="leftLabel"
             block={blocks.leftLabel}
             roleClass="deck-label"
             mode={mode}
@@ -165,6 +169,8 @@ const Comparison: LayoutComponent = (props: LayoutComponentProps) => {
         />
         <div style={rightCol}>
           <SlotText
+            slideId={slideId}
+            slot="rightLabel"
             block={blocks.rightLabel}
             roleClass="deck-label"
             mode={mode}
@@ -180,6 +186,8 @@ const Comparison: LayoutComponent = (props: LayoutComponentProps) => {
         </div>
       </div>
       <SlotText
+        slideId={slideId}
+        slot="verdict"
         block={blocks.verdict}
         roleClass="deck-body"
         mode={mode}

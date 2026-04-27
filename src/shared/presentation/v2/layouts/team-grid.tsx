@@ -55,7 +55,7 @@ function collectMembers(blocks: Record<string, Block>): Member[] {
 }
 
 const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const members = collectMembers(blocks);
 
@@ -74,6 +74,8 @@ const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -81,6 +83,8 @@ const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
         hint="Slide title"
       />
       <SlotText
+        slideId={slideId}
+        slot="intro"
         block={blocks.intro}
         roleClass="deck-body"
         mode={mode}
@@ -120,6 +124,8 @@ const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
               }}
             >
               <SlotImage
+                slideId={slideId}
+                slot={`member${n}`}
                 block={imageBlock}
                 mode={mode}
                 shape="circle"
@@ -137,6 +143,8 @@ const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
               }}
             >
               <SlotText
+                slideId={slideId}
+                slot={`member${n}Name`}
                 block={nameBlock}
                 roleClass="deck-h4"
                 mode={mode}
@@ -144,6 +152,8 @@ const TeamGrid: LayoutComponent = (props: LayoutComponentProps) => {
                 hint="Member name"
               />
               <SlotText
+                slideId={slideId}
+                slot={`member${n}Role`}
                 block={roleBlock}
                 roleClass="deck-caption"
                 mode={mode}

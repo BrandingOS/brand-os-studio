@@ -65,6 +65,7 @@ export function SlideRenderer({ slide, index, total, mode, brandWordmark, rtl }:
       <Layout
         blocks={slide.blocks}
         positions={slide.positions}
+        slideId={slide.id}
         index={index}
         total={total}
         section={slide.section}

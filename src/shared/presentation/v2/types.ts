@@ -257,6 +257,9 @@ export interface Deck {
 export interface LayoutComponentProps {
   blocks: Record<SlotId, Block>;
   positions?: Record<SlotId, BlockPosition>;
+  /** Stable slide id — forwarded to slot primitives so edits route
+   *  back to `editCtx.setBlock(slideId, slotId, …)`. */
+  slideId: string;
   /** 1-based slide index for chrome / page-number rendering. */
   index: number;
   total: number;

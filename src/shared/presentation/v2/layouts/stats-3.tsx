@@ -89,7 +89,7 @@ function StatCard({ block, mode }: { block: Block | undefined; mode: LayoutCompo
 }
 
 const Stats3: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const wrapper: CSSProperties = {
@@ -104,6 +104,8 @@ const Stats3: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -124,6 +126,8 @@ const Stats3: LayoutComponent = (props: LayoutComponentProps) => {
         <StatCard block={blocks.stat3} mode={mode} />
       </div>
       <SlotText
+        slideId={slideId}
+        slot="note"
         block={blocks.note}
         roleClass="deck-caption"
         mode={mode}

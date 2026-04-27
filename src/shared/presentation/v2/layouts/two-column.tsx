@@ -27,7 +27,7 @@ const cardStyle: CSSProperties = {
 };
 
 const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const wrapper: CSSProperties = {
@@ -42,6 +42,8 @@ const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-h1"
         mode={mode}
@@ -59,6 +61,8 @@ const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
       >
         <div style={cardStyle}>
           <SlotText
+            slideId={slideId}
+            slot="leftTitle"
             block={blocks.leftTitle}
             roleClass="deck-h3"
             mode={mode}
@@ -66,6 +70,8 @@ const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
             hint="Left title"
           />
           <SlotText
+            slideId={slideId}
+            slot="leftBody"
             block={blocks.leftBody}
             roleClass="deck-body"
             mode={mode}
@@ -75,6 +81,8 @@ const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
         </div>
         <div style={cardStyle}>
           <SlotText
+            slideId={slideId}
+            slot="rightTitle"
             block={blocks.rightTitle}
             roleClass="deck-h3"
             mode={mode}
@@ -82,6 +90,8 @@ const TwoColumn: LayoutComponent = (props: LayoutComponentProps) => {
             hint="Right title"
           />
           <SlotText
+            slideId={slideId}
+            slot="rightBody"
             block={blocks.rightBody}
             roleClass="deck-body"
             mode={mode}

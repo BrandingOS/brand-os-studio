@@ -25,7 +25,7 @@ import {
 import { registerLayout } from './registry';
 
 const Cta: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
 
   const primaryEmpty = isEmptyText(blocks.primary);
@@ -69,6 +69,8 @@ const Cta: LayoutComponent = (props: LayoutComponentProps) => {
   return (
     <div style={wrapper}>
       <SlotText
+        slideId={slideId}
+        slot="title"
         block={blocks.title}
         roleClass="deck-display"
         mode={mode}
@@ -77,6 +79,8 @@ const Cta: LayoutComponent = (props: LayoutComponentProps) => {
         style={{ color: 'inherit', maxWidth: 1500 }}
       />
       <SlotText
+        slideId={slideId}
+        slot="subtitle"
         block={blocks.subtitle}
         roleClass="deck-h3"
         mode={mode}

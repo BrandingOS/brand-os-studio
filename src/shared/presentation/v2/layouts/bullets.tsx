@@ -88,7 +88,7 @@ function bulletMarkerNode(marker: ListBlock['marker'], index: number) {
 }
 
 const Bullets: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const hasImage = !isEmptyImage(blocks.image);
   const list = isList(blocks.bullets) ? blocks.bullets : undefined;
@@ -115,6 +115,8 @@ const Bullets: LayoutComponent = (props: LayoutComponentProps) => {
         }}
       >
         <SlotText
+          slideId={slideId}
+          slot="title"
           block={blocks.title}
           roleClass="deck-h1"
           mode={mode}
@@ -122,6 +124,8 @@ const Bullets: LayoutComponent = (props: LayoutComponentProps) => {
           hint="Slide title"
         />
         <SlotText
+          slideId={slideId}
+          slot="intro"
           block={blocks.intro}
           roleClass="deck-body"
           mode={mode}
@@ -179,6 +183,8 @@ const Bullets: LayoutComponent = (props: LayoutComponentProps) => {
       {(hasImage || mode === 'edit') && (
         <div style={{ position: 'relative', minHeight: 0 }}>
           <SlotImage
+            slideId={slideId}
+            slot="image"
             block={blocks.image}
             mode={mode}
             hint="Supporting image"

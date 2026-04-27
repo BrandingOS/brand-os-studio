@@ -18,7 +18,7 @@ import {
 import { registerLayout } from './registry';
 
 const MetricsHero: LayoutComponent = (props: LayoutComponentProps) => {
-  const { blocks, mode } = props;
+  const { blocks, mode, slideId } = props;
   const direction = detectDirection(blocks);
   const metric = isStat(blocks.metric) ? blocks.metric : undefined;
 
@@ -78,6 +78,8 @@ const MetricsHero: LayoutComponent = (props: LayoutComponentProps) => {
       )}
 
       <SlotText
+        slideId={slideId}
+        slot="context"
         block={blocks.context}
         roleClass="deck-h3"
         mode={mode}
@@ -90,6 +92,8 @@ const MetricsHero: LayoutComponent = (props: LayoutComponentProps) => {
         }}
       />
       <SlotText
+        slideId={slideId}
+        slot="caption"
         block={blocks.caption}
         roleClass="deck-caption"
         mode={mode}
