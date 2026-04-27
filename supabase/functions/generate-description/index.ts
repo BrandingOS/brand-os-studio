@@ -1,80 +1,105 @@
-// Edge Function: generate a 1–2 sentence brand description via Claude.
-// Input: { sessionId: string, brandName: string, assetContext?: string[] }
-// Output: text/plain streaming body
-import Anthropic from '@anthropic-ai/sdk';
+// Edge Function: stream a 1–2 sentence brand description via Claude.
+// Onboarding (session-keyed). Limit: 10 calls per session per hour.
+//
+// Hardened in step 1 of the AI proxy migration:
+//   • Session age check — reject sessions older than 24h since first call
+//   • IP secondary cap — 30 calls per IP per day
+//   • Token usage logged to `ai_rate_limits` with USD cost estimate
 import { corsHeaders } from '../_shared/cors.ts';
+import {
+  capMaxTokens,
+  enforceRateLimit,
+  getAnthropic,
+  getClientIp,
+  logCall,
+  requireSession,
+  requireSessionAge,
+  withCors,
+} from '../_shared/ai.ts';
 
-const anthropic = new Anthropic({
-  apiKey: Deno.env.get('ANTHROPIC_API_KEY') ?? '',
-});
+const FUNCTION_NAME = 'generate-description';
+// Behavior parity with the pre-migration version. Switching to a newer
+// Sonnet (4.6) is a separate decision tracked elsewhere.
+const MODEL = 'claude-sonnet-4-20250514';
 
 const SYSTEM = `You are a world-class brand copywriter. Given a brand name
 and optional context, write a single 1–2 sentence description of the brand
 that is concrete, specific, and free of marketing fluff. No emojis, no
 hashtags, no lists. Plain prose only.`;
 
-async function rateLimit(sessionId: string): Promise<boolean> {
-  const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/onboarding_rate_limits`;
-  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
-  const count = await fetch(
-    `${url}?session_id=eq.${sessionId}&function_name=eq.generate-description&called_at=gte.${since}&select=id`,
-    { headers: { ...headers, Prefer: 'count=exact' } },
-  );
-  const contentRange = count.headers.get('content-range') ?? '*/0';
-  const total = parseInt(contentRange.split('/')[1] || '0', 10);
-  if (total >= 10) return false;
-  await fetch(url, {
-    method: 'POST', headers,
-    body: JSON.stringify({ session_id: sessionId, function_name: 'generate-description' }),
-  });
-  return true;
-}
+const cors = {
+  ...corsHeaders,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
-Deno.serve(async (req) => {
-  if (req.method !== 'POST' && req.method !== 'OPTIONS') return new Response('Method not allowed', { status: 405 });
-  const cors = {
-    ...corsHeaders,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+Deno.serve(withCors(cors, async (req) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
   let body: { sessionId?: string; brandName?: string; assetContext?: string[] };
-  try { body = await req.json(); } catch { return new Response('Bad JSON', { status: 400, headers: cors }); }
-
-  const { sessionId, brandName, assetContext } = body;
-  if (!sessionId || !brandName) {
-    return new Response('sessionId and brandName required', { status: 400, headers: cors });
-  }
-  if (!(await rateLimit(sessionId))) {
-    return new Response('Rate limit exceeded', { status: 429, headers: cors });
+  try {
+    body = await req.json();
+  } catch {
+    return new Response('Bad JSON', { status: 400 });
   }
 
-  const user = `Brand name: ${brandName}${
-    assetContext && assetContext.length ? `\nContext from uploaded assets: ${assetContext.join('; ')}` : ''
-  }`;
+  const sessionId = requireSession(body as Record<string, unknown>);
+  const ipAddress = getClientIp(req);
+  if (!body.brandName) return new Response('brandName required', { status: 400 });
 
-  const stream = await anthropic.messages.stream({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 200,
-    system: SYSTEM,
-    messages: [{ role: 'user', content: user }],
+  await requireSessionAge({ sessionId, maxAgeHours: 24 });
+  await enforceRateLimit({
+    sessionId,
+    ipAddress,
+    functionName: FUNCTION_NAME,
+    windows: [{ windowMinutes: 60, maxCalls: 10 }],
+    ipWindow: { windowMinutes: 1440, maxCalls: 30 },
   });
 
-  const body$ = new ReadableStream({
+  const userMsg = `Brand name: ${body.brandName}${
+    body.assetContext && body.assetContext.length
+      ? `\nContext from uploaded assets: ${body.assetContext.join('; ')}`
+      : ''
+  }`;
+
+  const stream = await getAnthropic().messages.stream({
+    model: MODEL,
+    max_tokens: capMaxTokens(200),
+    system: SYSTEM,
+    messages: [{ role: 'user', content: userMsg }],
+  });
+
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const out = new ReadableStream({
     async start(controller) {
       try {
         for await (const ev of stream) {
-          if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') {
+          if (ev.type === 'message_start') {
+            inputTokens = ev.message.usage?.input_tokens ?? 0;
+          } else if (ev.type === 'content_block_delta' && ev.delta.type === 'text_delta') {
             controller.enqueue(new TextEncoder().encode(ev.delta.text));
+          } else if (ev.type === 'message_delta') {
+            outputTokens = ev.usage?.output_tokens ?? 0;
           }
         }
         controller.close();
       } catch (e) {
         controller.error(e);
+      } finally {
+        await logCall({
+          sessionId,
+          ipAddress,
+          functionName: FUNCTION_NAME,
+          model: MODEL,
+          inputTokens,
+          outputTokens,
+        });
       }
     },
   });
-  return new Response(body$, { headers: { ...cors, 'Content-Type': 'text/plain; charset=utf-8' } });
-});
+
+  return new Response(out, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+}));
