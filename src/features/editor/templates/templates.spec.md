@@ -200,3 +200,24 @@ These didn't come up in Phase 3 step 2 but will land at Phase 4:
 
 Not Phase 3's job to answer; just flagged here so Phase 4 picks them
 up cleanly.
+
+## 6. Phase 3.5 prerequisites — must be fixed before AI Mode 3 ships
+
+Phase 3.5 (AI Editing Layer per `docs/brandos-editor-vision.md` §4)
+will emit deltas referencing arbitrary layer ids. The current
+adapter has one known bug that becomes a user-trust issue once an AI
+agent is in the loop:
+
+- **[#3 — `updateLayer` silently no-ops on layers nested in groups](https://github.com/hamzaxezzat/brand-os-studio/issues/3)**.
+  Surfaced during Phase 3 step 4b. Workaround in
+  `applyLayerPatchAcrossPages` (deep walk + in-place mutation
+  inside `batch()`) covers the cross-page-bulk path. Direct
+  `updateLayer(...)` calls — including the future AI-emitted
+  deltas — still silently drop nested-layer patches with no error.
+  Must be fixed before AI Mode 3 ships, otherwise the AI will
+  confirm "Done" while the canvas shows no change.
+
+This list grows as future phases discover prerequisites. The rule:
+anything that becomes a worse-than-error failure mode under AI
+control gets logged here (and an issue) BEFORE the AI starts
+calling it.
