@@ -25,8 +25,7 @@ import { DeckThemeProvider } from '@/shared/presentation/theme/DeckThemeProvider
 import { DeckThemePanel } from '@/shared/presentation/theme/DeckThemePanel';
 import { useDeckThemeStore } from '@/shared/presentation/theme/store';
 import { detectRoleFromElement } from '@/shared/presentation/theme/detectRole';
-import { useArtworkStore } from '../artwork/artworkStore';
-import { ArtworkPicker } from '../artwork/ArtworkPicker';
+import { useArtworkStore, ArtworkPicker } from '@/shared/artwork';
 import { useBrandStore } from '@/shared/store/brandStore';
 
 /**
@@ -324,9 +323,14 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   const total = UNIEX_SLIDES.length;
 
   // Hydrate per-deck artwork overrides (uploaded photos / Unsplash
-  // picks for replaceable SVG illustrations) from localStorage.
+  // picks for replaceable SVG illustrations) from localStorage. The
+  // shared artwork store is generic (caller picks scopeId); pitch-deck
+  // keeps `${slug}:pitch-deck` for back-compat with existing variants
+  // and on-disk localStorage. The store one-shot migrates the legacy
+  // `brandos:pitch-deck:${slug}:artworkOverrides` key when it matches
+  // this shape.
   useEffect(() => {
-    useArtworkStore.getState().hydrate(slug);
+    useArtworkStore.getState().hydrate(`${slug}:pitch-deck`);
   }, [slug]);
 
   // Inject Arabic fonts once.
