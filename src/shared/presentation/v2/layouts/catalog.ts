@@ -76,6 +76,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Bulleted List',
     description: 'Title + intro line + a list of points (dot, check, arrow, or numbered).',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'Eyebrow' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       intro: { kind: 'text', role: 'body', placeholder: 'One-line intro (optional)' },
       bullets: {
@@ -92,6 +93,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Two Column',
     description: 'Two side-by-side blocks — each with a heading and body.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'Eyebrow' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       leftTitle: { kind: 'text', role: 'h3', placeholder: 'Left heading' },
       leftBody: { kind: 'text', role: 'body', placeholder: 'Left column copy' },
@@ -104,6 +106,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Image + Text',
     description: 'A hero image alongside a title, body, and optional CTA.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'Eyebrow' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       body: { kind: 'text', role: 'body', placeholder: 'Body copy goes here…' },
       cta: { kind: 'text', role: 'label', placeholder: 'Call to action' },
@@ -125,6 +128,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Three Stats',
     description: 'Three big KPI numbers shown side-by-side, with an optional footnote.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'KEY METRICS' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       stat1: { kind: 'stat', placeholder: '00' },
       stat2: { kind: 'stat', placeholder: '00' },
@@ -137,6 +141,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Stats Grid',
     description: 'A flexible grid of KPI tiles — add more `statN` slots as needed.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'BY THE NUMBERS' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       stat1: { kind: 'stat', placeholder: '00' },
       stat2: { kind: 'stat', placeholder: '00' },
@@ -149,6 +154,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Team Grid',
     description: 'Headshots with names + roles — up to six members.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'THE TEAM' },
       title: { kind: 'text', role: 'h1', placeholder: 'Team & Partners' },
       intro: { kind: 'text', role: 'body', placeholder: 'Who is behind the project — one line.' },
       member1: { kind: 'image' },
@@ -167,6 +173,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Process / Steps',
     description: 'Numbered phases with a heading + description per step.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'HOW IT WORKS' },
       title: { kind: 'text', role: 'h1', placeholder: 'Our process' },
       step1: { kind: 'text', role: 'h3', placeholder: 'Step 1' },
       step1Body: { kind: 'text', role: 'body', placeholder: 'What happens in step 1' },
@@ -181,6 +188,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Comparison',
     description: 'Before/after or A vs. B — two labelled columns + a verdict line.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'COMPARISON' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       leftLabel: { kind: 'text', role: 'label', placeholder: 'Before' },
       leftBody: { kind: 'text', role: 'body', placeholder: 'How it was' },
@@ -194,6 +202,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Gallery',
     description: 'A grid of images with a title and optional caption.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'GALLERY' },
       title: { kind: 'text', role: 'h1', placeholder: 'Slide title' },
       caption: { kind: 'text', role: 'caption', placeholder: 'Optional caption' },
       image1: { kind: 'image' },
@@ -207,6 +216,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Metric Hero',
     description: 'One giant number with a label and a sentence of context.',
     defaultBlocks: {
+      label: { kind: 'text', role: 'label', placeholder: 'THE NUMBER' },
       metric: { kind: 'stat', placeholder: '100%' },
       context: { kind: 'text', role: 'h3', placeholder: 'One-sentence context' },
       caption: { kind: 'text', role: 'caption', placeholder: 'Source / footnote' },
@@ -217,6 +227,7 @@ export const LAYOUT_CATALOG: LayoutMeta[] = [
     name: 'Call to Action',
     description: 'Closing slide — strong headline + primary and secondary actions.',
     defaultBlocks: {
+      tag: { kind: 'text', role: 'label', placeholder: 'GET STARTED' },
       title: { kind: 'text', role: 'display', placeholder: "Let's build it together" },
       subtitle: { kind: 'text', role: 'h3', placeholder: 'Steps to get started' },
       primary: { kind: 'text', role: 'label', placeholder: 'Primary action' },

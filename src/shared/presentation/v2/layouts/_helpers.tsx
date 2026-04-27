@@ -581,6 +581,330 @@ function roleFromClass(cls: string): TextBlock['role'] {
  */
 export const CHROME_TOP_INSET = 56;
 
+/* ─── Decorative primitives (shared across layouts) ───────────────── */
+
+/**
+ * Massive slide-number watermark (e.g. "01") rendered behind layout
+ * content. Pure decoration — `aria-hidden`. Position via `style`.
+ *
+ * Default styling: 14rem display weight, 6% accent opacity. Layouts can
+ * override `size` (rem) and `opacity` (0–1) for variation.
+ */
+export function NumeralWatermark({
+  index,
+  size = 16,
+  opacity = 0.06,
+  style,
+}: {
+  index: number;
+  size?: number;
+  opacity?: number;
+  style?: CSSProperties;
+}) {
+  const padded = String(index).padStart(2, '0');
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: 'absolute',
+        fontFamily: 'var(--deck-font-display)',
+        fontWeight: 800,
+        fontSize: `${size}rem`,
+        lineHeight: 0.85,
+        color: 'var(--deck-accent)',
+        opacity,
+        userSelect: 'none',
+        pointerEvents: 'none',
+        letterSpacing: '-0.04em',
+        ...style,
+      }}
+    >
+      {padded}
+    </span>
+  );
+}
+
+/**
+ * Section label with leading accent rule. Renders the supplied text
+ * via SlotText (so it's editable in edit mode) preceded by a 24×2px
+ * accent line. Pair with any role='label' slot.
+ */
+export function LabelWithRule({
+  slideId,
+  slot,
+  block,
+  mode,
+  hint,
+  align = 'start',
+  style,
+}: {
+  slideId: string;
+  slot: SlotId;
+  block: Block | undefined;
+  mode: 'present' | 'edit' | 'thumbnail';
+  hint?: string;
+  align?: 'start' | 'center' | 'end';
+  style?: CSSProperties;
+}) {
+  const empty = isEmptyText(block);
+  // In present mode skip the row entirely if the label is empty.
+  if (empty && mode !== 'edit') return null;
+
+  const justify =
+    align === 'center' ? 'center' : align === 'end' ? 'flex-end' : 'flex-start';
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        justifyContent: justify,
+        ...style,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: 'inline-block',
+          width: 28,
+          height: 2,
+          background: 'var(--deck-accent)',
+          borderRadius: 999,
+          flexShrink: 0,
+        }}
+      />
+      <SlotText
+        slideId={slideId}
+        slot={slot}
+        block={block}
+        roleClass="deck-label"
+        mode={mode}
+        as="span"
+        hint={hint ?? 'LABEL'}
+        style={{ color: 'var(--deck-accent)', letterSpacing: '0.16em' }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Decorative empty-image placeholder used in present/edit mode when an
+ * image slot has no URL. Replaces the dashed-border + text design with
+ * a soft tinted card holding a dot grid and a hairline "+" mark.
+ *
+ * Layouts pass it the same `style` they'd give to `<SlotImage>`. The
+ * variant param lets each layout vary the look slightly so a 6-tile
+ * gallery doesn't render six identical placeholders.
+ */
+export function ImagePlaceholder({
+  variant = 0,
+  shape = 'rect',
+  style,
+}: {
+  /** 0–5: rotates accent block style for visual rhythm. */
+  variant?: number;
+  shape?: 'rect' | 'circle';
+  style?: CSSProperties;
+}) {
+  const radius = shape === 'circle' ? '50%' : 'var(--deck-radius, 12px)';
+  // Subtle dot-grid via repeating radial gradient.
+  const dotGrid =
+    'radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--deck-accent) 28%, transparent) 1px, transparent 1.5px)';
+  const dotSize = '14px 14px';
+
+  // Variant flourish — a corner block, an offset circle, a diagonal
+  // gradient sliver. Stays in accent color at low opacity.
+  const corner: CSSProperties = (() => {
+    switch (variant % 6) {
+      case 0:
+        return {
+          position: 'absolute',
+          right: 12,
+          bottom: 12,
+          width: '36%',
+          height: '36%',
+          background:
+            'linear-gradient(135deg, color-mix(in srgb, var(--deck-accent) 22%, transparent), transparent 70%)',
+          borderRadius: shape === 'circle' ? '50%' : 'var(--deck-radius, 12px)',
+        };
+      case 1:
+        return {
+          position: 'absolute',
+          left: 14,
+          top: 14,
+          width: 56,
+          height: 56,
+          borderRadius: '50%',
+          background: 'color-mix(in srgb, var(--deck-accent) 18%, transparent)',
+        };
+      case 2:
+        return {
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          width: '40%',
+          height: 4,
+          background: 'var(--deck-accent)',
+          opacity: 0.6,
+        };
+      case 3:
+        return {
+          position: 'absolute',
+          left: 0,
+          bottom: 0,
+          width: 4,
+          height: '50%',
+          background: 'var(--deck-accent)',
+          opacity: 0.55,
+        };
+      case 4:
+        return {
+          position: 'absolute',
+          right: 24,
+          top: 24,
+          width: 36,
+          height: 36,
+          border: '2px solid color-mix(in srgb, var(--deck-accent) 45%, transparent)',
+          borderRadius: 6,
+          transform: 'rotate(12deg)',
+        };
+      default:
+        return {
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          width: '52%',
+          height: '52%',
+          transform: 'translate(-50%, -50%)',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, color-mix(in srgb, var(--deck-accent) 14%, transparent) 0%, transparent 70%)',
+        };
+    }
+  })();
+
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background:
+          'color-mix(in srgb, var(--deck-bg-card) 70%, var(--deck-bg-page))',
+        borderRadius: radius,
+        overflow: 'hidden',
+        border:
+          '1px solid color-mix(in srgb, var(--deck-accent) 12%, transparent)',
+        ...style,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: dotGrid,
+          backgroundSize: dotSize,
+          opacity: 0.7,
+        }}
+      />
+      <div style={corner} />
+      <div
+        style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 36,
+          height: 36,
+          borderRadius: '50%',
+          background: 'color-mix(in srgb, var(--deck-accent) 14%, transparent)',
+          border:
+            '1px solid color-mix(in srgb, var(--deck-accent) 30%, transparent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--deck-accent)',
+          fontFamily: 'var(--deck-font-display)',
+          fontWeight: 600,
+          fontSize: 22,
+          lineHeight: 1,
+          opacity: 0.75,
+        }}
+      >
+        +
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A thin accent rule (full width or capped) rendered as a flexible
+ * divider. Use as a horizontal accent line below titles or between
+ * sections.
+ */
+export function AccentRule({
+  width = 96,
+  height = 4,
+  style,
+}: {
+  width?: number | string;
+  height?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: 'inline-block',
+        width,
+        height,
+        background: 'var(--deck-accent)',
+        borderRadius: 999,
+        ...style,
+      }}
+    />
+  );
+}
+
+/**
+ * Soft radial-gradient backdrop in brand accent. Drop into a layout's
+ * absolute-positioned background slot. Pure decoration.
+ */
+export function AccentRadialBackdrop({
+  position = 'top-left',
+  intensity = 0.08,
+  style,
+}: {
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  intensity?: number;
+  style?: CSSProperties;
+}) {
+  const map: Record<string, string> = {
+    'top-left': '20% 15%',
+    'top-right': '85% 15%',
+    'bottom-left': '15% 85%',
+    'bottom-right': '85% 85%',
+    center: '50% 50%',
+  };
+  const stop = `color-mix(in srgb, var(--deck-accent) ${Math.round(
+    intensity * 100,
+  )}%, transparent)`;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: `radial-gradient(circle at ${map[position]}, ${stop} 0%, transparent 55%)`,
+        pointerEvents: 'none',
+        ...style,
+      }}
+    />
+  );
+}
+
 /* ─── Chrome-aware container ───────────────────────────────────────── */
 
 /**
