@@ -12,17 +12,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Check, Save, Sparkles } from 'lucide-react';
+import { Check, Save, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { DeckRenderer } from './DeckRenderer';
 import { EditContextProvider } from './EditContext';
+import { AddSlidePopover } from './AddSlidePopover';
 import { PITCH_DECK_TEMPLATE } from '../templates/pitch-deck';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
-import type { Deck } from '../types';
+import type { Deck, LayoutId } from '../types';
 import { useDeck, useEnsureDeck } from '../store/deckStore';
+import { buildEmptySlide, getLayoutMeta } from '../layouts/catalog';
 import '@/shared/presentation/theme/deck.css';
 import '@/shared/styles/cosmos-workspace.css';
 
@@ -64,6 +66,13 @@ export default function DeckV2Page() {
   const deck = result?.deck ?? null;
   const saveState = result?.saveState;
   const flush = result?.flush;
+  const insertSlide = result?.insertSlide;
+  const removeSlide = result?.removeSlide;
+  const reorderSlide = result?.reorderSlide;
+
+  // Drag-to-reorder state for the thumbnail rail.
+  const [dragSrc, setDragSrc] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<{ index: number; pos: 'before' | 'after' } | null>(null);
 
   // Save button handler — flush pending debounced save NOW.
   const [savedFlash, setSavedFlash] = useState(false);
@@ -125,6 +134,34 @@ export default function DeckV2Page() {
   const total = deck.slides.length;
   const goTo = (i: number) => slideRefs.current[i]?.scrollIntoView({ behavior: 'smooth' });
 
+  const handleAddSlide = (layout: LayoutId) => {
+    if (!insertSlide) return;
+    const newSlide = buildEmptySlide(layout, deck.slides.length);
+    const insertAt = activeIndex + 1;
+    insertSlide(insertAt, newSlide);
+    // Wait for the new <section> to mount, then scroll to it.
+    setTimeout(() => {
+      slideRefs.current[insertAt]?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+  };
+
+  const handleDeleteSlide = (slideId: string) => {
+    if (!removeSlide) return;
+    if (deck.slides.length <= 1) return;
+    removeSlide(slideId);
+  };
+
+  const handleDrop = (toIndex: number, pos: 'before' | 'after') => {
+    if (!reorderSlide) return;
+    if (dragSrc === null) return;
+    let to = pos === 'before' ? toIndex : toIndex + 1;
+    // After splicing-out the source, indices shift.
+    if (dragSrc < to) to -= 1;
+    if (to !== dragSrc) reorderSlide(dragSrc, to);
+    setDragSrc(null);
+    setDragOver(null);
+  };
+
   return (
     <CosmosWorkspaceShell rightActions={
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
@@ -172,72 +209,179 @@ export default function DeckV2Page() {
         {/* Thumbnail rail */}
         <aside
           style={{
-            width: 156,
+            width: 168,
             borderRight: '1px solid var(--border)',
             overflowY: 'auto',
             padding: 12,
             background: 'var(--surface-elevated)',
             flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {deck.slides.map((_, i) => {
+            {deck.slides.map((slide, i) => {
               const isActive = activeIndex === i;
+              const isDragging = dragSrc === i;
+              const meta = getLayoutMeta(slide.layout);
+              const showInsertBefore =
+                dragOver?.index === i && dragOver.pos === 'before' && dragSrc !== null && dragSrc !== i;
+              const showInsertAfter =
+                dragOver?.index === i && dragOver.pos === 'after' && dragSrc !== null && dragSrc !== i && dragSrc !== i + 1;
               return (
-                <button
-                  key={`thumb-${i}`}
-                  type="button"
-                  onClick={() => goTo(i)}
-                  style={{
-                    border: isActive ? '2px solid var(--accent, #001563)' : '1px solid var(--border)',
-                    borderRadius: 8,
-                    padding: 0,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    position: 'relative',
-                    width: '100%',
-                    aspectRatio: `${SLIDE_WIDTH} / ${SLIDE_HEIGHT}`,
-                    background: 'var(--surface)',
-                    boxShadow: isActive ? 'var(--shadow-md)' : 'var(--shadow-xs)',
-                    transition: 'box-shadow 0.18s var(--ease)',
-                  }}
-                  title={`Slide ${i + 1}`}
-                >
-                  <div
-                    style={{
-                      position: 'absolute',
-                      left: 6,
-                      top: 4,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: '#fff',
-                      background: 'rgba(0,21,99,0.7)',
-                      borderRadius: 4,
-                      padding: '1px 6px',
+                <div key={slide.id} style={{ position: 'relative' }}>
+                  {/* Drop-indicator line above */}
+                  {showInsertBefore && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: -5,
+                        height: 2,
+                        background: 'var(--accent, #001563)',
+                        borderRadius: 1,
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                      }}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => goTo(i)}
+                    draggable
+                    onDragStart={(e) => {
+                      setDragSrc(i);
+                      e.dataTransfer.effectAllowed = 'move';
+                      // Required by Firefox to actually start the drag.
+                      e.dataTransfer.setData('text/plain', String(i));
                     }}
-                  >
-                    {String(i + 1).padStart(2, '0')}
-                  </div>
-                  <span
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 10,
-                      color: 'var(--text-muted)',
-                      letterSpacing: '0.18em',
-                      textTransform: 'uppercase',
-                      pointerEvents: 'none',
+                    onDragOver={(e) => {
+                      if (dragSrc === null) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const pos: 'before' | 'after' = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after';
+                      setDragOver({ index: i, pos });
                     }}
+                    onDragLeave={(e) => {
+                      // Only clear if the pointer left the card entirely.
+                      const rel = e.relatedTarget as Node | null;
+                      if (!rel || !(e.currentTarget as HTMLElement).contains(rel)) {
+                        setDragOver((cur) => (cur?.index === i ? null : cur));
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragOver) handleDrop(dragOver.index, dragOver.pos);
+                    }}
+                    onDragEnd={() => {
+                      setDragSrc(null);
+                      setDragOver(null);
+                    }}
+                    style={{
+                      border: isActive ? '2px solid var(--accent, #001563)' : '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding: 0,
+                      overflow: 'hidden',
+                      cursor: 'grab',
+                      position: 'relative',
+                      width: '100%',
+                      aspectRatio: `${SLIDE_WIDTH} / ${SLIDE_HEIGHT}`,
+                      background: 'var(--surface)',
+                      boxShadow: isActive ? 'var(--shadow-md)' : 'var(--shadow-xs)',
+                      opacity: isDragging ? 0.4 : 1,
+                      transition: 'box-shadow 0.18s var(--ease), opacity 0.12s ease',
+                    }}
+                    title={meta?.name ? `${meta.name} — drag to reorder` : `Slide ${i + 1}`}
                   >
-                    {deck.slides[i].layout}
-                  </span>
-                </button>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 6,
+                        top: 4,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'rgba(0,21,99,0.7)',
+                        borderRadius: 4,
+                        padding: '1px 6px',
+                      }}
+                    >
+                      {String(i + 1).padStart(2, '0')}
+                    </div>
+                    {isActive && deck.slides.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSlide(slide.id);
+                        }}
+                        title="Delete slide"
+                        style={{
+                          position: 'absolute',
+                          right: 4,
+                          top: 4,
+                          width: 22,
+                          height: 22,
+                          padding: 0,
+                          borderRadius: 6,
+                          border: '1px solid var(--border)',
+                          background: 'rgba(255,255,255,0.94)',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 3,
+                          boxShadow: 'var(--shadow-xs)',
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                    <span
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 10,
+                        color: 'var(--text-muted)',
+                        letterSpacing: '0.18em',
+                        textTransform: 'uppercase',
+                        pointerEvents: 'none',
+                        textAlign: 'center',
+                        padding: '0 8px',
+                      }}
+                    >
+                      {meta?.name ?? slide.layout}
+                    </span>
+                  </button>
+                  {/* Drop-indicator line below */}
+                  {showInsertAfter && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: -5,
+                        height: 2,
+                        background: 'var(--accent, #001563)',
+                        borderRadius: 1,
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                      }}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
+          {/* + Add slide trigger at the bottom of the rail */}
+          <AddSlidePopover onPick={handleAddSlide} side="right" variant="inline" />
         </aside>
 
         {/* Stage — scroll-snap of full slides at native 1920×1080 scaled to fit */}
