@@ -23,4 +23,7 @@ export const bannerConfig: ContentTypeConfig = {
   defaultExportFormat: 'png',
   supportsBrandKit: true,
   supportsMasterPages: false,
+  // Linear stretch with anchor-point translation works fine for
+  // banner-style horizontal layouts.
+  resizeStrategy: 'reflowable',
 };

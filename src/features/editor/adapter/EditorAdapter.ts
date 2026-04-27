@@ -84,6 +84,21 @@ export interface EditorAdapter {
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
+  /**
+   * Run `fn` with per-mutation history snapshots and change events
+   * suppressed. After `fn` returns, ONE snapshot is taken (with the
+   * given label) and ONE change event fires. Used for any mutation
+   * sequence that should be a single undo entry — re-applying a
+   * brand kit, AI deltas, cross-page propagation, smart duplicate.
+   *
+   * The label surfaces in any future undo-history UI ("AI: convert
+   * to social posts" rather than "Step 47"). Nesting is supported:
+   * inner batches are silently absorbed by the outer batch.
+   *
+   * Errors thrown inside `fn` propagate, but the batch state is
+   * cleaned up so subsequent mutations behave normally.
+   */
+  batch(label: string, fn: () => void): void;
 
   // Export
   exportAs(options: ExportOptions): Promise<Blob>;

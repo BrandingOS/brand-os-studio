@@ -89,45 +89,97 @@ of copy slots is an AI-layer concern and lives in
 `packages/ai-design/` (per the master prompt) or
 `src/features/ai-design/` (per the Vite layout).
 
-## 4. Dimensions — fixed, agnostic, or contextual?
+## 4. Dimensions — canonical only on templates; strategy on ContentTypeConfig
 
-**Contextual** — templates ship with default dimensions matching the
-content type, but the layout MUST be reflowable for the Resize
-Variants feature (Phase 6).
+**Templates store canonical dimensions only**; the resize strategy
+(how a document reflows when its canvas changes) lives on
+`ContentTypeConfig` because it's stable across all templates of a
+given type. A business card is fixed regardless of who designed it; a
+presentation needs AI reflow regardless of which template you started
+from. Putting strategy on the template would force template authors
+to make a technical decision they aren't qualified to make.
 
-A template's `BrandOSDocument.pages[i]` has `width`/`height` like any
-document. When a user picks a template:
-
-1. The default dimensions are honored.
-2. Phase 6 introduces `generateResizeVariants(doc, targetSizes)` which
-   returns N new documents at N dimensions, each with AI-reflowed
-   layouts (per `brandos-editor-vision.md` §5 Type C).
-
-Template metadata captures dimension intent:
+### Template metadata — canonical dimensions only
 
 ```ts
 metadata: {
-  // ... template-specific metadata ...
+  // ... template-specific metadata (name, tags, mood, etc.) ...
   _dimensions: {
     /** What the template was designed at. */
     canonicalWidth: number;
     canonicalHeight: number;
+  };
+  // ... other fields ...
+}
+```
+
+That's all templates need to declare about size. No `intent` field.
+Phase 6's reflow pipeline picks the strategy from elsewhere.
+
+### Strategy lives on ContentTypeConfig
+
+`src/features/editor/content-types/types.ts` adds:
+
+```ts
+export const ResizeStrategySchema = z.enum(['fixed', 'reflowable', 'ai-reflowable']);
+
+ContentTypeConfig {
+  // ... existing fields ...
+  resizeStrategy: 'fixed' | 'reflowable' | 'ai-reflowable';
+}
+```
+
+Mapping for the five seed configs (Phase 3 step 3):
+
+| Content type | Strategy | Reasoning |
+|---|---|---|
+| `business-card` | `fixed` | Print stationery — physical spec breaks if resized |
+| `banner` | `reflowable` | Linear stretch with anchor points works fine |
+| `social-post` | `ai-reflowable` | Square → portrait → story is non-linear |
+| `presentation` | `ai-reflowable` | Slides redistribute, not stretch |
+| `brand-guideline-slide` | `ai-reflowable` | Multi-content compositions, same family |
+
+### Per-template override (the rare case)
+
+A template author might genuinely need a different strategy for one
+specific template (e.g. a "fixed printable handout" version of what
+is normally a presentation). Templates can opt into an override via
+metadata:
+
+```ts
+metadata: {
+  _dimensions: {
+    canonicalWidth: number;
+    canonicalHeight: number;
     /**
-     * 'fixed'         — layout assumes these exact dimensions
-     *                   (business cards, badges, etc.).
-     * 'reflowable'    — layout can stretch within reason
-     *                   (banners, social variants).
-     * 'ai-reflowable' — layout requires AI reflow when dimensions
-     *                   change (presentations, multi-content
-     *                   compositions).
+     * Optional override. When present, takes precedence over
+     * `getContentTypeConfig(doc.contentType).resizeStrategy` for
+     * Phase 6's reflow pipeline. Should appear in <1% of templates;
+     * if it shows up often, register a new content type instead.
      */
-    intent: 'fixed' | 'reflowable' | 'ai-reflowable';
+    strategyOverride?: 'fixed' | 'reflowable' | 'ai-reflowable';
   };
 }
 ```
 
-Phase 6 reads `_dimensions.intent` to decide between manual reflow
-(anchor-point translation) and AI reflow.
+Why the per-template override and not a new content type? Because new
+content types proliferate the IA. A "presentation handout" template
+appearing once doesn't justify a `presentation-handout` content type
+with its own panel config, default dimensions, and entry point.
+The override is opt-in, lives in template metadata where authors
+already operate, and stays uncommon by construction.
+
+### Phase 6 resolution order
+
+When `generateResizeVariants(doc, targetSizes)` runs:
+
+```ts
+const override = doc.metadata?._dimensions?.strategyOverride;
+const strategy = override ?? getContentTypeConfig(doc.contentType).resizeStrategy;
+```
+
+Single source of truth at the content-type level; per-template escape
+hatch when reality demands it.
 
 ## 5. Open questions for Phase 4 to settle
 

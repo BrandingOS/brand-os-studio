@@ -86,6 +86,14 @@ export class FabricAdapter implements EditorAdapter {
   /** When true, internal updates skip emitting `change` (avoids infinite loops). */
   private suppressChange = false;
 
+  /**
+   * Batch depth and pending label for `batch()`. While `batchDepth > 0`,
+   * mutation methods skip both `history.commit` and `emitChange`; the
+   * outer-most batch fires one of each at the end with `batchLabel`.
+   */
+  private batchDepth = 0;
+  private batchLabel: string | null = null;
+
   // ─── Lifecycle ────────────────────────────────────────────────────────
 
   async mount(container: HTMLElement): Promise<void> {
@@ -171,7 +179,7 @@ export class FabricAdapter implements EditorAdapter {
     if (!this.doc) throw new Error('No document loaded');
     const insertAt = index ?? this.doc.pages.length;
     this.doc.pages.splice(insertAt, 0, clone(page));
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -189,7 +197,7 @@ export class FabricAdapter implements EditorAdapter {
       this.activePageId = this.doc.pages[Math.max(0, idx - 1)].id;
       void this.renderActivePage();
     }
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -207,7 +215,7 @@ export class FabricAdapter implements EditorAdapter {
       layers: original.layers.map(reIdLayer),
     };
     this.doc.pages.splice(idx + 1, 0, copy);
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
     return copy.id;
   }
@@ -219,7 +227,7 @@ export class FabricAdapter implements EditorAdapter {
     const [page] = this.doc.pages.splice(idx, 1);
     const clamped = Math.max(0, Math.min(newIndex, this.doc.pages.length));
     this.doc.pages.splice(clamped, 0, page);
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -232,7 +240,7 @@ export class FabricAdapter implements EditorAdapter {
       this.canvas?.setDimensions({ width, height });
       this.canvas?.requestRenderAll();
     }
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -241,7 +249,7 @@ export class FabricAdapter implements EditorAdapter {
   addMasterPage(master: Page): void {
     if (!this.doc) throw new Error('No document loaded');
     this.doc.masterPages.push(clone(master));
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -258,7 +266,7 @@ export class FabricAdapter implements EditorAdapter {
       this.editingMasterId = null;
       void this.renderActivePage();
     }
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -272,7 +280,7 @@ export class FabricAdapter implements EditorAdapter {
     if (this.isActiveSurface(pageId)) {
       void this.renderActivePage();
     }
-    this.history.commit(clone(this.doc));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -309,7 +317,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas?.requestRenderAll();
       });
     }
-    this.history.commit(clone(this.doc!));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -340,7 +348,7 @@ export class FabricAdapter implements EditorAdapter {
         }
       }
     }
-    this.history.commit(clone(this.doc!));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -353,7 +361,7 @@ export class FabricAdapter implements EditorAdapter {
       this.fabricByLayerId.delete(layerId);
       this.canvas?.requestRenderAll();
     }
-    this.history.commit(clone(this.doc!));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -369,7 +377,7 @@ export class FabricAdapter implements EditorAdapter {
         this.canvas.moveObjectTo(obj, newIndex);
       }
     }
-    this.history.commit(clone(this.doc!));
+    this.commitToHistory();
     this.emitChange();
   }
 
@@ -565,7 +573,7 @@ export class FabricAdapter implements EditorAdapter {
     const found = findLayer(this.doc, id);
     if (!found || found.layer.kind !== 'text') return;
     (found.layer as TextLayer).text = target.text ?? '';
-    this.history.snapshot(clone(this.doc));
+    this.snapshotToHistory();
     this.emitChange();
   }
 
@@ -575,15 +583,57 @@ export class FabricAdapter implements EditorAdapter {
     const found = findLayer(this.doc, id);
     if (!found) return;
     found.layer.transform = fabricToTransform(obj);
-    if (discrete) this.history.commit(clone(this.doc));
-    else this.history.snapshot(clone(this.doc));
+    if (discrete) this.commitToHistory();
+    else this.snapshotToHistory();
     this.emitChange();
   }
 
   private emitChange(): void {
     if (this.suppressChange || !this.doc) return;
+    if (this.batchDepth > 0) return; // batch fires one emit at the end
     const snapshot = clone(this.doc);
     for (const h of this.changeHandlers) h(snapshot);
+  }
+
+  /**
+   * Commit current state to history, skipping when a batch is in
+   * progress. The outer-most `batch(...)` does a single commit at the
+   * end with the batch label.
+   */
+  private commitToHistory(): void {
+    if (this.batchDepth > 0) return;
+    if (this.doc) this.history.commit(clone(this.doc));
+  }
+
+  /**
+   * Snapshot current state to the debounced history slot, skipping
+   * when a batch is in progress.
+   */
+  private snapshotToHistory(): void {
+    if (this.batchDepth > 0) return;
+    if (this.doc) this.history.snapshot(clone(this.doc));
+  }
+
+  // ─── Public: batch ─────────────────────────────────────────────────────
+
+  batch(label: string, fn: () => void): void {
+    if (!this.doc) throw new Error('No document loaded');
+    if (this.batchDepth === 0) {
+      this.batchLabel = label;
+    }
+    this.batchDepth++;
+    try {
+      fn();
+    } finally {
+      this.batchDepth--;
+      if (this.batchDepth === 0) {
+        // Outer-most batch: single commit + single emit, both labeled.
+        this.history.commit(clone(this.doc!), this.batchLabel ?? undefined);
+        this.batchLabel = null;
+        const snapshot = clone(this.doc);
+        for (const h of this.changeHandlers) h(snapshot);
+      }
+    }
   }
 
   private emitSelection(): void {

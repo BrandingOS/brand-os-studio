@@ -22,4 +22,7 @@ export const brandGuidelineSlideConfig: ContentTypeConfig = {
   defaultExportFormat: 'pdf',
   supportsBrandKit: true,
   supportsMasterPages: true,
+  // Multi-content compositions need intelligent redistribution — same
+  // family as presentation slides.
+  resizeStrategy: 'ai-reflowable',
 };

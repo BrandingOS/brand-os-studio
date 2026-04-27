@@ -7,20 +7,22 @@
 //
 //   • 'apply' (default) — replaces SlotRefs with their resolved
 //     literal values in the returned document. The doc becomes
-//     "committed" to this brand.
+//     "committed" to this brand. Any prior `brandResolution`
+//     annotation is stripped.
 //
 //   • 'preview' — leaves SlotRefs in place but stores a per-layer
-//     resolution annotation under `doc.metadata._brandResolution`.
-//     The AI layer (Phase 3.5+) uses this to "see" what the brand-
-//     resolved doc looks like without committing the doc to a
-//     specific brand. The original document remains brand-agnostic.
+//     resolution under the document's typed `brandResolution` field
+//     (Phase 3 step 3 lifted this from `metadata._brandResolution`
+//     into a top-level optional field for type safety + AI layer
+//     discoverability). The original SlotRefs stay so the doc
+//     remains brand-agnostic.
 
 import type {
   BrandOSDocument,
+  BrandResolution,
   GroupLayer,
   Layer,
   Page,
-  ResolvedValue,
   ShapeLayer,
   SlotRef,
   SvgLayer,
@@ -42,25 +44,6 @@ export interface ApplyBrandOptions {
    */
   respectLocks?: boolean;
 }
-
-/**
- * Annotation written to `doc.metadata._brandResolution` in `'preview'`
- * mode. Maps each affected layer (and page background) to the
- * resolved literal value(s) that the renderer or an AI agent would
- * see if the SlotRefs were committed.
- */
-export interface BrandResolutionAnnotation {
-  brandKitId: string;
-  mode: 'preview';
-  /** ISO timestamp when the resolution was performed. */
-  resolvedAt: string;
-  /** layerId → property → resolved literal. */
-  layers: Record<string, Record<string, string | number>>;
-  /** pageId → property → resolved literal (only `background` for now). */
-  pages: Record<string, Record<string, string | number>>;
-}
-
-const RESOLUTION_KEY = '_brandResolution';
 
 const DEFAULTS: Required<ApplyBrandOptions> = {
   mode: 'apply',
@@ -86,9 +69,8 @@ export function applyBrandToDocument(
   const opts = { ...DEFAULTS, ...options };
   const next = clone(doc);
 
-  const annotation: BrandResolutionAnnotation = {
+  const annotation: BrandResolution = {
     brandKitId: brandKit.id,
-    mode: 'preview',
     resolvedAt: new Date().toISOString(),
     layers: {},
     pages: {},
@@ -100,11 +82,9 @@ export function applyBrandToDocument(
 
   // Stash or strip the preview annotation depending on mode.
   if (opts.mode === 'preview') {
-    next.metadata = { ...next.metadata, [RESOLUTION_KEY]: annotation };
-  } else if (next.metadata && RESOLUTION_KEY in next.metadata) {
-    const cleaned = { ...next.metadata };
-    delete cleaned[RESOLUTION_KEY];
-    next.metadata = cleaned;
+    next.brandResolution = annotation;
+  } else {
+    delete next.brandResolution;
   }
 
   return next;
@@ -116,7 +96,7 @@ function resolvePage(
   page: Page,
   brandKit: BrandKit,
   opts: Required<ApplyBrandOptions>,
-  annotation: BrandResolutionAnnotation,
+  annotation: BrandResolution,
 ): void {
   // Page background is also a ResolvedValue.
   if (isSlotRef(page.background)) {
@@ -143,7 +123,7 @@ function resolveLayer(
   layer: Layer,
   brandKit: BrandKit,
   opts: Required<ApplyBrandOptions>,
-  annotation: BrandResolutionAnnotation,
+  annotation: BrandResolution,
 ): void {
   const resolutions: Record<string, string | number> = {};
 
@@ -244,7 +224,7 @@ function resolveGroupLayer(
   layer: GroupLayer,
   brandKit: BrandKit,
   opts: Required<ApplyBrandOptions>,
-  annotation: BrandResolutionAnnotation,
+  annotation: BrandResolution,
 ): void {
   for (const child of layer.children) {
     resolveLayer(child, brandKit, opts, annotation);

@@ -77,6 +77,34 @@ describe('HistoryRing', () => {
     expect(h.canRedo()).toBe(false);
   });
 
+  it('commit stores an optional label retrievable via currentLabel()', () => {
+    const h = new HistoryRing<number>();
+    h.reset(0);
+    expect(h.currentLabel()).toBeUndefined();
+    h.commit(1, 'add-shape');
+    expect(h.currentLabel()).toBe('add-shape');
+    h.commit(2);
+    expect(h.currentLabel()).toBeUndefined();
+  });
+
+  it('reset accepts a baseline label', () => {
+    const h = new HistoryRing<number>();
+    h.reset(0, 'initial-load');
+    expect(h.currentLabel()).toBe('initial-load');
+  });
+
+  it('undo restores the prior entry; currentLabel reflects the restored entry', () => {
+    const h = new HistoryRing<number>();
+    h.reset(0);
+    h.commit(1, 'a');
+    h.commit(2, 'b');
+    expect(h.currentLabel()).toBe('b');
+    h.undo();
+    expect(h.currentLabel()).toBe('a');
+    h.undo();
+    expect(h.currentLabel()).toBeUndefined(); // back to baseline (no label)
+  });
+
   it('flush forces pending snapshot to commit synchronously', () => {
     const h = new HistoryRing<number>(50, 300);
     h.reset(0);

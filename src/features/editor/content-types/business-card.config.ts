@@ -23,4 +23,7 @@ export const businessCardConfig: ContentTypeConfig = {
   defaultExportFormat: 'pdf',
   supportsBrandKit: true,
   supportsMasterPages: false,
+  // Print stationery is fixed by physical reality — resizing breaks
+  // the print spec, so refuse / warn hard.
+  resizeStrategy: 'fixed',
 };

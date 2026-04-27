@@ -22,4 +22,7 @@ export const socialPostConfig: ContentTypeConfig = {
   defaultExportFormat: 'png',
   supportsBrandKit: true,
   supportsMasterPages: false,
+  // Square → portrait → story is a non-linear reflow — same brand,
+  // very different layout per aspect ratio. AI reflow handles it.
+  resizeStrategy: 'ai-reflowable',
 };

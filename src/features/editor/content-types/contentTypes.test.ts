@@ -45,6 +45,20 @@ describe('content-type configs', () => {
     }
   });
 
+  it('every config declares a resizeStrategy from the allowed enum', () => {
+    for (const cfg of listContentTypes()) {
+      expect(['fixed', 'reflowable', 'ai-reflowable']).toContain(cfg.resizeStrategy);
+    }
+  });
+
+  it('print stationery is fixed; presentations are ai-reflowable; banner is reflowable (per the table in templates.spec.md)', () => {
+    expect(getContentTypeConfig('business-card').resizeStrategy).toBe('fixed');
+    expect(getContentTypeConfig('presentation').resizeStrategy).toBe('ai-reflowable');
+    expect(getContentTypeConfig('brand-guideline-slide').resizeStrategy).toBe('ai-reflowable');
+    expect(getContentTypeConfig('social-post').resizeStrategy).toBe('ai-reflowable');
+    expect(getContentTypeConfig('banner').resizeStrategy).toBe('reflowable');
+  });
+
   it('every config has at least one export format and the default is in the list', () => {
     for (const cfg of listContentTypes()) {
       expect(cfg.exportFormats.length).toBeGreaterThan(0);

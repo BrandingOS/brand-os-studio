@@ -10,11 +10,8 @@
 //  • Pure function: input not mutated
 
 import { describe, expect, it } from 'vitest';
-import {
-  applyBrandToDocument,
-  resolveSlotRef,
-  type BrandResolutionAnnotation,
-} from '../applyBrandToDocument';
+import { applyBrandToDocument, resolveSlotRef } from '../applyBrandToDocument';
+import type { BrandResolution } from '@/features/editor/schema';
 import type { BrandKit } from '../BrandKit';
 import type {
   BrandOSDocument,
@@ -294,14 +291,13 @@ describe('applyBrandToDocument — preview mode', () => {
     expect(out.fontFamily).toEqual({ type: 'brand.font.heading' });
   });
 
-  it('writes resolved values into doc.metadata._brandResolution', () => {
+  it('writes resolved values into doc.brandResolution (typed top-level field)', () => {
     const text = makeTextLayer();
     const result = applyBrandToDocument(makeDoc([makePage([text])]), kit, {
       mode: 'preview',
     });
-    const annotation = result.metadata._brandResolution as BrandResolutionAnnotation;
+    const annotation = result.brandResolution!;
     expect(annotation.brandKitId).toBe(kit.id);
-    expect(annotation.mode).toBe('preview');
     expect(annotation.layers[text.id]).toEqual({
       color: '#3366ff',
       fontFamily: 'Inter, sans-serif',
@@ -314,7 +310,7 @@ describe('applyBrandToDocument — preview mode', () => {
       background: { type: 'brand.color.accent' },
     };
     const result = applyBrandToDocument(makeDoc([page]), kit, { mode: 'preview' });
-    const annotation = result.metadata._brandResolution as BrandResolutionAnnotation;
+    const annotation = result.brandResolution!;
     expect(annotation.pages[page.id].background).toBe('#33cc66');
     expect(result.pages[0].background).toEqual({ type: 'brand.color.accent' });
   });
@@ -327,9 +323,44 @@ describe('applyBrandToDocument — preview mode', () => {
     const result = applyBrandToDocument(makeDoc([makePage([text])]), kit, {
       mode: 'preview',
     });
-    const annotation = result.metadata._brandResolution as BrandResolutionAnnotation;
-    expect(annotation.layers).toEqual({});
-    expect(annotation.pages).toEqual({});
+    expect(result.brandResolution!.layers).toEqual({});
+    expect(result.brandResolution!.pages).toEqual({});
+  });
+
+  it('the typed brandResolution field passes BrandOSDocumentSchema.parse', async () => {
+    const { BrandOSDocumentSchema } = await import('@/features/editor/schema');
+    // Build a strictly-schema-valid document — all ids are real UUIDs.
+    const docId = crypto.randomUUID();
+    const pageId = crypto.randomUUID();
+    const layerId = crypto.randomUUID();
+    const validDoc = {
+      schemaVersion: 1 as const,
+      id: docId,
+      contentType: 'social-post',
+      brandId: 'b1',
+      masterPages: [],
+      pages: [
+        {
+          id: pageId,
+          name: 'p',
+          width: 1080,
+          height: 1080,
+          background: '#ffffff',
+          masterPageId: null,
+          layers: [
+            {
+              ...makeTextLayer({ id: layerId }),
+            },
+          ],
+        },
+      ],
+      metadata: {},
+    };
+    const result = applyBrandToDocument(validDoc, kit, { mode: 'preview' });
+    expect(() => BrandOSDocumentSchema.parse(result)).not.toThrow();
+    const parsed = BrandOSDocumentSchema.parse(result);
+    expect(parsed.brandResolution).toBeDefined();
+    expect(parsed.brandResolution!.layers[layerId]).toBeDefined();
   });
 });
 
@@ -338,11 +369,11 @@ describe('applyBrandToDocument — preview mode', () => {
 describe('applyBrandToDocument — mode flip cleans annotation', () => {
   const kit = makeBrandKit();
 
-  it('apply after preview strips _brandResolution from metadata', () => {
+  it('apply after preview strips brandResolution from the document', () => {
     const doc = makeDoc([makePage([makeTextLayer()])]);
     const previewed = applyBrandToDocument(doc, kit, { mode: 'preview' });
-    expect(previewed.metadata._brandResolution).toBeDefined();
+    expect(previewed.brandResolution).toBeDefined();
     const applied = applyBrandToDocument(previewed, kit);
-    expect(applied.metadata._brandResolution).toBeUndefined();
+    expect(applied.brandResolution).toBeUndefined();
   });
 });

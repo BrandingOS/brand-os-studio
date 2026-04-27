@@ -22,4 +22,6 @@ export const presentationConfig: ContentTypeConfig = {
   defaultExportFormat: 'pdf',
   supportsBrandKit: true,
   supportsMasterPages: true,
+  // Slide layouts redistribute, not stretch. AI reflow only.
+  resizeStrategy: 'ai-reflowable',
 };

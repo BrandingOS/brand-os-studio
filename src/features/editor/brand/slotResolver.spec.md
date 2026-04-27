@@ -262,6 +262,48 @@ Empty `warnings` is the success case. Phase 3 just populates the
 field; future "brand health" UI will display it. The presence of a
 warning is not an error — it's a hint that the brand is incomplete.
 
+## Apply-mode asymmetry — why logos don't bake
+
+`applyBrandToDocument(doc, brandKit, { mode: 'apply' })` replaces every
+SlotRef with its resolved literal. **Except logo SlotRefs.**
+
+When the resolver sees a `brand.logo.*` slot, it returns `undefined`
+from `resolveSlotRef`, leaving the SlotRef in place on the document.
+Colors get baked in; logos do not. This is intentional, not an
+oversight. Three reasons:
+
+1. **Logos resolve at render time, not document time.** The `'auto'`
+   variant on `LogoLayer` routes through `pickLogoOnBackground(brand,
+   bgHex)` from `@/shared/brand/logoOnBackground` so the picker can
+   choose `mono.black` over a yellow background and `primary` over a
+   white background. Baking the URL at apply time would freeze that
+   choice — a layer "auto-resolved" against today's white background
+   would still render the white-bg logo when the page background is
+   later changed to black. The bug class this prevents is exactly
+   what the SKAM red-on-red incident captured on 2026-04-25.
+
+2. **Logos are URLs, not literals on a `ResolvedValue` field.** Color
+   slots resolve to a hex string that goes into a `ResolvedValue`
+   field (`color`, `fill`, etc.). Logo slots resolve to a URL that
+   doesn't have a corresponding `ResolvedValue`-typed field on the
+   layer — `LogoLayer.variant` is the slot identifier, and the URL
+   lookup happens in the renderer via the variant + brand assets.
+   There's nowhere to "bake" the URL into the document schema; doing
+   so would require schema-level changes and a new field that
+   duplicates state already derivable from `variant + brand`.
+
+3. **Brand portability.** A document with baked logo URLs would be
+   tied to a specific brand's CDN. The vision doc's "switch brand
+   instantly" workflow requires logos to recompute against the new
+   brand on switch, which only works if the SlotRef stays in place.
+
+**Don't try to make this symmetric.** A future contributor noticing
+"logos aren't being baked like colors are" and wiring URL-baking will
+break `pickLogoOnBackground`, the brand-switch workflow, and the
+portability rule the vision codifies. If you need a frozen-logo
+representation (e.g. for an export pipeline that flattens everything),
+do that resolution in the export layer — not in the document.
+
 ## What this resolver does NOT do
 
 - It does not handle font *loading* (the editor renders with whatever

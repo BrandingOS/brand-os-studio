@@ -9,6 +9,9 @@ export {
   resolveSlotRef,
   type ApplyMode,
   type ApplyBrandOptions,
-  type BrandResolutionAnnotation,
 } from './applyBrandToDocument';
+// `BrandResolution` is the canonical type — re-exported from the
+// schema module so brand-engine consumers don't need to know which
+// file owns it.
+export type { BrandResolution } from '@/features/editor/schema';
 export { convertToTemplate } from './convertToTemplate';

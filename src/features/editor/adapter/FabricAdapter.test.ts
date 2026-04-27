@@ -890,6 +890,123 @@ describe('FabricAdapter — master pages (Phase 2)', () => {
   });
 });
 
+describe('FabricAdapter — batch (Phase 3 step 3)', () => {
+  beforeEach(installFetchStub);
+
+  it('multiple mutations inside batch produce ONE history entry', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+    const historyBefore = (adapter as unknown as { history: { getStateForTesting(): { past: number[] } } })
+      .history.getStateForTesting().past.length;
+
+    adapter.batch('test-bulk', () => {
+      adapter.updateLayer(pageId, layerId, { fontSize: 50 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 60 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 70 });
+    });
+
+    const historyAfter = (adapter as unknown as { history: { getStateForTesting(): { past: number[]; labels: (string | undefined)[] } } })
+      .history.getStateForTesting();
+    expect(historyAfter.past.length - historyBefore).toBe(1);
+    expect(historyAfter.labels[historyAfter.labels.length - 1]).toBe('test-bulk');
+  });
+
+  it('batch fires ONE change event regardless of how many mutations inside', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+
+    adapter.batch('three-edits', () => {
+      adapter.updateLayer(pageId, layerId, { fontSize: 11 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 22 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 33 });
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    // The single emitted document carries the LAST mutation.
+    const lastDoc = onChange.mock.lastCall![0] as BrandOSDocument;
+    expect((lastDoc.pages[0].layers[0] as { fontSize: number }).fontSize).toBe(33);
+  });
+
+  it('undo after batch reverts ALL mutations as one step', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+    const before = (adapter.getDocument().pages[0].layers[0] as { fontSize: number }).fontSize;
+
+    adapter.batch('triple', () => {
+      adapter.updateLayer(pageId, layerId, { fontSize: 50 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 60 });
+      adapter.updateLayer(pageId, layerId, { fontSize: 70 });
+    });
+    expect((adapter.getDocument().pages[0].layers[0] as { fontSize: number }).fontSize).toBe(70);
+
+    adapter.undo();
+    await flushPromises();
+    expect((adapter.getDocument().pages[0].layers[0] as { fontSize: number }).fontSize).toBe(before);
+  });
+
+  it('mutations OUTSIDE batch still produce per-mutation history entries', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+    const histBefore = (adapter as unknown as { history: { getStateForTesting(): { past: number[] } } })
+      .history.getStateForTesting().past.length;
+
+    adapter.updateLayer(pageId, layerId, { fontSize: 50 });
+    adapter.updateLayer(pageId, layerId, { fontSize: 60 });
+
+    const histAfter = (adapter as unknown as { history: { getStateForTesting(): { past: number[] } } })
+      .history.getStateForTesting().past.length;
+    expect(histAfter - histBefore).toBe(2);
+  });
+
+  it('nested batches collapse into the outer batch — single commit', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+
+    adapter.batch('outer', () => {
+      adapter.updateLayer(pageId, layerId, { fontSize: 10 });
+      adapter.batch('inner', () => {
+        adapter.updateLayer(pageId, layerId, { fontSize: 20 });
+        adapter.updateLayer(pageId, layerId, { fontSize: 30 });
+      });
+      adapter.updateLayer(pageId, layerId, { fontSize: 40 });
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const labels = (adapter as unknown as { history: { getStateForTesting(): { labels: (string | undefined)[] } } })
+      .history.getStateForTesting().labels;
+    // Outer label wins.
+    expect(labels[labels.length - 1]).toBe('outer');
+  });
+
+  it('errors inside batch propagate AND clean up batch state', async () => {
+    const { adapter } = await makeMountedAdapter();
+    const layerId = FIXTURE.pages[0].layers[0].id;
+    const pageId = FIXTURE.pages[0].id;
+
+    expect(() =>
+      adapter.batch('boom', () => {
+        adapter.updateLayer(pageId, layerId, { fontSize: 99 });
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+
+    // Mutations after a thrown batch behave normally — batch depth was reset.
+    const onChange = vi.fn();
+    adapter.on('change', onChange);
+    adapter.updateLayer(pageId, layerId, { fontSize: 88 });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('FabricAdapter — brand engine integration (Phase 3 step 2)', () => {
   beforeEach(installFetchStub);
 
@@ -988,8 +1105,9 @@ describe('FabricAdapter — brand engine integration (Phase 3 step 2)', () => {
     expect((previewed.pages[0].layers[0] as { color: unknown }).color).toEqual({
       type: 'brand.color.primary',
     });
-    // Resolution annotation is stashed under metadata.
-    const annotation = previewed.metadata._brandResolution as {
+    // Resolution annotation is stashed in the typed `brandResolution`
+    // field (lifted from `metadata._brandResolution` in Phase 3 step 3).
+    const annotation = previewed.brandResolution as {
       brandKitId: string;
       layers: Record<string, Record<string, string>>;
     };
