@@ -41,7 +41,7 @@ import type {
   SelectionState,
   Unsubscribe,
 } from './EditorAdapter';
-import type { GroupLayer } from '@/features/editor/schema';
+import type { GroupLayer, SlotRef } from '@/features/editor/schema';
 import { HistoryRing } from './historyRing';
 import {
   applyLayerToFabric,
@@ -328,7 +328,15 @@ export class FabricAdapter implements EditorAdapter {
     const idx = page.layers.findIndex((l) => l.id === layerId);
     if (idx < 0) return;
     const prevLayer = page.layers[idx];
-    const nextLayer = { ...prevLayer, ...patch } as Layer;
+    // Phase 3 step 4c.2 — record locked-binding recovery state BEFORE
+    // the patch lands. If a brand-managed property is being literalized
+    // on a brandLocked layer, capture the original SlotRef so
+    // applyBrandToDocument can restore it on re-apply (4c.3).
+    const recoveryAdditions = computeLockedBindingAdditions(prevLayer, patch);
+    const nextLayer = mergeLockedBindings(
+      { ...prevLayer, ...patch } as Layer,
+      recoveryAdditions,
+    );
     page.layers[idx] = nextLayer;
     // Reflect onto the canvas if active page.
     if (this.isActiveSurface(pageId)) {
@@ -419,6 +427,9 @@ export class FabricAdapter implements EditorAdapter {
 
     this.batch(batchLabel, () => {
       for (const { pageId, layer } of matches) {
+        // Phase 3 step 4c.2 — record locked-binding recovery state
+        // BEFORE the patch lands, same contract as updateLayer.
+        const recoveryAdditions = computeLockedBindingAdditions(layer, patch);
         // Mutate the mirror layer in place. The mirror IS this.doc;
         // mutating here is what the change event will reflect.
         // `Object.assign(layer, patch)` is the same shape updateLayer
@@ -426,6 +437,12 @@ export class FabricAdapter implements EditorAdapter {
         // is correct here because we're inside the batch's snapshot
         // boundary (the snapshot is taken AFTER fn returns).
         Object.assign(layer as object, patch);
+        if (recoveryAdditions) {
+          (layer as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings = {
+            ...((layer as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings ?? {}),
+            ...recoveryAdditions,
+          };
+        }
         mutatedLayerIds.push(layer.id);
         affectedPageIds.add(pageId);
         if (pageId === this.activePageId) activePageAffected = true;
@@ -781,6 +798,102 @@ function reIdLayer(layer: Layer): Layer {
 // layerMapping.ts. The patch-only version only forwarded transform/opacity/
 // visible/locked and silently dropped fontSize/color/fill/etc — that was
 // the data-flow bug surfaced in Phase 1 review.
+
+/**
+ * Phase 3 step 4c.2 — compute the recovery additions for a layer
+ * about to be patched. Returns a partial `_lockedBindings` map
+ * containing entries for properties where:
+ *
+ *   1. The layer is `brandLocked: true`
+ *   2. The patch contains a value for the property (it's about to
+ *      be overwritten)
+ *   3. The CURRENT value at that property is a SlotRef
+ *   4. The PATCH value at that property is a literal (or any
+ *      non-SlotRef value)
+ *
+ * Returns null when the layer is not brandLocked OR when no
+ * eligible bindings exist. The caller merges the additions onto
+ * the layer's `_lockedBindings` AFTER the patch has been applied,
+ * so the recorded SlotRefs survive the patch overwrite.
+ *
+ * Property paths supported:
+ *   • Top-level fields ('color', 'fontFamily', 'fill', 'stroke')
+ *   • SvgLayer fillOverrides via dotted notation
+ *     ('fillOverrides.<svg-path-id>')
+ *
+ * 4c.3 (next commit) reads these recordings on
+ * applyBrandToDocument({ respectLocks: true }) and restores the
+ * SlotRefs.
+ */
+function computeLockedBindingAdditions(
+  layer: Layer,
+  patch: Partial<Layer>,
+): Record<string, SlotRef> | null {
+  if (!layer.brandLocked) return null;
+  const additions: Record<string, SlotRef> = {};
+
+  for (const key of Object.keys(patch)) {
+    const currentValue = (layer as unknown as Record<string, unknown>)[key];
+    const patchValue = (patch as unknown as Record<string, unknown>)[key];
+
+    // Special case — SvgLayer.fillOverrides is a Record; walk into it
+    // and check each sub-key independently.
+    if (
+      key === 'fillOverrides' &&
+      isObjectRecord(currentValue) &&
+      isObjectRecord(patchValue)
+    ) {
+      for (const subKey of Object.keys(patchValue)) {
+        const currentSub = currentValue[subKey];
+        const patchSub = patchValue[subKey];
+        if (isSlotRefValue(currentSub) && !isSlotRefValue(patchSub) && patchSub !== undefined) {
+          additions[`fillOverrides.${subKey}`] = JSON.parse(JSON.stringify(currentSub));
+        }
+      }
+      continue;
+    }
+
+    // Top-level property paths.
+    if (isSlotRefValue(currentValue) && !isSlotRefValue(patchValue) && patchValue !== undefined) {
+      additions[key] = JSON.parse(JSON.stringify(currentValue));
+    }
+  }
+
+  return Object.keys(additions).length > 0 ? additions : null;
+}
+
+/**
+ * Merge recovery additions into a layer's `_lockedBindings`. Used by
+ * updateLayer's spread-then-merge flow. Existing bindings are
+ * preserved; new ones override on collision (the most recent
+ * override wins).
+ */
+function mergeLockedBindings(
+  layer: Layer,
+  additions: Record<string, SlotRef> | null,
+): Layer {
+  if (!additions) return layer;
+  return {
+    ...layer,
+    _lockedBindings: {
+      ...((layer as { _lockedBindings?: Record<string, SlotRef> })._lockedBindings ?? {}),
+      ...additions,
+    },
+  } as Layer;
+}
+
+function isSlotRefValue(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    typeof (value as { type: unknown }).type === 'string'
+  );
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 /**
  * Walk every layer in a tree (including group children) and collect

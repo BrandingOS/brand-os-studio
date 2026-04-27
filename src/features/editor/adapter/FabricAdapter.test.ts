@@ -1007,6 +1007,251 @@ describe('FabricAdapter — batch (Phase 3 step 3)', () => {
   });
 });
 
+describe('FabricAdapter — _lockedBindings recording (Phase 3 step 4c.2)', () => {
+  beforeEach(installFetchStub);
+
+  function getLayer(adapter: FabricAdapter, pageId: string, layerId: string): Layer {
+    const layer = adapter
+      .getDocument()
+      .pages.find((p) => p.id === pageId)
+      ?.layers.find((l) => l.id === layerId);
+    if (!layer) throw new Error(`Layer ${layerId} not found in page ${pageId}`);
+    return layer;
+  }
+
+  /** Replace the fixture's first layer with a brandLocked text layer carrying SlotRef-bound props. */
+  async function makeAdapterWithLockedText(brandLocked: boolean): Promise<{
+    adapter: FabricAdapter;
+    pageId: string;
+    layerId: string;
+  }> {
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages[0].layers = [
+      {
+        id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f4c01',
+        name: 'locked-headline',
+        kind: 'text',
+        transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked,
+        text: 'hi',
+        fontFamily: { type: 'brand.font.heading' },
+        fontSize: 24,
+        fontWeight: 400,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        direction: 'auto',
+        color: { type: 'brand.color.primary' },
+      },
+    ];
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+    return {
+      adapter,
+      pageId: baseDoc.pages[0].id,
+      layerId: baseDoc.pages[0].layers[0].id,
+    };
+  }
+
+  it('updateLayer records the original SlotRef when overriding a brand-locked property with a literal', async () => {
+    const { adapter, pageId, layerId } = await makeAdapterWithLockedText(true);
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings?.color).toEqual({ type: 'brand.color.primary' });
+  });
+
+  it('records multiple property paths in a single patch', async () => {
+    const { adapter, pageId, layerId } = await makeAdapterWithLockedText(true);
+    adapter.updateLayer(pageId, layerId, {
+      color: '#ff00ff',
+      fontFamily: 'Impact, sans-serif',
+    });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings).toEqual({
+      color: { type: 'brand.color.primary' },
+      fontFamily: { type: 'brand.font.heading' },
+    });
+  });
+
+  it('does NOT record bindings on unlocked layers (overrides on unlocked layers are user authority, not drift)', async () => {
+    const { adapter, pageId, layerId } = await makeAdapterWithLockedText(false);
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings).toBeUndefined();
+  });
+
+  it('does NOT record when the previous value was a literal (nothing to recover)', async () => {
+    const { adapter, pageId, layerId } = await makeAdapterWithLockedText(true);
+    // First override: SlotRef → literal. Records.
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    // Second override: literal → another literal. Should NOT replace
+    // the existing recording with anything (current value is already a literal).
+    adapter.updateLayer(pageId, layerId, { color: '#00ff00' });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    // The original SlotRef recorded on the first override is preserved.
+    expect(layer._lockedBindings?.color).toEqual({ type: 'brand.color.primary' });
+  });
+
+  it('preserves existing bindings when recording a new property', async () => {
+    const { adapter, pageId, layerId } = await makeAdapterWithLockedText(true);
+    adapter.updateLayer(pageId, layerId, { color: '#ff00ff' });
+    adapter.updateLayer(pageId, layerId, { fontFamily: 'Impact' });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings).toEqual({
+      color: { type: 'brand.color.primary' },
+      fontFamily: { type: 'brand.font.heading' },
+    });
+  });
+
+  it('records SvgLayer fillOverrides with the dotted property path', async () => {
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages[0].layers = [
+      {
+        id: '0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f4c10',
+        name: 'svg',
+        kind: 'svg',
+        transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked: true,
+        src: 'https://example.com/i.svg',
+        fillOverrides: {
+          '#path-1': { type: 'brand.color.primary' },
+          '#path-2': { type: 'brand.color.accent' },
+        },
+      },
+    ];
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+    const pageId = baseDoc.pages[0].id;
+    const layerId = baseDoc.pages[0].layers[0].id;
+
+    // Override only #path-1 — leave #path-2 intact.
+    adapter.updateLayer(pageId, layerId, {
+      fillOverrides: {
+        '#path-1': '#abcdef',
+        '#path-2': { type: 'brand.color.accent' },
+      },
+    });
+    const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings).toEqual({
+      'fillOverrides.#path-1': { type: 'brand.color.primary' },
+    });
+  });
+
+  it('applyLayerPatchAcrossPages also records bindings on brandLocked layers', async () => {
+    // Two brandLocked text layers across two pages, both overridden.
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    const makeLockedText = (id: string) => ({
+      id,
+      name: id,
+      kind: 'text' as const,
+      transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: true,
+      text: '',
+      fontFamily: 'Helvetica',
+      fontSize: 24,
+      fontWeight: 400,
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      textAlign: 'left' as const,
+      direction: 'auto' as const,
+      color: { type: 'brand.color.primary' as const },
+    });
+    baseDoc.pages = [
+      { id: 'p1', name: 'p1', width: 1080, height: 1080, background: '#ffffff', masterPageId: null, layers: [makeLockedText('l-p1')] },
+      { id: 'p2', name: 'p2', width: 1080, height: 1080, background: '#ffffff', masterPageId: null, layers: [makeLockedText('l-p2')] },
+    ];
+    baseDoc.masterPages = [];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    adapter.applyLayerPatchAcrossPages(
+      (l) => l.kind === 'text',
+      { color: '#deadbe' },
+      'bulk-override',
+    );
+
+    for (const pageId of ['p1', 'p2']) {
+      const layerId = pageId === 'p1' ? 'l-p1' : 'l-p2';
+      const layer = getLayer(adapter, pageId, layerId) as { _lockedBindings?: Record<string, unknown> };
+      expect(layer._lockedBindings?.color).toEqual({ type: 'brand.color.primary' });
+    }
+  });
+
+  it('applyLayerPatchAcrossPages does NOT record on UNLOCKED layers', async () => {
+    const baseDoc = JSON.parse(JSON.stringify(FIXTURE)) as BrandOSDocument;
+    baseDoc.pages = [
+      {
+        id: 'p1',
+        name: 'p1',
+        width: 1080,
+        height: 1080,
+        background: '#ffffff',
+        masterPageId: null,
+        layers: [
+          {
+            id: 'l',
+            name: 'l',
+            kind: 'text',
+            transform: { x: 0, y: 0, width: 100, height: 50, rotation: 0, scaleX: 1, scaleY: 1 },
+            opacity: 1,
+            visible: true,
+            locked: false,
+            brandLocked: false, // UNLOCKED
+            text: '',
+            fontFamily: 'Helvetica',
+            fontSize: 24,
+            fontWeight: 400,
+            lineHeight: 1.2,
+            letterSpacing: 0,
+            textAlign: 'left',
+            direction: 'auto',
+            color: { type: 'brand.color.primary' },
+          },
+        ],
+      },
+    ];
+    baseDoc.masterPages = [];
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await adapter.mount(container);
+    await adapter.loadDocument(baseDoc);
+    await flushPromises();
+
+    adapter.applyLayerPatchAcrossPages(
+      (l) => l.kind === 'text',
+      { color: '#abcdef' },
+      'bulk-unlocked',
+    );
+
+    const layer = getLayer(adapter, 'p1', 'l') as { _lockedBindings?: Record<string, unknown> };
+    expect(layer._lockedBindings).toBeUndefined();
+  });
+});
+
 describe('FabricAdapter — applyLayerPatchAcrossPages (Phase 3 step 4b)', () => {
   beforeEach(installFetchStub);
 
