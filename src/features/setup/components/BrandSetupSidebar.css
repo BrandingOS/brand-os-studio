@@ -1,0 +1,192 @@
+.bss {
+  width: 320px;
+  box-sizing: border-box;
+  background: #fdfcf9;
+  border: 1px solid rgba(22, 20, 14, 0.06);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(22, 20, 14, 0.04), 0 4px 12px rgba(22, 20, 14, 0.03);
+  padding: 22px 18px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+  color: #2b2924;
+}
+
+/* Header */
+.bss-header {
+  padding: 0 4px 16px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(22, 20, 14, 0.06);
+}
+
+.bss-eyebrow {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8a867a;
+  margin-bottom: 8px;
+}
+
+.bss-title {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: #2b2924;
+  margin: 0 0 18px 0;
+}
+
+.bss-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bss-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bss-progress-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8a867a;
+}
+
+.bss-progress-count {
+  font-size: 11px;
+  color: #2b2924;
+  font-variant-numeric: tabular-nums;
+}
+
+.bss-progress-bar {
+  height: 2px;
+  background: rgba(22, 20, 14, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bss-progress-fill {
+  height: 100%;
+  background: #111111;
+}
+
+/* List */
+.bss-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bss-item {
+  display: grid;
+  grid-template-columns: 52px 1fr 22px;
+  align-items: center;
+  column-gap: 12px;
+  padding: 8px 4px;
+}
+
+.bss-tile-slot {
+  width: 52px;
+  height: 52px;
+  display: block;
+}
+
+.bss-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bss-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #2b2924;
+  letter-spacing: -0.005em;
+}
+
+.bss-sub {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8a867a;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bss-item.is-empty .bss-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #a7a396;
+}
+
+.bss-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 22px;
+}
+
+/* Tiles — fixed 52x52 */
+.bss-tile {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f4f1e8;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.bss-tile--logo {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-size: 30px;
+  line-height: 1;
+  color: #2b2924;
+  background: #f4f1e8;
+}
+
+.bss-tile--colors {
+  /* diagonal split via inline linear-gradient */
+}
+
+.bss-tile--fonts {
+  font-family: 'Instrument Serif', 'Times New Roman', serif;
+  font-size: 22px;
+  line-height: 1;
+  color: #2b2924;
+  background: #f4f1e8;
+}
+
+.bss-tile--icons {
+  background: #f4f1e8;
+}
+
+.bss-tile--photos {
+  background: radial-gradient(
+      circle at 32% 32%,
+      rgba(255, 200, 110, 0.55) 0%,
+      rgba(255, 200, 110, 0) 60%
+    ),
+    #17160f;
+}
+
+.bss-tile--website {
+  background: #f4f1e8;
+}
+
+.bss-tile--voice {
+  background: #f4f1e8;
+}

@@ -3,9 +3,9 @@ import {
   ContextMenu,
   type ContextMenuState,
 } from '@/features/setup/components/ContextMenu';
-import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from './BrandKitSidebar';
-import { BrandKitCardEditor, type EditorTarget } from './BrandKitCardEditor';
+import type { EditorTarget } from './BrandKitCardEditor';
+import { variantsForCard } from '../data/legacy-mapping';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -211,25 +211,33 @@ function DownloadIcon() {
   );
 }
 
+type Origin = { x: number; y: number };
+
 type CardProps = {
   sectionKey: KitSectionKey;
   card: CardSpec;
-  onEdit: (sectionKey: KitSectionKey, label: string) => void;
+  onEdit: (sectionKey: KitSectionKey, label: string, origin?: Origin) => void;
   onDownload?: (sectionKey: KitSectionKey, label: string) => void;
   onOpenMenu: (e: React.MouseEvent, sectionKey: KitSectionKey, label: string) => void;
 };
+
+function rectCenter(el: HTMLElement): Origin {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
 
 function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: CardProps) {
   return (
     <figure
       className="bk-card"
       onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
-      onClick={() => onEdit(sectionKey, card.label)}
+      onClick={(e) => onEdit(sectionKey, card.label, rectCenter(e.currentTarget as HTMLElement))}
     >
-      <div
-        className="bk-card-cover"
-        style={{ backgroundImage: `url(${coverFor(sectionKey, card.label)})` }}
-      >
+      <div className="bk-card-cover">
+        <div
+          className="bk-card-cover-image"
+          style={{ backgroundImage: `url(${coverFor(sectionKey, card.label)})` }}
+        />
         <div className="bk-card-actions">
           <button
             type="button"
@@ -265,17 +273,23 @@ function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: Card
 }
 
 type GridProps = {
-  brand: MockBrand;
   sectionKey: KitSectionKey;
-  onSaveCard?: (target: EditorTarget) => void;
+  /** Bubble the click up to the page so it can swap to the in-page
+   *  drilldown view (a full grid of variants for the picked card)
+   *  rather than opening the old modal. The optional origin is the
+   *  viewport-pixel center of the clicked card, used to drive the
+   *  radial wave fade-in on the new view. */
+  onPickCard: (target: EditorTarget, origin?: Origin) => void;
+  /** Right-click "Edit" — opens the editor directly, skipping the
+   *  variants drilldown. */
+  onEditCard?: (target: EditorTarget) => void;
   onDownloadCard?: (target: EditorTarget) => void;
 };
 
-export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: GridProps) {
+export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard }: GridProps) {
   const cards = (SECTION_CARDS[sectionKey] ?? []).slice(0, MAX_PER_SECTION);
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
-  const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
 
   // Keep the card visually raised (actions visible) while its menu is open,
   // mirroring SetupBoard's `.is-ctx-active` pattern.
@@ -286,12 +300,23 @@ export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: G
     setCtxMenu(null);
   }, []);
 
-  const openEditor = useCallback(
-    (key: KitSectionKey, label: string) => {
-      const opts = coversFor(key, label);
-      setEditorTarget({ sectionKey: key, label, cover: opts[0], covers: opts });
+  const targetFor = useCallback((key: KitSectionKey, label: string): EditorTarget => {
+    const opts = coversFor(key, label);
+    const templates = variantsForCard(key, label);
+    return {
+      sectionKey: key,
+      label,
+      cover: opts[0],
+      covers: opts,
+      templates,
+    };
+  }, []);
+
+  const handleCardClick = useCallback(
+    (key: KitSectionKey, label: string, origin?: Origin) => {
+      onPickCard(targetFor(key, label), origin);
     },
-    [],
+    [onPickCard, targetFor],
   );
 
   const openMenu = useCallback(
@@ -305,26 +330,25 @@ export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: G
       ctxAnchorRef.current = anchor;
       anchor?.classList.add('is-ctx-active');
 
-      const items: ContextMenuState['items'] = [
-        {
+      const items: ContextMenuState['items'] = [];
+      if (onEditCard) {
+        items.push({
           label: 'Edit',
-          onSelect: () => openEditor(key, label),
+          onSelect: () => onEditCard(targetFor(key, label)),
           icon: <EditIcon />,
-        },
-      ];
+        });
+      }
       if (onDownloadCard) {
         items.push({
           label: 'Download',
-          onSelect: () => {
-            const opts = coversFor(key, label);
-            onDownloadCard({ sectionKey: key, label, cover: opts[0], covers: opts });
-          },
+          onSelect: () => onDownloadCard(targetFor(key, label)),
           icon: <DownloadIcon />,
         });
       }
+      if (items.length === 0) return;
       setCtxMenu({ x: e.clientX, y: e.clientY, items });
     },
-    [onDownloadCard, openEditor],
+    [onDownloadCard, onEditCard, targetFor],
   );
 
   return (
@@ -335,13 +359,10 @@ export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: G
             key={card.label}
             sectionKey={sectionKey}
             card={card}
-            onEdit={openEditor}
+            onEdit={handleCardClick}
             onDownload={
               onDownloadCard
-                ? (k, l) => {
-                    const opts = coversFor(k, l);
-                    onDownloadCard({ sectionKey: k, label: l, cover: opts[0], covers: opts });
-                  }
+                ? (k, l) => onDownloadCard(targetFor(k, l))
                 : undefined
             }
             onOpenMenu={openMenu}
@@ -356,16 +377,6 @@ export function SectionGrid({ brand, sectionKey, onSaveCard, onDownloadCard }: G
           onClose={closeCtxMenu}
         />
       )}
-      <BrandKitCardEditor
-        brand={brand}
-        target={editorTarget}
-        onClose={() => setEditorTarget(null)}
-        onSave={(t) => {
-          onSaveCard?.(t);
-          setEditorTarget(null);
-        }}
-        onDownload={(t) => onDownloadCard?.(t)}
-      />
     </>
   );
 }

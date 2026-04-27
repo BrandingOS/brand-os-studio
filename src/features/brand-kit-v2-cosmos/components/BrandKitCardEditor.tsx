@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
+import type { Brand } from '@/shared/types/brand';
+import type { BrandKitTemplate } from '@/features/brandkit/types';
+import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
 import type { KitSectionKey } from './BrandKitSidebar';
 
 export type EditorTarget = {
@@ -12,10 +15,28 @@ export type EditorTarget = {
   cover: string;
   /** All cover options shown in the editor's image picker. */
   covers: string[];
+  /** Real template variants pulled from the legacy brandkit library
+   *  via legacy-mapping.ts. Drives the drilldown grid; empty when
+   *  the card has no legacy counterpart. */
+  templates?: BrandKitTemplate[];
+  /** The single template the user picked from the drilldown — set
+   *  when the editor opens from a variant tile. Lets the editor
+   *  show the legacy renderer's preview alongside the brand
+   *  controls. Absent when the editor opens from a card directly
+   *  (right-click Edit) — the editor falls back to the cover
+   *  image preview in that case. */
+  template?: BrandKitTemplate;
 };
 
 type Props = {
   brand: MockBrand;
+  /** Canonical Brand object — when provided alongside
+   *  `target.template`, the preview pane renders the legacy
+   *  template's live design (BusinessCardRenderer / etc.) instead
+   *  of the static cover image. The selected color, when changed
+   *  via the swatches, overrides the brand's primary so the
+   *  preview reflects the recolor live. */
+  sourceBrand?: Brand;
   target: EditorTarget | null;
   onClose: () => void;
   onSave: (target: EditorTarget) => void;
@@ -34,7 +55,14 @@ type Props = {
  * context, with the workspace's data-theme mirrored onto the dialog
  * so light/dark tokens still apply.
  */
-export function BrandKitCardEditor({ brand, target, onClose, onSave, onDownload }: Props) {
+export function BrandKitCardEditor({
+  brand,
+  sourceBrand,
+  target,
+  onClose,
+  onSave,
+  onDownload,
+}: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedCover, setSelectedCover] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
@@ -68,9 +96,20 @@ export function BrandKitCardEditor({ brand, target, onClose, onSave, onDownload 
     };
   }, [target, onClose]);
 
+  // Brand projection used by the legacy renderer — the picked
+  // swatch overrides the brand's primary so recolor previews live.
+  const previewBrand = useMemo<Brand | null>(() => {
+    if (!sourceBrand) return null;
+    if (!selectedColor) return sourceBrand;
+    return { ...sourceBrand, primaryColor: selectedColor };
+  }, [sourceBrand, selectedColor]);
+
   if (!target) return null;
 
   const allColors = [...brand.colors.core, ...brand.colors.accent, ...brand.colors.grey];
+  const livePreview = previewBrand && target.template
+    ? renderTemplateDesign(target.template, previewBrand)
+    : null;
 
   return createPortal(
     <div
@@ -84,11 +123,20 @@ export function BrandKitCardEditor({ brand, target, onClose, onSave, onDownload 
       }}
     >
       <div className="bk-editor" onMouseDown={(e) => e.stopPropagation()}>
-        <section
-          className="bk-editor-preview-card"
-          aria-label={`${target.label} preview`}
-          style={{ backgroundImage: `url(${selectedCover ?? target.cover})` }}
-        />
+        {livePreview ? (
+          <section
+            className="bk-editor-preview-card bk-editor-preview-card--live"
+            aria-label={`${target.label} preview`}
+          >
+            <div className="bk-editor-preview-frame">{livePreview}</div>
+          </section>
+        ) : (
+          <section
+            className="bk-editor-preview-card"
+            aria-label={`${target.label} preview`}
+            style={{ backgroundImage: `url(${selectedCover ?? target.cover})` }}
+          />
+        )}
 
         <aside className="bk-editor-rail-card" aria-label="Edit options">
           <header className="bk-editor-rail-head">

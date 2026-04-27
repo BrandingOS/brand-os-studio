@@ -19,22 +19,23 @@
   gap: 10px;
   margin: 0;
   cursor: pointer;
-  transition: transform 180ms var(--ease);
-}
-[data-cosmos="workspace"] .bk-card:hover {
-  transform: translateY(-2px);
 }
 
+/* Frame — border + radius + shadow, transparent inside. The
+   actual cover photo lives in .bk-card-cover-image below; only
+   the image fades on view swap. Transparent bg lets the OUT
+   layer's cover show through this IN-layer frame during the
+   crossfade — both views share the same section structure, so
+   overlapping rectangles read as one stable tile whose contents
+   are crossfading. */
 [data-cosmos="workspace"] .bk-card-cover {
   position: relative;
   aspect-ratio: 1.6 / 1;
   border-radius: 14px;
-  background-color: #0a0a0a;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background-color: transparent;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-xs);
+  overflow: hidden;
   transition:
     box-shadow 180ms var(--ease),
     border-color 180ms var(--ease);
@@ -42,6 +43,18 @@
 [data-cosmos="workspace"] .bk-card:hover .bk-card-cover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-strong);
+}
+/* Cover image — absolute fill so the frame stays the layout box.
+   This is what the cross-layer fade animates; the frame around it
+   stays at opacity 1, so the rectangles never appear to move or
+   blink during the transition. */
+[data-cosmos="workspace"] .bk-card-cover-image {
+  position: absolute;
+  inset: 0;
+  background-color: #0a0a0a;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Hover-reveal action buttons (edit · download). Mirrors the
@@ -89,6 +102,7 @@
 
 [data-cosmos="workspace"] .bk-card-label {
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--text-secondary);
   letter-spacing: -0.005em;
   padding-left: 2px;
@@ -164,6 +178,30 @@
   background-repeat: no-repeat;
   overflow: hidden;
   min-height: 0;
+}
+/* Live-render variant — no background image; the legacy renderer
+   paints into .bk-editor-preview-frame instead. The frame sits
+   centered with the renderer's natural aspect preserved so the
+   preview stays readable at large sizes. */
+.bk-editor-preview-card--live {
+  background-color: var(--bke-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.bk-editor-preview-frame {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 1.6 / 1;
+  display: block;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 18px 48px -16px rgba(15, 18, 22, 0.35);
+}
+.bk-editor-preview-frame > * {
+  width: 100%;
+  height: 100%;
 }
 .bk-editor-eyebrow {
   font-size: 10.5px;
@@ -424,5 +462,444 @@
 }
 .bk-editor-btn--primary:hover {
   filter: brightness(0.92);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Variants modal — opens between the kit grid and the card editor.
+   Same backdrop tokens as the editor; single full-width card with a
+   horizontal rail of variant tiles. Click a tile to open the editor.
+   ────────────────────────────────────────────────────────────────── */
+.bk-variants-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 17, 22, 0.55);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  animation: bk-editor-fade 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bk-variants-backdrop[data-theme="light"] {
+  --bke-surface: #ffffff;
+  --bke-surface-2: #f7f7f5;
+  --bke-text: #111113;
+  --bke-text-secondary: #6b6b6f;
+  --bke-border: rgba(17, 17, 20, 0.08);
+  --bke-border-strong: rgba(17, 17, 20, 0.18);
+  --bke-shadow: 0 30px 60px -20px rgba(15, 17, 22, 0.45);
+}
+.bk-variants-backdrop[data-theme="dark"] {
+  --bke-surface: #131418;
+  --bke-surface-2: #1b1c21;
+  --bke-text: #f1f0ec;
+  --bke-text-secondary: #a8a8ad;
+  --bke-border: rgba(255, 255, 255, 0.08);
+  --bke-border-strong: rgba(255, 255, 255, 0.18);
+  --bke-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+.bk-variants {
+  display: flex;
+  flex-direction: column;
+  width: 92vw;
+  max-width: 1600px;
+  height: 90vh;
+  background: var(--bke-surface);
+  border: 1px solid var(--bke-border);
+  border-radius: 18px;
+  box-shadow: var(--bke-shadow);
+  overflow: hidden;
+  font-family: inherit;
+  animation: bk-editor-rise 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bk-variants-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--bke-border);
+  flex: 0 0 auto;
+}
+.bk-variants-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bk-variants-eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bke-text-secondary);
+}
+.bk-variants-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--bke-text);
+}
+.bk-variants-subtitle {
+  font-size: 12px;
+  color: var(--bke-text-secondary);
+  margin-top: 2px;
+}
+.bk-variants-close {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--bke-border);
+  color: var(--bke-text);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+  flex: 0 0 auto;
+}
+.bk-variants-close:hover {
+  background: var(--bke-surface-2);
+  border-color: var(--bke-border-strong);
+}
+
+/* Vertical grid scroller. Mirrors the outer .bk-grid sizing so each
+   variant tile reads as the same kind of artifact as the cards on the
+   page behind the modal — same minimum width, same aspect ratio, same
+   gap. Scrolls vertically when there are more variants than fit. */
+.bk-variants-scroller {
+  flex: 1 1 auto;
+  /* min-height: 0 is required on a flex child that has its own
+     overflow — without it the child takes its content size and the
+     overflow never activates, which is what was crushing the tiles
+     into thin slivers. */
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-auto-rows: max-content;
+  row-gap: 20px;
+  column-gap: 20px;
+  padding: 24px 26px 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.bk-variants-scroller::-webkit-scrollbar {
+  width: 10px;
+}
+.bk-variants-scroller::-webkit-scrollbar-thumb {
+  background: var(--bke-border-strong);
+  border-radius: 8px;
+}
+
+/* Variant card — wraps the cover tile + label so each unit mirrors
+   the .bk-card structure on the page behind it (column flex, 10px
+   between cover and label). No `content-visibility: auto` here:
+   that implies `contain: paint`, which clips the tile's hover lift
+   (translateY −2px) and box-shadow at the card's bounds. The other
+   optimizations (no backdrop-filter, will-change: opacity, killing
+   transitions on the OUT layer) cover the perf budget without it. */
+[data-cosmos="workspace"] .bk-variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+[data-cosmos="workspace"] .bk-variant-label {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  padding-left: 2px;
+}
+
+/* Frame — sized + skinned identically to .bk-card-cover so a
+   variant tile is the same artifact as a section card. Stays
+   opaque during the cross-layer transition; only the cover image
+   inside (.bk-variant-tile-cover) fades. Hover swaps shadow +
+   border-color only, no transform. */
+.bk-variant-tile {
+  appearance: none;
+  /* Force the box model to match .bk-card-cover (which is a div).
+     Without these, browser-default button styles (font: button,
+     box-sizing: border-box vs content-box, line-height) compute
+     a slightly different box size, and that 1–2 px diff between
+     page 1's tiles and page 2's tiles is what produced the
+     "ghost rectangle" you saw on the corner of the cards. */
+  box-sizing: border-box;
+  font: inherit;
+  letter-spacing: normal;
+  text-align: inherit;
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.6 / 1;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background-color: transparent;
+  box-shadow: var(--shadow-xs);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    box-shadow 180ms var(--ease),
+    border-color 180ms var(--ease);
+}
+[data-cosmos="workspace"] .bk-card-cover {
+  box-sizing: border-box;
+}
+.bk-variant-tile:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+.bk-variant-tile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-xs);
+}
+/* The variant cover — absolute fill so the tile frame keeps the
+   layout slot. This is what the staggered fade animates. */
+.bk-variant-tile-cover {
+  position: absolute;
+  inset: 0;
+  background-color: #0a0a0a;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: block;
+}
+/* Live-render slot — used when the drilldown receives a real
+   `Brand` and renders the legacy template renderer directly into
+   the tile (BusinessCardRenderer / MockupRenderer / etc.) instead
+   of a static cover image. The renderer paints into a square or
+   landscape box; this wrapper forces it to fill the tile while
+   preserving the renderer's own internal aspect. */
+.bk-variant-tile-render {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+.bk-variant-tile-render > * {
+  width: 100%;
+  height: 100%;
+}
+.bk-variant-tile-index {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  /* No backdrop-filter — with 60 tiles in the grid, blurring each
+     badge during the staggered fade-in tanks frame rate. Solid bg
+     at higher alpha gives the same visual weight without the cost. */
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* Suppress the global .section > * fade-up animation from
+   cosmos-workspace.css for the Brand Kit page only — we run our
+   own staggered fade-in below, scoped to the stage's "in" layer.
+   Scoped to .bk-cosmos-board so other Cosmos pages keep theirs. */
+[data-cosmos="workspace"] .bk-cosmos-board .section > * {
+  animation: none;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Dual-layer wipe — Page 1 and Page 2 share the same section
+   structure (8 sections with matching card counts), so they stack
+   1:1 at every grid position. Both layers stay mounted in the DOM;
+   the .bk-stage's `data-active` attribute flips which layer is
+   visible. The frames themselves are static rectangles in both
+   layers — only the content inside (covers, labels, header text)
+   crossfades, with a per-tile delay based on distance from the
+   click point (--bk-d, set in useLayoutEffect on the page).
+   ────────────────────────────────────────────────────────────────── */
+[data-cosmos="workspace"] .bk-stage {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas: "stack";
+}
+[data-cosmos="workspace"] .bk-stage-layer--page1,
+[data-cosmos="workspace"] .bk-stage-layer--page2 {
+  grid-area: stack;
+  align-self: start;
+  min-width: 0;
+}
+[data-cosmos="workspace"] .bk-stage-layer--page1 {
+  z-index: 2;
+}
+[data-cosmos="workspace"] .bk-stage-layer--page2 {
+  z-index: 1;
+}
+/* Pointer events route to the active layer only — the inactive
+   layer's invisible content shouldn't intercept clicks. */
+[data-cosmos="workspace"] .bk-stage[data-active="sections"] .bk-stage-layer--page2,
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 {
+  pointer-events: none;
+}
+
+/* The wipe — entire cards fade together (frame + cover + label).
+   Originally we faded only the inner content so the frame would
+   "stay put" and read as a stable rectangle. That worked when
+   both layers shared the same section structure (every page-1
+   frame had a matching page-2 frame at the same position). Now
+   that page 2 is a flat folder grid (continuous 3-column flow
+   without section breaks) and page 1 has section breaks, the
+   layouts diverge — so page 2 has frames at positions where
+   page 1 has nothing (between sections, in unfilled grid cells),
+   and vice versa. With only-content fading, those orphan frames
+   from the inactive layer would bleed through as "empty
+   rectangles" in the active layer's view. Fading the whole card
+   makes the inactive layer's frames disappear too.
+
+   Each card has an opacity transition with delay = --bk-d
+   (computed in the page's useLayoutEffect from each tile's
+   distance from the click origin), so the wipe still ripples
+   outward from the click point. */
+[data-cosmos="workspace"] .bk-stage-layer--page1 .bk-card,
+[data-cosmos="workspace"] .bk-stage-layer--page1 .section-header {
+  opacity: 1;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--bk-d, 0ms);
+  will-change: opacity;
+}
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .bk-card,
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section-header {
+  opacity: 0;
+}
+
+[data-cosmos="workspace"] .bk-stage-layer--page2 .bk-variant-card,
+[data-cosmos="workspace"] .bk-stage-layer--page2 .bk-drilldown-head {
+  opacity: 0;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--bk-d, 0ms);
+  will-change: opacity;
+}
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-variant-card,
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-drilldown-head {
+  opacity: 1;
+}
+
+/* Page 1's section divider lines (.section's border-top) are
+   painted regardless of the .bk-card / .section-header opacity
+   rules, so they bleed through into page 2's view. Fade the
+   border-color to transparent when drilldown is active. */
+[data-cosmos="workspace"] .bk-stage-layer--page1 .section {
+  transition: border-top-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section {
+  border-top-color: transparent;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Drilldown view — replaces the sections list inside .board-wrap
+   when a card is picked. Mirrors the sections-list rhythm exactly so
+   the variant grid lands on the same X positions as the cards that
+   opened it: same .bk-grid sizing, same column widths, same gap.
+   The header sits in the same vertical slot as a .section-header,
+   so cards don't shift when you drill in/out.
+   ────────────────────────────────────────────────────────────────── */
+/* Drilldown — its own view with a dedicated header (Back · card
+   title · download) plus a flat grid of variants. Visually
+   distinct from the sections list so the user feels like they
+   "entered" the card. */
+[data-cosmos="workspace"] .bk-drilldown {
+  padding-top: 0;
+}
+/* anchor: drilldown-anchor-v1 — user-approved baseline (2026-04-27).
+   Don't change these values without confirming first. */
+[data-cosmos="workspace"] .bk-drilldown-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  width: 100%;
+  /* Match `.section-header` exactly: 30px tall slot + a gap
+     before the grid below. The pill's content baseline sits
+     higher than h2's baseline, so even with min-height: 30px
+     and the same margin-bottom as `.section-header`, the
+     drilldown grid lands a few px above page 1's grid. The
+     extra `margin-bottom` compensates so both grids share the
+     same first-row Y on enter / exit. */
+  min-height: 30px;
+  margin-top: 0;
+  margin-bottom: 44px;
+  margin-left: 0;
+  /* Sticky — same `top` as the sidebar panel (`.panel` uses
+     top: 80px in cosmos-workspace.css). Keeps the pill visible
+     while the user scrolls through a long variant list. */
+  position: sticky;
+  top: 80px;
+  z-index: 5;
+}
+/* Visible "card" that wraps the Back button + card title together
+   so they stay legible against scrolling tiles when the header
+   sticks. Compact pill — small enough to feel like a control,
+   not a page header. */
+[data-cosmos="workspace"] .bk-drilldown-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px 3px 3px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-cosmos="workspace"] .bk-drilldown-back {
+  appearance: none;
+  background: var(--surface-sunken);
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  height: 22px;
+  padding: 0 8px 0 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+  flex: 0 0 auto;
+  align-self: center;
+}
+[data-cosmos="workspace"] .bk-drilldown-back:hover {
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+[data-cosmos="workspace"] .bk-drilldown-back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+[data-cosmos="workspace"] .bk-drilldown-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: 0;
+  padding-right: 2px;
+}
+[data-cosmos="workspace"] .bk-drilldown-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+  top: -3px;
+}
+[data-cosmos="workspace"] .bk-drilldown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
 }
 

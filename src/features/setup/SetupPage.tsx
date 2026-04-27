@@ -1230,7 +1230,7 @@ export function SetupPage({
             </button>
           )}
           <button type="button" className="pill-btn pill-btn--primary">
-            <span>Publish</span>
+            <span>Export brand</span>
             <ArrowRight size={14} className="pill-btn-arrow" />
           </button>
         </>

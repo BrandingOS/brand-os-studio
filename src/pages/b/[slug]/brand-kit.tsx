@@ -17,5 +17,11 @@ export default function BrandBrandKitPage() {
 
   if (!brand) return null;
 
-  return <BrandKitCosmosPage key={brand.id} brand={brandToMockBrand(brand)} />;
+  return (
+    <BrandKitCosmosPage
+      key={brand.id}
+      brand={brandToMockBrand(brand)}
+      sourceBrand={brand}
+    />
+  );
 }
