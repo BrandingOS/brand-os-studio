@@ -419,22 +419,38 @@ function PresentText({
 
   if (empty) {
     if (mode !== 'edit') return null;
+    // In edit mode, render an UNOBTRUSIVE placeholder — a tiny "+"
+    // affordance, not the hint text. Showing the hint as visible
+    // content (e.g. "SECTION LABEL", "Click to edit") makes the slide
+    // look like it has content when it doesn't. Hint becomes a
+    // tooltip via `title` attribute so the user still gets context.
     const Tag = as as keyof JSX.IntrinsicElements;
     return (
       <Tag
         className={roleClass}
+        title={hint ?? 'Click to edit'}
+        aria-label={hint ?? 'Click to edit'}
         style={{
-          opacity: 0.55,
-          outline: '1.5px dashed var(--deck-border-subtle, rgba(0,21,99,0.18))',
-          outlineOffset: 4,
-          borderRadius: 6,
-          padding: '2px 8px',
-          minWidth: 80,
+          opacity: 0,
+          minWidth: 60,
+          minHeight: '1em',
           display: 'inline-block',
+          padding: '2px 8px',
+          borderRadius: 6,
+          border: '1px dashed transparent',
+          transition: 'opacity 0.15s ease, border-color 0.15s ease',
           ...style,
         }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.opacity = '0.5';
+          (e.currentTarget as HTMLElement).style.borderColor = 'var(--deck-border-subtle, rgba(0,21,99,0.25))';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.opacity = '0';
+          (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
+        }}
       >
-        {hint ?? 'Click to edit'}
+        +
       </Tag>
     );
   }
@@ -647,8 +663,12 @@ export function LabelWithRule({
   style?: CSSProperties;
 }) {
   const empty = isEmptyText(block);
-  // In present mode skip the row entirely if the label is empty.
-  if (empty && mode !== 'edit') return null;
+  // Hide the WHOLE row (rule + label) when the slot is empty — even
+  // in edit mode. Showing the accent rule beside an invisible "+"
+  // makes the slide look like it has a stray decorative line for
+  // no reason. Users discover label slots through the layout/template
+  // catalog, not by clicking floating accent dashes.
+  if (empty) return null;
 
   const justify =
     align === 'center' ? 'center' : align === 'end' ? 'flex-end' : 'flex-start';
