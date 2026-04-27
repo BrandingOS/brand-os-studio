@@ -169,7 +169,7 @@ export function ProcessVariantC({ index, total }: SlideProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 30px 60px -20px rgba(0,0,0,0.4)',
+          boxShadow: '0 8px 22px -6px rgba(0,0,0,0.18)',
         }}
       >
         <ReplaceableArtwork
@@ -388,7 +388,7 @@ export function ProcessVariantE({ index, total }: SlideProps) {
           fontWeight: 900,
           fontSize: 26,
           zIndex: 5,
-          boxShadow: '0 14px 32px -10px rgba(0,0,0,0.35)',
+          boxShadow: '0 8px 22px -8px rgba(0,0,0,0.18)',
         }}
       >
         ▶

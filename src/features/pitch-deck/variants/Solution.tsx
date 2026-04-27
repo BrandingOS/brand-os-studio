@@ -200,7 +200,7 @@ export function SolutionVariantC({ index, total }: SlideProps) {
                   color: WHITE,
                   padding: 48,
                   borderRadius: 28,
-                  boxShadow: isFirst ? '0 30px 60px -20px rgba(0,0,0,0.5)' : '0 30px 60px -20px rgba(0,0,0,0.6)',
+                  boxShadow: isFirst ? '0 8px 22px -6px rgba(0,0,0,0.20)' : '0 8px 22px -6px rgba(0,0,0,0.24)',
                   zIndex: isFirst ? 1 : 2,
                   ...RTL_DIR,
                 }}
@@ -332,7 +332,7 @@ export function SolutionVariantE({ index, total }: SlideProps) {
                   textAlign: 'center',
                   padding: 60,
                   position: 'relative',
-                  boxShadow: '0 30px 60px -20px rgba(0,21,99,0.35)',
+                  boxShadow: '0 8px 22px -6px rgba(0,21,99,0.18)',
                 }}
               >
                 <span style={{ fontSize: 96, lineHeight: 1, marginBottom: 12 }}>{p.icon}</span>

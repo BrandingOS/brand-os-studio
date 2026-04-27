@@ -387,7 +387,7 @@ export function FoundationsE({ index, total }: SlideProps) {
           justifyContent: 'center',
           gap: 10,
           padding: 28,
-          boxShadow: '0 24px 48px -12px rgba(0,21,99,0.4)',
+          boxShadow: '0 6px 18px -6px rgba(0,21,99,0.18)',
           ...RTL_DIR,
         }}
       >
@@ -417,7 +417,7 @@ export function FoundationsE({ index, total }: SlideProps) {
               display: 'flex',
               flexDirection: 'column',
               gap: 10,
-              boxShadow: '0 14px 32px -14px rgba(0, 21, 99, 0.22)',
+              boxShadow: '0 8px 22px -8px rgba(0, 21, 99, 0.15)',
               ...RTL_DIR,
             }}
           >

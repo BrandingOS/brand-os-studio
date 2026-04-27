@@ -205,7 +205,7 @@ export function DifferentiatorsVariantC({ index, total }: SlideProps) {
               flexDirection: 'column',
               justifyContent: 'space-between',
               gap: 12,
-              boxShadow: '0 18px 36px -18px rgba(0,21,99,0.22)',
+              boxShadow: '0 8px 22px -8px rgba(0,21,99,0.15)',
               ...RTL_DIR,
             }}
           >
@@ -376,7 +376,7 @@ export function DifferentiatorsVariantE({ index, total }: SlideProps) {
                   flexDirection: 'column',
                   justifyContent: 'space-between',
                   gap: 14,
-                  boxShadow: '0 24px 48px -20px rgba(0,0,0,0.45)',
+                  boxShadow: '0 8px 20px -6px rgba(0,0,0,0.18)',
                   ...RTL_DIR,
                 }}
               >

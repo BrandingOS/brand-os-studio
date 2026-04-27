@@ -355,7 +355,7 @@ export function CtaSlideB({ index, total }: SlideProps) {
             background: WHITE,
             borderRadius: 24,
             padding: 14,
-            boxShadow: '0 24px 60px -16px rgba(0,21,99,0.22)',
+            boxShadow: '0 8px 22px -8px rgba(0,21,99,0.14)',
           }}
         >
           {CTA.steps.map((s, i) => (
@@ -599,7 +599,7 @@ export function CtaSlideC({ index, total }: SlideProps) {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 32,
-            boxShadow: '0 24px 80px -20px rgba(104,190,105,0.5)',
+            boxShadow: '0 8px 22px -8px rgba(104,190,105,0.18)',
             ...RTL_DIR,
           }}
         >
@@ -885,7 +885,7 @@ export function CtaSlideE({ index, total }: SlideProps) {
             border: '1px solid rgba(0,21,99,0.10)',
             borderRadius: 28,
             padding: '28px 36px',
-            boxShadow: '0 24px 60px -20px rgba(0,21,99,0.22)',
+            boxShadow: '0 8px 22px -8px rgba(0,21,99,0.14)',
             ...RTL_DIR,
           }}
         >

@@ -277,7 +277,7 @@ export function MetricsSlideB({ index, total }: SlideProps) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: `0 24px 60px -20px ${circleColors[i]}80`,
+                  boxShadow: `0 8px 24px -8px ${circleColors[i]}40`,
                 }}
               >
                 <FitText

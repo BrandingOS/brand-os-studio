@@ -450,7 +450,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 32px 80px -20px rgba(0,21,99,0.45)',
+              boxShadow: '0 8px 22px -8px rgba(0,21,99,0.18)',
             }}
           >
             <img
@@ -479,7 +479,7 @@ export function TeamSlideC({ index, total }: SlideProps) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 18,
-                  boxShadow: '0 16px 40px -16px rgba(0,21,99,0.22)',
+                  boxShadow: '0 8px 22px -8px rgba(0,21,99,0.15)',
                   ...RTL_DIR,
                 }}
               >

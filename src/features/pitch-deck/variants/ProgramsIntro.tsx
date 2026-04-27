@@ -411,7 +411,7 @@ export function ProgramsIntroE({ index, total }: SlideProps) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 12px 24px -8px rgba(0,21,99,0.4)',
+                  boxShadow: '0 8px 22px -8px rgba(0,21,99,0.18)',
                 }}
               >
                 <span className="deck-h3" style={{ fontWeight: 800, lineHeight: 1, color: GREEN }}>{p.duration.split(' ')[0]}</span>

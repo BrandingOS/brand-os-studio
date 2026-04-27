@@ -396,7 +396,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 32px 80px -30px rgba(0,21,99,0.45)',
+              boxShadow: '0 8px 22px -8px rgba(0,21,99,0.18)',
             }}
           >
             {/* Top bar — fake browser-ish */}
@@ -437,7 +437,7 @@ export function ImpactSlideC({ index, total }: SlideProps) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 16px 60px -10px rgba(104,190,105,0.7)',
+                boxShadow: '0 6px 18px -6px rgba(104,190,105,0.25)',
               }}
             >
               <span style={{ color: NAVY, fontSize: 56, fontWeight: 900, marginLeft: 8 }}>▶</span>
@@ -570,7 +570,7 @@ export function ImpactSlideD({ index, total }: SlideProps) {
             display: 'flex',
             gap: 14,
             position: 'relative',
-            boxShadow: '0 24px 60px -20px rgba(0,21,99,0.35)',
+            boxShadow: '0 8px 22px -8px rgba(0,21,99,0.18)',
           }}
         >
           {/* Top sprocket strip */}

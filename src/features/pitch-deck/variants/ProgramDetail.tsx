@@ -486,7 +486,7 @@ export function ProgramDetailD({ index, total, programKey }: SlideProps) {
               display: 'flex',
               flexDirection: 'column',
               gap: 20,
-              boxShadow: '0 24px 56px -16px rgba(104,190,105,0.55)',
+              boxShadow: '0 8px 22px -8px rgba(104,190,105,0.20)',
               ...RTL_DIR,
             }}
           >
