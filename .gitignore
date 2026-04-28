@@ -37,6 +37,9 @@ test-screenshots/
 # Local research / reference assets — not part of the product
 new-version/
 new-ui/
+# Raw brand source files (designer deliverables — fonts, .ai, PDFs).
+# Processed assets live in /public/brands/<slug>/.
+/Brands/
 
 # Local-only Product OS / internal control center — never commit
 /product-os/
