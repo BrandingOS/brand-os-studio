@@ -14,10 +14,11 @@ import { render, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EditorAppRail, type RailItem } from './EditorAppRail';
 import { EditorTopBar } from './EditorTopBar';
+import { EditorFloatingToolbar } from './EditorFloatingToolbar';
 import { InsertPanel } from './panels/InsertPanel';
 import { BrandPanel } from './panels/BrandPanel';
 import type { EditorAdapter, SelectionState } from '../../adapter/EditorAdapter';
-import type { BrandOSDocument, Layer, Page } from '../../schema';
+import type { BrandOSDocument, Layer, Page, TextLayer } from '../../schema';
 import type { Brand } from '@/shared/types/brand';
 
 afterEach(() => cleanup());
@@ -27,24 +28,31 @@ afterEach(() => cleanup());
 interface StubAdapter {
   added: Array<{ pageId: string; layer: Layer }>;
   resizes: Array<{ pageId: string; width: number; height: number }>;
+  updates: Array<{ pageId: string; layerId: string; patch: Partial<Layer> }>;
 }
 
 function stubAdapter(): EditorAdapter & StubAdapter {
   const added: StubAdapter['added'] = [];
   const resizes: StubAdapter['resizes'] = [];
+  const updates: StubAdapter['updates'] = [];
   const adapter = {
     added,
     resizes,
+    updates,
     addLayer: (pageId: string, layer: Layer) => {
       added.push({ pageId, layer });
     },
     updatePageDimensions: (pageId: string, width: number, height: number) => {
       resizes.push({ pageId, width, height });
     },
+    updateLayer: (pageId: string, layerId: string, patch: Partial<Layer>) => {
+      updates.push({ pageId, layerId, patch });
+    },
     // Unused by these tests — typed as no-ops so TS is happy.
     mount: vi.fn(async () => undefined),
     unmount: vi.fn(),
     loadDocument: vi.fn(async () => undefined),
+    replaceDocument: vi.fn(async () => undefined),
     getDocument: vi.fn(),
     setActivePage: vi.fn(),
     getActivePageId: vi.fn(() => ''),
@@ -58,7 +66,6 @@ function stubAdapter(): EditorAdapter & StubAdapter {
     enterMasterMode: vi.fn(),
     exitMasterMode: vi.fn(),
     getEditingMasterId: vi.fn(() => null),
-    updateLayer: vi.fn(),
     removeLayer: vi.fn(),
     reorderLayer: vi.fn(),
     applyLayerPatchAcrossPages: vi.fn(),
@@ -378,5 +385,225 @@ describe('BrandPanel', () => {
     // The Document section still renders (Document-level controls don't
     // depend on a brand).
     expect(container.textContent ?? '').toContain('Document');
+  });
+});
+
+// ─── EditorFloatingToolbar — Brand-managed switch + locked controls ───
+
+function makeTextLayer(overrides: Partial<TextLayer> = {}): TextLayer {
+  return {
+    id: 'layer-text-1',
+    kind: 'text',
+    name: 'headline',
+    text: 'Hello world',
+    fontFamily: 'Inter',
+    fontSize: 32,
+    fontWeight: 400,
+    lineHeight: 1.2,
+    letterSpacing: 0,
+    textAlign: 'left',
+    direction: 'auto',
+    color: '#111111',
+    transform: {
+      x: 100,
+      y: 200,
+      width: 400,
+      height: 60,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+    },
+    opacity: 1,
+    visible: true,
+    locked: false,
+    brandLocked: false,
+    ...overrides,
+  } as TextLayer;
+}
+
+/**
+ * Open the floating toolbar's More menu by firing pointer events on
+ * the trigger (Radix listens to pointerdown, not click). Returns the
+ * portal content node once it lands in document.body.
+ */
+async function openMoreMenu(): Promise<HTMLElement> {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[data-control="more"]',
+  );
+  if (!trigger) throw new Error('No "more" trigger in DOM');
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+  for (let i = 0; i < 80; i++) {
+    const node = document.body.querySelector<HTMLElement>(
+      'div[data-control="brand-managed"]',
+    );
+    if (node) {
+      // Walk up to the portal-content root to return the menu container.
+      let el: HTMLElement | null = node;
+      while (el && el.parentElement && el.parentElement !== document.body) {
+        el = el.parentElement;
+      }
+      return el ?? node;
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('More menu never reached the open state');
+}
+
+describe('EditorFloatingToolbar — Brand-managed switch (Step 5c)', () => {
+  it('renders the Brand-managed switch inside the More menu', async () => {
+    const adapter = stubAdapter();
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer()}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    await openMoreMenu();
+    const switchEl = document.body.querySelector(
+      'button[data-control="brand-managed-switch"]',
+    );
+    expect(switchEl, 'no Brand-managed switch in More menu').toBeTruthy();
+    expect(switchEl?.getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('switch reflects layer.brandLocked === true', async () => {
+    const adapter = stubAdapter();
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ brandLocked: true })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    await openMoreMenu();
+    const switchEl = document.body.querySelector(
+      'button[data-control="brand-managed-switch"]',
+    );
+    expect(switchEl?.getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('toggling the switch fires adapter.updateLayer with the flipped value', async () => {
+    const adapter = stubAdapter();
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ brandLocked: false })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    await openMoreMenu();
+    const switchEl = document.body.querySelector<HTMLButtonElement>(
+      'button[data-control="brand-managed-switch"]',
+    );
+    fireEvent.click(switchEl!);
+    expect(adapter.updates).toHaveLength(1);
+    expect(adapter.updates[0]).toEqual({
+      pageId: 'page-1',
+      layerId: 'layer-text-1',
+      patch: { brandLocked: true },
+    });
+  });
+
+  it('toggling on a locked layer fires updateLayer with brandLocked: false', async () => {
+    const adapter = stubAdapter();
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ brandLocked: true })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    await openMoreMenu();
+    const switchEl = document.body.querySelector<HTMLButtonElement>(
+      'button[data-control="brand-managed-switch"]',
+    );
+    fireEvent.click(switchEl!);
+    expect(adapter.updates).toHaveLength(1);
+    expect(adapter.updates[0].patch).toEqual({ brandLocked: false });
+  });
+});
+
+describe('EditorFloatingToolbar — locked controls (Step 5c)', () => {
+  it('brand-bound controls render WITHOUT a LockedGate when brandLocked is off', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({
+          brandLocked: false,
+          color: { type: 'brand.color.primary' } as unknown as TextLayer['color'],
+          fontFamily: { type: 'brand.font.heading' } as unknown as TextLayer['fontFamily'],
+        })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    expect(container.querySelector('[data-locked-gate]')).toBeNull();
+    // Inner controls are still in the DOM.
+    expect(container.querySelector('button[data-control="font"]')).toBeTruthy();
+  });
+
+  it('brand-bound controls render INSIDE a LockedGate when brandLocked is on', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({
+          brandLocked: true,
+          color: { type: 'brand.color.primary' } as unknown as TextLayer['color'],
+          fontFamily: { type: 'brand.font.heading' } as unknown as TextLayer['fontFamily'],
+        })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    const gates = container.querySelectorAll('[data-locked-gate]');
+    // One gate per brand-bound control — color + fontFamily for a
+    // text layer with both as SlotRefs.
+    expect(gates.length).toBe(2);
+    // Inner control is still rendered inside the gate (so the
+    // resolved value remains visible to the user).
+    expect(container.querySelector('button[data-control="font"]')).toBeTruthy();
+  });
+
+  it('non-brand-bound controls (font size, opacity) stay outside the gate even when locked', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({
+          brandLocked: true,
+          // Color is a SlotRef → gated.
+          color: { type: 'brand.color.primary' } as unknown as TextLayer['color'],
+          // fontFamily literal → NOT gated (not currently brand-bound).
+          fontFamily: 'Inter',
+        })}
+        scope="page"
+        onScopeChange={vi.fn()}
+      />,
+    );
+    const gates = container.querySelectorAll('[data-locked-gate]');
+    // Only color is gated; fontFamily literal is editable.
+    expect(gates.length).toBe(1);
+    // Font size input is plain — not wrapped in any gate.
+    const sizeInput = container.querySelector(
+      'input[type="number"][title="Font size"]',
+    );
+    expect(sizeInput).toBeTruthy();
+    expect(sizeInput?.closest('[data-locked-gate]')).toBeNull();
   });
 });

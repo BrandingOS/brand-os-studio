@@ -14,7 +14,7 @@
 // viewport-space tracking — accounting for canvas scale and pan —
 // lands in Phase 4.5 alongside the zoom controls.
 
-import { useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   AlignCenter,
   AlignLeft,
@@ -30,6 +30,8 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import * as Switch from '@radix-ui/react-switch';
+import * as Tooltip from '@radix-ui/react-tooltip';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type {
   GroupLayer,
@@ -42,6 +44,7 @@ import type {
   SvgLayer,
   TextLayer,
 } from '@/features/editor/schema';
+import { isBrandBound } from './brandBound';
 
 const SELECTION_BLUE = '#2965f6';
 
@@ -216,6 +219,8 @@ function TextControls({
 }) {
   const isSlotFont = isSlot(layer.fontFamily);
   const isSlotColor = isSlot(layer.color);
+  const fontLocked = isBrandBound(layer, 'fontFamily');
+  const colorLocked = isBrandBound(layer, 'color');
 
   const fontLabel = useMemo(() => {
     if (isSlotFont) return slotShortLabel(layer.fontFamily as SlotRef);
@@ -226,64 +231,65 @@ function TextControls({
 
   return (
     <>
-      {/* Font picker — when slot-bound, click chip to open picker; in 5a
-          we just show the slot label. Picking a literal swaps the slot
-          out (matches Phase 1 Override behavior). */}
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button
-            type="button"
-            className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors"
-            data-control="font"
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.background = 'var(--surface-hover)')
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = 'transparent')
-            }
-            title={isSlotFont ? 'Brand-bound font (click to override)' : 'Font'}
-          >
-            <span
-              className="max-w-[100px] truncate"
-              style={isSlotFont ? { color: 'var(--text-secondary)' } : undefined}
+      {/* Font picker — when slot-bound, click chip to open picker; when
+          the layer is brandLocked the LockedGate freezes it read-only. */}
+      <LockedGate locked={fontLocked}>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors"
+              data-control="font"
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = 'var(--surface-hover)')
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = 'transparent')
+              }
+              title={isSlotFont ? 'Brand-bound font (click to override)' : 'Font'}
             >
-              {fontLabel}
-            </span>
-            <ChevronDown className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            align="start"
-            sideOffset={4}
-            className="z-50 min-w-[180px] rounded-lg p-1"
-            style={{
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-md)',
-            }}
-          >
-            {FONT_OPTIONS.map((o) => (
-              <DropdownMenu.Item
-                key={o.value}
-                onSelect={() => update({ fontFamily: o.value })}
-                className="cursor-pointer rounded-md px-2 py-1 text-[12px] outline-none"
-                style={{ color: 'var(--text-primary)' }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = 'var(--surface-hover)')
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = 'transparent')
-                }
+              <span
+                className="max-w-[100px] truncate"
+                style={isSlotFont ? { color: 'var(--text-secondary)' } : undefined}
               >
-                <span style={{ fontFamily: o.value }}>{o.label}</span>
-              </DropdownMenu.Item>
-            ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+                {fontLabel}
+              </span>
+              <ChevronDown className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              align="start"
+              sideOffset={4}
+              className="z-50 min-w-[180px] rounded-lg p-1"
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              {FONT_OPTIONS.map((o) => (
+                <DropdownMenu.Item
+                  key={o.value}
+                  onSelect={() => update({ fontFamily: o.value })}
+                  className="cursor-pointer rounded-md px-2 py-1 text-[12px] outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = 'var(--surface-hover)')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = 'transparent')
+                  }
+                >
+                  <span style={{ fontFamily: o.value }}>{o.label}</span>
+                </DropdownMenu.Item>
+              ))}
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </LockedGate>
 
-      {/* Size */}
+      {/* Size — not brand-bound, always editable */}
       <NumberPill
         value={Math.round(layer.fontSize)}
         min={6}
@@ -292,7 +298,7 @@ function TextControls({
         title="Font size"
       />
 
-      {/* Weight toggle (just bold/normal) */}
+      {/* Weight toggle (just bold/normal) — not brand-bound */}
       <IconBtn
         title="Bold"
         active={layer.fontWeight >= 600}
@@ -309,16 +315,18 @@ function TextControls({
         <Italic className="h-3.5 w-3.5" />
       </IconBtn>
 
-      {/* Align */}
+      {/* Align — not brand-bound */}
       <AlignToggle layer={layer} update={update} />
 
-      {/* Color */}
-      <ColorChip
-        value={layer.color}
-        slotBound={isSlotColor}
-        onChange={(v) => update({ color: v })}
-        title={isSlotColor ? 'Brand color (click to override)' : 'Color'}
-      />
+      {/* Color — gated when brand-bound */}
+      <LockedGate locked={colorLocked}>
+        <ColorChip
+          value={layer.color}
+          slotBound={isSlotColor}
+          onChange={(v) => update({ color: v })}
+          title={isSlotColor ? 'Brand color (click to override)' : 'Color'}
+        />
+      </LockedGate>
     </>
   );
 }
@@ -358,21 +366,27 @@ function ShapeControls({
   layer: ShapeLayer;
   update: (patch: Partial<ShapeLayer>) => void;
 }) {
+  const fillLocked = isBrandBound(layer, 'fill');
+  const strokeLocked = isBrandBound(layer, 'stroke');
   return (
     <>
-      <ColorChip
-        value={layer.fill ?? '#000000'}
-        slotBound={isSlot(layer.fill)}
-        onChange={(v) => update({ fill: v })}
-        title="Fill"
-      />
-      <ColorChip
-        value={layer.stroke ?? '#000000'}
-        slotBound={isSlot(layer.stroke)}
-        onChange={(v) => update({ stroke: v })}
-        title="Stroke"
-        outline
-      />
+      <LockedGate locked={fillLocked}>
+        <ColorChip
+          value={layer.fill ?? '#000000'}
+          slotBound={isSlot(layer.fill)}
+          onChange={(v) => update({ fill: v })}
+          title="Fill"
+        />
+      </LockedGate>
+      <LockedGate locked={strokeLocked}>
+        <ColorChip
+          value={layer.stroke ?? '#000000'}
+          slotBound={isSlot(layer.stroke)}
+          onChange={(v) => update({ stroke: v })}
+          title="Stroke"
+          outline
+        />
+      </LockedGate>
       <NumberPill
         value={Math.round(layer.strokeWidth)}
         min={0}
@@ -502,7 +516,9 @@ function LogoControls({
     { label: 'Mono · black', value: 'mono.black' },
     { label: 'Mono · white', value: 'mono.white' },
   ];
+  const variantLocked = isBrandBound(layer, 'variant');
   return (
+    <LockedGate locked={variantLocked}>
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
@@ -539,6 +555,7 @@ function LogoControls({
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+    </LockedGate>
   );
 }
 
@@ -638,6 +655,11 @@ function MoreMenu({
             className="my-1 h-px"
             style={{ background: 'var(--border)' }}
           />
+          <BrandManagedRow layer={layer} update={update} />
+          <DropdownMenu.Separator
+            className="my-1 h-px"
+            style={{ background: 'var(--border)' }}
+          />
           <DropdownMenu.Item
             disabled
             className="flex cursor-not-allowed items-center gap-2 rounded-md px-2 py-1 text-[12px] outline-none"
@@ -648,6 +670,161 @@ function MoreMenu({
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+}
+
+/**
+ * "Brand-managed" switch — Step 5c. Toggles `layer.brandLocked`. When
+ * on, brand-bound properties (color/font/fill/stroke/variant) become
+ * read-only in the toolbar and a small lock badge appears on the
+ * layer's selection box. Off restores edit access.
+ *
+ * Lives inside the More menu (not a top-level toolbar control) per
+ * spec: brandLocked is a metadata flag, not a styling property —
+ * surfacing it inline competes with frequently-used controls.
+ */
+function BrandManagedRow({
+  layer,
+  update,
+}: {
+  layer: Layer;
+  update: (patch: Partial<Layer>) => void;
+}) {
+  // DropdownMenu.Item swallows clicks to dismiss the menu — wrap the
+  // switch in an Item-as-div so the click toggles the switch without
+  // closing the menu.
+  return (
+    <div
+      data-control="brand-managed"
+      className="flex items-center gap-2 rounded-md px-2 py-1 text-[12px]"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <Lock className="h-3 w-3" />
+      <Tooltip.Provider delayDuration={300} disableHoverableContent>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            <span style={{ flex: 1 }}>Brand-managed</span>
+          </Tooltip.Trigger>
+          <Tooltip.Portal>
+            <Tooltip.Content
+              side="left"
+              sideOffset={8}
+              className="z-50 max-w-[220px] rounded-lg px-2 py-1.5 text-[11px]"
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border)',
+                boxShadow: 'var(--shadow-md)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              When on, this layer’s brand-bound properties stay synced with the
+              brand kit. Toggle off to override.
+            </Tooltip.Content>
+          </Tooltip.Portal>
+        </Tooltip.Root>
+      </Tooltip.Provider>
+      <Switch.Root
+        checked={layer.brandLocked}
+        onCheckedChange={(next) => update({ brandLocked: next })}
+        data-control="brand-managed-switch"
+        aria-label="Brand-managed"
+        style={{
+          width: 28,
+          height: 16,
+          borderRadius: 999,
+          background: layer.brandLocked
+            ? SELECTION_BLUE
+            : 'var(--surface-sunken)',
+          position: 'relative',
+          border: '1px solid var(--border)',
+          transition: 'background 180ms var(--ease)',
+          flexShrink: 0,
+        }}
+      >
+        <Switch.Thumb
+          style={{
+            display: 'block',
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.18)',
+            transform: layer.brandLocked
+              ? 'translateX(14px)'
+              : 'translateX(2px)',
+            transition: 'transform 180ms var(--ease)',
+            willChange: 'transform',
+          }}
+        />
+      </Switch.Root>
+    </div>
+  );
+}
+
+// ─── Lock gate ────────────────────────────────────────────────────────
+//
+// Wraps a brand-bound control when `layer.brandLocked === true`.
+// Mutes the visual, blocks pointer interaction, and surfaces a
+// tooltip explaining how to unlock. Resolved values still render —
+// designers need to SEE what the brand kit produced even when they
+// can't edit. Consumers always pass a `locked` prop computed from
+// `isBrandBound(layer, prop)`; when false, the gate is a no-op
+// passthrough.
+
+function LockedGate({
+  locked,
+  children,
+}: {
+  locked: boolean;
+  children: ReactNode;
+}) {
+  if (!locked) return <>{children}</>;
+  return (
+    <Tooltip.Provider delayDuration={250} disableHoverableContent>
+      <Tooltip.Root>
+        <Tooltip.Trigger asChild>
+          <span
+            data-locked-gate
+            // Display: inline-flex so the inner control's bounding
+            // box still maps 1:1 to the gate (the toolbar lays things
+            // out horizontally with gaps).
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              opacity: 0.5,
+              cursor: 'not-allowed',
+            }}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <span style={{ pointerEvents: 'none' }}>{children}</span>
+          </span>
+        </Tooltip.Trigger>
+        <Tooltip.Portal>
+          <Tooltip.Content
+            side="bottom"
+            sideOffset={8}
+            className="z-50 inline-flex max-w-[260px] items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-md)',
+              color: 'var(--text-primary)',
+            }}
+            data-locked-tooltip
+          >
+            <Lock className="h-3 w-3" />
+            Managed by brand kit. Toggle ‘Brand-managed’ off to edit.
+          </Tooltip.Content>
+        </Tooltip.Portal>
+      </Tooltip.Root>
+    </Tooltip.Provider>
   );
 }
 

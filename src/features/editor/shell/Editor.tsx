@@ -45,6 +45,7 @@ import {
   type ToolbarScope,
 } from './v2/EditorFloatingToolbar';
 import { EditorPageNavigator } from './v2/EditorPageNavigator';
+import { EditorLockBadge } from './v2/EditorLockBadge';
 import { ChevronRight } from 'lucide-react';
 import '@/shared/styles/cosmos-workspace.css';
 
@@ -298,13 +299,16 @@ export function Editor({
                 positioned region so it can overlay the canvas. */}
             <div className="relative">
               {selectedLayer ? (
-                <EditorFloatingToolbar
-                  adapter={adapter}
-                  pageId={page!.id}
-                  layer={selectedLayer}
-                  scope={scope}
-                  onScopeChange={setScope}
-                />
+                <>
+                  <EditorFloatingToolbar
+                    adapter={adapter}
+                    pageId={page!.id}
+                    layer={selectedLayer}
+                    scope={scope}
+                    onScopeChange={setScope}
+                  />
+                  <EditorLockBadge layer={selectedLayer} />
+                </>
               ) : null}
               <div
                 className="overflow-hidden rounded-xl"

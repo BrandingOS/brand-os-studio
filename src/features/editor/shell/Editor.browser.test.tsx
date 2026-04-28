@@ -489,3 +489,191 @@ describe('Step 5b — Re-apply brand kit', () => {
     expect(JSON.stringify(adapter.getDocument())).toBe(beforeJson);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────
+// Step 5c — Brand-managed toggle in the floating toolbar's More menu.
+// ────────────────────────────────────────────────────────────────────────
+
+async function openMoreMenu(): Promise<HTMLElement> {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    'button[data-control="more"]',
+  );
+  if (!trigger) throw new Error('No "more" trigger in DOM');
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+  for (let i = 0; i < 80; i++) {
+    const switchEl = document.body.querySelector<HTMLElement>(
+      'button[data-control="brand-managed-switch"]',
+    );
+    if (switchEl) return switchEl;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('More menu never reached open state');
+}
+
+describe('Step 5c — Brand-managed toggle (browser E2E)', () => {
+  it('opening More on a selected layer reveals the Brand-managed switch', async () => {
+    const { adapter } = await mountEditor();
+    adapter.setSelection([SOCIAL_FIXTURE.pages[0].layers[0].id]);
+    await new Promise((r) => setTimeout(r, 60));
+    const switchEl = await openMoreMenu();
+    expect(switchEl).toBeTruthy();
+  });
+
+  it('toggling on adds the lock badge AND mutes the brand-bound controls', async () => {
+    const { adapter, container } = await mountEditor();
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+    adapter.setSelection([headlineId]);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Pre-toggle: no badge, no locked gates.
+    expect(container.querySelector('[data-lock-badge]')).toBeNull();
+    expect(container.querySelectorAll('[data-locked-gate]').length).toBe(0);
+
+    const switchEl = await openMoreMenu();
+    fireEvent.click(switchEl);
+
+    // Wait for state to propagate through the adapter's change event
+    // back to React's selection state.
+    let badge: Element | null = null;
+    for (let i = 0; i < 60; i++) {
+      badge = container.querySelector('[data-lock-badge]');
+      if (badge) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(badge, 'lock badge never appeared after toggle on').toBeTruthy();
+    expect(badge?.getAttribute('data-layer-id')).toBe(headlineId);
+
+    // The brand-bound controls (color, fontFamily) are now wrapped in
+    // LockedGates. Headline starts with SlotRef color + SlotRef font,
+    // so we expect 2 gates.
+    expect(container.querySelectorAll('[data-locked-gate]').length).toBe(2);
+
+    // Layer mirror reflects the toggle.
+    expect(
+      (
+        adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+          brandLocked: boolean;
+        }
+      ).brandLocked,
+    ).toBe(true);
+  });
+
+  it('toggling off removes the badge and editable controls return', async () => {
+    const { adapter, container } = await mountEditor();
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+    adapter.setSelection([headlineId]);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // Lock first.
+    const switchOn = await openMoreMenu();
+    fireEvent.click(switchOn);
+    for (let i = 0; i < 60; i++) {
+      if (container.querySelector('[data-lock-badge]')) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(container.querySelector('[data-lock-badge]')).toBeTruthy();
+
+    // The same switch element is reused across renders (Radix keeps
+    // its portal mounted). Polling for it finds the now-checked state.
+    let switchOff: HTMLButtonElement | null = null;
+    for (let i = 0; i < 60; i++) {
+      switchOff = document.body.querySelector<HTMLButtonElement>(
+        'button[data-control="brand-managed-switch"][aria-checked="true"]',
+      );
+      if (switchOff) break;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(switchOff).toBeTruthy();
+    fireEvent.click(switchOff!);
+
+    for (let i = 0; i < 60; i++) {
+      if (!container.querySelector('[data-lock-badge]')) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    expect(container.querySelector('[data-lock-badge]')).toBeNull();
+    expect(container.querySelectorAll('[data-locked-gate]').length).toBe(0);
+    expect(
+      (
+        adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+          brandLocked: boolean;
+        }
+      ).brandLocked,
+    ).toBe(false);
+  });
+
+  it('end-to-end: lock → override via direct adapter (bypassing UI) → re-apply restores SlotRef', async () => {
+    // Proves 4c.2 recovery + 5c locking integrate end-to-end. The
+    // floating toolbar's LockedGate blocks UI overrides, but a
+    // programmatic override still earns _lockedBindings — and
+    // re-apply restores the SlotRef.
+    const RAQM = makeBrand('raqm', 'Raqm');
+    registerBrandsService([RAQM]);
+    const { adapter, container } = await mountEditor(SOCIAL_FIXTURE, {
+      brand: RAQM,
+    });
+    const pageId = SOCIAL_FIXTURE.pages[0].id;
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+
+    adapter.setSelection([headlineId]);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // 1. Lock the headline.
+    const switchEl = await openMoreMenu();
+    fireEvent.click(switchEl);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // 2. Force an override via the adapter (simulates legacy code path
+    //    or AI agent emit — the UI itself is now gated).
+    const originalColorRef = (
+      adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+        color: unknown;
+      }
+    ).color;
+    expect(typeof originalColorRef).toBe('object'); // SlotRef
+    adapter.updateLayer(pageId, headlineId, { color: '#ff00ff' });
+    expect(
+      (
+        adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe('#ff00ff');
+
+    // 3. Re-apply the brand kit. The SlotRef on the brandLocked layer
+    //    is restored from `_lockedBindings`.
+    const trigger = document.querySelector<HTMLButtonElement>(
+      '[data-brand-picker-trigger]',
+    );
+    fireEvent.pointerDown(trigger!, { button: 0, pointerType: 'mouse' });
+    fireEvent.pointerUp(trigger!, { button: 0, pointerType: 'mouse' });
+    fireEvent.click(trigger!);
+    let reapplyAction: HTMLElement | null = null;
+    for (let i = 0; i < 60; i++) {
+      reapplyAction = document.body.querySelector<HTMLElement>(
+        '[data-action="reapply-brand"]',
+      );
+      if (reapplyAction) break;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    fireEvent.click(reapplyAction!);
+    await new Promise((r) => setTimeout(r, 100));
+
+    // After re-apply, the headline color IS resolved from the SlotRef
+    // (a literal hex), AND the layer's `_lockedBindings.color` is
+    // cleared because the recovery served its purpose.
+    const after = adapter
+      .getDocument()
+      .pages[0].layers.find((l) => l.id === headlineId) as {
+      color: unknown;
+      brandLocked: boolean;
+      _lockedBindings?: Record<string, unknown>;
+    };
+    expect(typeof after.color).toBe('string');
+    expect(after.color).not.toBe('#ff00ff'); // override discarded
+    expect(after.brandLocked).toBe(true); // still locked
+    expect(after._lockedBindings?.color).toBeUndefined(); // recovery cleared
+  });
+});
