@@ -187,7 +187,7 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('each rail entry is a 48×52 icon+label card with rounded corners (R4 hybrid)', () => {
+  it('each rail entry is a 48×56 icon+label card with rounded corners (R4 hybrid, fixed)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -197,12 +197,17 @@ describe('EditorAppRail', () => {
     expect(buttons.length).toBe(4);
     for (const btn of buttons) {
       expect(btn.style.width).toBe('48px');
-      expect(btn.style.height).toBe('52px');
+      // Bumped from 52 → 56 so the icon + tiny label both sit
+      // inside the card with a real safety margin.
+      expect(btn.style.height).toBe('56px');
       expect(btn.style.borderRadius).toBe('10px');
       expect(btn.style.background).not.toBe('transparent');
-      // Visible label span — the hybrid keeps R4's compact card
-      // but reintroduces the tiny text label below the icon.
-      expect(btn.querySelector('span')).not.toBeNull();
+      // Visible label span pinned with inline font-size so the
+      // label can't escape the box.
+      const span = btn.querySelector<HTMLElement>('span');
+      expect(span).not.toBeNull();
+      expect(span!.style.fontSize).toBe('10px');
+      expect(span!.style.lineHeight).toBe('1');
     }
   });
 
