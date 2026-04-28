@@ -1,6 +1,6 @@
-import type { Brand } from '@/shared/types/brand';
+import type { Brand, BrandLogoAssets } from '@/shared/types/brand';
 import type { ColorSystem, ColorToken, TypographySystem } from '@/shared/types/brandAssets';
-import type { MockBrand } from './mockBrand';
+import type { BrandLogo, MockBrand } from './mockBrand';
 
 /**
  * Inverse of `brandToMockBrand`: takes the current Setup mock shape
@@ -18,15 +18,23 @@ import type { MockBrand } from './mockBrand';
  *   - the legacy simple field (for backward compat)
  *   - the canonical colorSystem/typography token (so consumers update)
  *
- * Binary assets (logos[], photos[], icons[]) are intentionally skipped
- * for now — they require an asset-upload pipeline that isn't wired
- * yet. Edits to those fields stay in local component state until that
- * lands.
+ * Logos persist by extracting the source URL from each logo's SVG
+ * wrapper (or by serializing the whole SVG to a data: URL when the
+ * user uploaded a self-contained vector) and writing it to
+ * `brand.logo` + `brand.logoAssets`. Photos and icons still flow
+ * through local component state — wiring them up follows the same
+ * pattern (see `buildLogoPatch`) once we settle on slot semantics
+ * for both.
  */
 export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Brand> {
   const patch: Partial<Brand> = {};
 
   if (mock.name !== existing.name) patch.name = mock.name;
+
+  /* ─────────────────────────  logos  ───────────────────────── */
+
+  const logoPatch = buildLogoPatch(mock.logos, existing);
+  if (logoPatch) Object.assign(patch, logoPatch);
 
   /* ─────────────────────────  colors  ───────────────────────── */
 
@@ -187,4 +195,142 @@ function arraysEqual(a: string[], b: string[]): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+/* ─────────────────────────  logos helpers  ───────────────────────── */
+
+/**
+ * Pull the original asset URL out of a Setup logo. Setup wraps every
+ * uploaded image in a `<svg><image href="..."/></svg>` shell, and
+ * `brandToMockBrand` does the same when projecting an existing brand
+ * back into the Setup view. Round-tripping THROUGH that shell would
+ * triple-base64 the asset on every save, so when a single `<image>`
+ * is the only payload we extract its href verbatim.
+ *
+ * For self-contained SVGs (a `.svg` file the user uploaded with paths,
+ * shapes, etc.) we serialize the whole document to a `data:image/svg+xml`
+ * URL so it persists in the brand row.
+ */
+function extractLogoUrl(logo: BrandLogo): string {
+  // First non-empty <image href> in the logo SVG. The wrapper Setup
+  // produces always has exactly one such element.
+  const m = logo.svg.match(/<image[^>]*?(?:xlink:)?href=["']([^"']+)["']/);
+  if (m && m[1]) return m[1];
+
+  // No <image> tag → user uploaded a real SVG document. Serialize it.
+  try {
+    const b64 = btoa(unescape(encodeURIComponent(logo.svg)));
+    return `data:image/svg+xml;base64,${b64}`;
+  } catch {
+    // Fall through to a URI-encoded svg if base64 encoding fails on
+    // exotic Unicode in the source (rare).
+    return `data:image/svg+xml;utf8,${encodeURIComponent(logo.svg)}`;
+  }
+}
+
+/** Map Setup logos to the BrandLogoAssets dict by inspecting their
+ *  labels and variants. The first logo always anchors `full` and
+ *  `brand.logo`. Subsequent logos fill more specific slots when their
+ *  label hints at one (Wordmark / Mark / Icon / Inverse), falling back
+ *  to ordinal fills (`alternate`, `icon`) so a no-label upload still
+ *  lands somewhere.
+ */
+function logosToAssetsDict(logos: BrandLogo[]): BrandLogoAssets {
+  const urls = logos.map(extractLogoUrl);
+  const findUrl = (predicate: (l: BrandLogo, i: number) => boolean): string | undefined => {
+    const idx = logos.findIndex(predicate);
+    return idx >= 0 ? urls[idx] : undefined;
+  };
+
+  const out: BrandLogoAssets = {};
+  if (urls[0]) out.full = urls[0];
+
+  const wordmark = findUrl((l) => /wordmark/i.test(l.label));
+  if (wordmark) out.wordmark = wordmark;
+
+  const icon = findUrl((l) => /^(mark|icon|monogram)$/i.test(l.label));
+  if (icon) out.icon = icon;
+
+  const alternate = findUrl(
+    (l, i) => i > 0 && !/wordmark|mark|icon|monogram/i.test(l.label),
+  );
+  if (alternate) out.alternate = alternate;
+  // Fall back to the second logo if no labelled candidate stepped up
+  // and no other slot has claimed it.
+  if (!out.alternate && urls[1] && urls[1] !== out.wordmark && urls[1] !== out.icon) {
+    out.alternate = urls[1];
+  }
+
+  const light = findUrl((l) => l.variant === 'light');
+  if (light) out.light = light;
+  const dark = findUrl((l) => l.variant === 'dark');
+  if (dark) out.dark = dark;
+
+  return out;
+}
+
+function logoAssetsEqual(a: BrandLogoAssets | undefined, b: BrandLogoAssets): boolean {
+  const keys: (keyof BrandLogoAssets)[] = [
+    'full',
+    'icon',
+    'wordmark',
+    'alternate',
+    'dark',
+    'light',
+  ];
+  for (const k of keys) {
+    if ((a?.[k] ?? undefined) !== (b[k] ?? undefined)) return false;
+  }
+  return true;
+}
+
+/**
+ * Compute the logo slice of the patch. Returns null when the Setup
+ * logos round-trip to the same URLs the brand already has — important,
+ * because every Setup edit (even one unrelated to logos) flushes the
+ * full mock through this function on the 400ms debounce; without an
+ * equality check we'd rewrite the logo URLs on every keystroke.
+ *
+ * Strategy is MERGE, not replace. `brandToMockBrand` only surfaces
+ * three logo slots in Setup (primary / wordmark / icon) — variants
+ * like `light` and `dark` (used by pickLogoOnBackground for surface-
+ * aware logo selection) live in `brand.logoAssets` but never appear
+ * in the editor. A naive replace would clobber them on every Setup
+ * save. We layer the Setup edits on top of the existing dict so seed
+ * brand variants survive untouched.
+ */
+function buildLogoPatch(
+  logos: BrandLogo[],
+  existing: Brand,
+): Partial<Brand> | null {
+  if (logos.length === 0) {
+    // User cleared every Setup-visible logo. We DON'T wipe
+    // `brand.logoAssets` entirely — the user only had primary/
+    // wordmark/icon under their hands; any pre-existing dark/light
+    // variant they never saw should remain. Just clear the slots
+    // Setup owns.
+    const stripped: BrandLogoAssets = { ...existing.logoAssets };
+    delete stripped.full;
+    delete stripped.wordmark;
+    delete stripped.icon;
+    delete stripped.alternate;
+    if (
+      existing.logo === undefined &&
+      logoAssetsEqual(existing.logoAssets, stripped)
+    ) {
+      return null;
+    }
+    return { logo: undefined, logoAssets: stripped } as Partial<Brand>;
+  }
+
+  const next = logosToAssetsDict(logos);
+  const merged: BrandLogoAssets = { ...existing.logoAssets, ...next };
+
+  const primaryUnchanged = existing.logo === merged.full;
+  const assetsUnchanged = logoAssetsEqual(existing.logoAssets, merged);
+  if (primaryUnchanged && assetsUnchanged) return null;
+
+  const out: Partial<Brand> = { logoAssets: merged };
+  if (merged.full) out.logo = merged.full;
+  return out;
 }
