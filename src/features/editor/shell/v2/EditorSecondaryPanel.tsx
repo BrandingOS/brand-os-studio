@@ -1,10 +1,13 @@
 // EditorSecondaryPanel — floating .panel card that swaps content per
 // active App Rail entry (Generate / Templates / Insert / Brand).
 //
-// Visual matches Variant 4 exactly: 288px wide card, --surface-elevated
-// bg, 12px radius, --border, --shadow-sm. A 32px circular collapse
-// toggle floats off the right edge so the user can hide the panel and
-// reclaim the space for the canvas.
+// Round 2:
+//   • Width bumped from 288px (w-72) to 340px so the Generate prompt
+//     input + history list have breathing room.
+//   • Collapse toggle shrunk from 32×32 → 24×24, half-protrudes from
+//     the right edge (Notion / Figma pattern). Subtle border + soft
+//     shadow + small chevron so the seam between panel and canvas
+//     stays clean.
 
 import { ChevronRight } from 'lucide-react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -15,6 +18,12 @@ import { GeneratePanel } from './panels/GeneratePanel';
 import { TemplatesPanel } from './panels/TemplatesPanel';
 import { InsertPanel } from './panels/InsertPanel';
 import { BrandPanel } from './panels/BrandPanel';
+
+/**
+ * Width of the Secondary Panel in pixels. Exported so the Editor's
+ * fit-to-container math doesn't have to magic-number it.
+ */
+export const SECONDARY_PANEL_WIDTH = 340;
 
 interface Props {
   active: RailItem;
@@ -36,50 +45,76 @@ export function EditorSecondaryPanel({
   return (
     <div className="flex py-3 pr-1" style={{ flexShrink: 0 }}>
       <aside
-        className="relative flex w-72 flex-col"
+        className="relative flex flex-col"
         data-secondary-panel={active}
         style={{
+          width: SECONDARY_PANEL_WIDTH,
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border)',
           borderRadius: 12,
           boxShadow: 'var(--shadow-sm)',
-          overflow: 'hidden',
+          // overflow:hidden clips the half-protruding toggle. Use
+          // overflow:visible on the wrapper, hidden on the inner
+          // content area instead.
+          overflow: 'visible',
         }}
       >
         <button
           onClick={onCollapse}
           title="Collapse panel"
           aria-label="Collapse panel"
-          className="absolute -right-4 top-5 z-30 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+          data-secondary-panel-collapse
+          // 24×24 button, half-protrudes from the right edge so it
+          // floats on the seam between panel and canvas. Small
+          // 16-ish chevron, subtle border + soft shadow.
+          className="absolute z-30 inline-flex items-center justify-center rounded-full transition-colors"
           style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border-strong)',
-            color: 'var(--text-secondary)',
-            boxShadow: 'var(--shadow-md)',
+            top: '50%',
+            right: -12,
+            width: 24,
+            height: 24,
+            transform: 'translateY(-50%)',
+            background: 'var(--surface-elevated, #ffffff)',
+            border: '1px solid var(--border, rgba(13, 13, 13, 0.12))',
+            color: 'var(--text-secondary, #6e6a69)',
+            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--surface-hover)';
-            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.background = 'var(--surface-hover, #f5f5f4)';
+            e.currentTarget.style.color = 'var(--text-primary, #0d0d0d)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--surface-elevated)';
-            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.background =
+              'var(--surface-elevated, #ffffff)';
+            e.currentTarget.style.color = 'var(--text-secondary, #6e6a69)';
           }}
         >
-          <ChevronRight className="h-4 w-4 rotate-180" />
+          <ChevronRight aria-hidden style={{ width: 14, height: 14 }} />
         </button>
 
-        {active === 'generate' && <GeneratePanel />}
-        {active === 'templates' && <TemplatesPanel />}
-        {active === 'insert' && <InsertPanel adapter={adapter} pageId={activePageId} />}
-        {active === 'brand' && (
-          <BrandPanel
-            adapter={adapter}
-            doc={doc}
-            activePageId={activePageId}
-            brand={brand}
-          />
-        )}
+        <div
+          className="flex flex-1 flex-col"
+          style={{
+            // Inner content owns its own clipping so the toggle can
+            // protrude past the wrapper's rounded corners.
+            overflow: 'hidden',
+            borderRadius: 12,
+          }}
+        >
+          {active === 'generate' && <GeneratePanel />}
+          {active === 'templates' && <TemplatesPanel />}
+          {active === 'insert' && (
+            <InsertPanel adapter={adapter} pageId={activePageId} />
+          )}
+          {active === 'brand' && (
+            <BrandPanel
+              adapter={adapter}
+              doc={doc}
+              activePageId={activePageId}
+              brand={brand}
+            />
+          )}
+        </div>
       </aside>
     </div>
   );

@@ -444,6 +444,56 @@ describe('BrandPanel', () => {
   });
 });
 
+// ─── EditorSecondaryPanel — width + collapse toggle (Round 2 fixes 4 + 5) ─
+
+import { EditorSecondaryPanel, SECONDARY_PANEL_WIDTH } from './EditorSecondaryPanel';
+
+describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
+  it('panel width is 320-360px (bumped from 288)', () => {
+    expect(SECONDARY_PANEL_WIDTH).toBeGreaterThanOrEqual(320);
+    expect(SECONDARY_PANEL_WIDTH).toBeLessThanOrEqual(360);
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorSecondaryPanel
+        active="insert"
+        adapter={adapter}
+        doc={blankDoc()}
+        activePageId="page-1"
+        onCollapse={vi.fn()}
+      />,
+    );
+    const panel = container.querySelector<HTMLElement>('[data-secondary-panel]');
+    expect(panel).toBeTruthy();
+    expect(panel!.style.width).toBe(`${SECONDARY_PANEL_WIDTH}px`);
+  });
+
+  it('collapse toggle is small (24×24), half-protrudes, and centers vertically', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorSecondaryPanel
+        active="insert"
+        adapter={adapter}
+        doc={blankDoc()}
+        activePageId="page-1"
+        onCollapse={vi.fn()}
+      />,
+    );
+    const toggle = container.querySelector<HTMLElement>(
+      '[data-secondary-panel-collapse]',
+    );
+    expect(toggle).toBeTruthy();
+    // 24×24 — was 32×32 in round 1.
+    expect(toggle!.style.width).toBe('24px');
+    expect(toggle!.style.height).toBe('24px');
+    // Half-protrudes: right is a NEGATIVE offset of half the
+    // toggle width (~12).
+    expect(toggle!.style.right).toBe('-12px');
+    // Vertically centered.
+    expect(toggle!.style.top).toBe('50%');
+    expect(toggle!.style.transform).toContain('translateY(-50%)');
+  });
+});
+
 // ─── EditorFloatingToolbar — Brand-managed switch + locked controls ───
 
 function makeTextLayer(overrides: Partial<TextLayer> = {}): TextLayer {

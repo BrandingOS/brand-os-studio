@@ -138,7 +138,12 @@ export function Editor({
     const active = doc.pages.find((p) => p.id === activePageId) ?? doc.pages[0];
     // Subtract padding so the canvas doesn't kiss the toolbar / zoom
     // controls / page navigator. Same numbers used in the layout.
-    const margin = { x: 64, y: 96 };
+    // Padding that the canvas region carries: zoom controls
+    // (~80px reserve), top breathing room, plus a touch on the
+    // sides. The Secondary Panel + App Rail + Page Navigator are
+    // siblings in the parent flex row — they don't count against
+    // this region's available width.
+    const margin = { x: 96, y: 96 };
     const availW = Math.max(100, region.clientWidth - margin.x);
     const availH = Math.max(100, region.clientHeight - margin.y);
     const next = Math.min(availW / active.width, availH / active.height, 1);
