@@ -138,15 +138,17 @@ export default function Step5Variant4Page() {
             </div>
           ) : null}
 
-          {/* Canvas */}
+          {/* Canvas — same background as the page so the whole shell
+              feels like one continuous surface; the canvas itself has
+              its own `bg + shadow` to stand off the paper. */}
           <main
             className="relative flex flex-1 items-center justify-center overflow-hidden"
-            style={{ background: 'var(--surface-sunken)' }}
+            style={{ background: 'var(--background)' }}
           >
             {/* Doc title overlay (Canva-style, sits ABOVE the canvas) */}
             <div className="absolute left-1/2 top-6 -translate-x-1/2 text-center">
               <div
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] backdrop-blur-md"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1 text-[11px] backdrop-blur-md"
                 style={{
                   background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
                   color: 'var(--text-secondary)',
@@ -192,20 +194,27 @@ export default function Step5Variant4Page() {
             </div>
           </main>
 
-          {/* Page Navigator — open by default in this presentation context */}
+          {/* Page Navigator — floating card on the right, mirroring
+              the SecondaryPanel treatment. */}
           {navigatorOpen ? (
-            <PageNavigator onCollapse={() => setNavigatorOpen(false)} />
+            <div className="flex py-3 pl-1 pr-2">
+              <PageNavigator onCollapse={() => setNavigatorOpen(false)} />
+            </div>
           ) : (
             <button
               onClick={() => setNavigatorOpen(true)}
-              className="flex w-4 items-center justify-center transition-colors"
+              aria-label="Open pages panel"
+              className="my-3 mr-2 flex h-7 w-7 items-center justify-center transition-colors"
               style={{
-                background: 'var(--surface)',
-                borderLeft: '1px solid var(--border)',
-                color: 'var(--text-muted)',
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 10,
+                color: 'var(--text-secondary)',
+                boxShadow: 'var(--shadow-md)',
+                alignSelf: 'flex-start',
               }}
             >
-              <ChevronRight className="h-3 w-3 rotate-180" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           )}
         </div>
@@ -358,9 +367,7 @@ function BrandPicker({ brand }: { brand: MockBrand }) {
           >
             {brand.name[0]}
           </span>
-          <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
-            {brand.name}
-          </span>
+          <span>{brand.name}</span>
           <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
         </button>
       </DropdownMenu.Trigger>
@@ -446,11 +453,11 @@ function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailIte
   ];
   return (
     <aside
-      className="flex flex-col items-center gap-3 py-3"
+      className="flex flex-col items-center gap-2 py-3"
       style={{
-        width: 72,
+        width: 76,
         background: 'var(--background)',
-        paddingLeft: 8,
+        paddingLeft: 10,
         paddingRight: 4,
       }}
       aria-label="App rail"
@@ -487,52 +494,41 @@ function RailCard({
       aria-label={label}
       aria-pressed={isActive}
       style={{
+        width: 56,
+        height: 60,
+        background: isActive ? 'var(--accent-muted)' : 'var(--surface)',
+        border: `1px solid ${isActive ? 'var(--border-strong)' : 'var(--border)'}`,
+        borderRadius: 12,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'center',
         gap: 4,
-        background: 'transparent',
-        border: 'none',
-        padding: 0,
+        boxShadow: 'var(--shadow-xs)',
         cursor: 'pointer',
         color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+        transition:
+          'background 180ms var(--ease), border-color 180ms var(--ease), transform 140ms var(--ease)',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--surface-hover)';
+          e.currentTarget.style.borderColor = 'var(--border-strong)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--surface)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }
       }}
     >
+      <Icon size={18} strokeWidth={1.6} style={{ color: 'var(--text-primary)' }} />
       <span
         style={{
-          width: 48,
-          height: 48,
-          background: isActive ? 'var(--accent-muted)' : 'var(--surface)',
-          border: `1px solid ${isActive ? 'var(--border-strong)' : 'var(--border)'}`,
-          borderRadius: 14,
-          display: 'grid',
-          placeItems: 'center',
-          boxShadow: 'var(--shadow-xs)',
-          transition:
-            'background 180ms var(--ease), border-color 180ms var(--ease), transform 140ms var(--ease)',
-          color: 'var(--text-primary)',
-        }}
-        onMouseEnter={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)';
-            (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background = 'var(--surface)';
-            (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)';
-          }
-        }}
-      >
-        <Icon size={20} strokeWidth={1.6} />
-      </span>
-      <span
-        style={{
-          fontSize: 10.5,
+          fontSize: 10,
           fontWeight: 500,
           letterSpacing: '-0.01em',
-          color: 'inherit',
         }}
       >
         {label}
@@ -564,15 +560,25 @@ function SecondaryPanel({
       <button
         onClick={onCollapse}
         title="Collapse panel"
-        className="absolute -right-2.5 top-6 z-10 flex h-5 w-5 items-center justify-center rounded-full transition-colors"
+        aria-label="Collapse panel"
+        className="absolute -right-3.5 top-5 z-30 flex h-7 w-7 items-center justify-center transition-colors"
         style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-muted)',
-          boxShadow: 'var(--shadow-xs)',
+          background: 'var(--surface-elevated)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: 10,
+          color: 'var(--text-secondary)',
+          boxShadow: 'var(--shadow-md)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--surface-hover)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'var(--surface-elevated)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
         }}
       >
-        <ChevronRight className="h-3 w-3 rotate-180" />
+        <ChevronRight className="h-3.5 w-3.5 rotate-180" />
       </button>
 
       {active === 'generate' && <GeneratePanel />}
@@ -615,7 +621,7 @@ function GeneratePanel() {
           <div className="mt-1 flex items-center justify-between">
             <button
               type="button"
-              className="rounded-full px-2 py-0.5 text-[10px] transition-colors"
+              className="rounded-lg px-2 py-0.5 text-[10px] transition-colors"
               style={{
                 background: 'var(--surface-sunken)',
                 color: 'var(--text-secondary)',
@@ -690,7 +696,7 @@ function TemplatesPanel() {
               <button
                 key={c}
                 onClick={() => setCat(c)}
-                className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] transition-colors"
+                className="shrink-0 rounded-lg px-2.5 py-0.5 text-[10px] transition-colors"
                 style={{
                   background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
                   color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
@@ -1045,7 +1051,7 @@ function renderBrandSectionBody(key: BrandSectionKey) {
           {[Sparkles, LayoutGrid, Plus, Palette, Square, CircleIcon, Heading, Pilcrow, ImageIcon, Bookmark, Globe2, MessageCircle].map((Icon, i) => (
             <div
               key={i}
-              className="flex aspect-square items-center justify-center rounded-md"
+              className="flex aspect-square items-center justify-center rounded-lg"
               style={{
                 background: 'var(--surface)',
                 border: '1px solid var(--border)',
@@ -1116,12 +1122,13 @@ function FloatingToolbar({
 }) {
   return (
     <div
-      className="absolute z-10 flex items-center gap-0.5 rounded-full px-1 py-1 transition-colors"
+      className="absolute z-10 flex items-center gap-0.5 px-1 py-1 transition-colors"
       style={{
         top: 156,
         left: 24,
         background: 'var(--surface)',
         border: '1px solid var(--border)',
+        borderRadius: 12,
         boxShadow: 'var(--shadow-md)',
         outline: scope === 'all' ? `2px solid color-mix(in srgb, ${SELECTION} 45%, transparent)` : 'none',
         outlineOffset: 2,
@@ -1130,7 +1137,7 @@ function FloatingToolbar({
       {/* Scope toggle pill — distinct LEFT edge of the toolbar */}
       <button
         onClick={() => onScopeChange(scope === 'page' ? 'all' : 'page')}
-        className="flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition-colors"
+        className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-colors"
         style={{
           background: scope === 'all' ? SELECTION : 'var(--surface-sunken)',
           color: scope === 'all' ? '#fff' : 'var(--text-secondary)',
@@ -1167,7 +1174,7 @@ function FloatingToolbar({
 function ToolbarSelect({ label }: { label: string }) {
   return (
     <button
-      className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors"
+      className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors"
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
@@ -1180,7 +1187,7 @@ function ToolbarSelect({ label }: { label: string }) {
 function ToolbarPill({ children }: { children: React.ReactNode }) {
   return (
     <button
-      className="rounded-md px-2 py-1 text-[11px] transition-colors"
+      className="rounded-lg px-2 py-1 text-[11px] transition-colors"
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
@@ -1192,7 +1199,7 @@ function ToolbarPill({ children }: { children: React.ReactNode }) {
 function ToolbarIcon({ Icon }: { Icon: typeof Bold }) {
   return (
     <button
-      className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+      className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
@@ -1204,7 +1211,7 @@ function ToolbarIcon({ Icon }: { Icon: typeof Bold }) {
 function ToolbarColor({ swatch }: { swatch: string }) {
   return (
     <button
-      className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+      className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
       onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
@@ -1220,7 +1227,7 @@ function ScopePillPreview({ state }: { state: 'page' | 'all' }) {
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-medium',
+        'inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[9px] font-medium',
       )}
       style={{
         background: state === 'all' ? SELECTION : 'var(--surface-sunken)',
@@ -1240,21 +1247,35 @@ function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
     <aside
       className="relative flex w-32 flex-col py-2"
       style={{
-        background: 'var(--surface)',
-        borderLeft: '1px solid var(--border)',
+        background: 'var(--surface-elevated)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        boxShadow: 'var(--shadow-sm)',
+        overflow: 'visible',
       }}
     >
       <button
         onClick={onCollapse}
-        className="absolute -left-2.5 top-3 z-10 flex h-5 w-5 items-center justify-center rounded-full"
+        title="Collapse pages"
+        aria-label="Collapse pages"
+        className="absolute -left-3.5 top-5 z-30 flex h-7 w-7 items-center justify-center transition-colors"
         style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          color: 'var(--text-muted)',
-          boxShadow: 'var(--shadow-xs)',
+          background: 'var(--surface-elevated)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: 10,
+          color: 'var(--text-secondary)',
+          boxShadow: 'var(--shadow-md)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--surface-hover)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'var(--surface-elevated)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
         }}
       >
-        <ChevronRight className="h-3 w-3" />
+        <ChevronRight className="h-3.5 w-3.5" />
       </button>
       <p
         className="px-3 py-1 text-[9px] font-semibold uppercase"
@@ -1347,7 +1368,7 @@ function CtxItem({
 }) {
   return (
     <button
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-[11px] transition-colors"
+      className="flex w-full items-center gap-2 rounded-lg px-2 py-1 text-left text-[11px] transition-colors"
       style={{ color: tone === 'critical' ? 'var(--critical)' : 'var(--text-primary)' }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background =
