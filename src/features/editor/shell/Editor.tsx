@@ -46,9 +46,9 @@ import {
   type ToolbarScope,
 } from './v2/EditorFloatingToolbar';
 import { EditorPageNavigator } from './v2/EditorPageNavigator';
+import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
-import { ChevronRight } from 'lucide-react';
 import '@/shared/styles/cosmos-workspace.css';
 
 interface EditorProps {
@@ -429,7 +429,15 @@ export function Editor({
               left: secondaryOpen
                 ? 'calc(var(--rail-w) + var(--panel-w))'
                 : 'var(--rail-w)',
-              right: showPageNavigator ? 'var(--pagenav-w)' : 0,
+              // Right anchor tracks the page-nav slot's actual
+              // width (full when open, 36px collapsed strip, 0 when
+              // single-page).
+              right:
+                contentType.pageModel === 'multi'
+                  ? navigatorOpen
+                    ? 'var(--pagenav-w)'
+                    : '36px'
+                  : 0,
               transition: 'left 200ms ease-out, right 200ms ease-out',
               background: 'var(--background)',
               overflow: 'hidden',
@@ -485,31 +493,39 @@ export function Editor({
             onZoomReset={() => setZoom(1)}
           />
 
-          {showPageNavigator ? (
-            <EditorPageNavigator
-              adapter={adapter}
-              doc={doc}
-              activePageId={activePageId}
-              editingMasterId={editingMasterId}
-              contentType={contentType}
-              onCollapse={() => setNavigatorOpen(false)}
-            />
-          ) : contentType.pageModel === 'multi' ? (
-            <button
-              type="button"
-              onClick={() => setNavigatorOpen(true)}
-              aria-label="Open pages panel"
-              className="my-3 mr-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+          {/* Page navigator — anchored to the right edge of the
+              body wrapper. Open state renders the full strip; closed
+              state renders the thin collapsed strip with a chevron
+              + rotated PAGES · N label. */}
+          {contentType.pageModel === 'multi' ? (
+            <div
+              data-page-nav-slot
               style={{
-                background: 'var(--surface-elevated)',
-                border: '1px solid var(--border-strong)',
-                color: 'var(--text-secondary)',
-                boxShadow: 'var(--shadow-md)',
-                alignSelf: 'flex-start',
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: navigatorOpen ? 'var(--pagenav-w)' : 36,
+                transition: 'width 200ms ease-out',
+                zIndex: 8,
               }}
             >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+              {navigatorOpen ? (
+                <EditorPageNavigator
+                  adapter={adapter}
+                  doc={doc}
+                  activePageId={activePageId}
+                  editingMasterId={editingMasterId}
+                  contentType={contentType}
+                  onCollapse={() => setNavigatorOpen(false)}
+                />
+              ) : (
+                <EditorPageNavigatorCollapsed
+                  pageCount={doc.pages.length}
+                  onExpand={() => setNavigatorOpen(true)}
+                />
+              )}
+            </div>
           ) : null}
         </div>
       </div>

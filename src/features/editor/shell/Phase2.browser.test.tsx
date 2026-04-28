@@ -97,6 +97,44 @@ describe('Phase 2 — content-type config drives panel visibility', () => {
     expect(text).toContain('Slide 2');
   });
 
+  it('PageNavigator collapsed strip shows chevron + rotated label, click expands (Round 3 fix 3)', async () => {
+    const { adapter, container } = await mountWith(presentationFixture());
+    // Collapse the navigator. The page-nav slot is anchored in
+    // Editor.tsx; toggling navigatorOpen swaps the open panel for
+    // the collapsed strip.
+    const collapseBtn = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('button'),
+    ).find((b) => (b.getAttribute('aria-label') ?? '') === 'Collapse pages');
+    expect(collapseBtn, 'no Collapse pages button').toBeTruthy();
+    collapseBtn!.click();
+    await new Promise((r) => setTimeout(r, 30));
+
+    // Open navigator should be gone, collapsed strip in its place.
+    expect(
+      container.querySelector('[aria-label="Page navigator"]'),
+      'open navigator still mounted after collapse',
+    ).toBeNull();
+    const strip = container.querySelector<HTMLElement>(
+      '[data-page-navigator-collapsed]',
+    );
+    expect(strip, 'collapsed strip not rendered').toBeTruthy();
+
+    // Strip carries the rotated label with the page count.
+    const label = container.querySelector(
+      '[data-page-navigator-collapsed-label]',
+    );
+    expect(label?.textContent ?? '').toMatch(/Pages\s*·\s*\d+/);
+
+    // Click anywhere on the strip → expands back to the full nav.
+    strip!.click();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(
+      container.querySelector('[aria-label="Page navigator"]'),
+    ).not.toBeNull();
+    // Sanity: the underlying adapter document is unchanged.
+    expect(adapter.getDocument().pages.length).toBeGreaterThan(0);
+  });
+
   it('page thumbnails use CSS aspect-ratio matching the page dimensions (Round 2 fix 7)', async () => {
     const { container } = await mountWith(presentationFixture());
     // The fixture pages are 1920×1080 — thumbnails should declare
