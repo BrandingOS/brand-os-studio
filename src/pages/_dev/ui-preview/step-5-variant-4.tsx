@@ -1,19 +1,21 @@
-// Step 5 UI direction — Variant 4 (Canva-Pure, cosmos-skinned).
+// Step 5 UI direction — Variant 4 (Canva-Pure, fully cosmos-skinned).
 //
-// Same structural content as before — App Rail, Secondary Panel,
-// floating toolbar w/ scope toggle, Page Navigator — but the visual
-// language now matches /setup (CosmosWorkspaceShell):
-//   • Warm paper background, off-white panels with soft shadows
-//   • Cosmos accent (black-on-light / white-on-dark) for primary CTAs
-//   • pill-btn shapes, 12px panel radii, Instrument Serif headings
-//   • theme toggled via data-theme="dark" on the cosmos root, not
-//     Tailwind's `dark:` (so all CSS vars switch in lockstep)
-//   • Selection ring uses --link blue, the closest semantic the
-//     cosmos system has to "active editor selection"
+// Now matches /setup pixel-for-pixel on the two surfaces the user
+// flagged:
+//   • Header → cosmos `.top-nav-wrap` + `.segmented-nav` (with moving
+//     active pill) + `.theme-toggle` + `.pill-btn--primary` Publish
+//   • Secondary Panel → cosmos `.panel` card with `.panel-top`,
+//     `.panel-heading-eyebrow`, `.panel-heading-title`, `.panel-progress`,
+//     `.panel-list`, `.panel-item`, `.panel-item-thumb`, `.panel-item-meta`,
+//     `.panel-item-name`, `.panel-item-sub`, `.status-chip.is-added`
+//
+// Editor-specific surfaces preserved: App Rail (Generate/Templates/
+// Insert/Brand), floating toolbar with whole-doc scope toggle, mock
+// canvas with selection, Page Navigator with right-click menu.
 //
 // MOCKUP ONLY. Local useState for visual toggles.
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlignLeft,
   Bold,
@@ -21,13 +23,11 @@ import {
   ChevronRight,
   Italic,
   LayoutGrid,
-  Moon,
   MoreHorizontal,
   Palette,
   Plus,
   Search,
   Sparkles,
-  Sun,
   ArrowRight,
   Square,
   Circle as CircleIcon,
@@ -36,12 +36,22 @@ import {
   Bookmark,
   Heading,
   Pilcrow,
-  List,
+  List as ListIcon,
   PaintBucket,
   Globe2,
   Copy,
   Trash2,
   Layers,
+  PenTool,
+  Pipette,
+  Type as TypeIcon,
+  Shapes,
+  Camera,
+  MessageCircle,
+  Check,
+  FileImage,
+  Wand2,
+  ScrollText,
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import {
@@ -67,11 +77,18 @@ import '@/shared/styles/cosmos-workspace.css';
 const SELECTION = '#2965f6';
 
 type RailItem = 'generate' | 'templates' | 'insert' | 'brand';
+type TopTab = 'edit' | 'preview' | 'comments';
+
+const TOP_TABS: ReadonlyArray<{ id: TopTab; label: string }> = [
+  { id: 'edit', label: 'Edit' },
+  { id: 'preview', label: 'Preview' },
+  { id: 'comments', label: 'Comments' },
+];
 
 export default function Step5Variant4Page() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [activeRail, setActiveRail] = useState<RailItem>('generate');
-  const [activeTab, setActiveTab] = useState<'edit' | 'preview' | 'comments'>('edit');
+  const [activeRail, setActiveRail] = useState<RailItem>('brand');
+  const [activeTab, setActiveTab] = useState<TopTab>('edit');
   const [secondaryOpen, setSecondaryOpen] = useState(true);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
   const [scope, setScope] = useState<'page' | 'all'>('page');
@@ -82,60 +99,18 @@ export default function Step5Variant4Page() {
         className="min-h-screen w-full"
         style={{ background: 'var(--background)', color: 'var(--text-primary)' }}
       >
-        {/* ─── Header ──────────────────────────────────────────────── */}
-        <header
-          className="flex h-14 items-center gap-3 px-4"
-          style={{
-            background: 'var(--surface)',
-            borderBottom: '1px solid var(--border)',
-          }}
-        >
-          <BrandPicker brand={mockBrand} />
-
-          {/* Pill tabs — Edit / Preview / Comments */}
-          <div
-            className="mx-auto flex items-center gap-1 rounded-full p-1 text-[12px]"
-            style={{ background: 'var(--surface-sunken)' }}
-          >
-            {(['edit', 'preview', 'comments'] as const).map((tab) => {
-              const isActive = activeTab === tab;
-              return (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className="rounded-full px-4 py-1.5 capitalize transition-all"
-                  style={{
-                    background: isActive ? 'var(--accent)' : 'transparent',
-                    color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                    boxShadow: isActive ? 'var(--shadow-xs)' : undefined,
-                  }}
-                >
-                  {tab}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-              style={{ color: 'var(--text-secondary)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              aria-label="Toggle theme"
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <button type="button" className="pill-btn pill-btn--primary">
-              <span>Export</span>
-              <ArrowRight size={14} className="pill-btn-arrow" />
-            </button>
-          </div>
-        </header>
+        <CosmosTopNav
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          theme={theme}
+          onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        />
 
         {/* ─── Body ─────────────────────────────────────────────────── */}
-        <div className="flex h-[calc(100vh-3.5rem)]">
+        <div
+          className="flex"
+          style={{ height: 'calc(100vh - 68px)' }}
+        >
           {/* App Rail */}
           <AppRail
             active={activeRail}
@@ -145,12 +120,16 @@ export default function Step5Variant4Page() {
             }}
           />
 
-          {/* Secondary Panel */}
+          {/* Secondary Panel — cosmos .panel card (no sticky, fills the
+              column). We pad/inset it slightly so the card edges float
+              away from the rail and the canvas. */}
           {secondaryOpen ? (
-            <SecondaryPanel
-              active={activeRail}
-              onCollapse={() => setSecondaryOpen(false)}
-            />
+            <div className="flex pl-3 py-3">
+              <SecondaryPanel
+                active={activeRail}
+                onCollapse={() => setSecondaryOpen(false)}
+              />
+            </div>
           ) : null}
 
           {/* Canvas */}
@@ -229,35 +208,152 @@ export default function Step5Variant4Page() {
   );
 }
 
-// ─── Brand picker (top-left cluster) ─────────────────────────────────────
+// ─── Cosmos top-nav (header) ────────────────────────────────────────────
+
+function CosmosTopNav({
+  activeTab,
+  onChangeTab,
+  theme,
+  onToggleTheme,
+}: {
+  activeTab: TopTab;
+  onChangeTab: (t: TopTab) => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+}) {
+  const navRef = useRef<HTMLElement | null>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const active = nav.querySelector<HTMLElement>('.segmented-nav-item.is-active');
+    if (!active) return;
+    setPill({ left: active.offsetLeft, width: active.offsetWidth });
+  }, []);
+
+  useEffect(() => {
+    measure();
+  }, [activeTab, measure]);
+
+  useEffect(() => {
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <header className="top-nav-wrap" role="banner">
+      <div className="top-nav-left">
+        <BrandPicker brand={mockBrand} />
+      </div>
+
+      <nav ref={navRef} className="segmented-nav" aria-label="Editor mode">
+        {pill && (
+          <span
+            className="segmented-nav-pill"
+            aria-hidden
+            style={{
+              transform: `translateX(${pill.left}px)`,
+              width: pill.width,
+            }}
+          />
+        )}
+        {TOP_TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`segmented-nav-item${isActive ? ' is-active' : ''}`}
+              onClick={() => onChangeTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="top-nav-right">
+        <button type="button" className="pill-btn pill-btn--primary">
+          <span>Publish</span>
+          <ArrowRight size={14} className="pill-btn-arrow" />
+        </button>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          aria-label="Toggle light and dark mode"
+          title="Toggle theme"
+        >
+          <svg
+            className="theme-icon theme-icon-sun"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+          <svg
+            className="theme-icon theme-icon-moon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          {/* keep theme prop referenced so ESLint doesn't grumble — the
+              actual icon swap is driven by [data-theme] in cosmos CSS */}
+          <span className="sr-only">{theme}</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+// ─── Brand picker (top-left cluster — cosmos top-nav-brand shape) ───────
 
 function BrandPicker({ brand }: { brand: MockBrand }) {
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger
-        className="flex items-center gap-2 rounded-md px-1.5 py-1 transition-colors"
-        style={{ color: 'var(--text-primary)' }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-      >
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="top-nav-brand"
           style={{
-            background: brand.colors.primary,
-            fontFamily: 'Georgia, serif',
-            fontStyle: 'italic',
-            fontSize: 18,
+            background: 'transparent',
+            border: 'none',
+            padding: '4px 6px 4px 4px',
+            borderRadius: 8,
+            cursor: 'pointer',
           }}
         >
-          {brand.name[0]}
-        </div>
-        <span
-          className="text-[14px]"
-          style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}
-        >
-          {brand.name}
-        </span>
-        <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--text-muted)' }} />
+          <span
+            className="top-nav-brand-mark"
+            aria-hidden="true"
+            style={{
+              background: brand.colors.primary,
+              color: '#fff',
+              fontFamily: 'Georgia, serif',
+              fontStyle: 'italic',
+              fontSize: 13,
+            }}
+          >
+            {brand.name[0]}
+          </span>
+          <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
+            {brand.name}
+          </span>
+          <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+        </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
@@ -375,7 +471,7 @@ function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailIte
   );
 }
 
-// ─── Secondary Panel ────────────────────────────────────────────────────
+// ─── Secondary Panel — cosmos `.panel` card ─────────────────────────────
 
 function SecondaryPanel({
   active,
@@ -386,11 +482,13 @@ function SecondaryPanel({
 }) {
   return (
     <aside
-      className="relative flex w-72 flex-col rounded-r-2xl"
+      className="relative flex w-72 flex-col"
       style={{
         background: 'var(--surface-elevated)',
-        borderRight: '1px solid var(--border)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
         boxShadow: 'var(--shadow-sm)',
+        overflow: 'hidden',
       }}
     >
       <button
@@ -415,372 +513,291 @@ function SecondaryPanel({
   );
 }
 
-function PanelHeading({ eyebrow, title }: { eyebrow?: string; title: string }) {
-  return (
-    <header className="flex flex-col gap-1">
-      {eyebrow ? (
-        <p
-          className="text-[10px] font-medium uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
-        >
-          {eyebrow}
-        </p>
-      ) : null}
-      <h3
-        style={{
-          fontFamily: '"Instrument Serif", "DM Serif Display", "Playfair Display", serif',
-          fontSize: 22,
-          lineHeight: 1,
-          letterSpacing: '-0.015em',
-          color: 'var(--text-primary)',
-          fontWeight: 400,
-        }}
-      >
-        {title}
-      </h3>
-    </header>
-  );
-}
+// ─── Generate Panel ─────────────────────────────────────────────────────
 
 function GeneratePanel() {
+  const recents = [
+    { name: 'Product launch', sub: '1080×1080 · social', Icon: Wand2 },
+    { name: 'Quote card story', sub: '1080×1920', Icon: ScrollText },
+    { name: '5-slide pitch v2', sub: 'Presentation', Icon: FileImage },
+    { name: 'Banner concept', sub: '1500×500', Icon: ImageIcon },
+  ];
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <PanelHeading eyebrow="AI" title="Generate" />
-      <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-        Describe what you want to create
-      </p>
-
-      <div
-        className="rounded-xl p-2"
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-        }}
-      >
-        <textarea
-          rows={3}
-          placeholder='Try "Instagram post for our product launch"…'
-          className="w-full resize-none bg-transparent text-[12px] outline-none"
-          style={{ color: 'var(--text-primary)' }}
-        />
-        <div className="mt-1 flex items-center justify-between">
-          <button
-            className="rounded-full px-2 py-0.5 text-[10px] transition-colors"
-            style={{
-              background: 'var(--surface-sunken)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Social post ▾
-          </button>
-          <button
-            type="button"
-            className="pill-btn pill-btn--primary"
-            style={{ height: 28, padding: '0 12px', fontSize: 11 }}
-          >
-            <Sparkles className="h-3 w-3" />
-            <span>Generate</span>
-          </button>
+    <>
+      <div className="panel-top">
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">AI</span>
+          <h1 className="panel-heading-title">Generate</h1>
+        </div>
+        <div
+          className="rounded-xl p-2"
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <textarea
+            rows={2}
+            placeholder='Try "Instagram post for our product launch"…'
+            className="w-full resize-none bg-transparent text-[12px] outline-none"
+            style={{ color: 'var(--text-primary)' }}
+          />
+          <div className="mt-1 flex items-center justify-between">
+            <button
+              type="button"
+              className="rounded-full px-2 py-0.5 text-[10px] transition-colors"
+              style={{
+                background: 'var(--surface-sunken)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              Social post ▾
+            </button>
+            <button
+              type="button"
+              className="pill-btn pill-btn--primary"
+              style={{ height: 26, padding: '0 10px', fontSize: 11 }}
+            >
+              <Sparkles size={12} />
+              <span>Generate</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div>
-        <p
-          className="mb-2 text-[10px] font-semibold uppercase"
-          style={{ color: 'var(--text-muted)', letterSpacing: '0.1em' }}
-        >
-          Recent
-        </p>
-        <ul className="space-y-1">
-          {[
-            'Product launch 1080x1080',
-            'Quote card story',
-            '5-slide pitch v2',
-            'Banner concept',
-          ].map((label, i) => (
-            <li
-              key={i}
-              className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors"
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <div
-                className="h-7 w-7 shrink-0 rounded"
-                style={{
-                  background: `linear-gradient(135deg, ${mockTemplates[i].gradient[0]}, ${mockTemplates[i].gradient[1]})`,
-                }}
-              />
-              <span className="truncate text-[11px]">{label}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+      <nav className="panel-list">
+        <div className="panel-group-label">Recent</div>
+        {recents.map((r, i) => (
+          <div key={i} className="panel-item">
+            <button type="button" className="panel-item-body">
+              <span className="panel-item-thumb" aria-hidden>
+                <r.Icon size={16} strokeWidth={1.6} />
+              </span>
+              <span className="panel-item-meta">
+                <span className="panel-item-name">{r.name}</span>
+                <span className="panel-item-sub">{r.sub}</span>
+              </span>
+            </button>
+          </div>
+        ))}
+      </nav>
+    </>
   );
 }
+
+// ─── Templates Panel ────────────────────────────────────────────────────
 
 function TemplatesPanel() {
   const [cat, setCat] = useState<'All' | 'Social' | 'Presentation' | 'Print'>('All');
   const filtered =
     cat === 'All' ? mockTemplates : mockTemplates.filter((t) => t.category === cat);
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <PanelHeading title="Templates" />
-      <div className="relative">
-        <Search
-          className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2"
-          style={{ color: 'var(--text-muted)' }}
-        />
-        <input
-          placeholder="Search…"
-          className="w-full rounded-lg py-1.5 pl-7 pr-2 text-[11px] outline-none"
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            color: 'var(--text-primary)',
-          }}
-        />
-      </div>
-      <div className="flex gap-1 overflow-x-auto">
-        {(['All', 'Social', 'Presentation', 'Print'] as const).map((c) => {
-          const isActive = cat === c;
-          return (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] transition-colors"
-              style={{
-                background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
-                color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-              }}
-            >
-              {c}
-            </button>
-          );
-        })}
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {filtered.map((t) => (
-          <button
-            key={t.id}
-            className="group overflow-hidden rounded-lg transition-colors"
+    <>
+      <div className="panel-top">
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">Browse</span>
+          <h1 className="panel-heading-title">Templates</h1>
+        </div>
+        <div className="relative">
+          <Search
+            className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2"
+            style={{ color: 'var(--text-muted)' }}
+          />
+          <input
+            placeholder="Search…"
+            className="w-full rounded-lg py-1.5 pl-7 pr-2 text-[11px] outline-none"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
+              color: 'var(--text-primary)',
             }}
-          >
-            <div
-              className="aspect-[3/4]"
-              style={{
-                background: `linear-gradient(135deg, ${t.gradient[0]} 0%, ${t.gradient[1]} 100%)`,
-              }}
-            />
-            <p className="truncate px-1.5 py-1 text-left text-[10px]">{t.name}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function InsertPanel() {
-  return (
-    <div className="flex flex-col gap-4 p-4">
-      <PanelHeading title="Insert" />
-
-      <Group title="Shapes">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { Icon: Square, label: 'Rect' },
-            { Icon: CircleIcon, label: 'Ellipse' },
-            { Icon: Minus, label: 'Line' },
-          ].map(({ Icon, label }) => (
-            <InsertTile key={label} Icon={Icon} label={label} />
-          ))}
+          />
         </div>
-      </Group>
-
-      <Group title="Text">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { Icon: Heading, label: 'Heading' },
-            { Icon: Pilcrow, label: 'Body' },
-            { Icon: List, label: 'List' },
-          ].map(({ Icon, label }) => (
-            <InsertTile key={label} Icon={Icon} label={label} />
-          ))}
-        </div>
-      </Group>
-
-      <Group title="Media">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { Icon: ImageIcon, label: 'Image' },
-            { Icon: Bookmark, label: 'Logo' },
-            { Icon: PaintBucket, label: 'SVG' },
-          ].map(({ Icon, label }) => (
-            <InsertTile key={label} Icon={Icon} label={label} />
-          ))}
-        </div>
-      </Group>
-    </div>
-  );
-}
-
-function InsertTile({ Icon, label }: { Icon: typeof Square; label: string }) {
-  return (
-    <button
-      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg transition-colors"
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        color: 'var(--text-secondary)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--surface-hover)';
-        e.currentTarget.style.borderColor = 'var(--border-strong)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'var(--surface)';
-        e.currentTarget.style.borderColor = 'var(--border)';
-      }}
-    >
-      <Icon className="h-4 w-4" strokeWidth={1.5} />
-      <span className="text-[9px]">{label}</span>
-    </button>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <p
-        className="mb-1.5 text-[10px] font-semibold uppercase"
-        style={{ color: 'var(--text-muted)', letterSpacing: '0.1em' }}
-      >
-        {title}
-      </p>
-      {children}
-    </section>
-  );
-}
-
-function BrandPanel() {
-  const [tab, setTab] = useState<'logos' | 'images' | 'colors' | 'fonts'>('logos');
-  return (
-    <div className="flex flex-col gap-3 p-4">
-      <PanelHeading eyebrow={mockBrand.name} title="Brand" />
-      <div className="flex gap-1">
-        {(['logos', 'images', 'colors', 'fonts'] as const).map((t) => {
-          const isActive = tab === t;
-          return (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className="rounded-full px-2.5 py-0.5 text-[10px] capitalize transition-colors"
-              style={{
-                background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
-                color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-              }}
-            >
-              {t}
-            </button>
-          );
-        })}
-      </div>
-
-      {tab === 'logos' && (
-        <div className="grid grid-cols-2 gap-2">
-          {mockLogoVariants.map((v) => (
-            <div
-              key={v.id}
-              className="overflow-hidden rounded-lg"
-              style={{ border: '1px solid var(--border)' }}
-            >
-              <div
-                className="flex aspect-square items-center justify-center"
+        <div className="flex gap-1 overflow-x-auto">
+          {(['All', 'Social', 'Presentation', 'Print'] as const).map((c) => {
+            const isActive = cat === c;
+            return (
+              <button
+                key={c}
+                onClick={() => setCat(c)}
+                className="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] transition-colors"
                 style={{
-                  background: v.background,
-                  color: v.fg,
-                  fontFamily: 'Georgia, serif',
-                  fontStyle: 'italic',
-                  fontSize: v.letter.length > 1 ? 18 : 32,
+                  background: isActive ? 'var(--accent)' : 'var(--surface-sunken)',
+                  color: isActive ? 'var(--accent-contrast)' : 'var(--text-secondary)',
                 }}
               >
-                {v.letter}
-              </div>
-              <p className="truncate px-1.5 py-1 text-[9px]">{v.label}</p>
-            </div>
-          ))}
+                {c}
+              </button>
+            );
+          })}
         </div>
-      )}
-
-      {tab === 'images' && (
-        <div className="grid grid-cols-2 gap-2">
-          {mockBrandImages.map((img) => (
-            <div
-              key={img.id}
-              className="aspect-square rounded-lg"
-              style={{ background: img.tint, boxShadow: '0 0 0 1px var(--border)' }}
-            />
-          ))}
-        </div>
-      )}
-
-      {tab === 'colors' && (
-        <div className="grid grid-cols-2 gap-2">
-          {mockColorSwatches.map((c) => (
-            <div key={c.name} className="flex flex-col gap-1">
+      </div>
+      <div className="panel-list" style={{ paddingTop: 10 }}>
+        <div className="grid grid-cols-2 gap-2 px-1">
+          {filtered.map((t) => (
+            <button
+              key={t.id}
+              className="group overflow-hidden rounded-lg transition-colors"
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+              }}
+            >
               <div
-                className="aspect-square rounded-lg"
-                style={{ background: c.hex, boxShadow: '0 0 0 1px var(--border)' }}
+                className="aspect-[3/4]"
+                style={{
+                  background: `linear-gradient(135deg, ${t.gradient[0]} 0%, ${t.gradient[1]} 100%)`,
+                }}
               />
-              <div className="text-[9px]">
-                <p className="font-medium">{c.name}</p>
-                <p className="font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {c.hex}
-                </p>
-              </div>
-            </div>
+              <p className="truncate px-1.5 py-1 text-left text-[10px]">{t.name}</p>
+            </button>
           ))}
         </div>
-      )}
-
-      {tab === 'fonts' && (
-        <div className="space-y-2">
-          <FontCard label="Heading" family={mockBrand.fonts.heading} />
-          <FontCard label="Body" family={mockBrand.fonts.body} />
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
-function FontCard({ label, family }: { label: string; family: string }) {
+// ─── Insert Panel ───────────────────────────────────────────────────────
+
+function InsertPanel() {
+  const groups: Array<{ title: string; items: Array<{ Icon: typeof Square; name: string; sub: string }> }> = [
+    {
+      title: 'Shapes',
+      items: [
+        { Icon: Square, name: 'Rectangle', sub: 'Solid · stroke · fill' },
+        { Icon: CircleIcon, name: 'Ellipse', sub: 'Circle · oval' },
+        { Icon: Minus, name: 'Line', sub: 'Divider · arrow' },
+      ],
+    },
+    {
+      title: 'Text',
+      items: [
+        { Icon: Heading, name: 'Heading', sub: 'Large display text' },
+        { Icon: Pilcrow, name: 'Body', sub: 'Paragraph block' },
+        { Icon: ListIcon, name: 'List', sub: 'Bulleted · numbered' },
+      ],
+    },
+    {
+      title: 'Media',
+      items: [
+        { Icon: ImageIcon, name: 'Image', sub: 'Upload or link' },
+        { Icon: Bookmark, name: 'Logo', sub: 'From brand kit' },
+        { Icon: PaintBucket, name: 'SVG', sub: 'Vector asset' },
+      ],
+    },
+  ];
   return (
-    <div
-      className="rounded-lg p-3"
-      style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
-    >
-      <p
-        className="text-[9px] font-medium uppercase"
-        style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
-      >
-        {label}
-      </p>
-      <p
-        className="mt-1 text-[20px] tracking-tight"
-        style={{ fontFamily: `${family}, sans-serif`, fontWeight: 600 }}
-      >
-        {family}
-      </p>
-      <p
-        className="mt-1 text-[10px]"
-        style={{ fontFamily: `${family}, sans-serif`, color: 'var(--text-secondary)' }}
-      >
-        Aa Bb Cc 1234
-      </p>
-    </div>
+    <>
+      <div className="panel-top">
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">Add</span>
+          <h1 className="panel-heading-title">Insert</h1>
+        </div>
+      </div>
+      <nav className="panel-list">
+        {groups.map((g) => (
+          <div key={g.title}>
+            <div className="panel-group-label">{g.title}</div>
+            {g.items.map((it) => (
+              <div key={it.name} className="panel-item">
+                <button type="button" className="panel-item-body">
+                  <span className="panel-item-thumb" aria-hidden>
+                    <it.Icon size={16} strokeWidth={1.6} />
+                  </span>
+                  <span className="panel-item-meta">
+                    <span className="panel-item-name">{it.name}</span>
+                    <span className="panel-item-sub">{it.sub}</span>
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+// ─── Brand Panel — closest mirror of /setup's SetupSidebar ─────────────
+
+function BrandPanel() {
+  const entries: Array<{
+    key: string;
+    name: string;
+    sub: string;
+    Icon: typeof PenTool;
+    added: boolean;
+  }> = [
+    { key: 'logo', name: 'Logo', sub: `${mockLogoVariants.length} variants`, Icon: PenTool, added: true },
+    { key: 'color', name: 'Color', sub: `${mockColorSwatches.length} colors`, Icon: Pipette, added: true },
+    { key: 'fonts', name: 'Typography', sub: `${mockBrand.fonts.heading} · ${mockBrand.fonts.body}`, Icon: TypeIcon, added: true },
+    { key: 'icons', name: 'Iconography', sub: '12 icons', Icon: Shapes, added: true },
+    { key: 'photos', name: 'Photography', sub: `${mockBrandImages.length} references`, Icon: Camera, added: true },
+    { key: 'website', name: 'Website', sub: `${mockBrand.slug}.com`, Icon: Globe2, added: true },
+    { key: 'voice', name: 'About', sub: '1 / 5 sections', Icon: MessageCircle, added: true },
+  ];
+  const completed = entries.filter((e) => e.added).length;
+  const total = entries.length;
+  const pct = Math.round((completed / total) * 100);
+  const [activeKey, setActiveKey] = useState('logo');
+
+  return (
+    <>
+      <div className="panel-top">
+        <div className="panel-heading">
+          <span className="panel-heading-eyebrow">Brand kit</span>
+          <h1 className="panel-heading-title" style={{ fontStyle: 'italic' }}>
+            {mockBrand.name}
+          </h1>
+        </div>
+        <div className="panel-progress">
+          <div className="panel-progress-head">
+            <span className="panel-progress-label">Completion</span>
+            <span className="panel-progress-count">
+              {completed} / {total}
+            </span>
+          </div>
+          <div className="panel-progress-bar">
+            <div className="panel-progress-fill" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <nav className="panel-list">
+        {entries.map((e) => {
+          const isActive = activeKey === e.key;
+          return (
+            <div
+              key={e.key}
+              className={`panel-item${isActive ? ' is-active' : ''}`}
+            >
+              <button
+                type="button"
+                className="panel-item-body"
+                onClick={() => setActiveKey(e.key)}
+              >
+                <span className="panel-item-thumb" aria-hidden>
+                  <e.Icon size={16} strokeWidth={1.6} />
+                </span>
+                <span className="panel-item-meta">
+                  <span className="panel-item-name">{e.name}</span>
+                  <span className="panel-item-sub">{e.sub}</span>
+                </span>
+              </button>
+              <span className="status-chip is-added" aria-hidden>
+                <span className="chip-default">
+                  <Check size={14} />
+                </span>
+                <span className="chip-hover">
+                  <Plus size={14} />
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </nav>
+    </>
   );
 }
 
@@ -825,7 +842,6 @@ function FloatingToolbar({
         style={{ background: 'var(--border)' }}
       />
 
-      {/* Text controls — Canva-density, 6-7 visible */}
       <ToolbarSelect label="DM Sans" />
       <ToolbarPill>36</ToolbarPill>
       <ToolbarIcon Icon={Bold} />
