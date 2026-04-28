@@ -167,19 +167,40 @@ describe('EditorAppRail', () => {
     }
   });
 
-  it('rail wraps the icons in a card surface (Step 5/7 fix 5)', () => {
-    // Earlier the rail was a flat strip on the page background — the
-    // icons floated without a container. Now the <aside> is a card:
-    // bordered, shadowed, rounded, on --surface-elevated.
+  it('rail is FLAT — no card surface, no border, no shadow (Round 2 fix 3)', () => {
+    // Round 2 reversed the card-surface decision: only the Secondary
+    // Panel is a card. The rail is flat icons on the editor
+    // background. This test catches a regression where someone
+    // re-adds the card chrome.
     const { container } = render(
       <EditorAppRail active="generate" onChange={vi.fn()} />,
     );
     const rail = container.querySelector<HTMLElement>('[data-app-rail]');
-    expect(rail, 'data-app-rail card surface missing').toBeTruthy();
-    expect(rail!.style.background).toMatch(/--surface-elevated/);
-    expect(rail!.style.border).toMatch(/--border/);
-    expect(rail!.style.boxShadow).toMatch(/--shadow-sm/);
-    expect(rail!.style.borderRadius).toBe('12px');
+    expect(rail).toBeTruthy();
+    expect(rail!.getAttribute('data-app-rail-flat')).toBe('true');
+    expect(rail!.style.background).toBe('');
+    expect(rail!.style.border).toBe('');
+    expect(rail!.style.boxShadow).toBe('');
+  });
+
+  it('active rail entry shows a circle behind the icon (no opacity dimming on inactive)', () => {
+    const { container } = render(
+      <EditorAppRail active="brand" onChange={vi.fn()} />,
+    );
+    // Active circle: --accent-muted background.
+    const brandBtn = container.querySelector(
+      'button[data-rail-item="brand"]',
+    );
+    const activeCircle =
+      brandBtn?.querySelector<HTMLElement>('[data-rail-icon-circle]');
+    expect(activeCircle?.style.background).toMatch(/--accent-muted/);
+    // Idle: transparent.
+    const insertBtn = container.querySelector(
+      'button[data-rail-item="insert"]',
+    );
+    const idleCircle =
+      insertBtn?.querySelector<HTMLElement>('[data-rail-icon-circle]');
+    expect(idleCircle?.style.background).toBe('transparent');
   });
 });
 
