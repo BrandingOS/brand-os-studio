@@ -66,8 +66,6 @@ async function mountWith(doc: BrandOSDocument): Promise<MountResult> {
       <Editor
         initialDocument={doc}
         save={async () => {}}
-        backTo="/"
-        title="Phase 2 browser test"
         onAdapterReady={(a) => resolveAdapter(a)}
       />
     </MemoryRouter>,
@@ -215,11 +213,11 @@ describe('Phase 2 — switching active page updates the canvas', () => {
     adapter.updatePageDimensions(p2.id, 800, 600);
     await new Promise((r) => setTimeout(r, 30));
 
-    // Find page 2's navigator cell. Cell elements are <div role-less but
-    // wrapped in <li>; we click the parent div with aria-current handling.
+    // Find page 2's navigator cell. Step 5a's EditorPageNavigator
+    // renders each page as a <button> inside an <li>; click the button.
     const navItems = Array.from(
-      container.querySelectorAll<HTMLDivElement>(
-        '[aria-label="Page navigator"] li > div',
+      container.querySelectorAll<HTMLButtonElement>(
+        '[aria-label="Page navigator"] li > button',
       ),
     );
     expect(navItems.length).toBe(2);

@@ -1,9 +1,10 @@
-// Phase 1 demo page — loads the social-post fixture into the new
-// unified Editor and persists to localStorage. Intentionally minimal so
-// the user can verify the demo gate (drag/resize/rotate, add layers,
-// reorder, lock, undo/redo, snap guides, export round-trip).
+// Dev harness for the unified editor.
 //
-// ─── Phase 8 E2E harness — what a more realistic /_dev/brand/:slug/editor would need ───
+// Phase 5a (current): mounts <Editor> with the social-post fixture and
+// the seeded `raqm` brand so the new top-bar brand picker has data to
+// render. Persists to localStorage.
+//
+// ─── Phase 8 E2E harness — what `/_dev/brand/:slug/editor` would need ───
 //
 // The Phase 8 browser E2E tests need a harness that exercises the
 // canonical `/b/:brandSlug/design/:designSlug` flow without depending
@@ -35,6 +36,7 @@ import { useMemo } from 'react';
 import { Editor } from '@/features/editor/shell/Editor';
 import { BrandOSDocumentSchema, type BrandOSDocument } from '@/features/editor/schema';
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
+import { raqmBrand } from '@/data/brands/raqm';
 
 const STORAGE_KEY = 'brandos.editor.phase1.devDoc';
 
@@ -54,13 +56,5 @@ async function saveDoc(doc: BrandOSDocument): Promise<void> {
 
 export default function DevEditorPage() {
   const initial = useMemo(loadDoc, []);
-  return (
-    <Editor
-      initialDocument={initial}
-      save={saveDoc}
-      backTo="/dashboard"
-      breadcrumb={['Dev', 'Editor']}
-      title="Phase 1 demo"
-    />
-  );
+  return <Editor initialDocument={initial} save={saveDoc} brand={raqmBrand} />;
 }

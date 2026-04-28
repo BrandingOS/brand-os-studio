@@ -1,27 +1,46 @@
-// <Editor> — Phase 1 unified editor shell.
+// <Editor> — Phase 5a unified editor shell on the Variant 4 layout.
 //
-// Top-level component that mounts the FabricAdapter, wires it to
-// EditorChrome + useAutoSave, and lays out the toolbar / canvas /
-// layers panel / properties panel. No fabric imports here — everything
-// canvas-shaped goes through the adapter interface.
+// Cosmos workspace shell with three regions:
+//   • Top:    EditorTopBar — brand picker, segmented Edit/Preview/
+//             Comments pill (only Edit functional in 5a), Export +
+//             theme toggle.
+//   • Body:   App Rail (Generate / Templates / Insert / Brand) →
+//             Secondary Panel (content per active rail entry) →
+//             canvas (Fabric, unchanged) → Page Navigator (only
+//             when contentType.pageModel === 'multi').
+//   • Floating: contextual toolbar above the selected layer (replaces
+//             Phase 1's right-side Properties panel).
+//
+// Brand context comes from the `brand` PROP (caller-supplied), per
+// the brand-context purity rule (issue #4). The editor never reaches
+// for a global store. The dev harness passes a hardcoded mock; route
+// handlers will resolve it via DI in Phase 4.5.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FabricAdapter } from '@/features/editor/adapter/FabricAdapter';
-import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
-import type { BrandOSDocument, SelectionState } from '@/features/editor/schema';
-import { EditorChrome } from '@/features/editor/core';
+import type {
+  EditorAdapter,
+  SelectionState,
+} from '@/features/editor/adapter/EditorAdapter';
+import type { BrandOSDocument } from '@/features/editor/schema';
 import { useAutoSave } from '@/features/editor/core';
 import { useEditorKeyboardShortcuts } from '@/features/editor/hooks/useEditorKeyboardShortcuts';
 import { EditorCanvasMount } from './EditorCanvasMount';
-import { EditorToolbar } from './EditorToolbar';
-import { EditorLayersPanel } from './EditorLayersPanel';
-import { EditorPropertiesPanel } from './EditorPropertiesPanel';
-import { PageNavigator } from './PageNavigator';
-import { useEditorUIStore } from '@/features/editor/store/editorUIStore';
 import {
   getContentTypeConfig,
   type ContentTypeConfig,
 } from '@/features/editor/content-types';
+import type { Brand } from '@/shared/types/brand';
+import { EditorTopBar, type EditorMode } from './v2/EditorTopBar';
+import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
+import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
+import {
+  EditorFloatingToolbar,
+  type ToolbarScope,
+} from './v2/EditorFloatingToolbar';
+import { EditorPageNavigator } from './v2/EditorPageNavigator';
+import { ChevronRight } from 'lucide-react';
+import '@/shared/styles/cosmos-workspace.css';
 
 interface EditorProps {
   /** Initial document to load. */
@@ -31,26 +50,31 @@ interface EditorProps {
    * Phase 1 demo uses localStorage; Phase 4 wires templates / Supabase.
    */
   save: (doc: BrandOSDocument) => Promise<void>;
-  /** Path to navigate to when the back button is clicked. */
-  backTo: string;
-  /** Breadcrumb segments shown in the chrome top bar. */
-  breadcrumb?: string[];
-  /** Document title shown in the chrome top bar. */
-  title: string;
+  /**
+   * Brand context. Optional in 5a — when undefined, the brand picker
+   * shows a placeholder and the Brand panel collapses to a single
+   * "no brand attached" message. 5b makes the picker functional;
+   * Phase 4.5 wires real route resolution.
+   */
+  brand?: Brand;
   /**
    * Optional hook fired once the adapter is constructed. Used by browser
    * E2E tests to assert canvas state through the adapter API. Production
    * call sites omit this.
    */
   onAdapterReady?: (adapter: EditorAdapter) => void;
+  /**
+   * Optional callback fired when the user picks a different brand from
+   * the top-bar dropdown. 5b will replace this with route navigation;
+   * for 5a it's a placeholder so test harnesses can opt in.
+   */
+  onBrandSwitch?: (brandSlug: string) => void;
 }
 
 export function Editor({
   initialDocument,
   save,
-  backTo,
-  breadcrumb,
-  title,
+  brand,
   onAdapterReady,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
@@ -64,7 +88,19 @@ export function Editor({
   );
   const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
 
-  const { showLayersPanel, showPropertiesPanel } = useEditorUIStore();
+  // Theme — driven via [data-cosmos][data-theme] on the wrapper.
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [mode, setMode] = useState<EditorMode>('edit');
+
+  // App Rail / Secondary Panel state.
+  const [activeRail, setActiveRail] = useState<RailItem>('insert');
+  const [secondaryOpen, setSecondaryOpen] = useState(true);
+  const [navigatorOpen, setNavigatorOpen] = useState(true);
+
+  // Floating toolbar scope (per-page vs whole-doc). Cross-page
+  // mutation lands in Phase 3 step 6 — for 5a the toggle is
+  // visible and stateful but doesn't yet fan out.
+  const [scope, setScope] = useState<ToolbarScope>('page');
 
   // Resolve the content-type config. Unknown ids fall back to a
   // single-page social-post — the registry throws on truly unknown
@@ -107,9 +143,6 @@ export function Editor({
     value: doc,
     save,
     debounceMs: 1200,
-    // Hold "Saved" on screen long enough to register before fading. Default
-    // 1500 was indistinguishable from idle on fast saves (e.g. localStorage)
-    // — the indicator looked broken in the Phase 1 review.
     savedFadeMs: 2500,
   });
 
@@ -125,52 +158,138 @@ export function Editor({
     onFlushSave: flush,
   });
 
+  // Resolve the single-selected layer for the floating toolbar. The
+  // toolbar mounts only when exactly one layer is selected — multi-
+  // selection or empty selection shows nothing (matches the Variant
+  // 4 behavior; per-layer controls don't make sense for groups).
+  const page = doc.pages.find((p) => p.id === selection.pageId) ?? doc.pages[0];
+  const selectedLayer =
+    page && selection.layerIds.length === 1
+      ? page.layers.find((l) => l.id === selection.layerIds[0]) ?? null
+      : null;
+
+  const showPageNavigator =
+    contentType.pageModel === 'multi' && navigatorOpen;
+
   return (
-    <div className="flex h-screen w-screen flex-col bg-muted/30">
-      <EditorChrome
-        backTo={backTo}
-        breadcrumb={breadcrumb}
-        title={title}
-        saveState={saveState}
-        onRetry={retry}
-      />
-      {editingMasterId ? (
-        <div className="flex items-center justify-between border-b bg-amber-50 px-4 py-1.5 text-[11px] text-amber-900">
-          <span>
-            Editing master ·{' '}
-            {doc.masterPages.find((m) => m.id === editingMasterId)?.name ?? 'unknown'}
-          </span>
-          <button
-            type="button"
-            onClick={() => adapter.exitMasterMode()}
-            className="rounded px-2 py-0.5 text-[11px] underline hover:bg-amber-100"
+    <div data-cosmos="workspace" data-theme={theme}>
+      <div
+        className="min-h-screen w-full"
+        style={{
+          background: 'var(--background)',
+          color: 'var(--text-primary)',
+        }}
+      >
+        <EditorTopBar
+          brand={brand}
+          mode={mode}
+          onModeChange={setMode}
+          saveState={saveState}
+          onRetrySave={retry}
+          theme={theme}
+          onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        />
+
+        {editingMasterId ? (
+          <div
+            className="flex items-center justify-between border-b px-4 py-1.5 text-[11px]"
+            style={{
+              background: 'var(--critical-soft)',
+              borderColor: 'var(--border)',
+              color: 'var(--critical)',
+            }}
           >
-            Exit master
-          </button>
-        </div>
-      ) : null}
-      <div className="flex flex-1 min-h-0">
-        <EditorToolbar adapter={adapter} pageId={selection.pageId} />
-        {contentType.panels.pageNavigator ? (
-          <PageNavigator
-            adapter={adapter}
-            doc={doc}
-            activePageId={activePageId}
-            editingMasterId={editingMasterId}
-            contentType={contentType}
-          />
-        ) : null}
-        <div className="flex flex-1 min-w-0 items-center justify-center overflow-auto p-8">
-          <div className="rounded-md bg-white shadow-2xl ring-1 ring-black/5">
-            <EditorCanvasMount adapter={adapter} initialDocument={initialDocument} />
+            <span>
+              Editing master ·{' '}
+              {doc.masterPages.find((m) => m.id === editingMasterId)?.name ??
+                'unknown'}
+            </span>
+            <button
+              type="button"
+              onClick={() => adapter.exitMasterMode()}
+              className="rounded px-2 py-0.5 text-[11px] underline"
+            >
+              Exit master
+            </button>
           </div>
+        ) : null}
+
+        <div className="flex" style={{ height: 'calc(100vh - 68px)' }}>
+          <EditorAppRail
+            active={activeRail}
+            onChange={(item) => {
+              setActiveRail(item);
+              setSecondaryOpen(true);
+            }}
+          />
+
+          {secondaryOpen ? (
+            <EditorSecondaryPanel
+              active={activeRail}
+              adapter={adapter}
+              doc={doc}
+              activePageId={activePageId}
+              brand={brand}
+              onCollapse={() => setSecondaryOpen(false)}
+            />
+          ) : null}
+
+          <main
+            className="relative flex flex-1 items-center justify-center overflow-auto"
+            style={{ background: 'var(--background)' }}
+            data-editor-canvas-region
+          >
+            {/* Canvas surface — the floating toolbar lives in the same
+                positioned region so it can overlay the canvas. */}
+            <div className="relative">
+              {selectedLayer ? (
+                <EditorFloatingToolbar
+                  adapter={adapter}
+                  pageId={page!.id}
+                  layer={selectedLayer}
+                  scope={scope}
+                  onScopeChange={setScope}
+                />
+              ) : null}
+              <div
+                className="overflow-hidden rounded-xl"
+                style={{ boxShadow: 'var(--shadow-lg)' }}
+              >
+                <EditorCanvasMount
+                  adapter={adapter}
+                  initialDocument={initialDocument}
+                />
+              </div>
+            </div>
+          </main>
+
+          {showPageNavigator ? (
+            <EditorPageNavigator
+              adapter={adapter}
+              doc={doc}
+              activePageId={activePageId}
+              editingMasterId={editingMasterId}
+              contentType={contentType}
+              onCollapse={() => setNavigatorOpen(false)}
+            />
+          ) : contentType.pageModel === 'multi' ? (
+            <button
+              type="button"
+              onClick={() => setNavigatorOpen(true)}
+              aria-label="Open pages panel"
+              className="my-3 mr-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+              style={{
+                background: 'var(--surface-elevated)',
+                border: '1px solid var(--border-strong)',
+                color: 'var(--text-secondary)',
+                boxShadow: 'var(--shadow-md)',
+                alignSelf: 'flex-start',
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
-        {contentType.panels.layers && showLayersPanel ? (
-          <EditorLayersPanel adapter={adapter} doc={doc} selection={selection} />
-        ) : null}
-        {contentType.panels.properties && showPropertiesPanel ? (
-          <EditorPropertiesPanel adapter={adapter} doc={doc} selection={selection} />
-        ) : null}
       </div>
     </div>
   );

@@ -1,34 +1,85 @@
-// Phase 1 close-out — browser E2E tests.
+// Step 5a — browser E2E for the Variant 4 editor layout.
 //
-// Renders the real <Editor> in a headless Chromium via Vitest's
-// browser mode. Real DOM, real canvas, real Fabric.js. Each test
-// corresponds 1:1 to one of the five manual checklist items from
-// the Phase 1 review.
+// Renders the real <Editor> in headless Chromium via Vitest browser
+// mode. Real DOM, real canvas, real Fabric.js. The five tests below
+// each cover one of the 5a acceptance bullets:
 //
-// Canvas state is asserted via the adapter API (not pixel reads) —
-// the adapter mirror is the runtime source of truth, and reading
-// `getDocument()` plus the per-layer Fabric object state is more
-// reliable than pixel inspection (anti-aliasing, font rendering,
-// etc. introduce flakiness).
+//   1. Editor renders without errors at the dev route.
+//   2. App Rail has 4 entries and clicking each switches the
+//      Secondary Panel content.
+//   3. Page Navigator hidden on single-page (social-post), visible on
+//      multi-page (presentation).
+//   4. Selecting a layer surfaces the floating toolbar above the
+//      canvas with the right per-kind controls.
+//   5. Switching between layer kinds adapts the toolbar's controls.
 
-import { describe, expect, it, afterEach } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Editor } from './Editor';
-import { BrandOSDocumentSchema, type BrandOSDocument } from '@/features/editor/schema';
+import {
+  BrandOSDocumentSchema,
+  type BrandOSDocument,
+  type Layer,
+  type Page,
+} from '@/features/editor/schema';
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
+import type { Brand } from '@/shared/types/brand';
 
-const FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
+const SOCIAL_FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
 
 afterEach(() => cleanup());
+
+function blankPage(name: string): Page {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    width: 1920,
+    height: 1080,
+    background: '#ffffff',
+    masterPageId: null,
+    layers: [],
+  };
+}
+
+/** A presentation-style fixture (multi-page) for Page Navigator tests. */
+function presentationFixture(): BrandOSDocument {
+  return {
+    schemaVersion: 1,
+    id: crypto.randomUUID(),
+    contentType: 'presentation',
+    brandId: 'raqm',
+    masterPages: [],
+    pages: [
+      { ...blankPage('Slide 1'), id: crypto.randomUUID() },
+      { ...blankPage('Slide 2'), id: crypto.randomUUID() },
+    ],
+    metadata: {},
+  };
+}
+
+function mockBrand(): Brand {
+  return {
+    id: 'brand-1',
+    slug: 'mock',
+    name: 'Mock Brand',
+    primaryColor: '#3b82f6',
+    fonts: { primary: 'Inter' },
+    tone: 'Friendly',
+    audience: 'Designers',
+    assets: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
 
 interface MountResult {
   adapter: EditorAdapter;
   container: HTMLElement;
 }
 
-async function mountEditor(): Promise<MountResult> {
+async function mountEditor(doc: BrandOSDocument = SOCIAL_FIXTURE): Promise<MountResult> {
   let resolveAdapter!: (a: EditorAdapter) => void;
   const adapterPromise = new Promise<EditorAdapter>((r) => {
     resolveAdapter = r;
@@ -37,284 +88,227 @@ async function mountEditor(): Promise<MountResult> {
   const { container } = render(
     <MemoryRouter>
       <Editor
-        initialDocument={FIXTURE}
+        initialDocument={doc}
         save={async () => {
           /* no-op for tests */
         }}
-        backTo="/"
-        title="Phase 1 browser test"
+        brand={mockBrand()}
         onAdapterReady={(a) => resolveAdapter(a)}
       />
     </MemoryRouter>,
   );
 
   const adapter = await adapterPromise;
-  // Wait one animation frame for the adapter to mount + load the fixture.
+  // One animation frame for adapter mount + fixture load, plus a 50ms
+  // microtask flush so async layerToFabric promises (FabricImage.fromURL
+  // etc.) settle.
   await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-  // Plus a microtask flush so async layerToFabric promises settle.
-  await new Promise((r) => setTimeout(r, 50));
+  await new Promise((r) => setTimeout(r, 60));
   return { adapter, container };
 }
 
-function fabricObjFor(adapter: EditorAdapter, layerId: string): Record<string, unknown> {
-  const map = (adapter as unknown as {
-    fabricByLayerId: Map<string, Record<string, unknown>>;
-  }).fabricByLayerId;
-  const obj = map.get(layerId);
-  if (!obj) throw new Error(`No fabric object for layer ${layerId}`);
-  return obj;
-}
-
-/**
- * Poll for a Fabric object to land in the adapter's map. Layer creation
- * is async (FabricImage.fromURL etc.) — add/update calls return before
- * the network round-trip resolves.
- */
-async function waitForFabricObj(
-  adapter: EditorAdapter,
-  layerId: string,
-  timeoutMs = 8000,
-): Promise<Record<string, unknown>> {
-  const map = (adapter as unknown as {
-    fabricByLayerId: Map<string, Record<string, unknown>>;
-  }).fabricByLayerId;
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const obj = map.get(layerId);
-    if (obj) return obj;
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  throw new Error(`Timeout waiting for Fabric object: ${layerId}`);
-}
-
-const HEADLINE_ID = FIXTURE.pages[0].layers[0].id;
-const PAGE_ID = FIXTURE.pages[0].id;
-
 // ────────────────────────────────────────────────────────────────────────
-// Test 1 — Properties panel renders the expected primary controls when
-// a TextLayer with a SlotRef color is selected.
+// Test 1 — Editor renders without errors. Top bar + App Rail + canvas
+// + Insert panel (default rail) all present.
 // ────────────────────────────────────────────────────────────────────────
-describe('Phase 1 close-out — Properties panel layout', () => {
-  it('renders header strip + Font/Size/Weight/Color when a SlotRef-bound text layer is selected', async () => {
-    const { adapter, container } = await mountEditor();
-    adapter.setSelection([HEADLINE_ID]);
-    await new Promise((r) => setTimeout(r, 30));
-
-    // Header strip — 5 compact number inputs (X/Y/W/H/°) all visible.
-    const compactInputs = container.querySelectorAll('input[type="number"]');
-    expect(compactInputs.length).toBeGreaterThanOrEqual(5);
-
-    // Visibility + lock toggle buttons in the header strip.
-    expect(container.querySelector('[aria-label="Hide layer"], [aria-label="Show layer"]')).toBeTruthy();
-    expect(container.querySelector('[aria-label="Lock"], [aria-label="Unlock"]')).toBeTruthy();
-
-    // Primary controls — labels visible.
-    const text = container.textContent ?? '';
-    expect(text).toContain('Font');
-    expect(text).toContain('Size');
-    expect(text).toContain('Weight');
-    expect(text).toContain('Color');
-
-    // SlotRef chip uses the human-readable label, not the raw slot type.
-    expect(text).toContain('Brand neutral'); // headline color slot
-    expect(text).toContain('Brand heading'); // headline font slot
-    expect(text).not.toContain('brand.color.neutral'); // raw type is hidden
-
-    // The chip is NOT truncated — full label appears intact in the DOM.
-    const chipNodes = Array.from(container.querySelectorAll('span')).filter(
-      (n) => (n.textContent ?? '').trim() === 'Brand neutral',
-    );
-    expect(chipNodes.length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-// Test 2 — Override on a SlotRef Color field swaps the chip for a hex
-// picker AND updates the canvas.
-// ────────────────────────────────────────────────────────────────────────
-describe('Phase 1 close-out — SlotRef Override flow', () => {
-  it('clicking Override on Color converts the field to a literal and the canvas reflects it', async () => {
-    const { adapter, container } = await mountEditor();
-    adapter.setSelection([HEADLINE_ID]);
-    await new Promise((r) => setTimeout(r, 30));
-
-    // Verify the headline currently has a SlotRef color.
-    const layerBefore = adapter.getDocument().pages[0].layers[0];
-    expect(typeof (layerBefore as { color: unknown }).color).toBe('object');
-
-    // Find the Override button next to the "Brand neutral" Color chip.
-    // Multiple Override buttons exist (one for Font, one for Color); pick
-    // the one whose closest label is "Color".
-    const overrideButtons = Array.from(
-      container.querySelectorAll('button'),
-    ).filter((b) => (b.textContent ?? '').trim() === 'Override');
-    expect(overrideButtons.length).toBeGreaterThanOrEqual(2);
-
-    const colorOverrideBtn = overrideButtons.find((btn) => {
-      // Walk up to find an enclosing label whose first text node says "Color".
-      let el: HTMLElement | null = btn;
-      for (let i = 0; i < 6 && el; i++) {
-        const labelText = el.querySelector('span')?.textContent ?? '';
-        if (labelText.trim() === 'Color') return true;
-        el = el.parentElement;
-      }
-      return false;
-    });
-    expect(colorOverrideBtn, 'Could not find the Color field Override button').toBeTruthy();
-
-    colorOverrideBtn!.click();
-    await new Promise((r) => setTimeout(r, 50));
-
-    // Document mirror now has a literal string for color.
-    const layerAfter = adapter.getDocument().pages[0].layers[0];
-    expect(typeof (layerAfter as { color: unknown }).color).toBe('string');
-
-    // Canvas Fabric object's fill matches the literal.
-    const fabricObj = fabricObjFor(adapter, HEADLINE_ID);
-    expect(fabricObj.fill).toBe((layerAfter as { color: string }).color);
-
-    // The chip is gone from the DOM; a color picker (input[type=color]) is now visible.
-    const colorPickers = container.querySelectorAll('input[type="color"]');
-    expect(colorPickers.length).toBeGreaterThanOrEqual(1);
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-// Test 3 — Selection visual: brand purple outline, no overlay fill.
-// ────────────────────────────────────────────────────────────────────────
-describe('Phase 1 close-out — Selection visual', () => {
-  it('selected layer Fabric object carries the brand-purple borderColor', async () => {
-    const { adapter } = await mountEditor();
-    adapter.setSelection([HEADLINE_ID]);
-    await new Promise((r) => setTimeout(r, 30));
-
-    const fabricObj = fabricObjFor(adapter, HEADLINE_ID);
-    // Per the Phase 1 close-out, selection styling is set on every Fabric
-    // object via baseProps + applyLayerToFabric.
-    expect(fabricObj.borderColor).toBe('#7c3aed');
-    expect(fabricObj.cornerColor).toBe('#7c3aed');
-    expect(fabricObj.cornerStrokeColor).toBe('#ffffff');
-    expect(fabricObj.transparentCorners).toBe(false);
-    expect(fabricObj.padding).toBe(0);
-    // No background fill on selection — only the outline.
-    expect(fabricObj.backgroundColor ?? '').toBe('');
-  });
-});
-
-// ────────────────────────────────────────────────────────────────────────
-// Test 4 — Typing in the Size field resizes the canvas text AND the
-// chrome shows the saving → saved transition. The "Save now" button no
-// longer exists in the DOM.
-// ────────────────────────────────────────────────────────────────────────
-describe('Phase 1 close-out — data flow + save indicator', () => {
-  it('typing in Size resizes the canvas and the chrome reflects save state without a manual button', async () => {
-    const { adapter, container } = await mountEditor();
-    adapter.setSelection([HEADLINE_ID]);
-    await new Promise((r) => setTimeout(r, 30));
-
-    // Confirm: no "Save now" button anywhere.
-    const allButtonText = Array.from(container.querySelectorAll('button'))
-      .map((b) => b.textContent ?? '')
-      .join('|');
-    expect(allButtonText).not.toContain('Save now');
-
-    // Find the Size number input. It's the second slider/number combo
-    // (Font is field 1, Size is field 2 in TextPrimary). The slider's
-    // companion number input is type=number with min=6/max=400.
-    const sizeNumberInput = Array.from(
-      container.querySelectorAll<HTMLInputElement>('input[type="number"]'),
-    ).find((inp) => inp.min === '6' && inp.max === '400');
-    expect(sizeNumberInput, 'Could not find Size number input').toBeTruthy();
-
-    // Use fireEvent.change so React's controlled-input plumbing receives
-    // the new value (setting `input.value` directly bypasses React's
-    // synthetic event system and the onChange handler never fires).
-    fireEvent.change(sizeNumberInput!, { target: { value: '128' } });
-    await new Promise((r) => setTimeout(r, 50));
-
-    // Canvas (Fabric Textbox) reflects the new fontSize.
-    const fabricObj = fabricObjFor(adapter, HEADLINE_ID);
-    expect(fabricObj.fontSize).toBe(128);
-
-    // Document mirror reflects it too.
-    const layer = adapter.getDocument().pages[0].layers[0] as {
-      fontSize: number;
-    };
-    expect(layer.fontSize).toBe(128);
-
-    // Save indicator should appear in the chrome. We poll briefly for any
-    // of the labels ("Saving…" / "Saved") to surface — the auto-save
-    // debounce is 1200ms, so we wait up to ~3.5s for the transition.
-    let saw = '';
-    for (let i = 0; i < 50; i++) {
-      const text = container.textContent ?? '';
-      if (text.includes('Saving') || text.includes('Saved')) {
-        saw = text.includes('Saving') ? 'Saving' : 'Saved';
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 100));
+describe('Step 5a — editor renders the new layout', () => {
+  it('mounts cleanly with brand picker, App Rail, canvas, and default Insert panel', async () => {
+    const { container } = await mountEditor();
+    // Top bar — brand picker shows the mock brand name.
+    expect(container.textContent ?? '').toContain('Mock Brand');
+    // Segmented mode pill — Edit is active.
+    const editTab = Array.from(
+      container.querySelectorAll('.segmented-nav-item'),
+    ).find((el) => el.textContent === 'Edit');
+    expect(editTab?.classList.contains('is-active')).toBe(true);
+    // App Rail — all four entries present.
+    for (const id of ['generate', 'templates', 'insert', 'brand']) {
+      expect(
+        container.querySelector(`button[data-rail-item="${id}"]`),
+        `missing rail entry: ${id}`,
+      ).toBeTruthy();
     }
-    expect(saw, 'Save indicator never showed Saving/Saved label').toBeTruthy();
+    // Default rail entry is Insert; the Secondary Panel reflects that.
+    const panel = container.querySelector('[data-secondary-panel]');
+    expect(panel?.getAttribute('data-secondary-panel')).toBe('insert');
+    // Canvas region is present.
+    expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
   });
 });
 
 // ────────────────────────────────────────────────────────────────────────
-// Test 5 — Add an image layer via the toolbar. Then change its source URL
-// in the Properties panel. Assert the Fabric image is recreated with the
-// new src.
+// Test 2 — Click each App Rail entry → Secondary Panel content swaps.
 // ────────────────────────────────────────────────────────────────────────
-describe('Phase 1 close-out — Image source flow', () => {
-  it('adding an image and changing its source recreates the Fabric image', async () => {
+describe('Step 5a — App Rail switches the Secondary Panel', () => {
+  it('clicking each rail entry updates the secondary panel data attribute', async () => {
+    const { container } = await mountEditor();
+    const rails: Array<['generate' | 'templates' | 'insert' | 'brand', string]> = [
+      ['generate', 'Generate'],
+      ['templates', 'Templates'],
+      ['insert', 'Insert'],
+      ['brand', 'Brand kit'],
+    ];
+    for (const [id, expectedHeading] of rails) {
+      const railBtn = container.querySelector<HTMLButtonElement>(
+        `button[data-rail-item="${id}"]`,
+      );
+      expect(railBtn, `rail btn missing: ${id}`).toBeTruthy();
+      fireEvent.click(railBtn!);
+
+      const panel = container.querySelector('[data-secondary-panel]');
+      expect(
+        panel?.getAttribute('data-secondary-panel'),
+        `panel did not switch to ${id}`,
+      ).toBe(id);
+      // The eyebrow text or title varies per panel — assert the
+      // expected heading text shows up somewhere in the panel.
+      expect(panel?.textContent ?? '').toContain(expectedHeading);
+    }
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Test 3 — Page Navigator visibility tracks contentType.pageModel.
+// ────────────────────────────────────────────────────────────────────────
+describe('Step 5a — Page Navigator visibility', () => {
+  it('hides the navigator on single-page (social-post)', async () => {
+    const { container } = await mountEditor(SOCIAL_FIXTURE);
+    expect(container.querySelector('[data-page-navigator]')).toBeNull();
+  });
+
+  it('shows the navigator on multi-page (presentation)', async () => {
+    const { container } = await mountEditor(presentationFixture());
+    const nav = container.querySelector('[data-page-navigator]');
+    expect(nav).toBeTruthy();
+    const text = nav!.textContent ?? '';
+    expect(text).toContain('Slide 1');
+    expect(text).toContain('Slide 2');
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Test 4 — Floating contextual toolbar appears with kind-specific
+// controls when a single layer is selected via the adapter API.
+// ────────────────────────────────────────────────────────────────────────
+describe('Step 5a — Floating toolbar appears on selection', () => {
+  it('mounts above the canvas with text-specific controls when a text layer is selected', async () => {
     const { adapter, container } = await mountEditor();
 
-    // Find and click the Image tool in the left toolbar.
-    const imageToolBtn = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Image"]',
-    );
-    expect(imageToolBtn, 'No Image tool button').toBeTruthy();
-    imageToolBtn!.click();
+    // No selection → no toolbar.
+    expect(container.querySelector('[data-floating-toolbar]')).toBeNull();
 
-    // The toolbar's makeLayer uses crypto.randomUUID; locate the new image
-    // layer in the document mirror (synchronous — addLayer pushes immediately).
-    const docAfterAdd = adapter.getDocument();
-    const imageLayer = docAfterAdd.pages[0].layers.find(
-      (l): l is typeof l & { kind: 'image' } => l.kind === 'image',
-    );
-    expect(imageLayer, 'Image layer was not added by the toolbar').toBeTruthy();
+    // Select the headline (first layer in the social-post fixture).
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+    adapter.setSelection([headlineId]);
+    await new Promise((r) => setTimeout(r, 60));
 
-    // Wait for the async FabricImage.fromURL to complete and the object to
-    // land in the adapter's map. With network access this is ~1-2s; with
-    // failure it's near-instant (placeholderRect fallback).
-    const initialFabricObj = await waitForFabricObj(adapter, imageLayer!.id);
+    const toolbar = container.querySelector('[data-floating-toolbar]');
+    expect(toolbar, 'toolbar should be present after selection').toBeTruthy();
+    expect(toolbar?.getAttribute('data-layer-kind')).toBe('text');
+    expect(toolbar?.getAttribute('data-layer-id')).toBe(headlineId);
 
-    // Change the src via the adapter — same code path the Source URL
-    // input in the Properties panel triggers via update({ src: ... }).
-    adapter.setSelection([imageLayer!.id]);
-    adapter.updateLayer(PAGE_ID, imageLayer!.id, {
-      src: 'https://placehold.co/600x400/png',
-    });
+    // Text-kind controls present.
+    expect(toolbar?.querySelector('button[data-control="font"]')).toBeTruthy();
+    expect(toolbar?.querySelector('button[data-control="more"]')).toBeTruthy();
 
-    // Wait for the recreate path: remove old + async layerToFabric +
-    // canvas.add. We need to wait until either (a) the map points at a
-    // different object instance, or (b) timeout.
-    let recreated: Record<string, unknown> | undefined;
+    // Scope toggle is always present.
+    expect(toolbar?.querySelector('button[data-scope-toggle]')).toBeTruthy();
+  });
+
+  it('hides the toolbar when selection is cleared', async () => {
+    const { adapter, container } = await mountEditor();
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+
+    adapter.setSelection([headlineId]);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(container.querySelector('[data-floating-toolbar]')).toBeTruthy();
+
+    adapter.setSelection([]);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(container.querySelector('[data-floating-toolbar]')).toBeNull();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Test 5 — Switching between layer kinds (text → shape → image) makes
+// the toolbar adapt its controls per kind.
+// ────────────────────────────────────────────────────────────────────────
+describe('Step 5a — Floating toolbar adapts per layer kind', () => {
+  it('shape selection shows fill/stroke chips, not the font picker', async () => {
+    const { adapter, container } = await mountEditor();
+    const pageId = SOCIAL_FIXTURE.pages[0].id;
+
+    // Add a fresh shape layer (matching what the InsertPanel does).
+    const shapeId = crypto.randomUUID();
+    const shape: Layer = {
+      id: shapeId,
+      kind: 'shape',
+      name: 'Test rect',
+      shape: 'rectangle',
+      fill: '#ff0000',
+      stroke: null,
+      strokeWidth: 0,
+      cornerRadius: 0,
+      transform: { x: 50, y: 50, width: 200, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+    };
+    adapter.addLayer(pageId, shape);
+    await new Promise((r) => setTimeout(r, 60));
+    adapter.setSelection([shapeId]);
+    await new Promise((r) => setTimeout(r, 60));
+
+    const toolbar = container.querySelector('[data-floating-toolbar]');
+    expect(toolbar?.getAttribute('data-layer-kind')).toBe('shape');
+    // Font picker is NOT present for shapes.
+    expect(toolbar?.querySelector('button[data-control="font"]')).toBeNull();
+    // Fill control IS present.
+    expect(toolbar?.querySelector('[data-control="fill"]')).toBeTruthy();
+    expect(toolbar?.querySelector('[data-control="stroke"]')).toBeTruthy();
+  });
+
+  it('image selection shows fit + src controls', async () => {
+    const { adapter, container } = await mountEditor();
+    const pageId = SOCIAL_FIXTURE.pages[0].id;
+
+    const imageId = crypto.randomUUID();
+    const image: Layer = {
+      id: imageId,
+      kind: 'image',
+      name: 'Test image',
+      src: 'https://placehold.co/400x300/png',
+      fit: 'cover',
+      transform: { x: 0, y: 0, width: 400, height: 300, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1,
+      visible: true,
+      locked: false,
+      brandLocked: false,
+    };
+    adapter.addLayer(pageId, image);
+    // Image layers go through FabricImage.fromURL which is a network
+    // round-trip — wait for the layer to land in the adapter's Fabric
+    // map before selecting it. Without this the selection no-ops.
+    const fabricMap = (adapter as unknown as {
+      fabricByLayerId: Map<string, unknown>;
+    }).fabricByLayerId;
     const start = Date.now();
-    while (Date.now() - start < 8000) {
-      const next = (adapter as unknown as {
-        fabricByLayerId: Map<string, Record<string, unknown>>;
-      }).fabricByLayerId.get(imageLayer!.id);
-      if (next && next !== initialFabricObj) {
-        recreated = next;
-        break;
-      }
+    while (!fabricMap.get(imageId) && Date.now() - start < 8000) {
       await new Promise((r) => setTimeout(r, 50));
     }
-    expect(recreated, 'Recreate path did not produce a new Fabric object').toBeDefined();
-
-    // Document mirror has the new src.
-    const updated = adapter.getDocument().pages[0].layers.find(
-      (l) => l.id === imageLayer!.id,
-    ) as { src: string };
-    expect(updated.src).toBe('https://placehold.co/600x400/png');
+    adapter.setSelection([imageId]);
+    // Poll for the toolbar to render — React state updates aren't
+    // synchronous and the image kind shows up after a tick.
+    let toolbar: Element | null = null;
+    for (let i = 0; i < 40; i++) {
+      toolbar = container.querySelector('[data-floating-toolbar]');
+      if (toolbar?.getAttribute('data-layer-kind') === 'image') break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(toolbar?.getAttribute('data-layer-kind')).toBe('image');
+    expect(toolbar?.querySelector('button[data-control="fit"]')).toBeTruthy();
+    expect(toolbar?.querySelector('input[data-control="src"]')).toBeTruthy();
+    expect(toolbar?.querySelector('button[data-control="font"]')).toBeNull();
   });
 });
