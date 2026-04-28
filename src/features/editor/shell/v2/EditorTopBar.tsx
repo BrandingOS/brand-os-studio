@@ -11,13 +11,13 @@
 // Save state lives inline left of the Export button so the user can
 // always see whether their changes are persisted.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import {
   SaveStateIndicator,
   type EditorSaveState,
 } from '@/features/editor/core';
+import { SegmentedNav } from '@/shared/ui/SegmentedNav';
 import { BrandPicker } from './BrandPicker';
 
 export type EditorMode = 'edit' | 'preview' | 'comments';
@@ -71,26 +71,6 @@ export function EditorTopBar({
   onToggleTheme,
   onExport,
 }: Props) {
-  const navRef = useRef<HTMLElement | null>(null);
-  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
-
-  const measure = useCallback(() => {
-    const nav = navRef.current;
-    if (!nav) return;
-    const active = nav.querySelector<HTMLElement>('.segmented-nav-item.is-active');
-    if (!active) return;
-    setPill({ left: active.offsetLeft, width: active.offsetWidth });
-  }, []);
-
-  useEffect(() => {
-    measure();
-  }, [mode, measure]);
-
-  useEffect(() => {
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, [measure]);
-
   return (
     <header className="top-nav-wrap" role="banner">
       <div className="top-nav-left">
@@ -101,34 +81,18 @@ export function EditorTopBar({
         />
       </div>
 
-      <nav ref={navRef} className="segmented-nav" aria-label="Editor mode">
-        {pill && (
-          <span
-            className="segmented-nav-pill"
-            aria-hidden
-            style={{
-              transform: `translateX(${pill.left}px)`,
-              width: pill.width,
-            }}
-          />
-        )}
-        {MODES.map((m) => {
-          const isActive = mode === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              className={`segmented-nav-item${isActive ? ' is-active' : ''}`}
-              onClick={() => onModeChange(m.id)}
-              // 5a: only Edit is functional. Preview / Comments have a
-              // tooltip explaining why nothing happens.
-              title={m.id === 'edit' ? undefined : 'Coming soon'}
-            >
-              {m.label}
-            </button>
-          );
-        })}
-      </nav>
+      {/* Step 5/7 fix 2 — uses the shared SegmentedNav so this nav
+          stays visually identical to the workspace nav at /setup,
+          /brand-kit, /guideline, /design, /tools. The cosmos
+          `.segmented-nav-*` styling, the moving active pill, and
+          the open keyframe all live in one place now. */}
+      <SegmentedNav
+        mode="state"
+        ariaLabel="Editor mode"
+        items={MODES.map((m) => ({ id: m.id, label: m.label }))}
+        activeId={mode}
+        onChange={(id) => onModeChange(id as EditorMode)}
+      />
 
       <div className="top-nav-right">
         <SaveStateIndicator state={saveState} onRetry={onRetrySave} />

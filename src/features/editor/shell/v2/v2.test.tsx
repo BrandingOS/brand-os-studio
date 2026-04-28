@@ -225,6 +225,21 @@ describe('EditorTopBar', () => {
     toggle!.click();
     expect(onToggleTheme).toHaveBeenCalled();
   });
+
+  it('uses the shared SegmentedNav primitive (Step 5/7 fix 2)', () => {
+    // The data attributes are emitted only by the shared SegmentedNav
+    // component. If the editor ever inlines its own pill markup
+    // again, this test catches the regression.
+    const { container } = renderTopBar();
+    const nav = container.querySelector('[data-segmented-nav]');
+    expect(nav, 'editor nav must use shared SegmentedNav').toBeTruthy();
+    const items = container.querySelectorAll('[data-segmented-nav-item]');
+    expect(items).toHaveLength(3);
+    const editItem = container.querySelector(
+      '[data-segmented-nav-item="edit"]',
+    );
+    expect(editItem?.classList.contains('is-active')).toBe(true);
+  });
 });
 
 // ─── InsertPanel — functional layer factories ─────────────────────────
