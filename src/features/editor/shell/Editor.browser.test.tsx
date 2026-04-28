@@ -163,6 +163,36 @@ describe('Step 5a — editor renders the new layout', () => {
     // Canvas region is present.
     expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
   });
+
+  it('canvas surface has a subtle bottom-only shadow (Step 5/7 fix 4)', async () => {
+    const { container } = await mountEditor();
+    const surface = container.querySelector<HTMLElement>(
+      '[data-editor-canvas-surface]',
+    );
+    expect(surface, 'canvas surface div missing').toBeTruthy();
+    const shadow = surface!.style.boxShadow;
+    // Subtle Y-offset shadow with NO spread. The original bug was
+    // --shadow-lg (24px Y-offset, 56px blur) — that wide blur read
+    // as a halo on all four sides. Replacement: 0px X-offset, 4px
+    // Y-offset, 12px blur, NO spread term, low-alpha rgba color.
+    // Browsers reorder the canonical form so the color comes first.
+    const offsetsMatch = shadow.match(
+      /(rgba?\([^)]+\))\s+(\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px(?:\s+(\d+(?:\.\d+)?)px)?/,
+    );
+    expect(offsetsMatch, `boxShadow didn't parse: ${shadow}`).toBeTruthy();
+    if (offsetsMatch) {
+      const [, _color, x, y, blur, spread] = offsetsMatch;
+      expect(parseFloat(x)).toBe(0); // no horizontal offset
+      expect(parseFloat(y)).toBeGreaterThan(0); // bottom shadow only
+      expect(parseFloat(blur)).toBeLessThan(20); // narrow blur, not a halo
+      // Spread is either absent or 0 — guards against a future
+      // `--shadow-lg`-style 4-value rule slipping back in.
+      if (spread !== undefined) {
+        expect(parseFloat(spread)).toBe(0);
+      }
+    }
+    expect(shadow.toLowerCase()).not.toContain('var(--shadow-lg');
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────

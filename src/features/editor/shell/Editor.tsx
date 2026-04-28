@@ -341,7 +341,13 @@ export function Editor({
               ) : null}
               <div
                 className="overflow-hidden rounded-xl"
-                style={{ boxShadow: 'var(--shadow-lg)' }}
+                data-editor-canvas-surface
+                // Step 5/7 fix 4 — was --shadow-lg (24px offset, 56px
+                // blur) which cast a halo on every side and made the
+                // canvas look like it was floating instead of resting
+                // on the workspace. Replaced with a subtle bottom-only
+                // shadow: small Y-offset, narrow blur, no spread.
+                style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
               >
                 <EditorCanvasMount
                   adapter={adapter}
