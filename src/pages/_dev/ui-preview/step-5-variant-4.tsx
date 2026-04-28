@@ -244,7 +244,13 @@ function CosmosTopNav({
   return (
     <header className="top-nav-wrap" role="banner">
       <div className="top-nav-left">
-        <BrandPicker brand={mockBrand} />
+        {/* Workspace mark — brand picker now lives at the top of the
+            App Rail (per spec). Header keeps the cosmos `BrandOS`
+            mark for workspace identity. */}
+        <span className="top-nav-brand">
+          <span className="top-nav-brand-mark" aria-hidden="true">B</span>
+          <span>BrandOS</span>
+        </span>
       </div>
 
       <nav ref={navRef} className="segmented-nav" aria-label="Editor mode">
@@ -319,38 +325,92 @@ function CosmosTopNav({
   );
 }
 
-// ─── Brand picker (top-left cluster — cosmos top-nav-brand shape) ───────
+// ─── App Rail — card buttons w/ brand emblem at top ───────────────────
 
-function BrandPicker({ brand }: { brand: MockBrand }) {
+function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailItem) => void }) {
+  const items: Array<{ id: RailItem; label: string; Icon: typeof Sparkles }> = [
+    { id: 'generate', label: 'Generate', Icon: Sparkles },
+    { id: 'templates', label: 'Templates', Icon: LayoutGrid },
+    { id: 'insert', label: 'Insert', Icon: Plus },
+    { id: 'brand', label: 'Brand', Icon: Palette },
+  ];
+  return (
+    <aside
+      className="flex flex-col items-center gap-2.5 py-3"
+      style={{
+        width: 76,
+        background: 'var(--background)',
+      }}
+      aria-label="App rail"
+    >
+      <RailBrandEmblem brand={mockBrand} />
+      <span
+        aria-hidden
+        style={{
+          width: 28,
+          height: 1,
+          background: 'var(--border)',
+          margin: '2px 0 4px',
+        }}
+      />
+      {items.map(({ id, label, Icon }) => (
+        <RailCard
+          key={id}
+          Icon={Icon}
+          label={label}
+          isActive={id === active}
+          onClick={() => onChange(id)}
+        />
+      ))}
+    </aside>
+  );
+}
+
+function RailBrandEmblem({ brand }: { brand: MockBrand }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="top-nav-brand"
+          aria-label={`Switch brand (current: ${brand.name})`}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
             background: 'transparent',
             border: 'none',
-            padding: '4px 6px 4px 4px',
-            borderRadius: 8,
+            padding: 4,
+            borderRadius: 14,
             cursor: 'pointer',
           }}
         >
+          {/* Gradient ring → inner brand-color circle */}
           <span
-            className="top-nav-brand-mark"
-            aria-hidden="true"
             style={{
-              background: brand.colors.primary,
-              color: '#fff',
-              fontFamily: 'Georgia, serif',
-              fontStyle: 'italic',
-              fontSize: 13,
+              padding: 2,
+              borderRadius: '50%',
+              background:
+                'conic-gradient(from 220deg at 50% 50%, #ec4899, #f59e0b, #8b5cf6, #ec4899)',
+              display: 'inline-flex',
             }}
           >
-            {brand.name[0]}
-          </span>
-          <span style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic' }}>
-            {brand.name}
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: brand.colors.primary,
+                color: '#fff',
+                display: 'grid',
+                placeItems: 'center',
+                fontFamily: 'Georgia, serif',
+                fontStyle: 'italic',
+                fontSize: 18,
+                border: '2px solid var(--surface)',
+              }}
+            >
+              {brand.name[0]}
+            </span>
           </span>
           <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
         </button>
@@ -358,6 +418,7 @@ function BrandPicker({ brand }: { brand: MockBrand }) {
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="start"
+          side="right"
           sideOffset={6}
           className="z-50 min-w-[220px] rounded-xl p-1.5"
           style={{
@@ -426,48 +487,52 @@ function BrandPicker({ brand }: { brand: MockBrand }) {
   );
 }
 
-// ─── App Rail ────────────────────────────────────────────────────────────
-
-function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailItem) => void }) {
-  const items: Array<{ id: RailItem; label: string; Icon: typeof Sparkles }> = [
-    { id: 'generate', label: 'Generate', Icon: Sparkles },
-    { id: 'templates', label: 'Templates', Icon: LayoutGrid },
-    { id: 'insert', label: 'Insert', Icon: Plus },
-    { id: 'brand', label: 'Brand', Icon: Palette },
-  ];
+function RailCard({
+  Icon,
+  label,
+  isActive,
+  onClick,
+}: {
+  Icon: typeof Sparkles;
+  label: string;
+  isActive: boolean;
+  onClick: () => void;
+}) {
   return (
-    <aside
-      className="flex w-16 flex-col items-center gap-1 py-3"
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={isActive}
       style={{
-        background: 'var(--surface)',
-        borderRight: '1px solid var(--border)',
+        width: 48,
+        height: 48,
+        background: isActive ? 'var(--accent-muted)' : 'var(--surface)',
+        border: `1px solid ${isActive ? 'var(--border-strong)' : 'var(--border)'}`,
+        borderRadius: 14,
+        display: 'grid',
+        placeItems: 'center',
+        boxShadow: 'var(--shadow-xs)',
+        color: 'var(--text-primary)',
+        cursor: 'pointer',
+        transition: 'background 180ms var(--ease), border-color 180ms var(--ease), transform 140ms var(--ease)',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--surface-hover)';
+          e.currentTarget.style.borderColor = 'var(--border-strong)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = 'var(--surface)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }
       }}
     >
-      {items.map(({ id, label, Icon }) => {
-        const isActive = id === active;
-        return (
-          <button
-            key={id}
-            onClick={() => onChange(id)}
-            title={label}
-            className="group relative flex h-12 w-12 flex-col items-center justify-center gap-0.5 rounded-xl transition-colors"
-            style={{
-              background: isActive ? 'var(--accent-muted)' : 'transparent',
-              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.background = 'var(--surface-hover)';
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.background = 'transparent';
-            }}
-          >
-            <Icon className="h-5 w-5" strokeWidth={1.5} />
-            <span className="text-[9px] font-medium">{label}</span>
-          </button>
-        );
-      })}
-    </aside>
+      <Icon size={20} strokeWidth={1.6} />
+    </button>
   );
 }
 
