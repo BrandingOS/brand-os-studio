@@ -184,9 +184,18 @@ function PageCell({
         }}
         aria-current={active ? 'page' : undefined}
       >
+        {/* Round 2 fix 7 — thumbnail matches the page's actual
+            aspect ratio so 1920×1080 reads wide, 1080×1080 reads
+            square, banners read very wide, etc. Cap at 120px wide
+            so wide pages don't push the panel off the screen; tall
+            pages get the natural max-width too. */}
         <div
-          className="aspect-square w-full rounded"
+          className="w-full rounded"
+          data-page-thumb
+          data-page-aspect={`${page.width}/${page.height}`}
           style={{
+            aspectRatio: `${page.width} / ${page.height}`,
+            maxWidth: 120,
             background: cssBackground(page.background),
             boxShadow: '0 0 0 1px var(--border)',
           }}

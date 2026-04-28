@@ -96,6 +96,29 @@ describe('Phase 2 — content-type config drives panel visibility', () => {
     expect(text).toContain('Slide 1');
     expect(text).toContain('Slide 2');
   });
+
+  it('page thumbnails use CSS aspect-ratio matching the page dimensions (Round 2 fix 7)', async () => {
+    const { container } = await mountWith(presentationFixture());
+    // The fixture pages are 1920×1080 — thumbnails should declare
+    // the same aspect ratio inline so the visual reads as wide,
+    // not square.
+    const thumbs = container.querySelectorAll<HTMLElement>('[data-page-thumb]');
+    expect(thumbs.length).toBeGreaterThan(0);
+    for (const thumb of thumbs) {
+      // Round 2 reverses the previous square thumbnail decision.
+      expect(thumb.style.aspectRatio).toMatch(/\d+\s*\/\s*\d+/);
+      // Spec: cap max width at ~120px so wide thumbs don't push
+      // the navigator off the screen.
+      expect(thumb.style.maxWidth).toBe('120px');
+    }
+    // For the 1920×1080 fixture pages, the aspect-ratio reads "wide"
+    // (numerator > denominator).
+    const sample = thumbs[0];
+    const [w, h] = (sample.style.aspectRatio || '0 / 0')
+      .split('/')
+      .map((s) => parseFloat(s.trim()));
+    expect(w).toBeGreaterThan(h);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────
