@@ -47,6 +47,7 @@ import {
 } from './v2/EditorFloatingToolbar';
 import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorLockBadge } from './v2/EditorLockBadge';
+import { EditorZoomControls } from './v2/EditorZoomControls';
 import { ChevronRight } from 'lucide-react';
 import '@/shared/styles/cosmos-workspace.css';
 
@@ -115,6 +116,34 @@ export function Editor({
   // mutation lands in Phase 3 step 6 — for 5a the toggle is
   // visible and stateful but doesn't yet fan out.
   const [scope, setScope] = useState<ToolbarScope>('page');
+
+  // Step 5/7 fix 6 — viewport zoom. CSS `transform: scale()` on a
+  // wrapper around the canvas keeps Fabric's coords intact while
+  // fitting the page to the available canvas region. The container
+  // ref lets us measure when computing fit-to-screen.
+  const canvasRegionRef = useRef<HTMLElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+
+  const fitToContainer = useCallback(() => {
+    const region = canvasRegionRef.current;
+    if (!region || !doc.pages[0]) return;
+    const active = doc.pages.find((p) => p.id === activePageId) ?? doc.pages[0];
+    // Subtract padding so the canvas doesn't kiss the toolbar / zoom
+    // controls / page navigator. Same numbers used in the layout.
+    const margin = { x: 64, y: 96 };
+    const availW = Math.max(100, region.clientWidth - margin.x);
+    const availH = Math.max(100, region.clientHeight - margin.y);
+    const next = Math.min(availW / active.width, availH / active.height, 1);
+    setZoom(Number.isFinite(next) && next > 0 ? next : 1);
+  }, [doc, activePageId]);
+
+  // Recompute fit on first mount + on page-dimension change. Resize
+  // is wired separately so window-resize doesn't invalidate the
+  // user's manual zoom — only Fit is automatic.
+  useEffect(() => {
+    fitToContainer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePageId]);
 
   // Resolve the content-type config. Unknown ids fall back to a
   // single-page social-post — the registry throws on truly unknown
@@ -319,13 +348,23 @@ export function Editor({
           ) : null}
 
           <main
+            ref={canvasRegionRef}
             className="relative flex flex-1 items-center justify-center overflow-auto"
             style={{ background: 'var(--background)' }}
             data-editor-canvas-region
           >
             {/* Canvas surface — the floating toolbar lives in the same
-                positioned region so it can overlay the canvas. */}
-            <div className="relative">
+                positioned region so it can overlay the canvas. The
+                inner wrapper applies the user's zoom via CSS scale,
+                which keeps Fabric's internal coords intact. */}
+            <div
+              className="relative"
+              data-editor-canvas-zoom-wrap
+              style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: 'center center',
+              }}
+            >
               {selectedLayer ? (
                 <>
                   <EditorFloatingToolbar
@@ -355,6 +394,13 @@ export function Editor({
                 />
               </div>
             </div>
+            <EditorZoomControls
+              zoom={zoom}
+              onFit={fitToContainer}
+              onZoomIn={() => setZoom((z) => Math.min(z + 0.1, 4))}
+              onZoomOut={() => setZoom((z) => Math.max(z - 0.1, 0.1))}
+              onZoomReset={() => setZoom(1)}
+            />
           </main>
 
           {showPageNavigator ? (

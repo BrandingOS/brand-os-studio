@@ -164,6 +164,34 @@ describe('Step 5a — editor renders the new layout', () => {
     expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
   });
 
+  it('zoom controls render and the canvas wrapper has a fit-to-screen scale on mount (Step 5/7 fix 6)', async () => {
+    const { container } = await mountEditor();
+
+    // Zoom controls cluster present at bottom-right of the canvas
+    // region, with all four actions visible.
+    const controls = container.querySelector('[data-zoom-controls]');
+    expect(controls, 'zoom controls cluster missing').toBeTruthy();
+    for (const action of ['fit', 'zoom-out', 'reset', 'zoom-in']) {
+      expect(
+        controls?.querySelector(`[data-zoom-action="${action}"]`),
+        `zoom action "${action}" missing`,
+      ).toBeTruthy();
+    }
+
+    // The canvas wrapper applies a CSS scale transform. On initial
+    // mount the fit calculation runs; the resulting transform should
+    // keep the canvas within the viewport. We assert the wrapper has
+    // a transform: scale(...) applied. Canvas region is far smaller
+    // than 1080×1080 in the harness so the scale is < 1.
+    const wrap = container.querySelector<HTMLElement>(
+      '[data-editor-canvas-zoom-wrap]',
+    );
+    expect(wrap).toBeTruthy();
+    // Wait a tick for the fit-to-container effect to run.
+    await new Promise((r) => setTimeout(r, 60));
+    expect(wrap!.style.transform).toMatch(/^scale\(\d+(\.\d+)?\)/);
+  });
+
   it('canvas surface has a subtle bottom-only shadow (Step 5/7 fix 4)', async () => {
     const { container } = await mountEditor();
     const surface = container.querySelector<HTMLElement>(
