@@ -1,10 +1,12 @@
 // GeneratePanel — placeholder UI for AI generation.
 //
-// Phase 5a renders the surface only; the actual generation flow
-// (prompt → applyBrandToDocument → adapter.loadDocument) is part
-// of Phase 3.5 (AI Editing Layer). The panel ships with a disabled
-// Generate button and a stub Recent list so the user can see where
-// the feature will live.
+// Round 2 fix 6 — tightened density:
+//   • Single heading "Generate" (eyebrow "AI" was redundant against
+//     the title — pick one).
+//   • The empty/coming-soon affordance is the placeholder INSIDE the
+//     prompt input, not a paragraph below it.
+//
+// Phase 3.5 (AI Editing Layer) wires the actual generation flow.
 
 import { Sparkles } from 'lucide-react';
 
@@ -13,7 +15,6 @@ export function GeneratePanel() {
     <>
       <div className="panel-top">
         <div className="panel-heading">
-          <span className="panel-heading-eyebrow">AI</span>
           <h1 className="panel-heading-title">Generate</h1>
         </div>
         <div
@@ -24,11 +25,10 @@ export function GeneratePanel() {
           }}
         >
           <textarea
-            rows={2}
-            placeholder='Try "Instagram post for our product launch"…'
-            className="w-full resize-none bg-transparent text-[12px] outline-none"
+            rows={3}
+            placeholder="Describe what you want to create…"
+            className="w-full resize-none bg-transparent text-[13px] outline-none"
             style={{ color: 'var(--text-primary)' }}
-            // 5a: input is live but Generate is disabled.
           />
           <div className="mt-1 flex items-center justify-between">
             <button
@@ -45,7 +45,7 @@ export function GeneratePanel() {
             <button
               type="button"
               className="pill-btn pill-btn--primary"
-              style={{ height: 26, padding: '0 10px', fontSize: 11, opacity: 0.5 }}
+              style={{ height: 28, padding: '0 12px', fontSize: 12, opacity: 0.5 }}
               disabled
               title="AI generation lands in Phase 3.5"
             >
@@ -54,15 +54,6 @@ export function GeneratePanel() {
             </button>
           </div>
         </div>
-      </div>
-      <div className="panel-list">
-        <p
-          className="px-2 py-3 text-[11px]"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          AI generation lands in Phase 3.5. The prompt input and history will
-          live here.
-        </p>
       </div>
     </>
   );

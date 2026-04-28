@@ -84,7 +84,6 @@ export function InsertPanel({ adapter, pageId }: Props) {
     <>
       <div className="panel-top">
         <div className="panel-heading">
-          <span className="panel-heading-eyebrow">Add</span>
           <h1 className="panel-heading-title">Insert</h1>
         </div>
       </div>

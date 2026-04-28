@@ -1,25 +1,22 @@
 // TemplatesPanel — placeholder UI for picking a template.
 //
-// Phase 5a renders the surface only; Phase 4 wires the templates
-// registry (per `templates.spec.md`) and an "Apply template" flow
-// that hands the parsed BrandOSDocument to `adapter.loadDocument`.
+// Round 2 fix 6 — single heading, terse empty state. Phase 4 wires
+// the templates registry and the Apply flow.
 
 export function TemplatesPanel() {
   return (
     <>
       <div className="panel-top">
         <div className="panel-heading">
-          <span className="panel-heading-eyebrow">Browse</span>
           <h1 className="panel-heading-title">Templates</h1>
         </div>
       </div>
       <div className="panel-list">
         <p
-          className="px-2 py-3 text-[11px]"
+          className="px-2 py-2 text-[12px]"
           style={{ color: 'var(--text-muted)' }}
         >
-          The templates registry lands in Phase 4. Picking a template will load
-          it into the canvas via the adapter.
+          Coming in Phase 4.
         </p>
       </div>
     </>
