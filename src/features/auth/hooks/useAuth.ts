@@ -16,10 +16,24 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
   email: supabaseUser.email || '',
   name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
   avatar: supabaseUser.user_metadata?.avatar_url,
-  plan: 'free', // Default plan, can be updated based on user's subscription
+  plan: 'free',
   createdAt: new Date(supabaseUser.created_at),
-  updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at)
+  updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
 });
+
+// Module-level singleton flag. The auth listener (getInitialSession +
+// onAuthStateChange + safety timeout) must only mount ONCE per app, no
+// matter how many components call useAuth(). Without this guard, every
+// component using useAuth (~20 of them at the time of writing — sidebars,
+// navbars, route guards, admin pages) was queueing its own getSession()
+// call against the @supabase/auth-js navigator.locks lock; with enough
+// callers stacked the LAST getSession() would wait > 15s and the safety
+// timeout would either leave the user stuck on the spinner or — worse —
+// the timeout-driven cleanup would clobber a freshly logged-in session.
+//
+// AuthProvider sits at the app root and is the natural single mount point.
+// Other useAuth() callers fall through this guard and only consume state.
+let listenerMounted = false;
 
 export const useAuth = () => {
   const sessionStore = useSessionStore();
@@ -27,7 +41,16 @@ export const useAuth = () => {
   const workspaceStore = useWorkspaceStore();
   const navigate = useNavigate();
 
-  const { user, isAuthenticated, isAdmin, isLoading, signIn, signOut, setLoading, setPlatformRole, switchToAuthenticated } = sessionStore;
+  const {
+    user,
+    isAuthenticated,
+    isAdmin,
+    isLoading,
+    signIn,
+    signOut,
+    setLoading,
+    setPlatformRole,
+  } = sessionStore;
   const { platformRole, isSuperAdmin, isModerator } = sessionStore;
   const { syncToSupabase, loadFromSupabase } = onboardingStore;
 
@@ -67,9 +90,11 @@ export const useAuth = () => {
 
       if (data?.status === 'suspended') {
         await supabase.auth.signOut();
-        toast.error(data.suspension_reason
-          ? `Your account has been suspended: ${data.suspension_reason}`
-          : 'Your account has been suspended. Contact support for assistance.');
+        toast.error(
+          data.suspension_reason
+            ? `Your account has been suspended: ${data.suspension_reason}`
+            : 'Your account has been suspended. Contact support for assistance.',
+        );
         return false;
       }
       if (data?.status === 'banned') {
@@ -96,22 +121,44 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
+    // Singleton guard — only the first caller (typically AuthProvider)
+    // mounts the auth listener. Everyone else is just reading state.
+    if (listenerMounted) return;
+    listenerMounted = true;
+
     let isMounted = true;
 
-    // supabase.auth.getSession() can hang indefinitely when an internal
-    // navigator.locks lock is held by a crashed tab / aborted refresh, or
-    // when autoRefreshToken loops on a poisoned refresh token. We've seen
-    // it sit > 15s in the wild, leaving the user stuck on the ProtectedRoute
-    // spinner. Race it against a short timeout so the spinner never lasts
-    // more than a few seconds — Supabase being healthy returns sub-second.
+    // supabase.auth.getSession() can hang when an internal navigator.locks
+    // lock is held by a crashed tab, or when autoRefreshToken loops on a
+    // poisoned refresh_token. Race it against a short timeout so the UI
+    // never sits on the spinner indefinitely. A healthy Supabase responds
+    // sub-second, so 5s is generous.
     const GET_SESSION_TIMEOUT_MS = 5000;
-    const getSessionWithTimeout = (): Promise<
-      | { kind: 'ok'; session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] }
-      | { kind: 'timeout' }
-      | { kind: 'error'; error: unknown }
-    > =>
-      Promise.race([
-        supabase.auth.getSession()
+    const sessionPromise = supabase.auth.getSession();
+
+    const onSignedInUser = async (signedInUser: SupabaseUser) => {
+      if (!isMounted) return;
+      const mappedUser = mapSupabaseUser(signedInUser);
+      reconfigureForAuth(true);
+      signIn(mappedUser);
+      await checkPlatformRole(signedInUser.id).catch(() => {});
+      if (!isMounted) return;
+      setLoading(false);
+
+      checkAccountStatus(signedInUser.id).catch(() => true);
+      updateLastSignIn(signedInUser.id);
+      workspaceStore.loadAll().catch(console.error);
+      // Re-fetch brands now that the service has been swapped to Supabase.
+      // Without this, anything that called useBrandStore.loadAll() before
+      // reconfigure ran is left holding the empty Local result.
+      useBrandStore.getState().loadAll().catch(console.error);
+      loadFromSupabase().catch(console.error);
+      migrateLocalStorageToSupabase().catch(console.error);
+    };
+
+    const getInitialSession = async () => {
+      const result = await Promise.race([
+        sessionPromise
           .then((r) => ({ kind: 'ok' as const, session: r.data.session }))
           .catch((error) => ({ kind: 'error' as const, error })),
         new Promise<{ kind: 'timeout' }>((resolve) =>
@@ -119,172 +166,137 @@ export const useAuth = () => {
         ),
       ]);
 
-    // Get initial session
-    const getInitialSession = async () => {
       if (!isMounted) return;
 
-      try {
-        const result = await getSessionWithTimeout();
+      if (result.kind === 'timeout') {
+        // getSession() hasn't resolved in 5s. Just unstick loading so the
+        // ProtectedRoute spinner clears. CRITICAL: do NOT touch session
+        // state here — if the user logged in via AuthModal moments ago,
+        // sessionStore.isAuthenticated is already true and we mustn't
+        // contradict it. If they're not authenticated, ProtectedRoute will
+        // redirect to /login on the next render. The sessionPromise below
+        // keeps listening, so a slow-but-valid session still lands.
+        console.warn(
+          `[useAuth] supabase.auth.getSession() did not resolve within ${GET_SESSION_TIMEOUT_MS}ms — unsticking loading; session may resolve later`,
+        );
+        setLoading(false);
+        return;
+      }
 
-        if (!isMounted) return;
-
-        if (result.kind === 'timeout') {
-          // getSession() did not resolve in time. Treat as no-session so
-          // the user is bounced to /login instead of stuck on the spinner.
-          //
-          // We also drop every `sb-*` key in localStorage. In the wild,
-          // this hang is caused by a poisoned refresh_token feeding an
-          // autoRefreshToken loop, or a navigator.locks lock left by a
-          // crashed previous tab. Clearing the auth keys breaks the loop
-          // permanently — without this, the very next page load hits the
-          // same hang on the same stored token. We do it via raw
-          // localStorage (not supabase.auth.signOut()) because signOut
-          // goes through the same lock; if the lock is the problem,
-          // signOut() would hang too.
-          console.warn(
-            `[useAuth] supabase.auth.getSession() did not resolve within ${GET_SESSION_TIMEOUT_MS}ms — clearing sb-* tokens and falling back to no-session`,
-          );
-          try {
-            const stale: string[] = [];
-            for (let i = 0; i < localStorage.length; i++) {
-              const k = localStorage.key(i);
-              if (k && k.startsWith('sb-')) stale.push(k);
-            }
-            stale.forEach((k) => localStorage.removeItem(k));
-          } catch {
-            // ignore — if storage is broken, the signOut below still
-            // resets in-memory auth state so the UI unblocks.
-          }
-          reconfigureForAuth(false);
-          signOut();
+      if (result.kind === 'error') {
+        console.error('[useAuth] getSession() rejected:', result.error);
+        const live = useSessionStore.getState();
+        if (live.isAuthenticated) {
+          // Transient failure on top of a live session — don't sign out.
+          setLoading(false);
           return;
         }
+        reconfigureForAuth(false);
+        signOut();
+        return;
+      }
 
-        if (result.kind === 'error') {
-          console.error('[useAuth] getSession() rejected:', result.error);
-          reconfigureForAuth(false);
-          signOut();
-          return;
-        }
-
-        const session = result.session;
-
-        if (session?.user) {
-          // Flip auth state FIRST so guards see isAuthenticated: true before
-          // any `!isLoading && !isAuthenticated` redirect can fire. If we
-          // awaited checkAccountStatus first, the 5s safety timeout could
-          // set isLoading: false while isAuthenticated is still false,
-          // which kicks the user back to /login. The account-status check
-          // still runs — if the user is suspended it calls supabase.auth.
-          // signOut() which fires the SIGNED_OUT handler and resets state.
-          const mappedUser = mapSupabaseUser(session.user);
-          reconfigureForAuth(true);
-          signIn(mappedUser);
-          await checkPlatformRole(session.user.id).catch(() => {});
-          if (isMounted) setLoading(false);
-
-          checkAccountStatus(session.user.id).catch(() => true);
-          updateLastSignIn(session.user.id);
-          workspaceStore.loadAll().catch(console.error);
-          // Re-fetch brands now that the service has been swapped to
-          // Supabase. Without this, anything that called `useBrandStore.
-          // loadAll()` before reconfigure ran (e.g. /dashboard mounting)
-          // is left holding the empty Local result.
-          useBrandStore.getState().loadAll().catch(console.error);
-          loadFromSupabase().catch(console.error);
-          migrateLocalStorageToSupabase().catch(console.error);
-        } else {
-          reconfigureForAuth(false);
-          signOut(); // signOut sets isLoading: false
-        }
-      } catch (error) {
-        console.error('Error getting session:', error);
+      if (result.session?.user) {
+        await onSignedInUser(result.session.user);
+      } else {
+        reconfigureForAuth(false);
         signOut();
       }
     };
 
+    // Always wait on the underlying sessionPromise — even if the race
+    // returned 'timeout'. This way a slow but eventually successful
+    // getSession still signs the user in.
+    sessionPromise
+      .then(({ data }) => {
+        if (!isMounted) return;
+        const live = useSessionStore.getState();
+        if (data.session?.user) {
+          if (!live.isAuthenticated || live.user?.id !== data.session.user.id) {
+            onSignedInUser(data.session.user);
+          }
+        } else if (!live.isAuthenticated && live.isLoading) {
+          // Confirmed no session and no race-y in-progress login. Mark guest.
+          reconfigureForAuth(false);
+          signOut();
+        }
+      })
+      .catch(() => {
+        // Errors are handled in getInitialSession's race result; nothing extra to do.
+      });
+
     getInitialSession();
 
-    // Defense-in-depth: getSessionWithTimeout above already caps the initial
-    // session probe at 5s, so under normal failure modes the spinner never
-    // sits more than ~5s. This safety net is the last-resort guard for the
-    // case where the effect itself never reaches getInitialSession (e.g. an
-    // unhandled exception in a sibling provider before this useEffect runs).
-    // We only release loading when the user is NOT authenticated — if
-    // signIn() has already fired, leave the state alone.
+    // Last-resort safety net: if for any reason getInitialSession itself
+    // never runs (e.g. a sibling provider throws synchronously between
+    // listenerMounted=true and the call below), unstick loading. We only
+    // touch loading; we never overwrite a live session.
     const safetyTimeout = setTimeout(() => {
       if (!isMounted) return;
       const state = useSessionStore.getState();
       if (state.isLoading && !state.isAuthenticated) {
-        console.warn('[useAuth] Safety timeout fired — no session after 8s');
+        console.warn('[useAuth] Safety timeout fired — unsticking loading');
         setLoading(false);
       }
     }, 8000);
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!isMounted) return;
-        
-        console.log('[useAuth] Auth event:', event);
-        
-        // Skip INITIAL_SESSION event as we handle it above
-        if (event === 'INITIAL_SESSION') {
-          return;
-        }
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Flip auth state FIRST — see getInitialSession above for why.
-          const mappedUser = mapSupabaseUser(session.user);
-          reconfigureForAuth(true);
-          signIn(mappedUser);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
 
-          localStorage.removeItem('brandos:brands');
-          console.log('[useAuth] User signed in:', session.user.email);
+      console.log('[useAuth] Auth event:', event);
 
-          checkPlatformRole(session.user.id).then(() => {
-            if (isMounted) setLoading(false);
-          });
-          // Fire-and-forget: if the user is suspended/banned, this will call
-          // supabase.auth.signOut() which re-enters this handler as SIGNED_OUT.
-          checkAccountStatus(session.user.id).catch(() => true);
-          updateLastSignIn(session.user.id);
-          workspaceStore.loadAll().catch(console.error);
-          // Re-fetch brands with the freshly-swapped Supabase service
-          // (see getInitialSession for why this is needed).
-          useBrandStore.getState().loadAll().catch(console.error);
-          syncToSupabase().catch(console.error);
-          migrateLocalStorageToSupabase().catch(console.error);
-        } else if (event === 'PASSWORD_RECOVERY') {
-          console.log('[useAuth] Password recovery — redirecting to reset page');
-          navigate('/auth/reset-password');
-        } else if (event === 'SIGNED_OUT') {
-          console.log('[useAuth] User signed out');
-          reconfigureForAuth(false);
-          workspaceStore.reset();
-          // Drop the previous user's brands from the store and re-read
-          // the (local) list so the UI doesn't leak across sessions.
-          useBrandStore.getState().loadAll().catch(console.error);
-          signOut();
-        }
+      // INITIAL_SESSION is handled above.
+      if (event === 'INITIAL_SESSION') return;
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        const mappedUser = mapSupabaseUser(session.user);
+        reconfigureForAuth(true);
+        signIn(mappedUser);
+
+        localStorage.removeItem('brandos:brands');
+        console.log('[useAuth] User signed in:', session.user.email);
+
+        checkPlatformRole(session.user.id).then(() => {
+          if (isMounted) setLoading(false);
+        });
+        checkAccountStatus(session.user.id).catch(() => true);
+        updateLastSignIn(session.user.id);
+        workspaceStore.loadAll().catch(console.error);
+        useBrandStore.getState().loadAll().catch(console.error);
+        syncToSupabase().catch(console.error);
+        migrateLocalStorageToSupabase().catch(console.error);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Refresh-only event — keep state in sync but don't run the heavy
+        // first-sign-in side effects again.
+        const mappedUser = mapSupabaseUser(session.user);
+        signIn(mappedUser);
+      } else if (event === 'PASSWORD_RECOVERY') {
+        console.log('[useAuth] Password recovery — redirecting to reset page');
+        navigate('/auth/reset-password');
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[useAuth] User signed out');
+        reconfigureForAuth(false);
+        workspaceStore.reset();
+        useBrandStore.getState().loadAll().catch(console.error);
+        signOut();
       }
-    );
+    });
 
     return () => {
       isMounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
+      // Reset the singleton flag so a re-mount (HMR, app re-init) can
+      // re-attach the listener. In a normal SPA lifecycle this only
+      // happens during dev-server hot-reload.
+      listenerMounted = false;
     };
   }, [signIn, signOut, setLoading]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       return data;
     } finally {
@@ -298,13 +310,8 @@ export const useAuth = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name: name || email.split('@')[0]
-          }
-        }
+        options: { data: { name: name || email.split('@')[0] } },
       });
-      
       if (error) throw error;
       return data;
     } finally {
@@ -317,11 +324,8 @@ export const useAuth = () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
+        options: { redirectTo: `${window.location.origin}/dashboard` },
       });
-      
       if (error) throw error;
       return data;
     } finally {
@@ -329,15 +333,11 @@ export const useAuth = () => {
     }
   };
 
-  // Facebook OAuth was removed — only Google + email/password supported.
-
   const logout = async () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      // Redirect to homepage after successful logout
       navigate('/');
       toast.success('Successfully signed out');
     } finally {
@@ -347,9 +347,8 @@ export const useAuth = () => {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
+      redirectTo: `${window.location.origin}/auth/reset-password`,
     });
-    
     if (error) throw error;
   };
 
@@ -365,6 +364,6 @@ export const useAuth = () => {
     register,
     loginWithGoogle,
     logout,
-    resetPassword
+    resetPassword,
   };
 };
