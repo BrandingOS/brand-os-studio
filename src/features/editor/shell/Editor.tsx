@@ -340,16 +340,72 @@ export function Editor({
           </div>
         ) : null}
 
-        <div className="flex" style={{ height: 'calc(100vh - 68px)' }}>
-          <EditorAppRail
-            active={activeRail}
-            onChange={(item) => {
-              setActiveRail(item);
-              setSecondaryOpen(true);
+        {/* Round 3 layout — rail + panel + canvas + page nav are
+            ABSOLUTE siblings of the body container. The rail anchors
+            to left: 0 and never shifts; the panel slides in/out via
+            translateX so its open/close transition is GPU-friendly
+            and the rail icons stay rooted in place. The canvas's
+            left offset animates between rail-only and rail+panel. */}
+        <div
+          className="relative"
+          style={{
+            height: 'calc(100vh - 68px)',
+            // CSS vars centralize the animated dimensions so the
+            // canvas's left offset stays in sync with the panel's
+            // visual width during the open/close transition.
+            ['--rail-w' as string]: '76px',
+            ['--panel-w' as string]: '340px',
+            ['--pagenav-w' as string]: '176px',
+          }}
+        >
+          {/* Rail — anchored to the left edge. Always rendered. */}
+          <div
+            data-editor-rail-slot
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 'var(--rail-w)',
+              zIndex: 10,
             }}
-          />
+          >
+            <EditorAppRail
+              active={activeRail}
+              onChange={(item) => {
+                setActiveRail(item);
+                setSecondaryOpen(true);
+              }}
+            />
+          </div>
 
-          {secondaryOpen ? (
+          {/* Panel — slides in/out via translateX from BEHIND the
+              rail. Stays mounted (with pointer-events off when
+              closed) so the transition runs smoothly. */}
+          <div
+            data-editor-panel-slot
+            data-panel-open={secondaryOpen ? 'true' : 'false'}
+            aria-hidden={!secondaryOpen}
+            style={{
+              position: 'absolute',
+              left: 'var(--rail-w)',
+              top: 0,
+              bottom: 0,
+              width: 'var(--panel-w)',
+              zIndex: 5,
+              // Closed state: translate left by the panel's own width
+              // so the panel's right edge ends at the rail's left
+              // edge — i.e. it tucks BEHIND the rail (rail z-index
+              // is higher). When opening, the panel slides right
+              // and emerges from the rail's right side. Per spec:
+              // "panel should appear to slide OUT from behind the
+              // rail icons, not push them".
+              transform: secondaryOpen ? 'translateX(0)' : 'translateX(-100%)',
+              transition: 'transform 200ms ease-out',
+              willChange: 'transform',
+              pointerEvents: secondaryOpen ? 'auto' : 'none',
+            }}
+          >
             <EditorSecondaryPanel
               active={activeRail}
               adapter={adapter}
@@ -358,12 +414,26 @@ export function Editor({
               brand={brand}
               onCollapse={() => setSecondaryOpen(false)}
             />
-          ) : null}
+          </div>
 
+          {/* Canvas region — left/right anchors animate as panel +
+              page-nav open/close. Animation is on `left` / `right`
+              (cheap paint) rather than padding (full reflow). */}
           <main
             ref={canvasRegionRef}
-            className="relative flex flex-1 items-center justify-center overflow-auto"
-            style={{ background: 'var(--background)' }}
+            className="relative flex items-center justify-center"
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: secondaryOpen
+                ? 'calc(var(--rail-w) + var(--panel-w))'
+                : 'var(--rail-w)',
+              right: showPageNavigator ? 'var(--pagenav-w)' : 0,
+              transition: 'left 200ms ease-out, right 200ms ease-out',
+              background: 'var(--background)',
+              overflow: 'hidden',
+            }}
             data-editor-canvas-region
           >
             {/* Canvas surface — the floating toolbar lives in the same
@@ -394,11 +464,6 @@ export function Editor({
               <div
                 className="overflow-hidden rounded-xl"
                 data-editor-canvas-surface
-                // Step 5/7 fix 4 — was --shadow-lg (24px offset, 56px
-                // blur) which cast a halo on every side and made the
-                // canvas look like it was floating instead of resting
-                // on the workspace. Replaced with a subtle bottom-only
-                // shadow: small Y-offset, narrow blur, no spread.
                 style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
               >
                 <EditorCanvasMount
@@ -407,14 +472,18 @@ export function Editor({
                 />
               </div>
             </div>
-            <EditorZoomControls
-              zoom={zoom}
-              onFit={fitToContainer}
-              onZoomIn={() => setZoom((z) => Math.min(z + 0.1, 4))}
-              onZoomOut={() => setZoom((z) => Math.max(z - 0.1, 0.1))}
-              onZoomReset={() => setZoom(1)}
-            />
           </main>
+
+          {/* Zoom controls — Round 3 fix 5: lifted OUT of the
+              canvas region so they're anchored to the editor body's
+              bottom-right and don't translate with canvas content. */}
+          <EditorZoomControls
+            zoom={zoom}
+            onFit={fitToContainer}
+            onZoomIn={() => setZoom((z) => Math.min(z + 0.1, 4))}
+            onZoomOut={() => setZoom((z) => Math.max(z - 0.1, 0.1))}
+            onZoomReset={() => setZoom(1)}
+          />
 
           {showPageNavigator ? (
             <EditorPageNavigator
