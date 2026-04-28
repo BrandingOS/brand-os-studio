@@ -17,9 +17,34 @@
 import { z } from 'zod';
 import { HexColorSchema } from '@/features/editor/schema';
 
+/**
+ * URL/path accepted by the renderer. Covers:
+ *   • Absolute URLs       — http://… https://…
+ *   • Data URIs           — data:image/svg+xml;…
+ *   • Blob URLs           — blob:… (runtime-created)
+ *   • Root-relative paths — /brands/raqm/logo.svg (seed brands)
+ *   • Document-relative   — ./assets/logo.svg
+ *
+ * The strict `z.string().url()` only accepts the first three forms;
+ * loosening here matches the reality of the seed brands and the
+ * brand-assets pipeline (which writes `/brands/<slug>/<file>` for
+ * locally-served assets) without weakening to a no-op string.
+ */
+const RendererUrlSchema = z.string().refine(
+  (s) =>
+    /^https?:\/\//i.test(s) ||
+    /^data:/i.test(s) ||
+    /^blob:/i.test(s) ||
+    /^\.{0,2}\//.test(s),
+  {
+    message:
+      'Must be an absolute URL, data URI, blob URL, or root-/relative- path',
+  },
+);
+
 /** A resolved brand asset (logo) — URL + format the renderer can use. */
 export const LogoAssetSchema = z.object({
-  url: z.string().url(),
+  url: RendererUrlSchema,
   format: z.enum(['svg', 'png', 'pdf', 'webp', 'jpg']),
   /** Aspect ratio (width / height). Optional — only known if the source
    *  asset metadata had dimensions. */

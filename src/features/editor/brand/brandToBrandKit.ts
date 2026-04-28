@@ -231,13 +231,21 @@ function resolveLegacyLogo(brand: Brand, slot: LogoSlotName): LogoAsset | undefi
   return { url, format: detectFormatFromUrl(url) ?? 'png' };
 }
 
+/**
+ * Accepts the same URL shapes the BrandKitSchema's `RendererUrlSchema`
+ * does: absolute URLs, data: / blob: URIs, and root-/relative-paths.
+ * Filtering out anything else keeps `resolveLegacyLogo` from emitting
+ * a logo whose URL would later trip the schema parse.
+ */
 function isAcceptableUrl(url: string): boolean {
+  if (typeof url !== 'string' || url.length === 0) return false;
   try {
     new URL(url);
     return true;
   } catch {
-    return false;
+    /* not an absolute URL — try the renderer-friendly forms */
   }
+  return /^data:/i.test(url) || /^blob:/i.test(url) || /^\.{0,2}\//.test(url);
 }
 
 function detectFormatFromUrl(url: string): AssetFormat | undefined {

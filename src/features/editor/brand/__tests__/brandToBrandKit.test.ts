@@ -36,6 +36,22 @@ describe('brandToBrandKit — schema parse', () => {
     expect(() => BrandKitSchema.parse(kit)).not.toThrow();
     expect(BrandKitSchema.parse(kit)).toEqual(kit);
   });
+
+  it('accepts seed brands whose logo URLs are root-relative paths', async () => {
+    // Regression for a Step 5b issue: useBrandKit(raqmBrand) failed
+    // at runtime because BrandKitSchema enforced z.string().url() on
+    // logo URLs but the seed brands ship root-relative paths
+    // (`/brands/raqm/logo.svg`). The renderer treats those as valid
+    // (browser resolves against window.location.origin), so the
+    // schema must too.
+    const { raqmBrand } = await import('@/data/brands/raqm');
+    expect(() => brandToBrandKit(raqmBrand)).not.toThrow();
+    const kit = brandToBrandKit(raqmBrand);
+    expect(() => BrandKitSchema.parse(kit)).not.toThrow();
+    // Sanity: the primary logo URL is a root-relative path that
+    // would have failed strict z.string().url() validation.
+    expect(kit.logos.primary?.url.startsWith('/')).toBe(true);
+  });
 });
 
 // ─── Color priority chains ──────────────────────────────────────────────
@@ -273,9 +289,24 @@ describe('brandToBrandKit — logos', () => {
     expect(kit.logos.mono.white?.url).toContain('light.svg');
   });
 
-  it('legacy: relative-path URL is dropped (BrandKit requires URL form)', () => {
+  it('legacy: root-relative-path URL is preserved (renderer resolves against origin)', () => {
+    // Earlier behavior was to drop relative paths because the schema
+    // required absolute URLs. Step 5b loosened the schema to accept
+    // root-/relative paths so seed brands like Raqm (which ship
+    // `/brands/raqm/logo.svg`) survive the BrandKit parse and the
+    // re-apply flow can read them.
     const kit = brandToBrandKit(
       makeBrand({ logoAssets: { full: '/assets/logo.png' } }),
+    );
+    expect(kit.logos.primary?.url).toBe('/assets/logo.png');
+    expect(kit.logos.primary?.format).toBe('png');
+  });
+
+  it('legacy: bare unparseable strings (no scheme, no leading slash) are dropped', () => {
+    // Sanity guard: a free-text "logo.png" without a leading slash
+    // is not loadable by the renderer — keep dropping it.
+    const kit = brandToBrandKit(
+      makeBrand({ logoAssets: { full: 'logo.png' } }),
     );
     expect(kit.logos.primary).toBeUndefined();
   });
