@@ -204,17 +204,16 @@ export default function Step5Variant4Page() {
             <button
               onClick={() => setNavigatorOpen(true)}
               aria-label="Open pages panel"
-              className="my-3 mr-2 flex h-7 w-7 items-center justify-center transition-colors"
+              className="my-3 mr-2 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
               style={{
                 background: 'var(--surface-elevated)',
                 border: '1px solid var(--border-strong)',
-                borderRadius: 10,
                 color: 'var(--text-secondary)',
                 boxShadow: 'var(--shadow-md)',
                 alignSelf: 'flex-start',
               }}
             >
-              <ChevronRight className="h-3.5 w-3.5" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -453,11 +452,11 @@ function AppRail({ active, onChange }: { active: RailItem; onChange: (i: RailIte
   ];
   return (
     <aside
-      className="flex flex-col items-center gap-2 py-3"
+      className="flex flex-col items-center gap-1.5 py-3"
       style={{
-        width: 76,
+        width: 60,
         background: 'var(--background)',
-        paddingLeft: 10,
+        paddingLeft: 8,
         paddingRight: 4,
       }}
       aria-label="App rail"
@@ -494,16 +493,16 @@ function RailCard({
       aria-label={label}
       aria-pressed={isActive}
       style={{
-        width: 56,
-        height: 60,
+        width: 46,
+        height: 50,
         background: isActive ? 'var(--accent-muted)' : 'var(--surface)',
         border: `1px solid ${isActive ? 'var(--border-strong)' : 'var(--border)'}`,
-        borderRadius: 12,
+        borderRadius: 10,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
+        gap: 2,
         boxShadow: 'var(--shadow-xs)',
         cursor: 'pointer',
         color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -523,10 +522,10 @@ function RailCard({
         }
       }}
     >
-      <Icon size={18} strokeWidth={1.6} style={{ color: 'var(--text-primary)' }} />
+      <Icon size={15} strokeWidth={1.6} style={{ color: 'var(--text-primary)' }} />
       <span
         style={{
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: 500,
           letterSpacing: '-0.01em',
         }}
@@ -561,11 +560,10 @@ function SecondaryPanel({
         onClick={onCollapse}
         title="Collapse panel"
         aria-label="Collapse panel"
-        className="absolute -right-3.5 top-5 z-30 flex h-7 w-7 items-center justify-center transition-colors"
+        className="absolute -right-4 top-5 z-30 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
         style={{
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border-strong)',
-          borderRadius: 10,
           color: 'var(--text-secondary)',
           boxShadow: 'var(--shadow-md)',
         }}
@@ -578,7 +576,7 @@ function SecondaryPanel({
           e.currentTarget.style.color = 'var(--text-secondary)';
         }}
       >
-        <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+        <ChevronRight className="h-4 w-4 rotate-180" />
       </button>
 
       {active === 'generate' && <GeneratePanel />}
@@ -1258,11 +1256,10 @@ function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
         onClick={onCollapse}
         title="Collapse pages"
         aria-label="Collapse pages"
-        className="absolute -left-3.5 top-5 z-30 flex h-7 w-7 items-center justify-center transition-colors"
+        className="absolute -left-4 top-5 z-30 flex h-8 w-8 items-center justify-center rounded-full transition-colors"
         style={{
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border-strong)',
-          borderRadius: 10,
           color: 'var(--text-secondary)',
           boxShadow: 'var(--shadow-md)',
         }}
@@ -1275,7 +1272,7 @@ function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
           e.currentTarget.style.color = 'var(--text-secondary)';
         }}
       >
-        <ChevronRight className="h-3.5 w-3.5" />
+        <ChevronRight className="h-4 w-4" />
       </button>
       <p
         className="px-3 py-1 text-[9px] font-semibold uppercase"
@@ -1334,10 +1331,15 @@ function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
         <Plus className="h-3 w-3" /> Add
       </button>
 
-      {/* Right-click menu — open by default for demo */}
+      {/* Right-click menu — open by default for the demo. Floats out
+          to the LEFT of the navigator card (where a real OS context
+          menu would appear next to the right-clicked thumb), so it
+          doesn't get clipped by the card's overflow. */}
       <div
-        className="absolute left-2 top-12 z-20 w-36 rounded-lg p-1"
+        className="absolute z-30 w-36 rounded-lg p-1"
         style={{
+          right: 'calc(100% + 8px)',
+          top: 56,
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-lg)',
@@ -1347,7 +1349,7 @@ function PageNavigator({ onCollapse }: { onCollapse: () => void }) {
           className="px-2 py-1 text-[8px] uppercase"
           style={{ color: 'var(--text-muted)', letterSpacing: '0.14em' }}
         >
-          Right-click ↑
+          Right-click →
         </p>
         <CtxItem Icon={Copy} label="Duplicate" />
         <CtxItem Icon={Layers} label="Apply master" />
