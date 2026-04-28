@@ -44,16 +44,20 @@ export function BrandPanel({ adapter, doc, activePageId, brand }: Props) {
 
   return (
     <>
-      <div className="panel-top">
-        <div className="panel-heading">
-          <span className="panel-heading-eyebrow">Brand kit</span>
-          <h1
-            className="panel-heading-title"
-            style={brand ? undefined : { color: 'var(--text-muted)' }}
-          >
-            {brand?.name ?? 'No brand'}
-          </h1>
-        </div>
+      {/* Brand-name subtitle. The canonical "Brand" title now lives
+          in the SecondaryPanel header bar; this row is a small
+          supporting line so the user can see WHICH brand kit the
+          panel is operating against. */}
+      <div
+        data-brand-panel-subtitle
+        style={{
+          padding: '10px 14px',
+          borderBottom: '1px solid var(--border)',
+          fontSize: 12,
+          color: brand ? 'var(--text-secondary)' : 'var(--text-muted)',
+        }}
+      >
+        {brand?.name ?? 'No brand attached'}
       </div>
 
       <nav className="panel-list">

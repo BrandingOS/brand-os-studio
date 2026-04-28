@@ -82,11 +82,6 @@ export function InsertPanel({ adapter, pageId }: Props) {
 
   return (
     <>
-      <div className="panel-top">
-        <div className="panel-heading">
-          <h1 className="panel-heading-title">Insert</h1>
-        </div>
-      </div>
       <nav className="panel-list">
         {GROUPS.map((g) => (
           <div key={g.title}>

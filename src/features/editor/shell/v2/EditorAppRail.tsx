@@ -1,12 +1,12 @@
-// EditorAppRail — Round 3 fix 1.
+// EditorAppRail — Round 4 (icon-only cards).
 //
-// Each rail entry is its own small ~56×56 card containing a 20px
-// icon and a tiny font-medium label. The rail itself has NO outer
-// container — it's just a vertical stack of these cards floating on
-// the editor background. This is the variant 4 mockup pattern
-// (round 1 of 5/7 fixes added a card around the rail; round 2 then
-// stripped all chrome including the per-icon cards; this round
-// restores the per-icon cards while keeping the rail itself flat).
+// Each rail entry is its own small ~44×44 white card holding ONLY
+// the 20px icon. The label that lived under the icon (R3 fix 1) is
+// gone — the active panel's title bar now communicates the section
+// name, so the rail icon doesn't need to repeat it. The active
+// state shows a purple border + soft accent glow instead of a
+// background tint; that matches the reference (Relume-style
+// minimal rail).
 
 import { LayoutGrid, Palette, Plus, Sparkles } from 'lucide-react';
 
@@ -33,7 +33,7 @@ export function EditorAppRail({ active, onChange }: Props) {
     <aside
       data-app-rail
       data-app-rail-flat="true"
-      className="flex flex-col items-center gap-2.5 px-2 py-3"
+      className="flex flex-col items-center gap-2 px-2 py-3"
       style={{
         width: 76,
         flexShrink: 0,
@@ -65,13 +65,15 @@ function RailCard({
   isActive: boolean;
   onClick: () => void;
 }) {
-  // Idle / hover / active backgrounds — picked off the cosmos
-  // surface tokens so light + dark themes both look right.
   const idleBg = 'var(--surface, #ffffff)';
   const hoverBg = 'var(--surface-hover, #f8f8f7)';
-  const activeBg = 'var(--surface-sunken, #f2f1f0)';
+  const idleBorder = 'var(--border, rgba(13, 13, 13, 0.10))';
+  const activeBorder = 'var(--accent, #6366f1)';
   const idleShadow = '0 1px 2px rgba(0, 0, 0, 0.04)';
-  const activeShadow = '0 2px 6px rgba(0, 0, 0, 0.08)';
+  // Active state — purple border + soft outer glow. Tuned to read
+  // as "selected" without a heavy background tint.
+  const activeShadow =
+    '0 0 0 3px color-mix(in srgb, var(--accent, #6366f1) 16%, transparent), 0 1px 2px rgba(0, 0, 0, 0.04)';
 
   return (
     <button
@@ -80,28 +82,23 @@ function RailCard({
       aria-label={label}
       aria-pressed={isActive}
       data-rail-item={label.toLowerCase()}
+      title={label}
       style={{
-        width: 56,
-        height: 56,
+        width: 44,
+        height: 44,
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 4,
-        background: isActive ? activeBg : idleBg,
-        border: 'none',
-        borderRadius: 12,
+        background: idleBg,
+        border: `1px solid ${isActive ? activeBorder : idleBorder}`,
+        borderRadius: 10,
         boxShadow: isActive ? activeShadow : idleShadow,
         cursor: 'pointer',
-        // Full-strength text on every state — the active/hover
-        // states are communicated by background tint + shadow,
-        // never by dimming the icon or label.
-        color: 'var(--text-primary, #0d0d0d)',
-        // Animate background + shadow only — no scale transform
-        // (the spec explicitly forbids it; matches the variant 4
-        // intent of "stable icon, subtle surface change").
+        color: isActive
+          ? 'var(--accent, #6366f1)'
+          : 'var(--text-primary, #0d0d0d)',
         transition:
-          'background-color 160ms var(--ease, ease), box-shadow 160ms var(--ease, ease)',
+          'background-color 160ms var(--ease, ease), border-color 160ms var(--ease, ease), box-shadow 160ms var(--ease, ease), color 160ms var(--ease, ease)',
       }}
       onMouseEnter={(e) => {
         if (!isActive) {
@@ -114,13 +111,7 @@ function RailCard({
         }
       }}
     >
-      <Icon size={20} strokeWidth={2} aria-hidden />
-      <span
-        className="text-[10px] font-medium"
-        style={{ letterSpacing: '-0.005em', lineHeight: 1 }}
-      >
-        {label}
-      </span>
+      <Icon size={18} strokeWidth={1.8} aria-hidden />
     </button>
   );
 }

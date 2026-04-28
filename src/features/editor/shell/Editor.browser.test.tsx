@@ -235,9 +235,9 @@ describe('Step 5a — App Rail switches the Secondary Panel', () => {
       ['generate', 'Generate'],
       ['templates', 'Templates'],
       ['insert', 'Insert'],
-      ['brand', 'Brand kit'],
+      ['brand', 'Brand'],
     ];
-    for (const [id, expectedHeading] of rails) {
+    for (const [id, expectedTitle] of rails) {
       const railBtn = container.querySelector<HTMLButtonElement>(
         `button[data-rail-item="${id}"]`,
       );
@@ -249,9 +249,11 @@ describe('Step 5a — App Rail switches the Secondary Panel', () => {
         panel?.getAttribute('data-secondary-panel'),
         `panel did not switch to ${id}`,
       ).toBe(id);
-      // The eyebrow text or title varies per panel — assert the
-      // expected heading text shows up somewhere in the panel.
-      expect(panel?.textContent ?? '').toContain(expectedHeading);
+      // R4: each panel exposes its title via the SecondaryPanel
+      // header bar. Assert against the header title element so
+      // brand-name strings (e.g. "Mock Brand") don't trip the match.
+      const title = panel?.querySelector('[data-secondary-panel-title]');
+      expect(title?.textContent ?? '', `title for ${id}`).toBe(expectedTitle);
     }
   });
 });

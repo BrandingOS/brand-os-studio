@@ -128,16 +128,22 @@ function mockBrand(): Brand {
 // ─── EditorAppRail ────────────────────────────────────────────────────
 
 describe('EditorAppRail', () => {
-  it('renders all 4 entries with labels inside the box', () => {
+  it('renders all 4 entries (icon-only) with aria-label + title carrying the section name', () => {
     const onChange = vi.fn();
     const { container } = render(
       <EditorAppRail active="generate" onChange={onChange} />,
     );
     const labels = ['Generate', 'Templates', 'Insert', 'Brand'];
     for (const label of labels) {
-      const btn = container.querySelector(`button[data-rail-item="${label.toLowerCase()}"]`);
+      const btn = container.querySelector(
+        `button[data-rail-item="${label.toLowerCase()}"]`,
+      );
       expect(btn, `missing rail entry: ${label}`).toBeTruthy();
-      expect(btn?.textContent).toContain(label);
+      // Icon-only buttons — the label travels via aria-label / title,
+      // not visible text under the icon.
+      expect(btn?.getAttribute('aria-label')).toBe(label);
+      expect(btn?.getAttribute('title')).toBe(label);
+      expect(btn?.querySelector('span')).toBeNull();
     }
   });
 
@@ -180,7 +186,7 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('each rail entry is a small ~56×56 card with shadow + rounded corners (Round 3 fix 1)', () => {
+  it('each rail entry is a small ~44×44 icon-only card with rounded corners (R4)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -189,23 +195,20 @@ describe('EditorAppRail', () => {
     );
     expect(buttons.length).toBe(4);
     for (const btn of buttons) {
-      // ~56×56 card.
-      expect(btn.style.width).toBe('56px');
-      expect(btn.style.height).toBe('56px');
-      // Rounded card, never pill.
-      expect(btn.style.borderRadius).toBe('12px');
+      // ~44×44 card per the reference.
+      expect(btn.style.width).toBe('44px');
+      expect(btn.style.height).toBe('44px');
+      expect(btn.style.borderRadius).toBe('10px');
       // Has a real surface background (not transparent).
       expect(btn.style.background).not.toBe('transparent');
-      // Has a shadow (idle or active variant — both non-empty).
-      expect(btn.style.boxShadow).not.toBe('');
-      // No visible border per spec — borderStyle is 'none' (the
-      // shorthand `border: 'none'` reads back as 'medium' for the
-      // width component but the style component is what matters).
-      expect(btn.style.borderStyle).toBe('none');
+      // Icon-only: button has no visible label text under the icon.
+      // The button's accessible name comes from aria-label, not from
+      // a child <span>.
+      expect(btn.querySelector('span')).toBeNull();
     }
   });
 
-  it('active rail entry has a stronger surface tint than idle entries (no dimming on inactive)', () => {
+  it('active rail entry shows a purple border + accent tint instead of a background swap (R4)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -215,11 +218,13 @@ describe('EditorAppRail', () => {
     const insertBtn = container.querySelector<HTMLButtonElement>(
       'button[data-rail-item="insert"]',
     );
-    // Active background uses --surface-sunken; idle uses --surface.
-    // Backgrounds must differ, never empty.
-    expect(brandBtn?.style.background).toMatch(/--surface-sunken/);
-    expect(insertBtn?.style.background).toMatch(/--surface(?!-)/);
-    expect(brandBtn?.style.background).not.toBe(insertBtn?.style.background);
+    // Backgrounds match (no surface-sunken swap on active).
+    expect(brandBtn?.style.background).toBe(insertBtn?.style.background);
+    // Active border references --accent; idle border doesn't.
+    expect(brandBtn?.style.border).toMatch(/--accent/);
+    expect(insertBtn?.style.border).not.toMatch(/--accent/);
+    // Active icon is tinted with --accent for parity with the border.
+    expect(brandBtn?.style.color).toMatch(/--accent/);
   });
 });
 
@@ -518,30 +523,57 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     expect(content!.className).not.toMatch(/\bflex-1\b/);
   });
 
-  it('collapse toggle is small (24×24), half-protrudes, and centers vertically', () => {
+  it('R4: header bar shows the panel title + an inline X close button (no protruding chevron)', () => {
     const adapter = stubAdapter();
+    const onCollapse = vi.fn();
     const { container } = render(
       <EditorSecondaryPanel
-        active="insert"
+        active="generate"
         adapter={adapter}
         doc={blankDoc()}
         activePageId="page-1"
-        onCollapse={vi.fn()}
+        onCollapse={onCollapse}
       />,
     );
-    const toggle = container.querySelector<HTMLElement>(
+    const header = container.querySelector('[data-secondary-panel-header]');
+    expect(header, 'panel header not found').toBeTruthy();
+    const title = container.querySelector(
+      '[data-secondary-panel-title]',
+    );
+    expect(title?.textContent).toBe('Generate');
+    // The X button lives INSIDE the header (not floating off the
+    // right edge as before).
+    const close = header!.querySelector<HTMLButtonElement>(
       '[data-secondary-panel-collapse]',
     );
-    expect(toggle).toBeTruthy();
-    // 24×24 — was 32×32 in round 1.
-    expect(toggle!.style.width).toBe('24px');
-    expect(toggle!.style.height).toBe('24px');
-    // Half-protrudes: right is a NEGATIVE offset of half the
-    // toggle width (~12).
-    expect(toggle!.style.right).toBe('-12px');
-    // Vertically centered.
-    expect(toggle!.style.top).toBe('50%');
-    expect(toggle!.style.transform).toContain('translateY(-50%)');
+    expect(close, 'close button not in header').toBeTruthy();
+    expect(close!.getAttribute('aria-label')).toBe('Close panel');
+    fireEvent.click(close!);
+    expect(onCollapse).toHaveBeenCalledOnce();
+  });
+
+  it('R4: title resolves to the active rail entry (Templates / Insert / Brand)', () => {
+    for (const [active, expected] of [
+      ['templates', 'Templates'],
+      ['insert', 'Insert'],
+      ['brand', 'Brand'],
+    ] as const) {
+      const adapter = stubAdapter();
+      const { container, unmount } = render(
+        <EditorSecondaryPanel
+          active={active as RailItem}
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          onCollapse={vi.fn()}
+        />,
+      );
+      const title = container.querySelector(
+        '[data-secondary-panel-title]',
+      );
+      expect(title?.textContent).toBe(expected);
+      unmount();
+    }
   });
 });
 
