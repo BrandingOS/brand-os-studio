@@ -81,6 +81,24 @@ export interface EditorAdapter {
   /** Returns the master being edited, or null when in normal mode. */
   getEditingMasterId(): string | null;
 
+  /**
+   * Replace the entire document with a new one, preserving the
+   * undo history (unlike `loadDocument`, which RESETS history).
+   *
+   * Used when bulk-transforming the document — re-applying a brand
+   * kit (Step 5b), AI batch edits, cross-page propagation that's
+   * easier to compute as a new doc than as a sequence of patches.
+   *
+   * Wrap in `batch(label, () => replaceDocument(next))` to make the
+   * replace appear as a single labeled undo step. Outside a batch,
+   * the replace commits one history entry on its own.
+   *
+   * The active page id is preserved when the replacement still
+   * contains a page with the same id; otherwise it falls back to
+   * the first page in the new document.
+   */
+  replaceDocument(doc: BrandOSDocument): Promise<void>;
+
   // Layer operations
   addLayer(pageId: string, layer: Layer): void;
   updateLayer(pageId: string, layerId: string, patch: Partial<Layer>): void;

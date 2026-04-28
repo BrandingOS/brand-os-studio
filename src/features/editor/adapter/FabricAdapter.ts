@@ -150,6 +150,33 @@ export class FabricAdapter implements EditorAdapter {
     this.emitChange();
   }
 
+  /**
+   * Bulk-replace the document while preserving undo history. Used by
+   * "Re-apply brand kit" and any other op that produces a new doc
+   * via a pure transform but should still be a single undo step.
+   *
+   * MUST be called from inside `batch(label, () => replaceDocument(next))`.
+   * The method itself does NOT commit history or emit a change event —
+   * the surrounding batch handles both. This is intentional: because
+   * `renderActivePage` is async but `batch.fn` is synchronous, an
+   * internal commit-after-await would race with batch's end-of-batch
+   * commit and produce a phantom second history entry that breaks
+   * single-step undo.
+   */
+  async replaceDocument(doc: BrandOSDocument): Promise<void> {
+    if (!this.canvas) throw new Error('FabricAdapter not mounted');
+    this.doc = clone(doc);
+    // Preserve active page id when possible — saves the user from
+    // jumping to page 1 every time the brand kit re-applies.
+    const stillHasActive = this.activePageId
+      ? doc.pages.some((p) => p.id === this.activePageId)
+      : false;
+    if (!stillHasActive) {
+      this.activePageId = doc.pages[0]?.id ?? null;
+    }
+    await this.renderActivePage();
+  }
+
   getDocument(): BrandOSDocument {
     if (!this.doc) throw new Error('No document loaded');
     return clone(this.doc);

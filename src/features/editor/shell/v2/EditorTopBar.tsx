@@ -11,14 +11,14 @@
 // Save state lives inline left of the Export button so the user can
 // always see whether their changes are persisted.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown } from 'lucide-react';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import {
   SaveStateIndicator,
   type EditorSaveState,
 } from '@/features/editor/core';
+import { BrandPicker } from './BrandPicker';
 
 export type EditorMode = 'edit' | 'preview' | 'comments';
 
@@ -29,9 +29,22 @@ const MODES: ReadonlyArray<{ id: EditorMode; label: string }> = [
 ];
 
 interface Props {
-  /** Current brand being edited. Optional in 5a — when absent the
-   *  picker shows a placeholder mark and the dropdown is empty. */
+  /** Current brand being edited. Optional — when absent the picker
+   *  shows a placeholder mark and the dropdown still lists brands. */
   brand?: Brand;
+  /**
+   * Fired when the user picks a different brand from the dropdown.
+   * Brand switching is fully wired in Phase 4.5 (canonical
+   * `/b/:brandSlug/design/:designSlug` route). The parent component
+   * is responsible for handling brand changes via this callback.
+   */
+  onBrandSwitch?: (slug: string) => void;
+  /**
+   * Fired when the user picks "Re-apply brand kit" from the brand
+   * dropdown. Editor wires this to applyBrandToDocument inside
+   * adapter.batch.
+   */
+  onReapplyBrand?: () => void;
   /** Current editor mode. Only 'edit' is functional in 5a. */
   mode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
@@ -48,6 +61,8 @@ interface Props {
 
 export function EditorTopBar({
   brand,
+  onBrandSwitch,
+  onReapplyBrand,
   mode,
   onModeChange,
   saveState,
@@ -79,7 +94,11 @@ export function EditorTopBar({
   return (
     <header className="top-nav-wrap" role="banner">
       <div className="top-nav-left">
-        <BrandPicker brand={brand} />
+        <BrandPicker
+          brand={brand}
+          onBrandSwitch={onBrandSwitch}
+          onReapplyBrand={onReapplyBrand}
+        />
       </div>
 
       <nav ref={navRef} className="segmented-nav" aria-label="Editor mode">
@@ -162,86 +181,3 @@ export function EditorTopBar({
   );
 }
 
-function BrandPicker({ brand }: { brand?: Brand }) {
-  const initial = useMemo(() => {
-    if (!brand?.name) return '?';
-    return brand.name.charAt(0).toUpperCase();
-  }, [brand?.name]);
-
-  const markBg = brand?.colorSystem?.primary?.hex ?? brand?.primaryColor ?? '#0d0d0d';
-  const displayName = brand?.name ?? 'Untitled brand';
-
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          className="top-nav-brand"
-          aria-label={`Switch brand. Current: ${displayName}`}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            padding: '4px 8px 4px 4px',
-            borderRadius: 8,
-            cursor: 'pointer',
-          }}
-        >
-          <span
-            className="top-nav-brand-mark"
-            aria-hidden="true"
-            style={{ background: markBg, color: '#fff' }}
-          >
-            {initial}
-          </span>
-          <span>{displayName}</span>
-          <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="start"
-          sideOffset={6}
-          className="z-50 min-w-[240px] rounded-xl p-1.5"
-          style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-md)',
-            color: 'var(--text-primary)',
-          }}
-        >
-          <p
-            className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Current brand
-          </p>
-          <div
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5"
-            style={{ background: 'var(--accent-muted)' }}
-          >
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
-              style={{
-                background: markBg,
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-              aria-hidden
-            >
-              {initial}
-            </span>
-            <span className="text-sm">{displayName}</span>
-          </div>
-          {/* 5b will populate this with the user's other brands and
-              wire route navigation on select. */}
-          <p
-            className="mt-2 px-2 py-1 text-[10px]"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Switching between brands lands in step 5b.
-          </p>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
-}

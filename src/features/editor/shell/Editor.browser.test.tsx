@@ -13,9 +13,10 @@
 //      canvas with the right per-kind controls.
 //   5. Switching between layer kinds adapts the toolbar's controls.
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Editor } from './Editor';
 import {
   BrandOSDocumentSchema,
@@ -26,10 +27,44 @@ import {
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { Brand } from '@/shared/types/brand';
+import { container as serviceContainer } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS } from '@/core';
+import type { IBrandsService } from '@/core';
 
 const SOCIAL_FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  serviceContainer.clear();
+});
+
+function registerBrandsService(brands: Brand[]): IBrandsService {
+  const stub: IBrandsService = {
+    list: vi.fn(async () => brands),
+    getById: vi.fn(async (id: string) => brands.find((b) => b.id === id) ?? null),
+    getBySlug: vi.fn(async (slug: string) => brands.find((b) => b.slug === slug) ?? null),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  } as unknown as IBrandsService;
+  serviceContainer.register(SERVICE_KEYS.BRANDS, () => stub);
+  return stub;
+}
+
+function makeBrand(slug: string, name: string): Brand {
+  return {
+    id: `brand-${slug}`,
+    slug,
+    name,
+    primaryColor: slug === 'skam' ? '#dc2626' : '#3b82f6',
+    fonts: { primary: 'Inter' },
+    tone: '',
+    audience: '',
+    assets: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
 
 function blankPage(name: string): Page {
   return {
@@ -60,18 +95,7 @@ function presentationFixture(): BrandOSDocument {
 }
 
 function mockBrand(): Brand {
-  return {
-    id: 'brand-1',
-    slug: 'mock',
-    name: 'Mock Brand',
-    primaryColor: '#3b82f6',
-    fonts: { primary: 'Inter' },
-    tone: 'Friendly',
-    audience: 'Designers',
-    assets: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  };
+  return makeBrand('mock', 'Mock Brand');
 }
 
 interface MountResult {
@@ -79,7 +103,10 @@ interface MountResult {
   container: HTMLElement;
 }
 
-async function mountEditor(doc: BrandOSDocument = SOCIAL_FIXTURE): Promise<MountResult> {
+async function mountEditor(
+  doc: BrandOSDocument = SOCIAL_FIXTURE,
+  options: { brand?: Brand; onBrandSwitch?: (slug: string) => void } = {},
+): Promise<MountResult> {
   let resolveAdapter!: (a: EditorAdapter) => void;
   const adapterPromise = new Promise<EditorAdapter>((r) => {
     resolveAdapter = r;
@@ -92,9 +119,11 @@ async function mountEditor(doc: BrandOSDocument = SOCIAL_FIXTURE): Promise<Mount
         save={async () => {
           /* no-op for tests */
         }}
-        brand={mockBrand()}
+        brand={options.brand ?? mockBrand()}
+        onBrandSwitch={options.onBrandSwitch}
         onAdapterReady={(a) => resolveAdapter(a)}
       />
+      <Toaster />
     </MemoryRouter>,
   );
 
@@ -310,5 +339,153 @@ describe('Step 5a — Floating toolbar adapts per layer kind', () => {
     expect(toolbar?.querySelector('button[data-control="fit"]')).toBeTruthy();
     expect(toolbar?.querySelector('input[data-control="src"]')).toBeTruthy();
     expect(toolbar?.querySelector('button[data-control="font"]')).toBeNull();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Step 5b — Brand picker dropdown lists IBrandsService brands and fires
+// onBrandSwitch on select.
+// ────────────────────────────────────────────────────────────────────────
+
+async function openBrandPicker(): Promise<HTMLElement> {
+  const trigger = document.querySelector<HTMLButtonElement>(
+    '[data-brand-picker-trigger]',
+  );
+  if (!trigger) throw new Error('No BrandPicker trigger in DOM');
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+  for (let i = 0; i < 80; i++) {
+    const content = document.body.querySelector<HTMLElement>(
+      '[data-brand-picker-content]',
+    );
+    if (content && content.querySelector('[data-brand-list="ready"]')) return content;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('BrandPicker content never reached the ready state');
+}
+
+describe('Step 5b — Brand picker dropdown lists brands and switches', () => {
+  it('clicking the picker opens a dropdown listing brands fetched from IBrandsService', async () => {
+    const RAQM = makeBrand('raqm', 'Raqm');
+    const SKAM = makeBrand('skam', 'SKAM');
+    const VECTOR = makeBrand('vector', 'Vector');
+    registerBrandsService([RAQM, SKAM, VECTOR]);
+
+    await mountEditor(SOCIAL_FIXTURE, { brand: RAQM });
+    const content = await openBrandPicker();
+    const slugs = Array.from(
+      content.querySelectorAll<HTMLElement>('[data-brand-slug]'),
+    ).map((el) => el.getAttribute('data-brand-slug'));
+    expect(slugs).toEqual(['raqm', 'skam', 'vector']);
+  });
+
+  it('selecting a different brand fires onBrandSwitch with the slug', async () => {
+    const RAQM = makeBrand('raqm', 'Raqm');
+    const SKAM = makeBrand('skam', 'SKAM');
+    registerBrandsService([RAQM, SKAM]);
+
+    const onBrandSwitch = vi.fn();
+    await mountEditor(SOCIAL_FIXTURE, { brand: RAQM, onBrandSwitch });
+    const content = await openBrandPicker();
+    const skamRow = content.querySelector<HTMLElement>('[data-brand-slug="skam"]');
+    fireEvent.click(skamRow!);
+    expect(onBrandSwitch).toHaveBeenCalledWith('skam');
+    expect(onBrandSwitch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────
+// Step 5b — Re-apply brand kit: toast appears, doc resolves, undo reverses
+// the entire op in one step.
+// ────────────────────────────────────────────────────────────────────────
+
+describe('Step 5b — Re-apply brand kit', () => {
+  it('clicking Re-apply resolves SlotRefs in the document and shows a success toast', async () => {
+    const RAQM = makeBrand('raqm', 'Raqm');
+    registerBrandsService([RAQM]);
+
+    const { adapter } = await mountEditor(SOCIAL_FIXTURE, { brand: RAQM });
+
+    // The headline starts with a SlotRef color in the fixture.
+    const headlineId = SOCIAL_FIXTURE.pages[0].layers[0].id;
+    const beforeColor = (
+      adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+        color: unknown;
+      }
+    ).color;
+    expect(typeof beforeColor).toBe('object'); // SlotRef shape
+
+    const content = await openBrandPicker();
+    const reapply = content.querySelector<HTMLElement>(
+      '[data-action="reapply-brand"]',
+    );
+    expect(reapply, 'no Re-apply menu item').toBeTruthy();
+    fireEvent.click(reapply!);
+
+    // Doc state — headline color is now a literal string (resolved).
+    await new Promise((r) => setTimeout(r, 80));
+    const afterColor = (
+      adapter.getDocument().pages[0].layers.find((l) => l.id === headlineId) as {
+        color: unknown;
+      }
+    ).color;
+    expect(typeof afterColor).toBe('string');
+
+    // Toast surfaces in the DOM. Sonner appends to document.body.
+    let toastEl: Element | null = null;
+    for (let i = 0; i < 60; i++) {
+      const text = document.body.textContent ?? '';
+      if (text.includes('Brand kit re-applied')) {
+        toastEl = document.body;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(
+      toastEl,
+      'success toast "Brand kit re-applied" never appeared',
+    ).toBeTruthy();
+  });
+
+  it('after Re-apply, undo() reverses the entire op in one step', async () => {
+    const RAQM = makeBrand('raqm', 'Raqm');
+    registerBrandsService([RAQM]);
+
+    const { adapter } = await mountEditor(SOCIAL_FIXTURE, { brand: RAQM });
+    const beforeJson = JSON.stringify(adapter.getDocument());
+
+    const content = await openBrandPicker();
+    const reapply = content.querySelector<HTMLElement>(
+      '[data-action="reapply-brand"]',
+    );
+    fireEvent.click(reapply!);
+    await new Promise((r) => setTimeout(r, 80));
+
+    const afterJson = JSON.stringify(adapter.getDocument());
+    expect(afterJson).not.toBe(beforeJson);
+    expect(adapter.canUndo()).toBe(true);
+
+    // History is exactly two entries: original + "Re-apply brand kit".
+    // Without this guard, a phantom second commit could slip in and
+    // single-step undo would silently leave the doc partly resolved
+    // (the bug that surfaced when replaceDocument auto-committed
+    // after its async render).
+    const historyAfter = (
+      adapter as unknown as {
+        history: {
+          getStateForTesting(): {
+            past: unknown[];
+            labels: (string | undefined)[];
+          };
+        };
+      }
+    ).history.getStateForTesting();
+    expect(historyAfter.past.length).toBe(2);
+    expect(historyAfter.labels[1]).toBe('Re-apply brand kit');
+
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(JSON.stringify(adapter.getDocument())).toBe(beforeJson);
   });
 });

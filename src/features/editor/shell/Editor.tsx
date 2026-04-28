@@ -1,9 +1,10 @@
-// <Editor> — Phase 5a unified editor shell on the Variant 4 layout.
+// <Editor> — Phase 5b unified editor shell on the Variant 4 layout.
 //
 // Cosmos workspace shell with three regions:
-//   • Top:    EditorTopBar — brand picker, segmented Edit/Preview/
-//             Comments pill (only Edit functional in 5a), Export +
-//             theme toggle.
+//   • Top:    EditorTopBar — brand picker (5b: real IBrandsService
+//             list + Re-apply brand kit action), segmented Edit/
+//             Preview/Comments pill (only Edit functional), Export
+//             + theme toggle.
 //   • Body:   App Rail (Generate / Templates / Insert / Brand) →
 //             Secondary Panel (content per active rail entry) →
 //             canvas (Fabric, unchanged) → Page Navigator (only
@@ -13,10 +14,13 @@
 //
 // Brand context comes from the `brand` PROP (caller-supplied), per
 // the brand-context purity rule (issue #4). The editor never reaches
-// for a global store. The dev harness passes a hardcoded mock; route
-// handlers will resolve it via DI in Phase 4.5.
+// for a global store. Brand switching is fully wired in Phase 4.5
+// via the canonical /b/:brandSlug/design/:designSlug route — for
+// 5b the parent component handles `onBrandSwitch`. The dev harness
+// reloads a fixture; route handlers will navigate.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { FabricAdapter } from '@/features/editor/adapter/FabricAdapter';
 import type {
   EditorAdapter,
@@ -31,6 +35,8 @@ import {
   type ContentTypeConfig,
 } from '@/features/editor/content-types';
 import type { Brand } from '@/shared/types/brand';
+import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
+import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { EditorTopBar, type EditorMode } from './v2/EditorTopBar';
 import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
 import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
@@ -64,9 +70,14 @@ interface EditorProps {
    */
   onAdapterReady?: (adapter: EditorAdapter) => void;
   /**
-   * Optional callback fired when the user picks a different brand from
-   * the top-bar dropdown. 5b will replace this with route navigation;
-   * for 5a it's a placeholder so test harnesses can opt in.
+   * Fired when the user picks a different brand from the top-bar
+   * dropdown.
+   *
+   * Brand switching is fully wired in Phase 4.5 (canonical
+   * `/b/:brandSlug/design/:designSlug` route). The parent component
+   * is responsible for handling brand changes via this callback —
+   * route handlers will navigate to the brand-scoped URL; the dev
+   * harness reloads a fixture for visual verification.
    */
   onBrandSwitch?: (brandSlug: string) => void;
 }
@@ -76,6 +87,7 @@ export function Editor({
   save,
   brand,
   onAdapterReady,
+  onBrandSwitch,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
@@ -114,8 +126,49 @@ export function Editor({
     }
   }, [doc.contentType]);
 
+  // BrandKit — derived from the brand prop. Memoized so the same
+  // reference flows through to applyBrandToDocument unless the brand
+  // identity (or its updatedAt) changes.
+  const brandKit = useBrandKit(brand);
+
   // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
   const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
+
+  // ─── Re-apply brand kit ───────────────────────────────────────────────
+  //
+  // Resolves every SlotRef in the current document against the
+  // current brand kit. With `respectLocks: true` (default), brand-
+  // locked layers' overridden properties get restored from the
+  // schema's `_lockedBindings` field before resolution runs — the
+  // brand-managed contract wins. The whole operation is wrapped in
+  // adapter.batch so it counts as a SINGLE undo step + emits ONE
+  // change event regardless of how many layers it touches.
+  const handleReapplyBrand = useCallback(() => {
+    if (!brandKit) {
+      toast.error('Brand kit unavailable. Open this design from inside a brand.');
+      return;
+    }
+    try {
+      const next = applyBrandToDocument(adapter.getDocument(), brandKit, {
+        respectLocks: true,
+      });
+      // replaceDocument (NOT loadDocument) so the existing history is
+      // preserved — undo reverts the entire re-apply in one step.
+      adapter.batch('Re-apply brand kit', () => {
+        void adapter.replaceDocument(next);
+      });
+      toast.success('Brand kit re-applied');
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to re-apply brand kit';
+      toast.error(message, {
+        action: {
+          label: 'Retry',
+          onClick: () => handleReapplyBrand(),
+        },
+      });
+    }
+  }, [adapter, brandKit]);
 
   // Subscribe to adapter events. Document state mirrors via setDoc;
   // selection mirrors via setSelection. The active-page + master-mode
@@ -182,6 +235,8 @@ export function Editor({
       >
         <EditorTopBar
           brand={brand}
+          onBrandSwitch={onBrandSwitch}
+          onReapplyBrand={brandKit ? handleReapplyBrand : undefined}
           mode={mode}
           onModeChange={setMode}
           saveState={saveState}
