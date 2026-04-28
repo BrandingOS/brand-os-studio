@@ -128,7 +128,7 @@ function mockBrand(): Brand {
 // ─── EditorAppRail ────────────────────────────────────────────────────
 
 describe('EditorAppRail', () => {
-  it('renders all 4 entries with icon + tiny visible label below', () => {
+  it('renders all 4 entries with aria-label + title + a tiny visible label below the icon (R4.1)', () => {
     const onChange = vi.fn();
     const { container } = render(
       <EditorAppRail active="generate" onChange={onChange} />,
@@ -141,10 +141,9 @@ describe('EditorAppRail', () => {
       expect(btn, `missing rail entry: ${label}`).toBeTruthy();
       expect(btn?.getAttribute('aria-label')).toBe(label);
       expect(btn?.getAttribute('title')).toBe(label);
-      // R4 hybrid: visible text label below the icon.
-      const span = btn?.querySelector('span');
-      expect(span, `missing label span on ${label}`).toBeTruthy();
-      expect(span?.textContent).toBe(label);
+      // Visible label lives in a [data-rail-label] span beneath the icon.
+      const railLabel = btn?.querySelector('[data-rail-label]');
+      expect(railLabel?.textContent).toBe(label);
     }
   });
 
@@ -187,7 +186,7 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('each rail entry is a 48×56 icon+label card with rounded corners (R4 hybrid, fixed)', () => {
+  it('each rail entry is a 48×52 card with rounded corners + tiny label beneath the icon (R4.1)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -196,18 +195,13 @@ describe('EditorAppRail', () => {
     );
     expect(buttons.length).toBe(4);
     for (const btn of buttons) {
+      // 48×52 — slight height bump from R4 (44×44) to fit the label.
       expect(btn.style.width).toBe('48px');
-      // Bumped from 52 → 56 so the icon + tiny label both sit
-      // inside the card with a real safety margin.
-      expect(btn.style.height).toBe('56px');
+      expect(btn.style.height).toBe('52px');
       expect(btn.style.borderRadius).toBe('10px');
       expect(btn.style.background).not.toBe('transparent');
-      // Visible label span pinned with inline font-size so the
-      // label can't escape the box.
-      const span = btn.querySelector<HTMLElement>('span');
-      expect(span).not.toBeNull();
-      expect(span!.style.fontSize).toBe('10px');
-      expect(span!.style.lineHeight).toBe('1');
+      // Now has a label span beneath the icon.
+      expect(btn.querySelector('[data-rail-label]')).toBeTruthy();
     }
   });
 

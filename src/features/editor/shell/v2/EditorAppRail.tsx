@@ -1,11 +1,12 @@
-// EditorAppRail — R4 hybrid (icon + tiny label, fixed sizing).
+// EditorAppRail — R4.1 (hybrid: compact card + tiny label).
 //
-// Each rail entry is a 48×56 white card holding a 20px icon +
-// a tiny 10px font-medium label. Earlier 52px height left no
-// safety margin once the line-box rounded up; both icon AND
-// label now sit cleanly inside the card. Active treatment is
-// unchanged from R4 — purple border + soft accent glow +
-// accent-tinted icon.
+// Slight expansion of the R4 icon-only card. The card is 48×52
+// instead of 44×44, with the 20px icon sitting near the top and a
+// tiny `text-[10px]` label centered below it. The active state
+// keeps R4's purple border + soft accent glow (no background-tint
+// swap), and idle/hover stays the same. The label is small enough
+// not to compete visually with the active panel's header bar but
+// makes the rail self-explanatory at a glance.
 
 import { LayoutGrid, Palette, Plus, Sparkles } from 'lucide-react';
 
@@ -33,6 +34,7 @@ export function EditorAppRail({ active, onChange }: Props) {
       data-app-rail
       data-app-rail-flat="true"
       className="flex flex-col items-center gap-2 px-2 py-3"
+      data-app-rail-variant="r4.1-labeled"
       style={{
         width: 76,
         flexShrink: 0,
@@ -84,25 +86,19 @@ function RailCard({
       title={label}
       style={{
         width: 48,
-        height: 56,
-        flexShrink: 0,
-        boxSizing: 'border-box',
+        height: 52,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         gap: 3,
-        // Some default browser button styles add font-family /
-        // line-height that bleed into the label's line-box. Reset
-        // here so the inline fontSize / lineHeight on the span are
-        // the source of truth.
-        font: 'inherit',
+        paddingTop: 6,
+        paddingBottom: 4,
         background: idleBg,
         border: `1px solid ${isActive ? activeBorder : idleBorder}`,
         borderRadius: 10,
         boxShadow: isActive ? activeShadow : idleShadow,
         cursor: 'pointer',
-        overflow: 'visible',
         color: isActive
           ? 'var(--accent, #6366f1)'
           : 'var(--text-primary, #0d0d0d)',
@@ -122,19 +118,9 @@ function RailCard({
     >
       <Icon size={20} strokeWidth={2} aria-hidden />
       <span
-        style={{
-          fontSize: 10,
-          lineHeight: 1,
-          fontWeight: 500,
-          letterSpacing: '-0.005em',
-          // Don't let the span shrink the icon (would happen if the
-          // button were ever sized below content); pins this row to
-          // its intrinsic height instead.
-          flexShrink: 0,
-          // Defensive — a parent text-anchor rule could otherwise
-          // hijack this label.
-          color: 'inherit',
-        }}
+        data-rail-label
+        className="text-[10px] font-medium"
+        style={{ lineHeight: 1, letterSpacing: '-0.005em' }}
       >
         {label}
       </span>
