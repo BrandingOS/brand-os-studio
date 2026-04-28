@@ -187,13 +187,10 @@ describe('EditorAppRail', () => {
 
 describe('EditorTopBar', () => {
   function renderTopBar(overrides: Partial<Parameters<typeof EditorTopBar>[0]> = {}) {
-    const onModeChange = vi.fn();
     const onToggleTheme = vi.fn();
     const utils = render(
       <MemoryRouter>
         <EditorTopBar
-          mode="edit"
-          onModeChange={onModeChange}
           saveState="idle"
           theme="light"
           onToggleTheme={onToggleTheme}
@@ -201,7 +198,7 @@ describe('EditorTopBar', () => {
         />
       </MemoryRouter>,
     );
-    return { ...utils, onModeChange, onToggleTheme };
+    return { ...utils, onToggleTheme };
   }
 
   it('renders the brand mark + name when brand is provided', () => {
@@ -213,25 +210,20 @@ describe('EditorTopBar', () => {
     expect(mark?.textContent).toBe('M');
   });
 
-  it('renders all 3 mode tabs and only "Edit" is functional in 5a', () => {
-    const { container, onModeChange } = renderTopBar();
-    const tabs = container.querySelectorAll('.segmented-nav-item');
-    expect(tabs).toHaveLength(3);
-
-    // Click Preview — onModeChange should still fire (functional state
-    // is governed by the parent; the tab is enabled but the parent
-    // can ignore it). The 5a contract is just that the tab is present
-    // and the click handler runs — Edit is the one with the active pill.
-    (tabs[1] as HTMLButtonElement).click();
-    expect(onModeChange).toHaveBeenCalledWith('preview');
+  it('renders the workspace section nav (Setup / Brand Kit / Guideline / Design / Tools) — Round 2 fix 2', () => {
+    const { container } = renderTopBar();
+    const tabs = container.querySelectorAll('[data-segmented-nav-item]');
+    expect(tabs).toHaveLength(5);
+    const labels = Array.from(tabs).map((el) => el.textContent ?? '');
+    expect(labels).toEqual(['Setup', 'Brand Kit', 'Guideline', 'Design', 'Tools']);
   });
 
-  it('marks the current mode with .is-active', () => {
-    const { container } = renderTopBar({ mode: 'edit' });
-    const editTab = Array.from(
-      container.querySelectorAll('.segmented-nav-item'),
-    ).find((el) => el.textContent === 'Edit');
-    expect(editTab?.classList.contains('is-active')).toBe(true);
+  it('marks "Design" as active (the editor IS the design surface)', () => {
+    const { container } = renderTopBar();
+    const designTab = container.querySelector(
+      '[data-segmented-nav-item="design"]',
+    );
+    expect(designTab?.classList.contains('is-active')).toBe(true);
   });
 
   it('theme toggle calls onToggleTheme', () => {
@@ -266,11 +258,7 @@ describe('EditorTopBar', () => {
     const nav = container.querySelector('[data-segmented-nav]');
     expect(nav, 'editor nav must use shared SegmentedNav').toBeTruthy();
     const items = container.querySelectorAll('[data-segmented-nav-item]');
-    expect(items).toHaveLength(3);
-    const editItem = container.querySelector(
-      '[data-segmented-nav-item="edit"]',
-    );
-    expect(editItem?.classList.contains('is-active')).toBe(true);
+    expect(items).toHaveLength(5);
   });
 });
 

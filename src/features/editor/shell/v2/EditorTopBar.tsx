@@ -11,6 +11,7 @@
 // Save state lives inline left of the Export button so the user can
 // always see whether their changes are persisted.
 
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import {
@@ -20,12 +21,35 @@ import {
 import { SegmentedNav } from '@/shared/ui/SegmentedNav';
 import { BrandPicker } from './BrandPicker';
 
-export type EditorMode = 'edit' | 'preview' | 'comments';
+// Round 2 fix 2 — the editor's top nav now mirrors /setup, /brand-kit,
+// /guideline, /tools (the brand-section tabs) so the editor reads as
+// a sibling page in the brand workspace. The active "Design" tab is
+// the editor itself; clicking other tabs navigates to the matching
+// brand-section page. Edit/Preview/Comments was a 5a mockup decision
+// that felt bespoke against the rest of the workspace — it's gone.
+//
+// `EditorMode` stays exported for now (other call sites may import
+// it) but reduces to a single value: 'edit'. Phase 4.5's preview /
+// comments work will re-introduce mode switching as a sub-nav above
+// the canvas, NOT in the top bar.
+export type EditorMode = 'edit';
 
-const MODES: ReadonlyArray<{ id: EditorMode; label: string }> = [
-  { id: 'edit', label: 'Edit' },
-  { id: 'preview', label: 'Preview' },
-  { id: 'comments', label: 'Comments' },
+type WorkspaceSectionId =
+  | 'setup'
+  | 'brand-kit'
+  | 'guideline'
+  | 'design'
+  | 'tools';
+
+const WORKSPACE_SECTIONS: ReadonlyArray<{
+  id: WorkspaceSectionId;
+  label: string;
+}> = [
+  { id: 'setup', label: 'Setup' },
+  { id: 'brand-kit', label: 'Brand Kit' },
+  { id: 'guideline', label: 'Guideline' },
+  { id: 'design', label: 'Design' },
+  { id: 'tools', label: 'Tools' },
 ];
 
 interface Props {
@@ -45,9 +69,15 @@ interface Props {
    * adapter.batch.
    */
   onReapplyBrand?: () => void;
-  /** Current editor mode. Only 'edit' is functional in 5a. */
-  mode: EditorMode;
-  onModeChange: (mode: EditorMode) => void;
+  /**
+   * @deprecated EditorMode (Edit/Preview/Comments) was dropped in
+   * round 2 fix 2 in favor of the workspace section nav. Kept on
+   * the prop list for now so existing call sites don't error; the
+   * value is ignored. Phase 4.5's preview / comments work will
+   * surface as a sub-nav inside the canvas region instead.
+   */
+  mode?: EditorMode;
+  onModeChange?: (mode: EditorMode) => void;
   /** Auto-save state — feeds the inline indicator. */
   saveState: EditorSaveState;
   onRetrySave?: () => void;
@@ -66,8 +96,6 @@ export function EditorTopBar({
   brand,
   onBrandSwitch,
   onReapplyBrand,
-  mode,
-  onModeChange,
   saveState,
   onRetrySave,
   saveEnabled = true,
@@ -75,6 +103,30 @@ export function EditorTopBar({
   onToggleTheme,
   onExport,
 }: Props) {
+  const navigate = useNavigate();
+
+  // Section paths — brand-scoped when we know the slug, otherwise
+  // the legacy global routes. Mirrors `buildBrandTabs` in
+  // CosmosWorkspaceShell so the editor's nav navigates to the same
+  // pages /setup uses.
+  const sectionPath = (id: WorkspaceSectionId): string => {
+    if (id === 'design') return ''; // editor IS the design surface
+    if (brand?.slug) return `/b/${brand.slug}/${id}`;
+    // Fallback global routes — same names CosmosWorkspaceShell uses.
+    switch (id) {
+      case 'setup':
+        return '/setup';
+      case 'brand-kit':
+        return '/brand-kit';
+      case 'guideline':
+        return '/guideline';
+      case 'tools':
+        return '/tools-workspace';
+      default:
+        return '/';
+    }
+  };
+
   return (
     <header className="top-nav-wrap" role="banner">
       <div className="top-nav-left">
@@ -85,17 +137,20 @@ export function EditorTopBar({
         />
       </div>
 
-      {/* Step 5/7 fix 2 — uses the shared SegmentedNav so this nav
-          stays visually identical to the workspace nav at /setup,
-          /brand-kit, /guideline, /design, /tools. The cosmos
-          `.segmented-nav-*` styling, the moving active pill, and
-          the open keyframe all live in one place now. */}
+      {/* Round 2 fix 2 — workspace section nav (Setup / Brand Kit /
+          Guideline / Design / Tools). Same shared SegmentedNav
+          primitive /setup uses. "Design" is always active because
+          the editor IS the Design surface; clicking another section
+          navigates away from the editor to that brand-section page. */}
       <SegmentedNav
         mode="state"
-        ariaLabel="Editor mode"
-        items={MODES.map((m) => ({ id: m.id, label: m.label }))}
-        activeId={mode}
-        onChange={(id) => onModeChange(id as EditorMode)}
+        ariaLabel="Brand sections"
+        items={WORKSPACE_SECTIONS.map((s) => ({ id: s.id, label: s.label }))}
+        activeId="design"
+        onChange={(id) => {
+          const path = sectionPath(id as WorkspaceSectionId);
+          if (path) navigate(path);
+        }}
       />
 
       <div className="top-nav-right">

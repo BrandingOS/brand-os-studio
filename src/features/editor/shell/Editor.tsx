@@ -38,7 +38,7 @@ import type { Brand } from '@/shared/types/brand';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
-import { EditorTopBar, type EditorMode } from './v2/EditorTopBar';
+import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
 import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
 import {
@@ -114,7 +114,6 @@ export function Editor({
 
   // Theme — driven via [data-cosmos][data-theme] on the wrapper.
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [mode, setMode] = useState<EditorMode>('edit');
 
   // App Rail / Secondary Panel state.
   const [activeRail, setActiveRail] = useState<RailItem>('insert');
@@ -305,8 +304,6 @@ export function Editor({
           brand={brand}
           onBrandSwitch={onBrandSwitch}
           onReapplyBrand={brandKit ? handleReapplyBrand : undefined}
-          mode={mode}
-          onModeChange={setMode}
           saveState={saveState}
           onRetrySave={retry}
           saveEnabled={saveEnabled}

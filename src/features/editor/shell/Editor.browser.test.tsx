@@ -145,11 +145,13 @@ describe('Step 5a — editor renders the new layout', () => {
     const { container } = await mountEditor();
     // Top bar — brand picker shows the mock brand name.
     expect(container.textContent ?? '').toContain('Mock Brand');
-    // Segmented mode pill — Edit is active.
-    const editTab = Array.from(
-      container.querySelectorAll('.segmented-nav-item'),
-    ).find((el) => el.textContent === 'Edit');
-    expect(editTab?.classList.contains('is-active')).toBe(true);
+    // Round 2 fix 2 — workspace section nav (Setup/Brand Kit/
+    // Guideline/Design/Tools), with Design active because the
+    // editor IS the design surface.
+    const designTab = container.querySelector(
+      '[data-segmented-nav-item="design"]',
+    );
+    expect(designTab?.classList.contains('is-active')).toBe(true);
     // App Rail — all four entries present.
     for (const id of ['generate', 'templates', 'insert', 'brand']) {
       expect(
