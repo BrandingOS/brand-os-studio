@@ -486,6 +486,32 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     expect(panel!.style.width).toBe(`${SECONDARY_PANEL_WIDTH}px`);
   });
 
+  it('R3 fix 6: panel clamps to a min/max height and content scrolls internally', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorSecondaryPanel
+        active="insert"
+        adapter={adapter}
+        doc={blankDoc()}
+        activePageId="page-1"
+        onCollapse={vi.fn()}
+      />,
+    );
+    const panel = container.querySelector<HTMLElement>('[data-secondary-panel]');
+    expect(panel, 'panel not found').toBeTruthy();
+    // Panel must NOT stretch to full viewport height — clamp to a
+    // sane min, and a max that leaves room for the topbar.
+    expect(panel!.style.minHeight).toBe('200px');
+    expect(panel!.style.maxHeight).toBe('calc(100vh - 80px)');
+
+    // Inner content area scrolls vertically when content overflows.
+    const content = container.querySelector<HTMLElement>(
+      '[data-secondary-panel-content]',
+    );
+    expect(content, 'content area not found').toBeTruthy();
+    expect(content!.style.overflowY).toBe('auto');
+  });
+
   it('collapse toggle is small (24×24), half-protrudes, and centers vertically', () => {
     const adapter = stubAdapter();
     const { container } = render(

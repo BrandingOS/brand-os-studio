@@ -8,6 +8,15 @@
 //     the right edge (Notion / Figma pattern). Subtle border + soft
 //     shadow + small chevron so the seam between panel and canvas
 //     stays clean.
+//
+// Round 3 fix 6:
+//   • Panel no longer stretches full viewport height. Its slot in
+//     Editor.tsx still spans top:0 → bottom:0 for layout, but the
+//     aside aligns to the slot's top and clamps to a min/max range.
+//     min-height ~200px keeps the card from collapsing when content
+//     is sparse; max-height calc(100vh - 80px) reserves room for the
+//     editor topbar + breathing space at the bottom. Inner content
+//     scrolls independently when it overflows.
 
 import { ChevronRight } from 'lucide-react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -43,12 +52,17 @@ export function EditorSecondaryPanel({
   onCollapse,
 }: Props) {
   return (
-    <div className="flex py-3 pr-1" style={{ flexShrink: 0 }}>
+    <div
+      className="flex items-start py-3 pr-1"
+      style={{ flexShrink: 0, height: '100%' }}
+    >
       <aside
         className="relative flex flex-col"
         data-secondary-panel={active}
         style={{
           width: SECONDARY_PANEL_WIDTH,
+          minHeight: 200,
+          maxHeight: 'calc(100vh - 80px)',
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border)',
           borderRadius: 12,
@@ -93,11 +107,15 @@ export function EditorSecondaryPanel({
         </button>
 
         <div
+          data-secondary-panel-content
           className="flex flex-1 flex-col"
           style={{
             // Inner content owns its own clipping so the toggle can
-            // protrude past the wrapper's rounded corners.
-            overflow: 'hidden',
+            // protrude past the wrapper's rounded corners. R3 fix 6:
+            // overflow-y:auto lets the panel scroll its content
+            // internally once the aside hits its max-height clamp.
+            overflowX: 'hidden',
+            overflowY: 'auto',
             borderRadius: 12,
           }}
         >
