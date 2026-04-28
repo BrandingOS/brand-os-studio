@@ -97,15 +97,77 @@ export const useAuth = () => {
 
   useEffect(() => {
     let isMounted = true;
-    
+
+    // supabase.auth.getSession() can hang indefinitely when an internal
+    // navigator.locks lock is held by a crashed tab / aborted refresh, or
+    // when autoRefreshToken loops on a poisoned refresh token. We've seen
+    // it sit > 15s in the wild, leaving the user stuck on the ProtectedRoute
+    // spinner. Race it against a short timeout so the spinner never lasts
+    // more than a few seconds — Supabase being healthy returns sub-second.
+    const GET_SESSION_TIMEOUT_MS = 5000;
+    const getSessionWithTimeout = (): Promise<
+      | { kind: 'ok'; session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] }
+      | { kind: 'timeout' }
+      | { kind: 'error'; error: unknown }
+    > =>
+      Promise.race([
+        supabase.auth.getSession()
+          .then((r) => ({ kind: 'ok' as const, session: r.data.session }))
+          .catch((error) => ({ kind: 'error' as const, error })),
+        new Promise<{ kind: 'timeout' }>((resolve) =>
+          setTimeout(() => resolve({ kind: 'timeout' as const }), GET_SESSION_TIMEOUT_MS),
+        ),
+      ]);
+
     // Get initial session
     const getInitialSession = async () => {
       if (!isMounted) return;
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const result = await getSessionWithTimeout();
 
         if (!isMounted) return;
+
+        if (result.kind === 'timeout') {
+          // getSession() did not resolve in time. Treat as no-session so
+          // the user is bounced to /login instead of stuck on the spinner.
+          //
+          // We also drop every `sb-*` key in localStorage. In the wild,
+          // this hang is caused by a poisoned refresh_token feeding an
+          // autoRefreshToken loop, or a navigator.locks lock left by a
+          // crashed previous tab. Clearing the auth keys breaks the loop
+          // permanently — without this, the very next page load hits the
+          // same hang on the same stored token. We do it via raw
+          // localStorage (not supabase.auth.signOut()) because signOut
+          // goes through the same lock; if the lock is the problem,
+          // signOut() would hang too.
+          console.warn(
+            `[useAuth] supabase.auth.getSession() did not resolve within ${GET_SESSION_TIMEOUT_MS}ms — clearing sb-* tokens and falling back to no-session`,
+          );
+          try {
+            const stale: string[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('sb-')) stale.push(k);
+            }
+            stale.forEach((k) => localStorage.removeItem(k));
+          } catch {
+            // ignore — if storage is broken, the signOut below still
+            // resets in-memory auth state so the UI unblocks.
+          }
+          reconfigureForAuth(false);
+          signOut();
+          return;
+        }
+
+        if (result.kind === 'error') {
+          console.error('[useAuth] getSession() rejected:', result.error);
+          reconfigureForAuth(false);
+          signOut();
+          return;
+        }
+
+        const session = result.session;
 
         if (session?.user) {
           // Flip auth state FIRST so guards see isAuthenticated: true before
@@ -143,21 +205,21 @@ export const useAuth = () => {
 
     getInitialSession();
 
-    // Safety net: if the auth check takes too long, release loading so the
-    // UI isn't stuck on the "Initializing…" spinner. Crucially, we only
-    // release loading when the user is NOT authenticated — if signIn() has
-    // already fired, isLoading is already false and we leave the state
-    // alone. Without that guard, a slow getSession() would race this
-    // timeout and bounce a real authenticated user back to /login. 15s
-    // gives the Supabase region (eu-central-1) plenty of headroom.
+    // Defense-in-depth: getSessionWithTimeout above already caps the initial
+    // session probe at 5s, so under normal failure modes the spinner never
+    // sits more than ~5s. This safety net is the last-resort guard for the
+    // case where the effect itself never reaches getInitialSession (e.g. an
+    // unhandled exception in a sibling provider before this useEffect runs).
+    // We only release loading when the user is NOT authenticated — if
+    // signIn() has already fired, leave the state alone.
     const safetyTimeout = setTimeout(() => {
       if (!isMounted) return;
       const state = useSessionStore.getState();
       if (state.isLoading && !state.isAuthenticated) {
-        console.warn('[useAuth] Safety timeout fired — no session after 15s');
+        console.warn('[useAuth] Safety timeout fired — no session after 8s');
         setLoading(false);
       }
-    }, 15000);
+    }, 8000);
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
