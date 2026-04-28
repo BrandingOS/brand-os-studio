@@ -167,11 +167,8 @@ describe('EditorAppRail', () => {
     }
   });
 
-  it('rail is FLAT — no card surface, no border, no shadow (Round 2 fix 3)', () => {
-    // Round 2 reversed the card-surface decision: only the Secondary
-    // Panel is a card. The rail is flat icons on the editor
-    // background. This test catches a regression where someone
-    // re-adds the card chrome.
+  it('rail itself is FLAT — no card surface around the stack (Round 2 fix 3 / Round 3 fix 1)', () => {
+    // The RAIL has no chrome — only individual entries are cards.
     const { container } = render(
       <EditorAppRail active="generate" onChange={vi.fn()} />,
     );
@@ -183,24 +180,46 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('active rail entry shows a circle behind the icon (no opacity dimming on inactive)', () => {
+  it('each rail entry is a small ~56×56 card with shadow + rounded corners (Round 3 fix 1)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
-    // Active circle: --accent-muted background.
-    const brandBtn = container.querySelector(
+    const buttons = container.querySelectorAll<HTMLButtonElement>(
+      'button[data-rail-item]',
+    );
+    expect(buttons.length).toBe(4);
+    for (const btn of buttons) {
+      // ~56×56 card.
+      expect(btn.style.width).toBe('56px');
+      expect(btn.style.height).toBe('56px');
+      // Rounded card, never pill.
+      expect(btn.style.borderRadius).toBe('12px');
+      // Has a real surface background (not transparent).
+      expect(btn.style.background).not.toBe('transparent');
+      // Has a shadow (idle or active variant — both non-empty).
+      expect(btn.style.boxShadow).not.toBe('');
+      // No visible border per spec — borderStyle is 'none' (the
+      // shorthand `border: 'none'` reads back as 'medium' for the
+      // width component but the style component is what matters).
+      expect(btn.style.borderStyle).toBe('none');
+    }
+  });
+
+  it('active rail entry has a stronger surface tint than idle entries (no dimming on inactive)', () => {
+    const { container } = render(
+      <EditorAppRail active="brand" onChange={vi.fn()} />,
+    );
+    const brandBtn = container.querySelector<HTMLButtonElement>(
       'button[data-rail-item="brand"]',
     );
-    const activeCircle =
-      brandBtn?.querySelector<HTMLElement>('[data-rail-icon-circle]');
-    expect(activeCircle?.style.background).toMatch(/--accent-muted/);
-    // Idle: transparent.
-    const insertBtn = container.querySelector(
+    const insertBtn = container.querySelector<HTMLButtonElement>(
       'button[data-rail-item="insert"]',
     );
-    const idleCircle =
-      insertBtn?.querySelector<HTMLElement>('[data-rail-icon-circle]');
-    expect(idleCircle?.style.background).toBe('transparent');
+    // Active background uses --surface-sunken; idle uses --surface.
+    // Backgrounds must differ, never empty.
+    expect(brandBtn?.style.background).toMatch(/--surface-sunken/);
+    expect(insertBtn?.style.background).toMatch(/--surface(?!-)/);
+    expect(brandBtn?.style.background).not.toBe(insertBtn?.style.background);
   });
 });
 

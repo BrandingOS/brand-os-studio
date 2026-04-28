@@ -1,15 +1,12 @@
-// EditorAppRail — flat icon rail (Round 2 fix 3).
+// EditorAppRail — Round 3 fix 1.
 //
-// Round 2 reset: drop the card surface from the rail. Each entry is
-// a flat icon-and-label button sitting directly on the editor
-// background. A subtle circle behind the icon picks up hover; a more
-// pronounced circle marks the active entry. ONLY the Secondary
-// Panel is a card now — the rail is intentionally lighter chrome.
-//
-// Typography: 24px lucide icon, full --text-primary color (no
-// dimming). Bold xs label below at full strength. The active state
-// is communicated by the circle behind the icon, not by changing
-// icon/label opacity.
+// Each rail entry is its own small ~56×56 card containing a 20px
+// icon and a tiny font-medium label. The rail itself has NO outer
+// container — it's just a vertical stack of these cards floating on
+// the editor background. This is the variant 4 mockup pattern
+// (round 1 of 5/7 fixes added a card around the rail; round 2 then
+// stripped all chrome including the per-icon cards; this round
+// restores the per-icon cards while keeping the rail itself flat).
 
 import { LayoutGrid, Palette, Plus, Sparkles } from 'lucide-react';
 
@@ -36,17 +33,16 @@ export function EditorAppRail({ active, onChange }: Props) {
     <aside
       data-app-rail
       data-app-rail-flat="true"
-      className="flex flex-col items-center gap-4 px-2 py-4"
+      className="flex flex-col items-center gap-2.5 px-2 py-3"
       style={{
-        width: 80,
+        width: 76,
         flexShrink: 0,
-        // No background, no border, no shadow — flat icons on the
-        // editor background. Round 2 fix 3.
+        // No background, no border, no shadow on the rail itself.
       }}
       aria-label="App rail"
     >
       {ITEMS.map(({ id, label, Icon }) => (
-        <RailButton
+        <RailCard
           key={id}
           Icon={Icon}
           label={label}
@@ -58,7 +54,7 @@ export function EditorAppRail({ active, onChange }: Props) {
   );
 }
 
-function RailButton({
+function RailCard({
   Icon,
   label,
   isActive,
@@ -69,6 +65,14 @@ function RailButton({
   isActive: boolean;
   onClick: () => void;
 }) {
+  // Idle / hover / active backgrounds — picked off the cosmos
+  // surface tokens so light + dark themes both look right.
+  const idleBg = 'var(--surface, #ffffff)';
+  const hoverBg = 'var(--surface-hover, #f8f8f7)';
+  const activeBg = 'var(--surface-sunken, #f2f1f0)';
+  const idleShadow = '0 1px 2px rgba(0, 0, 0, 0.04)';
+  const activeShadow = '0 2px 6px rgba(0, 0, 0, 0.08)';
+
   return (
     <button
       type="button"
@@ -76,51 +80,44 @@ function RailButton({
       aria-label={label}
       aria-pressed={isActive}
       data-rail-item={label.toLowerCase()}
-      className="flex flex-col items-center gap-1.5"
       style={{
-        background: 'transparent',
+        width: 56,
+        height: 56,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        background: isActive ? activeBg : idleBg,
         border: 'none',
-        padding: 0,
+        borderRadius: 12,
+        boxShadow: isActive ? activeShadow : idleShadow,
         cursor: 'pointer',
-        // Full-strength color on both states; the circle behind
-        // the icon does the visual work, not text dimming.
+        // Full-strength text on every state — the active/hover
+        // states are communicated by background tint + shadow,
+        // never by dimming the icon or label.
         color: 'var(--text-primary, #0d0d0d)',
+        // Animate background + shadow only — no scale transform
+        // (the spec explicitly forbids it; matches the variant 4
+        // intent of "stable icon, subtle surface change").
+        transition:
+          'background-color 160ms var(--ease, ease), box-shadow 160ms var(--ease, ease)',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          (e.currentTarget as HTMLButtonElement).style.background = idleBg;
+        }
       }}
     >
+      <Icon size={20} strokeWidth={2} aria-hidden />
       <span
-        data-rail-icon-circle
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          // Active: a more pronounced circle; idle: transparent.
-          // Hover transitions add a soft circle (the inline mouse
-          // handlers below).
-          background: isActive
-            ? 'var(--accent-muted, rgba(13, 13, 13, 0.07))'
-            : 'transparent',
-          transition: 'background 160ms var(--ease, ease)',
-        }}
-        onMouseEnter={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background =
-              'var(--surface-hover, rgba(13, 13, 13, 0.04))';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) {
-            (e.currentTarget as HTMLElement).style.background = 'transparent';
-          }
-        }}
-      >
-        <Icon size={24} strokeWidth={2} aria-hidden />
-      </span>
-      <span
-        className="text-xs font-semibold"
-        style={{ letterSpacing: '-0.005em' }}
+        className="text-[10px] font-medium"
+        style={{ letterSpacing: '-0.005em', lineHeight: 1 }}
       >
         {label}
       </span>
