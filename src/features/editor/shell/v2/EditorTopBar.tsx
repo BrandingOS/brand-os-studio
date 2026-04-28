@@ -51,6 +51,9 @@ interface Props {
   /** Auto-save state — feeds the inline indicator. */
   saveState: EditorSaveState;
   onRetrySave?: () => void;
+  /** When false, the topbar replaces the live save indicator with a
+   *  small "Dev — saves disabled" badge. Used by /_dev/editor. */
+  saveEnabled?: boolean;
   /** Theme — driven by the cosmos data-theme attribute on the wrapper. */
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -67,6 +70,7 @@ export function EditorTopBar({
   onModeChange,
   saveState,
   onRetrySave,
+  saveEnabled = true,
   theme,
   onToggleTheme,
   onExport,
@@ -95,7 +99,22 @@ export function EditorTopBar({
       />
 
       <div className="top-nav-right">
-        <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
+        {saveEnabled ? (
+          <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
+        ) : (
+          <span
+            data-save-disabled-badge
+            className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+            style={{
+              background: 'var(--surface-sunken, #f2f1f0)',
+              color: 'var(--text-secondary, #6e6a69)',
+              border: '1px solid var(--border, rgba(13, 13, 13, 0.12))',
+            }}
+            title="Auto-save is disabled in this dev harness."
+          >
+            Dev — saves disabled
+          </span>
+        )}
         <button
           type="button"
           className="pill-btn pill-btn--primary"

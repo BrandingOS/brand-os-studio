@@ -60,6 +60,14 @@ interface EditorProps {
    */
   save: (doc: BrandOSDocument) => Promise<void>;
   /**
+   * When false, the editor skips auto-save entirely and surfaces a
+   * "Dev — saves disabled" badge instead of the save indicator.
+   * Used by /_dev/editor where we don't want stale localStorage
+   * state across sessions (and don't want quota errors masquerading
+   * as application failures). Defaults to true.
+   */
+  saveEnabled?: boolean;
+  /**
    * Brand context. Optional in 5a — when undefined, the brand picker
    * shows a placeholder and the Brand panel collapses to a single
    * "no brand attached" message. 5b makes the picker functional;
@@ -88,6 +96,7 @@ interface EditorProps {
 export function Editor({
   initialDocument,
   save,
+  saveEnabled = true,
   brand,
   onAdapterReady,
   onBrandSwitch,
@@ -255,6 +264,7 @@ export function Editor({
     save,
     debounceMs: 1200,
     savedFadeMs: 2500,
+    enabled: saveEnabled,
   });
 
   // Mark dirty whenever the adapter emits a change (drag, type, add, etc.).
@@ -299,6 +309,7 @@ export function Editor({
           onModeChange={setMode}
           saveState={saveState}
           onRetrySave={retry}
+          saveEnabled={saveEnabled}
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         />

@@ -241,6 +241,23 @@ describe('EditorTopBar', () => {
     expect(onToggleTheme).toHaveBeenCalled();
   });
 
+  it('renders "Dev — saves disabled" badge when saveEnabled is false (Round 2 fix 1)', () => {
+    const { container } = renderTopBar({ saveEnabled: false });
+    const badge = container.querySelector('[data-save-disabled-badge]');
+    expect(badge).toBeTruthy();
+    expect(badge?.textContent ?? '').toContain('Dev');
+    // The live save indicator must NOT render when saves are
+    // disabled — the badge replaces it (no chance of a "Save failed"
+    // text appearing in dev).
+    expect(container.textContent ?? '').not.toContain('Save failed');
+    expect(container.textContent ?? '').not.toContain('Saving…');
+  });
+
+  it('renders the SaveStateIndicator when saveEnabled is true (default)', () => {
+    const { container } = renderTopBar();
+    expect(container.querySelector('[data-save-disabled-badge]')).toBeNull();
+  });
+
   it('uses the shared SegmentedNav primitive (Step 5/7 fix 2)', () => {
     // The data attributes are emitted only by the shared SegmentedNav
     // component. If the editor ever inlines its own pill markup

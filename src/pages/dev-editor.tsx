@@ -90,8 +90,11 @@ function freshFixture(): BrandOSDocument {
   return pickFixtureFromQuery();
 }
 
-async function saveDoc(doc: BrandOSDocument): Promise<void> {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
+// Round 2 fix 1 — auto-save is disabled in the dev harness. The
+// editor mounts with `saveEnabled={false}`, so this stub never runs.
+// Kept as a no-op for the prop's type contract.
+async function saveDoc(_doc: BrandOSDocument): Promise<void> {
+  // intentional no-op; the dev harness doesn't persist.
 }
 
 export default function DevEditorPage() {
@@ -165,6 +168,11 @@ export default function DevEditorPage() {
       key={brand?.slug ?? 'no-brand'}
       initialDocument={doc}
       save={saveDoc}
+      // Dev harness has no real persistence — show the
+      // "Dev — saves disabled" badge instead of attempting writes
+      // that occasionally trip browser localStorage quotas across
+      // long-running dev sessions.
+      saveEnabled={false}
       brand={brand}
       onBrandSwitch={handleBrandSwitch}
     />
