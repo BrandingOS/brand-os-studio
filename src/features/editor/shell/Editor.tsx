@@ -37,6 +37,7 @@ import {
 import type { Brand } from '@/shared/types/brand';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
+import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar, type EditorMode } from './v2/EditorTopBar';
 import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
 import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
@@ -144,6 +145,33 @@ export function Editor({
   // brand-managed contract wins. The whole operation is wrapped in
   // adapter.batch so it counts as a SINGLE undo step + emits ONE
   // change event regardless of how many layers it touches.
+  // Wraps adapter.updateLayer so every user-driven property edit on
+  // a layer also fires the cross-page consistency prompt (Step 6).
+  // Reads the pre-edit layer snapshot first so the trigger has a
+  // reference SlotRef even after the patch lands.
+  //
+  // Recursion is avoided structurally: the trigger's "All N pages"
+  // / "Similar this page" actions go through
+  // adapter.applyLayerPatchAcrossPages — those bulk mutations don't
+  // funnel back through this wrapper, so propagation can't loop.
+  const handleLayerUpdate = useCallback(
+    (targetPageId: string, layerId: string, patch: Partial<BrandOSDocument['pages'][number]['layers'][number]>) => {
+      const docNow = adapter.getDocument();
+      const targetPage = docNow.pages.find((p) => p.id === targetPageId);
+      const prevLayer = targetPage?.layers.find((l) => l.id === layerId);
+      adapter.updateLayer(targetPageId, layerId, patch);
+      if (prevLayer) {
+        triggerCrossPagePromptIfApplicable(
+          adapter,
+          targetPageId,
+          prevLayer,
+          patch,
+        );
+      }
+    },
+    [adapter],
+  );
+
   const handleReapplyBrand = useCallback(() => {
     if (!brandKit) {
       toast.error('Brand kit unavailable. Open this design from inside a brand.');
@@ -306,6 +334,7 @@ export function Editor({
                     layer={selectedLayer}
                     scope={scope}
                     onScopeChange={setScope}
+                    onUpdateLayer={handleLayerUpdate}
                   />
                   <EditorLockBadge layer={selectedLayer} />
                 </>

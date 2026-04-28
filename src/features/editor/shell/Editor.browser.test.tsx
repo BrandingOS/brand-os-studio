@@ -677,3 +677,259 @@ describe('Step 5c — Brand-managed toggle (browser E2E)', () => {
     expect(after._lockedBindings?.color).toBeUndefined(); // recovery cleared
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────
+// Step 6 — Cross-page consistency Sonner prompt.
+// ────────────────────────────────────────────────────────────────────────
+
+function multiPagePresentation(): BrandOSDocument {
+  const slot = { type: 'brand.color.primary' } as const;
+  const blank = (id: string, layerId: string): Page => ({
+    id,
+    name: id,
+    width: 1080,
+    height: 1080,
+    background: '#ffffff',
+    masterPageId: null,
+    layers: [
+      {
+        id: layerId,
+        kind: 'text',
+        name: 'Headline',
+        text: 'Hello',
+        fontFamily: 'Inter',
+        fontSize: 48,
+        fontWeight: 600,
+        lineHeight: 1.2,
+        letterSpacing: 0,
+        textAlign: 'left',
+        direction: 'auto',
+        color: slot as unknown as Layer['color' & keyof Layer] as never,
+        transform: {
+          x: 80,
+          y: 80,
+          width: 600,
+          height: 80,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+        },
+        opacity: 1,
+        visible: true,
+        locked: false,
+        brandLocked: false,
+      } as Layer,
+    ],
+  });
+  return {
+    schemaVersion: 1,
+    id: '00000000-0000-0000-0000-0000000000aa',
+    contentType: 'presentation',
+    brandId: 'raqm',
+    masterPages: [],
+    pages: [
+      blank(
+        '00000000-0000-0000-0000-0000000000a1',
+        '00000000-0000-0000-0000-000000000a01',
+      ),
+      blank(
+        '00000000-0000-0000-0000-0000000000a2',
+        '00000000-0000-0000-0000-000000000a02',
+      ),
+      blank(
+        '00000000-0000-0000-0000-0000000000a3',
+        '00000000-0000-0000-0000-000000000a03',
+      ),
+    ],
+    metadata: {},
+  };
+}
+
+const PAGE_1 = '00000000-0000-0000-0000-0000000000a1';
+const PAGE_2 = '00000000-0000-0000-0000-0000000000a2';
+const PAGE_3 = '00000000-0000-0000-0000-0000000000a3';
+const HEADLINE_1 = '00000000-0000-0000-0000-000000000a01';
+const HEADLINE_2 = '00000000-0000-0000-0000-000000000a02';
+const HEADLINE_3 = '00000000-0000-0000-0000-000000000a03';
+
+async function waitForCrossPageToast(timeoutMs = 1500): Promise<HTMLElement> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const node = document.body.querySelector<HTMLElement>(
+      '[data-cross-page-toast]',
+    );
+    if (node) return node;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('cross-page toast never appeared');
+}
+
+/**
+ * Trigger a brand-bound color override via the toolbar's slot-bound
+ * Color chip. The chip is a dropdown whose menu has a single
+ * "Override with literal color" button that, when clicked, fires
+ * the toolbar's update wrapper — same code path the cross-page
+ * trigger hooks into.
+ */
+async function overrideSlotBoundColor(): Promise<void> {
+  const chip = document.body.querySelector<HTMLElement>(
+    '[data-floating-toolbar] [data-control="color"][data-slot-bound]',
+  );
+  if (!chip) throw new Error('No slot-bound color chip on the toolbar');
+  fireEvent.pointerDown(chip, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(chip, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(chip);
+
+  let overrideBtn: HTMLButtonElement | null = null;
+  for (let i = 0; i < 60; i++) {
+    overrideBtn = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('button'),
+    ).find((b) => /override with literal color/i.test(b.textContent ?? '')) ?? null;
+    if (overrideBtn) break;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  if (!overrideBtn) throw new Error('Override button never appeared');
+  fireEvent.click(overrideBtn);
+}
+
+describe('Step 6 — Cross-page consistency prompt (browser E2E)', () => {
+  it('multi-page doc + brand-bound edit → toast appears, "All N pages" propagates', async () => {
+    const { adapter } = await mountEditor(multiPagePresentation());
+    adapter.setSelection([HEADLINE_1]);
+    await new Promise((r) => setTimeout(r, 60));
+
+    // The headline color is a SlotRef → ColorChip renders a slot-
+    // bound dropdown whose menu has an "Override with literal color"
+    // button. Clicking it fires the toolbar's update wrapper, which
+    // is the same code path the cross-page trigger hooks into. The
+    // override picks a deterministic placeholder hex from the
+    // SlotRef; we capture the actual literal so the propagation
+    // assertion matches whatever the toolbar produced.
+    await overrideSlotBoundColor();
+    await new Promise((r) => setTimeout(r, 30));
+    const overrideValue = (
+      adapter.getDocument().pages[0].layers.find((l) => l.id === HEADLINE_1) as {
+        color: unknown;
+      }
+    ).color;
+    expect(typeof overrideValue).toBe('string');
+
+    const toastNode = await waitForCrossPageToast();
+    expect(toastNode.textContent).toContain('color');
+
+    const allBtn = toastNode.querySelector<HTMLButtonElement>(
+      '[data-cross-page-action="all"]',
+    );
+    fireEvent.click(allBtn!);
+
+    // Pages 2 + 3 reflect the new color (whatever literal the
+    // override produced).
+    await new Promise((r) => setTimeout(r, 60));
+    const docNow = adapter.getDocument();
+    expect(
+      (
+        docNow.pages[0].layers.find((l) => l.id === HEADLINE_1) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe(overrideValue);
+    expect(
+      (
+        docNow.pages[1].layers.find((l) => l.id === HEADLINE_2) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe(overrideValue);
+    expect(
+      (
+        docNow.pages[2].layers.find((l) => l.id === HEADLINE_3) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe(overrideValue);
+
+    // First undo reverses propagation only — page 1 keeps the
+    // user's color, pages 2 + 3 revert to the SlotRef.
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    const afterUndo1 = adapter.getDocument();
+    expect(
+      (
+        afterUndo1.pages[0].layers.find((l) => l.id === HEADLINE_1) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe(overrideValue);
+    expect(
+      typeof (
+        afterUndo1.pages[1].layers.find((l) => l.id === HEADLINE_2) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe('object'); // SlotRef restored
+    expect(
+      typeof (
+        afterUndo1.pages[2].layers.find((l) => l.id === HEADLINE_3) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe('object');
+
+    // Second undo reverses the original edit on page 1.
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(
+      typeof (
+        adapter.getDocument().pages[0].layers.find((l) => l.id === HEADLINE_1) as {
+          color: unknown;
+        }
+      ).color,
+    ).toBe('object');
+  });
+
+  it('"Just this layer" leaves pages 2 + 3 untouched', async () => {
+    const { adapter } = await mountEditor(multiPagePresentation());
+    adapter.setSelection([HEADLINE_1]);
+    await new Promise((r) => setTimeout(r, 60));
+    await overrideSlotBoundColor();
+
+    const toastNode = await waitForCrossPageToast();
+    fireEvent.click(
+      toastNode.querySelector<HTMLButtonElement>(
+        '[data-cross-page-action="just-this"]',
+      )!,
+    );
+    await new Promise((r) => setTimeout(r, 30));
+
+    const docNow = adapter.getDocument();
+    // Page 1 holds the literal override (the deterministic
+    // placeholder hex from the SlotRef); pages 2+3 still hold the
+    // SlotRef.
+    expect(
+      typeof (docNow.pages[0].layers.find((l) => l.id === HEADLINE_1) as { color: unknown })
+        .color,
+    ).toBe('string');
+    expect(
+      typeof (docNow.pages[1].layers.find((l) => l.id === HEADLINE_2) as { color: unknown })
+        .color,
+    ).toBe('object');
+    expect(
+      typeof (docNow.pages[2].layers.find((l) => l.id === HEADLINE_3) as { color: unknown })
+        .color,
+    ).toBe('object');
+  });
+
+  it('single-page doc does NOT trigger the prompt for the same edit', async () => {
+    // SOCIAL_FIXTURE has pageModel: 'single' → no other pages,
+    // even if the headline color is a SlotRef.
+    const { adapter } = await mountEditor();
+    adapter.setSelection([SOCIAL_FIXTURE.pages[0].layers[0].id]);
+    await new Promise((r) => setTimeout(r, 60));
+    await overrideSlotBoundColor();
+
+    // Wait the same window we'd wait for a toast — assert it never
+    // shows up.
+    await new Promise((r) => setTimeout(r, 200));
+    expect(document.body.querySelector('[data-cross-page-toast]')).toBeNull();
+  });
+});

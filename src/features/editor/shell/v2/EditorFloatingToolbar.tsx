@@ -56,6 +56,17 @@ interface Props {
   layer: Layer;
   scope: ToolbarScope;
   onScopeChange: (s: ToolbarScope) => void;
+  /**
+   * Layer-update callback. The Editor wraps adapter.updateLayer to
+   * also fire the Step 6 cross-page consistency prompt. Falling back
+   * to adapter.updateLayer when omitted keeps the toolbar usable in
+   * isolation (tests, Storybook).
+   */
+  onUpdateLayer?: (
+    pageId: string,
+    layerId: string,
+    patch: Partial<Layer>,
+  ) => void;
 }
 
 export function EditorFloatingToolbar({
@@ -64,6 +75,7 @@ export function EditorFloatingToolbar({
   layer,
   scope,
   onScopeChange,
+  onUpdateLayer,
 }: Props) {
   // Position computed from the layer's document-space transform.
   // Centered above the layer, clamped to a minimum 8px from the top
@@ -71,8 +83,10 @@ export function EditorFloatingToolbar({
   const left = layer.transform.x + layer.transform.width / 2;
   const top = Math.max(8, layer.transform.y - 50);
 
-  const update = (patch: Partial<Layer>) =>
-    adapter.updateLayer(pageId, layer.id, patch);
+  const update = (patch: Partial<Layer>) => {
+    if (onUpdateLayer) onUpdateLayer(pageId, layer.id, patch);
+    else adapter.updateLayer(pageId, layer.id, patch);
+  };
 
   return (
     <div
@@ -325,6 +339,7 @@ function TextControls({
           slotBound={isSlotColor}
           onChange={(v) => update({ color: v })}
           title={isSlotColor ? 'Brand color (click to override)' : 'Color'}
+          controlId="color"
         />
       </LockedGate>
     </>
@@ -376,6 +391,7 @@ function ShapeControls({
           slotBound={isSlot(layer.fill)}
           onChange={(v) => update({ fill: v })}
           title="Fill"
+          controlId="fill"
         />
       </LockedGate>
       <LockedGate locked={strokeLocked}>
@@ -384,6 +400,7 @@ function ShapeControls({
           slotBound={isSlot(layer.stroke)}
           onChange={(v) => update({ stroke: v })}
           title="Stroke"
+          controlId="stroke"
           outline
         />
       </LockedGate>
@@ -920,14 +937,22 @@ function ColorChip({
   slotBound,
   onChange,
   title,
+  controlId,
   outline,
 }: {
   value: ResolvedValue | null;
   slotBound: boolean;
   onChange: (v: ResolvedValue) => void;
   title: string;
+  /** Stable selector id for tests. Defaults to a normalized form of
+   *  `title` but callers should pass an explicit id (e.g. 'color',
+   *  'fill', 'stroke') so the test selector doesn't depend on the
+   *  visible label, which differs between slot-bound and literal
+   *  modes ("Color" vs "Brand color (click to override)"). */
+  controlId?: string;
   outline?: boolean;
 }) {
+  const dataControl = controlId ?? title.toLowerCase();
   // Slot-bound: chip + dropdown to "override" (swap to literal hex).
   if (slotBound && value && typeof value !== 'string' && typeof value !== 'number') {
     const slot = value as SlotRef;
@@ -939,7 +964,7 @@ function ColorChip({
             type="button"
             title={title}
             className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            data-control={title.toLowerCase()}
+            data-control={dataControl}
             data-slot-bound
           >
             <span
@@ -995,7 +1020,7 @@ function ColorChip({
   return (
     <label
       title={title}
-      data-control={title.toLowerCase()}
+      data-control={dataControl}
       className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
     >
       <span
