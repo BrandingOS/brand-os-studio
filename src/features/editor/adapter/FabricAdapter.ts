@@ -53,6 +53,7 @@ import {
   SELECTION_BORDER_COLOR,
   SELECTION_MARQUEE_FILL,
 } from './layerMapping';
+import { transformLayersForVariant } from './duplicatePageVariant';
 import { computeSnap, SNAP_THRESHOLD_PX, type BBox } from './snapGuides';
 
 const DEFAULT_PAGE_WIDTH = 1080;
@@ -242,6 +243,54 @@ export class FabricAdapter implements EditorAdapter {
       // Recursively re-id every layer (and group children) so the duplicate
       // doesn't share ids with the original.
       layers: original.layers.map(reIdLayer),
+    };
+    this.doc.pages.splice(idx + 1, 0, copy);
+    this.commitToHistory();
+    this.emitChange();
+    return copy.id;
+  }
+
+  /**
+   * Step 7 — "Duplicate → As variant". Layer rules live in
+   * `transformLayersForVariant`. Inserts immediately after the
+   * source. Single history commit.
+   */
+  duplicatePageAsVariant(pageId: string): string {
+    if (!this.doc) throw new Error('No document loaded');
+    const idx = this.doc.pages.findIndex((p) => p.id === pageId);
+    if (idx < 0) throw new Error(`Page ${pageId} not found`);
+    const original = this.doc.pages[idx];
+    const cloned = clone(original);
+    const copy: Page = {
+      ...cloned,
+      id: newUuid(),
+      name: `${original.name} variant`,
+      layers: transformLayersForVariant(cloned.layers),
+    };
+    this.doc.pages.splice(idx + 1, 0, copy);
+    this.commitToHistory();
+    this.emitChange();
+    return copy.id;
+  }
+
+  /**
+   * Step 7 — "Duplicate → Empty". Same dimensions + master-page
+   * binding as the source, no layers. Inserts immediately after the
+   * source. Single history commit.
+   */
+  duplicatePageEmpty(pageId: string): string {
+    if (!this.doc) throw new Error('No document loaded');
+    const idx = this.doc.pages.findIndex((p) => p.id === pageId);
+    if (idx < 0) throw new Error(`Page ${pageId} not found`);
+    const original = this.doc.pages[idx];
+    const copy: Page = {
+      id: newUuid(),
+      name: `${original.name} (blank)`,
+      width: original.width,
+      height: original.height,
+      background: clone(original.background),
+      masterPageId: original.masterPageId,
+      layers: [],
     };
     this.doc.pages.splice(idx + 1, 0, copy);
     this.commitToHistory();

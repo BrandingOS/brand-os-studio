@@ -933,3 +933,137 @@ describe('Step 6 — Cross-page consistency prompt (browser E2E)', () => {
     expect(document.body.querySelector('[data-cross-page-toast]')).toBeNull();
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────
+// Step 7 — Smart duplicate submenu in the PageNavigator's right-click
+// context menu.
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Open the per-page right-click menu's "Page options" trigger — the
+ * tiny chevron that appears on hover. Returns the page-options
+ * trigger element (which when clicked opens the menu).
+ */
+async function openPageMenu(pageIndex: number): Promise<void> {
+  const triggers = document.body.querySelectorAll<HTMLButtonElement>(
+    '[data-page-navigator] [aria-label="Page options"]',
+  );
+  const trigger = triggers[pageIndex];
+  if (!trigger) throw new Error(`No page-options trigger at index ${pageIndex}`);
+  fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+  // Wait for the Duplicate sub-trigger to land in the portal.
+  for (let i = 0; i < 60; i++) {
+    if (
+      document.body.querySelector('[data-page-action="duplicate"]') !== null
+    ) {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('page menu never reached open state');
+}
+
+async function openDuplicateSubmenu(pageIndex: number): Promise<HTMLElement> {
+  await openPageMenu(pageIndex);
+  const subTrigger = document.body.querySelector<HTMLElement>(
+    '[data-page-action="duplicate"]',
+  );
+  if (!subTrigger) throw new Error('Duplicate sub-trigger not in DOM');
+  fireEvent.pointerDown(subTrigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.pointerUp(subTrigger, { button: 0, pointerType: 'mouse' });
+  fireEvent.click(subTrigger);
+  fireEvent.pointerEnter(subTrigger, { button: 0, pointerType: 'mouse' });
+  for (let i = 0; i < 80; i++) {
+    const asIs = document.body.querySelector<HTMLElement>(
+      '[data-duplicate-mode="as-is"]',
+    );
+    if (asIs) return asIs.parentElement!;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  throw new Error('Duplicate submenu never opened');
+}
+
+describe('Step 7 — Smart duplicate submenu (browser E2E)', () => {
+  it('right-clicking a page reveals the submenu with three duplicate options', async () => {
+    await mountEditor(multiPagePresentation());
+    const submenu = await openDuplicateSubmenu(0);
+    expect(submenu.querySelector('[data-duplicate-mode="as-is"]')).toBeTruthy();
+    expect(submenu.querySelector('[data-duplicate-mode="as-variant"]')).toBeTruthy();
+    expect(submenu.querySelector('[data-duplicate-mode="empty"]')).toBeTruthy();
+  });
+
+  it('"As-is" produces a clone inserted directly after the source', async () => {
+    const { adapter } = await mountEditor(multiPagePresentation());
+    const beforeIds = adapter.getDocument().pages.map((p) => p.id);
+    const submenu = await openDuplicateSubmenu(0);
+    fireEvent.click(
+      submenu.querySelector<HTMLElement>('[data-duplicate-mode="as-is"]')!,
+    );
+    await new Promise((r) => setTimeout(r, 60));
+
+    const afterIds = adapter.getDocument().pages.map((p) => p.id);
+    expect(afterIds).toHaveLength(beforeIds.length + 1);
+    // New page is at index 1 (after page 0).
+    expect(afterIds[0]).toBe(beforeIds[0]);
+    expect(afterIds[1]).not.toBe(beforeIds[1]);
+    expect(afterIds[2]).toBe(beforeIds[1]);
+    // Cmd+Z undoes the duplicate.
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(adapter.getDocument().pages.map((p) => p.id)).toEqual(beforeIds);
+  });
+
+  it('"As variant" preserves text styling but clears text content', async () => {
+    const { adapter } = await mountEditor(multiPagePresentation());
+    const sourcePage = adapter.getDocument().pages[0];
+    const sourceText = sourcePage.layers[0] as { fontFamily: unknown; fontSize: number };
+    const submenu = await openDuplicateSubmenu(0);
+    fireEvent.click(
+      submenu.querySelector<HTMLElement>(
+        '[data-duplicate-mode="as-variant"]',
+      )!,
+    );
+    await new Promise((r) => setTimeout(r, 60));
+
+    const variantPage = adapter.getDocument().pages[1];
+    expect(variantPage.id).not.toBe(sourcePage.id);
+    expect(variantPage.layers).toHaveLength(1);
+    const variantText = variantPage.layers[0] as {
+      kind: string;
+      text: string;
+      fontFamily: unknown;
+      fontSize: number;
+    };
+    expect(variantText.kind).toBe('text');
+    expect(variantText.text).toBe('');
+    // Styling matches source.
+    expect(variantText.fontFamily).toEqual(sourceText.fontFamily);
+    expect(variantText.fontSize).toBe(sourceText.fontSize);
+    // Cmd+Z removes the variant page.
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(adapter.getDocument().pages).toHaveLength(3);
+  });
+
+  it('"Empty" produces a layerless page with the same dimensions', async () => {
+    const { adapter } = await mountEditor(multiPagePresentation());
+    const sourcePage = adapter.getDocument().pages[0];
+    const submenu = await openDuplicateSubmenu(0);
+    fireEvent.click(
+      submenu.querySelector<HTMLElement>('[data-duplicate-mode="empty"]')!,
+    );
+    await new Promise((r) => setTimeout(r, 60));
+
+    const emptyPage = adapter.getDocument().pages[1];
+    expect(emptyPage.id).not.toBe(sourcePage.id);
+    expect(emptyPage.layers).toEqual([]);
+    expect(emptyPage.width).toBe(sourcePage.width);
+    expect(emptyPage.height).toBe(sourcePage.height);
+    expect(emptyPage.masterPageId).toBe(sourcePage.masterPageId);
+    adapter.undo();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(adapter.getDocument().pages).toHaveLength(3);
+  });
+});

@@ -257,12 +257,63 @@ function PageMenu({
             boxShadow: 'var(--shadow-md)',
           }}
         >
-          <DropdownMenu.Item
-            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 outline-none"
-            onSelect={() => adapter.duplicatePage(page.id)}
-          >
-            <Copy className="h-3 w-3" /> Duplicate
-          </DropdownMenu.Item>
+          {/* Step 7 — Smart duplicate submenu. As-is keeps Phase 2's
+              clone behavior; "As variant" wipes content while keeping
+              brand structure (text → '', images dropped, shapes /
+              SVGs / logos kept); "Empty" preserves only dimensions
+              + master binding. All three insert at sourceIndex + 1
+              and produce a single undo entry. */}
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger
+              className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 outline-none"
+              data-page-action="duplicate"
+            >
+              <Copy className="h-3 w-3" /> Duplicate
+              <ChevronRight className="ml-auto h-3 w-3 opacity-60" />
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.SubContent
+                sideOffset={2}
+                className="z-50 min-w-[180px] rounded-lg p-1 text-[12px]"
+                style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  boxShadow: 'var(--shadow-md)',
+                }}
+              >
+                <DropdownMenu.Item
+                  className="flex cursor-pointer flex-col items-start gap-0 rounded-md px-2 py-1 outline-none"
+                  onSelect={() => adapter.duplicatePage(page.id)}
+                  data-duplicate-mode="as-is"
+                >
+                  <span>As-is</span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Full clone of this page
+                  </span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="flex cursor-pointer flex-col items-start gap-0 rounded-md px-2 py-1 outline-none"
+                  onSelect={() => adapter.duplicatePageAsVariant(page.id)}
+                  data-duplicate-mode="as-variant"
+                >
+                  <span>As variant</span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Keep styling + brand, clear text + images
+                  </span>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="flex cursor-pointer flex-col items-start gap-0 rounded-md px-2 py-1 outline-none"
+                  onSelect={() => adapter.duplicatePageEmpty(page.id)}
+                  data-duplicate-mode="empty"
+                >
+                  <span>Empty</span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Same dimensions + master, no layers
+                  </span>
+                </DropdownMenu.Item>
+              </DropdownMenu.SubContent>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Sub>
           {contentType.supportsMasterPages ? (
             <>
               <DropdownMenu.Sub>

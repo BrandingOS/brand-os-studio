@@ -61,8 +61,29 @@ export interface EditorAdapter {
   // Page CRUD (Phase 2 — multi-page support)
   addPage(page: Page, index?: number): void;
   removePage(pageId: string): void;
-  /** Duplicates a page including its layers (fresh ids); returns the new page id. */
+  /**
+   * Duplicates a page including its layers (fresh ids), inserts the
+   * copy directly after the source in `pages`, returns the new page
+   * id. Single undo entry. Used by the PageNavigator's right-click
+   * "Duplicate → As-is" action.
+   */
   duplicatePage(pageId: string): string;
+  /**
+   * Step 7 — "Duplicate → As variant". Same insertion + history
+   * semantics as duplicatePage, but transforms the layer list so the
+   * new page keeps the brand structure (logos, decorative shapes /
+   * SVGs, typographic styling) while clearing per-page content
+   * (text content cleared to '', images dropped). Empty groups
+   * collapse out. See `duplicatePageVariant.ts` for the rule table.
+   */
+  duplicatePageAsVariant(pageId: string): string;
+  /**
+   * Step 7 — "Duplicate → Empty". A fresh page with the source's
+   * dimensions and master-page binding but zero layers. Single undo
+   * entry. Used when the user wants a blank slate that still fits
+   * the document's surface.
+   */
+  duplicatePageEmpty(pageId: string): string;
   reorderPage(pageId: string, newIndex: number): void;
   updatePageDimensions(pageId: string, width: number, height: number): void;
 
