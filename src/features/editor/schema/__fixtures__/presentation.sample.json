@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f0010",
+  "contentType": "presentation",
+  "brandId": "raqm",
+  "masterPages": [],
+  "pages": [
+    {
+      "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f1101",
+      "name": "Cover",
+      "width": 1920,
+      "height": 1080,
+      "background": "#fafaf9",
+      "masterPageId": null,
+      "layers": [
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2101",
+          "name": "headline",
+          "kind": "text",
+          "transform": {
+            "x": 120,
+            "y": 380,
+            "width": 1200,
+            "height": 200,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "Brand vision 2026",
+          "fontFamily": { "type": "brand.font.heading" },
+          "fontSize": 84,
+          "fontWeight": 700,
+          "lineHeight": 1.1,
+          "letterSpacing": -0.02,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.neutral", "neutralIndex": 0 }
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2102",
+          "name": "subhead",
+          "kind": "text",
+          "transform": {
+            "x": 120,
+            "y": 600,
+            "width": 1100,
+            "height": 80,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "A cohesive system for the year ahead.",
+          "fontFamily": { "type": "brand.font.body" },
+          "fontSize": 32,
+          "fontWeight": 400,
+          "lineHeight": 1.3,
+          "letterSpacing": 0,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.neutral", "neutralIndex": 2 }
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2103",
+          "name": "logo",
+          "kind": "logo",
+          "transform": {
+            "x": 120,
+            "y": 120,
+            "width": 220,
+            "height": 80,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": true,
+          "variant": "auto"
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2104",
+          "name": "accent",
+          "kind": "shape",
+          "transform": {
+            "x": 1480,
+            "y": 720,
+            "width": 320,
+            "height": 320,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "shape": "ellipse",
+          "fill": { "type": "brand.color.primary" },
+          "stroke": null,
+          "strokeWidth": 0,
+          "cornerRadius": 0
+        }
+      ]
+    },
+    {
+      "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f1102",
+      "name": "Stat",
+      "width": 1920,
+      "height": 1080,
+      "background": "#fafaf9",
+      "masterPageId": null,
+      "layers": [
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2201",
+          "name": "stat",
+          "kind": "text",
+          "transform": {
+            "x": 120,
+            "y": 320,
+            "width": 1200,
+            "height": 280,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "94%",
+          "fontFamily": { "type": "brand.font.heading" },
+          "fontSize": 220,
+          "fontWeight": 800,
+          "lineHeight": 1,
+          "letterSpacing": -0.03,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.primary" }
+        },
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2202",
+          "name": "stat-caption",
+          "kind": "text",
+          "transform": {
+            "x": 120,
+            "y": 660,
+            "width": 1100,
+            "height": 80,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "of teams report stronger consistency after one quarter.",
+          "fontFamily": { "type": "brand.font.body" },
+          "fontSize": 28,
+          "fontWeight": 400,
+          "lineHeight": 1.4,
+          "letterSpacing": 0,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.neutral", "neutralIndex": 1 }
+        }
+      ]
+    },
+    {
+      "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f1103",
+      "name": "Closing",
+      "width": 1920,
+      "height": 1080,
+      "background": { "type": "brand.color.primary" },
+      "masterPageId": null,
+      "layers": [
+        {
+          "id": "0d9b9b1c-2bbf-4c9a-9a0e-4f0b8b1f2301",
+          "name": "thanks",
+          "kind": "text",
+          "transform": {
+            "x": 120,
+            "y": 460,
+            "width": 1200,
+            "height": 200,
+            "rotation": 0,
+            "scaleX": 1,
+            "scaleY": 1
+          },
+          "opacity": 1,
+          "visible": true,
+          "locked": false,
+          "brandLocked": false,
+          "text": "Thank you.",
+          "fontFamily": { "type": "brand.font.heading" },
+          "fontSize": 110,
+          "fontWeight": 700,
+          "lineHeight": 1.1,
+          "letterSpacing": -0.01,
+          "textAlign": "left",
+          "direction": "auto",
+          "color": { "type": "brand.color.neutral", "neutralIndex": 0 }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "createdBy": "step-5/7-fix-1",
+    "purpose": "Multi-page presentation default fixture so the dev harness shows the PageNavigator + Step 7 smart-duplicate submenu by default."
+  }
+}

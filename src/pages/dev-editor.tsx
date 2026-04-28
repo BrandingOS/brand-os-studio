@@ -35,25 +35,59 @@ import { useCallback, useEffect, useState } from 'react';
 import { Editor } from '@/features/editor/shell/Editor';
 import { BrandOSDocumentSchema, type BrandOSDocument } from '@/features/editor/schema';
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
+import presentationFixture from '@/features/editor/schema/__fixtures__/presentation.sample.json';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { IBrandsService } from '@/core';
 import type { Brand } from '@/shared/types/brand';
 import { getSeedBrandBySlug } from '@/data/brands';
 
-const STORAGE_KEY = 'brandos.editor.phase1.devDoc';
+// New key — bumped when the default fixture changed from
+// social-post to the multi-page presentation (Step 5/7 fix 1) so a
+// stale single-page save in the old key doesn't block the
+// PageNavigator from showing on first reload.
+const STORAGE_KEY = 'brandos.editor.dev.v2.devDoc';
+
+/**
+ * Default fixture is the multi-page presentation so the editor's
+ * PageNavigator + the Step 7 smart-duplicate submenu surface
+ * automatically. Other fixtures load via `?fixture=social-post`
+ * (or any future fixture name) on the dev URL.
+ */
+function pickFixtureFromQuery(): BrandOSDocument {
+  if (typeof window === 'undefined') {
+    return BrandOSDocumentSchema.parse(presentationFixture);
+  }
+  const params = new URLSearchParams(window.location.search);
+  const name = params.get('fixture');
+  if (name === 'social-post') {
+    return BrandOSDocumentSchema.parse(socialPostFixture);
+  }
+  return BrandOSDocumentSchema.parse(presentationFixture);
+}
 
 function loadDoc(): BrandOSDocument {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return BrandOSDocumentSchema.parse(JSON.parse(raw));
-  } catch {
-    /* fall through to fixture */
+  // Honor an explicit fixture query param even when localStorage
+  // would have otherwise restored a prior session — switching the
+  // URL to `?fixture=social-post` should give the user the
+  // single-page surface immediately.
+  const params =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const wantsExplicit = params?.has('fixture') ?? false;
+  if (!wantsExplicit) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return BrandOSDocumentSchema.parse(JSON.parse(raw));
+    } catch {
+      /* fall through to default fixture */
+    }
   }
-  return BrandOSDocumentSchema.parse(socialPostFixture);
+  return pickFixtureFromQuery();
 }
 
 function freshFixture(): BrandOSDocument {
-  return BrandOSDocumentSchema.parse(socialPostFixture);
+  return pickFixtureFromQuery();
 }
 
 async function saveDoc(doc: BrandOSDocument): Promise<void> {
