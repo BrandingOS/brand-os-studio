@@ -74,16 +74,26 @@ export function BrandPicker({ brand, onBrandSwitch, onReapplyBrand }: Props) {
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
+        {/* Radix portals the Content under document.body — OUTSIDE
+            the editor's `[data-cosmos="workspace"]` wrapper. CSS
+            vars defined on that scope (`--surface-elevated` etc.)
+            don't resolve here, so the dropdown previously rendered
+            transparent. Re-establish the cosmos var scope on the
+            Content itself so the entire item tree resolves: every
+            child still uses `var(--surface-hover)`, `var(--border)`,
+            etc., and we don't have to thread fallbacks down to each
+            item. Documented in CLAUDE.md "Radix Portal + scoped CSS". */}
         <DropdownMenu.Content
           align="start"
           sideOffset={6}
           className="z-50 min-w-[260px] rounded-xl p-1.5"
+          data-cosmos="workspace"
           data-brand-picker-content
           style={{
-            background: 'var(--surface-elevated)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-md)',
-            color: 'var(--text-primary)',
+            background: 'var(--surface-elevated, #ffffff)',
+            border: '1px solid var(--border, rgba(13, 13, 13, 0.12))',
+            boxShadow: 'var(--shadow-md, 0 4px 16px rgba(0, 0, 0, 0.10))',
+            color: 'var(--text-primary, #0d0d0d)',
           }}
         >
           <BrandList

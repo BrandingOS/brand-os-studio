@@ -273,6 +273,7 @@ function TextControls({
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content
+              data-cosmos="workspace"
               align="start"
               sideOffset={4}
               className="z-50 min-w-[180px] rounded-lg p-1"
@@ -460,6 +461,7 @@ function ImageControls({
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
+            data-cosmos="workspace"
             align="start"
             sideOffset={4}
             className="z-50 rounded-lg p-1"
@@ -550,6 +552,7 @@ function LogoControls({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          data-cosmos="workspace"
           align="start"
           sideOffset={4}
           className="z-50 rounded-lg p-1"
@@ -612,6 +615,7 @@ function MoreMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          data-cosmos="workspace"
           align="end"
           sideOffset={6}
           className="z-50 min-w-[200px] rounded-lg p-1.5"
@@ -724,6 +728,7 @@ function BrandManagedRow({
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content
+              data-cosmos="workspace"
               side="left"
               sideOffset={8}
               className="z-50 max-w-[220px] rounded-lg px-2 py-1.5 text-[11px]"
@@ -825,6 +830,7 @@ function LockedGate({
         </Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content
+            data-cosmos="workspace"
             side="bottom"
             sideOffset={8}
             className="z-50 inline-flex max-w-[260px] items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
@@ -981,6 +987,7 @@ function ColorChip({
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
+            data-cosmos="workspace"
             align="start"
             sideOffset={4}
             className="z-50 min-w-[180px] rounded-lg p-2 text-[11px]"

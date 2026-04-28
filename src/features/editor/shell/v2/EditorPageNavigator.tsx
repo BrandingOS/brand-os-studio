@@ -248,6 +248,7 @@ function PageMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
+          data-cosmos="workspace"
           align="end"
           sideOffset={4}
           className="z-50 min-w-[180px] rounded-lg p-1 text-[12px]"
@@ -273,6 +274,7 @@ function PageMenu({
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
               <DropdownMenu.SubContent
+                data-cosmos="workspace"
                 sideOffset={2}
                 className="z-50 min-w-[180px] rounded-lg p-1 text-[12px]"
                 style={{
@@ -322,6 +324,7 @@ function PageMenu({
                 </DropdownMenu.SubTrigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.SubContent
+                    data-cosmos="workspace"
                     sideOffset={2}
                     className="z-50 min-w-[180px] rounded-lg p-1 text-[12px]"
                     style={{
