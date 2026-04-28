@@ -25,28 +25,40 @@ interface Props {
 }
 
 export function EditorAppRail({ active, onChange }: Props) {
+  // Step 5/7 fix 5 — wrap the rail in a card surface so the four
+  // icons read as ONE cohesive surface against the workspace
+  // background, matching the floating Secondary Panel and Page
+  // Navigator. The outer wrapper handles the floating-card
+  // margins; the <aside> itself owns the surface chrome.
   return (
-    <aside
-      className="flex flex-col items-center gap-1.5 py-3"
-      style={{
-        width: 60,
-        background: 'var(--background)',
-        paddingLeft: 8,
-        paddingRight: 4,
-        flexShrink: 0,
-      }}
-      aria-label="App rail"
+    <div
+      className="flex py-3 pl-2 pr-1"
+      style={{ flexShrink: 0 }}
     >
-      {ITEMS.map(({ id, label, Icon }) => (
-        <RailCard
-          key={id}
-          Icon={Icon}
-          label={label}
-          isActive={id === active}
-          onClick={() => onChange(id)}
-        />
-      ))}
-    </aside>
+      <aside
+        data-app-rail
+        className="flex flex-col items-center gap-1.5"
+        style={{
+          width: 60,
+          background: 'var(--surface-elevated)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          boxShadow: 'var(--shadow-sm)',
+          padding: '12px 4px 12px 8px',
+        }}
+        aria-label="App rail"
+      >
+        {ITEMS.map(({ id, label, Icon }) => (
+          <RailCard
+            key={id}
+            Icon={Icon}
+            label={label}
+            isActive={id === active}
+            onClick={() => onChange(id)}
+          />
+        ))}
+      </aside>
+    </div>
   );
 }
 

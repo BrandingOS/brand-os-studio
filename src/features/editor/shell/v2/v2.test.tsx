@@ -166,6 +166,21 @@ describe('EditorAppRail', () => {
       expect(onChange).toHaveBeenCalledWith(id);
     }
   });
+
+  it('rail wraps the icons in a card surface (Step 5/7 fix 5)', () => {
+    // Earlier the rail was a flat strip on the page background — the
+    // icons floated without a container. Now the <aside> is a card:
+    // bordered, shadowed, rounded, on --surface-elevated.
+    const { container } = render(
+      <EditorAppRail active="generate" onChange={vi.fn()} />,
+    );
+    const rail = container.querySelector<HTMLElement>('[data-app-rail]');
+    expect(rail, 'data-app-rail card surface missing').toBeTruthy();
+    expect(rail!.style.background).toMatch(/--surface-elevated/);
+    expect(rail!.style.border).toMatch(/--border/);
+    expect(rail!.style.boxShadow).toMatch(/--shadow-sm/);
+    expect(rail!.style.borderRadius).toBe('12px');
+  });
 });
 
 // ─── EditorTopBar ─────────────────────────────────────────────────────
