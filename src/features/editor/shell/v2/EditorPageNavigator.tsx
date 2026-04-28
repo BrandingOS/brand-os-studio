@@ -57,7 +57,7 @@ export function EditorPageNavigator({
   };
 
   return (
-    <div className="flex py-3 pl-1 pr-2" style={{ flexShrink: 0 }}>
+    <div className="flex items-start py-3 pl-1 pr-2" style={{ flexShrink: 0 }}>
       <aside
         className="relative flex w-44 flex-col py-2"
         data-page-navigator
@@ -67,6 +67,10 @@ export function EditorPageNavigator({
           borderRadius: 12,
           boxShadow: 'var(--shadow-sm)',
           overflow: 'visible',
+          // Match the Secondary Panel — hug content, cap at viewport.
+          // The pages list scrolls internally if there are enough
+          // pages to overflow.
+          maxHeight: 'calc(100vh - 96px)',
         }}
         aria-label="Page navigator"
       >
@@ -100,7 +104,7 @@ export function EditorPageNavigator({
           Pages · {doc.pages.length}
         </p>
 
-        <ul className="flex-1 space-y-1.5 overflow-auto px-2 py-1">
+        <ul className="space-y-1.5 overflow-auto px-2 py-1">
           {doc.pages.map((p, idx) => (
             <PageCell
               key={p.id}

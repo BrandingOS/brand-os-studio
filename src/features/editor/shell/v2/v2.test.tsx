@@ -486,7 +486,7 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     expect(panel!.style.width).toBe(`${SECONDARY_PANEL_WIDTH}px`);
   });
 
-  it('R3 fix 6: panel clamps to a min/max height and content scrolls internally', () => {
+  it('R3 fix 6 v2: panel hugs content — no minHeight, just maxHeight cap + internal scroll', () => {
     const adapter = stubAdapter();
     const { container } = render(
       <EditorSecondaryPanel
@@ -499,17 +499,23 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     );
     const panel = container.querySelector<HTMLElement>('[data-secondary-panel]');
     expect(panel, 'panel not found').toBeTruthy();
-    // Panel must NOT stretch to full viewport height — clamp to a
-    // sane min, and a max that leaves room for the topbar.
-    expect(panel!.style.minHeight).toBe('200px');
-    expect(panel!.style.maxHeight).toBe('calc(100vh - 80px)');
+    // Panel must NOT stretch to full viewport height. We only cap
+    // with a maxHeight; minHeight is intentionally absent so sparse
+    // content (e.g. Templates "Coming in Phase 4." placeholder) lets
+    // the card stay short.
+    expect(panel!.style.minHeight).toBe('');
+    expect(panel!.style.maxHeight).toBe('calc(100vh - 96px)');
 
     // Inner content area scrolls vertically when content overflows.
+    // It must NOT have flex-1 (or any height/flex-grow) — that's
+    // what was forcing the card to fill the full slot height even
+    // for a one-line panel.
     const content = container.querySelector<HTMLElement>(
       '[data-secondary-panel-content]',
     );
     expect(content, 'content area not found').toBeTruthy();
     expect(content!.style.overflowY).toBe('auto');
+    expect(content!.className).not.toMatch(/\bflex-1\b/);
   });
 
   it('collapse toggle is small (24×24), half-protrudes, and centers vertically', () => {

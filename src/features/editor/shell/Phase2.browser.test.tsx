@@ -97,6 +97,28 @@ describe('Phase 2 — content-type config drives panel visibility', () => {
     expect(text).toContain('Slide 2');
   });
 
+  it('R3 fix 6 v2: PageNavigator hugs content — maxHeight cap, no flex-1 list, no full-viewport stretch', async () => {
+    const { container } = await mountWith(presentationFixture());
+    const nav = container.querySelector<HTMLElement>('[data-page-navigator]');
+    expect(nav, 'page navigator aside not found').toBeTruthy();
+    // The aside caps at viewport-96px so dense decks scroll
+    // internally, but it does NOT have a fixed/min height that
+    // would force it to the full slot height.
+    // Chromium re-serializes calc() as `calc(-96px + 100vh)` — match
+    // the parts, not the textual form.
+    expect(nav!.style.maxHeight).toMatch(/calc\(/);
+    expect(nav!.style.maxHeight).toContain('100vh');
+    expect(nav!.style.maxHeight).toContain('96px');
+    expect(nav!.style.minHeight).toBe('');
+    expect(nav!.style.height).toBe('');
+
+    // The pages <ul> must not be flex-1 — that's what was inflating
+    // the navigator to fill the slot for sparse decks.
+    const list = nav!.querySelector('ul');
+    expect(list, 'pages list not found').toBeTruthy();
+    expect(list!.className).not.toMatch(/\bflex-1\b/);
+  });
+
   it('PageNavigator collapsed strip shows chevron + rotated label, click expands (Round 3 fix 3)', async () => {
     const { adapter, container } = await mountWith(presentationFixture());
     // Collapse the navigator. The page-nav slot is anchored in
