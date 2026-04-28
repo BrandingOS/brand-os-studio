@@ -128,7 +128,7 @@ function mockBrand(): Brand {
 // ─── EditorAppRail ────────────────────────────────────────────────────
 
 describe('EditorAppRail', () => {
-  it('renders all 4 entries (icon-only) with aria-label + title carrying the section name', () => {
+  it('renders all 4 entries with icon + tiny visible label below', () => {
     const onChange = vi.fn();
     const { container } = render(
       <EditorAppRail active="generate" onChange={onChange} />,
@@ -139,11 +139,12 @@ describe('EditorAppRail', () => {
         `button[data-rail-item="${label.toLowerCase()}"]`,
       );
       expect(btn, `missing rail entry: ${label}`).toBeTruthy();
-      // Icon-only buttons — the label travels via aria-label / title,
-      // not visible text under the icon.
       expect(btn?.getAttribute('aria-label')).toBe(label);
       expect(btn?.getAttribute('title')).toBe(label);
-      expect(btn?.querySelector('span')).toBeNull();
+      // R4 hybrid: visible text label below the icon.
+      const span = btn?.querySelector('span');
+      expect(span, `missing label span on ${label}`).toBeTruthy();
+      expect(span?.textContent).toBe(label);
     }
   });
 
@@ -186,7 +187,7 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('each rail entry is a small ~44×44 icon-only card with rounded corners (R4)', () => {
+  it('each rail entry is a 48×52 icon+label card with rounded corners (R4 hybrid)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -195,16 +196,13 @@ describe('EditorAppRail', () => {
     );
     expect(buttons.length).toBe(4);
     for (const btn of buttons) {
-      // ~44×44 card per the reference.
-      expect(btn.style.width).toBe('44px');
-      expect(btn.style.height).toBe('44px');
+      expect(btn.style.width).toBe('48px');
+      expect(btn.style.height).toBe('52px');
       expect(btn.style.borderRadius).toBe('10px');
-      // Has a real surface background (not transparent).
       expect(btn.style.background).not.toBe('transparent');
-      // Icon-only: button has no visible label text under the icon.
-      // The button's accessible name comes from aria-label, not from
-      // a child <span>.
-      expect(btn.querySelector('span')).toBeNull();
+      // Visible label span — the hybrid keeps R4's compact card
+      // but reintroduces the tiny text label below the icon.
+      expect(btn.querySelector('span')).not.toBeNull();
     }
   });
 

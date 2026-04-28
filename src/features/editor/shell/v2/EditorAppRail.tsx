@@ -1,12 +1,10 @@
-// EditorAppRail — Round 4 (icon-only cards).
+// EditorAppRail — R4 hybrid (icon + tiny label).
 //
-// Each rail entry is its own small ~44×44 white card holding ONLY
-// the 20px icon. The label that lived under the icon (R3 fix 1) is
-// gone — the active panel's title bar now communicates the section
-// name, so the rail icon doesn't need to repeat it. The active
-// state shows a purple border + soft accent glow instead of a
-// background tint; that matches the reference (Relume-style
-// minimal rail).
+// Each rail entry is a 48×52 white card holding a 20px icon +
+// a tiny 10px font-medium label. The R4 active treatment is
+// preserved: purple border + soft accent glow + accent-colored
+// icon. Labels make the rail self-explanatory at first glance
+// without sacrificing the compact width.
 
 import { LayoutGrid, Palette, Plus, Sparkles } from 'lucide-react';
 
@@ -84,11 +82,17 @@ function RailCard({
       data-rail-item={label.toLowerCase()}
       title={label}
       style={{
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 52,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
+        // 6px from top before the icon, 3px gap to the label.
+        // Padding handles the top inset; the inline gap below the
+        // icon handles the icon→label spacing.
+        paddingTop: 6,
+        gap: 3,
         background: idleBg,
         border: `1px solid ${isActive ? activeBorder : idleBorder}`,
         borderRadius: 10,
@@ -111,7 +115,13 @@ function RailCard({
         }
       }}
     >
-      <Icon size={18} strokeWidth={1.8} aria-hidden />
+      <Icon size={20} strokeWidth={2} aria-hidden />
+      <span
+        className="text-[10px] font-medium"
+        style={{ lineHeight: 1, letterSpacing: '-0.005em' }}
+      >
+        {label}
+      </span>
     </button>
   );
 }
