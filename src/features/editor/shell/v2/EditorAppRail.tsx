@@ -1,12 +1,11 @@
-// EditorAppRail — R4.1 (hybrid: compact card + tiny label).
+// EditorAppRail — R4.2 (square, smaller label).
 //
-// Slight expansion of the R4 icon-only card. The card is 48×52
-// instead of 44×44, with the 20px icon sitting near the top and a
-// tiny `text-[10px]` label centered below it. The active state
-// keeps R4's purple border + soft accent glow (no background-tint
-// swap), and idle/hover stays the same. The label is small enough
-// not to compete visually with the active panel's header bar but
-// makes the rail self-explanatory at a glance.
+// Cards are now 48×48 squares with an 18px icon and an 8px label
+// beneath. The label was 10px in R4.1 but the longer entries
+// ("Templates", "Generate") wrapped past the card edge — dropping
+// to 8px keeps every label inside the card. Square boxes per the
+// reference. Active state still uses R4's purple border + accent
+// glow.
 
 import { LayoutGrid, Palette, Plus, Sparkles } from 'lucide-react';
 
@@ -86,14 +85,13 @@ function RailCard({
       title={label}
       style={{
         width: 48,
-        height: 52,
+        height: 48,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'flex-start',
-        gap: 3,
-        paddingTop: 6,
-        paddingBottom: 4,
+        justifyContent: 'center',
+        gap: 2,
+        padding: '4px 2px',
         background: idleBg,
         border: `1px solid ${isActive ? activeBorder : idleBorder}`,
         borderRadius: 10,
@@ -116,11 +114,21 @@ function RailCard({
         }
       }}
     >
-      <Icon size={20} strokeWidth={2} aria-hidden />
+      <Icon size={18} strokeWidth={2} aria-hidden />
       <span
         data-rail-label
-        className="text-[10px] font-medium"
-        style={{ lineHeight: 1, letterSpacing: '-0.005em' }}
+        className="font-medium"
+        style={{
+          fontSize: 8,
+          lineHeight: 1,
+          letterSpacing: '-0.01em',
+          // Belt-and-braces: clip if a future label is longer than
+          // the card's content box.
+          maxWidth: '100%',
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          textOverflow: 'clip',
+        }}
       >
         {label}
       </span>

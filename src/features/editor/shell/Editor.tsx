@@ -398,8 +398,8 @@ export function Editor({
             // CSS vars centralize the animated dimensions so the
             // canvas's left offset stays in sync with the panel's
             // visual width during the open/close transition.
-            ['--rail-w' as string]: '76px',
-            ['--panel-w' as string]: '340px',
+            ['--rail-w' as string]: '64px',
+            ['--panel-w' as string]: '300px',
             ['--pagenav-w' as string]: '176px',
           }}
         >
@@ -461,29 +461,17 @@ export function Editor({
             />
           </div>
 
-          {/* Canvas region — left/right anchors animate as panel +
-              page-nav open/close. Animation is on `left` / `right`
-              (cheap paint) rather than padding (full reflow). */}
+          {/* Canvas region — spans the FULL editor body so the
+              design extends behind the rail / secondary panel /
+              page navigator. The bars float on top with their own
+              backgrounds; the canvas underneath is just centered
+              in the window. (Earlier this region was insetted to
+              live BETWEEN the bars, which left the design cropped
+              into a thin strip whenever the panels were open.) */}
           <main
             ref={canvasRegionRef}
-            className="relative flex items-center justify-center"
+            className="absolute inset-0 flex items-center justify-center"
             style={{
-              position: 'absolute',
-              top: 0,
-              bottom: 0,
-              left: secondaryOpen
-                ? 'calc(var(--rail-w) + var(--panel-w))'
-                : 'var(--rail-w)',
-              // Right anchor tracks the page-nav slot's actual
-              // width (full when open, 36px collapsed strip, 0 when
-              // single-page).
-              right:
-                contentType.pageModel === 'multi'
-                  ? navigatorOpen
-                    ? 'var(--pagenav-w)'
-                    : '36px'
-                  : 0,
-              transition: 'left 200ms ease-out, right 200ms ease-out',
               background: 'var(--background)',
               overflow: 'hidden',
             }}

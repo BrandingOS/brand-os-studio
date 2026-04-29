@@ -186,7 +186,7 @@ describe('EditorAppRail', () => {
     expect(rail!.style.boxShadow).toBe('');
   });
 
-  it('each rail entry is a 48×52 card with rounded corners + tiny label beneath the icon (R4.1)', () => {
+  it('each rail entry is a 48×48 SQUARE card with rounded corners + tiny 8px label beneath the icon (R4.2)', () => {
     const { container } = render(
       <EditorAppRail active="brand" onChange={vi.fn()} />,
     );
@@ -195,13 +195,17 @@ describe('EditorAppRail', () => {
     );
     expect(buttons.length).toBe(4);
     for (const btn of buttons) {
-      // 48×52 — slight height bump from R4 (44×44) to fit the label.
+      // Square — width === height. R4.1 was 48×52; tightened so
+      // the box reads as a square, not a rectangle.
       expect(btn.style.width).toBe('48px');
-      expect(btn.style.height).toBe('52px');
+      expect(btn.style.height).toBe('48px');
       expect(btn.style.borderRadius).toBe('10px');
       expect(btn.style.background).not.toBe('transparent');
-      // Now has a label span beneath the icon.
-      expect(btn.querySelector('[data-rail-label]')).toBeTruthy();
+      // Label span exists, sized at 8px so the longer entries
+      // ("Generate", "Templates") fit inside the 48px box.
+      const lbl = btn.querySelector<HTMLElement>('[data-rail-label]');
+      expect(lbl, 'rail label missing').toBeTruthy();
+      expect(lbl!.style.fontSize).toBe('8px');
     }
   });
 
@@ -470,9 +474,9 @@ describe('BrandPanel', () => {
 import { EditorSecondaryPanel, SECONDARY_PANEL_WIDTH } from './EditorSecondaryPanel';
 
 describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
-  it('panel width is 320-360px (bumped from 288)', () => {
-    expect(SECONDARY_PANEL_WIDTH).toBeGreaterThanOrEqual(320);
-    expect(SECONDARY_PANEL_WIDTH).toBeLessThanOrEqual(360);
+  it('panel width is 280-320px (slimmed from R3\'s 340)', () => {
+    expect(SECONDARY_PANEL_WIDTH).toBeGreaterThanOrEqual(280);
+    expect(SECONDARY_PANEL_WIDTH).toBeLessThanOrEqual(320);
     const adapter = stubAdapter();
     const { container } = render(
       <EditorSecondaryPanel
@@ -488,7 +492,7 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     expect(panel!.style.width).toBe(`${SECONDARY_PANEL_WIDTH}px`);
   });
 
-  it('R3 fix 6 v2: panel hugs content — no minHeight, just maxHeight cap + internal scroll', () => {
+  it('panel has a minHeight floor + maxHeight cap; content scrolls internally on overflow', () => {
     const adapter = stubAdapter();
     const { container } = render(
       <EditorSecondaryPanel
@@ -501,11 +505,9 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
     );
     const panel = container.querySelector<HTMLElement>('[data-secondary-panel]');
     expect(panel, 'panel not found').toBeTruthy();
-    // Panel must NOT stretch to full viewport height. We only cap
-    // with a maxHeight; minHeight is intentionally absent so sparse
-    // content (e.g. Templates "Coming in Phase 4." placeholder) lets
-    // the card stay short.
-    expect(panel!.style.minHeight).toBe('');
+    // Floor so the card has presence even with sparse content
+    // (e.g. Templates "Coming in Phase 4." placeholder).
+    expect(panel!.style.minHeight).toBe('180px');
     expect(panel!.style.maxHeight).toBe('calc(100vh - 96px)');
 
     // Inner content area scrolls vertically when content overflows.

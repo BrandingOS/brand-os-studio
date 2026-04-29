@@ -31,7 +31,16 @@ import { BrandPanel } from './panels/BrandPanel';
  * Width of the Secondary Panel in pixels. Exported so the Editor's
  * fit-to-container math doesn't have to magic-number it.
  */
-export const SECONDARY_PANEL_WIDTH = 340;
+export const SECONDARY_PANEL_WIDTH = 300;
+
+/**
+ * Minimum height for the panel card. Without this floor a panel
+ * with one line of placeholder content (e.g. Templates "Coming in
+ * Phase 4.") would collapse to ~50px which reads as broken. The
+ * floor gives the card visual presence; the maxHeight cap below
+ * still keeps tall panels inside the viewport.
+ */
+const SECONDARY_PANEL_MIN_HEIGHT = 180;
 
 const PANEL_TITLES: Record<RailItem, string> = {
   generate: 'Generate',
@@ -64,6 +73,7 @@ export function EditorSecondaryPanel({
         data-secondary-panel={active}
         style={{
           width: SECONDARY_PANEL_WIDTH,
+          minHeight: SECONDARY_PANEL_MIN_HEIGHT,
           maxHeight: 'calc(100vh - 96px)',
           background: 'var(--surface-elevated)',
           border: '1px solid var(--border)',
