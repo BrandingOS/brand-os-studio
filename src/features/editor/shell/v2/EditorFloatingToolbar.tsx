@@ -1085,75 +1085,24 @@ function ColorChip({
   isOpen: boolean;
 }) {
   const dataControl = controlId ?? title.toLowerCase();
-  // Slot-bound: chip + dropdown to "override" (swap to literal hex).
-  if (slotBound && value && typeof value !== 'string' && typeof value !== 'number') {
-    const slot = value as SlotRef;
-    const placeholder = slotPlaceholderHex(slot);
-    return (
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <button
-            type="button"
-            title={title}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            data-control={dataControl}
-            data-slot-bound
-          >
-            <span
-              className="h-3.5 w-3.5 rounded-full"
-              style={{
-                background: outline ? 'transparent' : placeholder,
-                boxShadow: outline
-                  ? `inset 0 0 0 2px ${placeholder}`
-                  : '0 0 0 1px var(--border-strong)',
-              }}
-              aria-hidden
-            />
-          </button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content
-            data-cosmos="workspace"
-            align="start"
-            sideOffset={4}
-            className="z-50 min-w-[180px] rounded-lg p-2 text-[11px]"
-            style={{
-              background: 'var(--surface-elevated)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-md)',
-            }}
-          >
-            <p style={{ color: 'var(--text-secondary)' }}>
-              Bound to <strong>{slotShortLabel(slot)}</strong>
-            </p>
-            <button
-              type="button"
-              onClick={() => onChange(placeholder)}
-              className="mt-2 w-full rounded-md px-2 py-1 text-left text-[12px]"
-              style={{
-                background: 'var(--surface-sunken)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              Override with literal color
-            </button>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-    );
-  }
-
-  // Literal hex — clicking the chip asks the toolbar to mount the
-  // ColorPickerBar directly above. No popover, no flipping, no OS
-  // native input; the bar lives in the same screen-space overlay
-  // and stays at a predictable position.
-  const hex = toCssColor(value);
+  // Both slot-bound and literal values flow through the same
+  // picker bar. For slot-bound values the SlotRef resolves to a
+  // placeholder hex so the chip + picker show a real colour;
+  // picking a new value commits it as a literal hex (this is the
+  // same effect the old "Override with literal color" button had,
+  // but inline). The "Bound to brand" intermediate dropdown is
+  // gone per user request — going to colors directly.
+  const hex =
+    slotBound && value && typeof value !== 'string' && typeof value !== 'number'
+      ? slotPlaceholderHex(value as SlotRef)
+      : toCssColor(value);
   return (
     <button
       type="button"
       title={title}
       data-control={dataControl}
       data-color-chip-open={isOpen ? 'true' : 'false'}
+      data-slot-bound={slotBound ? '' : undefined}
       onClick={() =>
         openColorPicker(dataControl, hex, (next) => onChange(next))
       }

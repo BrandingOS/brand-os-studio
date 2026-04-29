@@ -828,30 +828,32 @@ async function waitForCrossPageToast(timeoutMs = 1500): Promise<HTMLElement> {
 
 /**
  * Trigger a brand-bound color override via the toolbar's slot-bound
- * Color chip. The chip is a dropdown whose menu has a single
- * "Override with literal color" button that, when clicked, fires
- * the toolbar's update wrapper — same code path the cross-page
- * trigger hooks into.
+ * Color chip. The intermediate "Bound to brand … Override with
+ * literal color" dropdown was removed; clicking the chip now opens
+ * the color-picker bar directly, and committing any hex (here via
+ * the bar's hex input) overrides the slot binding to a literal — the
+ * same code path the cross-page trigger hooks into.
  */
 async function overrideSlotBoundColor(): Promise<void> {
   const chip = document.body.querySelector<HTMLElement>(
     '[data-floating-toolbar] [data-control="color"][data-slot-bound]',
   );
   if (!chip) throw new Error('No slot-bound color chip on the toolbar');
-  fireEvent.pointerDown(chip, { button: 0, pointerType: 'mouse' });
-  fireEvent.pointerUp(chip, { button: 0, pointerType: 'mouse' });
   fireEvent.click(chip);
 
-  let overrideBtn: HTMLButtonElement | null = null;
+  // Wait for the picker bar to mount.
+  let bar: HTMLElement | null = null;
   for (let i = 0; i < 60; i++) {
-    overrideBtn = Array.from(
-      document.body.querySelectorAll<HTMLButtonElement>('button'),
-    ).find((b) => /override with literal color/i.test(b.textContent ?? '')) ?? null;
-    if (overrideBtn) break;
+    bar = document.body.querySelector<HTMLElement>('[data-color-picker-bar]');
+    if (bar) break;
     await new Promise((r) => setTimeout(r, 25));
   }
-  if (!overrideBtn) throw new Error('Override button never appeared');
-  fireEvent.click(overrideBtn);
+  if (!bar) throw new Error('Color picker bar never appeared');
+
+  // Commit a literal hex via the bar's input.
+  const hex = bar.querySelector<HTMLInputElement>('[data-color-hex]');
+  if (!hex) throw new Error('Hex input missing in picker bar');
+  fireEvent.change(hex, { target: { value: 'ff8800' } });
 }
 
 describe('Step 6 — Cross-page consistency prompt (browser E2E)', () => {
