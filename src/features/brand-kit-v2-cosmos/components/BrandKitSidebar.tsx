@@ -3,17 +3,16 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { Check } from '@/features/setup/components/SetupIcons';
 import {
   LinkOrganicIconV2,
+  PaletteOrganicIconV2,
   type OrganicIconHandle,
   type OrganicIconProps,
 } from '@/features/setup/components/organic-icons';
 import {
   PaperStackOrganicIcon,
   ChatBubblesOrganicIcon,
-  CubeOrganicIcon,
   CompassOrganicIcon,
   ChartOrganicIcon,
   PlayOrganicIcon,
-  QrOrganicIcon,
 } from './brand-kit-organic-icons';
 import { getSectionCount } from './sections';
 
@@ -25,14 +24,13 @@ import { getSectionCount } from './sections';
  * one to customize.
  */
 export type KitSectionKey =
+  | 'brand-assets'
   | 'stationery'
   | 'social'
   | 'web'
-  | 'mockups'
   | 'brand-guides'
   | 'presentations'
-  | 'animations'
-  | 'qr-code';
+  | 'animations';
 
 type OrganicIconComponent = ForwardRefExoticComponent<
   OrganicIconProps & RefAttributes<OrganicIconHandle>
@@ -47,14 +45,13 @@ type Entry = {
 };
 
 export const KIT_SECTIONS: { key: KitSectionKey; name: string }[] = [
+  { key: 'brand-assets', name: 'Brand Assets' },
   { key: 'stationery', name: 'Stationery' },
   { key: 'social', name: 'Social Media' },
   { key: 'web', name: 'Web' },
-  { key: 'mockups', name: 'Mockups' },
   { key: 'brand-guides', name: 'Brand Guides' },
   { key: 'presentations', name: 'Presentations' },
   { key: 'animations', name: 'Animations' },
-  { key: 'qr-code', name: 'QR Code' },
 ];
 
 function countLabel(key: KitSectionKey): string {
@@ -66,9 +63,21 @@ function buildEntries(brand: MockBrand): Entry[] {
   const logoCount = brand.logos.length;
   const colorCount =
     brand.colors.core.length + brand.colors.accent.length + brand.colors.grey.length;
+  const fontCount = brand.fonts.length;
+  const iconCount = brand.icons.length;
+  const photoCount = brand.photos.length;
+  const aboutCount = brand.about.length;
+  const assetCount = logoCount + colorCount + fontCount + iconCount + photoCount + aboutCount;
   const hasIdentity = logoCount > 0 && colorCount > 0;
 
   return [
+    {
+      key: 'brand-assets',
+      name: 'Brand Assets',
+      sub: `${assetCount} item${assetCount === 1 ? '' : 's'}`,
+      added: assetCount > 0,
+      Icon: PaletteOrganicIconV2,
+    },
     {
       key: 'stationery',
       name: 'Stationery',
@@ -90,17 +99,9 @@ function buildEntries(brand: MockBrand): Entry[] {
       added: logoCount > 0,
       Icon: LinkOrganicIconV2,
     },
-    {
-      key: 'mockups',
-      name: 'Mockups',
-      sub: countLabel('mockups'),
-      added: logoCount > 0,
-      Icon: CubeOrganicIcon,
-    },
     { key: 'brand-guides', name: 'Brand Guides', sub: countLabel('brand-guides'), added: true, Icon: CompassOrganicIcon },
     { key: 'presentations', name: 'Presentations', sub: countLabel('presentations'), added: true, Icon: ChartOrganicIcon },
     { key: 'animations', name: 'Animations', sub: countLabel('animations'), added: true, Icon: PlayOrganicIcon },
-    { key: 'qr-code', name: 'QR Code', sub: countLabel('qr-code'), added: true, Icon: QrOrganicIcon },
   ];
 }
 

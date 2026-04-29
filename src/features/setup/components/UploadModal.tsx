@@ -254,6 +254,71 @@ export function groupFontsByFamily(
   }));
 }
 
+export type UploadedFontFile = {
+  name: string;
+  weight: string;
+  format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'eot';
+  dataUrl: string;
+  size: number;
+};
+
+export type UploadedFontFamily = {
+  family: string;
+  weights: string[];
+  /** Per-file payload — empty when the user picked from Google Fonts
+   *  (no upload) and only the family/weights are known. */
+  files: UploadedFontFile[];
+};
+
+/** Read a File as a base64 data URL. */
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string) || '');
+    reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function detectFontFormat(file: File): UploadedFontFile['format'] {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'ttf' || ext === 'otf' || ext === 'woff' || ext === 'woff2' || ext === 'eot') {
+    return ext;
+  }
+  return 'ttf';
+}
+
+/** Read every uploaded font, group by family, and attach each file's
+ *  payload (bytes + weight + format) so the parent can persist the
+ *  uploads alongside the family metadata. */
+export async function readFontUploads(files: File[]): Promise<UploadedFontFamily[]> {
+  const grouped = groupFontsByFamily(files);
+  const filesByFamily = new Map<string, UploadedFontFile[]>();
+  for (const file of files) {
+    const { family, weight } = parseFontFilename(file.name);
+    let dataUrl: string;
+    try {
+      dataUrl = await readFileAsDataUrl(file);
+    } catch {
+      continue;
+    }
+    const existing = filesByFamily.get(family) ?? [];
+    existing.push({
+      name: file.name || `${family}.ttf`,
+      weight,
+      format: detectFontFormat(file),
+      dataUrl,
+      size: file.size,
+    });
+    filesByFamily.set(family, existing);
+  }
+  return grouped.map((g) => ({
+    family: g.family,
+    weights: g.weights,
+    files: filesByFamily.get(g.family) ?? [],
+  }));
+}
+
 export type UploadKind = 'logo' | 'icons' | 'photos' | 'fonts' | 'website';
 
 export type CommittedAsset = {
@@ -271,11 +336,10 @@ type Props = {
   onCommit?: (asset: CommittedAsset, kind: UploadKind) => void;
   onUrl?: (url: string, kind: UploadKind) => void;
   /** Called once per detected font family when a folder or multi-font
-   *  drop resolves. The modal takes care of reading and grouping; the
-   *  parent just receives a flat list of (family, weights) pairs. */
-  onFontFamilies?: (
-    families: Array<{ family: string; weights: string[] }>,
-  ) => void;
+   *  drop resolves. The modal reads each file as a data URL so the
+   *  parent receives both the family metadata AND the uploaded
+   *  bytes — needed to re-emit the user's exact file on export. */
+  onFontFamilies?: (families: UploadedFontFamily[]) => void;
 };
 
 type SessionEntry = {
@@ -429,9 +493,9 @@ export function UploadModal({
       const incoming = Array.from(files);
       if (incoming.length === 0) return;
 
-      // Fonts kind: filter to real font files, group the survivors by
-      // detected family, and hand the families to the parent as one
-      // batch. Every rejected file produces a toast.
+      // Fonts kind: filter to real font files, read each as a data
+      // URL so we can persist the uploaded bytes, then hand the
+      // family-grouped payload to the parent. Rejected files toast.
       if (kind === 'fonts') {
         const fonts = incoming.filter((f) => isFontFile(f));
         const rejected = incoming.filter((f) => !isFontFile(f));
@@ -445,20 +509,18 @@ export function UploadModal({
           );
         }
         if (fonts.length === 0) return;
-        const families = groupFontsByFamily(fonts);
-        // Visual confirmation in the session list: one tile per family
-        // rather than one tile per file, so folders with 9 files don't
-        // blow up the modal.
-        setSession((prev) => [
-          ...prev,
-          ...families.map((fam) => ({
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            name: fam.family,
-            sub: `${fam.weights.length} weight${fam.weights.length === 1 ? '' : 's'}`,
-            preview: null as string | null,
-          })),
-        ]);
-        onFontFamilies?.(families);
+        readFontUploads(fonts).then((families) => {
+          setSession((prev) => [
+            ...prev,
+            ...families.map((fam) => ({
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name: fam.family,
+              sub: `${fam.weights.length} weight${fam.weights.length === 1 ? '' : 's'}`,
+              preview: null as string | null,
+            })),
+          ]);
+          onFontFamilies?.(families);
+        });
         return;
       }
 

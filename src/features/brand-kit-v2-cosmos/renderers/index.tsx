@@ -1,6 +1,16 @@
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
+import type { BusinessCardContent } from '../types';
 import { renderTemplateDesign as renderLegacyTemplate } from '@/features/brandkit/components/TemplateCard';
+import {
+  BrandAssetLogoRenderer,
+  BrandAssetColorRenderer,
+  BrandAssetFontRenderer,
+  BrandAssetIconRenderer,
+  BrandAssetPhotoRenderer,
+  BrandAssetAboutRenderer,
+} from './BrandAssetsRenderers';
 import { BusinessCardExtendedRenderer } from './BusinessCardsExtended';
 import { BusinessCardExtended2Renderer } from './BusinessCardsExtended2';
 import { MockupsExtendedRenderer } from './MockupsExtended';
@@ -42,19 +52,64 @@ import { BrandedQrRenderer, MinimalQrRenderer, RoundedQrRenderer, SquareQrRender
  * The id-suffix → templateIndex mapping mirrors the
  * `business-cards-ext-N` → designs[N-1] convention used by the
  * legacy renderer (which extracts the trailing number from the id).
+ *
+ * Live editor overrides are NOT applied here — they're stitched in
+ * at the DOM level by `<LivePreviewFrame>` in BrandKitCardEditor,
+ * because each renderer's hardcoded text lives inside a component
+ * body that React only realises into DOM at render time.
  */
-export function renderCosmosTemplate(template: BrandKitTemplate, brand: Brand) {
+export function renderCosmosTemplate(
+  template: BrandKitTemplate,
+  brand: Brand,
+  mockBrand?: MockBrand,
+  /** Optional prop-driven content per template type. Currently
+   *  consumed only by the business-card renderers — replaces the
+   *  fragile DOM-walker text substitution path. */
+  content?: { businessCard?: Partial<BusinessCardContent> },
+) {
   const extMatch = template.id.match(/-ext-(\d+)$/);
   if (extMatch) {
     const idx = parseInt(extMatch[1], 10) - 1;
+    // Brand-asset templates need MockBrand (the Setup-shaped data
+    // source). When mockBrand is missing the tile renders empty —
+    // brand-scoped pages always pass it, so this only happens in
+    // standalone previews.
+    if (mockBrand) {
+      switch (template.type) {
+        case 'brand-asset-logo' as BrandKitTemplate['type']:
+          return <BrandAssetLogoRenderer brand={mockBrand} templateIndex={idx} />;
+        case 'brand-asset-color' as BrandKitTemplate['type']:
+          return <BrandAssetColorRenderer brand={mockBrand} templateIndex={idx} />;
+        case 'brand-asset-font' as BrandKitTemplate['type']:
+          return <BrandAssetFontRenderer brand={mockBrand} templateIndex={idx} />;
+        case 'brand-asset-icon' as BrandKitTemplate['type']:
+          return <BrandAssetIconRenderer brand={mockBrand} templateIndex={idx} />;
+        case 'brand-asset-photo' as BrandKitTemplate['type']:
+          return <BrandAssetPhotoRenderer brand={mockBrand} templateIndex={idx} />;
+        case 'brand-asset-about' as BrandKitTemplate['type']:
+          return <BrandAssetAboutRenderer brand={mockBrand} templateIndex={idx} />;
+      }
+    }
     switch (template.type) {
       case 'business-cards':
         // Wave 1: ext-1..18 → BusinessCardExtendedRenderer (idx 0-17)
         // Wave 2: ext-19..118 → BusinessCardExtended2Renderer (idx 0-99)
         if (idx >= 18) {
-          return <BusinessCardExtended2Renderer brand={brand} templateIndex={idx - 18} />;
+          return (
+            <BusinessCardExtended2Renderer
+              brand={brand}
+              templateIndex={idx - 18}
+              content={content?.businessCard}
+            />
+          );
         }
-        return <BusinessCardExtendedRenderer brand={brand} templateIndex={idx} />;
+        return (
+          <BusinessCardExtendedRenderer
+            brand={brand}
+            templateIndex={idx}
+            content={content?.businessCard}
+          />
+        );
       case 'mockups':
         return <MockupsExtendedRenderer brand={brand} templateIndex={idx} />;
       case 'invoices':

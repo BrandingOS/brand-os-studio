@@ -173,6 +173,23 @@ export interface FontToken {
   /** Google Fonts / Adobe Fonts URL if loaded over the network. */
   url?: string;
   usage?: string;
+  /** Uploaded font files for this family — persisted as data URLs so
+   *  the brand stays self-contained. Read by the brand-kit Fonts
+   *  download to re-emit the user's exact files (no remote fetch). */
+  files?: FontTokenFile[];
+}
+
+export interface FontTokenFile {
+  /** Original filename (e.g. "Bricolage-Bold.ttf"). */
+  name: string;
+  /** Detected weight label (Regular / Bold / 600 / etc.). */
+  weight: string;
+  /** Lowercase file extension without the dot. */
+  format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'eot';
+  /** `data:font/...;base64,…` URL of the uploaded bytes. */
+  dataUrl: string;
+  /** File size in bytes. */
+  size: number;
 }
 
 export interface FontScaleTokens {

@@ -190,18 +190,384 @@
   justify-content: center;
   padding: 32px;
 }
+/* Icon-asset preview — the workspace-scoped CSS for brand-asset-icon
+   doesn't reach this portal, so we render the glyph directly here at
+   a size that fills the card. `color` is set inline from the picker
+   selection; the <i> inherits via currentColor. */
+.bk-editor-preview-card--icon {
+  background-color: var(--bke-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.bk-editor-icon-glyph {
+  font-size: clamp(120px, 32vw, 320px);
+  line-height: 1;
+  display: block;
+  color: currentColor;
+}
+/* Color-asset preview — solid swatch filling the card with role,
+   name, and hex stacked in the center. Text contrast is set inline
+   via readableOn(). */
+.bk-editor-preview-card--color {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.bk-editor-color-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+.bk-editor-color-role {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.bk-editor-color-name {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.bk-editor-color-hex {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* Shades list shown in the right rail for the color editor — a
+   vertical stack of full-width swatches, lightest → darkest. */
+.bk-editor-color-shades {
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--bke-border, rgba(17, 17, 19, 0.08));
+}
+.bk-editor-color-shade {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.bk-editor-color-shade-copy {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.bk-editor-color-shade:hover .bk-editor-color-shade-copy,
+.bk-editor-color-shade:focus-visible .bk-editor-color-shade-copy {
+  opacity: 1;
+}
+.bk-editor-color-shade-hex {
+  display: inline-flex;
+  align-items: center;
+}
+/* Big color-preview tile is itself the copy button. Reset the button
+   shell so it still reads as a flush color block, then reveal the
+   copy icon next to the hex on hover/focus. */
+.bk-editor-color-copy {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+}
+.bk-editor-color-hex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.bk-editor-color-copy-icon {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.bk-editor-color-copy:hover .bk-editor-color-copy-icon,
+.bk-editor-color-copy:focus-visible .bk-editor-color-copy-icon {
+  opacity: 1;
+}
+.bk-editor-color-shade-name {
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+.bk-editor-color-shade-hex {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+/* "Download shades" text button — sits below the shades list on the
+   left, label + icon. Treats the rail like a small utility row. */
+.bk-editor-shades-download {
+  margin-top: 4px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--bke-border, rgba(17, 17, 19, 0.1));
+  background: transparent;
+  color: var(--bke-text, #111113);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.bk-editor-shades-download:hover {
+  background: rgba(17, 17, 19, 0.06);
+  border-color: rgba(17, 17, 19, 0.18);
+}
+.bk-editor-shades-download svg {
+  flex-shrink: 0;
+}
+
+/* Font-asset preview — a typography scale (H1 → Tiny) rendered in
+   the brand's family at the selected weight. Sits in the same
+   .bk-editor-preview-card slot as the live-render variant. */
+.bk-editor-preview-card--font {
+  background-color: var(--bke-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 48px;
+}
+.bk-editor-font-scale {
+  width: 100%;
+  max-width: 720px;
+  border-collapse: collapse;
+  color: var(--bke-text, #111113);
+  /* Fixed layout so the TYPE column can shrink and ellipsis its
+     contents instead of pushing the SIZE column off the table. */
+  table-layout: fixed;
+}
+.bk-editor-font-scale thead th {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bke-muted, #8a8a85);
+  text-align: left;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--bke-border, rgba(17, 17, 19, 0.08));
+}
+.bk-editor-font-scale thead th:last-child {
+  text-align: right;
+}
+.bk-editor-font-scale tbody td {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--bke-border, rgba(17, 17, 19, 0.06));
+  vertical-align: middle;
+}
+.bk-editor-font-scale tbody tr:last-child td {
+  border-bottom: 0;
+}
+.bk-editor-font-scale-row {
+  transition: filter 200ms ease;
+}
+/* When the matching weight is hovered on the rail, project a soft
+   shadow under the row. Color flips by theme — black on light bg,
+   white on dark — so the shadow stays readable either way. */
+.bk-editor-font-scale-row.is-highlighted .bk-editor-font-scale-cell,
+.bk-editor-font-scale-row.is-highlighted .bk-editor-font-scale-size {
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+}
+[data-theme='dark'] .bk-editor-font-scale-row.is-highlighted .bk-editor-font-scale-cell,
+[data-theme='dark'] .bk-editor-font-scale-row.is-highlighted .bk-editor-font-scale-size {
+  filter: drop-shadow(0 6px 14px rgba(255, 255, 255, 0.45));
+}
+.bk-editor-font-scale-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.bk-editor-font-scale-weight-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bke-muted, #8a8a85);
+  font-weight: 500;
+}
+.bk-editor-font-scale-sample {
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.bk-editor-font-scale-size {
+  text-align: right;
+  font-size: 13px;
+  color: var(--bke-muted, #6b6b6b);
+  font-variant-numeric: tabular-nums;
+  width: 70px;
+}
+
+/* Font-asset weights rail — vertical list of all declared weights
+   for the chosen family, each previewing "Aa" in its own weight. */
+.bk-editor-font-weight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bk-editor-font-weight-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  background: var(--bke-surface, #fafaf8);
+  border: 1px solid var(--bke-border, rgba(17, 17, 19, 0.08));
+  border-radius: 10px;
+  text-align: left;
+  color: var(--bke-text, #111113);
+  transition: background 160ms ease, border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.bk-editor-font-weight-row:hover {
+  background: #fff;
+  border-color: rgba(17, 17, 19, 0.32);
+}
+[data-theme='dark'] .bk-editor-font-weight-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.bk-editor-font-weight-sample {
+  font-size: 22px;
+  line-height: 1;
+  width: 36px;
+  text-align: center;
+  color: var(--bke-text, #111113);
+}
+.bk-editor-font-weight-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bk-editor-font-weight-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bke-text, #111113);
+}
+.bk-editor-font-weight-num {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--bke-muted, #8a8a85);
+}
+
+/* Icon weight toggle in the editor rail — 4 buttons, one per UICONS
+   rounded weight, each previewing the same glyph in its own weight. */
+.bk-editor-icon-weights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.bk-editor-icon-weight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 6px 10px;
+  background: var(--bke-surface, #fafaf8);
+  border: 1px solid var(--bke-border, rgba(17, 17, 19, 0.08));
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--bke-text, #111113);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.bk-editor-icon-weight i {
+  font-size: 22px;
+  line-height: 1;
+}
+.bk-editor-icon-weight-label {
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--bke-muted, #6b6b6b);
+}
+.bk-editor-icon-weight:hover {
+  border-color: rgba(17, 17, 19, 0.24);
+}
+.bk-editor-icon-weight:active {
+  transform: scale(0.98);
+}
+.bk-editor-icon-weight.is-selected {
+  border-color: #111113;
+  background: #fff;
+}
+.bk-editor-icon-weight.is-selected .bk-editor-icon-weight-label {
+  color: #111113;
+}
 .bk-editor-preview-frame {
   width: 100%;
   max-width: 720px;
-  aspect-ratio: 1.6 / 1;
   display: block;
+}
+/* Host owns the visible border-radius + drop-shadow + aspect ratio
+   (set inline by ScalingStage from the per-template aspectFor map).
+   The inner stage scales the renderer up from its native ~360px
+   canonical width so absolute pixel sizes (text-[4.5px], etc.) read
+   correctly at any preview size. */
+.bk-preview-host {
+  position: relative;
+  width: 100%;
   overflow: hidden;
   border-radius: 12px;
   box-shadow: 0 18px 48px -16px rgba(15, 18, 22, 0.35);
 }
-.bk-editor-preview-frame > * {
+.bk-preview-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+.bk-preview-stage > * {
   width: 100%;
   height: 100%;
+}
+/* Font override — wins over Tailwind utilities (font-mono / font-serif)
+   that individual designs apply, so swapping the typography pick is
+   truly global across the rendered preview. */
+.bk-preview-host[data-font-override],
+.bk-preview-host[data-font-override] * {
+  font-family: var(--bk-preview-font) !important;
+}
+/* Show Logo toggle — BrandLogo renders itself as <img>, so hiding
+   <img> covers the common case without per-renderer changes.
+   `visibility: hidden` keeps the layout box, so designs that
+   reserve space for the logo don't reflow. */
+.bk-preview-host[data-hide-logo] img {
+  visibility: hidden;
 }
 .bk-editor-eyebrow {
   font-size: 10.5px;
@@ -269,6 +635,12 @@
 
 .bk-editor-group { display: flex; flex-direction: column; gap: 8px; }
 .bk-editor-group-head { display: flex; flex-direction: column; gap: 1px; }
+.bk-editor-group-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .bk-editor-group-title {
   font-size: 13.5px;
   font-weight: 600;
@@ -280,6 +652,102 @@
   margin: 0;
   font-size: 12px;
   color: var(--bke-text-secondary);
+}
+.bk-editor-group-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bke-text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.bk-editor-group-reset:hover {
+  background: var(--bke-surface-hover);
+  color: var(--bke-text);
+}
+
+/* Content fields (Full Name / Job Title / Email / …) */
+.bk-editor-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bk-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bk-editor-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--bke-text-secondary);
+  letter-spacing: -0.005em;
+}
+.bk-editor-field-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--bke-border);
+  background: var(--bke-surface);
+  color: var(--bke-text);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.bk-editor-field-input:focus {
+  outline: none;
+  border-color: var(--bke-border-strong);
+  box-shadow: 0 0 0 3px var(--bke-ring, rgba(0, 0, 0, 0.06));
+}
+.bk-editor-field-input::placeholder { color: var(--bke-text-tertiary, var(--bke-text-secondary)); opacity: 0.6; }
+
+/* Show Logo toggle (lives in Logos group header) */
+.bk-editor-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--bke-text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+.bk-editor-toggle-label { letter-spacing: -0.005em; }
+.bk-editor-toggle-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid var(--bke-border);
+  background: var(--bke-surface);
+  padding: 0;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+.bk-editor-toggle-switch.is-on {
+  background: var(--bke-text);
+  border-color: var(--bke-text);
+}
+.bk-editor-toggle-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 140ms var(--ease);
+}
+.bk-editor-toggle-switch.is-on .bk-editor-toggle-knob {
+  transform: translateX(12px);
 }
 
 .bk-editor-covers {
@@ -312,6 +780,22 @@
   background-repeat: no-repeat;
 }
 
+.bk-editor-color-row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  align-items: start;
+  gap: 10px;
+}
+.bk-editor-color-row + .bk-editor-color-row {
+  margin-top: 10px;
+}
+.bk-editor-color-row-label {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bke-text-secondary);
+  padding-top: 8px;
+}
 .bk-editor-swatches {
   display: flex;
   flex-wrap: wrap;
@@ -901,5 +1385,645 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
+}
+
+/* ============================================================
+ * Brand Assets — drilldown tile renderers.
+ * One renderer per category fills the .bk-variant-tile-render
+ * slot with real Setup data (logo combo, color, font, etc.).
+ * ============================================================ */
+
+[data-cosmos="workspace"] .brand-asset-render {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+
+/* ─── Logo combo ───────────────────────────────────────────── */
+[data-cosmos="workspace"] .brand-asset-render--logo {
+  align-items: center;
+  justify-content: center;
+  padding: 14% 16%;
+}
+[data-cosmos="workspace"] .brand-asset-render-logo-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+[data-cosmos="workspace"] .brand-asset-render-logo-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+[data-cosmos="workspace"] .brand-asset-render-logo-mask {
+  width: 100%;
+  height: 100%;
+  display: block;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+/* ─── Color swatch ─────────────────────────────────────────── */
+/* Centered role / name / hex stack — same composition the editor's
+   big preview uses. Text color is set inline per swatch so it flips
+   to black on light backgrounds and white on dark ones. */
+[data-cosmos="workspace"] .brand-asset-render--color {
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+}
+[data-cosmos="workspace"] .brand-asset-render-color-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  color: inherit;
+}
+[data-cosmos="workspace"] .brand-asset-render-color-role {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+[data-cosmos="workspace"] .brand-asset-render-color-name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+[data-cosmos="workspace"] .brand-asset-render-color-hex {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  opacity: 0.85;
+}
+
+/* ─── Font preview ─────────────────────────────────────────── */
+[data-cosmos="workspace"] .brand-asset-render--font {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 10% 12%;
+  background: var(--surface, transparent);
+  color: var(--text);
+}
+[data-cosmos="workspace"] .brand-asset-render-font-sample {
+  font-size: clamp(48px, 38%, 96px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+[data-cosmos="workspace"] .brand-asset-render-font-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+[data-cosmos="workspace"] .brand-asset-render-font-role {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary, var(--text-secondary));
+}
+[data-cosmos="workspace"] .brand-asset-render-font-family {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+
+/* ─── Icon ─────────────────────────────────────────────────── */
+[data-cosmos="workspace"] .brand-asset-render--icon {
+  align-items: center;
+  justify-content: center;
+  padding: 22%;
+  /* `--bk-icon-bg` is set by the drilldown when the chosen tint has
+     too little contrast against the theme surface (e.g. black tint in
+     dark mode). Without an override we fall through to the regular
+     surface token so tiles look identical to before. */
+  background: var(--bk-icon-bg, var(--surface, transparent));
+  color: var(--text);
+  border-radius: inherit;
+  transition: background 160ms ease;
+}
+[data-cosmos="workspace"] .brand-asset-render-icon-glyph,
+[data-cosmos="workspace"] .brand-asset-render-icon-glyph svg,
+[data-cosmos="workspace"] .brand-asset-render-icon-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+/* Flaticon webfont glyphs render via the <i> element's ::before
+   pseudo — size with font-size and center inside the padded panel. */
+[data-cosmos="workspace"] i.brand-asset-render-icon-glyph {
+  width: auto;
+  height: auto;
+  font-size: 64px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+/* ─── Photo ────────────────────────────────────────────────── */
+[data-cosmos="workspace"] .brand-asset-render--photo {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 14px 16px;
+}
+[data-cosmos="workspace"] .brand-asset-render-photo-slot {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(17, 17, 20, 0.72);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── About ────────────────────────────────────────────────── */
+[data-cosmos="workspace"] .brand-asset-render--about {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 8% 10%;
+  background: var(--surface, transparent);
+}
+[data-cosmos="workspace"] .brand-asset-render-about-title {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+[data-cosmos="workspace"] .brand-asset-render-about-body {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Icon-weight popover — anchored to the Edit button in the Icons
+   drilldown actions row. */
+[data-cosmos="workspace"] .bk-drilldown-weight {
+  position: relative;
+}
+[data-cosmos="workspace"] .section-add.is-active {
+  background: rgba(17, 17, 19, 0.06);
+  color: #111113;
+}
+[data-cosmos="workspace"] .bk-weight-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 200px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 19, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-cosmos="workspace"] .bk-weight-popover-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+[data-cosmos="workspace"] .bk-weight-popover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px 8px;
+  background: #fafaf8;
+  border: 1px solid rgba(17, 17, 19, 0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  color: #111113;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell i {
+  font-size: 18px;
+  line-height: 1;
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell span {
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: #6b6b6b;
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell:hover {
+  border-color: rgba(17, 17, 19, 0.18);
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell:active {
+  transform: scale(0.98);
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell.is-selected {
+  border-color: #111113;
+  background: #fff;
+}
+[data-cosmos="workspace"] .bk-weight-popover-cell.is-selected span {
+  color: #111113;
+}
+[data-cosmos="workspace"] .bk-weight-popover-swatches {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 5px;
+}
+[data-cosmos="workspace"] .bk-weight-popover-swatch {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1.5px solid rgba(17, 17, 19, 0.08);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+[data-cosmos="workspace"] .bk-weight-popover-swatch:hover {
+  transform: scale(1.06);
+}
+[data-cosmos="workspace"] .bk-weight-popover-swatch.is-selected {
+  border-color: #111113;
+  box-shadow: 0 0 0 2px #fff inset;
+}
+
+/* Add-color popover — anchored to the "+" button in the Colors
+   drilldown actions row. Wraps `ColorPickerHSV` in compact mode;
+   the inner `.cp-body` provides its own surface and rounding, so
+   this layer is just positioning + drop shadow. Mirrors the icon
+   weight popover's anchor (below, right-aligned). */
+[data-cosmos="workspace"] .bk-drilldown-color {
+  position: relative;
+}
+[data-cosmos="workspace"] .bk-color-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: 248px;
+  max-width: min(35vw, 280px);
+}
+[data-cosmos="workspace"] .bk-color-popover .cp-body {
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.14),
+    0 4px 10px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+
+/* Drilldown empty state — used by the Icons section when the brand
+   has no icons yet. Spans the full grid via grid-column: 1 / -1 so
+   it doesn't try to fit a single tile slot. */
+[data-cosmos="workspace"] .bk-drilldown-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 64px 32px;
+  border: 1.5px dashed rgba(17, 17, 19, 0.18);
+  border-radius: 18px;
+  background: rgba(17, 17, 19, 0.02);
+  color: #444;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+[data-cosmos="workspace"] .bk-drilldown-empty:hover {
+  background: rgba(17, 17, 19, 0.04);
+  border-color: rgba(17, 17, 19, 0.32);
+}
+[data-cosmos="workspace"] .bk-drilldown-empty:active {
+  transform: scale(0.995);
+}
+[data-cosmos="workspace"] .bk-drilldown-empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #111113;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+[data-cosmos="workspace"] .bk-drilldown-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #111113;
+}
+[data-cosmos="workspace"] .bk-drilldown-empty-sub {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+}
+
+/* ============================================================
+ * Business-card picker modal — browse-and-add for variants the
+ * curated showcase doesn't include yet.
+ * ============================================================ */
+.bk-card-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(15, 15, 17, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.bk-card-picker {
+  width: min(1080px, 100%);
+  max-height: min(720px, 90vh);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.bk-card-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid rgba(17, 17, 19, 0.06);
+}
+.bk-card-picker-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #111113;
+}
+.bk-card-picker-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 17, 19, 0.08);
+  background: #fff;
+  color: #6b6b6b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.bk-card-picker-close:hover {
+  background: #f4f4f3;
+  color: #111113;
+}
+.bk-card-picker-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px 22px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+.bk-card-picker-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  padding: 64px 0;
+}
+.bk-card-picker-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  color: #111113;
+}
+.bk-card-picker-tile {
+  /* `position: relative` is load-bearing — many business-card
+     renderers use `position: absolute` children without a positioned
+     wrapper of their own, so without this they'd escape the tile and
+     paint at viewport coords (showing as a giant brand initial
+     flickering behind the picker grid). */
+  position: relative;
+  display: block;
+  /* aspect-ratio is set inline by the modal so cards (1.6) and
+     letterheads (1/1.414) can both render at their natural shape. */
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f4f4f3;
+  border: 1px solid rgba(17, 17, 19, 0.06);
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.bk-card-picker-tile > * {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.bk-card-picker-cell:hover .bk-card-picker-tile {
+  transform: translateY(-2px);
+  border-color: rgba(17, 17, 19, 0.18);
+}
+.bk-card-picker-cell-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #444;
+}
+
+/* ============================================================
+ * Icon picker modal — searchable grid over the Flaticon UICONS
+ * catalog. Opens from the Icons drilldown's "Add" button.
+ * ============================================================ */
+.bk-icon-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(15, 15, 17, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.bk-icon-picker {
+  width: min(880px, 100%);
+  max-height: min(720px, 90vh);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.bk-icon-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 12px;
+}
+.bk-icon-picker-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #111113;
+}
+.bk-icon-picker-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 17, 19, 0.08);
+  background: #fff;
+  color: #6b6b6b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.bk-icon-picker-close:hover {
+  background: #f4f4f3;
+  color: #111113;
+}
+.bk-icon-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 22px 14px;
+  padding: 10px 14px;
+  border: 1px solid rgba(17, 17, 19, 0.1);
+  border-radius: 12px;
+  background: #fafaf8;
+  color: #6b6b6b;
+}
+.bk-icon-picker-search input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 14px;
+  color: #111113;
+}
+.bk-icon-picker-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 22px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 8px;
+}
+.bk-icon-picker-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  padding: 32px 0;
+}
+.bk-icon-picker-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 8px 10px;
+  background: #fafaf8;
+  border: 1px solid rgba(17, 17, 19, 0.06);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+  color: #111113;
+}
+.bk-icon-picker-cell:hover:not(:disabled) {
+  background: #fff;
+  border-color: rgba(17, 17, 19, 0.18);
+}
+.bk-icon-picker-cell:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.bk-icon-picker-cell.is-added {
+  background: #f0f6ee;
+  border-color: rgba(50, 130, 60, 0.25);
+  color: #2e6c3a;
+  cursor: default;
+  opacity: 0.85;
+}
+.bk-icon-picker-cell i {
+  font-size: 28px;
+  line-height: 1;
+}
+.bk-icon-picker-cell-label {
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.bk-icon-picker-cell.is-added .bk-icon-picker-cell-label {
+  color: #2e6c3a;
+}
+.bk-icon-picker-cell-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #2e6c3a;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bk-icon-picker-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px 18px;
+  border-top: 1px solid rgba(17, 17, 19, 0.06);
+  font-size: 11.5px;
+  color: #777;
+}
+.bk-icon-picker-credit a {
+  color: #555;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.bk-icon-picker-credit a:hover {
+  color: #111113;
 }
 

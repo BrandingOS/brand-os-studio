@@ -3,6 +3,7 @@ import {
   ContextMenu,
   type ContextMenuState,
 } from '@/features/setup/components/ContextMenu';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from './BrandKitSidebar';
 import type { EditorTarget } from './BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
@@ -31,14 +32,13 @@ const COVERS: string[] = (() => {
  *  order in BrandKitSidebar's KIT_SECTIONS — duplicated here to keep
  *  sections.tsx free of an import cycle with BrandKitSidebar. */
 const SECTION_ORDER: KitSectionKey[] = [
+  'brand-assets',
   'stationery',
   'social',
   'web',
-  'mockups',
   'brand-guides',
   'presentations',
   'animations',
-  'qr-code',
 ];
 
 function hashString(s: string): number {
@@ -68,11 +68,21 @@ function deterministicShuffle<T>(arr: readonly T[], seed: number): T[] {
 type CardSpec = { label: string };
 
 const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
+  // brand-assets has one card per asset category. Same SectionGrid
+  // path as every other key — just with no per-section cap so all
+  // six labels keep a distinct cover (see GLOBAL_COVER_MAP below).
+  'brand-assets': [
+    { label: 'Logos' },
+    { label: 'Colors' },
+    { label: 'Fonts' },
+    { label: 'Icons' },
+    { label: 'Photos' },
+    { label: 'About' },
+  ],
   stationery: [
     { label: 'Business Card' },
     { label: 'Letterhead' },
     { label: 'Envelope' },
-    { label: 'Notecard' },
     { label: 'Invoice' },
   ],
   social: [
@@ -87,13 +97,6 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
     { label: 'Email Signature' },
     { label: 'Landing Page' },
   ],
-  mockups: [
-    { label: 'Mug' },
-    { label: 'T-Shirt' },
-    { label: 'Billboard' },
-    { label: 'Tote' },
-    { label: 'Sticker Sheet' },
-  ],
   'brand-guides': [
     { label: 'Logo Guide' },
     { label: 'Color Guide' },
@@ -104,7 +107,6 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
   presentations: [
     { label: 'Pitch Deck' },
     { label: 'Business Plan' },
-    { label: 'Portfolio' },
     { label: 'Proposal' },
     { label: 'Case Studies' },
   ],
@@ -114,12 +116,6 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
     { label: 'Fade' },
     { label: 'Rotate' },
   ],
-  'qr-code': [
-    { label: 'Branded' },
-    { label: 'Minimal' },
-    { label: 'Rounded' },
-    { label: 'Square' },
-  ],
 };
 
 /** Cap any section at 5 cards regardless of source data. */
@@ -127,6 +123,9 @@ const MAX_PER_SECTION = 5;
 
 export function getSectionCount(sectionKey: KitSectionKey): number {
   const raw = SECTION_CARDS[sectionKey]?.length ?? 0;
+  // brand-assets is a flat panel of asset categories — return the
+  // raw count so the sidebar can show all six.
+  if (sectionKey === 'brand-assets') return raw;
   return Math.min(raw, MAX_PER_SECTION);
 }
 
@@ -142,7 +141,10 @@ const GLOBAL_COVER_MAP: ReadonlyMap<string, string[]> = (() => {
   const map = new Map<string, string[]>();
   let idx = 0;
   for (const section of SECTION_ORDER) {
-    const cards = (SECTION_CARDS[section] ?? []).slice(0, MAX_PER_SECTION);
+    // brand-assets has 6 cards (one per asset category) and we want
+    // each to keep a distinct cover, so don't apply the per-section cap.
+    const raw = SECTION_CARDS[section] ?? [];
+    const cards = section === 'brand-assets' ? raw : raw.slice(0, MAX_PER_SECTION);
     for (const card of cards) {
       const opts = offsets.map((off) => shuffled[(idx + off) % len]);
       map.set(`${section}::${card.label}`, opts);
@@ -156,7 +158,34 @@ const GLOBAL_COVER_MAP: ReadonlyMap<string, string[]> = (() => {
  *  the editor's image picker uses this when present; the remaining
  *  two alternatives still come from the shuffled pool. */
 const COVER_OVERRIDES: Partial<Record<string, string>> = {
-  'stationery::Business Card': '/brand-kit/covers/stationery-business-card.jpeg',
+  // Brand Assets
+  'brand-assets::Logos': '/brand-kit/covers/brand-assets-logos.png',
+  'brand-assets::Colors': '/brand-kit/covers/brand-assets-colors.png',
+  'brand-assets::Fonts': '/brand-kit/covers/brand-assets-fonts.png',
+  'brand-assets::Icons': '/brand-kit/covers/brand-assets-icons.png',
+  'brand-assets::Photos': '/brand-kit/covers/brand-assets-photos.png',
+  'brand-assets::About': '/brand-kit/covers/brand-assets-about.png',
+  // Stationery
+  'stationery::Business Card': '/brand-kit/covers/business-card.png',
+  'stationery::Letterhead': '/brand-kit/covers/letterhead.png',
+  'stationery::Envelope': '/brand-kit/covers/envelope.png',
+  'stationery::Invoice': '/brand-kit/covers/invoice.png',
+  // Social Media
+  'social::Profile': '/brand-kit/covers/social-profile.png',
+  'social::Cover': '/brand-kit/covers/social-cover.png',
+  'social::Post': '/brand-kit/covers/social-post.png',
+  'social::Story': '/brand-kit/covers/social-story.png',
+  // Web
+  'web::Favicon': '/brand-kit/covers/web-favicon.png',
+  'web::Website': '/brand-kit/covers/web-website.png',
+  'web::Email Signature': '/brand-kit/covers/web-email-signature.png',
+  'web::Landing Page': '/brand-kit/covers/web-landing-page.png',
+  // Brand Guides
+  'brand-guides::Logo Guide': '/brand-kit/covers/guide-logo.png',
+  'brand-guides::Color Guide': '/brand-kit/covers/guide-color.png',
+  'brand-guides::Typography Guide': '/brand-kit/covers/guide-typography.png',
+  // Presentations
+  'presentations::Pitch Deck': '/brand-kit/covers/pitch-deck.png',
 };
 
 export function coversFor(sectionKey: KitSectionKey, label: string): string[] {
@@ -284,10 +313,16 @@ type GridProps = {
    *  variants drilldown. */
   onEditCard?: (target: EditorTarget) => void;
   onDownloadCard?: (target: EditorTarget) => void;
+  /** MockBrand from the page — required for brand-assets cards so
+   *  variantsForCard can emit one template per real asset. */
+  brand?: MockBrand;
 };
 
-export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard }: GridProps) {
-  const cards = (SECTION_CARDS[sectionKey] ?? []).slice(0, MAX_PER_SECTION);
+export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard, brand }: GridProps) {
+  // brand-assets has up to 6 cards (one per asset category) and we
+  // want each rendered, so don't apply the per-section cap.
+  const raw = SECTION_CARDS[sectionKey] ?? [];
+  const cards = sectionKey === 'brand-assets' ? raw : raw.slice(0, MAX_PER_SECTION);
 
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
 
@@ -302,7 +337,7 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
 
   const targetFor = useCallback((key: KitSectionKey, label: string): EditorTarget => {
     const opts = coversFor(key, label);
-    const templates = variantsForCard(key, label);
+    const templates = variantsForCard(key, label, brand);
     return {
       sectionKey: key,
       label,
@@ -310,7 +345,7 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
       covers: opts,
       templates,
     };
-  }, []);
+  }, [brand]);
 
   const handleCardClick = useCallback(
     (key: KitSectionKey, label: string, origin?: Origin) => {

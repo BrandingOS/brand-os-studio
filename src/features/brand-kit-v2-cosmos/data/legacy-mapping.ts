@@ -4,7 +4,9 @@ import {
   filterTemplatesByCategory,
 } from '@/features/brandkit/data/templates';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { KitSectionKey } from '../components/BrandKitSidebar';
+import { logoCombosFor } from './recolorLogo';
 import { BUSINESS_CARDS_EXTENDED } from '../renderers/BusinessCardsExtended';
 import { BUSINESS_CARDS_EXTENDED_2 } from '../renderers/BusinessCardsExtended2';
 import { MOCKUPS_EXTENDED } from '../renderers/MockupsExtended';
@@ -57,14 +59,21 @@ export type LegacyCardSource = {
 };
 
 const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
+  'brand-assets': {
+    Logos: { moduleId: '__brand-asset-logo__' },
+    Colors: { moduleId: '__brand-asset-color__' },
+    Fonts: { moduleId: '__brand-asset-font__' },
+    Icons: { moduleId: '__brand-asset-icon__' },
+    Photos: { moduleId: '__brand-asset-photo__' },
+    About: { moduleId: '__brand-asset-about__' },
+  },
   stationery: {
     'Business Card': { moduleId: 'business-cards' },
-    // Letterhead / Envelope / Notecard live in cosmos-only extension
-    // renderers — no legacy moduleId. Synthetic moduleIds route
-    // through `syntheticTemplates` below.
+    // Letterhead / Envelope live in cosmos-only extension renderers
+    // — no legacy moduleId. Synthetic moduleIds route through
+    // `syntheticTemplates` below.
     'Letterhead': { moduleId: '__letterhead__' },
     'Envelope': { moduleId: '__envelope__' },
-    'Notecard': { moduleId: '__notecard__' },
     'Invoice': { moduleId: 'invoices' },
   },
   social: {
@@ -79,13 +88,6 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
     'Email Signature': { moduleId: '__email-sig__' },
     'Landing Page': { moduleId: '__landing__' },
   },
-  mockups: {
-    'Mug': { moduleId: '__mockup-mug__' },
-    'T-Shirt': { moduleId: '__mockup-tshirt__' },
-    'Billboard': { moduleId: '__mockup-billboard__' },
-    'Tote': { moduleId: '__mockup-tote__' },
-    'Sticker Sheet': { moduleId: '__mockup-sticker__' },
-  },
   'brand-guides': {
     'Logo Guide': { moduleId: '__guide-logo__' },
     'Color Guide': { moduleId: '__guide-color__' },
@@ -96,7 +98,6 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
   presentations: {
     'Pitch Deck': { moduleId: '__pres-pitch__' },
     'Business Plan': { moduleId: '__pres-plan__' },
-    'Portfolio': { moduleId: '__pres-portfolio__' },
     'Proposal': { moduleId: '__pres-proposal__' },
     'Case Studies': { moduleId: '__pres-case__' },
   },
@@ -105,12 +106,6 @@ const MAP: Record<KitSectionKey, Record<string, LegacyCardSource>> = {
     'Slide In': { moduleId: '__anim-slide__' },
     'Fade': { moduleId: '__anim-fade__' },
     'Rotate': { moduleId: '__anim-rotate__' },
-  },
-  'qr-code': {
-    'Branded': { moduleId: '__qr-branded__' },
-    'Minimal': { moduleId: '__qr-minimal__' },
-    'Rounded': { moduleId: '__qr-rounded__' },
-    'Square': { moduleId: '__qr-square__' },
   },
 };
 
@@ -121,6 +116,114 @@ export function resolveLegacyCard(
   label: string,
 ): LegacyCardSource | null {
   return MAP[sectionKey]?.[label] ?? null;
+}
+
+/**
+ * Brand-asset synthetic templates emitted from a real MockBrand.
+ *
+ * One BrandKitTemplate per actual asset on the brand (or per actual
+ * mark/bg color combo for logos). The id encodes
+ *   `brand-asset-<kind>-ext-<index>`
+ * so the cosmos renderer can extract the index and look up the same
+ * data from MockBrand at render time.
+ */
+/** Produce a friendly label for an icon stored on the brand. The
+ *  picker stores Flaticon UICONS class names ("fi-rr-camera"), bare
+ *  names ("camera"), full inline SVGs, or image URLs. We unwrap the
+ *  class prefix and Title Case dashes / underscores so the drilldown
+ *  reads as the icon's actual concept rather than "Icon 7". Empty /
+ *  unrecognized inputs fall back to the index. */
+function iconLabelFromValue(value: string, index: number): string {
+  if (!value) return `Icon ${index + 1}`;
+  const trimmed = value.trim();
+  if (trimmed.startsWith('<svg') || /^https?:|^data:|^\//.test(trimmed)) {
+    return `Icon ${index + 1}`;
+  }
+  // Strip the Flaticon weight prefix if present (rr/br/sr/rs/bs/ss/tr/ts/brands).
+  const bare = trimmed.replace(/^fi-(rr|br|sr|rs|bs|ss|tr|ts|brands)-/i, '');
+  if (!bare) return `Icon ${index + 1}`;
+  return bare
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function brandAssetTemplates(
+  moduleId: string,
+  brand: MockBrand,
+): BrandKitTemplate[] {
+  const allColors = [
+    ...brand.colors.core,
+    ...brand.colors.accent,
+    ...brand.colors.grey,
+  ];
+
+  if (moduleId === '__brand-asset-logo__') {
+    return logoCombosFor(brand).map((combo, idx) => ({
+      id: `brand-asset-logo-ext-${idx + 1}`,
+      name: `${combo.logoLabel} · ${combo.mark.name} on ${combo.bg.name}`,
+      category: combo.bg.name,
+      type: 'brand-asset-logo' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'logo', combo.logoLabel],
+    }));
+  }
+  if (moduleId === '__brand-asset-color__') {
+    return allColors.map((c, idx) => ({
+      id: `brand-asset-color-ext-${idx + 1}`,
+      name: c.name,
+      category: 'color',
+      type: 'brand-asset-color' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'color', c.hex],
+    }));
+  }
+  if (moduleId === '__brand-asset-font__') {
+    return brand.fonts.map((f, idx) => ({
+      id: `brand-asset-font-ext-${idx + 1}`,
+      name: f.family,
+      category: f.role,
+      type: 'brand-asset-font' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'font', f.role],
+    }));
+  }
+  if (moduleId === '__brand-asset-icon__') {
+    return brand.icons.map((value, idx) => ({
+      id: `brand-asset-icon-ext-${idx + 1}`,
+      // Derive a human-readable label from the icon source. Flaticon
+      // class names ("fi-rr-camera", "fi-bs-arrow-right") strip down
+      // to "Camera" / "Arrow Right". Bare names go straight through
+      // capitalized; raw SVGs / image URLs fall back to the index.
+      name: iconLabelFromValue(value, idx),
+      category: 'icon',
+      type: 'brand-asset-icon' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'icon'],
+    }));
+  }
+  if (moduleId === '__brand-asset-photo__') {
+    return brand.photos.map((p, idx) => ({
+      id: `brand-asset-photo-ext-${idx + 1}`,
+      name: `Slot ${p.slot}`,
+      category: 'photo',
+      type: 'brand-asset-photo' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'photo', p.slot],
+    }));
+  }
+  if (moduleId === '__brand-asset-about__') {
+    return brand.about.map((a, idx) => ({
+      id: `brand-asset-about-ext-${idx + 1}`,
+      name: a.title,
+      category: 'about',
+      type: 'brand-asset-about' as BrandKitTemplate['type'],
+      orientation: 'landscape' as const,
+      tags: ['brand-asset', 'about'],
+    }));
+  }
+  return [];
 }
 
 /** Variants derived from cosmos-only synthetic types — items the
@@ -408,13 +511,22 @@ const EXTENDED_TEMPLATES: Record<string, BrandKitTemplate[]> = {
 /** All template variants for a card — drives the drilldown grid.
  *  Concatenates the legacy template list with cosmos-side
  *  extensions so the drilldown shows both. The cosmos renderer
- *  routes templates by id suffix to the right path. */
+ *  routes templates by id suffix to the right path.
+ *
+ *  Brand-assets cards take an optional `brand` so we can emit one
+ *  template per real asset (logo combos, colors, fonts…). When
+ *  omitted, brand-assets variants come back empty — callers in a
+ *  brand-scoped page should always pass it. */
 export function variantsForCard(
   sectionKey: KitSectionKey,
   label: string,
+  brand?: MockBrand,
 ): BrandKitTemplate[] {
   const src = resolveLegacyCard(sectionKey, label);
   if (!src) return [];
+  if (src.moduleId.startsWith('__brand-asset-')) {
+    return brand ? brandAssetTemplates(src.moduleId, brand) : [];
+  }
   if (src.moduleId.startsWith('__')) {
     return syntheticTemplates(src.moduleId, label);
   }

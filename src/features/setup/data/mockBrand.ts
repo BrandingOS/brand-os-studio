@@ -19,6 +19,24 @@ export type BrandLogo = {
   svg: string;
 };
 
+/** A single font file uploaded by the user — kept as a data URL so
+ *  the brand object stays self-contained (localStorage-friendly,
+ *  no extra storage layer). The bytes flow through to exporters
+ *  unchanged, so a `.ttf` upload comes out as a `.ttf` download. */
+export type BrandFontFile = {
+  /** Original filename, e.g. "Bricolage-Bold.ttf". */
+  name: string;
+  /** Detected weight label (Regular / Bold / 600 / etc.). */
+  weight: string;
+  /** Lower-case file extension without the dot — drives MIME + zip
+   *  filename when re-exported. */
+  format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'eot';
+  /** `data:font/...;base64,…` URL of the uploaded bytes. */
+  dataUrl: string;
+  /** File size in bytes — kept for future "limit reached" UI. */
+  size: number;
+};
+
 export type BrandFont = {
   id: string;
   family: string;
@@ -26,6 +44,11 @@ export type BrandFont = {
   role: string;
   weights: string;
   fallback?: string;
+  /** Uploaded files for this family. Populated when the user uploads
+   *  the font through the setup picker; absent for Google-Fonts-only
+   *  picks. The brand-kit Fonts download prefers these over a remote
+   *  fetch so the user gets exactly the file they uploaded. */
+  files?: BrandFontFile[];
 };
 
 export type BrandPhoto = {
@@ -149,6 +172,10 @@ export const mockBrand: MockBrand = {
       fallback: 'system-ui, -apple-system, sans-serif',
     },
   ],
+  // Bare names — the Setup board renders these via its hand-built
+  // ICON_MAP (camera, sparkle, image, …). The cosmos brand-kit
+  // renderer also accepts Flaticon UICONS class names (`fi-rr-*`)
+  // that the picker adds.
   icons: [
     'camera',
     'sparkle',

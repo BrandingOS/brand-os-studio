@@ -1,5 +1,6 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
 
 /**
  * Extended business-card designs for the cosmos Brand Kit.
@@ -38,11 +39,18 @@ import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 interface BusinessCardExtendedProps {
   brand: Brand;
   templateIndex: number;
+  /** Optional prop-driven content — when present, replaces the
+   *  old hardcoded literals ({c.fullName} / {c.jobTitle} / phone /
+   *  email / website). Empty fields fall back to brand defaults
+   *  via `deriveBusinessCardContent`, so the design never paints
+   *  blank text. */
+  content?: Partial<BusinessCardContent>;
 }
 
-export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessCardExtendedProps) {
+export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: BusinessCardExtendedProps) {
   const p = brand.primaryColor;
   const s = brand.secondaryColor || '#0F1216';
+  const c = deriveBusinessCardContent(brand, content);
   const designs = [
     // 0 — Editorial Index. Oversized ordinal in the corner, name
     // stacked editorial-style on the right; the brand mark lives
@@ -76,19 +84,19 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               className="text-[8px] font-serif italic"
               style={{ color: p }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
             <div className="text-[14px] font-serif font-semibold text-gray-900 leading-[1.05] mt-0.5">
-              Jane
+              {c.firstName}
               <br />
-              Smith
+              {c.lastName || ''}
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] text-gray-600">
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>+1 234 567 89</div>
+            <div>{c.email}</div>
+            <div>{c.phone}</div>
             <div className="font-medium" style={{ color: p }}>
-              {brand.name.toLowerCase()}.com
+              {c.website}
             </div>
           </div>
         </div>
@@ -120,16 +128,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div>
             <div className="text-[10px] font-semibold text-gray-900 tracking-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div className="text-[6px] mt-0.5" style={{ color: p }}>
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] text-gray-700">
-            <div>+1 234 567 89</div>
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>{brand.name.toLowerCase()}.com</div>
+            <div>{c.phone}</div>
+            <div>{c.email}</div>
+            <div>{c.website}</div>
           </div>
         </div>
       </div>
@@ -159,10 +167,10 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               className="text-[18px] font-extrabold leading-[0.92] tracking-tight"
               style={{ fontStretch: 'condensed' }}
             >
-              Jane
+              {c.firstName}
             </div>
             <div className="text-[18px] font-extrabold leading-[0.92] tracking-tight">
-              Smith
+              {c.lastName || ''}
             </div>
             <div
               className="text-[5.5px] mt-1.5 tracking-[0.22em]"
@@ -173,8 +181,8 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.16em]">
             <div className="space-y-[1px] text-white/70">
-              <div>jane@{brand.name.toLowerCase()}.com</div>
-              <div>+1 234 56789</div>
+              <div>{c.email}</div>
+              <div>{c.phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" color="#ffffff" />
           </div>
@@ -209,21 +217,21 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div>
             <div className="text-[10px] font-semibold text-gray-900 leading-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div
               className="text-[5.5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
             <div className="space-y-[1px]">
-              <div>jane@{brand.name.toLowerCase()}.com</div>
-              <div>{brand.name.toLowerCase()}.com</div>
+              <div>{c.email}</div>
+              <div>{c.website}</div>
             </div>
-            <div className="text-right">+1 234 56789</div>
+            <div className="text-right">{c.phone}</div>
           </div>
         </div>
       </div>
@@ -253,16 +261,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div>
             <div className="text-[4.5px] uppercase tracking-[0.16em] opacity-70">
-              Vice President · Operations
+              {c.jobTitle} · Operations
             </div>
             <div className="text-[14px] font-bold leading-[1.02] mt-1">
-              Jane Smith
+              {c.fullName}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px]">
             <div className="space-y-[1px]">
-              <div>jane@{brand.name.toLowerCase()}.com</div>
-              <div className="opacity-70">+1 234 56789</div>
+              <div>{c.email}</div>
+              <div className="opacity-70">{c.phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" />
           </div>
@@ -303,18 +311,18 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               Holder
             </div>
             <div className="font-serif text-[13px] leading-tight font-semibold text-gray-900">
-              Jane Smith
+              {c.fullName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>+1 234 56789</div>
+            <div>{c.email}</div>
+            <div>{c.phone}</div>
           </div>
         </div>
       </div>
@@ -351,13 +359,13 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
         </div>
         <div className="absolute right-[6%] bottom-[10%] bg-white/95 backdrop-blur-sm rounded-md px-2 py-1 text-right">
           <div className="text-[7px] font-bold text-gray-900 leading-tight">
-            Jane Smith
+            {c.fullName}
           </div>
           <div className="text-[4px]" style={{ color: p }}>
             VP · {brand.name}
           </div>
           <div className="text-[3.5px] text-gray-600 mt-0.5">
-            jane@{brand.name.toLowerCase()}.com
+            {c.email}
           </div>
         </div>
       </div>
@@ -406,7 +414,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
                 {!isToday ? i + 1 : ''}
                 {isToday && (
                   <div className="text-center leading-tight">
-                    <div className="text-[4px] font-bold">JS</div>
+                    <div className="text-[4px] font-bold">{c.initials}</div>
                   </div>
                 )}
               </div>
@@ -414,12 +422,12 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           })}
         </div>
         <div className="absolute right-[6%] bottom-[6%] text-right">
-          <div className="text-[7px] font-bold text-gray-900">Jane Smith</div>
+          <div className="text-[7px] font-bold text-gray-900">{c.fullName}</div>
           <div className="text-[4px]" style={{ color: p }}>
-            Vice President
+            {c.jobTitle}
           </div>
           <div className="text-[3.5px] text-gray-600 mt-0.5">
-            jane@{brand.name.toLowerCase()}.com
+            {c.email}
           </div>
         </div>
       </div>
@@ -461,16 +469,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="text-center">
             <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div className="text-[5px] uppercase tracking-[0.22em] text-gray-600 mt-0.5">
-              Vice President — Ops
+              {c.jobTitle} — Ops
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
             <div className="space-y-[1px]">
-              <div>+1 234 56789</div>
-              <div>jane@{brand.name.toLowerCase()}.com</div>
+              <div>{c.phone}</div>
+              <div>{c.email}</div>
             </div>
             <BrandLogo brand={brand} size="xs" />
           </div>
@@ -497,15 +505,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="ml-[8%] mb-[4%]">
             <div className="text-[12px] font-bold leading-tight text-white">
-              Jane
+              {c.firstName}
               <br />
-              Smith
+              {c.lastName || ''}
             </div>
             <div className="text-[5px] uppercase tracking-[0.18em] text-white/80 mt-1">
-              Vice President
+              {c.jobTitle}
             </div>
             <div className="text-[4px] text-white/70 mt-1">
-              jane@{brand.name.toLowerCase()}.com · +1 234 56789
+              {c.email} · {c.phone}
             </div>
           </div>
         </div>
@@ -532,15 +540,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="text-center text-white">
             <div className="text-[14px] font-bold leading-none tracking-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div className="text-[5.5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>+1 234 56789</div>
+            <div>{c.email}</div>
+            <div>{c.phone}</div>
           </div>
         </div>
       </div>
@@ -576,7 +584,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               className="text-[14px] font-bold leading-[1.02] uppercase tracking-tight"
               style={{ textShadow: `0 0 8px ${p}` }}
             >
-              Jane_Smith
+              {c.firstName}_{c.lastName || c.firstName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.2em] mt-1"
@@ -586,9 +594,9 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] uppercase tracking-[0.16em] opacity-80">
-            <div>&gt; jane@{brand.name.toLowerCase()}.com</div>
-            <div>&gt; +1 234 56789</div>
-            <div>&gt; {brand.name.toLowerCase()}.com</div>
+            <div>&gt; {c.email}</div>
+            <div>&gt; {c.phone}</div>
+            <div>&gt; {c.website}</div>
           </div>
         </div>
       </div>
@@ -623,19 +631,19 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               {brand.name} · Studio
             </div>
             <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight mt-1">
-              Jane Smith
+              {c.fullName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.2em] mt-0.5"
               style={{ color: p, filter: 'brightness(0.6)' }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-white">
             <div className="space-y-[1px]">
-              <div>jane@{brand.name.toLowerCase()}.com</div>
-              <div>+1 234 56789</div>
+              <div>{c.email}</div>
+              <div>{c.phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" color="#ffffff" />
           </div>
@@ -658,10 +666,10 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           <div className="bg-white flex items-end p-[8%]">
             <div>
               <div className="text-[10px] font-bold text-gray-900 leading-tight">
-                Jane
+                {c.firstName}
               </div>
               <div className="text-[10px] font-bold text-gray-900 leading-tight">
-                Smith
+                {c.lastName || ''}
               </div>
             </div>
           </div>
@@ -674,7 +682,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
                 className="text-[5px] uppercase tracking-[0.18em] font-semibold mt-0.5"
                 style={{ color: p }}
               >
-                Vice President
+                {c.jobTitle}
               </div>
             </div>
           </div>
@@ -683,11 +691,11 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
             style={{ backgroundColor: '#FFFFFF', borderTop: `2px solid ${p}` }}
           >
             <div className="space-y-[1px]">
-              <div className="font-medium">jane@{brand.name.toLowerCase()}.com</div>
-              <div>+1 234 56789</div>
+              <div className="font-medium">{c.email}</div>
+              <div>{c.phone}</div>
             </div>
             <div className="text-right" style={{ color: p }}>
-              {brand.name.toLowerCase()}.com
+              {c.website}
             </div>
           </div>
         </div>
@@ -720,18 +728,18 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="self-end text-right">
             <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.22em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="self-end text-right text-[4.5px] text-gray-700">
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>+1 234 56789</div>
+            <div>{c.email}</div>
+            <div>{c.phone}</div>
           </div>
         </div>
       </div>
@@ -765,22 +773,22 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
             </div>
             <div>
               <div className="text-[10px] font-serif font-semibold text-gray-900 leading-tight">
-                Jane Smith
+                {c.fullName}
               </div>
               <div
                 className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
                 style={{ color: p }}
               >
-                Vice President
+                {c.jobTitle}
               </div>
               <div className="text-[4.5px] text-gray-600 mt-1">
-                jane@{brand.name.toLowerCase()}.com
+                {c.email}
               </div>
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.18em] text-gray-600">
             <span>Sealed · 2026</span>
-            <span>{brand.name.toLowerCase()}.com</span>
+            <span>{c.website}</span>
           </div>
         </div>
       </div>
@@ -808,22 +816,22 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
           </div>
           <div className="text-center mt-[-6%]">
             <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              Jane Smith
+              {c.fullName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
               style={{ color: p, filter: 'brightness(0.6)' }}
             >
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-white">
             <div className="space-y-[1px]">
-              <div>jane@{brand.name.toLowerCase()}.com</div>
-              <div>+1 234 56789</div>
+              <div>{c.email}</div>
+              <div>{c.phone}</div>
             </div>
             <div className="text-right opacity-90">
-              {brand.name.toLowerCase()}.com
+              {c.website}
             </div>
           </div>
         </div>
@@ -861,15 +869,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex }: BusinessC
               {brand.name}
             </div>
             <div className="text-[14px] font-serif italic font-semibold leading-none">
-              Jane Smith
+              {c.fullName}
             </div>
             <div className="text-[5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              Vice President
+              {c.jobTitle}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700 font-serif">
-            <div>jane@{brand.name.toLowerCase()}.com</div>
-            <div>+1 234 56789</div>
+            <div>{c.email}</div>
+            <div>{c.phone}</div>
           </div>
         </div>
       </div>
