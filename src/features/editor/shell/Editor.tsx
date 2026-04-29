@@ -444,10 +444,12 @@ export function Editor({
             }}
             data-editor-canvas-region
           >
-            {/* Canvas surface — the floating toolbar lives in the same
-                positioned region so it can overlay the canvas. The
-                inner wrapper applies the user's zoom via CSS scale,
-                which keeps Fabric's internal coords intact. */}
+            {/* Canvas surface — the inner wrapper applies the
+                user's zoom via CSS scale, which keeps Fabric's
+                internal coords intact. The floating toolbar +
+                lock badge USED to live inside this wrapper but
+                shrank along with the canvas at low zoom; they're
+                now lifted out into a screen-space overlay sibling. */}
             <div
               className="relative"
               data-editor-canvas-zoom-wrap
@@ -456,19 +458,6 @@ export function Editor({
                 transformOrigin: 'center center',
               }}
             >
-              {selectedLayer ? (
-                <>
-                  <EditorFloatingToolbar
-                    adapter={adapter}
-                    pageId={page!.id}
-                    layer={selectedLayer}
-                    scope={scope}
-                    onScopeChange={setScope}
-                    onUpdateLayer={handleLayerUpdate}
-                  />
-                  <EditorLockBadge layer={selectedLayer} />
-                </>
-              ) : null}
               <div
                 className="overflow-hidden rounded-xl"
                 data-editor-canvas-surface
@@ -480,6 +469,40 @@ export function Editor({
                 />
               </div>
             </div>
+
+            {/* Screen-space overlay for selection chrome (floating
+                toolbar, lock badge). Sized to match the VISUAL
+                canvas (page dims × zoom) and centered on the same
+                slot as the zoom-wrap, so document-space coords
+                multiplied by zoom land at the right pixel — but
+                the chrome itself stays at screen pixel size. */}
+            {selectedLayer && page ? (
+              <div
+                data-editor-canvas-overlay
+                className="pointer-events-none absolute"
+                style={{
+                  width: page.width * zoom,
+                  height: page.height * zoom,
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 20,
+                }}
+              >
+                <div className="pointer-events-auto">
+                  <EditorFloatingToolbar
+                    adapter={adapter}
+                    pageId={page.id}
+                    layer={selectedLayer}
+                    scope={scope}
+                    onScopeChange={setScope}
+                    onUpdateLayer={handleLayerUpdate}
+                    zoom={zoom}
+                  />
+                  <EditorLockBadge layer={selectedLayer} zoom={zoom} />
+                </div>
+              </div>
+            ) : null}
           </main>
 
           {/* Zoom controls — Round 3 fix 5: lifted OUT of the

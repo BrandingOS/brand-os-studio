@@ -18,14 +18,22 @@ const SELECTION_BLUE = '#2965f6';
 
 interface Props {
   layer: Layer;
+  /**
+   * Current canvas zoom. The badge lives outside the scaled canvas
+   * wrap so it stays screen-size at any zoom level; layer coords
+   * are in document space, so we multiply by zoom for positioning.
+   * The 8px corner outset is in SCREEN pixels, applied after the
+   * multiply so the badge always reads the same regardless of zoom.
+   */
+  zoom?: number;
 }
 
-export function EditorLockBadge({ layer }: Props) {
+export function EditorLockBadge({ layer, zoom = 1 }: Props) {
   if (!layer.brandLocked) return null;
-  // Top-right of the layer's bounding box, with a small outset so the
-  // badge sits ON the corner instead of inside it.
-  const left = layer.transform.x + layer.transform.width - 8;
-  const top = layer.transform.y - 8;
+  // Top-right of the layer's visual bounding box, with an 8 SCREEN
+  // px outset so the badge sits visually on the corner.
+  const left = (layer.transform.x + layer.transform.width) * zoom - 8;
+  const top = layer.transform.y * zoom - 8;
 
   return (
     <Tooltip.Provider delayDuration={250} disableHoverableContent>

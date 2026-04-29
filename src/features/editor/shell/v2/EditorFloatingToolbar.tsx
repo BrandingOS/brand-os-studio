@@ -67,6 +67,14 @@ interface Props {
     layerId: string,
     patch: Partial<Layer>,
   ) => void;
+  /**
+   * Current canvas zoom (CSS scale of the canvas wrap). The toolbar
+   * lives OUTSIDE the scaled wrap so its chrome stays screen-size
+   * regardless of zoom. Layer coords are document-space, so we
+   * multiply by zoom to land at the right screen pixel. Defaults to
+   * 1 so isolated test renders (no Editor) still position correctly.
+   */
+  zoom?: number;
 }
 
 export function EditorFloatingToolbar({
@@ -76,12 +84,14 @@ export function EditorFloatingToolbar({
   scope,
   onScopeChange,
   onUpdateLayer,
+  zoom = 1,
 }: Props) {
-  // Position computed from the layer's document-space transform.
-  // Centered above the layer, clamped to a minimum 8px from the top
-  // of the canvas wrap.
-  const left = layer.transform.x + layer.transform.width / 2;
-  const top = Math.max(8, layer.transform.y - 50);
+  // Position in OVERLAY pixels (= document coords × zoom). The 50px
+  // breathing room above the layer is in SCREEN pixels — applied
+  // after the zoom multiply, so the toolbar sits the same visual
+  // distance from the layer's top edge at any zoom.
+  const left = (layer.transform.x + layer.transform.width / 2) * zoom;
+  const top = Math.max(8, layer.transform.y * zoom - 50);
 
   const update = (patch: Partial<Layer>) => {
     if (onUpdateLayer) onUpdateLayer(pageId, layer.id, patch);
