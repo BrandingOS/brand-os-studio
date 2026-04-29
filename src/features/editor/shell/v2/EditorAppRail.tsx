@@ -32,12 +32,16 @@ export function EditorAppRail({ active, onChange }: Props) {
     <aside
       data-app-rail
       data-app-rail-flat="true"
-      className="flex flex-col items-center gap-2 px-2 py-3"
-      data-app-rail-variant="r4.1-labeled"
+      // No horizontal padding — the rail aside is sized to the
+      // slot width (64px) and `items-center` handles horizontal
+      // centering of the 48px cards. Earlier this had `px-2` on
+      // a 76px-wide aside (12px wider than its 64px slot), which
+      // pushed every card a few pixels right of true center.
+      className="flex flex-col items-center gap-2 py-3"
+      data-app-rail-variant="r4.2-labeled"
       style={{
-        width: 76,
+        width: 64,
         flexShrink: 0,
-        // No background, no border, no shadow on the rail itself.
       }}
       aria-label="App rail"
     >

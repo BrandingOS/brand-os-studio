@@ -159,6 +159,12 @@ export function Editor({
   // ref lets us measure when computing fit-to-screen.
   const canvasRegionRef = useRef<HTMLElement | null>(null);
   const [zoom, setZoom] = useState(1);
+  // 'animated' = brief 140ms ease on each transform change (good
+  // for discrete keyboard / button taps). 'instant' = no
+  // transition (mandatory for the continuous wheel zoom — without
+  // it each tick restarts the previous transition mid-flight and
+  // visibly stair-steps). Mode flips on the kind of input.
+  const [zoomMode, setZoomMode] = useState<'animated' | 'instant'>('animated');
 
   const fitToContainer = useCallback(() => {
     const region = canvasRegionRef.current;
@@ -189,14 +195,18 @@ export function Editor({
   // same amount of "bigger" as 800→1000). Additive +0.1 felt
   // jumpy at low zoom and barely moved at high zoom.
   const ZOOM_STEP = 1.15;
-  const zoomIn = useCallback(
-    () => setZoom((z) => Math.min(z * ZOOM_STEP, 4)),
-    [],
-  );
-  const zoomOut = useCallback(
-    () => setZoom((z) => Math.max(z / ZOOM_STEP, 0.05)),
-    [],
-  );
+  const zoomIn = useCallback(() => {
+    setZoomMode('animated');
+    setZoom((z) => Math.min(z * ZOOM_STEP, 4));
+  }, []);
+  const zoomOut = useCallback(() => {
+    setZoomMode('animated');
+    setZoom((z) => Math.max(z / ZOOM_STEP, 0.05));
+  }, []);
+  const zoomReset = useCallback(() => {
+    setZoomMode('animated');
+    setZoom(1);
+  }, []);
 
   // Recompute fit on first mount + on page-dimension change. Resize
   // is wired separately so window-resize doesn't invalidate the
@@ -323,12 +333,19 @@ export function Editor({
   });
 
   // Cmd/Ctrl + wheel = pinch-style canvas zoom (Figma / Sketch
-  // pattern). We listen on window because passive: false has to be
-  // set explicitly — which `onWheel` JSX props can't do — and we
-  // want to swallow the browser's page-zoom even when the wheel
-  // event fires outside the canvas region (e.g. on the page nav).
-  // Only zoom when the cursor is over the editor body so scroll
-  // events on inputs / the secondary panel still work normally.
+  // pattern). Two anti-glitch tactics:
+  //   1) rAF-coalesce: trackpads fire wheel events much faster
+  //      than the screen refreshes. Accumulate deltaY into a ref
+  //      and apply ONE setZoom per animation frame, so React
+  //      doesn't re-render N times per frame.
+  //   2) Force `zoomMode = 'instant'` so the 140ms transition on
+  //      the zoom-wrap doesn't fight each new wheel tick (which
+  //      was the visible stair-stepping the user reported).
+  // Listener is on window with passive: false so we can
+  // preventDefault the browser's page-zoom; cursor-in-region
+  // gate keeps wheel events on inputs / panels working normally.
+  const wheelDeltaRef = useRef(0);
+  const wheelRafRef = useRef<number | null>(null);
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -344,15 +361,29 @@ export function Editor({
         return;
       }
       e.preventDefault();
-      // Continuous, smooth wheel zoom. exp(-deltaY * k) keeps the
-      // step proportional to wheel velocity AND multiplicative
-      // (so it feels even across zoom levels). k tuned so a
-      // typical trackpad pinch lands at ~3-5% per tick.
-      const factor = Math.exp(-e.deltaY * 0.0025);
-      setZoom((z) => Math.min(4, Math.max(0.05, z * factor)));
+      wheelDeltaRef.current += e.deltaY;
+      if (wheelRafRef.current !== null) return;
+      wheelRafRef.current = requestAnimationFrame(() => {
+        wheelRafRef.current = null;
+        const dy = wheelDeltaRef.current;
+        wheelDeltaRef.current = 0;
+        // exp(-dy * k) keeps the step proportional to wheel
+        // velocity AND multiplicative (so a pinch feels even
+        // across zoom levels). k tuned so a typical trackpad
+        // tick lands at ~3-5%.
+        const factor = Math.exp(-dy * 0.0025);
+        setZoomMode('instant');
+        setZoom((z) => Math.min(4, Math.max(0.05, z * factor)));
+      });
     };
     window.addEventListener('wheel', onWheel, { passive: false });
-    return () => window.removeEventListener('wheel', onWheel);
+    return () => {
+      window.removeEventListener('wheel', onWheel);
+      if (wheelRafRef.current !== null) {
+        cancelAnimationFrame(wheelRafRef.current);
+        wheelRafRef.current = null;
+      }
+    };
   }, []);
 
   // Resolve the single-selected layer for the floating toolbar. The
@@ -521,12 +552,13 @@ export function Editor({
               style={{
                 transform: `scale(${zoom})`,
                 transformOrigin: 'center center',
-                // Smooth keyboard / button zoom. For continuous
-                // wheel zoom, each new event re-targets the
-                // transform mid-flight so the visible result is
-                // still effectively instant — the transition only
-                // shows on discrete taps (cmd-+, cmd--, fit, 100%).
-                transition: 'transform 140ms ease-out',
+                // 140ms ease for discrete taps (cmd ±, fit, 100%);
+                // none for continuous wheel zoom — see zoomMode
+                // declaration above for the why.
+                transition:
+                  zoomMode === 'animated'
+                    ? 'transform 140ms ease-out'
+                    : 'none',
                 willChange: 'transform',
               }}
             >
@@ -585,7 +617,7 @@ export function Editor({
             onFit={fitToContainer}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
-            onZoomReset={() => setZoom(1)}
+            onZoomReset={zoomReset}
           />
 
           {/* Page navigator — anchored to the right edge of the
