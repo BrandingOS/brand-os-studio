@@ -51,6 +51,19 @@ import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import '@/shared/styles/cosmos-workspace.css';
 
+// Layout constants — kept in sync with the CSS vars defined on the
+// editor body wrapper (--rail-w, --panel-w, --pagenav-w). Used by
+// fit-to-container and by the canvas region's padding so the
+// design centers in the VISIBLE area (between bars), not in the
+// full window. The bars float on top with their own backgrounds;
+// the canvas is full-window underneath, but its centering origin
+// is shifted via padding so opening a panel re-centers smoothly.
+const RAIL_W = 64;
+const PANEL_W = 300;
+const PAGENAV_W = 176;
+const PAGENAV_COLLAPSED_W = 36;
+const REGION_BREATHING = 16;
+
 interface EditorProps {
   /** Initial document to load. */
   initialDocument: BrandOSDocument;
@@ -125,6 +138,21 @@ export function Editor({
   // visible and stateful but doesn't yet fan out.
   const [scope, setScope] = useState<ToolbarScope>('page');
 
+  // Resolve the content-type config FIRST — fitToContainer below
+  // reads contentType.pageModel from its dep array, so it has to be
+  // initialized by the time the useCallback factory runs. Unknown
+  // ids fall back to a single-page social-post; the registry throws
+  // on truly unknown ids, so this fallback only fires when a doc
+  // was created against a type that's been removed from the
+  // registry since.
+  const contentType = useMemo<ContentTypeConfig>(() => {
+    try {
+      return getContentTypeConfig(doc.contentType);
+    } catch {
+      return getContentTypeConfig('social-post');
+    }
+  }, [doc.contentType]);
+
   // Step 5/7 fix 6 — viewport zoom. CSS `transform: scale()` on a
   // wrapper around the canvas keeps Fabric's coords intact while
   // fitting the page to the available canvas region. The container
@@ -136,19 +164,25 @@ export function Editor({
     const region = canvasRegionRef.current;
     if (!region || !doc.pages[0]) return;
     const active = doc.pages.find((p) => p.id === activePageId) ?? doc.pages[0];
-    // Subtract padding so the canvas doesn't kiss the toolbar / zoom
-    // controls / page navigator. Same numbers used in the layout.
-    // Padding that the canvas region carries: zoom controls
-    // (~80px reserve), top breathing room, plus a touch on the
-    // sides. The Secondary Panel + App Rail + Page Navigator are
-    // siblings in the parent flex row — they don't count against
-    // this region's available width.
-    const margin = { x: 96, y: 96 };
-    const availW = Math.max(100, region.clientWidth - margin.x);
-    const availH = Math.max(100, region.clientHeight - margin.y);
+    // Subtract the bars' widths so fit lands the design in the
+    // VISIBLE area (between rail/panel/page-nav), not centered
+    // across the full window. Match the padding values applied
+    // to <main> below — both pieces have to agree for the
+    // "magnetized to the visible center" feel to hold.
+    const padLeft =
+      RAIL_W + (secondaryOpen ? PANEL_W : 0) + REGION_BREATHING;
+    const padRight =
+      (contentType.pageModel === 'multi'
+        ? navigatorOpen
+          ? PAGENAV_W
+          : PAGENAV_COLLAPSED_W
+        : 0) + REGION_BREATHING;
+    const padY = REGION_BREATHING * 2;
+    const availW = Math.max(100, region.clientWidth - padLeft - padRight);
+    const availH = Math.max(100, region.clientHeight - padY);
     const next = Math.min(availW / active.width, availH / active.height, 1);
     setZoom(Number.isFinite(next) && next > 0 ? next : 1);
-  }, [doc, activePageId]);
+  }, [doc, activePageId, secondaryOpen, navigatorOpen, contentType.pageModel]);
 
   // Zoom helpers shared between the keyboard shortcuts, the on-canvas
   // wheel-zoom (Cmd/Ctrl + wheel), and the floating EditorZoomControls.
@@ -168,18 +202,6 @@ export function Editor({
     fitToContainer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePageId]);
-
-  // Resolve the content-type config. Unknown ids fall back to a
-  // single-page social-post — the registry throws on truly unknown
-  // ids, so this fallback only fires when a doc was created against a
-  // type that's been removed from the registry since.
-  const contentType = useMemo<ContentTypeConfig>(() => {
-    try {
-      return getContentTypeConfig(doc.contentType);
-    } catch {
-      return getContentTypeConfig('social-post');
-    }
-  }, [doc.contentType]);
 
   // BrandKit — derived from the brand prop. Memoized so the same
   // reference flows through to applyBrandToDocument unless the brand
@@ -463,17 +485,31 @@ export function Editor({
 
           {/* Canvas region — spans the FULL editor body so the
               design extends behind the rail / secondary panel /
-              page navigator. The bars float on top with their own
-              backgrounds; the canvas underneath is just centered
-              in the window. (Earlier this region was insetted to
-              live BETWEEN the bars, which left the design cropped
-              into a thin strip whenever the panels were open.) */}
+              page navigator at high zoom (the bars float on top
+              with their own backgrounds and clip what shows).
+              Padding shifts the flex centering origin so the
+              design lands in the VISIBLE area between the bars
+              by default — and "magnetizes" back to that center
+              on every zoom step + on every panel open/close. */}
           <main
             ref={canvasRegionRef}
             className="absolute inset-0 flex items-center justify-center"
             style={{
               background: 'var(--background)',
               overflow: 'hidden',
+              paddingLeft:
+                RAIL_W +
+                (secondaryOpen ? PANEL_W : 0) +
+                REGION_BREATHING,
+              paddingRight:
+                (contentType.pageModel === 'multi'
+                  ? navigatorOpen
+                    ? PAGENAV_W
+                    : PAGENAV_COLLAPSED_W
+                  : 0) + REGION_BREATHING,
+              paddingTop: REGION_BREATHING,
+              paddingBottom: REGION_BREATHING,
+              transition: 'padding 200ms ease-out',
             }}
             data-editor-canvas-region
           >
