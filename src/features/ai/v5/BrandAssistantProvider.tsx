@@ -8,7 +8,6 @@
  */
 import * as React from 'react';
 import { BrandAssistantDrawer } from './BrandAssistantDrawer';
-import { AssistantTrigger } from './AssistantTrigger';
 import { getProvider } from './providers/claudeProvider';
 import type { AssistantMessage, AssistantProvider } from './types';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -94,7 +93,11 @@ export function BrandAssistantProvider({ children }: { children: React.ReactNode
   return (
     <AssistantContext.Provider value={value}>
       {children}
-      <AssistantTrigger />
+      {/* AssistantTrigger hidden — user requested the Brand
+          Assistant FAB stay off-screen for now. Drawer stays
+          mounted so any programmatic open() still works (e.g.
+          tests, future hooks). To re-enable the FAB, restore the
+          <AssistantTrigger /> mount. */}
       <BrandAssistantDrawer />
     </AssistantContext.Provider>
   );
