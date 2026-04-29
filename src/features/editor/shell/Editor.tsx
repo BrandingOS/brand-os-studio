@@ -150,6 +150,17 @@ export function Editor({
     setZoom(Number.isFinite(next) && next > 0 ? next : 1);
   }, [doc, activePageId]);
 
+  // Zoom helpers shared between the keyboard shortcuts, the on-canvas
+  // wheel-zoom (Cmd/Ctrl + wheel), and the floating EditorZoomControls.
+  const zoomIn = useCallback(
+    () => setZoom((z) => Math.min(z + 0.1, 4)),
+    [],
+  );
+  const zoomOut = useCallback(
+    () => setZoom((z) => Math.max(z - 0.1, 0.1)),
+    [],
+  );
+
   // Recompute fit on first mount + on page-dimension change. Resize
   // is wired separately so window-resize doesn't invalidate the
   // user's manual zoom — only Fit is automatic.
@@ -281,7 +292,41 @@ export function Editor({
   useEditorKeyboardShortcuts({
     adapter: adapterRef.current,
     onFlushSave: flush,
+    onZoomIn: zoomIn,
+    onZoomOut: zoomOut,
+    onZoomFit: fitToContainer,
   });
+
+  // Cmd/Ctrl + wheel = pinch-style canvas zoom (Figma / Sketch
+  // pattern). We listen on window because passive: false has to be
+  // set explicitly — which `onWheel` JSX props can't do — and we
+  // want to swallow the browser's page-zoom even when the wheel
+  // event fires outside the canvas region (e.g. on the page nav).
+  // Only zoom when the cursor is over the editor body so scroll
+  // events on inputs / the secondary panel still work normally.
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const region = canvasRegionRef.current;
+      if (!region) return;
+      const rect = region.getBoundingClientRect();
+      if (
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom
+      ) {
+        return;
+      }
+      e.preventDefault();
+      // deltaY > 0 = wheel down = zoom out (matches macOS / Figma).
+      // Step by 4% per tick so trackpad pinches feel natural.
+      const factor = e.deltaY > 0 ? 0.96 : 1.04;
+      setZoom((z) => Math.min(4, Math.max(0.1, z * factor)));
+    };
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, []);
 
   // Resolve the single-selected layer for the floating toolbar. The
   // toolbar mounts only when exactly one layer is selected — multi-
@@ -511,8 +556,8 @@ export function Editor({
           <EditorZoomControls
             zoom={zoom}
             onFit={fitToContainer}
-            onZoomIn={() => setZoom((z) => Math.min(z + 0.1, 4))}
-            onZoomOut={() => setZoom((z) => Math.max(z - 0.1, 0.1))}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
             onZoomReset={() => setZoom(1)}
           />
 

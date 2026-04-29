@@ -1,5 +1,8 @@
 // Centralized keyboard shortcuts for the editor shell.
 // Cmd/Ctrl+S → flush save. Cmd/Ctrl+Z → undo. Cmd/Ctrl+Shift+Z → redo.
+// Cmd/Ctrl + (= or +) → zoom canvas in. Cmd/Ctrl + - → zoom canvas out.
+// Cmd/Ctrl + 0 → fit canvas to view. All zoom shortcuts preventDefault
+// so the browser's page-zoom doesn't fire instead.
 
 import { useEffect } from 'react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -9,9 +12,23 @@ interface Options {
   onFlushSave: () => void | Promise<void>;
   /** Disable shortcuts when an element with this `data-editor-typing` attr is focused. */
   enabled?: boolean;
+  /** Zoom-in handler. When provided, Cmd/Ctrl + (=|+) calls it
+   *  and preventDefaults so the browser's page-zoom doesn't fire. */
+  onZoomIn?: () => void;
+  /** Zoom-out handler. When provided, Cmd/Ctrl + - calls it. */
+  onZoomOut?: () => void;
+  /** Fit-to-view handler. When provided, Cmd/Ctrl + 0 calls it. */
+  onZoomFit?: () => void;
 }
 
-export function useEditorKeyboardShortcuts({ adapter, onFlushSave, enabled = true }: Options): void {
+export function useEditorKeyboardShortcuts({
+  adapter,
+  onFlushSave,
+  enabled = true,
+  onZoomIn,
+  onZoomOut,
+  onZoomFit,
+}: Options): void {
   useEffect(() => {
     if (!enabled) return;
 
@@ -41,9 +58,28 @@ export function useEditorKeyboardShortcuts({ adapter, onFlushSave, enabled = tru
         adapter?.redo();
         return;
       }
+      // Canvas zoom shortcuts. e.key for "+" arrives as "=" on most
+      // layouts (the unshifted key); accept both so US + non-US
+      // keyboards both work. Always preventDefault so the browser's
+      // page-zoom doesn't kick in.
+      if (onZoomIn && (key === '=' || key === '+')) {
+        e.preventDefault();
+        onZoomIn();
+        return;
+      }
+      if (onZoomOut && key === '-') {
+        e.preventDefault();
+        onZoomOut();
+        return;
+      }
+      if (onZoomFit && key === '0') {
+        e.preventDefault();
+        onZoomFit();
+        return;
+      }
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [adapter, onFlushSave, enabled]);
+  }, [adapter, onFlushSave, enabled, onZoomIn, onZoomOut, onZoomFit]);
 }
