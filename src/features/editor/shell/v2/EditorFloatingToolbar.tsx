@@ -15,6 +15,8 @@
 // lands in Phase 4.5 alongside the zoom controls.
 
 import { useMemo, useState, type ReactNode } from 'react';
+import * as Popover from '@radix-ui/react-popover';
+import type { Brand } from '@/shared/types/brand';
 import {
   AlignCenter,
   AlignLeft,
@@ -75,6 +77,12 @@ interface Props {
    * 1 so isolated test renders (no Editor) still position correctly.
    */
   zoom?: number;
+  /**
+   * Active brand. Optional. When present, the color picker
+   * surfaces the brand palette (primary / secondary / accent /
+   * neutrals) as one-click swatches alongside the hex input.
+   */
+  brand?: Brand;
 }
 
 export function EditorFloatingToolbar({
@@ -85,6 +93,7 @@ export function EditorFloatingToolbar({
   onScopeChange,
   onUpdateLayer,
   zoom = 1,
+  brand,
 }: Props) {
   // Position in OVERLAY pixels (= document coords × zoom). The 50px
   // breathing room above the layer is in SCREEN pixels — applied
@@ -122,7 +131,7 @@ export function EditorFloatingToolbar({
       <ScopeToggle scope={scope} onChange={onScopeChange} />
       <Sep />
 
-      <KindControls layer={layer} update={update} />
+      <KindControls layer={layer} update={update} brand={brand} />
 
       <Sep />
       <MoreMenu layer={layer} update={update} />
@@ -171,9 +180,11 @@ function Sep() {
 function KindControls({
   layer,
   update,
+  brand,
 }: {
   layer: Layer;
   update: (patch: Partial<Layer>) => void;
+  brand?: Brand;
 }) {
   // The schema's discriminated union loses TS narrowing across this
   // switch (z.lazy + GroupLayer breaks the discriminator at the type
@@ -187,6 +198,7 @@ function KindControls({
         <TextControls
           layer={layer as unknown as TextLayer}
           update={update as unknown as (p: Partial<TextLayer>) => void}
+          brand={brand}
         />
       );
     case 'shape':
@@ -194,6 +206,7 @@ function KindControls({
         <ShapeControls
           layer={layer as unknown as ShapeLayer}
           update={update as unknown as (p: Partial<ShapeLayer>) => void}
+          brand={brand}
         />
       );
     case 'image':
@@ -237,9 +250,11 @@ const FONT_OPTIONS = [
 function TextControls({
   layer,
   update,
+  brand,
 }: {
   layer: TextLayer;
   update: (patch: Partial<TextLayer>) => void;
+  brand?: Brand;
 }) {
   const isSlotFont = isSlot(layer.fontFamily);
   const isSlotColor = isSlot(layer.color);
@@ -351,6 +366,7 @@ function TextControls({
           onChange={(v) => update({ color: v })}
           title={isSlotColor ? 'Brand color (click to override)' : 'Color'}
           controlId="color"
+          brand={brand}
         />
       </LockedGate>
     </>
@@ -388,9 +404,11 @@ function AlignToggle({
 function ShapeControls({
   layer,
   update,
+  brand,
 }: {
   layer: ShapeLayer;
   update: (patch: Partial<ShapeLayer>) => void;
+  brand?: Brand;
 }) {
   const fillLocked = isBrandBound(layer, 'fill');
   const strokeLocked = isBrandBound(layer, 'stroke');
@@ -403,6 +421,7 @@ function ShapeControls({
           onChange={(v) => update({ fill: v })}
           title="Fill"
           controlId="fill"
+          brand={brand}
         />
       </LockedGate>
       <LockedGate locked={strokeLocked}>
@@ -413,6 +432,7 @@ function ShapeControls({
           title="Stroke"
           controlId="stroke"
           outline
+          brand={brand}
         />
       </LockedGate>
       <NumberPill
@@ -955,6 +975,7 @@ function ColorChip({
   title,
   controlId,
   outline,
+  brand,
 }: {
   value: ResolvedValue | null;
   slotBound: boolean;
@@ -967,6 +988,9 @@ function ColorChip({
    *  modes ("Color" vs "Brand color (click to override)"). */
   controlId?: string;
   outline?: boolean;
+  /** Optional brand context. When provided, the picker surfaces the
+   *  brand palette as one-click swatches alongside the hex input. */
+  brand?: Brand;
 }) {
   const dataControl = controlId ?? title.toLowerCase();
   // Slot-bound: chip + dropdown to "override" (swap to literal hex).
@@ -1027,7 +1051,10 @@ function ColorChip({
     );
   }
 
-  // Literal hex — color input.
+  // Literal hex — opens the custom color-picker bar above. We use
+  // Radix Popover with side="top" so the bar is anchored above the
+  // chip rather than the OS native input that opened in random
+  // directions and caused the user's "wrong direction" complaint.
   const hex =
     typeof value === 'string'
       ? value
@@ -1035,28 +1062,237 @@ function ColorChip({
       ? '#000000'
       : '#000000';
   return (
-    <label
-      title={title}
-      data-control={dataControl}
-      className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
-    >
-      <span
-        className="h-3.5 w-3.5 rounded-full"
-        style={{
-          background: outline ? 'transparent' : hex,
-          boxShadow: outline
-            ? `inset 0 0 0 2px ${hex}`
-            : '0 0 0 1px var(--border-strong)',
-        }}
-        aria-hidden
-      />
-      <input
-        type="color"
-        value={hex.length === 7 ? hex : '#000000'}
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-      />
-    </label>
+    <ColorPickerPopover value={hex} brand={brand} onChange={onChange}>
+      <button
+        type="button"
+        title={title}
+        data-control={dataControl}
+        className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg transition-colors"
+        style={{ background: 'transparent', border: 'none' }}
+      >
+        <span
+          className="h-3.5 w-3.5 rounded-full"
+          style={{
+            background: outline ? 'transparent' : hex,
+            boxShadow: outline
+              ? `inset 0 0 0 2px ${hex}`
+              : '0 0 0 1px var(--border-strong)',
+          }}
+          aria-hidden
+        />
+      </button>
+    </ColorPickerPopover>
+  );
+}
+
+// ─── Custom color-picker bar (replaces the OS `<input type="color">`) ──
+
+interface BrandSwatch {
+  label: string;
+  hex: string;
+}
+
+function brandSwatches(brand?: Brand): BrandSwatch[] {
+  if (!brand) return [];
+  const out: BrandSwatch[] = [];
+  const seen = new Set<string>();
+  const push = (label: string, hex?: string | null) => {
+    if (!hex) return;
+    const norm = hex.toLowerCase();
+    if (seen.has(norm)) return;
+    seen.add(norm);
+    out.push({ label, hex });
+  };
+  // Canonical color system first.
+  const cs = brand.colorSystem;
+  if (cs) {
+    push('Primary', cs.primary?.hex);
+    push('Secondary', cs.secondary?.hex);
+    push('Accent', cs.accent?.hex);
+    cs.neutrals?.forEach((n, i) =>
+      push(n?.name ?? `Neutral ${i + 1}`, n?.hex),
+    );
+  }
+  // Legacy fields as fallback.
+  push('Primary', brand.primaryColor);
+  push('Secondary', brand.secondaryColor);
+  push('Accent', brand.accentColor);
+  return out;
+}
+
+/**
+ * Validates and normalizes a hex string. Accepts 3- or 6-digit hex
+ * with or without the leading '#'. Returns the canonical 7-char
+ * "#rrggbb" form on success, null on failure.
+ */
+function normalizeHex(raw: string): string | null {
+  const cleaned = raw.trim().replace(/^#/, '').toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(cleaned)) {
+    return (
+      '#' +
+      cleaned
+        .split('')
+        .map((c) => c + c)
+        .join('')
+    );
+  }
+  if (/^[0-9a-f]{6}$/.test(cleaned)) return '#' + cleaned;
+  return null;
+}
+
+function ColorPickerPopover({
+  value,
+  brand,
+  onChange,
+  children,
+}: {
+  value: string;
+  brand?: Brand;
+  onChange: (hex: string) => void;
+  children: ReactNode;
+}) {
+  const swatches = useMemo(() => brandSwatches(brand), [brand]);
+  // Local hex draft so the user can type freely without firing
+  // onChange on every keystroke (only valid hex commits).
+  const [draft, setDraft] = useState(value.replace(/^#/, ''));
+  // Re-seed the draft whenever the popover re-opens with a new
+  // committed value (e.g. after clicking a swatch).
+  const handleOpenChange = (open: boolean) => {
+    if (open) setDraft(value.replace(/^#/, ''));
+  };
+  const currentNorm = value.toLowerCase();
+
+  return (
+    <Popover.Root onOpenChange={handleOpenChange}>
+      <Popover.Trigger asChild>{children}</Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          data-cosmos="workspace"
+          data-color-picker
+          side="top"
+          align="center"
+          sideOffset={8}
+          collisionPadding={16}
+          className="z-50 rounded-xl"
+          style={{
+            background: 'var(--surface-elevated, #ffffff)',
+            border: '1px solid var(--border, rgba(13,13,13,0.12))',
+            boxShadow: 'var(--shadow-md, 0 6px 18px rgba(0,0,0,0.10))',
+            padding: '8px 10px',
+            minWidth: 260,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {/* Brand swatches */}
+          {swatches.length > 0 ? (
+            <div
+              data-color-picker-swatches
+              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              {swatches.map((s) => {
+                const isCurrent = s.hex.toLowerCase() === currentNorm;
+                return (
+                  <button
+                    key={s.hex}
+                    type="button"
+                    title={`${s.label} — ${s.hex}`}
+                    data-color-swatch={s.label.toLowerCase()}
+                    onClick={() => onChange(s.hex)}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 6,
+                      background: s.hex,
+                      cursor: 'pointer',
+                      border: isCurrent
+                        ? '2px solid var(--accent, #6366f1)'
+                        : '1px solid var(--border-strong, rgba(13,13,13,0.18))',
+                      padding: 0,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+
+          {swatches.length > 0 ? (
+            <span
+              aria-hidden
+              style={{
+                width: 1,
+                height: 20,
+                background: 'var(--border, rgba(13,13,13,0.12))',
+              }}
+            />
+          ) : null}
+
+          {/* Live preview chip */}
+          <span
+            data-color-preview
+            aria-hidden
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: value,
+              border: '1px solid var(--border-strong, rgba(13,13,13,0.18))',
+              flexShrink: 0,
+            }}
+          />
+
+          {/* Hex input */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              flex: 1,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                fontSize: 11,
+                color: 'var(--text-muted, #888685)',
+              }}
+            >
+              #
+            </span>
+            <input
+              type="text"
+              data-color-hex
+              value={draft}
+              maxLength={7}
+              spellCheck={false}
+              placeholder="000000"
+              onChange={(e) => {
+                const next = e.target.value.replace(/[^0-9a-fA-F]/g, '');
+                setDraft(next);
+                const norm = normalizeHex(next);
+                if (norm) onChange(norm);
+              }}
+              onBlur={() => setDraft(value.replace(/^#/, ''))}
+              style={{
+                flex: 1,
+                minWidth: 80,
+                fontSize: 11,
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, Menlo, Monaco, monospace',
+                padding: '4px 6px',
+                borderRadius: 6,
+                background: 'var(--surface, #ffffff)',
+                border: '1px solid var(--border, rgba(13,13,13,0.12))',
+                outline: 'none',
+                color: 'var(--text-primary, #0d0d0d)',
+              }}
+            />
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 

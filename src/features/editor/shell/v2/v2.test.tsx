@@ -795,3 +795,109 @@ describe('EditorFloatingToolbar — locked controls (Step 5c)', () => {
     expect(sizeInput?.closest('[data-locked-gate]')).toBeNull();
   });
 });
+
+// ─── Color picker (custom popover bar) ─────────────────────────────────
+
+describe('EditorFloatingToolbar — custom color picker bar', () => {
+  function brandWithPalette(): Brand {
+    return {
+      ...mockBrand(),
+      colorSystem: {
+        primary: { hex: '#ff0000' },
+        secondary: { hex: '#00ff00' },
+        accent: { hex: '#0000ff' },
+      },
+    } as Brand;
+  }
+
+  async function openColorPicker(): Promise<HTMLElement> {
+    const trigger = document.querySelector<HTMLButtonElement>(
+      'button[data-control="color"]',
+    );
+    if (!trigger) throw new Error('No color trigger in DOM');
+    fireEvent.pointerDown(trigger, { button: 0, pointerType: 'mouse' });
+    fireEvent.pointerUp(trigger, { button: 0, pointerType: 'mouse' });
+    fireEvent.click(trigger);
+    for (let i = 0; i < 80; i++) {
+      const node = document.body.querySelector<HTMLElement>(
+        '[data-color-picker]',
+      );
+      if (node) return node;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    throw new Error('Color picker never opened');
+  }
+
+  it('opens above the chip (Radix side="top") instead of the OS color input', async () => {
+    const adapter = stubAdapter();
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ color: '#112233' })}
+        scope="page"
+        onScopeChange={vi.fn()}
+        brand={brandWithPalette()}
+      />,
+    );
+    const picker = await openColorPicker();
+    expect(picker.getAttribute('data-side')).toBe('top');
+    // The native OS picker is gone — no <input type="color"> anywhere.
+    expect(document.body.querySelector('input[type="color"]')).toBeNull();
+  });
+
+  it('renders the brand palette swatches and clicking one fires onChange with the swatch hex', async () => {
+    const adapter = stubAdapter();
+    const updates: Array<{ patch: Partial<Layer> }> = [];
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ color: '#112233' })}
+        scope="page"
+        onScopeChange={vi.fn()}
+        onUpdateLayer={(_pageId, _layerId, patch) => {
+          updates.push({ patch });
+        }}
+        brand={brandWithPalette()}
+      />,
+    );
+    const picker = await openColorPicker();
+    const primary = picker.querySelector<HTMLButtonElement>(
+      '[data-color-swatch="primary"]',
+    );
+    expect(primary, 'primary swatch missing').toBeTruthy();
+    fireEvent.click(primary!);
+    expect(updates).toHaveLength(1);
+    expect(updates[0].patch).toEqual({ color: '#ff0000' });
+  });
+
+  it('typing a valid hex commits via onChange (3 or 6 digits, with or without #)', async () => {
+    const adapter = stubAdapter();
+    const updates: Array<{ patch: Partial<Layer> }> = [];
+    render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer({ color: '#000000' })}
+        scope="page"
+        onScopeChange={vi.fn()}
+        onUpdateLayer={(_pageId, _layerId, patch) => {
+          updates.push({ patch });
+        }}
+        brand={brandWithPalette()}
+      />,
+    );
+    const picker = await openColorPicker();
+    const hex = picker.querySelector<HTMLInputElement>('[data-color-hex]');
+    expect(hex).toBeTruthy();
+    // 6-digit
+    fireEvent.change(hex!, { target: { value: 'abcdef' } });
+    // 3-digit shorthand
+    fireEvent.change(hex!, { target: { value: 'fff' } });
+    expect(updates.map((u) => u.patch)).toEqual([
+      { color: '#abcdef' },
+      { color: '#ffffff' },
+    ]);
+  });
+});

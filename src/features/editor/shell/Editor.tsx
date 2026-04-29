@@ -602,6 +602,7 @@ export function Editor({
                     onScopeChange={setScope}
                     onUpdateLayer={handleLayerUpdate}
                     zoom={zoom}
+                    brand={brand}
                   />
                   <EditorLockBadge layer={selectedLayer} zoom={zoom} />
                 </div>
