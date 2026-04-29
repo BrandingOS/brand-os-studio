@@ -828,7 +828,7 @@ describe('EditorFloatingToolbar — custom color picker bar', () => {
     throw new Error('Color picker never opened');
   }
 
-  it('opens above the chip (Radix side="top") instead of the OS color input', async () => {
+  it('opens as a sibling bar above the toolbar (no Radix popover, no OS color input)', async () => {
     const adapter = stubAdapter();
     render(
       <EditorFloatingToolbar
@@ -841,7 +841,11 @@ describe('EditorFloatingToolbar — custom color picker bar', () => {
       />,
     );
     const picker = await openColorPicker();
-    expect(picker.getAttribute('data-side')).toBe('top');
+    expect(picker.hasAttribute('data-color-picker-bar')).toBe(true);
+    // Should render the HSL square + hue strip controls (the
+    // "color wheel" the user asked for), not just swatches.
+    expect(picker.querySelector('[data-color-picker-sv]')).toBeTruthy();
+    expect(picker.querySelector('[data-color-picker-hue]')).toBeTruthy();
     // The native OS picker is gone — no <input type="color"> anywhere.
     expect(document.body.querySelector('input[type="color"]')).toBeNull();
   });
