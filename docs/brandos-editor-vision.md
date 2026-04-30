@@ -277,6 +277,19 @@ After Brand Engine works, but before Templates ship, build the AI command infras
 
 This phase is foundational for Modes 2, 3, 4. Mode 1 (zero-state generation) needs Phase 4 (templates) to work well, so it ships in Phase 5.
 
+> **Absorption note (added 2026-04-30 after Step 9 carve-out review).**
+> Phase 3.5 absorbs `runAgent` and `brandCard` from
+> `src/features/ai-design/lib/` as the AI backend seeds. The
+> `TldrawCanvas` and `InfiniteCanvas` implementations are NOT reused —
+> they're retired in favor of the unified editor's FabricAdapter
+> canvas. Both `/b/:slug/ai-design` and `/b/:slug/design-ai` routes
+> are deleted in Phase 3.5; their entry points consolidate into the
+> unified editor's top-chrome AI prompt bar (Mode 1: zero-state
+> generate). Live testing in Step 9 confirmed `/ai-design` has
+> critical gaps (mock-only AI, broken non-text/geo node rendering,
+> no export, no persistence, tldraw license watermark) that argue
+> against expanding adoption before absorption.
+
 **Phase 4.5 — Editor URL Routing & Asset Bridging**
 
 After templates ship, wire the unified URL pattern:
