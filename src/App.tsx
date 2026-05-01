@@ -108,6 +108,12 @@ const IdentityPage = lazy(() => import("./pages/dashboard/brand/[slug]/identity"
 const SharePage = lazy(() => import("./pages/dashboard/brand/[slug]/share"));
 const BrandTemplatesPage = lazy(() => import("./pages/dashboard/brand/[slug]/templates"));
 const DesignLaunchpadPage = lazy(() => import("./pages/dashboard/brand/[slug]/design"));
+// Production unified-editor route — minimum viable, scoped forward
+// from Phase 4.5 to unblock the Step 9 brandkit migration. See the
+// route file's header comment for what's intentionally deferred.
+const BrandDesignEditorPage = lazy(
+  () => import("./pages/dashboard/brand/[slug]/design/[designSlug]"),
+);
 const ContentHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/content"));
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
 const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
@@ -590,6 +596,20 @@ const App = () => (
           <Route path="/b/:slug/design-ai" element={
             <ProtectedRoute>
               <DesignWithAiPage />
+            </ProtectedRoute>
+          } />
+          {/* Production unified-editor route — short + long form. Mounts
+              the unified Editor with a brand-scoped saved design loaded
+              by id from IDesignStorage. Phase 4.5 finishes the auth
+              gates / 404 polish / share URLs / brand-picker URL wiring. */}
+          <Route path="/b/:slug/design/:designSlug" element={
+            <ProtectedRoute>
+              <BrandDesignEditorPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard/brand/:slug/design/:designSlug" element={
+            <ProtectedRoute>
+              <BrandDesignEditorPage />
             </ProtectedRoute>
           } />
           {/* Short-form aliases for brand-scoped fullscreen pages
