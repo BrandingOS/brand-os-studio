@@ -41,6 +41,7 @@ import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/cros
 import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
 import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
+import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import type {
   AIAgent,
   AICommandContext,
@@ -453,11 +454,16 @@ export function Editor({
                   selection: selection.layerIds,
                   brand,
                 })}
-                onApply={(_result: AICommandResult) => {
-                  // Phase 3.5 commit 5 — UI lands; mode handlers
-                  // (commits 6/7/8) replace this no-op with the
-                  // delta/replace/rejected dispatcher that wraps
-                  // ops in adapter.batch.
+                onApply={(result: AICommandResult) => {
+                  // Phase 3.5 commit 6 — Mode 2/3/4 dispatcher.
+                  // Mode 5 (validateAICommandResult) has already
+                  // run inside applyCommand; we hand the validated
+                  // result to applyAICommandResult which wraps
+                  // every op in adapter.batch(label, fn) so the
+                  // entire AI mutation lands as a single labeled
+                  // undo entry. 'rejected' is a no-op here — the
+                  // prompt bar surfaces the message inline.
+                  applyAICommandResult(adapter, result);
                 }}
               />
             ) : undefined
