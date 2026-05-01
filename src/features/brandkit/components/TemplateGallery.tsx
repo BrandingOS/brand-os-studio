@@ -5,12 +5,14 @@ import { cn } from '@/lib/utils';
 import { CategoryFilter } from './CategoryFilter';
 import { TemplateCard, renderTemplateDesign } from './TemplateCard';
 import { TemplatePreviewModal, type TemplateOverrides } from './TemplatePreviewModal';
-import { CanvasEditor } from './editor/CanvasEditor';
 import { getTemplatesForModule, filterTemplatesByCategory } from '../data/templates';
+import { TEMPLATE_SEEDS } from '../templateSeeds';
 import type { BrandKitModuleConfig, BrandKitTemplate } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { logoUrl } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { IDesignStorage } from '@/core/types/services';
 
 interface TemplateGalleryProps {
   moduleConfig: BrandKitModuleConfig;
@@ -47,14 +49,31 @@ async function quickDownloadTemplate(template: BrandKitTemplate, brand: Brand, c
 export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
+  const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
   const [activeTab, setActiveTab] = useState<'templates' | 'saved' | 'extra'>('templates');
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
   const [editTemplate, setEditTemplate] = useState<BrandKitTemplate | null>(null);
-  const [canvasEditorTemplate, setCanvasEditorTemplate] = useState<BrandKitTemplate | null>(null);
 
-  const allTemplates = useMemo(() => getTemplatesForModule(moduleConfig.id), [moduleConfig.id]);
+  // Step 9.3 trim: each brandkit family currently renders the SAME
+  // hardcoded layout for all 8–12 named templates within it. Showing
+  // 12 indistinguishable cards is anti-trust UX (the user clicks
+  // "Bold Gradient" and gets the same design as "Classic Clean").
+  // Trim to ONE representative card per family. Phase 4 expands back
+  // when real per-template variants ship + the AI prompt bar surfaces
+  // templates contextually.
+  const allTemplates = useMemo(
+    () => getTemplatesForModule(moduleConfig.id).slice(0, 1),
+    [moduleConfig.id],
+  );
+
+  // Mockups family is intentionally absent from TEMPLATE_SEEDS — the
+  // mockup studio is its own deferred feature (post-Phase-5 per the
+  // vision doc Phase 3.5 absorption note). Show a "coming soon"
+  // placeholder instead of a dead card.
+  const isMockupModule = moduleConfig.id === 'mockups';
+  const hasSeed = !isMockupModule && moduleConfig.id in TEMPLATE_SEEDS;
 
   const filteredTemplates = useMemo(() => {
     let result = filterTemplatesByCategory(allTemplates, activeCategory);
@@ -85,14 +104,41 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
     }
   }, [brand, navigate, slug]);
 
-  // Open editor modal
-  const handleOpenEditor = useCallback((template: BrandKitTemplate) => {
-    if (template.type === 'brand-guides') {
-      navigate(`/b/${slug}/guidelines`);
-      return;
-    }
-    setEditTemplate(template);
-  }, [navigate, slug]);
+  // Open editor: seed a brand-bound BrandOSDocument via templateSeeds,
+  // persist via IDesignStorage, navigate to the unified-editor route.
+  // Step 9.3 commit 3: replaces the inline CanvasEditor mount that
+  // imported `fabric` directly from outside the adapter — the whole
+  // point of the carve-out migration.
+  const handleOpenEditor = useCallback(
+    async (template: BrandKitTemplate) => {
+      // brand-guides has its own dedicated multi-page editor at
+      // /b/:slug/guidelines that pre-dates the unified editor +
+      // ships its own slide-based UI. Seeding into the unified
+      // editor is reserved for Phase 4 — for now keep the legacy
+      // route for that family.
+      if (template.type === 'brand-guides') {
+        navigate(`/b/${slug}/guidelines`);
+        return;
+      }
+      const seed = TEMPLATE_SEEDS[template.type];
+      if (!seed) {
+        // Mockups + any future unsupported family land here. Should
+        // be unreachable given the placeholder UI below, but defend
+        // against accidental wiring.
+        toast.error(`No editor available for "${template.type}" yet`);
+        return;
+      }
+      try {
+        const doc = seed(brand);
+        await designStorage.saveDesign(brand.id, doc.id, doc);
+        navigate(`/b/${slug}/design/${doc.id}`);
+      } catch (err) {
+        console.error('[TemplateGallery] failed to seed + persist:', err);
+        toast.error('Could not open template — please try again.');
+      }
+    },
+    [brand, designStorage, navigate, slug],
+  );
 
   const handleSaveTemplate = useCallback((template: BrandKitTemplate) => {
     setSavedTemplates(prev => new Set(prev).add(template.id));
@@ -150,7 +196,21 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
 
       {/* Template Grid */}
       {activeTab === 'templates' && (
-        filteredTemplates.length > 0 ? (
+        isMockupModule ? (
+          <div
+            data-mockup-placeholder
+            className="text-center py-20 px-6 rounded-2xl border border-dashed border-border bg-muted/20"
+          >
+            <p className="text-base font-medium">Mockup studio — coming soon</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+              Mockup templates need device frames, apparel, and environment renders. They're getting their own studio in a later phase, separate from the brandkit gallery.
+            </p>
+          </div>
+        ) : !hasSeed ? (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground">No editor available for this module yet.</p>
+          </div>
+        ) : filteredTemplates.length > 0 ? (
           <div className={cn('grid gap-4', gridCols)}>
             {filteredTemplates.map((template) => (
               <div key={template.id} data-template-id={template.id}>
@@ -203,27 +263,21 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
         </div>
       )}
 
-      {/* Edit/Preview Modal */}
-      {editTemplate && !canvasEditorTemplate && (
+      {/* Edit/Preview Modal — preview-only path. The "Open Editor"
+          button now navigates to /b/:slug/design/:designSlug instead
+          of mounting the legacy CanvasEditor inline. */}
+      {editTemplate && (
         <TemplatePreviewModal
           template={editTemplate}
           brand={brand}
           onClose={() => setEditTemplate(null)}
           onSave={handleSaveTemplate}
           onOpenEditor={() => {
-            setCanvasEditorTemplate(editTemplate);
+            const tpl = editTemplate;
             setEditTemplate(null);
+            void handleOpenEditor(tpl);
           }}
           renderPreview={renderPreviewWithOverrides(editTemplate)}
-        />
-      )}
-
-      {/* Canvas Editor (Canva-style) */}
-      {canvasEditorTemplate && (
-        <CanvasEditor
-          brand={brand}
-          template={canvasEditorTemplate}
-          onClose={() => setCanvasEditorTemplate(null)}
         />
       )}
     </div>
