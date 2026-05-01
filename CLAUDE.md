@@ -137,7 +137,7 @@ remaining carve-outs and the explicit reason each is kept:
    editor.** Wizard, not a canvas. Logo-domain coupling (variant
    generation, contrast checks, IdentityEngine) has no analogue in
    the unified system. Phase 4+ may absorb pieces.
-3. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor` 
+3. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor`
    at `/editor/design/:slug`. **Keep — transitively coupled to
    `stable/editable-export-v1`** through ExportDialog → vectorize/*.
    Migration would require updating the export pipeline (off-limits)
@@ -149,6 +149,25 @@ remaining carve-outs and the explicit reason each is kept:
 
 When you finish a piece of carve-out work, update this list AND the
 Phase 3.5 absorption note in the vision doc. The two should match.
+
+### Phase 3 debt — what was deferred and where it gets paid
+
+Phase 3 shipped 2026-05-01 with explicit, documented debt. Don't
+work around it without first checking if your change is the
+designated payoff. Reading this list saves you (or future-Claude)
+from re-creating these gaps.
+
+| # | Debt | Source | Owner phase |
+|---|---|---|---|
+| 1 | Auth/permission gates, 404/403 polish, deep linking, share URLs, brand-picker URL nav, suspense boundaries on `/b/:slug/design/:designSlug` | Step 9 commit 3a forward-pulled the route from Phase 4.5 to unblock the brandkit migration | **Phase 4.5** |
+| 2 | `TemplatePreviewModal` half-mounted in `TemplateGallery` — only the quick-download fallback path triggers it | Step 9.3 commit 3b kept the modal mounted to keep the migration commit small | **Cleanup pass before Phase 4 templates** |
+| 3 | Mockup family deferred from brandkit migration — `/b/:slug/brandkit/mockups` renders a "coming soon" placeholder, no template card | Step 9.3 commit 3b — mockup studio is its own feature, not a brandkit module | **Post-Phase-5 (mockup studio phase)** |
+| 4 | `/_dev/editor` is still the primary manual-test surface for the unified editor; the production route exists but isn't surfaced via any nav | Pre-Phase-3.5 — no IA entry has been added yet | **Phase 4.5** (when Templates → editor links land) |
+| 5 | 4 carve-outs remain (`design-ai`, `logo-maker/flow`, `editor/components`, `dashboard/.../design-ai.tsx`) — see the table above | Phase 0 catalogued 6; Step 9 reduced to 4 | **Phase 3.5** (#1 + #4 absorption), **Phase 4+** (#2). #3 stays carve-out — off-limits export coupling. |
+| 6 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI that pre-dates the unified editor | **Phase 4** (template-first guidelines) |
+
+The vision doc's "Phase 3 — Shipped" section (§8.5) carries the same
+table; if you update one, update the other.
 
 ## Canonical pickers & primitives
 

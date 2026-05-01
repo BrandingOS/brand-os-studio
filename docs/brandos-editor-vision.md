@@ -259,23 +259,36 @@ The original `brandos-editor-prompt.md` had Phases 0–6+. The vision above does
 | Phase 0 | Schema + EditorAdapter | ✅ Done. Schema supports the vision. |
 | Phase 1 | Fabric adapter + single page | ✅ Done. |
 | Phase 2 | Multi-page + master pages + content-type configs | ✅ Done. Foundation for unified editor. |
-| **Phase 3** | **Brand Engine + slot resolution** | **In progress (Step 1 done). Critical for vision — Brand Engine IS the gravity.** |
+| **Phase 3** | **Brand Engine + slot resolution** | ✅ **Shipped May 1, 2026.** See "Phase 3 — Shipped" section below. |
 | Phase 4 | Templates | Re-scoped: must support brand-agnostic templates with AI copy slots (per §6 above) |
 | Phase 5 | AI Design Generation | **Re-scoped to four modes** (per §4 above), not just Mode 1 |
 | Phase 6+ | Polish, performance, collaboration | Unchanged, but add: Resize variants (per §5 Type C) |
 
 ### New phases to insert
 
-**Phase 3.5 — AI Editing Layer (after Phase 3, before Phase 4)**
+**Phase 3.5 — AI Editing Layer (next, after Phase 3 shipped 2026-05-01)**
 
 After Brand Engine works, but before Templates ship, build the AI command infrastructure:
 - `aiAgent.applyCommand(doc, command, context)` — the function the four AI modes call
 - Command parser (natural language → structured `DesignIntent` or `DesignCommand`)
-- Delta builder (turns AI output into adapter mutations)
-- Batch undo grouping for AI operations
-- The top chrome AI prompt bar UI
+- Delta builder (turns AI output into adapter mutations, leveraging Phase 3's `EditorAdapter.batch()` for one-undo-entry semantics)
+- The top chrome AI prompt bar UI (sibling of the Brand picker; always visible per §3)
+- Mode-2/3/4 wiring (Mode 1 ships in Phase 5 once templates exist)
+- Absorbs `runAgent` + `brandCard` from `src/features/ai-design/lib/` (the agent backend seeds — see absorption note below)
+- Deletes `/b/:slug/ai-design` and `/b/:slug/design-ai` routes (and their `src/features/ai-design/components/` + `src/features/design-ai/` source folders) once the in-editor prompt bar reaches feature parity
 
 This phase is foundational for Modes 2, 3, 4. Mode 1 (zero-state generation) needs Phase 4 (templates) to work well, so it ships in Phase 5.
+
+**Inputs Phase 3.5 inherits from Phase 3:**
+- `EditorAdapter` + `FabricAdapter` (canvas mutation contract)
+- `BrandOSDocument` schema (Zod-validated, every AI emit must conform)
+- `applyBrandToDocument({ mode: 'apply' | 'preview' })` (resolves SlotRefs against current brand kit)
+- `useBrandKit(brand)` (memoized kit derivation)
+- `EditorAdapter.batch(label, fn)` (atomic multi-mutation grouping → single undo entry — exactly what AI deltas need)
+- `findSimilarLayers` + `applyLayerPatchAcrossPages` (predicate-based propagation — AI can target "all headlines on this brand" without manually walking pages)
+- `_lockedBindings` recovery (programmatic / AI overrides on brand-locked layers don't permanently break the binding)
+- Production route `/b/:slug/design/:designSlug` (minimum viable; AI-generated docs land here once persisted)
+- Three-layer test rule (every Phase 3.5 feature ships with unit + adapter integration + browser E2E)
 
 > **Absorption note (added 2026-04-30 after Step 9 carve-out review).**
 > Phase 3.5 absorbs `runAgent` and `brandCard` from
@@ -318,14 +331,61 @@ Multi-format export per §5 Type C above. Marketing-team killer feature.
 Phase 0 ✅ Schema + EditorAdapter
 Phase 1 ✅ Fabric adapter + single page
 Phase 2 ✅ Multi-page + master pages + content-type configs
-Phase 3 ⏳ Brand Engine + slot resolution + cross-page lock + smart duplicate
-Phase 3.5 — AI Editing Layer (4 modes infrastructure)
+Phase 3 ✅ Brand Engine + slot resolution + cross-page lock + smart duplicate (shipped 2026-05-01)
+Phase 3.5 ⏳ AI Editing Layer (4 modes infrastructure) — next
 Phase 4   — Templates (brand-agnostic + AI copy slots)
-Phase 4.5 — Editor URL Routing & Asset Bridging
+Phase 4.5 — Editor URL Routing & Asset Bridging (route stub already exists; this phase finishes auth/share/deep-link polish)
 Phase 5   — AI Design Generation (Mode 1 zero-state)
 Phase 6   — Resize Variants
 Phase 7+  — Real-time collaboration, performance, plugin system
 ```
+
+---
+
+## 8.5. Phase 3 — Shipped (April 27 – May 1, 2026)
+
+Phase 3 delivered the Brand Engine — the gravity layer that pulls every editor mutation, every cross-page propagation, every duplicate, and every (future) AI emit into a coherent brand identity. Documents stop being collections of literal hex / font strings and become brand-aware compositions that re-resolve through `applyBrandToDocument` on every brand switch, Re-apply, and recovery from drift.
+
+### Major capabilities shipped
+
+- **Unified Editor v2 shell** (`src/features/editor/shell/Editor.tsx`) — 4-icon App Rail, header-bar Secondary Panel, full-bleed canvas with smooth multiplicative zoom, floating contextual toolbar with brand-bound color picker, page navigator with smart-duplicate submenu.
+- **Brand Engine + slot resolution** — `applyBrandToDocument` (apply/preview modes), `useBrandKit` memoized derivation, SlotRefs for `brand.color.{primary,secondary,accent,neutral}` and `brand.font.{heading,body}`.
+- **Cross-page propagation** with two-step undo (page 1 edit + propagate to peers undo independently) and Sonner-based "All N pages / Just this layer" prompt.
+- **Smart duplicate** with three modes (as-is, as-variant, empty) and brand-locked layer carry-over (`_lockedBindings` survives the variant).
+- **Brand-managed layer toggle** — UI lock + recovery hook records SlotRefs into `_lockedBindings` on programmatic override, restored by Re-apply.
+- **Production editor route** at `/b/:slug/design/:designSlug` (minimum viable; full Phase 4.5 polish deferred).
+- **Brandkit gallery → unified editor migration** — 8 template families seeded as brand-bound BrandOSDocuments via `templateSeeds.ts`; legacy `brandkit/components/editor/` deleted.
+- **Carve-out reduction** — Phase 0's 6-path list reduced to 4. `FabricRenderer.ts` deleted (dead code), `brandkit/components/editor/` migrated.
+- **Three-layer test discipline** — 86 test files / 788 tests at end of phase, with browser E2E as the gate that catches data-flow regressions across Brand Engine + cross-page + smart duplicate.
+
+### Architectural decisions Phase 3 locked in
+
+These patterns are inherited by every later phase. Don't reinvent; use these.
+
+1. **`EditorAdapter` pattern.** All canvas/Fabric.js code lives behind the adapter interface. Features call `adapter.updateLayer / addLayer / batch / undo / redo / setSelection`. They never `import { Canvas } from 'fabric'` themselves. `FabricAdapter` is the single implementation; the contract makes Fabric replaceable.
+2. **`BrandOSDocument` as canonical schema.** Zod-validated. Persisted via `IDesignStorage`. Loaded into the adapter via `replaceDocument`. Every AI emit, template seed, smart-duplicate output must round-trip through `BrandOSDocumentSchema.parse()`.
+3. **`useBrandKit` memoization pattern.** Required at every BrandKit consumer site. Deps: `[brand, brand?.updatedAt]` — both reference identity AND `updatedAt` because in-place mutations are a real failure mode in this codebase.
+4. **`applyBrandToDocument({ mode, respectLocks })`.** `mode: 'apply'` writes literals into the document (commits to a brand). `mode: 'preview'` keeps SlotRefs intact and stores resolved values in `brandResolution` annotation (AI-readable, brand-agnostic doc preserved). `respectLocks: true` (default) restores `_lockedBindings` before resolution — drift recovery.
+5. **`HistoryRing` with `EditorAdapter.batch(label, fn)`.** Multi-mutation operations land as a single undo entry with a labeled history step ("Re-apply brand kit", "AI: convert to social posts"). Phase 3.5's AI deltas use this pattern verbatim — never emit multiple separate `updateLayer` calls without `batch()` wrapping.
+6. **`findSimilarLayers` + `applyLayerPatchAcrossPages`** — predicate-based propagation. The cross-page prompt UI is a thin wrapper; AI can target the same predicate ("all headlines on pages with this master") without manually walking the page tree.
+7. **`_lockedBindings` recovery for brand-managed layers.** When a programmatic mutation (legacy code, AI emit, migration import) writes a literal value to a brand-bound property on a `brandLocked: true` layer, the adapter records the original SlotRef in `_lockedBindings`. Next `applyBrandToDocument({ respectLocks: true })` restores it. The brand-managed contract wins over drift.
+8. **Smart duplicate semantics.** Text content clears (`text: ''`) but typography preserves (font family, size, weight, color SlotRef). Shapes, logos, SVGs preserve entirely. Images drop (page-specific). Brand-locked layers carry `brandLocked: true` AND `_lockedBindings` to the variant — a future Re-apply on the variant page still recovers the SlotRef.
+9. **Production route at minimum-viable scope.** `/b/:slug/design/:designSlug` exists. It resolves brand by slug, loads doc by id from `IDesignStorage`, mounts `<Editor>`. Phase 4.5 owns the polish (auth gates, 404/403 polish, deep linking, share URLs, brand-picker URL nav, suspense). The header comment in `src/pages/dashboard/brand/[slug]/design/[designSlug].tsx` enumerates the deferred items — read it before adding to that route.
+10. **Three-layer test rule.** Every Phase 3.5+ feature ships with: unit tests for pure logic, adapter integration tests for adapter API surface, browser E2E for user-facing flows. Skipping a layer because "covered elsewhere" is the rationalization that lets production bugs through.
+11. **Date-stamped absorption / decision notes.** Notes added to long-lived docs (vision, CLAUDE.md, route headers) carry an explicit date so future readers can audit "what was true when." Pattern: `> **<noun> (added YYYY-MM-DD after <event>).**`
+
+### Phase 3 debt carried into 3.5+
+
+Acknowledged tech debt from Phase 3, listed here so the next phase doesn't accidentally re-create it or work around it:
+
+| Debt | Source | Owner phase |
+|---|---|---|
+| Auth/permission gates, 404/403 polish, deep linking, share URLs, brand-picker URL nav, suspense boundaries on `/b/:slug/design/:designSlug` | Step 9 forward-pull from Phase 4.5 | Phase 4.5 |
+| `TemplatePreviewModal` half-mounted in TemplateGallery (only the quick-download fallback path triggers it) | Step 9.3 commit 3b — left the modal mounted to keep the commit small | Cleanup pass before Phase 4 templates |
+| Mockup family deferred from brandkit migration (renders "coming soon" placeholder) | Step 9.3 commit 3b — mockup studio is its own deferred feature | Post-Phase-5 (mockup studio phase) |
+| `/_dev/editor` is still the primary manual-test surface for the unified editor (production route exists but isn't surfaced via any nav) | Pre-Phase-3.5 — no IA entry yet | Phase 4.5 (Templates → editor links land here) |
+| 4 carve-outs remain: `design-ai`, `logo-maker/flow`, `editor/components`, `dashboard/.../design-ai.tsx` | Phase 0 catalogued 6; Step 9 reduced to 4 | Phase 3.5 (#1 + #4 absorption) and Phase 4+ (#2). #3 stays — off-limits export coupling. |
+| `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | Phase 4 (template-first guidelines) |
 
 ---
 
