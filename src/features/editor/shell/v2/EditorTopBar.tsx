@@ -90,6 +90,15 @@ interface Props {
   /** Optional Export click handler. 5a fires a placeholder; real
    *  export wiring is part of Phase 4 (templates). */
   onExport?: () => void;
+  /**
+   * Phase 3.5 — slot for the AI prompt bar. The Editor passes
+   * <EditorAiPromptBar /> here. Sits between the workspace section
+   * nav and the right cluster (save indicator + Export + theme),
+   * matching the vision §3 top-chrome layout. The slot is optional
+   * so callers without an AI agent (tests, dev harnesses) can still
+   * render the topbar.
+   */
+  aiPromptSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -102,6 +111,7 @@ export function EditorTopBar({
   theme,
   onToggleTheme,
   onExport,
+  aiPromptSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -152,6 +162,12 @@ export function EditorTopBar({
           if (path) navigate(path);
         }}
       />
+
+      {aiPromptSlot ? (
+        <div data-ai-prompt-slot className="flex items-center mx-2">
+          {aiPromptSlot}
+        </div>
+      ) : null}
 
       <div className="top-nav-right">
         {saveEnabled ? (

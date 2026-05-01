@@ -39,6 +39,13 @@ import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocume
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar } from './v2/EditorTopBar';
+import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
+import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
+import type {
+  AIAgent,
+  AICommandContext,
+  AICommandResult,
+} from '@/features/editor/ai/types';
 import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
 import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
 import {
@@ -104,6 +111,14 @@ interface EditorProps {
    * harness reloads a fixture for visual verification.
    */
   onBrandSwitch?: (brandSlug: string) => void;
+  /**
+   * Phase 3.5 — AI agent override. Production omits this (the editor
+   * builds an Edge Function-backed agent from the active BrandKit);
+   * tests + dev harnesses can pass a stub agent that returns
+   * deterministic AICommandResults without hitting any network.
+   * Falls back to a no-op when brandKit isn't available (no brand).
+   */
+  aiAgent?: AIAgent;
 }
 
 export function Editor({
@@ -113,6 +128,7 @@ export function Editor({
   brand,
   onAdapterReady,
   onBrandSwitch,
+  aiAgent,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
@@ -223,6 +239,16 @@ export function Editor({
 
   // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
   const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
+
+  // Phase 3.5 — AI agent. Memoized on brandKit identity so repeated
+  // renders don't reconstruct it. Production agent calls the Edge
+  // Function. Tests pass a stub via the `aiAgent` prop. When no
+  // brandKit (no brand selected), the prompt bar doesn't render.
+  const productionAgent = useMemo<AIAgent | null>(() => {
+    if (!brandKit) return null;
+    return createEdgeFunctionAgent({ brandKit });
+  }, [brandKit]);
+  const effectiveAgent = aiAgent ?? productionAgent;
 
   // ─── Re-apply brand kit ───────────────────────────────────────────────
   //
@@ -417,6 +443,25 @@ export function Editor({
           saveEnabled={saveEnabled}
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          aiPromptSlot={
+            effectiveAgent && brand ? (
+              <EditorAiPromptBar
+                agent={effectiveAgent}
+                getDoc={() => adapter.getDocument()}
+                getContext={(): AICommandContext => ({
+                  activePageId,
+                  selection: selection.layerIds,
+                  brand,
+                })}
+                onApply={(_result: AICommandResult) => {
+                  // Phase 3.5 commit 5 — UI lands; mode handlers
+                  // (commits 6/7/8) replace this no-op with the
+                  // delta/replace/rejected dispatcher that wraps
+                  // ops in adapter.batch.
+                }}
+              />
+            ) : undefined
+          }
         />
 
         {editingMasterId ? (
