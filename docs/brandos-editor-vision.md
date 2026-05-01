@@ -292,6 +292,16 @@ This phase is foundational for Modes 2, 3, 4. Mode 1 (zero-state generation) nee
 
 **Phase 4.5 — Editor URL Routing & Asset Bridging**
 
+> **Forward-pull note (2026-05-01).** A minimum-viable
+> `/b/:slug/design/:designSlug` route already exists at
+> `src/pages/dashboard/brand/[slug]/design/[designSlug].tsx`,
+> scoped forward from this phase to unblock the Step 9 brandkit
+> migration. Phase 4.5 owns the remaining concerns: per-brand auth/
+> permission gates, polished 404/403 states, deep linking
+> refinement, share URL parameters, brand-picker → URL navigation
+> wiring, loading skeletons / Suspense beyond the basic spinner.
+> See the route file's header comment for the full deferred list.
+
 After templates ship, wire the unified URL pattern:
 - Route `/b/:brandSlug/design/:designSlug` (canonical) to the editor; keep `/dashboard/brand/:brandSlug/design/:designSlug` as an alias that resolves to the same view
 - "Open in editor" links from Assets, Guidelines, Templates pages all route here

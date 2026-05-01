@@ -115,6 +115,41 @@ never hard-code a color/weight/spacing value there.
   off-limits** — tagged `stable/editable-export-v1`. Don't refactor
   through them. The editor unification works around them.
 
+### Phase 3 carve-outs (post-Step 9 reduction — 4 remain)
+
+Phase 0 catalogued 6 legacy paths flagged "must shrink, never grow."
+Step 9 (2026-05-01) reduced the list from 6 to 4 by deleting
+`FabricRenderer.ts` (dead, zero callers) and migrating
+`brandkit/components/editor/` onto the unified `Editor` (route at
+`/b/:slug/design/:designSlug` + `templateSeeds.ts`). The four
+remaining carve-outs and the explicit reason each is kept:
+
+1. **`src/features/design-ai/`** — Fabric-based 1080×1080 AI canvas,
+   live at `/b/:slug/design-ai`. **Keep — defer to Phase 3.5
+   absorption.** Live testing (Step 9) confirmed the apparent
+   replacement at `/b/:slug/ai-design` has critical gaps (mock-only
+   AI, broken non-text/geo node rendering, no export, no persistence,
+   tldraw license watermark). Both routes get folded into the
+   unified editor's top-chrome AI prompt bar in Phase 3.5; see
+   `docs/brandos-editor-vision.md` Phase 3.5 absorption note.
+2. **`src/features/logo-maker/flow/`** — 6-screen brand creation
+   wizard at `/logo-maker/*`. **Keep — wrong shape for the unified
+   editor.** Wizard, not a canvas. Logo-domain coupling (variant
+   generation, contrast checks, IdentityEngine) has no analogue in
+   the unified system. Phase 4+ may absorb pieces.
+3. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor` 
+   at `/editor/design/:slug`. **Keep — transitively coupled to
+   `stable/editable-export-v1`** through ExportDialog → vectorize/*.
+   Migration would require updating the export pipeline (off-limits)
+   alongside the editor swap.
+4. **`src/pages/dashboard/brand/[slug]/design-ai.tsx`** — Thin
+   wrapper page that mounts `src/features/design-ai/` + bridges to
+   `runAgent`. **Keep — pairs with #1.** Deletes when #1 deletes
+   in Phase 3.5.
+
+When you finish a piece of carve-out work, update this list AND the
+Phase 3.5 absorption note in the vision doc. The two should match.
+
 ## Canonical pickers & primitives
 
 - **Image uploads inside a brand**: use `@/shared/upload/AssetSourcePopover`.
