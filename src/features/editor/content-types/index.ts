@@ -12,6 +12,8 @@ import { presentationConfig } from './presentation.config';
 import { businessCardConfig } from './business-card.config';
 import { brandGuidelineSlideConfig } from './brand-guideline-slide.config';
 import { bannerConfig } from './banner.config';
+import { invoiceConfig } from './invoice.config';
+import { profileIconConfig } from './profile-icon.config';
 
 export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [socialPostConfig.id]: socialPostConfig,
@@ -19,6 +21,8 @@ export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [businessCardConfig.id]: businessCardConfig,
   [brandGuidelineSlideConfig.id]: brandGuidelineSlideConfig,
   [bannerConfig.id]: bannerConfig,
+  [invoiceConfig.id]: invoiceConfig,
+  [profileIconConfig.id]: profileIconConfig,
 };
 
 /**

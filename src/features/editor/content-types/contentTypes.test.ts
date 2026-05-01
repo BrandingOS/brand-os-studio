@@ -15,13 +15,15 @@ describe('content-type configs', () => {
     }
   });
 
-  it('exposes the five seed configs from the master prompt', () => {
+  it('exposes the seven seed configs (5 master-prompt + 2 added in Step 9 brandkit migration)', () => {
     const ids = Object.keys(CONTENT_TYPES).sort();
     expect(ids).toEqual([
       'banner',
       'brand-guideline-slide',
       'business-card',
+      'invoice',
       'presentation',
+      'profile-icon',
       'social-post',
     ]);
   });
@@ -57,6 +59,10 @@ describe('content-type configs', () => {
     expect(getContentTypeConfig('brand-guideline-slide').resizeStrategy).toBe('ai-reflowable');
     expect(getContentTypeConfig('social-post').resizeStrategy).toBe('ai-reflowable');
     expect(getContentTypeConfig('banner').resizeStrategy).toBe('reflowable');
+    // Invoice + profile-icon are fixed: financial-doc layout is
+    // legally rigid, icon sizes are exact-pixel re-exports.
+    expect(getContentTypeConfig('invoice').resizeStrategy).toBe('fixed');
+    expect(getContentTypeConfig('profile-icon').resizeStrategy).toBe('fixed');
   });
 
   it('every config has at least one export format and the default is in the list', () => {
@@ -87,6 +93,20 @@ describe('content-type configs', () => {
       width: 1500,
       height: 500,
     });
+    expect(getContentTypeConfig('invoice').defaultDimensions).toEqual({
+      width: 1080,
+      height: 1920,
+    });
+    expect(getContentTypeConfig('profile-icon').defaultDimensions).toEqual({
+      width: 1080,
+      height: 1080,
+    });
+  });
+
+  it('banner config exposes the Facebook cover preset (added in Step 9 for brandkit facebook-covers migration)', () => {
+    const banner = getContentTypeConfig('banner');
+    const fbPreset = banner.dimensionPresets.find((p) => p.label === 'Facebook cover');
+    expect(fbPreset).toEqual({ label: 'Facebook cover', width: 1640, height: 624 });
   });
 
   it('getContentTypeConfig throws on an unknown id', () => {

@@ -10,6 +10,7 @@ export const bannerConfig: ContentTypeConfig = {
     { label: 'Web wide 1500×500', width: 1500, height: 500 },
     { label: 'Twitter / X header', width: 1500, height: 500 },
     { label: 'LinkedIn cover', width: 1584, height: 396 },
+    { label: 'Facebook cover', width: 1640, height: 624 },
     { label: 'YouTube channel art', width: 2560, height: 1440 },
   ],
   panels: {
