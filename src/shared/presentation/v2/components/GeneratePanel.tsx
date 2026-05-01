@@ -208,16 +208,53 @@ export function GeneratePanel({ brand, open, onClose, onAccept }: Props) {
             )}
           </button>
 
-          {/* Error banner */}
-          {error && (
-            <div
-              role="alert"
-              className="rounded-md border border-red-200 bg-red-50 text-red-800 text-xs px-3 py-2 leading-relaxed"
-            >
-              <strong className="font-semibold">Could not generate:</strong>
-              <div className="mt-0.5 break-words">{error}</div>
-            </div>
-          )}
+          {/* Error banner — friendlier copy + actionable instruction
+              when the API key isn't configured locally. */}
+          {error && (() => {
+            const isKeyMissing = /api key|anthropic|VITE_ANTHROPIC/i.test(error);
+            return (
+              <div
+                role="alert"
+                className="rounded-md border border-red-200 bg-red-50 text-red-800 text-xs px-3 py-2.5 leading-relaxed"
+              >
+                <div className="flex items-start gap-2">
+                  <span aria-hidden className="mt-[2px]">⚠️</span>
+                  <div className="flex-1 min-w-0">
+                    {isKeyMissing ? (
+                      <>
+                        <strong className="font-semibold block mb-1">
+                          AI is not configured for this workspace.
+                        </strong>
+                        <span className="block break-words">
+                          Add an Anthropic API key to{' '}
+                          <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">.env</code>{' '}
+                          as{' '}
+                          <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">VITE_ANTHROPIC_API_KEY</code>{' '}
+                          and restart the dev server. Get a key at{' '}
+                          <a
+                            href="https://console.anthropic.com/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline font-medium"
+                          >
+                            console.anthropic.com
+                          </a>
+                          .
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <strong className="font-semibold block mb-0.5">
+                          Could not generate
+                        </strong>
+                        <span className="break-words">{error}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Result preview */}
           {result && (

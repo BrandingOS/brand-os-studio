@@ -116,8 +116,6 @@ const BrandDesignEditorPage = lazy(
 );
 const ContentHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/content"));
 const FeaturesIndexPage = lazy(() => import("./pages/dashboard/features"));
-const AiDesignPage = lazy(() => import("./pages/dashboard/brand/[slug]/ai-design"));
-const DesignWithAiPage = lazy(() => import("./pages/dashboard/brand/[slug]/design-ai"));
 const BrandBentoPage = lazy(() => import("./pages/dashboard/brand/[slug]/bento"));
 const StandaloneBentoPage = lazy(() => import("./pages/dashboard/tools/bento"));
 const PublicBentoPage = lazy(() => import("./pages/brand/[slug]/bento/[bentoId]"));
@@ -348,18 +346,11 @@ const App = () => (
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>
-          {/* AI Design is fullscreen (Lovart/Luma-style) — flat route, no brand shell. */}
-          <Route path="/dashboard/brand/:slug/ai-design" element={
-            <ProtectedRoute>
-              <AiDesignPage />
-            </ProtectedRoute>
-          } />
-          {/* Design with AI — canvas-first design surface (fullscreen, no brand shell). */}
-          <Route path="/dashboard/brand/:slug/design-ai" element={
-            <ProtectedRoute>
-              <DesignWithAiPage />
-            </ProtectedRoute>
-          } />
+          {/* Phase 3.5 absorption (commit 9): /ai-design and /design-ai
+              routes deleted. Both legacy AI design surfaces are folded
+              into the unified editor's top-chrome AI prompt bar. The
+              launchpad now opens a seeded design at
+              /b/:slug/design/:designSlug — see DesignLaunchpadPage. */}
           {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
           <Route path="/dashboard/brand/:slug/brandkit" element={
             <ProtectedRoute>
@@ -586,18 +577,6 @@ const App = () => (
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>
-          {/* AI Design fullscreen — short form. */}
-          <Route path="/b/:slug/ai-design" element={
-            <ProtectedRoute>
-              <AiDesignPage />
-            </ProtectedRoute>
-          } />
-          {/* Design with AI — short form. */}
-          <Route path="/b/:slug/design-ai" element={
-            <ProtectedRoute>
-              <DesignWithAiPage />
-            </ProtectedRoute>
-          } />
           {/* Production unified-editor route — short + long form. Mounts
               the unified Editor with a brand-scoped saved design loaded
               by id from IDesignStorage. Phase 4.5 finishes the auth

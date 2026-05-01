@@ -13,7 +13,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { buildSystemPrompt } from './systemPrompt';
-import { buildBrandCard } from '@/features/ai-design/lib/brandCard';
+import { buildBrandCard } from './brandCard';
 import { validateAICommandResult } from './modeFive';
 import type { AIAgent, AICommandContext, AICommandResult } from './types';
 import type { BrandKit } from '@/features/editor/brand/BrandKit';
