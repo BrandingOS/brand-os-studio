@@ -1,6 +1,6 @@
 # Phase 3.5 — AI Editing Layer
 
-> **Status:** Draft spec, posted 2026-05-01 after Phase 3 shipped. Awaiting review before implementation begins.
+> **Status (2026-05-01):** ✅ **Shipped.** All 10 spec commits landed (commits 6/7/8 combined into one — see commit message). 95 test files / 876 tests pass. Carve-out list: 4 → 2. See `docs/brandos-editor-vision.md` §8.6 "Phase 3.5 — Shipped" for the outcome record. This spec stays as the canonical pre-implementation reference.
 > **Source vision:** `docs/brandos-editor-vision.md` §4 ("AI Integration — Four Modes") and §8.5 ("Phase 3 — Shipped").
 > **Scope discipline:** Phase 3.5 wires the AI command infrastructure for the unified editor. It is NOT the place to build new AI capabilities (image generation, cross-document workflows, AI resize variants) — those are explicitly Phase 5+. Stay narrow.
 

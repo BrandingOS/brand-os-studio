@@ -260,6 +260,7 @@ The original `brandos-editor-prompt.md` had Phases 0–6+. The vision above does
 | Phase 1 | Fabric adapter + single page | ✅ Done. |
 | Phase 2 | Multi-page + master pages + content-type configs | ✅ Done. Foundation for unified editor. |
 | **Phase 3** | **Brand Engine + slot resolution** | ✅ **Shipped May 1, 2026.** See "Phase 3 — Shipped" section below. |
+| **Phase 3.5** | **AI Editing Layer (4 modes infrastructure)** | ✅ **Shipped May 1, 2026.** See "Phase 3.5 — Shipped" section below. |
 | Phase 4 | Templates | Re-scoped: must support brand-agnostic templates with AI copy slots (per §6 above) |
 | Phase 5 | AI Design Generation | **Re-scoped to four modes** (per §4 above), not just Mode 1 |
 | Phase 6+ | Polish, performance, collaboration | Unchanged, but add: Resize variants (per §5 Type C) |
@@ -328,12 +329,12 @@ Multi-format export per §5 Type C above. Marketing-team killer feature.
 ### Updated phase order
 
 ```
-Phase 0 ✅ Schema + EditorAdapter
-Phase 1 ✅ Fabric adapter + single page
-Phase 2 ✅ Multi-page + master pages + content-type configs
-Phase 3 ✅ Brand Engine + slot resolution + cross-page lock + smart duplicate (shipped 2026-05-01)
-Phase 3.5 ⏳ AI Editing Layer (4 modes infrastructure) — next
-Phase 4   — Templates (brand-agnostic + AI copy slots)
+Phase 0   ✅ Schema + EditorAdapter
+Phase 1   ✅ Fabric adapter + single page
+Phase 2   ✅ Multi-page + master pages + content-type configs
+Phase 3   ✅ Brand Engine + slot resolution + cross-page lock + smart duplicate (shipped 2026-05-01)
+Phase 3.5 ✅ AI Editing Layer (Modes 2/3/4 + Mode 5 validation gate) (shipped 2026-05-01)
+Phase 4   ⏳ Templates (brand-agnostic + AI copy slots) — next
 Phase 4.5 — Editor URL Routing & Asset Bridging (route stub already exists; this phase finishes auth/share/deep-link polish)
 Phase 5   — AI Design Generation (Mode 1 zero-state)
 Phase 6   — Resize Variants
@@ -386,6 +387,67 @@ Acknowledged tech debt from Phase 3, listed here so the next phase doesn't accid
 | `/_dev/editor` is still the primary manual-test surface for the unified editor (production route exists but isn't surfaced via any nav) | Pre-Phase-3.5 — no IA entry yet | Phase 4.5 (Templates → editor links land here) |
 | 4 carve-outs remain: `design-ai`, `logo-maker/flow`, `editor/components`, `dashboard/.../design-ai.tsx` | Phase 0 catalogued 6; Step 9 reduced to 4 | Phase 3.5 (#1 + #4 absorption) and Phase 4+ (#2). #3 stays — off-limits export coupling. |
 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | Phase 4 (template-first guidelines) |
+
+---
+
+## 8.6. Phase 3.5 — Shipped (May 1, 2026)
+
+Phase 3.5 delivered the AI Editing Layer — the plumbing that turns the unified editor from manual-design surface into AI-native one. After Phase 3.5, every editor session has an always-visible AI prompt bar in the top chrome that drives Modes 2, 3, and 4 from §4. Mode 1 (zero-state generation) remains scheduled for Phase 5 because it depends on Phase 4's template library.
+
+The single load-bearing function this phase shipped is `aiAgent.applyCommand(doc, command, context)`. Everything else is scaffolding around it.
+
+### Major capabilities shipped
+
+- **Static system prompt** (`src/features/editor/ai/systemPrompt.ts`, ~840 lines) with the 5 hard rules (JSON-only output, delta-over-replace with required justification, SlotRefs preserved for brand-bound properties, Mode 4 stays in scope, no silent failures). Six fully-realized worked examples Claude pattern-matches on, including a complete 5-slide social-post deck (Example E) and a Mode 3 RTL translation flow (Example F).
+- **Compact `<brand_resolution>` block** (`brandResolutionBlock.ts`) — ~80–120 token resolved-value mapping with light/dark tone hints so the AI makes contrast-aware color decisions.
+- **`AICommandResult` discriminated union** (`types.ts`) with three variants (delta / replace / rejected) and 7 explicit rejection reason codes. Zod-enforced at runtime.
+- **Mode 5 — validation gate** (`modeFive.ts`) every real mode routes through. Five guards: top-level schema parse, per-op layer/page validation with UUID assignment, Mode 4 scope clamp, brand-rebinding detection on replace, hallucinated-id detection.
+- **Edge Function** (`supabase/functions/ai-apply-command/index.ts`) with Anthropic prompt-caching (`cache_control: ephemeral` on the static spine) and mock mode (returns deterministic AICommandResult when `ANTHROPIC_API_KEY` is unset, so dev experience works without a key — single code path, no browser-side branching).
+- **`createEdgeFunctionAgent`** (`applyCommand.ts`) — the production AIAgent implementation. Builds the system prompt locally, posts to the Edge Function, runs the response through Mode 5, returns the canonical AICommandResult.
+- **`EditorAiPromptBar`** (`shell/v2/EditorAiPromptBar.tsx`) — top-chrome UI with two display modes (expanded inline ≥1024px viewport, collapsed sparkle-icon + popover <1024px). In-flight indicator, error tinting, suggestion chips, disambiguation alternative chips, Enter-submits / Shift+Enter-newline.
+- **`applyAICommandResult`** (`applyResult.ts`) — the dispatcher. Wraps every delta in `adapter.batch(label, fn)` so a complete AI mutation lands as a single labeled undo entry. Replace branches through `adapter.batch(label, () => replaceDocument(next))` per the EditorAdapter contract. Rejected → no-op (the prompt bar surfaces the message inline).
+- **Carve-out absorption** — pre-3.5 fullscreen pages `/b/:slug/ai-design` and `/b/:slug/design-ai` deleted, along with `src/features/ai-design/` and `src/features/design-ai/` source folders. The launchpad now has ONE "Design with AI" card that seeds a brand-bound social-post + navigates to the unified editor. **Carve-out list reduced from 4 → 2.**
+- **Edge Function security migration** — moves Anthropic call off the browser (no more `dangerouslyAllowBrowser: true`); `ANTHROPIC_API_KEY` no longer ships in the client bundle. Closes the security constraint tracked at issue #2.
+
+### Architectural decisions Phase 3.5 locked in
+
+These patterns inherit forward; later phases follow them.
+
+1. **Single load-bearing AI entry point.** Every AI command goes through `AIAgent.applyCommand(doc, command, context)`. Modes 2/3/4 are inferred at the contract layer from `(selection, prompt intent)`; the implementation layer doesn't branch per mode. Phase 5's Mode 1 will follow the same shape.
+2. **Mode 5 is non-bypassable.** Every AI emit transits `validateAICommandResult` before any adapter mutation. No code path in the editor mutates from a raw AI response.
+3. **Adapter batch wrapping is mandatory** for every applied AI operation. One AI submission → one undo entry. Same `adapter.batch(label, fn)` primitive Phase 3 used for Re-apply / cross-page propagation / smart duplicate.
+4. **SlotRefs survive AI emits.** The system prompt enforces it at instruction level, the schema enforces it at validation level. AI-emitted documents stay brand-bound; brand switches re-resolve correctly.
+5. **Replace requires justification.** AI returning `replace` without a 10-char-minimum justification is rejected at the contract layer. Default behavior is delta; replace is the disruptive exception.
+6. **Disambiguation is explicit, not implicit.** When both Mode 3 and Mode 4 plausibly apply, the AI picks the better-matching one AND surfaces the alternative as a one-click follow-up via the `disambiguation` field. Silent wrong-mode actions are rejected at Mode 5.
+7. **Send-spine-per-call + Anthropic prompt caching.** The static system prompt (~3,500 tokens) is sent on every Edge Function call, cached at Anthropic with `cache_control: ephemeral`. First call in a 5-min window pays cache write; subsequent reads are 0.1× cost. Browser–to–Edge bandwidth is the trade-off; cache amortization wins decisively at any session volume.
+8. **Mock mode lives on the Edge Function side.** When `ANTHROPIC_API_KEY` is unset, the Edge Function returns a deterministic AICommandResult. Browser code has a single path; no `if (mockMode)` branches in the editor.
+9. **Three-layer test discipline holds.** Every commit shipped unit + adapter integration + browser E2E. Negative-path coverage explicit per mode (rejected pass-through, agent throw, schema-invalid AI response, network error).
+
+### Phase 3.5 debt carried into Phase 4+
+
+Tracked here so future phases don't accidentally re-create it.
+
+| Debt | Source | Owner phase |
+|---|---|---|
+| Mode 1 (zero-state generate) not yet wired — needs Phase 4's template library to work well | Spec §2 (out of scope, deferred) | Phase 5 |
+| AI image generation absent (the agent can reference existing brand assets but cannot generate new ones) | Spec §2 | Phase 5+ |
+| AI for resize variants — Phase 6 (`generateResizeVariants`) owns the reflow pipeline; AI not yet integrated there | Spec §2 | Phase 6 |
+| Cross-document AI workflows (e.g. emit a "design family" of N linked docs) | Spec §2 | Phase 6 |
+| Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Spec Q7 | Phase 5 if user feedback demands it |
+| Skill chips deferred — Phase 3.5 prompt bar has no skill chips; revisit when usage data shows users wandering | Spec Q4 | Post-Phase-5 (data-driven) |
+| Real Anthropic call in CI — every test uses a stub or mock; Edge Function is deploy-time-only verified | Spec §2 | Indefinite (prefer the discipline) |
+| Multi-turn conversation memory — prompt bar is stateless across submits | Spec §6 | Future phase if needed |
+| Auto-apply / streaming-ready hooks in the prompt bar UI | Spec Q7 | Phase 5+ if streaming ships |
+
+### Phase 3.5 carve-out outcome
+
+Carve-out list went from 4 (post-Phase 3) → 2 (post-Phase 3.5):
+1. ~~`src/features/design-ai/`~~ — **deleted in commit 9.**
+2. `src/features/logo-maker/flow/` — kept (wrong shape: wizard, not canvas). Phase 4+ may absorb pieces.
+3. `src/features/editor/components/` — kept (transitively coupled to off-limits `stable/editable-export-v1` export pipeline). No path to migration without updating the export baseline (off-limits).
+4. ~~`src/pages/dashboard/brand/[slug]/design-ai.tsx`~~ — **deleted in commit 9 (paired with #1).**
+
+Two remain. Both are documented kept-because in CLAUDE.md.
 
 ---
 

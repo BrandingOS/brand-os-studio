@@ -115,59 +115,67 @@ never hard-code a color/weight/spacing value there.
   off-limits** — tagged `stable/editable-export-v1`. Don't refactor
   through them. The editor unification works around them.
 
-### Phase 3 carve-outs (post-Step 9 reduction — 4 remain)
+### Phase 3 + 3.5 carve-outs (post-3.5 reduction — 2 remain)
 
 Phase 0 catalogued 6 legacy paths flagged "must shrink, never grow."
-Step 9 (2026-05-01) reduced the list from 6 to 4 by deleting
-`FabricRenderer.ts` (dead, zero callers) and migrating
-`brandkit/components/editor/` onto the unified `Editor` (route at
-`/b/:slug/design/:designSlug` + `templateSeeds.ts`). The four
-remaining carve-outs and the explicit reason each is kept:
+Successive reductions:
+- **Step 9 (2026-05-01):** 6 → 4. Deleted `FabricRenderer.ts` (dead,
+  zero callers) and migrated `brandkit/components/editor/` onto the
+  unified `Editor` (route at `/b/:slug/design/:designSlug` +
+  `templateSeeds.ts`).
+- **Phase 3.5 commit 9 (2026-05-01):** 4 → 2. Deleted
+  `src/features/design-ai/` and `src/features/ai-design/` source
+  folders + the `dashboard/brand/[slug]/design-ai.tsx` and
+  `dashboard/brand/[slug]/ai-design.tsx` page wrappers. Both
+  pre-3.5 fullscreen AI surfaces folded into the unified editor's
+  top-chrome AI prompt bar. The launchpad's AI tab now offers ONE
+  "Design with AI" card that seeds + navigates to the production
+  editor route. Salvaged `brandCard.ts` moved to
+  `src/features/editor/ai/brandCard.ts`.
 
-1. **`src/features/design-ai/`** — Fabric-based 1080×1080 AI canvas,
-   live at `/b/:slug/design-ai`. **Keep — defer to Phase 3.5
-   absorption.** Live testing (Step 9) confirmed the apparent
-   replacement at `/b/:slug/ai-design` has critical gaps (mock-only
-   AI, broken non-text/geo node rendering, no export, no persistence,
-   tldraw license watermark). Both routes get folded into the
-   unified editor's top-chrome AI prompt bar in Phase 3.5; see
-   `docs/brandos-editor-vision.md` Phase 3.5 absorption note.
-2. **`src/features/logo-maker/flow/`** — 6-screen brand creation
+The two remaining carve-outs and the explicit reason each is kept:
+
+1. **`src/features/logo-maker/flow/`** — 6-screen brand creation
    wizard at `/logo-maker/*`. **Keep — wrong shape for the unified
    editor.** Wizard, not a canvas. Logo-domain coupling (variant
    generation, contrast checks, IdentityEngine) has no analogue in
    the unified system. Phase 4+ may absorb pieces.
-3. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor`
+2. **`src/features/editor/components/`** — Legacy `OptimizedDesignEditor`
    at `/editor/design/:slug`. **Keep — transitively coupled to
    `stable/editable-export-v1`** through ExportDialog → vectorize/*.
    Migration would require updating the export pipeline (off-limits)
    alongside the editor swap.
-4. **`src/pages/dashboard/brand/[slug]/design-ai.tsx`** — Thin
-   wrapper page that mounts `src/features/design-ai/` + bridges to
-   `runAgent`. **Keep — pairs with #1.** Deletes when #1 deletes
-   in Phase 3.5.
 
 When you finish a piece of carve-out work, update this list AND the
-Phase 3.5 absorption note in the vision doc. The two should match.
+matching "Shipped" section in `docs/brandos-editor-vision.md`. The
+two should always match.
 
-### Phase 3 debt — what was deferred and where it gets paid
+### Phase 3 + 3.5 debt — what was deferred and where it gets paid
 
-Phase 3 shipped 2026-05-01 with explicit, documented debt. Don't
-work around it without first checking if your change is the
-designated payoff. Reading this list saves you (or future-Claude)
-from re-creating these gaps.
+Phase 3 shipped 2026-05-01 + Phase 3.5 same day, both with
+explicit, documented debt. Don't work around items without first
+checking if your change is the designated payoff.
 
-| # | Debt | Source | Owner phase |
-|---|---|---|---|
-| 1 | Auth/permission gates, 404/403 polish, deep linking, share URLs, brand-picker URL nav, suspense boundaries on `/b/:slug/design/:designSlug` | Step 9 commit 3a forward-pulled the route from Phase 4.5 to unblock the brandkit migration | **Phase 4.5** |
-| 2 | `TemplatePreviewModal` half-mounted in `TemplateGallery` — only the quick-download fallback path triggers it | Step 9.3 commit 3b kept the modal mounted to keep the migration commit small | **Cleanup pass before Phase 4 templates** |
-| 3 | Mockup family deferred from brandkit migration — `/b/:slug/brandkit/mockups` renders a "coming soon" placeholder, no template card | Step 9.3 commit 3b — mockup studio is its own feature, not a brandkit module | **Post-Phase-5 (mockup studio phase)** |
-| 4 | `/_dev/editor` is still the primary manual-test surface for the unified editor; the production route exists but isn't surfaced via any nav | Pre-Phase-3.5 — no IA entry has been added yet | **Phase 4.5** (when Templates → editor links land) |
-| 5 | 4 carve-outs remain (`design-ai`, `logo-maker/flow`, `editor/components`, `dashboard/.../design-ai.tsx`) — see the table above | Phase 0 catalogued 6; Step 9 reduced to 4 | **Phase 3.5** (#1 + #4 absorption), **Phase 4+** (#2). #3 stays carve-out — off-limits export coupling. |
-| 6 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI that pre-dates the unified editor | **Phase 4** (template-first guidelines) |
+| # | Debt | Source | Owner phase | Status |
+|---|---|---|---|---|
+| 1 | Auth/permission gates, 404/403 polish, deep linking, share URLs, brand-picker URL nav, suspense boundaries on `/b/:slug/design/:designSlug` | Step 9 commit 3a forward-pulled the route from Phase 4.5 to unblock the brandkit migration | **Phase 4.5** | Open |
+| 2 | `TemplatePreviewModal` half-mounted in `TemplateGallery` — only the quick-download fallback path triggers it | Step 9.3 commit 3b kept the modal mounted to keep the migration commit small | **Cleanup pass before Phase 4 templates** | Open |
+| 3 | Mockup family deferred from brandkit migration — `/b/:slug/brandkit/mockups` renders a "coming soon" placeholder, no template card | Step 9.3 commit 3b — mockup studio is its own feature, not a brandkit module | **Post-Phase-5 (mockup studio phase)** | Open |
+| 4 | `/_dev/editor` is still the primary manual-test surface for the unified editor; the production route exists but launchpad's "Design with AI" is the first user-visible entry | Pre-Phase-3.5; partially addressed by 3.5 commit 9's launchpad re-point | **Phase 4.5** (when Templates → editor links land) | Partial — launchpad now has 1 entry; templates browser still pending |
+| 5 | Mode 1 (zero-state generate) not yet wired — needs Phase 4's template library | Phase 3.5 spec §2 (out of scope) | **Phase 5** | Open |
+| 6 | AI image generation absent | Phase 3.5 spec §2 | **Phase 5+** | Open |
+| 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
+| 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
+| 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
+| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Phase 4** (template-first guidelines) | Open |
 
-The vision doc's "Phase 3 — Shipped" section (§8.5) carries the same
-table; if you update one, update the other.
+Closed during 3.5: ~~"4 carve-outs remain"~~ — went 4 → 2; the
+remaining 2 (`logo-maker/flow`, `editor/components`) are documented
+above with their explicit kept-because reasons.
+
+The vision doc's "Phase 3 — Shipped" (§8.5) and "Phase 3.5 —
+Shipped" (§8.6) sections carry the same debt items; if you update
+one, update the other.
 
 ## Canonical pickers & primitives
 
