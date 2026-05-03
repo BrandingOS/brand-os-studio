@@ -355,6 +355,11 @@ export const SERVICE_KEYS = {
   MOCKUP_TEMPLATES: 'mockupTemplates',
   /** Phase 4 — Content Universe (templates + categories). */
   TEMPLATES: 'templates',
+  /** Phase 5 — AI agent (Phase 3.5's `AIAgent`). Registered so
+   *  panels can pull a stub agent in tests without constructing
+   *  their own EdgeFunctionAgent (which calls fetch). Production
+   *  registers `createEdgeFunctionAgent` per active brandKit. */
+  AI_AGENT: 'aiAgent',
 } as const;
 
 // ─── Mockup Templates Service ──────────────────────────────────

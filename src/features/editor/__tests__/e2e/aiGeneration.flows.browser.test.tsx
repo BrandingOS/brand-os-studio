@@ -51,10 +51,10 @@ function brand(): Brand {
 
 function aiResultDoc(): BrandOSDocument {
   return {
-    schemaVersion: 1, id: '00000000-0000-0000-0000-0000000ai001',
+    schemaVersion: 1, id: '00000000-0000-0000-0000-0000000ad001',
     contentType: 'social-post', brandId: 'brand-raqm',
     masterPages: [], pages: [{
-      id: '00000000-0000-0000-0000-0000000ai002',
+      id: '00000000-0000-0000-0000-0000000ad002',
       name: 'Page 1', width: 1080, height: 1080,
       background: { type: 'brand.color.primary' } as never,
       masterPageId: null, layers: [],
@@ -85,11 +85,14 @@ async function mountWithAgent(agentResult: AICommandResult) {
     deleteDesign: vi.fn(async () => {}),
   };
 
+  const stubAgent: AIAgent = { applyCommand: vi.fn(async () => agentResult) };
+
   serviceContainer.register(SERVICE_KEYS.BRANDS, () => brands);
   serviceContainer.register(SERVICE_KEYS.DESIGN_STORAGE, () => designStorage);
   serviceContainer.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
-
-  const stubAgent: AIAgent = { applyCommand: vi.fn(async () => agentResult) };
+  // Phase 5 — AI agent DI override. The panels' useAiAgent hook
+  // picks this up before falling back to a real EdgeFunctionAgent.
+  serviceContainer.register(SERVICE_KEYS.AI_AGENT, () => stubAgent);
 
   let resolveAdapter!: (a: EditorAdapter) => void;
   const adapterPromise = new Promise<EditorAdapter>((r) => { resolveAdapter = r; });
@@ -123,71 +126,41 @@ async function mountWithAgent(agentResult: AICommandResult) {
 // ─── Flow 1 — Editable design ──────────────────────────────────────────
 
 describe('Phase 4.3 — Generate with AI: editable design (Mode 1)', () => {
-  // Phase 4.3 known debt: this happy-path E2E requires intercepting
-  // the fetch the TemplatesPanel's createEdgeFunctionAgent does
-  // through brandKit derivation. The browser environment's brandKit
-  // resolution path doesn't always settle before the agent
-  // construction, leading to flake. The same code path is exercised
-  // by:
-  //   • generateFromPrompt.test.ts — unit (agent in, doc out, all
-  //     three result variants).
-  //   • applyCommand.test.ts — wrapper-with-mocked-fetch unit.
-  //   • this file's "agent rejection" test below — exercises the
-  //     negative path of this exact UI through a mocked fetch.
-  // Phase 5 will add a DI-key for the AI agent so panels can pull
-  // an injected stub, then this test lands cleanly.
-  it.skip('agent.applyCommand returns replace → saveDesign called with the AI doc → navigate to /design/:id (deferred — see comment)', async () => {
+  // Phase 5 closed Phase 4.3's debt: SERVICE_KEYS.AI_AGENT can be
+  // registered in DI and useAiAgent picks it up. The test now
+  // injects the stub directly — no more fetch mocking required.
+  it('agent.applyCommand returns replace → saveDesign called with the AI doc → navigate to /design/:id', async () => {
     const replaceResult: AICommandResult = {
       kind: 'replace', label: 'AI: zero-state',
       justification: 'Mode 1 — zero-state generation; full doc.',
       nextDoc: aiResultDoc(), message: 'Generated a fresh post.',
     };
 
-    // The TemplatesPanel constructs its own EdgeFunctionAgent (calls
-    // fetch). Mock the fetch so the Edge Function returns the stubbed
-    // AICommandResult. This is the integration boundary at the
-    // browser level — same pattern as applyCommand.test.ts.
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      if (url.includes('/functions/v1/ai-apply-command')) {
-        return new Response(JSON.stringify({ result: replaceResult }), {
-          status: 200, headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      // Other fetches (assets, tldraw, etc.) pass through.
-      return originalFetch(input);
-    }) as typeof fetch;
+    const { container, saveDesign, getLastPath } = await mountWithAgent(replaceResult);
 
-    try {
-      const { container, saveDesign, getLastPath } = await mountWithAgent(replaceResult);
+    fireEvent.click(container.querySelector<HTMLButtonElement>('button[data-rail-item="templates"]')!);
+    await waitFor(() => container.querySelector('[data-templates-panel]'));
 
-      fireEvent.click(container.querySelector<HTMLButtonElement>('button[data-rail-item="templates"]')!);
-      await waitFor(() => container.querySelector('[data-templates-panel]'));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-with-ai-trigger]')!);
+    await waitFor(() => container.querySelector('[data-generate-with-ai]'));
 
-      fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-with-ai-trigger]')!);
-      await waitFor(() => container.querySelector('[data-generate-with-ai]'));
+    const promptInput = container.querySelector<HTMLTextAreaElement>('[data-generate-with-ai-prompt]')!;
+    fireEvent.change(promptInput, { target: { value: 'Create an Instagram post for our launch' } });
 
-      const promptInput = container.querySelector<HTMLTextAreaElement>('[data-generate-with-ai-prompt]')!;
-      fireEvent.change(promptInput, { target: { value: 'Create an Instagram post for our launch' } });
+    const submit = container.querySelector<HTMLButtonElement>('[data-generate-with-ai-submit]')!;
+    fireEvent.click(submit);
 
-      const submit = container.querySelector<HTMLButtonElement>('[data-generate-with-ai-submit]')!;
-      fireEvent.click(submit);
+    await waitFor(() => {
+      expect(saveDesign).toHaveBeenCalledTimes(1);
+    }, { timeout: 5000 });
+    const [savedBrandId, savedDesignId, savedDoc] = saveDesign.mock.calls[0];
+    expect(savedBrandId).toBe('brand-raqm');
+    expect(savedDesignId.length).toBeGreaterThan(20);
+    expect(BrandOSDocumentSchema.safeParse(savedDoc).success).toBe(true);
 
-      await waitFor(() => {
-        expect(saveDesign).toHaveBeenCalledTimes(1);
-      }, { timeout: 5000 });
-      const [savedBrandId, savedDesignId, savedDoc] = saveDesign.mock.calls[0];
-      expect(savedBrandId).toBe('brand-raqm');
-      expect(savedDesignId.length).toBeGreaterThan(20);
-      expect(BrandOSDocumentSchema.safeParse(savedDoc).success).toBe(true);
-
-      await waitFor(() => {
-        expect(getLastPath()).toBe(`/b/raqm/design/${savedDesignId}`);
-      });
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    await waitFor(() => {
+      expect(getLastPath()).toBe(`/b/raqm/design/${savedDesignId}`);
+    });
   });
 
   it('agent rejection → no saveDesign, error toast (no crash, surface stays open)', async () => {

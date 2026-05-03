@@ -28,8 +28,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
 import { GenerateWithAiSection } from './GenerateWithAiSection';
-import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
-import { useMemo as useReactMemo } from 'react';
+import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 
 const PAGE_SIZE = 24;
 
@@ -136,11 +135,10 @@ export function TemplatesPanel() {
     });
   }, []);
 
-  // Phase 4.3 — production agent for AI generation surface.
-  const aiAgent = useReactMemo(() => {
-    if (!brandKit) return null;
-    return createEdgeFunctionAgent({ brandKit });
-  }, [brandKit]);
+  // Phase 5 — pull the shared agent (DI override > brandKit-based
+  // construction). All AI surfaces in the editor share one agent
+  // identity per render.
+  const aiAgent = useAiAgent(brandKit);
 
   const onUseTemplate = useCallback(async (template: Template) => {
     // Phase 4.3 — clicking an AI prompt preset card prefills the

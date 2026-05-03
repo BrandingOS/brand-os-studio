@@ -41,7 +41,7 @@ import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/cros
 import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
-import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
+import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import type {
   AIAgent,
@@ -249,15 +249,13 @@ export function Editor({
   // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
   const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
 
-  // Phase 3.5 — AI agent. Memoized on brandKit identity so repeated
-  // renders don't reconstruct it. Production agent calls the Edge
-  // Function. Tests pass a stub via the `aiAgent` prop. When no
-  // brandKit (no brand selected), the prompt bar doesn't render.
-  const productionAgent = useMemo<AIAgent | null>(() => {
-    if (!brandKit) return null;
-    return createEdgeFunctionAgent({ brandKit });
-  }, [brandKit]);
-  const effectiveAgent = aiAgent ?? productionAgent;
+  // Phase 3.5 — AI agent. The `useAiAgent` hook picks DI override
+  // first (test stub), then falls back to a production
+  // EdgeFunctionAgent built from the brandKit. The `aiAgent` prop
+  // remains as a final override for direct callers (E2E tests that
+  // bypass DI).
+  const sharedAgent = useAiAgent(brandKit);
+  const effectiveAgent = aiAgent ?? sharedAgent;
 
   // ─── Re-apply brand kit ───────────────────────────────────────────────
   //
