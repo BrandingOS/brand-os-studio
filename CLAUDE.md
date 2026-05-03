@@ -205,7 +205,7 @@ checking if your change is the designated payoff.
 | 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
 | 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
 | 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
-| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Phase 4** (template-first guidelines) | Open |
+| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Open — audited at 52 files / 10,469 LOC.** Has its own editor, slide navigator, customizer, AI content generator, multiple templates. Multi-week migration. Needs explicit user direction on full migration vs. content-type alias vs. defer further before scheduling. |
 
 Closed during 3.5: ~~"4 carve-outs remain"~~ — went 4 → 2; the
 remaining 2 (`logo-maker/flow`, `editor/components`) are documented

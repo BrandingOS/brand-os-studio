@@ -5,6 +5,91 @@ Newest entries at the top. One entry per working session. Keep entries concrete
 
 ---
 
+## 2026-05-04 — Phase 4 Content Universe + Phase 4.5 route polish + Phase 5 begin
+
+**Accomplished** (8 commits on `dev`, `af8fb46` → `de5fe61`):
+
+End-to-end Phase 4 ship + Phase 4.5 route polish + autonomous slice of
+Phase 5 done in one autonomous run, after the user gave a one-shot
+greenlight. Stop-discipline triggers caught three architectural blockers
+up front (Supabase deploy authority, IDesignsService spec-vs-reality,
+AI image vendor) and routed around them with documented debt.
+
+**Phase 4.1 (Templates Foundation, `af8fb46`).** SQL migration
+`20260504000000_009_templates_phase_4.sql` defining `template_categories`
++ `templates` (idempotent, RLS); `LocalTemplatesService` mirroring the
+schema as the dev default; 11 categories + 94 brand-bound seed
+templates via `builders.ts` (mood × layout matrix); Templates panel UI
+with search / category chips / source+mood filters / lazy thumbnail
+grid / load-more pagination; open-template flow
+(applyBrandToDocument → IDesignStorage → navigate to
+`/b/:slug/design/:newSlug`); 4 new content-type configs (letterhead,
+brochure, poster, email-signature) bringing total to 11; IDesignStorage
+extended with `DesignSummary[]` listDesigns return + thumbnail meta
+(BREAKING — only test stubs needed updates).
+
+**Phase 4.2 (My Designs + Save as template, `018dcbe`).**
+`convertToTemplate(doc, kit)` walks the doc and replaces literal
+hex/font that match kit values back into SlotRefs (so user-saved
+templates stay brand-agnostic when opened by a different brand);
+top-chrome `EditorSaveAsTemplateButton` with name/category/mood/
+visibility popover; My Designs tab in TemplatesPanel reading
+`IDesignStorage.listDesigns(brandId)`.
+
+**Phase 4.3 (AI Generation Layer, `fabd585`).** Mode 1 zero-state
+generate forward-pulled from Phase 3.5 spec via `generateFromPrompt`
+(blank scaffold + applyCommand handles delta/replace/rejected);
+GenerateWithAi section in TemplatesPanel with prompt + content-type
++ "Editable design / Image only" radio; `ai-generate-image` Edge
+Function (mock-only — vendor swap is a 1-function-body change once
+`AI_IMAGE_VENDOR` env is set); 25 AI prompt presets distributed
+across categories (clicking a preset card prefills the generator);
+total seed inventory now 119.
+
+**Phase 4.4 (Community Templates, `ff63bcd`).** Admin approval queue
+at `/admin/templates/queue` with Approve / Reject (with required
+reason); `useIsAdmin()` hook reads `profiles.is_admin` (added in 4.1
+migration); save-as-template visibility:'public' → uploadStatus:
+'pending' for community submission; community filter in Templates
+panel uses existing source filter; premium foundations (`is_premium`,
+`required_plan`) ship as schema fields with no UI yet.
+
+**Phase 4.5 (Editor URL Routing polish, `13ddc1f`).** Inline
+`NotFoundPanel` replaces redirect+toast on the production
+`/b/:slug/design/:designSlug` route (URL stays stable for typo
+correction + share); brand-picker URL nav navigates to
+`/b/:newSlug/design`; Share button on editor topbar copies the
+canonical URL (using URL param `designSlug`, not internal `doc.id`
+— bug fix surfaced by the test).
+
+**Phase 5 begin (`80b8130`, `4e052c2`, `f86e264`, `de5fe61`).**
+SERVICE_KEYS.AI_AGENT + `useAiAgent(brandKit)` hook (DI override
+> brandKit construction); un-skipped Phase 4.3 happy-path E2E
+(was deferred for needing this hook); AI image place-on-canvas
+flow (place button after a successful image gen adds an
+ImageLayer via `adapter.batch`); `TemplatePreviewModal` deleted
+(was half-mounted via a render-race fallback — replaced with
+toast); lazy + Suspense for the production editor route (heavy
+Editor bundle off the 404/spinner branches).
+
+**Test count:** 922 passing (was 876 at Phase 3 end), 0 skipped.
++46 tests across 8 commits. Three-layer rule maintained throughout.
+
+**Carve-out list:** still at 2 (`logo-maker/flow`,
+`editor/components`). No reductions in this session.
+
+**Decisions blocked, awaiting user input:**
+- AI image-gen vendor selection (billing/legal/quality)
+- AI quality pass on Mode 1 (user previously said defer)
+- Skill chips re-introduction (user said wait for usage data)
+- Real RBAC review (single is_admin boolean today)
+- Real Supabase migration deploy (needs user CLI auth + 1-line DI swap)
+- `brand-guides` legacy migration — audited as 52 files / 10,469 LOC
+  with its own editor + slide navigator + AI content generator +
+  multiple templates. Multi-week refactor; not autonomously deliverable.
+
+---
+
 ## 2026-04-25 — Mockup Studio cosmos retrofit + dashboard auth race + nav-pill bug
 
 **Accomplished** (5 commits on `dev`, `d86dfae` → `5a9ca09`):
