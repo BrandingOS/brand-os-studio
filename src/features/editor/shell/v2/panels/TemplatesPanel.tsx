@@ -27,6 +27,9 @@ import type {
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
+import { GenerateWithAiSection } from './GenerateWithAiSection';
+import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
+import { useMemo as useReactMemo } from 'react';
 
 const PAGE_SIZE = 24;
 
@@ -59,6 +62,8 @@ export function TemplatesPanel() {
   const brandKit = useBrandKit(brand);
 
   const [tab, setTab] = useState<'browse' | 'my-designs'>('browse');
+  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [generatorPrompt, setGeneratorPrompt] = useState('');
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<TemplateSource | null>(null);
@@ -131,7 +136,20 @@ export function TemplatesPanel() {
     });
   }, []);
 
+  // Phase 4.3 — production agent for AI generation surface.
+  const aiAgent = useReactMemo(() => {
+    if (!brandKit) return null;
+    return createEdgeFunctionAgent({ brandKit });
+  }, [brandKit]);
+
   const onUseTemplate = useCallback(async (template: Template) => {
+    // Phase 4.3 — clicking an AI prompt preset card prefills the
+    // generator instead of opening a doc (presets have no doc).
+    if (template.source === 'ai_prompt_preset' && template.promptText) {
+      setGeneratorPrompt(template.promptText);
+      setGeneratorOpen(true);
+      return;
+    }
     if (!templates || !designStorage) {
       toast.error('Templates service is not available right now.');
       return;
@@ -197,6 +215,28 @@ export function TemplatesPanel() {
           onOpen={(id) => brand && navigate(`/b/${brand.slug}/design/${id}`)}
         />
       ) : (<>
+      {/* Phase 4.3 — Generate with AI surface */}
+      {generatorOpen ? (
+        <GenerateWithAiSection
+          agent={aiAgent}
+          brand={brand ?? null}
+          brandKit={brandKit ?? null}
+          designStorage={designStorage}
+          initialPrompt={generatorPrompt}
+          onClose={() => setGeneratorOpen(false)}
+        />
+      ) : (
+        <button
+          type="button"
+          data-generate-with-ai-trigger
+          onClick={() => { setGeneratorPrompt(''); setGeneratorOpen(true); }}
+          className="text-[11px] py-1.5 rounded-md border bg-primary/5 hover:bg-primary/10 text-primary font-medium flex items-center justify-center gap-1.5"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          ✨ Generate with AI
+        </button>
+      )}
+
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" aria-hidden />

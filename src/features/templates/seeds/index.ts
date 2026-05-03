@@ -27,6 +27,7 @@ import {
 } from './builders';
 
 export { SEED_CATEGORIES } from './categories';
+import { PROMPT_PRESET_TEMPLATES } from './promptPresets';
 
 // ─── Template factory ──────────────────────────────────────────────────
 
@@ -702,6 +703,7 @@ export const SEED_TEMPLATES: Template[] = [
   ...EMAIL_SIG_TEMPLATES,
   ...PROFILE_ICON_TEMPLATES,
   ...BRAND_GUIDELINES_TEMPLATES,
+  ...PROMPT_PRESET_TEMPLATES, // Phase 4.3 — AI prompt presets
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────
