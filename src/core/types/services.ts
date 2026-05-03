@@ -123,10 +123,47 @@ export interface IUploadService {
 
 // ─── Design Storage ────────────────────────────────────────────
 
+/**
+ * Per-design metadata returned by IDesignStorage.listDesigns.
+ * Phase 4 extension — was `string[]` of ids only; now returns a
+ * record so the My Designs grid can render thumbnails + names
+ * without a follow-up loadDesign per id.
+ */
+export interface DesignSummary {
+  id: string;
+  name?: string;
+  thumbnailUrl?: string;
+  contentType?: string;
+  width?: number;
+  height?: number;
+  updatedAt?: string;
+  /** Phase 4.2 — set when the design was seeded from a template. */
+  sourceTemplateId?: string;
+  /** Phase 4.2 — set when the user marked this design as a personal template. */
+  isTemplate?: boolean;
+}
+
 export interface IDesignStorage {
-  saveDesign(brandId: string, designId: string, data: unknown): Promise<void>;
+  /**
+   * Persist a design. The optional `meta` carries Phase 4.2 fields
+   * (thumbnailUrl, name, contentType, dimensions, source-template
+   * id, is-template flag) so listDesigns can hydrate a grid without
+   * loading every doc body. Adapters MAY ignore unknown meta keys.
+   */
+  saveDesign(
+    brandId: string,
+    designId: string,
+    data: unknown,
+    meta?: Partial<DesignSummary>,
+  ): Promise<void>;
   loadDesign(brandId: string, designId: string): Promise<unknown | null>;
-  listDesigns(brandId: string): Promise<string[]>;
+  /**
+   * Phase 4.2 — was `Promise<string[]>` of ids only; now returns
+   * `DesignSummary[]` so the My Designs grid can render without a
+   * follow-up loadDesign per id. Adapters should cap the body load
+   * (return summaries, not full docs).
+   */
+  listDesigns(brandId: string): Promise<DesignSummary[]>;
   deleteDesign(brandId: string, designId: string): Promise<void>;
 }
 
@@ -316,6 +353,8 @@ export const SERVICE_KEYS = {
   BRAND_CONSISTENCY: 'brandConsistency',
   /** Mockup Studio — template catalogue (local bundle for V1). */
   MOCKUP_TEMPLATES: 'mockupTemplates',
+  /** Phase 4 — Content Universe (templates + categories). */
+  TEMPLATES: 'templates',
 } as const;
 
 // ─── Mockup Templates Service ──────────────────────────────────

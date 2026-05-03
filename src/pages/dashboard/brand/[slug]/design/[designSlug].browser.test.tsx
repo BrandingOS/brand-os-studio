@@ -64,7 +64,7 @@ function registerServices(args: {
     loadDesign: vi.fn(async (_brandId: string, designId: string) => {
       return args.saved?.[designId] ?? null;
     }),
-    listDesigns: vi.fn(async () => Object.keys(args.saved ?? {})),
+    listDesigns: vi.fn(async () => Object.keys(args.saved ?? {}).map((id) => ({ id }))),
     deleteDesign: vi.fn(async () => {}),
   };
 

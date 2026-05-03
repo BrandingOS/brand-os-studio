@@ -19,6 +19,7 @@ import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { LocalUploadService } from './adapters/upload/LocalUploadService';
 import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
 import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
+import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -47,6 +48,13 @@ export function bootServices(): void {
   // Bundled local catalogue for V1 (admin-uploaded templates come
   // with the Phase 7 Supabase implementation).
   container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
+
+  // ─── Phase 4 — Content Universe Templates ──────────────────
+  // LocalStorage-backed dev default. Migrations
+  // (supabase/migrations/20260504000000_009_templates_phase_4.sql)
+  // define the production schema; deploying them + swapping to a
+  // Supabase implementation is a one-line change here.
+  container.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
 }
 
 /**
@@ -72,6 +80,7 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
     container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
     container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
+    container.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
   } else {
     // Revert to local implementations for guest mode
     bootServices();

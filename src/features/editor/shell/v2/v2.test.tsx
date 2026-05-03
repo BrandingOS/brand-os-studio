@@ -558,14 +558,18 @@ describe('EditorSecondaryPanel — Round 2 fixes 4 + 5', () => {
       ['brand', 'Brand'],
     ] as const) {
       const adapter = stubAdapter();
+      // Phase 4.1 — TemplatesPanel uses useNavigate/useParams, so
+      // wrap in a MemoryRouter when mounting Secondary panels.
       const { container, unmount } = render(
-        <EditorSecondaryPanel
-          active={active as RailItem}
-          adapter={adapter}
-          doc={blankDoc()}
-          activePageId="page-1"
-          onCollapse={vi.fn()}
-        />,
+        <MemoryRouter>
+          <EditorSecondaryPanel
+            active={active as RailItem}
+            adapter={adapter}
+            doc={blankDoc()}
+            activePageId="page-1"
+            onCollapse={vi.fn()}
+          />
+        </MemoryRouter>,
       );
       const title = container.querySelector(
         '[data-secondary-panel-title]',

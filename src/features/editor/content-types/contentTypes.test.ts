@@ -15,13 +15,17 @@ describe('content-type configs', () => {
     }
   });
 
-  it('exposes the seven seed configs (5 master-prompt + 2 added in Step 9 brandkit migration)', () => {
+  it('exposes the eleven seed configs (5 master-prompt + 2 from Step 9 brandkit + 4 from Phase 4 Content Universe)', () => {
     const ids = Object.keys(CONTENT_TYPES).sort();
     expect(ids).toEqual([
       'banner',
       'brand-guideline-slide',
+      'brochure',
       'business-card',
+      'email-signature',
       'invoice',
+      'letterhead',
+      'poster',
       'presentation',
       'profile-icon',
       'social-post',

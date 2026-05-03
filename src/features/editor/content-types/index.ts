@@ -14,6 +14,10 @@ import { brandGuidelineSlideConfig } from './brand-guideline-slide.config';
 import { bannerConfig } from './banner.config';
 import { invoiceConfig } from './invoice.config';
 import { profileIconConfig } from './profile-icon.config';
+import { letterheadConfig } from './letterhead.config';
+import { brochureConfig } from './brochure.config';
+import { posterConfig } from './poster.config';
+import { emailSignatureConfig } from './email-signature.config';
 
 export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [socialPostConfig.id]: socialPostConfig,
@@ -23,6 +27,10 @@ export const CONTENT_TYPES: Record<string, ContentTypeConfig> = {
   [bannerConfig.id]: bannerConfig,
   [invoiceConfig.id]: invoiceConfig,
   [profileIconConfig.id]: profileIconConfig,
+  [letterheadConfig.id]: letterheadConfig,
+  [brochureConfig.id]: brochureConfig,
+  [posterConfig.id]: posterConfig,
+  [emailSignatureConfig.id]: emailSignatureConfig,
 };
 
 /**
