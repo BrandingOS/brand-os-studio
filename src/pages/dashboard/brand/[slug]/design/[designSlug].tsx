@@ -21,11 +21,16 @@
  *     ships when bundle size justifies.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
-import { Editor } from '@/features/editor/shell/Editor';
+// Phase 5 — lazy-load the unified Editor so the route's initial
+// render isn't blocked by the heavy Fabric / adapter bundle. The
+// 404/403 + spinner branches don't need the Editor code at all.
+const Editor = lazy(() =>
+  import('@/features/editor/shell/Editor').then((m) => ({ default: m.Editor })),
+);
 import {
   BrandOSDocumentSchema,
   type BrandOSDocument,
@@ -137,22 +142,24 @@ export default function BrandDesignEditorPage() {
   }
 
   return (
-    <Editor
-      initialDocument={doc}
-      brand={brand}
-      onBrandSwitch={onBrandSwitch}
-      save={async (next) => {
-        await designStorage.saveDesign(brand.id, doc.id, next);
-      }}
-      onShare={() => {
-        // Use the URL's designSlug — that's the storage key the
-        // route uses to load the doc, so it's the canonical share
-        // identifier. The internal doc.id may diverge (e.g. when a
-        // design was renamed at storage time but kept its inner id).
-        const url = `${window.location.origin}/b/${brand.slug}/design/${designSlug}`;
-        void copyToClipboard(url);
-      }}
-    />
+    <Suspense fallback={<PageSpinner />}>
+      <Editor
+        initialDocument={doc}
+        brand={brand}
+        onBrandSwitch={onBrandSwitch}
+        save={async (next) => {
+          await designStorage.saveDesign(brand.id, doc.id, next);
+        }}
+        onShare={() => {
+          // Use the URL's designSlug — that's the storage key the
+          // route uses to load the doc, so it's the canonical share
+          // identifier. The internal doc.id may diverge (e.g. when a
+          // design was renamed at storage time but kept its inner id).
+          const url = `${window.location.origin}/b/${brand.slug}/design/${designSlug}`;
+          void copyToClipboard(url);
+        }}
+      />
+    </Suspense>
   );
 }
 
