@@ -40,6 +40,7 @@ import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
+import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
 import { createEdgeFunctionAgent } from '@/features/editor/ai/applyCommand';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import type {
@@ -444,6 +445,14 @@ export function Editor({
           saveEnabled={saveEnabled}
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          saveAsTemplateSlot={
+            brandKit ? (
+              <EditorSaveAsTemplateButton
+                getDoc={() => adapter.getDocument()}
+                brandKit={brandKit}
+              />
+            ) : undefined
+          }
           aiPromptSlot={
             effectiveAgent && brand ? (
               <EditorAiPromptBar

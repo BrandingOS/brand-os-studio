@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { SERVICE_KEYS } from '@/core';
 import { container as serviceContainer } from '@/core/container/ServiceContainer';
 import type { ITemplatesService } from '@/core/services/ITemplatesService';
-import type { IDesignStorage } from '@/core/types/services';
+import type { DesignSummary, IDesignStorage } from '@/core/types/services';
 import type {
   Template,
   TemplateCategory,
@@ -58,6 +58,7 @@ export function TemplatesPanel() {
   const { brand } = useBrandBySlug(slug);
   const brandKit = useBrandKit(brand);
 
+  const [tab, setTab] = useState<'browse' | 'my-designs'>('browse');
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<TemplateSource | null>(null);
@@ -67,6 +68,9 @@ export function TemplatesPanel() {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [opening, setOpening] = useState<string | null>(null);
+  // Phase 4.2 — My Designs tab state.
+  const [myDesigns, setMyDesigns] = useState<DesignSummary[]>([]);
+  const [myDesignsLoading, setMyDesignsLoading] = useState(false);
 
   // Load categories once.
   useEffect(() => {
@@ -102,6 +106,19 @@ export function TemplatesPanel() {
 
   // Reset pagination on filter change.
   useEffect(() => { setLimit(PAGE_SIZE); }, [activeCategoryId, activeSource, activeMoods, query]);
+
+  // Phase 4.2 — load My Designs when tab activates / brand changes.
+  useEffect(() => {
+    if (tab !== 'my-designs' || !designStorage || !brand) return;
+    let cancelled = false;
+    setMyDesignsLoading(true);
+    void designStorage.listDesigns(brand.id).then((rows) => {
+      if (cancelled) return;
+      setMyDesigns(rows);
+      setMyDesignsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [tab, designStorage, brand]);
 
   const visibleItems = useMemo(() => items.slice(0, limit), [items, limit]);
   const hasMore = items.length > limit;
@@ -167,6 +184,19 @@ export function TemplatesPanel() {
 
   return (
     <div data-templates-panel className="flex flex-col gap-3" style={{ padding: '10px 12px' }}>
+      {/* Tabs — Browse vs My Designs (Phase 4.2). */}
+      <div className="flex gap-1" data-templates-tabs>
+        <TabButton label="Browse" active={tab === 'browse'} onClick={() => setTab('browse')} dataTab="browse" />
+        <TabButton label="My designs" active={tab === 'my-designs'} onClick={() => setTab('my-designs')} dataTab="my-designs" />
+      </div>
+
+      {tab === 'my-designs' ? (
+        <MyDesignsGrid
+          designs={myDesigns} loading={myDesignsLoading}
+          brandSlug={brand?.slug ?? ''}
+          onOpen={(id) => brand && navigate(`/b/${brand.slug}/design/${id}`)}
+        />
+      ) : (<>
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
@@ -251,6 +281,80 @@ export function TemplatesPanel() {
           Load more ({items.length - limit} remaining)
         </button>
       ) : null}
+      </>)}
+    </div>
+  );
+}
+
+function TabButton({ label, active, onClick, dataTab }: { label: string; active: boolean; onClick: () => void; dataTab: string }) {
+  return (
+    <button
+      type="button"
+      data-templates-tab={dataTab}
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'text-[11px] px-2 py-1 rounded-md transition-colors flex-1',
+        active
+          ? 'bg-primary text-primary-foreground'
+          : 'bg-muted/30 text-foreground hover:bg-muted/50',
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MyDesignsGrid({
+  designs, loading, brandSlug, onOpen,
+}: {
+  designs: DesignSummary[];
+  loading: boolean;
+  brandSlug: string;
+  onOpen: (id: string) => void;
+}) {
+  if (loading) return <SkeletonGrid />;
+  if (designs.length === 0) {
+    return (
+      <div data-my-designs-empty className="text-center py-12 text-[12px] text-muted-foreground">
+        No saved designs yet. Open a template — your edits auto-save here.
+      </div>
+    );
+  }
+  return (
+    <div data-my-designs-grid className="grid grid-cols-2 gap-2">
+      {designs.map((d) => (
+        <button
+          key={d.id}
+          type="button"
+          data-my-design-card
+          data-design-id={d.id}
+          onClick={() => onOpen(d.id)}
+          disabled={!brandSlug}
+          className="group rounded-md border overflow-hidden bg-background hover:shadow-md transition-all text-left"
+          style={{ borderColor: 'var(--border)' }}
+          title={d.name ?? d.id}
+        >
+          <div
+            className="relative w-full bg-muted/20"
+            style={{ aspectRatio: d.width && d.height ? `${d.width}/${d.height}` : '1/1' }}
+          >
+            {d.thumbnailUrl ? (
+              <img src={d.thumbnailUrl} alt={d.name ?? 'Design'} loading="lazy" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
+                no preview
+              </div>
+            )}
+          </div>
+          <div className="p-1.5">
+            <p className="text-[11px] font-medium leading-tight truncate">{d.name ?? 'Untitled'}</p>
+            {d.contentType ? (
+              <p className="text-[10px] text-muted-foreground">{d.contentType}</p>
+            ) : null}
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

@@ -99,6 +99,12 @@ interface Props {
    * render the topbar.
    */
   aiPromptSlot?: React.ReactNode;
+  /**
+   * Phase 4.2 — slot for the "Save as template" button. The Editor
+   * passes <EditorSaveAsTemplateButton/> here. Sits in the right
+   * cluster, left of Export, only when the editor has a brandKit.
+   */
+  saveAsTemplateSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -112,6 +118,7 @@ export function EditorTopBar({
   onToggleTheme,
   onExport,
   aiPromptSlot,
+  saveAsTemplateSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -186,6 +193,7 @@ export function EditorTopBar({
             Dev — saves disabled
           </span>
         )}
+        {saveAsTemplateSlot}
         <button
           type="button"
           className="pill-btn pill-btn--primary"
