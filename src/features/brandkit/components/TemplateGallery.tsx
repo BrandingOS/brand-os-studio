@@ -3,8 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CategoryFilter } from './CategoryFilter';
-import { TemplateCard, renderTemplateDesign } from './TemplateCard';
-import { TemplatePreviewModal, type TemplateOverrides } from './TemplatePreviewModal';
+import { TemplateCard } from './TemplateCard';
 import { getTemplatesForModule, filterTemplatesByCategory } from '../data/templates';
 import { TEMPLATE_SEEDS } from '../templateSeeds';
 import type { BrandKitModuleConfig, BrandKitTemplate } from '../types';
@@ -54,7 +53,6 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [savedTemplates, setSavedTemplates] = useState<Set<string>>(new Set());
-  const [editTemplate, setEditTemplate] = useState<BrandKitTemplate | null>(null);
 
   // Step 9.3 trim: each brandkit family currently renders the SAME
   // hardcoded layout for all 8–12 named templates within it. Showing
@@ -99,8 +97,11 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
     if (cardEl) {
       quickDownloadTemplate(template, brand, cardEl);
     } else {
-      // Fallback: open in edit mode
-      setEditTemplate(template);
+      // Phase 5 — was a setEditTemplate fallback that opened the
+      // (now-deleted) preview modal. The card-not-found case is
+      // a render race; just toast and bail. The user's next click
+      // will hit a fresh card.
+      toast.error('Could not capture template preview — please try again.');
     }
   }, [brand, navigate, slug]);
 
@@ -143,20 +144,6 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
   const handleSaveTemplate = useCallback((template: BrandKitTemplate) => {
     setSavedTemplates(prev => new Set(prev).add(template.id));
   }, []);
-
-  // Render preview with overrides applied (for editor modal)
-  const renderPreviewWithOverrides = useCallback((template: BrandKitTemplate) => {
-    return (overrides: TemplateOverrides) => {
-      // Create a modified brand with the overrides
-      const modifiedBrand: Brand = {
-        ...brand,
-        primaryColor: overrides.primaryColor || brand.primaryColor,
-        secondaryColor: overrides.secondaryColor || brand.secondaryColor,
-        logo: overrides.showLogo === false ? undefined : logoUrl(brand),
-      };
-      return renderTemplateDesign(template, modifiedBrand);
-    };
-  }, [brand]);
 
   const gridCols = moduleConfig.orientation === 'portrait'
     ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
@@ -263,23 +250,6 @@ export function TemplateGallery({ moduleConfig, brand }: TemplateGalleryProps) {
         </div>
       )}
 
-      {/* Edit/Preview Modal — preview-only path. The "Open Editor"
-          button now navigates to /b/:slug/design/:designSlug instead
-          of mounting the legacy CanvasEditor inline. */}
-      {editTemplate && (
-        <TemplatePreviewModal
-          template={editTemplate}
-          brand={brand}
-          onClose={() => setEditTemplate(null)}
-          onSave={handleSaveTemplate}
-          onOpenEditor={() => {
-            const tpl = editTemplate;
-            setEditTemplate(null);
-            void handleOpenEditor(tpl);
-          }}
-          renderPreview={renderPreviewWithOverrides(editTemplate)}
-        />
-      )}
     </div>
   );
 }
