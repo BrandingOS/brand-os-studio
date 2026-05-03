@@ -29,6 +29,16 @@ import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
 import { GenerateWithAiSection } from './GenerateWithAiSection';
 import { useAiAgent } from '@/features/editor/ai/useAiAgent';
+import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
+import type { Layer } from '@/features/editor/schema';
+
+interface TemplatesPanelProps {
+  /** Phase 5 — passed by EditorSecondaryPanel for the AI image
+   *  place-on-canvas flow. Optional so test mounts can omit. */
+  adapter?: EditorAdapter;
+  /** Phase 5 — page id where image-as-layer lands. */
+  activePageId?: string;
+}
 
 const PAGE_SIZE = 24;
 
@@ -45,7 +55,7 @@ const MOOD_OPTIONS: TemplateMood[] = [
   'vintage', 'natural', 'tech', 'maximalist',
 ];
 
-export function TemplatesPanel() {
+export function TemplatesPanel({ adapter, activePageId }: TemplatesPanelProps = {}) {
   // Defensive lookup — some test harnesses + dev mounts clear the
   // container without re-registering all services. Render a graceful
   // "service unavailable" placeholder instead of crashing.
@@ -222,6 +232,45 @@ export function TemplatesPanel() {
           designStorage={designStorage}
           initialPrompt={generatorPrompt}
           onClose={() => setGeneratorOpen(false)}
+          onPlaceImage={
+            adapter && activePageId
+              ? (imageUrl, dims) => {
+                  // Phase 5 — place AI-generated image as a layer on
+                  // the active page, sized to fit ~60% of the page
+                  // dimensions. The user can resize / position from
+                  // there. Adapter wraps in batch so undo reverts
+                  // the placement as one step.
+                  const doc = adapter.getDocument();
+                  const page = doc.pages.find((p) => p.id === activePageId);
+                  const pageW = page?.width ?? 1080;
+                  const pageH = page?.height ?? 1080;
+                  const aspect = dims.width / dims.height;
+                  let w = pageW * 0.6;
+                  let h = w / aspect;
+                  if (h > pageH * 0.6) {
+                    h = pageH * 0.6;
+                    w = h * aspect;
+                  }
+                  const layer: Layer = {
+                    id: crypto.randomUUID(),
+                    kind: 'image',
+                    name: 'AI image',
+                    src: imageUrl,
+                    fit: 'cover',
+                    transform: {
+                      x: (pageW - w) / 2, y: (pageH - h) / 2,
+                      width: w, height: h,
+                      rotation: 0, scaleX: 1, scaleY: 1,
+                    },
+                    opacity: 1, visible: true, locked: false, brandLocked: false,
+                  };
+                  adapter.batch('AI: place image', () => {
+                    adapter.addLayer(activePageId, layer);
+                  });
+                  toast.success('Image placed on canvas.');
+                }
+              : undefined
+          }
         />
       ) : (
         <button

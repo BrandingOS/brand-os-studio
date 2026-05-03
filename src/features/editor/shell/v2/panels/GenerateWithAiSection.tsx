@@ -31,6 +31,11 @@ interface Props {
   /** Optional: prefill prompt from a clicked AI-prompt-preset card. */
   initialPrompt?: string;
   onClose?: () => void;
+  /** Phase 5 — when present, after a successful image gen the
+   *  user can place it on the active canvas instead of (or in
+   *  addition to) clipboard-copy. The handler decides where to
+   *  place; this section just hands over the URL + dimensions. */
+  onPlaceImage?: (imageUrl: string, dims: { width: number; height: number }) => void;
 }
 
 const COMMON_CONTENT_TYPES = [
@@ -39,12 +44,15 @@ const COMMON_CONTENT_TYPES = [
 ];
 
 export function GenerateWithAiSection({
-  agent, brand, brandKit, designStorage, initialPrompt, onClose,
+  agent, brand, brandKit, designStorage, initialPrompt, onClose, onPlaceImage,
 }: Props) {
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [contentTypeId, setContentTypeId] = useState<string>('social-post');
   const [outputKind, setOutputKind] = useState<'editable' | 'image'>('editable');
   const [busy, setBusy] = useState(false);
+  // Phase 5 — last AI image result, kept around so the user can
+  // "Place on canvas" after the toast clears.
+  const [lastImage, setLastImage] = useState<{ url: string; width: number; height: number } | null>(null);
   const navigate = useNavigate();
 
   const submit = useCallback(async () => {
@@ -87,19 +95,18 @@ export function GenerateWithAiSection({
         onClose?.();
       } else {
         const cfg = CONTENT_TYPES[contentTypeId];
-        const result = await generateImage({
-          prompt: trimmed,
-          width: cfg?.defaultDimensions.width,
-          height: cfg?.defaultDimensions.height,
-        });
+        const w = cfg?.defaultDimensions.width ?? 1024;
+        const h = cfg?.defaultDimensions.height ?? 1024;
+        const result = await generateImage({ prompt: trimmed, width: w, height: h });
         if (result.mock) {
           toast.message('AI image (mock mode) — set AI_IMAGE_VENDOR on the Edge Function for a real vendor.');
         } else {
           toast.success('AI image generated.');
         }
-        // Phase 4.3 polish — copy URL to clipboard so the user can
-        // paste into a layer manually until Phase 5+ ships the
-        // canvas-place flow.
+        // Phase 5 — keep the result around so the user can "Place
+        // on canvas" via the button below the form. Also copy the
+        // URL to clipboard as a fallback (older flow).
+        setLastImage({ url: result.imageUrl, width: w, height: h });
         try {
           await navigator.clipboard.writeText(result.imageUrl);
           toast.success('Image URL copied to clipboard.');
@@ -180,6 +187,25 @@ export function GenerateWithAiSection({
       >
         {busy ? 'Generating…' : 'Generate'}
       </button>
+
+      {/* Phase 5 — Place-on-canvas surface. Shows after a
+          successful image gen when the parent provided onPlaceImage
+          (i.e. the panel has adapter + activePageId). Empty
+          otherwise (back-compat with test mounts). */}
+      {lastImage && onPlaceImage ? (
+        <button
+          type="button"
+          data-generate-with-ai-place-image
+          onClick={() => {
+            onPlaceImage(lastImage.url, { width: lastImage.width, height: lastImage.height });
+            setLastImage(null);
+          }}
+          className="rounded-md border bg-background text-[11px] px-2 py-1 hover:bg-muted/30 flex items-center justify-center gap-1"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <ImageIcon className="h-3 w-3" aria-hidden /> Place on canvas
+        </button>
+      ) : null}
     </div>
   );
 }

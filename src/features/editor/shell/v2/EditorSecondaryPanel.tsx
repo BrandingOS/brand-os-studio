@@ -139,7 +139,9 @@ export function EditorSecondaryPanel({
           }}
         >
           {active === 'generate' && <GeneratePanel />}
-          {active === 'templates' && <TemplatesPanel />}
+          {active === 'templates' && (
+            <TemplatesPanel adapter={adapter} activePageId={activePageId} />
+          )}
           {active === 'insert' && (
             <InsertPanel adapter={adapter} pageId={activePageId} />
           )}
