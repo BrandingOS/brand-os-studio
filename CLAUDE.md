@@ -115,6 +115,44 @@ never hard-code a color/weight/spacing value there.
   off-limits** — tagged `stable/editable-export-v1`. Don't refactor
   through them. The editor unification works around them.
 
+### Phase 4 — Content Universe (shipped 2026-05-04)
+
+Phase 4 ships the BrandOS content universe in 4 sub-phases. Read
+`docs/editor/PHASE_4_SPEC.md` for the source spec.
+
+- **4.1 Templates Foundation** — `template_categories` + `templates`
+  SQL schema (idempotent), `ITemplatesService` + `LocalTemplatesService`
+  (Supabase swap is a 1-line DI change once migrations deploy), 94
+  brand-bound seed templates across 11 categories, Templates panel
+  with category chips + source/mood filters + search + grid + load-
+  more, click-template → applyBrandToDocument → IDesignStorage →
+  navigate to `/b/:slug/design/:newSlug`.
+- **4.2 My Designs + Save as template** — top-chrome
+  `EditorSaveAsTemplateButton` with inline popover (name +
+  category + mood + visibility), `convertToTemplate(doc, kit)`
+  that walks the doc and replaces literal hex/font matching the
+  kit back into SlotRefs (so saved templates stay brand-agnostic),
+  My Designs tab in TemplatesPanel reading `IDesignStorage.list
+  Designs(brandId)` (now returns `DesignSummary[]` with thumbnails).
+- **4.3 AI Generation Layer** — Mode 1 (zero-state generate)
+  forward-pulled from Phase 3.5: `generateFromPrompt(agent, brand,
+  prompt, contentType)` builds a blank scaffold + calls
+  `applyCommand`, GenerateWithAi section in TemplatesPanel with
+  prompt + content-type + Editable design / Image only radio,
+  25 AI prompt presets distributed across categories (clicking a
+  preset card prefills the generator), `ai-generate-image` Edge
+  Function (MOCK ONLY per Q-decision — vendor swap is a
+  1-function-body change once `AI_IMAGE_VENDOR` is configured).
+- **4.4 Community Templates** — admin approval queue at
+  `/admin/templates/queue` with Approve / Reject (with reason);
+  `useIsAdmin()` hook reads `profiles.is_admin` (added in 4.1
+  migration); save-as-template flow (4.2) already supports
+  `visibility: 'public'` → `uploadStatus: 'pending'` for the
+  community submission path; community filter in the Templates
+  panel uses the existing source filter ("Community" maps to
+  `user_uploaded`); premium foundations (`is_premium`,
+  `required_plan`) ship as schema fields with no UI yet.
+
 ### Phase 3 + 3.5 carve-outs (post-3.5 reduction — 2 remain)
 
 Phase 0 catalogued 6 legacy paths flagged "must shrink, never grow."

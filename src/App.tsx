@@ -88,6 +88,7 @@ const AccountDeletionPage = lazy(() => import("./pages/legal/AccountDeletionPage
 const AdminOverview = lazy(() => import("./features/admin/pages/AdminOverview"));
 const AdminEarlyAccessPage = lazy(() => import("./features/admin/pages/AdminEarlyAccess"));
 const AdminUsersPage = lazy(() => import("./features/admin/pages/AdminUsers"));
+const AdminTemplatesQueuePage = lazy(() => import("./pages/admin/TemplatesQueuePage"));
 const AdminBrandsPage2 = lazy(() => import("./features/admin/pages/AdminBrands"));
 const AdminWorkspacesPage = lazy(() => import("./features/admin/pages/AdminWorkspaces"));
 const AdminSubscriptionsPage = lazy(() => import("./features/admin/pages/AdminSubscriptions"));
@@ -739,6 +740,8 @@ const App = () => (
             <Route path="feature-flags" element={<AdminFeatureFlagsPage />} />
             <Route path="activity" element={<AdminActivityPage2 />} />
             <Route path="settings" element={<AdminSettingsPage />} />
+            {/* Phase 4.4 — community templates approval queue. */}
+            <Route path="templates/queue" element={<AdminTemplatesQueuePage />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

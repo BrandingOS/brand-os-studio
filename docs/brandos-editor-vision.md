@@ -261,6 +261,7 @@ The original `brandos-editor-prompt.md` had Phases 0–6+. The vision above does
 | Phase 2 | Multi-page + master pages + content-type configs | ✅ Done. Foundation for unified editor. |
 | **Phase 3** | **Brand Engine + slot resolution** | ✅ **Shipped May 1, 2026.** See "Phase 3 — Shipped" section below. |
 | **Phase 3.5** | **AI Editing Layer (4 modes infrastructure)** | ✅ **Shipped May 1, 2026.** See "Phase 3.5 — Shipped" section below. |
+| **Phase 4** | **Content Universe (Templates + AI generation + Community)** | ✅ **Shipped May 4, 2026.** Templates panel with 119 brand-bound seeds across 11 categories, save-as-template, My Designs, Mode 1 wiring, AI image (mock), 25 prompt presets, admin approval queue. |
 | Phase 4 | Templates | Re-scoped: must support brand-agnostic templates with AI copy slots (per §6 above) |
 | Phase 5 | AI Design Generation | **Re-scoped to four modes** (per §4 above), not just Mode 1 |
 | Phase 6+ | Polish, performance, collaboration | Unchanged, but add: Resize variants (per §5 Type C) |
@@ -334,9 +335,9 @@ Phase 1   ✅ Fabric adapter + single page
 Phase 2   ✅ Multi-page + master pages + content-type configs
 Phase 3   ✅ Brand Engine + slot resolution + cross-page lock + smart duplicate (shipped 2026-05-01)
 Phase 3.5 ✅ AI Editing Layer (Modes 2/3/4 + Mode 5 validation gate) (shipped 2026-05-01)
-Phase 4   ⏳ Templates (brand-agnostic + AI copy slots) — next
-Phase 4.5 — Editor URL Routing & Asset Bridging (route stub already exists; this phase finishes auth/share/deep-link polish)
-Phase 5   — AI Design Generation (Mode 1 zero-state)
+Phase 4   ✅ Content Universe (Templates + AI generation + Community) (shipped 2026-05-04)
+Phase 4.5 ⏳ Editor URL Routing & Asset Bridging — next (route stub already exists; this phase finishes auth/share/deep-link polish)
+Phase 5   — AI Design Generation polish (vendor for image gen + Mode 1 quality pass + skill chips if data justifies)
 Phase 6   — Resize Variants
 Phase 7+  — Real-time collaboration, performance, plugin system
 ```
