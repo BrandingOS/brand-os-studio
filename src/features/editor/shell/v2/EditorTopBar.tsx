@@ -12,7 +12,7 @@
 // always see whether their changes are persisted.
 
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Share2 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import {
   SaveStateIndicator,
@@ -90,6 +90,9 @@ interface Props {
   /** Optional Export click handler. 5a fires a placeholder; real
    *  export wiring is part of Phase 4 (templates). */
   onExport?: () => void;
+  /** Phase 4.5 — Share button. Copies the canonical share URL to
+   *  clipboard. When undefined, the Share button is hidden. */
+  onShare?: () => void;
   /**
    * Phase 3.5 — slot for the AI prompt bar. The Editor passes
    * <EditorAiPromptBar /> here. Sits between the workspace section
@@ -117,6 +120,7 @@ export function EditorTopBar({
   theme,
   onToggleTheme,
   onExport,
+  onShare,
   aiPromptSlot,
   saveAsTemplateSlot,
 }: Props) {
@@ -194,6 +198,20 @@ export function EditorTopBar({
           </span>
         )}
         {saveAsTemplateSlot}
+        {onShare ? (
+          <button
+            type="button"
+            data-share-button
+            onClick={onShare}
+            aria-label="Copy share link"
+            title="Copy share link"
+            className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/30"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <Share2 size={14} aria-hidden />
+            <span className="hidden sm:inline">Share</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="pill-btn pill-btn--primary"

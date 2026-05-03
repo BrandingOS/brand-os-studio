@@ -336,7 +336,7 @@ Phase 2   ✅ Multi-page + master pages + content-type configs
 Phase 3   ✅ Brand Engine + slot resolution + cross-page lock + smart duplicate (shipped 2026-05-01)
 Phase 3.5 ✅ AI Editing Layer (Modes 2/3/4 + Mode 5 validation gate) (shipped 2026-05-01)
 Phase 4   ✅ Content Universe (Templates + AI generation + Community) (shipped 2026-05-04)
-Phase 4.5 ⏳ Editor URL Routing & Asset Bridging — next (route stub already exists; this phase finishes auth/share/deep-link polish)
+Phase 4.5 ✅ Editor URL Routing & Asset Bridging (shipped 2026-05-04 — inline 404/403, brand-picker URL nav, Share button)
 Phase 5   — AI Design Generation polish (vendor for image gen + Mode 1 quality pass + skill chips if data justifies)
 Phase 6   — Resize Variants
 Phase 7+  — Real-time collaboration, performance, plugin system

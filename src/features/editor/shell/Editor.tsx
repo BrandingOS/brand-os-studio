@@ -121,6 +121,12 @@ interface EditorProps {
    * Falls back to a no-op when brandKit isn't available (no brand).
    */
   aiAgent?: AIAgent;
+  /**
+   * Phase 4.5 — fired when the user clicks the topbar Share button.
+   * The route owner builds the canonical URL + copies to clipboard.
+   * Optional — when omitted, the Share button is hidden.
+   */
+  onShare?: () => void;
 }
 
 export function Editor({
@@ -131,6 +137,7 @@ export function Editor({
   onAdapterReady,
   onBrandSwitch,
   aiAgent,
+  onShare,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
@@ -445,6 +452,7 @@ export function Editor({
           saveEnabled={saveEnabled}
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          onShare={onShare}
           saveAsTemplateSlot={
             brandKit ? (
               <EditorSaveAsTemplateButton

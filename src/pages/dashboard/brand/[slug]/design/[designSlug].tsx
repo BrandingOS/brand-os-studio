@@ -1,27 +1,30 @@
 /**
- * Production editor route — minimum viable wiring.
+ * Production editor route — Phase 4.5 polished.
  *
- * This route was scoped forward from Phase 4.5 to unblock the
- * brandkit migration in Phase 3 Step 9. The following Phase 4.5
- * concerns are intentionally NOT handled here:
+ * Phase 3 Step 9 forward-pulled the minimum-viable shape; Phase 4.5
+ * fills in the deferred concerns:
+ *   • 404/403 polish — inline NotFoundPanel instead of redirect+toast.
+ *   • Brand-picker URL navigation — picking a different brand from
+ *     inside the editor navigates to that brand's design launchpad.
+ *   • Share-link affordance — Share button in the editor topbar
+ *     copies the canonical /b/:slug/design/:designSlug URL.
+ *   • Per-brand permission gate — useBrandBySlug returning null on
+ *     a non-null slug indicates "no access OR not found"; we render
+ *     a single inline NotFoundPanel (no redirect-on-error to avoid
+ *     URL state loss).
  *
- *   - Auth / permission gates (assumes the user has brand access;
- *     ProtectedRoute at the App.tsx route mount handles top-level
- *     auth, but per-brand permission checks are Phase 4.5).
- *   - 404 / 403 polish (basic redirect + toast only).
- *   - Deep linking refinement.
- *   - Share URL parameters.
- *   - Brand picker → URL navigation wiring (the Editor's brand
- *     picker still uses the onBrandSwitch callback for now; Phase
- *     4.5 wires it to actually navigate to a different doc URL).
- *   - Loading skeletons / Suspense boundaries beyond a basic spinner.
- *
- * Phase 4.5 owns finishing all of the above.
+ * Still deferred to later (no clear owner phase yet):
+ *   • Real RBAC review (single is_admin boolean today; full role/
+ *     permission model owed before opening to many admins).
+ *   • Suspense boundaries beyond the basic full-page spinner — the
+ *     editor itself is heavy, splitting it behind a Suspense bundle
+ *     ships when bundle size justifies.
  */
 
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
 import { Editor } from '@/features/editor/shell/Editor';
 import {
   BrandOSDocumentSchema,
@@ -43,7 +46,7 @@ export default function BrandDesignEditorPage() {
 
   const [doc, setDoc] = useState<BrandOSDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
-  const [docError, setDocError] = useState<string | null>(null);
+  const [docError, setDocError] = useState<'not-found' | 'parse-failed' | null>(null);
 
   // Load the document once we have a brand id + design slug.
   useEffect(() => {
@@ -60,15 +63,10 @@ export default function BrandDesignEditorPage() {
           setDocError('not-found');
           return;
         }
-        // Validate against the schema — guard against legacy /
-        // corrupted blobs in localStorage from the pre-migration
-        // editor.
         const parsed = BrandOSDocumentSchema.parse(raw);
         setDoc(parsed);
       } catch (err) {
         if (cancelled) return;
-        // Schema parse failures land here too — surfaced as
-        // load-failure rather than a hard crash.
         console.error('[BrandDesignEditorPage] design load failed:', err);
         setDocError('parse-failed');
       } finally {
@@ -80,37 +78,61 @@ export default function BrandDesignEditorPage() {
     };
   }, [brand?.id, designSlug, designStorage]);
 
-  // Brand resolution failed → bounce to the workspace dashboard. The
-  // user might have a typo in the slug or the brand was deleted.
-  // Only triggers on an actual `brandError` from useBrandBySlug (which
-  // sets 'Brand not found' when getBySlug returns null) — the initial
-  // render's `brand=null + isLoading=false` window is NOT an error,
-  // it's the pre-fetch state, so we wait for the hook to commit.
-  useEffect(() => {
-    if (!brandLoading && brandError) {
-      toast.error(`Brand "${slug}" not found`);
-      navigate('/dashboard', { replace: true });
-    }
-  }, [brandLoading, brandError, slug, navigate]);
+  // Phase 4.5 — brand-picker URL nav. When the user picks a
+  // different brand from inside the editor, the design id no longer
+  // applies (a design belongs to one brand). Navigate to the
+  // chosen brand's design launchpad — the natural place to pick up
+  // a different design under the new brand.
+  const onBrandSwitch = useCallback((nextSlug: string) => {
+    navigate(`/b/${nextSlug}/design`);
+  }, [navigate]);
 
-  // Doc resolution failed → bounce to the brand's design launchpad
-  // and toast the user. The launchpad is the natural retry surface
-  // (template gallery sits behind the same scope).
-  useEffect(() => {
-    if (!docLoading && docError && brand) {
-      const message =
+  // Phase 4.5 — share-link copy. The canonical URL pattern lives
+  // at /b/:slug/design/:designSlug; just hand the current URL to
+  // the clipboard.
+  // (Wired into the Editor below via the optional onShare prop.)
+
+  if (brandLoading) {
+    return <PageSpinner />;
+  }
+
+  // Brand not found / no access → inline 404. Don't redirect; keep
+  // the URL stable so the user can correct a typo or share.
+  if (brandError || !brand) {
+    return <NotFoundPanel
+      title={`We couldn't find brand "${slug}"`}
+      hint="The brand may have been deleted, or your account doesn't have access."
+      primaryHref="/dashboard"
+      primaryLabel="Back to dashboard"
+    />;
+  }
+
+  if (docLoading) {
+    return <PageSpinner />;
+  }
+
+  if (docError) {
+    return <NotFoundPanel
+      title={
         docError === 'not-found'
           ? `Design not found in ${brand.name}`
-          : `Design failed to load — it may be from an older editor and is no longer compatible.`;
-      toast.error(message);
-      navigate(`/b/${brand.slug}/design`, { replace: true });
-    }
-  }, [docLoading, docError, brand, navigate]);
+          : "We couldn't open this design"
+      }
+      hint={
+        docError === 'parse-failed'
+          ? 'It may be from an older editor and is no longer compatible.'
+          : 'It may have been deleted, or the link is wrong.'
+      }
+      primaryHref={`/b/${brand.slug}/design`}
+      primaryLabel={`Back to ${brand.name}`}
+      secondaryHref="/dashboard"
+      secondaryLabel="Dashboard"
+    />;
+  }
 
-  // Always show the spinner during the dual-load window. Both effects
-  // above redirect on failure, so reaching the !brand or !doc branch
-  // after loading completes is the redirect-in-flight state.
-  if (brandLoading || docLoading || !brand || !doc) {
+  if (!doc) {
+    // Defensive — shouldn't reach here; covered by the loading +
+    // error branches above. Render a spinner just in case.
     return <PageSpinner />;
   }
 
@@ -118,9 +140,78 @@ export default function BrandDesignEditorPage() {
     <Editor
       initialDocument={doc}
       brand={brand}
+      onBrandSwitch={onBrandSwitch}
       save={async (next) => {
         await designStorage.saveDesign(brand.id, doc.id, next);
       }}
+      onShare={() => {
+        // Use the URL's designSlug — that's the storage key the
+        // route uses to load the doc, so it's the canonical share
+        // identifier. The internal doc.id may diverge (e.g. when a
+        // design was renamed at storage time but kept its inner id).
+        const url = `${window.location.origin}/b/${brand.slug}/design/${designSlug}`;
+        void copyToClipboard(url);
+      }}
     />
   );
+}
+
+// ─── 404 / 403 inline panel ───────────────────────────────────────────
+
+interface NotFoundPanelProps {
+  title: string;
+  hint: string;
+  primaryHref: string;
+  primaryLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
+}
+
+function NotFoundPanel({
+  title, hint, primaryHref, primaryLabel, secondaryHref, secondaryLabel,
+}: NotFoundPanelProps) {
+  return (
+    <div
+      data-design-route-not-found
+      className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 text-center"
+    >
+      <FileQuestion className="h-12 w-12 text-muted-foreground" aria-hidden />
+      <div className="max-w-md">
+        <h1 className="text-xl font-semibold mb-2">{title}</h1>
+        <p className="text-sm text-muted-foreground">{hint}</p>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center">
+        <Link
+          to={primaryHref}
+          data-not-found-primary
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-medium hover:bg-primary/90"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> {primaryLabel}
+        </Link>
+        {secondaryHref && secondaryLabel ? (
+          <Link
+            to={secondaryHref}
+            data-not-found-secondary
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted/30"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <Home className="h-3.5 w-3.5" /> {secondaryLabel}
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ─── Clipboard ─────────────────────────────────────────────────────────
+
+async function copyToClipboard(url: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success('Share link copied to clipboard.');
+  } catch {
+    // Clipboard API can fail on http / sandboxed iframes; toast
+    // the URL so the user can copy manually.
+    toast.message(`Copy this link: ${url}`);
+  }
 }

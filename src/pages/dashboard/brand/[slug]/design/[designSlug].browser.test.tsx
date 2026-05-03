@@ -8,7 +8,7 @@
 // invisible to schema-only assertions.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, cleanup, waitFor } from '@testing-library/react';
+import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import BrandDesignEditorPage from './[designSlug]';
@@ -112,45 +112,73 @@ describe('BrandDesignEditorPage — production editor route', () => {
     expect(container.textContent ?? '').toContain('Raqm');
   });
 
-  it('redirects to the brand launchpad with a toast when the design id is unknown', async () => {
+  it('renders inline NotFoundPanel when the design id is unknown (no redirect)', async () => {
     const brand = makeBrand('raqm', 'Raqm');
     registerServices({ brand, saved: {} });
 
     const { container } = mount('/b/raqm/design/missing-id');
 
+    // Inline 404 — no redirect, URL stays at /b/raqm/design/missing-id.
     await waitFor(
       () => {
-        expect(container.querySelector('[data-testid="launchpad-stub"]')).toBeTruthy();
+        expect(container.querySelector('[data-design-route-not-found]')).toBeTruthy();
       },
       { timeout: 5000 },
     );
-
-    // Toast surfaced in the Sonner portal.
-    await waitFor(
-      () => {
-        expect(document.body.textContent ?? '').toContain('Design not found');
-      },
-      { timeout: 2000 },
-    );
+    expect(container.textContent).toMatch(/Design not found in Raqm/);
+    // Recovery action points back to brand launchpad.
+    const back = container.querySelector<HTMLAnchorElement>('[data-not-found-primary]');
+    expect(back?.getAttribute('href')).toBe('/b/raqm/design');
   });
 
-  it('redirects to /dashboard when the brand slug is unknown', async () => {
+  it('renders inline NotFoundPanel when the brand slug is unknown (no redirect)', async () => {
     registerServices({ brand: null });
 
     const { container } = mount('/b/no-such-brand/design/anything');
 
     await waitFor(
       () => {
-        expect(container.querySelector('[data-testid="dashboard-stub"]')).toBeTruthy();
+        expect(container.querySelector('[data-design-route-not-found]')).toBeTruthy();
       },
       { timeout: 5000 },
     );
+    expect(container.textContent).toMatch(/couldn't find brand "no-such-brand"/);
+    const back = container.querySelector<HTMLAnchorElement>('[data-not-found-primary]');
+    expect(back?.getAttribute('href')).toBe('/dashboard');
+  });
 
-    await waitFor(
-      () => {
-        expect(document.body.textContent ?? '').toContain('not found');
-      },
-      { timeout: 2000 },
-    );
+  it('Share button on the editor topbar copies the canonical URL to clipboard', async () => {
+    const brand = makeBrand('raqm', 'Raqm');
+    registerServices({
+      brand,
+      saved: { 'design-abc': FIXTURE },
+    });
+
+    // Spy on clipboard.writeText.
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const { container } = mount('/b/raqm/design/design-abc');
+
+    // Wait for editor to mount.
+    await waitFor(() => {
+      expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
+    }, { timeout: 5000 });
+
+    // Click Share.
+    const shareBtn = container.querySelector<HTMLButtonElement>('[data-share-button]');
+    expect(shareBtn, 'Share button not in topbar').toBeTruthy();
+    fireEvent.click(shareBtn!);
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const [copied] = writeText.mock.calls[0] as [string];
+    // Canonical /b/:slug/design/:designId URL — host-prefixed by
+    // window.location.origin.
+    expect(copied).toMatch(/\/b\/raqm\/design\/design-abc$/);
   });
 });
