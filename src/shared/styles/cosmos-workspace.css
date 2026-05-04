@@ -67,6 +67,41 @@
   min-height: 100vh;
 }
 
+/*
+ * Radix portals (DropdownMenu, Popover, Select, etc.) render their
+ * content into document.body. To inherit cosmos color tokens — which
+ * are scoped to [data-cosmos="workspace"] — those portaled surfaces
+ * carry the same data attribute. Without this override, the
+ * `min-height: 100vh` rule above would force every portaled menu to
+ * be viewport-tall, leaving a giant empty whitespace below the
+ * actual items (caught 2026-05-04 in the editor's font picker).
+ *
+ * Reset for any cosmos element that is itself a Radix popper
+ * (`data-state` is open/closed on every Radix Content) or that lives
+ * inside one (the popper wrapper).
+ */
+[data-cosmos="workspace"][data-state],
+[data-cosmos="workspace"][data-radix-popper-content-wrapper],
+[data-radix-popper-content-wrapper] [data-cosmos="workspace"] {
+  min-height: 0;
+}
+
+/*
+ * Cap the height of portaled menus / listboxes so a long list (e.g.
+ * a font picker once we expand to ~50 families) scrolls inside the
+ * menu instead of pushing past the viewport. Uses the Radix-supplied
+ * available-height var with a 480px cap and a 16px viewport gap so
+ * the menu always has breathing room.
+ */
+[data-cosmos="workspace"][role="menu"],
+[data-cosmos="workspace"][role="listbox"] {
+  max-height: min(
+    480px,
+    calc(var(--radix-popper-available-height, 100vh) - 16px)
+  );
+  overflow-y: auto;
+}
+
 [data-cosmos="workspace"][data-theme="dark"] {
   --background: #141414;              /* gray-975 / dark paper */
   --surface: #141414;                 /* background-primary dark */
