@@ -777,6 +777,38 @@ describe('EditorFloatingToolbar — Brand-managed switch (Step 5c)', () => {
   });
 });
 
+describe('EditorFloatingToolbar — page-count awareness', () => {
+  it('renders the This page / All pages scope toggle when pageCount > 1', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer()}
+        scope="page"
+        onScopeChange={vi.fn()}
+        pageCount={3}
+      />,
+    );
+    expect(container.querySelector('[data-scope-toggle]')).toBeTruthy();
+  });
+
+  it('hides the scope toggle when the document has only one page', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <EditorFloatingToolbar
+        adapter={adapter}
+        pageId="page-1"
+        layer={makeTextLayer()}
+        scope="page"
+        onScopeChange={vi.fn()}
+        pageCount={1}
+      />,
+    );
+    expect(container.querySelector('[data-scope-toggle]')).toBeNull();
+  });
+});
+
 describe('EditorFloatingToolbar — locked controls (Step 5c)', () => {
   it('brand-bound controls render WITHOUT a LockedGate when brandLocked is off', () => {
     const adapter = stubAdapter();

@@ -669,6 +669,7 @@ export function Editor({
                     onUpdateLayer={handleLayerUpdate}
                     zoom={zoom}
                     brand={brand}
+                    pageCount={doc.pages.length}
                   />
                   <EditorLockBadge layer={selectedLayer} zoom={zoom} />
                 </div>

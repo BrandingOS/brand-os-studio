@@ -88,6 +88,14 @@ interface Props {
    * neutrals) as one-click swatches alongside the hex input.
    */
   brand?: Brand;
+  /**
+   * Number of pages in the current document. When <= 1 the
+   * "This page / All pages" scope toggle is hidden — there's no
+   * "all pages" to talk about on a single-page design (business
+   * card, social post, banner). Defaults to 2 so isolated test
+   * renders that don't pass it keep the legacy behavior.
+   */
+  pageCount?: number;
 }
 
 export function EditorFloatingToolbar({
@@ -99,6 +107,7 @@ export function EditorFloatingToolbar({
   onUpdateLayer,
   zoom = 1,
   brand,
+  pageCount = 2,
 }: Props) {
   // Position in OVERLAY pixels (= document coords × zoom). The 50px
   // breathing room above the layer is in SCREEN pixels — applied
@@ -168,14 +177,18 @@ export function EditorFloatingToolbar({
           borderRadius: 12,
           boxShadow: 'var(--shadow-md)',
           outline:
-            scope === 'all'
+            scope === 'all' && pageCount > 1
               ? `2px solid color-mix(in srgb, ${SELECTION_BLUE} 45%, transparent)`
               : 'none',
           outlineOffset: 2,
         }}
       >
-        <ScopeToggle scope={scope} onChange={onScopeChange} />
-        <Sep />
+        {pageCount > 1 ? (
+          <>
+            <ScopeToggle scope={scope} onChange={onScopeChange} />
+            <Sep />
+          </>
+        ) : null}
 
         <KindControls
           layer={layer}
