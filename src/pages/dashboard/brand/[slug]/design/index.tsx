@@ -1,55 +1,77 @@
 /**
  * Design — launchpad for creating new work.
  *
- * Single scroll page (was: 3-tab Blank/AI/Recent layout) with the
- * sections users actually scan top-to-bottom:
+ * Tabs:
+ *   - Blank Canvas  → opens the Fabric.js editor at /editor/design/:slug
+ *   - AI Design     → seeds a brand-bound social-post design + navigates
+ *                     to the unified editor at /b/:slug/design/:designId.
+ *                     The unified editor's top-chrome AI prompt bar is
+ *                     the in-editor AI surface (Phase 3.5 commit 5).
+ *                     Pre-3.5: two separate fullscreen pages
+ *                     (/b/:slug/ai-design, /b/:slug/design-ai) — both
+ *                     deleted in Phase 3.5 commit 9.
+ *   - Recent        → recently opened designs (reads from the local store)
  *
- *   1. Search       — filters Recent + Browse cards by name/description.
- *   2. Generate     — inline AI generator (reuses GenerateWithAiSection).
- *   3. Recent       — the brand's most recent designs (real data).
- *   4. Browse type  — Freeform / Presentation / Social / Brand Board /
- *                     Bento / Guidelines.
+ * The underlying editor surfaces are fullscreen tools that bypass the
+ * brand shell. This page is the in-shell launching pad that links into
+ * them so the user has one obvious place to go to start creating.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import type { InnerNavConfig } from '@/shared/layouts/InnerNavRail';
 import { useBrandPageConfig } from '@/shared/layouts/brandPageConfig';
 import { useService, SERVICE_KEYS } from '@/core';
-import type { IDesignStorage, DesignSummary } from '@/core/types/services';
-import { useBrandKit } from '@/features/editor/brand/useBrandKit';
-import { useAiAgent } from '@/features/editor/ai/useAiAgent';
-import { GenerateWithAiSection } from '@/features/editor/shell/v2/panels/GenerateWithAiSection';
+import type { IDesignStorage } from '@/core/types/services';
+import { seedInstagramPostTemplate } from '@/features/brandkit/templateSeeds';
+import { toast } from 'sonner';
 import {
-  Search,
+  Wand2,
+  Paintbrush,
+  Sparkles,
   Clock,
   ArrowRight,
   FileText,
   LayoutGrid,
   Presentation,
   Image as ImageIcon,
-  Paintbrush,
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { NavigateFunction } from 'react-router-dom';
+
+type TabId = 'blank' | 'ai' | 'recent';
+const TABS: TabId[] = ['blank', 'ai', 'recent'];
+
+function isTab(v: string | null): v is TabId {
+  return v !== null && (TABS as string[]).includes(v);
+}
 
 interface LaunchCard {
   title: string;
   description: string;
   icon: React.ElementType;
   accent: string;
-  path: (slug: string) => string;
+  /** Static URL the card navigates to. Used by every blank-canvas
+   *  card. Mutually exclusive with `action`. */
+  path?: (slug: string) => string;
+  /** Async click handler. Used when the card needs to seed/persist
+   *  before navigating (e.g. the AI Design card seeds a brand-bound
+   *  blank doc, persists via IDesignStorage, then navigates to the
+   *  unified-editor route). Mutually exclusive with `path`. */
+  action?: (args: { slug: string; brand: Brand; navigate: NavigateFunction; designStorage: IDesignStorage }) => Promise<void> | void;
 }
 
-const TYPE_LAUNCHERS: LaunchCard[] = [
+const BLANK_LAUNCHERS: LaunchCard[] = [
   {
     title: 'Freeform canvas',
     description: 'Open the editor with a blank canvas, brand palette pre-loaded.',
     icon: Paintbrush,
     accent: 'from-fuchsia-500 to-pink-600',
-    path: (slug) => `/b/${slug}/editor`,
+    path: (slug) => `/editor/design/${slug}`,
   },
   {
     title: 'Presentation',
@@ -88,66 +110,77 @@ const TYPE_LAUNCHERS: LaunchCard[] = [
   },
 ];
 
-const RECENT_LIMIT = 8;
+// Phase 3.5 commit 9 — both pre-3.5 fullscreen AI pages were
+// absorbed into the unified editor's top-chrome prompt bar. The
+// launchpad now offers ONE AI card that seeds a brand-bound blank
+// social-post design + navigates to the production editor. The
+// in-editor prompt bar (always visible per vision §3) is the AI
+// surface from here.
+const AI_LAUNCHERS: LaunchCard[] = [
+  {
+    title: 'Design with AI',
+    description: "Open a brand-bound canvas with the AI prompt bar ready. Type what you want — \"add a CTA button\", \"translate to Arabic\", \"convert to social posts\".",
+    icon: Sparkles,
+    accent: 'from-violet-500 to-purple-600',
+    action: async ({ brand, navigate, designStorage }) => {
+      try {
+        const doc = seedInstagramPostTemplate(brand);
+        await designStorage.saveDesign(brand.id, doc.id, doc);
+        navigate(`/b/${brand.slug}/design/${doc.id}`);
+      } catch (err) {
+        console.error('[design launchpad] failed to seed AI design:', err);
+        toast.error('Could not start a new AI design — please try again.');
+      }
+    },
+  },
+];
 
 export default function DesignLaunchpadPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { brand, isLoading, error } = useBrandBySlug(slug);
-  const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
-  const brandKit = useBrandKit(brand);
-  const aiAgent = useAiAgent(brandKit);
 
-  const [query, setQuery] = useState('');
-  const [recent, setRecent] = useState<DesignSummary[]>([]);
-  const [recentLoading, setRecentLoading] = useState(false);
+  const activeTab: TabId = useMemo(() => {
+    const t = searchParams.get('tab');
+    return isTab(t) ? t : 'blank';
+  }, [searchParams]);
 
-  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl' });
+  const handleTabChange = useCallback(
+    (value: string) => {
+      if (!isTab(value)) return;
+      const next = new URLSearchParams(searchParams);
+      if (value === 'blank') next.delete('tab');
+      else next.set('tab', value);
+      setSearchParams(next, { replace: true });
+    },
+    [searchParams, setSearchParams],
+  );
 
-  useEffect(() => {
-    if (!brand?.id) return;
-    let cancelled = false;
-    setRecentLoading(true);
-    designStorage
-      .listDesigns(brand.id)
-      .then((rows) => {
-        if (cancelled) return;
-        const sorted = [...rows].sort((a, b) => {
-          const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-          const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-          return bt - at;
-        });
-        setRecent(sorted);
-      })
-      .catch((err) => {
-        console.error('[design launchpad] listDesigns failed:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setRecentLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [brand?.id, designStorage]);
+  const innerNav = useMemo<InnerNavConfig | undefined>(
+    () =>
+      slug
+        ? {
+            title: 'Design',
+            icon: Wand2,
+            storageKey: 'brandos:design-nav-open',
+            groups: [
+              {
+                id: 'tabs',
+                label: 'Start from',
+                items: [
+                  { id: 'blank', label: 'Blank Canvas', icon: Paintbrush, href: `/b/${slug}/design` },
+                  { id: 'ai', label: 'AI Design', icon: Wand2, href: `/b/${slug}/design?tab=ai` },
+                  { id: 'recent', label: 'Recent', icon: Clock, href: `/b/${slug}/design?tab=recent` },
+                ],
+              },
+            ],
+          }
+        : undefined,
+    [slug],
+  );
 
-  const filteredCards = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return TYPE_LAUNCHERS;
-    return TYPE_LAUNCHERS.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.description.toLowerCase().includes(q),
-    );
-  }, [query]);
-
-  const filteredRecent = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const top = recent.slice(0, RECENT_LIMIT);
-    if (!q) return top;
-    return recent.filter((d) =>
-      (d.name ?? '').toLowerCase().includes(q),
-    );
-  }, [recent, query]);
+  useBrandPageConfig({ brandName: brand?.name, maxWidth: '7xl', innerNav });
 
   if (isLoading) {
     return (
@@ -166,123 +199,62 @@ export default function DesignLaunchpadPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         compact
         title="Design"
-        subtitle="Search, generate with AI, pick up where you left off, or start something new."
+        subtitle="Start something new — blank canvas, AI assist, or pick up where you left off."
       />
 
-      <SearchBar value={query} onChange={setQuery} />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid grid-cols-3 w-full max-w-md">
+          <TabsTrigger value="blank" className="gap-2">
+            <Paintbrush className="w-4 h-4" />
+            <span>Blank Canvas</span>
+          </TabsTrigger>
+          <TabsTrigger value="ai" className="gap-2">
+            <Wand2 className="w-4 h-4" />
+            <span>AI Design</span>
+          </TabsTrigger>
+          <TabsTrigger value="recent" className="gap-2">
+            <Clock className="w-4 h-4" />
+            <span>Recent</span>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      <Section title="Generate with AI">
-        <GenerateWithAiSection
-          agent={aiAgent}
-          brand={brand}
-          brandKit={brandKit ?? null}
-          designStorage={designStorage}
-        />
-      </Section>
-
-      <Section
-        title="Recent designs"
-        action={
-          recent.length > RECENT_LIMIT && !query ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/b/${slug}/folders?tab=designs`)}
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              See all
-            </button>
-          ) : null
-        }
-      >
-        {recentLoading ? (
-          <RecentSkeleton />
-        ) : filteredRecent.length === 0 ? (
-          <RecentEmpty
-            query={query}
-            onBrowseTemplates={() => navigate(`/b/${slug}/templates`)}
-          />
-        ) : (
-          <RecentGrid
-            designs={filteredRecent}
-            onOpen={(id) => navigate(`/b/${slug}/design/${id}`)}
-          />
-        )}
-      </Section>
-
-      <Section title="Browse by type">
-        {filteredCards.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No types match "{query}".
-          </p>
-        ) : (
-          <LaunchGrid
-            cards={filteredCards}
-            slug={slug}
-            brand={brand}
-            navigate={navigate}
-          />
-        )}
-      </Section>
+      {activeTab === 'blank' && <LaunchGrid cards={BLANK_LAUNCHERS} slug={slug} brand={brand} navigate={navigate} />}
+      {activeTab === 'ai' && <LaunchGrid cards={AI_LAUNCHERS} slug={slug} brand={brand} navigate={navigate} />}
+      {activeTab === 'recent' && <RecentEmpty slug={slug} onBrowseTemplates={() => navigate(`/b/${slug}/templates`)} />}
     </div>
-  );
-}
-
-function SearchBar({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="relative max-w-2xl">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-      <input
-        type="search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Search recent designs and types…"
-        className="w-full rounded-lg border bg-background pl-9 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
-        data-design-search
-      />
-    </div>
-  );
-}
-
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        {action}
-      </div>
-      {children}
-    </section>
   );
 }
 
 function LaunchGrid({
   cards,
   slug,
+  brand,
   navigate,
 }: {
   cards: LaunchCard[];
   slug: string;
-  brand: Brand;
+  brand: Brand | null | undefined;
   navigate: NavigateFunction;
 }) {
+  const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
+  const onCardClick = (c: LaunchCard) => {
+    if (c.action) {
+      if (!brand) {
+        toast.error('Brand context missing — refresh and try again.');
+        return;
+      }
+      void c.action({ slug, brand, navigate, designStorage });
+      return;
+    }
+    if (c.path) {
+      navigate(c.path(slug));
+    }
+  };
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {cards.map((c) => {
@@ -290,7 +262,7 @@ function LaunchGrid({
         return (
           <Card
             key={c.title}
-            onClick={() => navigate(c.path(slug))}
+            onClick={() => onCardClick(c)}
             className="group relative overflow-hidden p-5 cursor-pointer hover:shadow-lg transition-all hover:-translate-y-0.5"
           >
             <div
@@ -313,106 +285,13 @@ function LaunchGrid({
   );
 }
 
-function RecentGrid({
-  designs,
-  onOpen,
-}: {
-  designs: DesignSummary[];
-  onOpen: (id: string) => void;
-}) {
+function RecentEmpty({ slug: _slug, onBrowseTemplates }: { slug: string; onBrowseTemplates: () => void }) {
   return (
-    <div
-      className="grid gap-3"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
-      data-recent-grid
-    >
-      {designs.map((d) => {
-        const aspect =
-          d.width && d.height ? `${d.width} / ${d.height}` : '4 / 3';
-        return (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => onOpen(d.id)}
-            className="group text-left rounded-lg overflow-hidden border bg-background hover:shadow-md transition-all hover:-translate-y-0.5"
-            data-recent-card
-            data-design-id={d.id}
-          >
-            <div
-              className="bg-muted flex items-center justify-center overflow-hidden"
-              style={{ aspectRatio: aspect }}
-            >
-              {d.thumbnailUrl ? (
-                <img
-                  src={d.thumbnailUrl}
-                  alt={d.name ?? 'Design'}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-              )}
-            </div>
-            <div className="px-3 py-2">
-              <p className="text-xs font-medium truncate">
-                {d.name || 'Untitled design'}
-              </p>
-              {d.contentType ? (
-                <p className="text-[10px] text-muted-foreground capitalize">
-                  {d.contentType.replace(/-/g, ' ')}
-                </p>
-              ) : null}
-            </div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function RecentSkeleton() {
-  return (
-    <div
-      className="grid gap-3"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
-    >
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div
-          key={i}
-          className="rounded-lg overflow-hidden border bg-background"
-        >
-          <div className="aspect-[4/3] bg-muted animate-pulse" />
-          <div className="px-3 py-2 space-y-1">
-            <div className="h-3 w-3/4 rounded bg-muted animate-pulse" />
-            <div className="h-2 w-1/2 rounded bg-muted animate-pulse" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RecentEmpty({
-  query,
-  onBrowseTemplates,
-}: {
-  query: string;
-  onBrowseTemplates: () => void;
-}) {
-  if (query) {
-    return (
-      <Card className="p-6 text-center bg-muted/20">
-        <p className="text-xs text-muted-foreground">
-          No recent designs match "{query}".
-        </p>
-      </Card>
-    );
-  }
-  return (
-    <Card className="p-8 text-center bg-muted/20">
-      <Clock className="h-7 w-7 mx-auto text-muted-foreground/40 mb-2" />
+    <Card className="p-10 text-center bg-muted/20">
+      <Clock className="h-8 w-8 mx-auto text-muted-foreground/40 mb-3" />
       <p className="text-sm font-medium mb-1">No recent designs yet</p>
-      <p className="text-xs text-muted-foreground mb-3">
-        Designs you open will show up here.
+      <p className="text-xs text-muted-foreground mb-4">
+        Designs you open will show up here for quick access.
       </p>
       <Button variant="outline" size="sm" onClick={onBrowseTemplates}>
         Browse templates
