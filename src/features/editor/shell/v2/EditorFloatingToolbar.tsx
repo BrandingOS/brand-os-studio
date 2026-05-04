@@ -55,6 +55,17 @@ import { isBrandBound } from './brandBound';
 
 const SELECTION_BLUE = '#2965f6';
 
+/**
+ * Font-size presets shown in the size dropdown next to the type-in
+ * input. Covers typical body → display range. The input itself
+ * remains free-form (any integer in [6, 400] still typeable), so
+ * this is a quick-pick affordance, not a constraint.
+ */
+const FONT_SIZE_PRESETS: ReadonlyArray<number> = [
+  6, 8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 96,
+  128, 160, 192, 256, 320, 384,
+];
+
 export type ToolbarScope = 'page' | 'all';
 
 interface Props {
@@ -413,13 +424,16 @@ function TextControls({
         </DropdownMenu.Root>
       </LockedGate>
 
-      {/* Size — not brand-bound, always editable */}
+      {/* Size — not brand-bound, always editable.
+          Presets cover typical print/canvas range; the input itself
+          stays free-form so any value in [6, 400] is still typeable. */}
       <NumberPill
         value={Math.round(layer.fontSize)}
         min={6}
         max={400}
         onChange={(v) => update({ fontSize: v })}
         title="Font size"
+        presets={FONT_SIZE_PRESETS}
       />
 
       {/* Weight toggle (just bold/normal) — not brand-bound */}
@@ -983,14 +997,23 @@ function NumberPill({
   max,
   onChange,
   title,
+  presets,
 }: {
   value: number;
   min?: number;
   max?: number;
   onChange: (v: number) => void;
   title: string;
+  /**
+   * Optional preset values. When provided, a small chevron renders
+   * next to the input and opens a Radix dropdown of click-to-pick
+   * values. The free-form input remains usable. Max-height + scroll
+   * are inherited from the cosmos `[role="menu"]` cap in
+   * cosmos-workspace.css — no per-site styling needed.
+   */
+  presets?: ReadonlyArray<number>;
 }) {
-  return (
+  const input = (
     <input
       type="number"
       value={value}
@@ -1006,7 +1029,7 @@ function NumberPill({
         background: 'transparent',
         border: '1px solid transparent',
         color: 'var(--text-primary)',
-        width: 48,
+        width: presets ? 40 : 48,
       }}
       onFocus={(e) => {
         e.currentTarget.style.background = 'var(--surface-sunken)';
@@ -1017,6 +1040,67 @@ function NumberPill({
         e.currentTarget.style.borderColor = 'transparent';
       }}
     />
+  );
+
+  if (!presets) return input;
+
+  return (
+    <div className="flex items-center" data-control={`numberpill-${title}`}>
+      {input}
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger asChild>
+          <button
+            type="button"
+            className="flex h-7 w-5 items-center justify-center rounded-lg transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            aria-label={`${title} presets`}
+            data-control={`numberpill-presets-${title}`}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.background = 'var(--surface-hover)')
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = 'transparent')
+            }
+          >
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            data-cosmos="workspace"
+            align="start"
+            sideOffset={6}
+            className="z-50 min-w-[80px] rounded-lg p-1"
+            style={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-md)',
+            }}
+          >
+            {presets.map((p) => (
+              <DropdownMenu.Item
+                key={p}
+                onSelect={() => onChange(p)}
+                className="cursor-pointer rounded px-2 py-1 text-[11px] outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                  background: p === value ? 'var(--surface-hover)' : 'transparent',
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'var(--surface-hover)')
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background =
+                    p === value ? 'var(--surface-hover)' : 'transparent')
+                }
+              >
+                {p}
+              </DropdownMenu.Item>
+            ))}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </div>
   );
 }
 
