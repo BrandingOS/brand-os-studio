@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { GOOGLE_FONTS } from '../data/googleFonts';
+import { GOOGLE_FONTS } from '@/shared/design-system/googleFonts';
 
 const FONT_EXTENSIONS = ['.woff', '.woff2', '.ttf', '.otf', '.eot'];
 const FONT_MIME_PREFIXES = ['font/', 'application/font-', 'application/x-font-', 'application/vnd.ms-fontobject'];
