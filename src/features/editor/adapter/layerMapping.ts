@@ -118,7 +118,7 @@ const baseProps = (layer: Layer) => ({
   cornerStrokeColor: SELECTION_HANDLE_STROKE,
   cornerStyle: 'circle' as const,
   transparentCorners: false,
-  cornerSize: 8,
+  cornerSize: 12,
   padding: 0,
   borderScaleFactor: 1.5,
 });
