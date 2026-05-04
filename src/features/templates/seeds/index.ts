@@ -23,7 +23,7 @@ import type { Template, TemplateMood } from '../types';
 import {
   ACCENT, BODY_FONT, HEADING_FONT, N_DARK, N_LIGHT, N_MID, PRIMARY,
   SECONDARY, doc, ellipse, line, logo, moodChoices, page, rect, text,
-  thumbBgForMood, thumbnail,
+  thumbnail,
 } from './builders';
 
 export { SEED_CATEGORIES } from './categories';
@@ -51,12 +51,11 @@ function mk(args: MkArgs): Template {
     source: 'curated',
     categoryId: args.categoryId,
     document: args.document,
-    thumbnailUrl: thumbnail({
-      width: args.width,
-      height: args.height,
-      bgFill: thumbBgForMood(args.mood),
-      accent: '#ffffff66',
-    }),
+    // Phase 5 — render the actual first page as the thumbnail SVG.
+    // The mood drives a stand-in palette so SlotRefs in the doc
+    // resolve to colors that match the variant's intent (the live
+    // editor swaps in the real brand kit on open).
+    thumbnailUrl: thumbnail({ page: args.document.pages[0], mood: args.mood }),
     previewImageUrl: null,
     width: args.width,
     height: args.height,

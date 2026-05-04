@@ -128,6 +128,37 @@ describe('Phase 4.1 seed inventory — templates', () => {
     }
   });
 
+  it('curated thumbnails render the actual layers (no skeleton-only output)', () => {
+    // Phase 5 — guards against a regression to the previous
+    // generator that emitted three identical placeholder bars
+    // regardless of doc content. Decode the data URI and assert
+    // the SVG contains at least one element per layer kind that
+    // shows up in the doc.
+    for (const t of SEED_TEMPLATES) {
+      if (!t.document || t.source !== 'curated') continue;
+      const decoded = decodeURIComponent(t.thumbnailUrl.replace(/^data:image\/svg\+xml(;utf8)?,/, ''));
+
+      const layers = t.document.pages[0].layers;
+      const kinds = new Set(layers.map((l) => l.kind));
+
+      if (kinds.has('text')) {
+        expect(decoded, `${t.slug}: missing <text> for text layers`).toContain('<text');
+      }
+      if (kinds.has('logo')) {
+        expect(decoded, `${t.slug}: missing LOGO badge`).toContain('LOGO');
+      }
+      if (kinds.has('shape')) {
+        // Either rect (most common shape) or ellipse/line in the doc.
+        const shapeKinds = new Set(
+          layers.filter((l) => l.kind === 'shape').map((l) => (l as { shape: string }).shape),
+        );
+        if (shapeKinds.has('rectangle')) expect(decoded, `${t.slug}: missing <rect>`).toContain('<rect');
+        if (shapeKinds.has('ellipse')) expect(decoded, `${t.slug}: missing <ellipse>`).toContain('<ellipse');
+        if (shapeKinds.has('line')) expect(decoded, `${t.slug}: missing <line>`).toContain('<line');
+      }
+    }
+  });
+
   it('every template has dimensions matching its content-type config (where exact)', () => {
     // Soft check — just that dims are positive integers.
     for (const t of SEED_TEMPLATES) {
