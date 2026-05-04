@@ -390,12 +390,14 @@ describe('BrandPanel', () => {
   it('shows document section + brand identity sections, all open by default', () => {
     const adapter = stubAdapter();
     const { container } = render(
-      <BrandPanel
-        adapter={adapter}
-        doc={blankDoc()}
-        activePageId="page-1"
-        brand={mockBrand()}
-      />,
+      <MemoryRouter>
+        <BrandPanel
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          brand={mockBrand()}
+        />
+      </MemoryRouter>,
     );
     const text = container.textContent ?? '';
     // Document section + 7 brand identity sections all present.
@@ -418,12 +420,14 @@ describe('BrandPanel', () => {
   it('clicking a section header collapses it', () => {
     const adapter = stubAdapter();
     const { container } = render(
-      <BrandPanel
-        adapter={adapter}
-        doc={blankDoc()}
-        activePageId="page-1"
-        brand={mockBrand()}
-      />,
+      <MemoryRouter>
+        <BrandPanel
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          brand={mockBrand()}
+        />
+      </MemoryRouter>,
     );
     // Find the Logo section header (the one whose visible text starts with "Logo").
     const logoHeader = Array.from(
@@ -439,12 +443,14 @@ describe('BrandPanel', () => {
   it('document dimensions field calls adapter.updatePageDimensions', () => {
     const adapter = stubAdapter();
     const { container } = render(
-      <BrandPanel
-        adapter={adapter}
-        doc={blankDoc()}
-        activePageId="page-1"
-        brand={mockBrand()}
-      />,
+      <MemoryRouter>
+        <BrandPanel
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          brand={mockBrand()}
+        />
+      </MemoryRouter>,
     );
     // The Document section is open by default — Width input is present.
     const widthInput = Array.from(
@@ -460,12 +466,57 @@ describe('BrandPanel', () => {
   it('shows a placeholder when no brand is attached', () => {
     const adapter = stubAdapter();
     const { container } = render(
-      <BrandPanel adapter={adapter} doc={blankDoc()} activePageId="page-1" />,
+      <MemoryRouter>
+        <BrandPanel adapter={adapter} doc={blankDoc()} activePageId="page-1" />
+      </MemoryRouter>,
     );
     expect(container.textContent ?? '').toContain('No brand attached');
     // The Document section still renders (Document-level controls don't
     // depend on a brand).
     expect(container.textContent ?? '').toContain('Document');
+  });
+
+  it('renders real brand data inline (color swatch + font sample) instead of stub copy', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <MemoryRouter>
+        <BrandPanel
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          brand={mockBrand()}
+        />
+      </MemoryRouter>,
+    );
+    // The Phase 5a stub copy must be gone.
+    expect(container.textContent ?? '').not.toContain('Read-only summary in 5a');
+    // Color swatch for the legacy primaryColor (#3b82f6).
+    expect(container.querySelector('[data-brand-panel-color="primary"]')).toBeTruthy();
+    expect(container.textContent ?? '').toContain('#3b82f6');
+    // Font sample carries the family name from mockBrand().
+    expect(container.querySelector('[data-brand-panel-font="primary"]')).toBeTruthy();
+    expect(container.textContent ?? '').toContain('Inter');
+    // About body shows the tone field.
+    expect(container.textContent ?? '').toContain('Friendly');
+  });
+
+  it('renders an "Edit brand identity" link pointing to /b/<slug>/setup', () => {
+    const adapter = stubAdapter();
+    const { container } = render(
+      <MemoryRouter>
+        <BrandPanel
+          adapter={adapter}
+          doc={blankDoc()}
+          activePageId="page-1"
+          brand={mockBrand()}
+        />
+      </MemoryRouter>,
+    );
+    const link = container.querySelector<HTMLAnchorElement>(
+      '[data-brand-panel-setup-link]',
+    );
+    expect(link).toBeTruthy();
+    expect(link!.getAttribute('href')).toBe('/b/mock/setup');
   });
 });
 
