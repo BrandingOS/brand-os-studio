@@ -32,7 +32,14 @@ interface SerializedShape<T> {
   version: number;
 }
 
-const VERSION = 1;
+// Bump VERSION when the seed inventory or thumbnail format changes
+// so existing dev caches re-bootstrap on next read.
+//   v1 — Phase 4.1 initial seeds.
+//   v2 — Phase 5: thumbnails now render real layers (was 3 placeholder
+//        bars). Old cached data URIs still hold the skeletons; bumping
+//        forces a fresh seed. User-uploaded templates from 4.4 are
+//        preserved across the bump.
+const VERSION = 2;
 
 export class LocalTemplatesService implements ITemplatesService {
   private categoriesCache: TemplateCategory[] | null = null;
@@ -45,9 +52,12 @@ export class LocalTemplatesService implements ITemplatesService {
       if (localStorage.getItem(STORAGE_KEY_BOOTSTRAPPED) === String(VERSION)) {
         return;
       }
-      // Fresh / version mismatch — seed.
+      // Fresh / version mismatch — re-seed. Preserve user-uploaded
+      // templates from the prior version so a thumbnail-format bump
+      // doesn't wipe community submissions (Phase 4.4).
+      const carriedOver = readUserUploadedFromStorage();
       this.persistCategories(SEED_CATEGORIES);
-      this.persistTemplates(SEED_TEMPLATES);
+      this.persistTemplates([...SEED_TEMPLATES, ...carriedOver]);
       localStorage.setItem(STORAGE_KEY_BOOTSTRAPPED, String(VERSION));
     } catch {
       // localStorage unavailable (private mode, quota) — fall through;
@@ -269,4 +279,22 @@ function paginate<T>(
   const start = offset ?? 0;
   const end = limit !== undefined ? start + limit : rows.length;
   return rows.slice(start, end);
+}
+
+/**
+ * Read user-uploaded templates from the prior cache version. Used
+ * by ensureBootstrap() to preserve community submissions across a
+ * VERSION bump that re-seeds the curated set.
+ */
+function readUserUploadedFromStorage(): Template[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as SerializedShape<Template>;
+    return (parsed.items ?? []).filter(
+      (t) => t.source === 'user_uploaded',
+    );
+  } catch {
+    return [];
+  }
 }
