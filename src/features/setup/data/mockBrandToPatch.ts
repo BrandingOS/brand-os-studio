@@ -72,6 +72,42 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
     patch.typography = mergeTypography(existing.typography, primaryFont, secondaryFont);
   }
 
+  // Persist uploaded font files onto the canonical typography slot
+  // so they survive reloads. Scan ALL mock.fonts[] (not just 0/1) and
+  // route files to the matching primary/secondary slot via lenient
+  // family-name matching — rescues uploads parsed as "GT Super Display"
+  // when the brand declares "GT Super". When fonts also changed above,
+  // patch.typography is already set by mergeTypography; we use it as the
+  // spread base so file changes augment family changes instead of
+  // clobbering the metadata mergeTypography preserved.
+  const primaryFiles = collectFilesFor(mock, primaryFont);
+  const secondaryFiles = collectFilesFor(mock, secondaryFont);
+  const existingPrimaryFiles = existing.typography?.primary?.files ?? [];
+  const existingSecondaryFiles = existing.typography?.secondary?.files ?? [];
+  if (
+    !fontFilesEqual(primaryFiles, existingPrimaryFiles) ||
+    !fontFilesEqual(secondaryFiles, existingSecondaryFiles)
+  ) {
+    const baseTypography = patch.typography ?? existing.typography;
+    patch.typography = {
+      ...baseTypography,
+      primary: {
+        ...baseTypography?.primary,
+        family: primaryFont ?? baseTypography?.primary?.family ?? '',
+        ...(primaryFiles.length > 0 ? { files: primaryFiles } : {}),
+      },
+      ...(secondaryFont
+        ? {
+            secondary: {
+              ...baseTypography?.secondary,
+              family: secondaryFont,
+              ...(secondaryFiles.length > 0 ? { files: secondaryFiles } : {}),
+            },
+          }
+        : {}),
+    };
+  }
+
   /* ─────────────────────────  websites / voice / strategy  ───────────────────────── */
 
   const firstSite = mock.websites[0]?.url;
@@ -187,6 +223,43 @@ function extractStrategyPatch(
     }
   }
   return Object.keys(changed).length ? changed : null;
+}
+
+/** Pull every uploaded font file across mock.fonts[] that matches
+ *  `family` under lenient comparison (case-insensitive, prefix-aware,
+ *  ≥3 char overlap). Mirrors the matching SetupPage's handleAddFont
+ *  uses when attaching uploads to existing entries — so an upload
+ *  parsed as "GT Super Display" still attaches to a "GT Super" slot. */
+function collectFilesFor(
+  mock: MockBrand,
+  family: string | undefined,
+): Array<{ name: string; weight: string; format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'eot'; dataUrl: string; size: number }> {
+  if (!family) return [];
+  const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+  const target = norm(family);
+  const out: Array<{ name: string; weight: string; format: 'ttf' | 'otf' | 'woff' | 'woff2' | 'eot'; dataUrl: string; size: number }> = [];
+  for (const f of mock.fonts) {
+    const candidate = norm(f.family);
+    const matches =
+      candidate === target ||
+      (candidate.length >= 3 && target.startsWith(candidate)) ||
+      (target.length >= 3 && candidate.startsWith(target));
+    if (matches && f.files && f.files.length > 0) {
+      out.push(...f.files);
+    }
+  }
+  return out;
+}
+
+function fontFilesEqual(
+  a: Array<{ name: string; size: number }>,
+  b: Array<{ name: string; size: number }>,
+): boolean {
+  if (a.length !== b.length) return false;
+  const sig = (x: { name: string; size: number }) => `${x.name.toLowerCase()}::${x.size}`;
+  const left = a.map(sig).sort().join('|');
+  const right = b.map(sig).sort().join('|');
+  return left === right;
 }
 
 function arraysEqual(a: string[], b: string[]): boolean {

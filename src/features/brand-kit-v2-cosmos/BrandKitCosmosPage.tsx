@@ -1,8 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { ArrowRight } from '@/features/setup/components/SetupIcons';
-import type { MockBrand } from '@/features/setup/data/mockBrand';
+import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
+import { hexToName } from '@/features/setup/data/colorNames';
+import type { BrandColor, MockBrand } from '@/features/setup/data/mockBrand';
+import type { Brand } from '@/shared/types/brand';
+import type { BrandKitTemplate } from '@/features/brandkit/types';
+import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
 import {
   BrandKitSidebar,
   KIT_SECTIONS,
@@ -10,26 +24,365 @@ import {
 } from './components/BrandKitSidebar';
 import { KitSection } from './components/KitSection';
 import { SectionGrid } from './components/sections';
+import {
+  BrandKitCardEditor,
+  type EditorTarget,
+} from './components/BrandKitCardEditor';
+import { IconPickerModal } from './components/IconPickerModal';
+import { TemplatePickerModal } from './components/TemplatePickerModal';
+import { variantsForCard } from './data/legacy-mapping';
+import { suggestIconsForBrand } from './data/suggestIcons';
+import {
+  ICON_WEIGHTS,
+  type IconWeightId,
+  detectIconWeight,
+  withIconWeight,
+} from './data/iconWeights';
+import { contrastRatio } from './data/recolorLogo';
+import {
+  buildAllColorsZip,
+  triggerBlobDownload,
+  type PaletteColor,
+} from './data/colorPaletteExport';
+import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
+import { downloadFontsBundle } from './data/fontExport';
+
+/** Curated 3-tile defaults for cards that have a designed picker
+ *  pattern. Anything not listed here falls back to the first 3
+ *  templates returned by `variantsForCard` (in template order). The
+ *  user-facing UX: each drilldown shows three featured tiles, plus a
+ *  "+" button that opens the picker modal to browse the full library
+ *  and append more tiles for the session. */
+const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
+  'Business Card': [
+    'business-cards-ext-3',   // Brute Force
+    'business-cards-ext-4',   // Frosted Layer
+    'business-cards-ext-113', // Wave 2 · 95
+  ],
+  Letterhead: [
+    'letterhead-ext-6',  // Bottom Block
+    'letterhead-ext-69', // Wave 2 · 39
+    'letterhead-ext-73', // Wave 2 · 43
+  ],
+  Envelope: [
+    'envelope-ext-30',  // Subtle Lux
+    'envelope-ext-3',   // Top Flap
+    'envelope-ext-127', // Wave 2 · 97
+  ],
+  Invoice: [
+    'invoices-ext-4', // Brute Force
+    'invoices-ext-3', // Editorial Header
+    'invoices-ext-8', // Receipt Roll
+  ],
+};
+
+/** Set of card labels that get the "3 featured + picker" pattern.
+ *  Brand-asset cards (Logos / Colors / Fonts / Icons / Photos / About)
+ *  are intentionally excluded — they're driven by real Setup data,
+ *  not template variants. */
+const PICKER_LABELS: ReadonlySet<string> = new Set<string>([
+  // Stationery
+  'Business Card',
+  'Letterhead',
+  'Envelope',
+  'Invoice',
+  // Social
+  'Profile',
+  'Cover',
+  'Post',
+  'Story',
+  // Web
+  'Favicon',
+  'Website',
+  'Email Signature',
+  'Landing Page',
+  // Brand Guides
+  'Logo Guide',
+  'Color Guide',
+  'Typography Guide',
+  'Voice Guide',
+  'Imagery Guide',
+  // Presentations
+  'Pitch Deck',
+  'Business Plan',
+  'Proposal',
+  'Case Studies',
+  // Animations
+  'Logo Reveal',
+  'Slide In',
+  'Fade',
+  'Rotate',
+]);
+
+/** Per-label width-over-height ratio for the picker modal tiles.
+ *  Falls back to 1.6 (the common business-card / landscape default).
+ *  Keep this aligned with each card's natural orientation so the
+ *  picker grid reads at a glance. */
+const PICKER_ASPECT_BY_LABEL: Record<string, number> = {
+  'Business Card': 1.6,
+  Letterhead: 1 / 1.414,
+  Envelope: 1.6,
+  Invoice: 1 / 1.414,
+  Profile: 1,
+  Cover: 1.6,
+  Post: 1,
+  Story: 9 / 16,
+  Favicon: 1,
+  Website: 1.6,
+  'Email Signature': 1.6,
+  'Landing Page': 1.6,
+  'Logo Guide': 1 / 1.414,
+  'Color Guide': 1 / 1.414,
+  'Typography Guide': 1 / 1.414,
+  'Voice Guide': 1 / 1.414,
+  'Imagery Guide': 1 / 1.414,
+  'Pitch Deck': 1.6,
+  'Business Plan': 1.6,
+  Proposal: 1.6,
+  'Case Studies': 1.6,
+  'Logo Reveal': 1,
+  'Slide In': 1,
+  Fade: 1,
+  Rotate: 1,
+};
+// Rounded weight family from Flaticon UICONS — Regular drives the
+// picker grid + default class names; Thin/Bold/Solid let the editor
+// retint a single icon's weight without changing the underlying name.
+import '@flaticon/flaticon-uicons/css/regular/rounded.css';
+import '@flaticon/flaticon-uicons/css/thin/rounded.css';
+import '@flaticon/flaticon-uicons/css/bold/rounded.css';
+import '@flaticon/flaticon-uicons/css/solid/rounded.css';
 import './brand-kit.css';
+
+const SECTION_LABELS: Record<KitSectionKey, string> = {
+  'brand-assets': 'Brand Assets',
+  stationery: 'Stationery',
+  social: 'Social Media',
+  web: 'Web',
+  'brand-guides': 'Brand Guides',
+  presentations: 'Presentations',
+  animations: 'Animations',
+};
 
 /**
  * BrandKitCosmosPage — single-scroll Brand Kit at /b/:slug/brand-kit.
  *
- * The page is a long list of sections (Stationery · Social · Favicons
- * · Mockups · Brand Book · Brand Guides · Profile Icons · Business
- * Cards · Facebook Covers · Instagram Posts · Instagram Stories ·
- * Presentations · Animations · QR Code · Invoices · Design Tool).
- * Each section renders a grid of placeholder cards that share a
- * single cover image — real per-item renders will replace the
- * placeholder later.
+ * Two views, same route:
+ *   • Sections list (default) — every section with a small grid of cards.
+ *   • Drilldown view — the entire board area is replaced by a header
+ *     plus a long grid of variants for one card. Sidebar stays put.
  *
- * Sidebar is a flat list of the same 16 section keys; click a row to
- * scroll to it. No deep-editors split anymore.
+ * Picking a card swaps to drilldown; back arrow / sidebar jump returns
+ * to the sections list. Right-click "Edit" opens the editor directly,
+ * skipping the drilldown — same behaviour the old context menu had.
+ *
+ * Transition: only the cover images fade in (top-to-bottom stagger);
+ * the tile frames switch instantly. We tried a dual-layer cross-fade
+ * earlier so the previous view's covers showed through during the
+ * fade, but the two grids never aligned perfectly (subpixel drift +
+ * different surrounding structures), which made the rectangles look
+ * like they'd doubled up. Single-layer + cover-only fade keeps things
+ * visually clean.
  */
-export function BrandKitCosmosPage({ brand }: { brand: MockBrand }) {
-  const [activeKey, setActiveKey] = useState<KitSectionKey>('stationery');
+type Origin = { x: number; y: number };
+type ViewState = 'sections' | 'drilldown';
+
+/** Per-tile fade duration (must match the CSS transition value). */
+const TILE_FADE_MS = 280;
+/** Cap on the staggered delay so far tiles still fade in finite time. */
+const MAX_DELAY_MS = 500;
+/** ms-per-pixel speed for the radial wipe. */
+const WIPE_SPEED = 0.4;
+
+export function BrandKitCosmosPage({
+  brand,
+  sourceBrand,
+}: {
+  brand: MockBrand;
+  /** Canonical Brand object — needed by the legacy template
+   *  renderers (BusinessCardRenderer, MockupRenderer, etc.) so the
+   *  drilldown can paint live, brand-aware previews of every
+   *  template variant. Optional: when absent (e.g. the standalone
+   *  setup mock), the drilldown falls back to the placeholder
+   *  cover for every tile. */
+  sourceBrand?: Brand;
+}) {
+  const [activeKey, setActiveKey] = useState<KitSectionKey>('brand-assets');
+  // Page 2's content target. Once set on the first click, page 2
+  // stays mounted in the DOM forever — only the target's content
+  // (covers + label) updates on subsequent clicks. Mounting page 2
+  // exactly once means the transition fires reliably (CSS
+  // transitions need a prior state to interpolate from).
+  const [drilldownTarget, setDrilldownTarget] = useState<EditorTarget | null>(null);
+  // Which page is currently active. Drives data-active on the
+  // stage, which flips the opacity rules for both layers.
+  const [view, setView] = useState<ViewState>('sections');
+  const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  // Which template-picker is open (by card label), or null when none.
+  // A single state replaces the per-label `*PickerOpen` flags.
+  const [pickerLabel, setPickerLabel] = useState<string | null>(null);
+  // Featured variant IDs per card label. Initialized from the curated
+  // defaults (Stationery only); other labels resolve at render time
+  // by taking the first 3 templates from the live drilldown target.
+  // Picker appends per-label; persists for the session only.
+  const [featuredIdsByLabel, setFeaturedIdsByLabel] = useState<
+    Record<string, string[]>
+  >({ ...DEFAULT_FEATURED_IDS_BY_LABEL });
+  // User-added icons override `brand.icons` for this session. Starts
+  // null so we render the brand's seed set unchanged; the first add
+  // (or removal) clones into a mutable list. Persistence back to the
+  // brand store is a separate follow-up.
+  const [iconsOverride, setIconsOverride] = useState<string[] | null>(null);
+  // Global tint applied to every icon in the drilldown — null means
+  // each icon uses the brand-primary fallback baked into the
+  // renderer. Surfaced via the `--bk-icon-tint` CSS variable so we
+  // don't have to thread state through each tile.
+  const [iconTintOverride, setIconTintOverride] = useState<string | null>(null);
+
+  // Colors added via the drilldown's "+" picker. Append-only for the
+  // session — persistence back to the canonical Brand is a follow-up,
+  // mirroring how `iconsOverride` works.
+  const [colorAddsOverride, setColorAddsOverride] = useState<{
+    core: BrandColor[];
+    accent: BrandColor[];
+  }>({ core: [], accent: [] });
+
+  // When the brand has no icons of its own, auto-seed with 50 picks
+  // suggested from its text fields (audience, tone, strategy, about).
+  // Empty brands fall back to a curated starter pack inside the
+  // suggester. Computed lazily and only when actually needed — once
+  // the user adds via the picker, iconsOverride takes precedence.
+  const suggestedIcons = useMemo<string[] | null>(() => {
+    if (brand.icons.length > 0) return null;
+    const text = [
+      brand.name,
+      sourceBrand?.audience,
+      sourceBrand?.tone,
+      sourceBrand?.guidelines?.strategy?.positioning,
+      sourceBrand?.guidelines?.strategy?.vision,
+      sourceBrand?.guidelines?.strategy?.mission,
+      ...brand.about.map((a) => `${a.title} ${a.content}`),
+    ]
+      .filter((s): s is string => Boolean(s && s.trim()))
+      .join(' ');
+    return suggestIconsForBrand(text, 50);
+  }, [brand, sourceBrand]);
+
+  const effectiveBrand = useMemo<MockBrand>(() => {
+    let next = brand;
+    if (iconsOverride) {
+      next = { ...next, icons: iconsOverride };
+    } else if (brand.icons.length === 0 && suggestedIcons) {
+      next = { ...next, icons: suggestedIcons };
+    }
+    if (colorAddsOverride.core.length || colorAddsOverride.accent.length) {
+      next = {
+        ...next,
+        colors: {
+          ...next.colors,
+          core: [...next.colors.core, ...colorAddsOverride.core],
+          accent: [...next.colors.accent, ...colorAddsOverride.accent],
+        },
+      };
+    }
+    return next;
+  }, [brand, iconsOverride, suggestedIcons, colorAddsOverride]);
+
+  const handleAddColor = useCallback(
+    (group: 'core' | 'accent', hex: string) => {
+      const norm = hex.trim().toLowerCase();
+      const existingHexes = new Set([
+        ...brand.colors.core.map((c) => c.hex.toLowerCase()),
+        ...brand.colors.accent.map((c) => c.hex.toLowerCase()),
+        ...brand.colors.grey.map((c) => c.hex.toLowerCase()),
+        ...colorAddsOverride.core.map((c) => c.hex.toLowerCase()),
+        ...colorAddsOverride.accent.map((c) => c.hex.toLowerCase()),
+      ]);
+      if (existingHexes.has(norm)) {
+        toast(`${hex.toUpperCase()} is already in your palette`);
+        return;
+      }
+      setColorAddsOverride((prev) => {
+        const taken = new Set([
+          ...brand.colors.core.map((c) => c.name),
+          ...brand.colors.accent.map((c) => c.name),
+          ...brand.colors.grey.map((c) => c.name),
+          ...prev.core.map((c) => c.name),
+          ...prev.accent.map((c) => c.name),
+        ]);
+        const base = hexToName(hex);
+        let name = base;
+        let n = 2;
+        while (taken.has(name)) {
+          name = `${base} ${n}`;
+          n += 1;
+        }
+        return { ...prev, [group]: [...prev[group], { hex, name }] };
+      });
+    },
+    [brand.colors, colorAddsOverride],
+  );
+
+  const handleAddIcon = useCallback(
+    (className: string) => {
+      setIconsOverride((prev) => {
+        // Promote the suggested seed into the override on first add
+        // so the user's pick lands on top of the auto-seeded set,
+        // not on the (now ignored) original empty brand.icons.
+        const base = prev ?? (brand.icons.length === 0 && suggestedIcons ? suggestedIcons : brand.icons);
+        if (base.includes(className)) return base;
+        return [...base, className];
+      });
+    },
+    [brand.icons, suggestedIcons],
+  );
+
+  const handleUpdateIconAt = useCallback(
+    (index: number, newClassName: string) => {
+      setIconsOverride((prev) => {
+        const base = prev ?? (brand.icons.length === 0 && suggestedIcons ? suggestedIcons : brand.icons);
+        if (index < 0 || index >= base.length) return base;
+        if (base[index] === newClassName) return base;
+        const next = base.slice();
+        next[index] = newClassName;
+        return next;
+      });
+    },
+    [brand.icons, suggestedIcons],
+  );
+
+  // Apply a single rounded weight to every icon in the kit. Re-prefixes
+  // each class name (camera → fi-{weight}-camera) and writes back into
+  // the override so the drilldown re-renders with the new weight.
+  const handleSetGlobalIconWeight = useCallback(
+    (weight: IconWeightId) => {
+      setIconsOverride((prev) => {
+        const base = prev ?? (brand.icons.length === 0 && suggestedIcons ? suggestedIcons : brand.icons);
+        const next = base.map((c) => withIconWeight(c, weight));
+        const changed = next.some((v, i) => v !== base[i]);
+        return changed ? next : base;
+      });
+    },
+    [brand.icons, suggestedIcons],
+  );
 
   const sectionRefs = useRef<Partial<Record<KitSectionKey, HTMLElement | null>>>({});
+  // Captured at click time on the trigger element (a card or the
+  // Back button). Read by the post-mount useLayoutEffect to assign
+  // each tile a distance-based animation-delay so the fade ripples
+  // outward from the click point.
+  const originRef = useRef<Origin | null>(null);
+  // Captured at the moment the user enters the drilldown. Restored
+  // on Back so the user lands at the exact section they clicked
+  // from, not at the top of the sections list.
+  const enterScrollYRef = useRef<number>(0);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  // Carries the in-app Back button's click origin across the
+  // history.back() → popstate hop so the radial wipe still
+  // radiates from the button. Stays null for browser/mouse-driven
+  // pops where we have no origin point.
+  const pendingExitOriginRef = useRef<Origin | null>(null);
 
   const setRef = (key: KitSectionKey) => (el: HTMLElement | null) => {
     sectionRefs.current[key] = el;
@@ -37,25 +390,158 @@ export function BrandKitCosmosPage({ brand }: { brand: MockBrand }) {
 
   const handleJump = useCallback((key: KitSectionKey) => {
     setActiveKey(key);
-    const el = sectionRefs.current[key];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    originRef.current = null;
+    // If we were inside the drilldown, pop the history entry pushed
+    // on enter so the back stack stays balanced — the popstate
+    // listener has already been unregistered by the view change, so
+    // no exit transition runs (we want the sidebar's instant jump,
+    // not the radial wipe).
+    const wasDrilldown = view === 'drilldown';
+    setView('sections');
+    if (wasDrilldown) window.history.back();
+    requestAnimationFrame(() => {
+      const el = sectionRefs.current[key];
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [view]);
+
+  // anchor: drilldown-anchor-v1 — user-approved baseline (2026-04-27).
+  // Don't change handlePickCard / exitDrilldown / wipe useLayoutEffect
+  // semantics without confirming first.
+  const handlePickCard = useCallback(
+    (target: EditorTarget, origin?: Origin) => {
+      // Capture current scroll so Back can restore it.
+      enterScrollYRef.current = window.scrollY;
+      // Wipe origin = the clicked tile's center, captured in
+      // DOCUMENT coords (viewport y + scrollY at click time). Doc
+      // coords stay stable while the page smooth-scrolls to the
+      // top, so the layoutEffect computes per-tile delays based on
+      // where each tile actually IS in the document — and the
+      // wipe radiates outward from the tile the user actually
+      // clicked, not from a fixed anchor.
+      if (origin) {
+        originRef.current = { x: origin.x, y: origin.y + window.scrollY };
+      } else {
+        originRef.current = null;
+      }
+      setActiveKey(target.sectionKey);
+      // Two-phase commit so the CSS opacity transition has a prior
+      // state to interpolate from on every click. Without this the
+      // first-click fade silently no-ops because the browser only
+      // sees the final opacity (1) with no prior state. flushSync
+      // forces React to commit phase A immediately; rAF defers
+      // phase B to the next frame so they paint separately.
+      flushSync(() => {
+        setDrilldownTarget(target);
+      });
+      // Push a history entry so the browser/mouse back button (or
+      // a trackpad swipe-back) can dismiss the drilldown the same
+      // way the in-app Back button does. URL stays unchanged — only
+      // the history stack grows by one. The popstate listener
+      // (effective while view === 'drilldown') runs the actual exit.
+      window.history.pushState({ bkDrilldown: true }, '');
+      // Smooth scroll up — runs in parallel with the wipe so the
+      // user sees tiles fading in WHILE they scroll up, not before
+      // arrival (would look "ready") and not after (would lag).
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      requestAnimationFrame(() => setView('drilldown'));
+    },
+    [],
+  );
+
+  // In-app exit path: stash origin so the popstate handler can
+  // forward it to the wipe, then pop the history entry pushed on
+  // enter. Routing through history.back() keeps the back stack in
+  // sync — the user can press the in-app Back, the browser button,
+  // or swipe-back interchangeably and the page state stays correct.
+  const requestExitDrilldown = useCallback((origin?: Origin) => {
+    pendingExitOriginRef.current = origin ?? null;
+    window.history.back();
   }, []);
 
+  const exitDrilldown = useCallback((origin?: Origin) => {
+    // Convert the Back button's viewport center to DOCUMENT coords
+    // so the wipe radiates from where Back is in the document — not
+    // from a viewport y that becomes stale once we restore scroll.
+    if (origin) {
+      originRef.current = { x: origin.x, y: origin.y + window.scrollY };
+    } else {
+      originRef.current = null;
+    }
+    const targetY = enterScrollYRef.current;
+    setView('sections');
+    // Don't clear drilldownTarget — page 2 stays mounted for the
+    // fade-out, and for any future re-entry to skip the rAF dance.
+    // Restore the scroll position the user was at when they entered
+    // the drilldown, so they land back on the exact section they
+    // clicked from. rAF defers until page 1 is visible and the
+    // wipe has started, so the scroll feels native.
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'auto' });
+    });
+  }, []);
+
+  // Escape exits the drilldown view (mirrors how the modal used to
+  // close on Escape). Skipped while the editor is open — the editor
+  // owns Escape so closing it doesn't also collapse drilldown.
+  useEffect(() => {
+    if (view !== 'drilldown' || editorTarget) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') requestExitDrilldown();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [view, editorTarget, requestExitDrilldown]);
+
+  // Browser/mouse back support. While the drilldown is open we
+  // listen for popstate — which fires whether the user clicked the
+  // browser back button, used a mouse back button, swiped back on
+  // a trackpad, OR called history.back() ourselves from the in-app
+  // Back button. The handler runs the actual exit transition.
+  //
+  // If the editor is open on top of the drilldown, the first back
+  // closes the editor and re-pushes the drilldown entry so a
+  // subsequent back can still dismiss the drilldown — matching the
+  // layered "back peels off the topmost overlay" behaviour users
+  // expect from native macOS swipe-back.
+  useEffect(() => {
+    if (view !== 'drilldown') return;
+    const onPop = () => {
+      if (editorTarget) {
+        setEditorTarget(null);
+        window.history.pushState({ bkDrilldown: true }, '');
+        return;
+      }
+      // If the in-app Back button drove this pop, it stashed its
+      // click position. For a browser/mouse/swipe back we have no
+      // event point — fall back to the on-screen position of the
+      // Back button itself so the radial wipe still radiates from
+      // the same spot, matching the in-app exit pixel-for-pixel.
+      let origin = pendingExitOriginRef.current;
+      pendingExitOriginRef.current = null;
+      if (!origin) {
+        const backEl = document.querySelector<HTMLElement>('.bk-drilldown-back');
+        if (backEl) {
+          const r = backEl.getBoundingClientRect();
+          origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+      }
+      exitDrilldown(origin ?? undefined);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [view, editorTarget, exitDrilldown]);
+
   const completion = useMemo(() => {
-    // All sections are always available — the brand just drives the
-    // preview values inside them. Progress shows how many have been
-    // "touched" in a loose sense (identity set + logo present).
     const identity = brand.logos.length > 0 && brand.colors.core.length > 0;
     const completed = identity ? KIT_SECTIONS.length : 0;
     return { completed, total: KIT_SECTIONS.length };
   }, [brand]);
 
-  // Scroll-spy: sync the sidebar's active row with the topmost
-  // in-view section. Fires only when the active changes, so it's
-  // cheap even across 16 observed targets.
+  // Scroll-spy: only meaningful in the sections-list view, since
+  // drilldown is a single section. Re-attach when leaving drilldown.
   useEffect(() => {
+    if (view === 'drilldown') return;
     const sections: Array<{ key: KitSectionKey; el: HTMLElement }> = KIT_SECTIONS.map((s) => {
       const el = sectionRefs.current[s.key];
       return el ? { key: s.key, el } : null;
@@ -76,7 +562,56 @@ export function BrandKitCosmosPage({ brand }: { brand: MockBrand }) {
     );
     sections.forEach((s) => observer.observe(s.el));
     return () => observer.disconnect();
-  }, []);
+  }, [view]);
+
+  // Radial wipe — runs synchronously after every view change but
+  // BEFORE the browser paints, so the CSS opacity transition fires
+  // with the correct per-tile delay from frame 0.
+  //
+  // Distances are computed in DOCUMENT space (viewport y + scrollY)
+  // so the wipe is invariant of any in-flight smooth-scroll animation.
+  // Without this, an enter that triggers a smooth scroll-to-top would
+  // measure tile rects while they're still off-screen above the
+  // viewport, every distance saturates MAX_DELAY_MS, and the whole
+  // grid fades in together once scroll completes — losing the
+  // staggered top-to-bottom reveal we want.
+  //
+  //   • Enter (sections → drilldown): delay = distance × speed.
+  //     Tiles near the wipe origin (top of page after scroll) fade
+  //     first, the cascade flows downward through the grid in time
+  //     with the smooth scroll-to-top.
+  //   • Exit  (drilldown → sections): delay = distance × speed,
+  //     origin = the Back button's document position.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const tiles = Array.from(
+      stage.querySelectorAll<HTMLElement>('.bk-card, .bk-variant-card'),
+    );
+    if (tiles.length === 0) return;
+
+    const origin = originRef.current;
+    if (!origin) {
+      tiles.forEach((el) => el.style.setProperty('--bk-d', '0ms'));
+      return;
+    }
+
+    // Read all rects first, write all delays after — avoids forcing
+    // layout once per tile.
+    const rects = tiles.map((el) => el.getBoundingClientRect());
+    const scrollY = window.scrollY;
+
+    tiles.forEach((el, i) => {
+      const r = rects[i];
+      const cx = r.left + r.width / 2;
+      // Document Y instead of viewport Y so the distance is stable
+      // while the page is mid-smooth-scroll.
+      const cy = r.top + r.height / 2 + scrollY;
+      const d = Math.hypot(cx - origin.x, cy - origin.y);
+      const finalDelay = Math.min(d * WIPE_SPEED, MAX_DELAY_MS);
+      el.style.setProperty('--bk-d', `${Math.round(finalDelay)}ms`);
+    });
+  }, [view, drilldownTarget]);
 
   return (
     <CosmosWorkspaceShell
@@ -89,49 +624,783 @@ export function BrandKitCosmosPage({ brand }: { brand: MockBrand }) {
     >
       <div className="shell">
         <BrandKitSidebar
-          brand={brand}
+          brand={effectiveBrand}
           activeKey={activeKey}
           completed={completion.completed}
           total={completion.total}
           onJump={handleJump}
         />
-        <div className="board-wrap">
-          {KIT_SECTIONS.map((s) => (
-            <KitSection
-              key={s.key}
-              dataKey={s.key}
-              title={s.name}
-              sectionRef={setRef(s.key)}
-              onAdd={() =>
-                toast(`Add ${s.name}`, {
-                  description: 'Creation flow lands here.',
-                })
-              }
-              onDownload={() =>
-                toast(`Download ${s.name}`, {
-                  description: 'Export flow lands here.',
-                })
-              }
-            >
-              <SectionGrid
-                brand={brand}
-                sectionKey={s.key}
-                onSaveCard={(t) =>
-                  toast(`Saved ${t.label}`, {
-                    description: 'Persistence lands here.',
-                  })
-                }
-                onDownloadCard={(t) =>
-                  toast(`Download ${t.label}`, {
-                    description: 'Export lands here.',
-                  })
-                }
-              />
-            </KitSection>
-          ))}
+        <div className="board-wrap bk-cosmos-board">
+          <div ref={stageRef} className="bk-stage" data-active={view}>
+            {/* Page 1 — sections list. Always mounted, always
+                visible (modulo the per-tile wipe). */}
+            <div className="bk-stage-layer bk-stage-layer--page1">
+              {KIT_SECTIONS.map((s) => (
+                <KitSection
+                  key={s.key}
+                  dataKey={s.key}
+                  title={s.name}
+                  sectionRef={setRef(s.key)}
+                  onDownload={() =>
+                    toast(`Download ${s.name}`, {
+                      description: 'Export flow lands here.',
+                    })
+                  }
+                >
+                  <SectionGrid
+                    sectionKey={s.key}
+                    brand={effectiveBrand}
+                    onPickCard={handlePickCard}
+                    onEditCard={(t) => setEditorTarget(t)}
+                    onDownloadCard={(t) =>
+                      toast(`Download ${t.label}`, {
+                        description: 'Export lands here.',
+                      })
+                    }
+                  />
+                </KitSection>
+              ))}
+            </div>
+            {/* Page 2 — drilldown. Mounted on the first card click
+                and stays in the DOM forever after (target updates
+                in place). Lives behind page 1 with opacity 0 until
+                the wipe reveals it. */}
+            {drilldownTarget !== null && (
+              <div className="bk-stage-layer bk-stage-layer--page2">
+                <BrandKitDrilldown
+                  target={drilldownTarget}
+                  sourceBrand={sourceBrand}
+                  mockBrand={effectiveBrand}
+                  onBack={requestExitDrilldown}
+                  onPickVariant={(template) =>
+                    setEditorTarget({ ...drilldownTarget, template })
+                  }
+                  onAddIcon={() => setIconPickerOpen(true)}
+                  onSetGlobalIconWeight={handleSetGlobalIconWeight}
+                  iconTintOverride={iconTintOverride}
+                  onSetGlobalIconTint={setIconTintOverride}
+                  featuredIds={
+                    PICKER_LABELS.has(drilldownTarget.label)
+                      ? featuredIdsByLabel[drilldownTarget.label] ??
+                        (drilldownTarget.templates ?? [])
+                          .slice(0, 3)
+                          .map((t) => t.id)
+                      : undefined
+                  }
+                  onAddVariants={
+                    PICKER_LABELS.has(drilldownTarget.label)
+                      ? () => setPickerLabel(drilldownTarget.label)
+                      : undefined
+                  }
+                  onAddColor={handleAddColor}
+                  onDownload={async () => {
+                    // Colors drilldown bundles every core/accent/grey
+                    // swatch into one zip, each color in its own
+                    // folder with svg/png/jpg/ai for both the base
+                    // tile and the shades stack. Other drilldowns
+                    // still toast — their export flows aren't built
+                    // out yet.
+                    if (drilldownTarget.label === 'Fonts') {
+                      // Bulk Fonts download. Bytes come straight from
+                      // whatever the user uploaded in Setup
+                      // (round-tripped through Brand.typography.files).
+                      // No file picker — if a family was uploaded it's
+                      // already on the mock; Google Fonts fills in
+                      // anything that wasn't.
+                      try {
+                        const families = effectiveBrand.fonts.map((f) => ({
+                          name: f.family,
+                          files: f.files,
+                        }));
+                        const zipBase = `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-fonts`;
+                        const result = await downloadFontsBundle(
+                          families,
+                          zipBase,
+                        );
+                        if (result.missing.length > 0) {
+                          toast(`Couldn't bundle ${result.missing.join(', ')}`, {
+                            description:
+                              "Upload the font in Setup → Typography to include it next time.",
+                          });
+                        }
+                      } catch (err) {
+                        toast.error('Download failed', {
+                          description:
+                            err instanceof Error ? err.message : 'Unknown error',
+                        });
+                      }
+                      return;
+                    }
+                    if (drilldownTarget.label === 'Icons') {
+                      // Snapshot every rendered icon tile in the
+                      // drilldown grid, paired with its template name
+                      // (already derived from the icon class name in
+                      // legacy-mapping). Rasterizing live DOM lets
+                      // the export inherit the user-picked tint and
+                      // weight without re-implementing them.
+                      // Capture the icon's wrapper, not the inner
+                      // `<i>` — Flaticon glyphs render via `::before`
+                      // and html2canvas measures the host's
+                      // bounding box. The host can collapse to 0×0
+                      // with `display: flex` + auto sizing, which
+                      // crashes `drawImage` downstream.
+                      const tiles = stageRef.current?.querySelectorAll<HTMLElement>(
+                        '.bk-stage-layer--page2 .brand-asset-render--icon',
+                      );
+                      const tplNames = (drilldownTarget.templates ?? []).map((t) => t.name);
+                      const iconSources = effectiveBrand.icons;
+                      const entries: IconExportEntry[] = [];
+                      tiles?.forEach((el, i) => {
+                        entries.push({
+                          name: tplNames[i] ?? `Icon ${i + 1}`,
+                          source: iconSources[i] ?? '',
+                          element: el,
+                        });
+                      });
+                      try {
+                        await downloadIconsBundle(
+                          entries,
+                          `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-icons`,
+                        );
+                      } catch (err) {
+                        toast.error('Download failed', {
+                          description:
+                            err instanceof Error ? err.message : 'Unknown error',
+                        });
+                      }
+                      return;
+                    }
+                    if (drilldownTarget.label === 'Colors') {
+                      const palette: PaletteColor[] = [
+                        ...effectiveBrand.colors.core.map((c, i) => ({
+                          hex: c.hex,
+                          name: c.name,
+                          role:
+                            (['Primary', 'Secondary', 'Background'] as const)[i] ?? `Core ${i + 1}`,
+                        })),
+                        ...effectiveBrand.colors.accent.map((c) => ({
+                          hex: c.hex,
+                          name: c.name,
+                          role: 'Accent',
+                        })),
+                        ...effectiveBrand.colors.grey.map((c) => ({
+                          hex: c.hex,
+                          name: c.name,
+                          role: 'Neutral',
+                        })),
+                      ];
+                      try {
+                        const blob = await buildAllColorsZip(
+                          palette,
+                          effectiveBrand.name,
+                        );
+                        triggerBlobDownload(
+                          blob,
+                          `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-colors.zip`,
+                        );
+                      } catch (err) {
+                        toast.error('Download failed', {
+                          description:
+                            err instanceof Error ? err.message : 'Unknown error',
+                        });
+                      }
+                      return;
+                    }
+                    toast(`Download ${drilldownTarget.label}`, {
+                      description: 'Export flow lands here.',
+                    });
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
+      <BrandKitCardEditor
+        brand={effectiveBrand}
+        sourceBrand={sourceBrand}
+        target={editorTarget}
+        onClose={() => setEditorTarget(null)}
+        onSave={(t) => {
+          toast(`Saved ${t.label}`, {
+            description: 'Persistence lands here.',
+          });
+          setEditorTarget(null);
+        }}
+        onDownload={(t) =>
+          toast(`Download ${t.label}`, {
+            description: 'Export lands here.',
+          })
+        }
+        onUpdateIconAt={handleUpdateIconAt}
+      />
+      <IconPickerModal
+        open={iconPickerOpen}
+        selected={effectiveBrand.icons}
+        onPick={handleAddIcon}
+        onClose={() => setIconPickerOpen(false)}
+      />
+      <TemplatePickerModal
+        open={pickerLabel !== null}
+        title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
+        tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
+        templates={
+          pickerLabel && drilldownTarget?.label === pickerLabel
+            ? drilldownTarget.templates ?? []
+            : []
+        }
+        excludedIds={
+          pickerLabel
+            ? featuredIdsByLabel[pickerLabel] ??
+              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id)
+            : []
+        }
+        sourceBrand={sourceBrand}
+        mockBrand={effectiveBrand}
+        onPick={(tpl) => {
+          if (!pickerLabel) return;
+          setFeaturedIdsByLabel((prev) => {
+            const current =
+              prev[pickerLabel] ??
+              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id);
+            if (current.includes(tpl.id)) return prev;
+            return { ...prev, [pickerLabel]: [...current, tpl.id] };
+          });
+        }}
+        onClose={() => setPickerLabel(null)}
+      />
     </CosmosWorkspaceShell>
+  );
+}
+
+type DrilldownProps = {
+  target: EditorTarget;
+  sourceBrand?: Brand;
+  /** Setup-shaped brand data — required for brand-asset variants
+   *  whose renderers live in a MockBrand world. */
+  mockBrand?: MockBrand;
+  onBack: (origin?: Origin) => void;
+  onPickVariant: (template?: BrandKitTemplate) => void;
+  /** Optional — when provided, the Icons drilldown shows an "Add"
+   *  button in its header that opens the picker. */
+  onAddIcon?: () => void;
+  /** Optional — when provided, the Icons drilldown shows an "Edit"
+   *  button next to "+" and Download. Picking a weight here applies
+   *  it to every icon in the kit at once (brand-consistent set). */
+  onSetGlobalIconWeight?: (weight: IconWeightId) => void;
+  /** Current global icon tint hex, or null when each icon uses the
+   *  renderer's per-tile fallback (brand primary). Used to highlight
+   *  the active swatch in the Edit popover. */
+  iconTintOverride?: string | null;
+  /** Pass a hex to set the global tint, or null to clear it and
+   *  fall back to the per-tile default. */
+  onSetGlobalIconTint?: (hex: string | null) => void;
+  /** Curated variant IDs for the current drilldown's card. When
+   *  defined, the grid renders only these tiles in this order — the
+   *  rest of the library is reachable via the "+" picker. Undefined
+   *  means render all of `target.templates` (used for cards with no
+   *  designed picker pattern, e.g. Brand Assets). */
+  featuredIds?: string[];
+  /** Opens the per-card variants picker (more variants from the
+   *  library). When defined alongside `featuredIds`, the drilldown
+   *  shows a "+" in its header. */
+  onAddVariants?: () => void;
+  /** Optional — when provided, the Colors drilldown shows a "+"
+   *  button that pops the inline HSV color picker (Setup parity). */
+  onAddColor?: (group: 'core' | 'accent', hex: string) => void;
+  onDownload: () => void;
+};
+
+/**
+ * Drilldown — Page 2 = a folder view of what's inside the picked
+ * card. ONE header at the top (Back · card title · download) and
+ * ONE continuous 3-column grid of variant tiles flowing
+ * top-to-bottom with no section breaks. Reads as a single folder
+ * the user opened by clicking the card.
+ *
+ * Variants come from the legacy brandkit library via
+ * `legacy-mapping.ts`: each cosmos card resolves to a moduleId,
+ * and the drilldown shows that module's real templates. When
+ * a `sourceBrand` is supplied each tile renders the template's
+ * live design (BusinessCardRenderer / MockupRenderer / etc.)
+ * — the same render the legacy `/b/:slug/brandkit/<id>` page
+ * uses, just framed in our cosmos shell. Cards with no legacy
+ * counterpart fall back to the shared cover image.
+ */
+function BrandKitDrilldown({
+  target,
+  sourceBrand,
+  mockBrand,
+  onBack,
+  onPickVariant,
+  onAddIcon,
+  onSetGlobalIconWeight,
+  iconTintOverride,
+  onSetGlobalIconTint,
+  featuredIds,
+  onAddVariants,
+  onAddColor,
+  onDownload,
+}: DrilldownProps) {
+  // For the Icons card we re-derive templates from the live brand on
+  // every render so user-added icons surface immediately. The
+  // snapshot stored on `target.templates` is captured at click time
+  // and would otherwise miss anything added during the session.
+  // Updating target.templates instead would re-trigger the radial
+  // wipe on every add — deriving here keeps the wipe firing only on
+  // enter/exit.
+  const isIcons = target.label === 'Icons' && target.sectionKey === 'brand-assets';
+  const isColors = target.label === 'Colors' && target.sectionKey === 'brand-assets';
+  const templates = useMemo(() => {
+    if (isIcons && mockBrand) {
+      return variantsForCard(target.sectionKey, target.label, mockBrand);
+    }
+    if (isColors && mockBrand) {
+      // Re-derive on every render so a color added via the "+"
+      // popover surfaces a new tile immediately. Same trick the
+      // Icons drilldown uses.
+      return variantsForCard(target.sectionKey, target.label, mockBrand);
+    }
+    if (featuredIds) {
+      // Filter the full library down to the curated/picked IDs in
+      // their stored order. Drives the "3 featured + picker" pattern
+      // for Stationery, Social, Web, Brand Guides, Presentations,
+      // Animations.
+      const all = target.templates ?? [];
+      return featuredIds
+        .map((id) => all.find((t) => t.id === id))
+        .filter((t): t is typeof all[number] => Boolean(t));
+    }
+    return target.templates ?? [];
+  }, [
+    isIcons,
+    isColors,
+    featuredIds,
+    mockBrand,
+    target.sectionKey,
+    target.label,
+    target.templates,
+  ]);
+  const hasTemplates = templates.length > 0;
+
+  // Weight-popover state for the Icons drilldown's Edit button. Anchor
+  // ref drives popover positioning; outside-click + Escape dismiss it.
+  const [weightOpen, setWeightOpen] = useState(false);
+  const weightAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const weightPopoverRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!weightOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        weightAnchorRef.current?.contains(t) ||
+        weightPopoverRef.current?.contains(t)
+      )
+        return;
+      setWeightOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setWeightOpen(false);
+    };
+    window.addEventListener('mousedown', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [weightOpen]);
+
+  // Highlight whichever weight is currently applied to the kit. Read
+  // from the first icon — the global switcher keeps the whole set in
+  // sync, so the first one is representative.
+  const currentWeight: IconWeightId | null =
+    isIcons && mockBrand?.icons[0]
+      ? detectIconWeight(mockBrand.icons[0])
+      : null;
+  // Pick a "preview" icon name for the popover swatches. Prefer the
+  // first icon in the brand; if there isn't one, fall back to a
+  // generic catalog stand-in.
+  const popoverPreviewBare = (() => {
+    const first = mockBrand?.icons[0];
+    if (!first) return 'star';
+    return first.replace(/^fi-(rr|br|sr|rs|bs|ss|tr|ts|brands)-/, '');
+  })();
+  // Brand colors available as global tint options in the Edit popover.
+  const brandPalette = mockBrand
+    ? [...mockBrand.colors.core, ...mockBrand.colors.accent, ...mockBrand.colors.grey]
+    : [];
+  const activeTint = (iconTintOverride ?? mockBrand?.colors.core[0]?.hex ?? '').toLowerCase();
+
+  // Watch the workspace's theme attribute so we can flip the icon
+  // tile's bg when the chosen tint vanishes against the theme surface
+  // (e.g. black tint in dark mode, white in light mode).
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  useEffect(() => {
+    const ws = document.querySelector('[data-cosmos="workspace"]');
+    const read = () =>
+      setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    read();
+    if (!ws) return;
+    const ob = new MutationObserver(read);
+    ob.observe(ws, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => ob.disconnect();
+  }, []);
+
+  // Add-color popover state — only meaningful for the Colors
+  // drilldown. Tracks which palette (Core / Accent) the new color
+  // lands in, the live HSV draft, and whether the popover is open.
+  // Outside-click + Escape close it; we listen on `click` (not
+  // `mousedown`) so a drag inside the HSV canvas that ends outside
+  // the popover doesn't dismiss it.
+  const [colorOpen, setColorOpen] = useState(false);
+  const [colorTarget, setColorTarget] = useState<'core' | 'accent'>('core');
+  const [colorDraft, setColorDraft] = useState('#4F46E5');
+  const colorAnchorRef = useRef<HTMLButtonElement | null>(null);
+  const colorPopoverRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!colorOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (colorAnchorRef.current?.contains(t)) return;
+      if (colorPopoverRef.current?.contains(t)) return;
+      setColorOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setColorOpen(false);
+    };
+    document.addEventListener('click', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [colorOpen]);
+
+  // Decide whether to flip each icon tile's background. We compare the
+  // chosen tint's WCAG contrast against the theme surface — if it's
+  // below ~2 the icon would visually disappear, so we paint the tile
+  // in the opposite of the surface to restore contrast. Returns null
+  // when the natural surface already provides enough contrast.
+  const iconBgFlip = useMemo<string | null>(() => {
+    if (!isIcons) return null;
+    const tint = iconTintOverride ?? mockBrand?.colors.core[0]?.hex ?? null;
+    if (!tint) return null;
+    // Approximate the workspace surface with a single hex per theme —
+    // good enough for the visibility heuristic without coupling to
+    // the design-token tree.
+    const surface = theme === 'dark' ? '#111113' : '#ffffff';
+    const inverse = theme === 'dark' ? '#ffffff' : '#111113';
+    return contrastRatio(tint, surface) < 2 ? inverse : null;
+  }, [isIcons, iconTintOverride, mockBrand, theme]);
+
+  return (
+    <div className="bk-drilldown">
+      <div className="bk-drilldown-head">
+        <div className="bk-drilldown-pill">
+          <button
+            type="button"
+            className="bk-drilldown-back"
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              onBack({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+            }}
+            aria-label={`Back to ${SECTION_LABELS[target.sectionKey]}`}
+            title={`Back to ${SECTION_LABELS[target.sectionKey]}`}
+          >
+            <BackArrow />
+            <span>Back</span>
+          </button>
+          <h1 className="bk-drilldown-title">{target.label}</h1>
+        </div>
+        <div className="bk-drilldown-actions">
+          {isIcons && onAddIcon && (
+            <button
+              type="button"
+              className="section-add"
+              onClick={onAddIcon}
+              aria-label="Add icons"
+              title="Add icons"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          )}
+          {onAddVariants && (
+            <button
+              type="button"
+              className="section-add"
+              onClick={onAddVariants}
+              aria-label={`Browse more ${target.label.toLowerCase()} variants`}
+              title="More variants"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
+          )}
+          {isColors && onAddColor && (
+            <div className="bk-drilldown-color">
+              <button
+                ref={colorAnchorRef}
+                type="button"
+                className={`section-add${colorOpen ? ' is-active' : ''}`}
+                onClick={() => setColorOpen((v) => !v)}
+                aria-label="Add a new color"
+                aria-expanded={colorOpen}
+                title="Add a color"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+              {colorOpen && (
+                <div
+                  ref={colorPopoverRef}
+                  className="bk-color-popover"
+                  role="dialog"
+                  aria-label="Add a new color"
+                >
+                  <ColorPickerHSV
+                    hex={colorDraft}
+                    compact
+                    commitLabel="Add"
+                    paletteOptions={[
+                      { key: 'core', label: 'Core' },
+                      { key: 'accent', label: 'Accent' },
+                    ]}
+                    selectedPalette={colorTarget}
+                    onSelectPalette={(k) => setColorTarget(k as 'core' | 'accent')}
+                    onChange={(hex) => setColorDraft(hex)}
+                    onCommit={(hex) => {
+                      onAddColor(colorTarget, hex);
+                      setColorOpen(false);
+                    }}
+                    onCancel={() => setColorOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          {isIcons && onSetGlobalIconWeight && (
+            <div className="bk-drilldown-weight">
+              <button
+                ref={weightAnchorRef}
+                type="button"
+                className={`section-add${weightOpen ? ' is-active' : ''}`}
+                onClick={() => setWeightOpen((v) => !v)}
+                aria-label="Edit icon weight"
+                aria-expanded={weightOpen}
+                title="Icon weight"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              {weightOpen && (
+                <div ref={weightPopoverRef} className="bk-weight-popover" role="menu">
+                  <span className="bk-weight-popover-title">Icon weight</span>
+                  <div className="bk-weight-popover-grid">
+                    {ICON_WEIGHTS.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        className={`bk-weight-popover-cell${currentWeight === w.id ? ' is-selected' : ''}`}
+                        onClick={() => onSetGlobalIconWeight(w.id)}
+                        role="menuitemradio"
+                        aria-checked={currentWeight === w.id}
+                      >
+                        <i className={`fi fi-${w.id}-${popoverPreviewBare}`} aria-hidden />
+                        <span>{w.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {onSetGlobalIconTint && brandPalette.length > 0 && (
+                    <>
+                      <span className="bk-weight-popover-title">Icon color</span>
+                      <div className="bk-weight-popover-swatches">
+                        {brandPalette.map((c) => {
+                          const isOn = activeTint === c.hex.toLowerCase();
+                          return (
+                            <button
+                              key={`tint-${c.hex}-${c.name}`}
+                              type="button"
+                              className={`bk-weight-popover-swatch${isOn ? ' is-selected' : ''}`}
+                              style={{ background: c.hex }}
+                              onClick={() => onSetGlobalIconTint(c.hex)}
+                              title={`${c.name} — ${c.hex.toUpperCase()}`}
+                              aria-pressed={isOn}
+                              aria-label={`Icon color ${c.name} ${c.hex}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <button
+            type="button"
+            className="section-add section-download"
+            onClick={onDownload}
+            aria-label={`Download ${target.label}`}
+            title={`Download ${target.label}`}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div
+        className="bk-drilldown-grid"
+        style={
+          isIcons
+            ? ({
+                ...(iconTintOverride ? { '--bk-icon-tint': iconTintOverride } : {}),
+                ...(iconBgFlip ? { '--bk-icon-bg': iconBgFlip } : {}),
+              } as CSSProperties)
+            : undefined
+        }
+      >
+        {hasTemplates ? (
+          templates.map((tpl) => (
+            <figure key={tpl.id} className="bk-variant-card">
+              <button
+                type="button"
+                className="bk-variant-tile"
+                onClick={() => onPickVariant(tpl)}
+                aria-label={`Open ${tpl.name}`}
+              >
+                {sourceBrand ? (
+                  <span className="bk-variant-tile-render" aria-hidden>
+                    {renderTemplateDesign(tpl, sourceBrand, mockBrand)}
+                  </span>
+                ) : (
+                  <span
+                    className="bk-variant-tile-cover"
+                    style={{ backgroundImage: `url(${target.cover})` }}
+                    aria-hidden
+                  />
+                )}
+              </button>
+              <figcaption className="bk-variant-label">{tpl.name}</figcaption>
+            </figure>
+          ))
+        ) : isIcons && onAddIcon ? (
+          // Icons drilldown empty state — the brand has no icons yet,
+          // so the placeholder grid would just be 12 misleading boxes.
+          // Surface a dedicated CTA into the picker instead.
+          <button type="button" className="bk-drilldown-empty" onClick={onAddIcon}>
+            <span className="bk-drilldown-empty-icon" aria-hidden>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </span>
+            <span className="bk-drilldown-empty-title">Add icons to your kit</span>
+            <span className="bk-drilldown-empty-sub">
+              Browse 3,500+ Flaticon UICONS — search by name, click to add.
+            </span>
+          </button>
+        ) : (
+          // Fallback for cards with no legacy counterpart yet (e.g. some
+          // web/qr-code cards): keep the placeholder shape so the
+          // drilldown always renders something.
+          Array.from({ length: 12 }, (_, i) => {
+            const label = `${target.label} ${String(i + 1).padStart(2, '0')}`;
+            return (
+              <figure key={i} className="bk-variant-card">
+                <button
+                  type="button"
+                  className="bk-variant-tile"
+                  onClick={() => onPickVariant()}
+                  aria-label={`Open ${label}`}
+                >
+                  <span
+                    className="bk-variant-tile-cover"
+                    style={{ backgroundImage: `url(${target.cover})` }}
+                    aria-hidden
+                  />
+                </button>
+                <figcaption className="bk-variant-label">{label}</figcaption>
+              </figure>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BackArrow() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </svg>
   );
 }
 

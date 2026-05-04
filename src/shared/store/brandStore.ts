@@ -148,7 +148,14 @@ export const useBrandStore = create<BrandStore>()(
             applyBrandTokens(next);
           }
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to update brand', isLoading: false }, false, 'update/error');
+          // Re-throw so callers (e.g. the Setup persist wrapper) can
+          // surface the failure to the user. Without this, persist
+          // errors (notably localStorage quota for big font uploads)
+          // get swallowed and the user sees no feedback while their
+          // edit silently fails to save.
+          const message = error instanceof Error ? error.message : 'Failed to update brand';
+          set({ error: message, isLoading: false }, false, 'update/error');
+          throw error;
         }
       },
 

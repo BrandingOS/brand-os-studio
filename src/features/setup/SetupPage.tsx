@@ -11,6 +11,7 @@ import { UploadModal, type UploadKind, type CommittedAsset } from './components/
 import { AboutEditorModal, type AboutEditorInitial } from './components/AboutEditorModal';
 import { PreviewModal, type PreviewData } from './components/PreviewModal';
 import { hexToName } from './data/colorNames';
+import { loadFontFamily, registerUploadedFontFamily } from '@/shared/design-system/fonts';
 import {
   buildZip,
   downloadBlob,
@@ -31,6 +32,19 @@ const UPLOAD_KINDS: ReadonlySet<SectionKey> = new Set<SectionKey>([
 
 const MAX_WEBSITES = 3;
 const MAX_FONTS = 4;
+
+/** Drop duplicate uploaded font files within a family — same name +
+ *  same byte length is the dedupe key, since the user might re-drop
+ *  a folder. Keeps order stable so the first weight in is first out. */
+function dedupeFontFiles<T extends { name: string; size: number }>(files: T[]): T[] {
+  const seen = new Set<string>();
+  return files.filter((f) => {
+    const key = `${f.name.toLowerCase()}::${f.size}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
 
@@ -208,6 +222,22 @@ export function SetupPage({
     }, 400);
     return () => window.clearTimeout(handle);
   }, [brand]);
+
+  // Live font registration. The typography preview reads `font.family`
+  // straight to CSS — so the moment files exist for a family, push
+  // them to document.fonts via @font-face. Families without uploads
+  // hit Google Fonts. This runs on every brand mutation, but the
+  // loader caches per-cut so the actual work only happens on changes.
+  useEffect(() => {
+    for (const f of brand.fonts) {
+      if (!f.family) continue;
+      if (f.files && f.files.length > 0) {
+        registerUploadedFontFamily(f.family, f.files);
+      } else {
+        loadFontFamily(f.family);
+      }
+    }
+  }, [brand.fonts]);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
   const [typescaleOpen, setTypescaleOpen] = useState(false);
   // The brand-scoped wrapper (/b/:slug/setup) threads the real Brand.id in
@@ -426,14 +456,32 @@ export function SetupPage({
   }, []);
 
   const handleAddFont = useCallback(
-    (family: string, weights?: string[]) => {
+    (family: string, weights?: string[], files?: import('./data/mockBrand').BrandFontFile[]) => {
       setBrand((prev) => {
         if (prev.fonts.length >= MAX_FONTS) return prev;
-        // Skip if an entry with the same family is already present — the
-        // user shouldn't end up with duplicate Instrument Serif rows just
-        // because they dropped the same folder twice.
-        if (prev.fonts.some((f) => f.family.toLowerCase() === family.toLowerCase())) {
-          return prev;
+        // Lenient family match — handles the common case where the
+        // user uploads "GT-Super-Display-Bold.ttf" (parsed as "GT
+        // Super Display") and the brand already declares "GT Super".
+        // Either family being a prefix of the other counts as the
+        // same family, so the upload attaches to the existing entry
+        // instead of creating a stray "GT Super Display" alongside.
+        const norm = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+        const target = norm(family);
+        const existing = prev.fonts.find((f) => {
+          const candidate = norm(f.family);
+          if (candidate === target) return true;
+          if (candidate.length >= 3 && target.startsWith(candidate)) return true;
+          if (target.length >= 3 && candidate.startsWith(target)) return true;
+          return false;
+        });
+        if (existing) {
+          if (!files || files.length === 0) return prev;
+          return {
+            ...prev,
+            fonts: prev.fonts.map((f) =>
+              f === existing ? { ...f, files: dedupeFontFiles([...(f.files ?? []), ...files]) } : f,
+            ),
+          };
         }
         const id = `f-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const nextRole =
@@ -448,6 +496,7 @@ export function SetupPage({
           role: nextRole,
           weights: weightsLabel,
           fallback: 'system-ui, sans-serif',
+          ...(files && files.length > 0 ? { files: dedupeFontFiles(files) } : {}),
         };
         return { ...prev, fonts: [...prev.fonts, next] };
       });
@@ -460,7 +509,13 @@ export function SetupPage({
    *  the user is in replace-mode, the first family replaces the target
    *  and the rest are added. */
   const handleAddFontFamilies = useCallback(
-    (families: Array<{ family: string; weights: string[] }>) => {
+    (
+      families: Array<{
+        family: string;
+        weights: string[];
+        files?: import('./data/mockBrand').BrandFontFile[];
+      }>,
+    ) => {
       if (families.length === 0) return;
       if (replaceFontId) {
         const [first, ...rest] = families;
@@ -475,14 +530,21 @@ export function SetupPage({
                     first.weights.length > 0
                       ? first.weights.join(' · ')
                       : f.weights,
+                  ...(first.files && first.files.length > 0
+                    ? { files: dedupeFontFiles(first.files) }
+                    : {}),
                 }
               : f,
           ),
         }));
         setReplaceFontId(null);
-        rest.forEach(({ family, weights }) => handleAddFont(family, weights));
+        rest.forEach(({ family, weights, files }) =>
+          handleAddFont(family, weights, files),
+        );
       } else {
-        families.forEach(({ family, weights }) => handleAddFont(family, weights));
+        families.forEach(({ family, weights, files }) =>
+          handleAddFont(family, weights, files),
+        );
       }
       setUploadKind(null);
     },
@@ -1230,7 +1292,7 @@ export function SetupPage({
             </button>
           )}
           <button type="button" className="pill-btn pill-btn--primary">
-            <span>Publish</span>
+            <span>Export brand</span>
             <ArrowRight size={14} className="pill-btn-arrow" />
           </button>
         </>

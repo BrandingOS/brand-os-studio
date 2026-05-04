@@ -1,0 +1,632 @@
+/* ─────────────────────────────────────────────────────────────
+   404 — sketchy "draw your own page" surface.
+   Paper-textured background, hand-drawn outline chrome (no
+   filled cards), real canvas for free-draw, draggable stamps
+   layered above as DOM elements so the hand tool can move them.
+   ───────────────────────────────────────────────────────────── */
+
+.nf-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Patrick Hand', 'Caveat', cursive;
+  /* Light tokens — same palette as the Setup page (cosmos-workspace.css)
+     so the 404 reads as "same brand, different room". `--ink` is also
+     currentColor for the stamp masks, so flipping theme flips every
+     doodle to the opposite tone of the paper. */
+  --paper: #f7f5f3;
+  --ink: #0d0d0d;
+  --ink-soft: #6e6a69;
+  --ink-faint-1: rgba(13, 13, 13, 0.45);
+  --ink-faint-2: rgba(13, 13, 13, 0.32);
+  --ink-faint-3: rgba(13, 13, 13, 0.22);
+  --ink-faint-4: rgba(13, 13, 13, 0.12);
+  --ink-faint-5: rgba(13, 13, 13, 0.06);
+  --grid-line: rgba(13, 13, 13, 0.04);
+  --halo: rgba(255, 245, 220, 0.4);
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px),
+    radial-gradient(ellipse at top left, var(--halo), transparent 60%);
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+  user-select: none;
+}
+/* Dark — matches setup [data-theme="dark"]. Driven by the data-theme
+   attribute on .nf-root, set by the in-page toggle and seeded from
+   the same `brandos-theme` localStorage key the rest of the app uses. */
+.nf-root[data-theme="dark"] {
+  --paper: #141414;
+  --ink: #ffffff;
+  --ink-soft: #aeabab;
+  --ink-faint-1: rgba(247, 245, 243, 0.55);
+  --ink-faint-2: rgba(247, 245, 243, 0.32);
+  --ink-faint-3: rgba(247, 245, 243, 0.22);
+  --ink-faint-4: rgba(247, 245, 243, 0.12);
+  --ink-faint-5: rgba(247, 245, 243, 0.06);
+  --grid-line: rgba(247, 245, 243, 0.05);
+  --halo: rgba(60, 50, 40, 0.3);
+}
+
+/* ── Layered stack ────────────────────────────────────────────
+   1. headline (z 1) — the "404" watermark
+   2. canvas   (z 2) — pen / marker / pencil / etc strokes
+   3. stamps   (z 3) — DOM-rendered, draggable in hand mode
+   4. chrome   (z 10) — left bar, right bar, bottom bar
+   ─────────────────────────────────────────────────────────────── */
+
+/* Subtitle watermark — sits at the visual centre below where the 404
+   digit-stamps spawn. The digits themselves are draggable instances, so
+   they don't live in CSS anymore. */
+.nf-subtitle {
+  position: absolute;
+  top: calc(50% + 18vh);
+  left: 50%;
+  transform: translateX(-50%) rotate(1deg);
+  font-family: 'Caveat', cursive;
+  font-weight: 500;
+  font-size: clamp(20px, 2.4vw, 30px);
+  line-height: 1.1;
+  color: var(--ink-soft);
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+  margin: 0;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* Right-click context menu — same hand-drawn outline as the toolbar,
+   tilted slightly so it reads as written-on-the-spot. */
+.nf-ctx-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 160px;
+  transform: rotate(-1deg);
+  pointer-events: auto;
+}
+.nf-ctx-menu .nf-frame {
+  padding: 6px;
+}
+.nf-ctx-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nf-ctx-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+  transition: background 120ms;
+}
+.nf-ctx-menu-item:hover { background: var(--ink-faint-5); }
+.nf-ctx-menu-item--danger { color: #c44a26; }
+.nf-ctx-menu-item--danger:hover { background: rgba(196, 74, 38, 0.12); }
+.nf-ctx-menu-item svg { width: 18px; height: 18px; }
+
+.nf-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  touch-action: none;
+}
+.nf-canvas[data-tool="pen"]         { cursor: crosshair; }
+.nf-canvas[data-tool="marker"]      { cursor: crosshair; }
+.nf-canvas[data-tool="pencil"]      { cursor: crosshair; }
+.nf-canvas[data-tool="highlighter"] { cursor: crosshair; }
+.nf-canvas[data-tool="eraser"] { cursor:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><circle cx='14' cy='14' r='10' fill='none' stroke='black' stroke-width='1.5'/></svg>")
+  14 14, auto;
+}
+.nf-canvas[data-tool="hand"] {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Stamps layer — DOM elements above the canvas. The layer itself is
+   pointer-events: none so empty space passes through to the canvas
+   beneath; individual stamps opt back in when the active tool needs
+   them (hand mode for dragging, eraser mode for per-element delete). */
+.nf-stamps-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.nf-stamp-instance {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center;
+  user-select: none;
+  -webkit-user-drag: none;
+  color: var(--ink);
+}
+.nf-stamps-layer[data-tool="hand"] .nf-stamp-instance,
+.nf-stamps-layer[data-tool="eraser"] .nf-stamp-instance {
+  pointer-events: auto;
+}
+.nf-stamps-layer[data-tool="hand"] .nf-stamp-instance { cursor: grab; }
+.nf-stamps-layer[data-tool="hand"] .nf-stamp-instance:active { cursor: grabbing; }
+.nf-stamps-layer[data-tool="eraser"] .nf-stamp-instance { cursor: not-allowed; }
+.nf-stamps-layer[data-tool="eraser"] .nf-stamp-instance:hover {
+  outline: 2px dashed var(--ink);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.nf-stamp-instance svg { display: block; pointer-events: none; }
+
+/* Digit-stamp variant — used by the seeded 404 characters. Marker font
+   with the same ink-bleed shadow the old static headline had, scaled
+   to fill the instance box so size scales with the wrapper. */
+.nf-stamp-instance.is-digit {
+  display: grid;
+  place-items: center;
+}
+.nf-digit-glyph {
+  display: block;
+  font-family: 'Permanent Marker', 'Caveat', cursive;
+  color: var(--ink);
+  font-weight: 400;
+  /* font-size set inline by DigitGlyph component, in px from the
+     stamp's container size. */
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  text-shadow:
+    1px 0 0 rgba(0, 0, 0, 0.18),
+    -1px 0 0 rgba(196, 74, 38, 0.16),
+    2px 2px 0 rgba(58, 120, 194, 0.10),
+    0 0 22px var(--ink-faint-5);
+  pointer-events: none;
+}
+
+/* ── Sketch frame — hand-drawn outline used by all chrome ──
+   The frame component renders an SVG outline as a sibling of the
+   chrome's content. The container itself has no background and no
+   border; the outline is the only visible "edge". */
+.nf-frame {
+  position: relative;
+  z-index: 10;
+  background: transparent;
+}
+.nf-frame-outline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.nf-frame-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── LEFT: brainstorm sidebar ────────────────────────────────
+   Sized to match the real Brand Kit sidebar (≈256px wide, full
+   viewport height minus chrome). Inside it's a "we were just
+   sketching what this page would look like" surface — placeholder
+   rectangles, handwritten annotations, scribble arrows, and a
+   random scatter of draggable stamps. */
+.nf-sidebar {
+  position: absolute;
+  top: 64px;
+  left: 28px;
+  bottom: 110px;
+  width: 256px;
+  transform: rotate(-1.2deg);
+  padding: 0;
+}
+.nf-sidebar > .nf-frame-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 14px 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Top half: brainstorm scribbles (positioned absolutely inside). */
+.nf-brainstorm-top {
+  position: relative;
+  flex: 0 0 auto;
+  height: 150px;
+}
+/* Bottom half: scrolling scatter of stamp doodles. */
+.nf-brainstorm-stamps {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 2px 12px;
+  overflow-y: auto;
+  align-content: flex-start;
+  scrollbar-width: thin;
+}
+.nf-brainstorm-stamps::-webkit-scrollbar { width: 8px; }
+.nf-brainstorm-stamps::-webkit-scrollbar-thumb {
+  background: var(--ink-faint-4);
+  border-radius: 8px;
+}
+/* (Tile styling lives below alongside .nf-stamp-mask so all stamp
+   rules stay together — this duplicate placeholder intentionally left
+   minimal so existing layout doesn't shift.) */
+.nf-brainstorm-label {
+  position: absolute;
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--ink);
+  pointer-events: none;
+  white-space: nowrap;
+  line-height: 1.05;
+}
+.nf-brainstorm-label-sm {
+  font-size: 15px;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+.nf-brainstorm-placeholder {
+  position: absolute;
+  border: 1.5px dashed var(--ink-faint-1);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.nf-brainstorm-line {
+  position: absolute;
+  border-top: 1.5px dashed var(--ink-faint-2);
+  pointer-events: none;
+}
+.nf-brainstorm-arrow {
+  position: absolute;
+  pointer-events: none;
+  color: var(--ink);
+}
+/* Stamp tile button — used both in the brainstorm sidebar and as
+   placed instances on the canvas overlay. The actual icon graphic
+   inside is rendered by .nf-stamp-mask, which uses the SVG file as
+   a CSS mask and fills it with currentColor — so changing the page
+   theme (light ↔ dark) flips every stamp to the opposite tone of
+   the paper without touching the SVG files. */
+.nf-stamp-tile {
+  display: block;
+  width: 52px;
+  height: 52px;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  cursor: grab;
+  border-radius: 10px;
+  flex: 0 0 auto;
+  color: var(--ink);
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 140ms;
+}
+.nf-stamp-tile:hover {
+  background: var(--ink-faint-5);
+  transform: scale(1.15) rotate(var(--scatter-rot, 0deg));
+}
+.nf-stamp-tile:active { cursor: grabbing; }
+.nf-stamp-mask {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  pointer-events: none;
+}
+.nf-bar-title {
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--ink);
+  margin-bottom: 4px;
+  rotate: -1.5deg;
+  pointer-events: none;
+}
+.nf-stamp {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  background: transparent;
+  border: none;
+  cursor: grab;
+  padding: 6px;
+  border-radius: 12px;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 140ms;
+}
+.nf-stamp:hover {
+  transform: scale(1.08) rotate(2deg);
+  background: rgba(255, 220, 140, 0.35);
+}
+.nf-stamp:active { cursor: grabbing; }
+.nf-stamp svg { width: 100%; height: 100%; display: block; }
+.nf-stamp:nth-child(2n)  { rotate: -3deg; }
+.nf-stamp:nth-child(3n)  { rotate: 4deg; }
+.nf-stamp:nth-child(5n)  { rotate: -1deg; }
+
+/* ── RIGHT: brush-size sidebar ───────────────────────────────── */
+.nf-sizebar {
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  transform: translateY(-50%) rotate(2deg);
+  padding: 16px 14px;
+}
+.nf-sizebar > .nf-frame-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.nf-size {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 140ms;
+}
+.nf-size:hover {
+  transform: scale(1.12);
+  background: rgba(255, 220, 140, 0.35);
+}
+.nf-size[aria-pressed="true"] {
+  background: rgba(196, 74, 38, 0.12);
+}
+.nf-size-dot {
+  background: currentColor;
+  border-radius: 50%;
+}
+
+/* ── BOTTOM: tool toolbar ────────────────────────────────────── */
+.nf-toolbar {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-0.6deg);
+  padding: 12px 22px;
+  width: min(640px, 88vw);
+}
+.nf-toolbar > .nf-frame-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nf-toolbar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+}
+.nf-toolbar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.nf-tool-chevron {
+  display: inline-block;
+  font-size: 18px;
+  font-family: 'Patrick Hand', cursive;
+  color: var(--ink-faint-1);
+  margin-left: 4px;
+  line-height: 1;
+}
+.nf-toolbar .nf-tool {
+  padding: 6px 16px;
+  font-size: 17px;
+}
+.nf-toolbar .nf-swatches {
+  margin: 0 6px;
+  padding: 4px 10px;
+}
+.nf-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  border-radius: 999px;
+  font-family: 'Patrick Hand', cursive;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 140ms, transform 140ms;
+}
+.nf-tool:hover { background: var(--ink-faint-5); }
+.nf-tool[aria-pressed="true"] {
+  background: var(--ink-faint-4);
+  font-weight: 700;
+}
+.nf-tool svg { width: 20px; height: 20px; display: block; }
+.nf-tool-icononly {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.nf-divider {
+  display: inline-block;
+  width: 0;
+  height: 22px;
+  /* Hand-drawn divider — vertical squiggle implemented as dashed border. */
+  border-left: 1.5px dashed var(--ink-faint-3);
+  margin: 0 8px;
+}
+.nf-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 4px;
+}
+.nf-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  cursor: pointer;
+  padding: 0;
+  background: var(--swatch);
+  transition: transform 140ms;
+}
+.nf-swatch:hover { transform: scale(1.15); }
+.nf-swatch[aria-pressed="true"] {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ── Brush picker (single tool that fans out into 4 brushes) ──
+   The button + chevron sit inline in the toolbar; the popover is
+   absolutely positioned above it with its own SketchFrame so the
+   outline matches the toolbar's hand-drawn aesthetic. */
+.nf-brush-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.nf-brush-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 32px;
+  padding: 0;
+  margin-left: -4px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 999px;
+  transition: background 140ms;
+}
+.nf-brush-chevron:hover { background: var(--ink-faint-5); }
+.nf-brush-chevron[aria-expanded="true"] { background: var(--ink-faint-4); }
+.nf-brush-chevron svg { width: 14px; height: 14px; display: block; }
+
+.nf-brush-popover {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%) rotate(1.5deg);
+  min-width: 180px;
+  padding: 10px 12px;
+  z-index: 20;
+  /* The .nf-frame wrapper supplies the sketch outline; this rule only
+     handles inner spacing. The popover floats above the toolbar with a
+     small upward offset and a tiny tilt so it reads as "stuck on" by
+     hand rather than menu-snapped. */
+}
+.nf-brush-popover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 2px;
+}
+.nf-brush-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--ink);
+  font-family: 'Patrick Hand', cursive;
+  font-size: 17px;
+  cursor: pointer;
+  border-radius: 10px;
+  text-align: left;
+  width: 100%;
+  transition: background 120ms;
+}
+.nf-brush-option:hover { background: var(--ink-faint-5); }
+.nf-brush-option[aria-pressed="true"] {
+  background: var(--ink-faint-4);
+  font-weight: 700;
+}
+.nf-brush-option svg { width: 20px; height: 20px; display: block; flex: 0 0 auto; }
+
+/* ── Floating theme toggle — top right corner ─────────────────
+   Sketchy little circle pinned in the corner. Outline drawn with a
+   wobbly inset shadow so it matches the hand-drawn aesthetic of the
+   rest of the chrome without needing a SketchFrame wrapper. */
+.nf-theme-toggle {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  cursor: pointer;
+  transform: rotate(-3deg);
+  transition: background 140ms, transform 140ms;
+  box-shadow:
+    1.5px 2px 0 -0.5px var(--ink-faint-3),
+    inset 0 0 0 0.5px var(--paper);
+}
+.nf-theme-toggle:hover {
+  background: var(--ink-faint-5);
+  transform: rotate(2deg) scale(1.05);
+}
+.nf-theme-toggle svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* ── Tiny "back home" affordance under the toolbar ── */
+.nf-home-hint {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) rotate(0.5deg);
+  font-family: 'Caveat', cursive;
+  font-size: 18px;
+  color: var(--ink-soft);
+  z-index: 10;
+  pointer-events: auto;
+}
+.nf-home-hint a {
+  color: var(--ink);
+  text-decoration: underline wavy 1.5px;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.nf-home-hint a:hover { color: #c44a26; }

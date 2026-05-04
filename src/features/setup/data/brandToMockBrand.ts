@@ -8,6 +8,7 @@ import type {
   BrandWebsite,
   MockBrand,
 } from './mockBrand';
+import { hexToName } from './colorNames';
 
 /**
  * Best-effort mapper from the canonical `Brand` shape (store / Supabase)
@@ -103,6 +104,20 @@ function buildTextLogo(name: string, bg: string, fg: string): string {
 }
 
 function mapColors(brand: Brand): MockBrand['colors'] {
+  // Color names always come from the hex itself (`hexToName` →
+  // "Rose", "Black", "White", …) rather than the usage role
+  // ("Primary", "Background") OR the rich palette label ("SKAM Red",
+  // "Pure White"). Setup and Brand Kit both render `color.name`, so
+  // this keeps the displayed label consistent across both pages and
+  // matches what `hexToName` already produces when the user adds a
+  // new color in setup.
+  //
+  // We deliberately ignore `brand.colorSystem.*.name` here even though
+  // it gets populated by `migrateBrandToCurrent` from
+  // `guidelines.colorPalette` — keeping a single source of truth
+  // (`hexToName(hex)`) avoids "SKAM Red" leaking into one page while
+  // setup shows "Rose" for the same swatch. Duplicates inside a group
+  // get suffixed ("Rose", "Rose 2"), matching setup's add-color flow.
   const core: BrandColor[] = [];
   const primary =
     brand.colorSystem?.primary?.hex ?? brand.primaryColor;
@@ -111,23 +126,45 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   const background =
     brand.colorSystem?.background?.hex ?? '#111113';
 
-  if (primary) core.push({ hex: primary, name: 'Primary' });
-  if (secondary) core.push({ hex: secondary, name: 'Secondary' });
-  if (background) core.push({ hex: background, name: 'Background' });
+  const usedCore = new Set<string>();
+  const pushUnique = (
+    bucket: BrandColor[],
+    used: Set<string>,
+    hex: string,
+    explicitName: string | undefined,
+  ) => {
+    const base = explicitName ?? hexToName(hex);
+    let name = base;
+    let n = 2;
+    while (used.has(name)) {
+      name = `${base} ${n}`;
+      n += 1;
+    }
+    used.add(name);
+    bucket.push({ hex, name });
+  };
+
+  if (primary) pushUnique(core, usedCore, primary, undefined);
+  if (secondary) pushUnique(core, usedCore, secondary, undefined);
+  if (background) pushUnique(core, usedCore, background, undefined);
 
   const accent: BrandColor[] = [];
+  const usedAccent = new Set<string>();
   const accentHex = brand.accentColor ?? brand.colorSystem?.accents?.[0]?.hex;
-  if (accentHex) accent.push({ hex: accentHex, name: 'Accent' });
+  if (accentHex) {
+    pushUnique(accent, usedAccent, accentHex, undefined);
+  }
   for (const a of brand.colorSystem?.accents ?? []) {
     if (a.hex && a.hex !== accentHex) {
-      accent.push({ hex: a.hex, name: a.name ?? 'Accent' });
+      pushUnique(accent, usedAccent, a.hex, undefined);
     }
   }
 
-  const greys: BrandColor[] = (brand.neutrals ?? []).map((hex, index) => ({
-    hex,
-    name: `Neutral ${index + 1}`,
-  }));
+  const greys: BrandColor[] = [];
+  const usedGrey = new Set<string>();
+  for (const hex of brand.neutrals ?? []) {
+    pushUnique(greys, usedGrey, hex, undefined);
+  }
 
   return { core, accent, grey: greys };
 }
@@ -143,6 +180,9 @@ function mapFonts(brand: Brand): BrandFont[] {
       family: primary,
       role: 'Display',
       weights: brand.typography?.primary?.weights?.join(' · ') ?? 'Regular',
+      ...(brand.typography?.primary?.files
+        ? { files: brand.typography.primary.files }
+        : {}),
     });
   }
   if (secondary && secondary !== primary) {
@@ -151,6 +191,9 @@ function mapFonts(brand: Brand): BrandFont[] {
       family: secondary,
       role: 'Text',
       weights: brand.typography?.secondary?.weights?.join(' · ') ?? 'Regular · Medium · SemiBold',
+      ...(brand.typography?.secondary?.files
+        ? { files: brand.typography.secondary.files }
+        : {}),
     });
   }
   return fonts;
