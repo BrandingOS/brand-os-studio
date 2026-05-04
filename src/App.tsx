@@ -54,6 +54,7 @@ const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
+const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -416,9 +417,16 @@ const App = () => (
               <CanvasGuidelinesPage />
             </ProtectedRoute>
           } />
+          {/* Phase 5 — `/editor` now launches the unified editor with
+              an auto-created "Untitled design" persisted into My
+              Designs. Replaces the previous mount of the legacy
+              StandaloneEditorPage (OptimizedDesignEditor). The legacy
+              editor still lives at `/editor/design/:slug` because it
+              remains a documented carve-out (transitively coupled to
+              stable/editable-export-v1). */}
           <Route path="/editor" element={
             <ProtectedRoute>
-              <StandaloneEditorPage />
+              <EditorLauncherPage />
             </ProtectedRoute>
           } />
           <Route path="/editor/design/:slug" element={
