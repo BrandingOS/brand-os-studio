@@ -1,13 +1,19 @@
-// /editor — instant-on launcher.
+// Editor launcher — instant-on entry point for the unified editor.
 //
-// User intent: typing /editor (or clicking a "New design" entry)
-// should land them inside the unified editor on a real, persisted
-// "Untitled design" — no template picker, no launchpad, no detour.
+// Mounted at TWO routes:
+//   • /editor               — workspace-scoped (no brand in URL)
+//   • /b/:slug/editor       — brand-scoped (slug from useParams)
+//
+// User intent: typing either URL should land them inside the
+// unified editor on a real, persisted "Untitled design" — no
+// template picker, no launchpad, no detour.
 //
 // Behavior on mount:
-//   1. Resolve a default brand. Priority:
-//        ?brand=<slug> query param → first brand from IBrandsService
-//        → seed `raqm` as a last-resort fallback (dev-friendly).
+//   1. Resolve a brand. Priority:
+//        :slug URL param (the /b/:slug/editor route)
+//          → ?brand=<slug> query param
+//          → first brand from IBrandsService
+//          → seed `raqm` as a last-resort fallback (dev-friendly).
 //   2. Build a blank social-post BrandOSDocument scaffold.
 //   3. Persist via IDesignStorage so the design appears in
 //      My Designs immediately (name = "Untitled design").
@@ -17,7 +23,7 @@
 // the user through this transient launcher route.
 
 import { useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { IBrandsService, IDesignStorage } from '@/core';
@@ -80,6 +86,10 @@ async function resolveBrand(
 export default function EditorLauncherPage() {
   const navigate = useNavigate();
   const [search] = useSearchParams();
+  // `:slug` from /b/:slug/editor — undefined for the workspace-scoped
+  // /editor route. Wins over `?brand=` and the IBrandsService fallback
+  // when present.
+  const { slug: routeSlug } = useParams<{ slug?: string }>();
   const brandsService = useService<IBrandsService>(SERVICE_KEYS.BRANDS);
   const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
   // StrictMode in dev double-invokes effects. Guard with a ref so we
@@ -92,7 +102,7 @@ export default function EditorLauncherPage() {
 
     void (async () => {
       try {
-        const preferred = search.get('brand');
+        const preferred = routeSlug ?? search.get('brand');
         const brand = await resolveBrand(brandsService, preferred);
         if (!brand) {
           toast.error('No brand found — create a brand first.');
@@ -116,7 +126,7 @@ export default function EditorLauncherPage() {
         navigate('/dashboard', { replace: true });
       }
     })();
-  }, [brandsService, designStorage, navigate, search]);
+  }, [brandsService, designStorage, navigate, routeSlug, search]);
 
   return <PageSpinner />;
 }

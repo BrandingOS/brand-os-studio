@@ -586,6 +586,14 @@ const App = () => (
                 so old bookmarks keep working without breaking the shell. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>
+          {/* Phase 5 — brand-scoped instant-on launcher. Hitting
+              /b/:slug/editor auto-creates an "Untitled design" under
+              that brand and replace-navigates to the design route. */}
+          <Route path="/b/:slug/editor" element={
+            <ProtectedRoute>
+              <EditorLauncherPage />
+            </ProtectedRoute>
+          } />
           {/* Production unified-editor route — short + long form. Mounts
               the unified Editor with a brand-scoped saved design loaded
               by id from IDesignStorage. Phase 4.5 finishes the auth

@@ -41,6 +41,8 @@ beforeEach(() => {
 function mount(opts: {
   brands: Brand[];
   preferredQuery?: string;
+  /** When set, mounts at /b/<brandScopedSlug>/editor instead of /editor. */
+  brandScopedSlug?: string;
 }) {
   const list = vi.fn(async () => opts.brands);
   const getBySlug = vi.fn(async (slug: string) => opts.brands.find((b) => b.slug === slug) ?? null);
@@ -61,12 +63,14 @@ function mount(opts: {
   serviceContainer.register(SERVICE_KEYS.BRANDS, () => brandsService);
   serviceContainer.register(SERVICE_KEYS.DESIGN_STORAGE, () => designStorage);
 
-  let lastPath = '/editor';
-  const initialEntry = opts.preferredQuery ? `/editor?${opts.preferredQuery}` : '/editor';
+  const startPath = opts.brandScopedSlug ? `/b/${opts.brandScopedSlug}/editor` : '/editor';
+  let lastPath = startPath;
+  const initialEntry = opts.preferredQuery ? `${startPath}?${opts.preferredQuery}` : startPath;
   const ui = render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/editor" element={<EditorLauncherPage />} />
+        <Route path="/b/:slug/editor" element={<EditorLauncherPage />} />
         <Route
           path="/b/:slug/design/:designSlug"
           element={<div data-testid="design-route">opened</div>}
@@ -131,5 +135,23 @@ describe('/editor launcher', () => {
     // Wait briefly to confirm a second call doesn't sneak in.
     await new Promise((r) => setTimeout(r, 100));
     expect(saveDesign).toHaveBeenCalledTimes(1);
+  });
+
+  it('brand-scoped /b/:slug/editor uses the URL slug, ignoring ?brand= and the list', async () => {
+    const { saveDesign, getBySlug, getLastPath, list } = mount({
+      brands: [fakeBrand('raqm', 'brand-raqm'), fakeBrand('skam', 'brand-skam')],
+      brandScopedSlug: 'skam',
+      // ?brand= conflicts with the URL slug — the URL slug wins.
+      preferredQuery: 'brand=raqm',
+    });
+
+    await waitFor(() => expect(saveDesign).toHaveBeenCalledTimes(1));
+    expect(getBySlug).toHaveBeenCalledWith('skam');
+    // list() is only consulted when no preferred slug exists.
+    expect(list).not.toHaveBeenCalled();
+    expect(saveDesign.mock.calls[0][0]).toBe('brand-skam');
+    await waitFor(() =>
+      expect(getLastPath()).toBe(`/b/skam/design/${saveDesign.mock.calls[0][1]}`),
+    );
   });
 });
