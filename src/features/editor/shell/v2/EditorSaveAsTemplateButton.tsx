@@ -156,7 +156,7 @@ export function EditorSaveAsTemplateButton({
       toast.success(
         visibility === 'private'
           ? 'Saved to your personal templates.'
-          : 'Submitted for community review (admin approval queue in Phase 4.4).',
+          : "Submitted! We'll review it for the community library — usually within 1–2 days.",
       );
       setName('');
       setOpen(false);
@@ -257,8 +257,8 @@ export function EditorSaveAsTemplateButton({
                 className="rounded-md border px-2 py-1 text-[12px]"
                 style={{ borderColor: 'var(--border)' }}
               >
-                <option value="private">Private (only you)</option>
-                <option value="public">Submit to community (4.4 review)</option>
+                <option value="private">Private — only you</option>
+                <option value="public">Submit to community — pending review</option>
               </select>
             </label>
             <button
