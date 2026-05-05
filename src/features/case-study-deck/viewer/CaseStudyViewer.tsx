@@ -36,7 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { EditableSlide } from '@/shared/editor/blocks/EditableSlide';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
@@ -142,14 +142,14 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
 
   if (!deck) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
             <Sparkles className="animate-pulse" />
             <span>Composing your deck…</span>
           </div>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
@@ -201,7 +201,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
   );
 
   return (
-    <CosmosWorkspaceShell rightActions={shellRightActions}>
+    <WorkspaceShell rightActions={shellRightActions}>
       <div style={{ height: 'calc(100vh - 64px)', display: 'flex', overflow: 'hidden', position: 'relative', background: 'var(--background)' }}>
         {/* Left thumbnail rail */}
         <aside
@@ -432,7 +432,7 @@ export function CaseStudyViewer({ brand, onBack, onOpenLiveEditor }: Props) {
         onChange={(patch) => deck.setMaster(patch)}
         onReset={() => deck.resetMaster()}
       />
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

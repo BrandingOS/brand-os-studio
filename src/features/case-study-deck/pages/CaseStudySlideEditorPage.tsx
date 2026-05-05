@@ -31,7 +31,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { EditableSlide } from '@/shared/editor/blocks/EditableSlide';
 import { EditorChrome } from '@/features/editor/core/EditorChrome';
 import { useAutoSave } from '@/features/editor/core/useAutoSave';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useDeckPlan } from '../hooks/useDeckPlan';
 import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
@@ -116,11 +116,11 @@ export default function CaseStudySlideEditorPage() {
 
   if (isLoading || !deck || !slide || !Slide || !styleForSlide) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)' }}>
           <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--text-secondary)' }} />
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
@@ -128,7 +128,7 @@ export default function CaseStudySlideEditorPage() {
   const usingFrozen = slide.frozenHtml !== undefined;
 
   return (
-    <CosmosWorkspaceShell>
+    <WorkspaceShell>
       <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', background: 'var(--background)', color: 'var(--text-primary)' }}>
       <EditorChrome
         backTo={`/b/${slug}/case-study`}
@@ -238,6 +238,6 @@ export default function CaseStudySlideEditorPage() {
         <div>Click to select · double-click text to edit · drag to move · Esc to clear</div>
       </footer>
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

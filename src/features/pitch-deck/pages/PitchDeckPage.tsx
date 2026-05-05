@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight, Download, Eye, EyeOff, Image as ImageIcon, Plus, Redo2, Save, SlidersHorizontal, Sparkles, Type, Type as TypeText, Undo2, X } from 'lucide-react';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { exportDeck } from '@/features/case-study-deck/export';
@@ -76,14 +76,14 @@ export default function PitchDeckPage() {
 
   if (isLoading || !brand) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
             <Sparkles className="animate-pulse" />
             <span>Composing your pitch deck…</span>
           </div>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
@@ -422,7 +422,7 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
   // --deck-* CSS vars. Wrap the rail + stage + inspector subtree once so
   // the entire deck UI (including thumbnails) consumes the same tokens.
   return (
-    <CosmosWorkspaceShell rightActions={shellRightActions}>
+    <WorkspaceShell rightActions={shellRightActions}>
       <DeckThemeProvider brand={brand} theme={theme} deckKind="pitch-deck">
         <div
           style={{
@@ -928,7 +928,7 @@ function PitchDeckShell({ brand, slug }: { brand: Brand; slug: string }) {
         </div>
         </div>
       </DeckThemeProvider>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { KitSection } from '@/features/brand-kit/components/KitSection';
 import {
@@ -30,7 +30,7 @@ import '@/features/tools-cosmos/tools-cosmos.css';
  * (`/b/:slug/folders`, `/b/:slug/studio`, `/b/:slug/analytics`, etc).
  *
  * Layout mirrors the Setup / Brand Kit cosmos pages:
- *   - CosmosWorkspaceShell (auto-detects slug, renders the pill nav)
+ *   - WorkspaceShell (auto-detects slug, renders the pill nav)
  *   - `.shell` grid with a sticky `.panel` sidebar and a `.board-wrap`
  *     board of `<KitSection>` blocks, each full of `<ToolCard>`s.
  */
@@ -74,7 +74,7 @@ export default function BrandToolsTabPage() {
   const brandName = brand?.name ?? 'Brand';
 
   return (
-    <CosmosWorkspaceShell>
+    <WorkspaceShell>
       <div className="shell">
         <ToolsSidebar
           brandName={brandName}
@@ -217,6 +217,6 @@ export default function BrandToolsTabPage() {
           </KitSection>
         </div>
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

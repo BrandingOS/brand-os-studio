@@ -1,6 +1,6 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 import { mockBrand, type MockBrand } from './data/mockBrand';
@@ -1279,7 +1279,7 @@ export function SetupPage({
   }, []);
 
   return (
-    <CosmosWorkspaceShell
+    <WorkspaceShell
       rightActions={
         <>
           {resolvedBrandId && (
@@ -1368,7 +1368,7 @@ export function SetupPage({
           onOpenChange={setTypescaleOpen}
         />
       )}
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

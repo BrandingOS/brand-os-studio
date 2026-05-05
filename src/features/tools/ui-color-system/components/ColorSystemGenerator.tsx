@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStore } from 'zustand';
 
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import '../color-system.css';
 import {
   hslToHex,
@@ -133,7 +133,7 @@ export function ColorSystemGenerator({
   } as React.CSSProperties;
 
   return (
-    <CosmosWorkspaceShell>
+    <WorkspaceShell>
       {brandBar && <div className="px-5 pt-3">{brandBar}</div>}
       <div className="shell" style={brandFontStyles}>
         <EditorPanel
@@ -172,6 +172,6 @@ export function ColorSystemGenerator({
           fontPair={fontPair}
         />
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

@@ -12,7 +12,7 @@ import type { Brand } from '@/shared/types/brand';
  *   - BRANDS list (of the user's brands, with a check on the current)
  *   - Create new brand entry
  *
- * Drops into `CosmosWorkspaceShell`'s top-left slot. Reads from the
+ * Drops into `WorkspaceShell`'s top-left slot. Reads from the
  * brand store (seed brands + localStorage + Supabase).
  */
 export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {

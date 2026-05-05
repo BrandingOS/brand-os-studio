@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 
 /**
  * Workspace Templates — marketplace grid.

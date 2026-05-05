@@ -637,15 +637,6 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     description: 'Experimental onboarding. Redirect to /onboard-brand; delete in Phase 6.',
   },
   {
-    id: 'brand-sidebar-dead',
-    name: 'BrandSidebar (legacy)',
-    tab: 'dev',
-    route: '—  (not mounted)',
-    entry: 'src/features/brand/components/BrandSidebar.tsx',
-    status: 'dead',
-    description: 'Exported but never rendered. Live rail is shared/layouts/AppRail.tsx.',
-  },
-  {
     id: 'dashboard-shell-dead',
     name: 'DashboardShell (dead)',
     tab: 'dev',

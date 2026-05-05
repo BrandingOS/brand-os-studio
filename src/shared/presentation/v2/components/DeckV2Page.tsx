@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Check, ChevronLeft, ChevronRight, Save, Sparkles, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '@/features/case-study-deck/constants';
 import { DeckRenderer } from './DeckRenderer';
@@ -142,14 +142,14 @@ export default function DeckV2Page() {
 
   if (isLoading || !brand || !deck) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div style={{ height: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text-secondary)' }}>
             <Sparkles className="animate-pulse" />
             <span>Composing deck v2…</span>
           </div>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
@@ -192,7 +192,7 @@ export default function DeckV2Page() {
   const dirtyDot = saveState === 'saving' || saveState === 'dirty';
 
   return (
-    <CosmosWorkspaceShell rightActions={
+    <WorkspaceShell rightActions={
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
         <span
           style={{
@@ -735,7 +735,7 @@ export default function DeckV2Page() {
         onClose={() => setGenerateOpen(false)}
         onAccept={handleAcceptGenerated}
       />
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

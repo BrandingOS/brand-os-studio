@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import type { Brand } from '@/shared/types/brand';
 import { ArrowRightIcon } from './DesignIcons';
 import { DesignSidebar, type DesignSectionKey } from './DesignSidebar';
 import { DesignBoard, type DesignBoardRefs } from './DesignBoard';
-import './design-cosmos.css';
+import './design-alt.css';
 
 type Props = {
   slug: string;
@@ -25,7 +25,7 @@ type Props = {
  *
  * Layout follows the shared `.shell` + `.panel` + `.board-wrap` primitives
  * documented in src/shared/styles/cosmos-workspace.css. Section-local
- * styling lives in ./design-cosmos.css.
+ * styling lives in ./design-alt.css.
  */
 export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
   const [activeKey, setActiveKey] = useState<DesignSectionKey | null>('start');
@@ -60,30 +60,30 @@ export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
 
   if (isLoading && !brand) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div className="workspace-empty" role="main">
           <span className="workspace-empty-eyebrow">Design</span>
           <h1>Loading brand…</h1>
           <p>One moment while we resolve this brand.</p>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
   if (error || !brand) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div className="workspace-empty" role="main">
           <span className="workspace-empty-eyebrow">Design</span>
           <h1>We couldn't find that brand.</h1>
           <p>{error ?? 'The brand may have been renamed or deleted.'}</p>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <CosmosWorkspaceShell
+    <WorkspaceShell
       rightActions={
         <a
           href={`/b/${slug}/ai-design`}
@@ -107,7 +107,7 @@ export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
           onUpload={handleUpload}
         />
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

@@ -31,7 +31,7 @@ const OnboardingV4CreatePage = lazy(() => import("./pages/onboarding-v4/create")
 // New canonical Cosmos onboarding + workspace routes. The onboarding screens
 // are shared with /onboarding-v4 (the prior preview alias); the workspace
 // pages (Setup / Brand Kit / Guideline / Design / Tools) live under a new
-// top-center-nav shell, see src/shared/layouts/CosmosWorkspaceShell.tsx.
+// top-center-nav shell, see src/shared/layouts/WorkspaceShell.tsx.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
 const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
 const WorkspaceSetupPage = lazy(() => import("./pages/setup"));
@@ -280,7 +280,7 @@ const App = () => (
             Onboarding:  /onboard-brand (+ /onboard-brand/create)
             Workspace:   /setup · /brand-kit · /guideline
                          /design-workspace · /tools-workspace
-            The workspace tabs share the CosmosWorkspaceShell — a top-
+            The workspace tabs share the WorkspaceShell — a top-
             center segmented nav with Setup · Brand Kit · Guideline ·
             Design · Tools. Setup replaces the legacy "Sitemap" concept
             as the first and primary tab.
@@ -364,7 +364,7 @@ const App = () => (
           {/* ─── Studio (/b/:slug/*) ─────────────────────────────────── */}
 
           {/* Studio launchpad uses BrandRouteLayout (AppRail). Other
-              Cosmos sections render their own CosmosWorkspaceShell so
+              Cosmos sections render their own WorkspaceShell so
               they live as flat sibling routes below. */}
           <Route path="/b/:slug" element={
             <ProtectedRoute>
@@ -566,7 +566,7 @@ const App = () => (
           </Route>
 
           {/* Classic flat routes — own shell or special: design uses
-              CosmosWorkspaceShell (can't nest), settings has its own
+              WorkspaceShell (can't nest), settings has its own
               shell, brandkit (no moduleId) is a redirect to /kit. */}
           <Route path="/a/:slug/design" element={
             <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>

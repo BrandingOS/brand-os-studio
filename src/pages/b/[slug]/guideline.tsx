@@ -1,19 +1,19 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router-dom';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { ArrowRight } from '@/features/setup/components/SetupIcons';
 import {
   GuidelineSidebar,
   type GuidelineEntry,
   type GuidelineSectionKey,
-} from '@/features/guideline-cosmos/components/GuidelineSidebar';
+} from '@/features/guideline/components/GuidelineSidebar';
 import {
   GuidelineBoard,
   type GuidelineBoardRefs,
-} from '@/features/guideline-cosmos/components/GuidelineBoard';
+} from '@/features/guideline/components/GuidelineBoard';
 import type { Brand } from '@/shared/types/brand';
-import '@/features/guideline-cosmos/styles.css';
+import '@/features/guideline/styles.css';
 
 /**
  * Brand-scoped Guideline tab at `/b/:slug/guideline`.
@@ -41,7 +41,7 @@ export default function BrandGuidelineTabPage() {
 
   if (!brand) {
     return (
-      <CosmosWorkspaceShell
+      <WorkspaceShell
         rightActions={
           <RouterLink to={canvasHref} className="pill-btn pill-btn--ghost">
             <span>View Canvas</span>
@@ -58,7 +58,7 @@ export default function BrandGuidelineTabPage() {
               : 'We couldn’t find a brand for this URL. Try choosing one from the switcher.'}
           </p>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
@@ -177,7 +177,7 @@ function GuidelinePageInner({ brand, canvasHref }: { brand: Brand; canvasHref: s
   }, []);
 
   return (
-    <CosmosWorkspaceShell
+    <WorkspaceShell
       rightActions={
         <RouterLink to={canvasHref} className="pill-btn pill-btn--ghost">
           <span>View Canvas</span>
@@ -194,6 +194,6 @@ function GuidelinePageInner({ brand, canvasHref }: { brand: Brand; canvasHref: s
         />
         <GuidelineBoard brand={brand} sectionRefs={sectionRefs} />
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

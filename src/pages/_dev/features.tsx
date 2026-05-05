@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import {
   FEATURE_REGISTRY,
   FEATURE_STATUS_LABELS,
@@ -121,7 +121,7 @@ function DevFeaturesPage() {
   }
 
   return (
-    <CosmosWorkspaceShell tabs={[]}>
+    <WorkspaceShell tabs={[]}>
       <div data-dev-features>
         <header className="dfx-header">
           <span className="dfx-eyebrow">Dev</span>
@@ -223,7 +223,7 @@ function DevFeaturesPage() {
           })
         )}
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 

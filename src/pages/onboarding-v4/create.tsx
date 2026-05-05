@@ -1,5 +1,7 @@
-import { CreateScreen } from '@/features/onboarding-v4/screens/CreateScreen';
+// Phase A — superseded /onboarding-v4/create. Redirects to /onboard-brand/create.
+import { Navigate, useLocation } from 'react-router-dom';
 
 export default function OnboardingV4CreatePage() {
-  return <CreateScreen />;
+  const { search } = useLocation();
+  return <Navigate to={`/onboard-brand/create${search}`} replace />;
 }

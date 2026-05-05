@@ -1,7 +1,7 @@
 /**
  * StandaloneMockupStudioPage — Mode A: anonymous usable.
  *
- * Route: `/tools/mockup-studio`. Wraps the editor in <CosmosWorkspaceShell>
+ * Route: `/tools/mockup-studio`. Wraps the editor in <WorkspaceShell>
  * so it inherits the same top nav + theme toggle as /setup, /tools/typescale,
  * and /tools/ui-color-system. Inner layout is a custom 3-column grid:
  * templates panel · canvas · properties panel — both side panels use cosmos
@@ -14,7 +14,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { SERVICE_KEYS, useService } from '@/core';
 import type { IMockupTemplatesService } from '@/core/types/services';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 
 import { ExportButton } from '../../components/ExportButton';
 import { MockupCanvas } from '../../components/MockupCanvas';
@@ -85,7 +85,7 @@ export default function StandaloneMockupStudioPage() {
   const activeId = useMemo(() => template?.id ?? null, [template]);
 
   return (
-    <CosmosWorkspaceShell>
+    <WorkspaceShell>
       <div className="ms-shell">
         <aside className="panel ms-panel" aria-label="Templates">
           <div className="panel-top">
@@ -146,6 +146,6 @@ export default function StandaloneMockupStudioPage() {
 
         <PropertiesSidebar />
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
