@@ -98,19 +98,19 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     name: 'Onboarding (canonical)',
     tab: 'setup',
     route: '/onboard-brand',
-    entry: 'src/features/onboarding-brand/OnboardingBrand.tsx',
+    entry: 'src/pages/onboard-brand/index.tsx',
     status: 'active',
     description:
-      'Canonical pre-brand onboarding flow. Lives outside the brand shell — runs before a brand exists.',
+      'Canonical pre-brand onboarding flow. Lives outside the brand shell — runs before a brand exists. Implementation in src/features/onboarding-v4/screens/.',
   },
   {
     id: 'onboarding-create',
     name: 'Onboarding — Create flow',
     tab: 'setup',
     route: '/onboard-brand/create',
-    entry: 'src/features/onboarding-brand/OnboardingBrand.tsx',
+    entry: 'src/pages/onboard-brand/create.tsx',
     status: 'active',
-    description: 'Sub-route of the canonical onboarding used by explicit "create new brand" CTAs.',
+    description: 'Sub-route of the canonical onboarding used by explicit "create new brand" CTAs. Implementation in src/features/onboarding-v4/screens/CreateScreen.tsx.',
   },
   {
     id: 'brand-editor-metadata',
