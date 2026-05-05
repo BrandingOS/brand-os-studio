@@ -177,8 +177,8 @@ describe('BrandDesignEditorPage — production editor route', () => {
       expect(writeText).toHaveBeenCalledTimes(1);
     });
     const [copied] = writeText.mock.calls[0] as [string];
-    // Canonical /b/:slug/design/:designId URL — host-prefixed by
-    // window.location.origin.
-    expect(copied).toMatch(/\/b\/raqm\/design\/design-abc$/);
+    // Phase 8.1 — share copies the PUBLIC portal URL (/d/:brandSlug/
+    // :designSlug), not the auth-walled editor URL.
+    expect(copied).toMatch(/\/d\/raqm\/design-abc$/);
   });
 });

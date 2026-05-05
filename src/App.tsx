@@ -159,6 +159,7 @@ const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
 const TemplateBuilderPage = lazy(() => import('./features/templates/builder/TemplateBuilderPage'));
 const BrandPortalV2Page = lazy(() => import('./features/brand-portal/v2/BrandPortalV2Page'));
+const PublicDesignPage = lazy(() => import('./pages/d/[brandSlug]/[designSlug]'));
 const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelinesPage'));
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
@@ -702,6 +703,7 @@ const App = () => (
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />
+          <Route path="/d/:brandSlug/:designSlug" element={<PublicDesignPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />

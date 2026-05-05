@@ -151,11 +151,10 @@ export default function BrandDesignEditorPage() {
           await designStorage.saveDesign(brand.id, doc.id, next);
         }}
         onShare={() => {
-          // Use the URL's designSlug — that's the storage key the
-          // route uses to load the doc, so it's the canonical share
-          // identifier. The internal doc.id may diverge (e.g. when a
-          // design was renamed at storage time but kept its inner id).
-          const url = `${window.location.origin}/b/${brand.slug}/design/${designSlug}`;
+          // Phase 8.1 — share link points at the public design portal
+          // (/d/:brandSlug/:designSlug), an anonymous read-only view.
+          // Anyone with the URL can see the design without an auth wall.
+          const url = `${window.location.origin}/d/${brand.slug}/${designSlug}`;
           void copyToClipboard(url);
         }}
       />
