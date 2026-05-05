@@ -62,6 +62,8 @@ import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed'
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
+import { useDesignCursors } from '@/features/editor/collab/useDesignCursors';
+import { EditorCursorOverlay } from '@/features/editor/collab/EditorCursorOverlay';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import '@/shared/styles/workspace.css';
 
@@ -188,6 +190,8 @@ export function Editor({
   // fitting the page to the available canvas region. The container
   // ref lets us measure when computing fit-to-screen.
   const canvasRegionRef = useRef<HTMLElement | null>(null);
+  const canvasSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const [pageRect, setPageRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   // 'animated' = brief 140ms ease on each transform change (good
   // for discrete keyboard / button taps). 'instant' = no
@@ -423,6 +427,49 @@ export function Editor({
       }
     };
   }, []);
+
+  // Phase 7.3 — Multiplayer cursors. Subscribe to the design's cursor
+  // channel; broadcast local mouse on the canvas surface in page-
+  // relative coords so peers at different zoom/pan levels still see
+  // each other accurately. Hook is no-op when unauthenticated.
+  const { others: cursorPeers, sendCursor } = useDesignCursors(
+    brand?.id ?? null,
+    doc.id,
+  );
+
+  // Track local cursor on the canvas surface and broadcast.
+  useEffect(() => {
+    const surface = canvasSurfaceRef.current;
+    if (!surface) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = surface.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+      sendCursor(activePageId, x, y);
+    };
+    surface.addEventListener('mousemove', onMove);
+    return () => surface.removeEventListener('mousemove', onMove);
+  }, [sendCursor, activePageId]);
+
+  // Keep pageRect in sync with the canvas surface so the cursor
+  // overlay positions peer pointers in screen coords. Re-measure on
+  // zoom + window resize so cursors stay aligned during interaction.
+  useEffect(() => {
+    const surface = canvasSurfaceRef.current;
+    if (!surface) return;
+    const measure = () => {
+      const r = surface.getBoundingClientRect();
+      setPageRect({ left: r.left, top: r.top, width: r.width, height: r.height });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [zoom, secondaryOpen, navigatorOpen]);
 
   // Resolve the single-selected layer for the floating toolbar. The
   // toolbar mounts only when exactly one layer is selected — multi-
@@ -670,6 +717,7 @@ export function Editor({
               }}
             >
               <div
+                ref={canvasSurfaceRef}
                 className="overflow-hidden rounded-xl"
                 data-editor-canvas-surface
                 style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)' }}
@@ -764,6 +812,17 @@ export function Editor({
             </div>
           ) : null}
         </div>
+
+        {/* Phase 7.3 — Multiplayer cursor overlay. Sits at the
+            top-most fixed layer; renders nothing for solo work
+            (cursorPeers is empty). */}
+        {brand ? (
+          <EditorCursorOverlay
+            others={cursorPeers}
+            activePageId={activePageId}
+            pageRect={pageRect}
+          />
+        ) : null}
 
         {/* Phase 7.1 — Collaboration: comments scoped to the active
             design. Floating bottom-right; trigger button hides while

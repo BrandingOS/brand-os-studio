@@ -83,6 +83,41 @@ export const realtimeService = {
   },
 
   /**
+   * Phase 7.3 — Subscribe to a broadcast channel for real-time
+   * peer-to-peer events (cursors, typing indicators, etc.). The
+   * returned channel exposes a `.send(event, payload)` API the
+   * caller uses to broadcast — see `broadcast(channelName, ...)`.
+   */
+  joinBroadcast<T = unknown>(
+    channelName: string,
+    event: string,
+    onMessage: (payload: T) => void,
+  ): RealtimeChannel {
+    this.unsubscribe(channelName);
+
+    const channel = supabase
+      .channel(channelName, { config: { broadcast: { self: false } } })
+      .on('broadcast', { event }, ({ payload }) => onMessage(payload as T))
+      .subscribe();
+
+    channels.set(channelName, channel);
+    return channel;
+  },
+
+  /**
+   * Phase 7.3 — Send a broadcast event on an already-joined channel.
+   * No-op when the channel hasn't been joined (caller forgot
+   * joinBroadcast or is unauthenticated). Returns the channel's
+   * send promise so callers can await delivery if needed; most call
+   * sites fire-and-forget.
+   */
+  broadcast(channelName: string, event: string, payload: unknown): void {
+    const channel = channels.get(channelName);
+    if (!channel) return;
+    void channel.send({ type: 'broadcast', event, payload });
+  },
+
+  /**
    * Unsubscribe from a specific channel.
    */
   unsubscribe(channelName: string): void {
