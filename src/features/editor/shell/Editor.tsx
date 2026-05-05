@@ -65,6 +65,7 @@ import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
 import { EditorWelcomeTip } from './v2/EditorWelcomeTip';
 import { EditorDuplicateDesignButton } from './v2/EditorDuplicateDesignButton';
+import { EditorShortcutHelp } from './v2/EditorShortcutHelp';
 import { useDesignCursors } from '@/features/editor/collab/useDesignCursors';
 import { EditorCursorOverlay } from '@/features/editor/collab/EditorCursorOverlay';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
@@ -847,6 +848,9 @@ export function Editor({
             new AI prompt + comments + presence affordances.
             Self-dismissing; only ever shows once per browser. */}
         <EditorWelcomeTip />
+
+        {/* Phase 11.3 — Keyboard shortcut help. Press `?` to open. */}
+        <EditorShortcutHelp />
 
         {/* Phase 7.3 — Multiplayer cursor overlay. Sits at the
             top-most fixed layer; renders nothing for solo work
