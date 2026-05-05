@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 
 /**
  * Workspace Settings — 4-way nav hub.

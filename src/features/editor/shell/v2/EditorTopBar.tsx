@@ -128,12 +128,12 @@ export function EditorTopBar({
 
   // Section paths — brand-scoped when we know the slug, otherwise
   // the legacy global routes. Mirrors `buildBrandTabs` in
-  // CosmosWorkspaceShell so the editor's nav navigates to the same
+  // WorkspaceShell so the editor's nav navigates to the same
   // pages /setup uses.
   const sectionPath = (id: WorkspaceSectionId): string => {
     if (id === 'design') return ''; // editor IS the design surface
     if (brand?.slug) return `/b/${brand.slug}/${id}`;
-    // Fallback global routes — same names CosmosWorkspaceShell uses.
+    // Fallback global routes — same names WorkspaceShell uses.
     switch (id) {
       case 'setup':
         return '/setup';

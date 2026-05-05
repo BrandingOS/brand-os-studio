@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { surfacePalette } from '@/shared/brand/brandPalette';
 import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
+import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import type { Brand } from '@/shared/types/brand';
 
 /**
@@ -47,10 +48,14 @@ function BrandCard({ brand }: { brand: Brand }) {
   // returns undefined if none clear the readability floor — at which
   // point we fall through to the letter mark.
   const logoUrl = pickLogoOnBackground(brand, brandSurface.bg)?.url;
+  // Brand-entry URL respects the user's UI preference: Studio users land
+  // on Setup (canonical Studio entry); Classic users land on Overview.
+  const uiPreference = useUiPreference();
+  const entryUrl = uiPreference === 'classic' ? `/a/${brand.slug}/setup` : `/b/${brand.slug}/setup`;
 
   return (
     <Link
-      to={`/b/${brand.slug}/setup`}
+      to={entryUrl}
       className="ws-brand-card"
       aria-label={`Open ${brand.name}`}
     >

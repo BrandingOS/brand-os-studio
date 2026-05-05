@@ -45,7 +45,7 @@ import { BrandedQrRenderer, MinimalQrRenderer, RoundedQrRenderer, SquareQrRender
  * Cosmos-side wrapper around the legacy `renderTemplateDesign`.
  *
  * Templates whose id starts with `<type>-ext-` are extensions added
- * inside `/brand-kit-v2-cosmos/` — they route to a local renderer
+ * inside `/brand-kit/` — they route to a local renderer
  * here. Anything else delegates to the legacy renderer untouched, so
  * the brandkit pages keep behaving exactly as before.
  *

@@ -38,7 +38,7 @@ interface Props {
  * Two variants:
  *   • `full` — the standalone tool page. Renders the cosmos `.shell`
  *     grid directly (left `.panel` sidebar + right `.ts-board`). The
- *     hosting page is expected to wrap this in <CosmosWorkspaceShell>.
+ *     hosting page is expected to wrap this in <WorkspaceShell>.
  *   • `compact` — rendered inside <EmbeddedTypescaleDialog>. Keeps the
  *     old minimal column layout; the dialog owns the chrome.
  *

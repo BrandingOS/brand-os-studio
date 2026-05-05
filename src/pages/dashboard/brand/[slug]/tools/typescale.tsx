@@ -2,14 +2,14 @@
  * /b/:slug/tools/typescale and /dashboard/brand/:slug/tools/typescale —
  * in-app route. Auto-saves to the brand via useTypescaleDraft → setTypescale.
  *
- * Wrapped in <CosmosWorkspaceShell> so it shares the same top nav and
+ * Wrapped in <WorkspaceShell> so it shares the same top nav and
  * theme toggle as the rest of the /b/:slug/* routes. The editor itself
  * renders the cosmos `.shell` grid directly.
  */
 import { useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { TypescaleEditor, useSeedTypescale } from '@/features/tools/typescale';
 import { useBrandStore } from '@/shared/store/brandStore';
 
@@ -25,18 +25,18 @@ export default function InAppTypescalePage() {
 
   if (!brand) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div style={{ padding: '32px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
           Loading brand…
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
   const initial = brand.typescale ?? seed;
 
   return (
-    <CosmosWorkspaceShell>
+    <WorkspaceShell>
       <TypescaleEditor variant="full" brandId={brand.id} initial={initial} showBrandSync />
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

@@ -7,10 +7,32 @@ import { useEffect } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
+import { useUiPreference } from '@/shared/hooks/useUiPreference';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
   const { list: brands, loadAll, isLoading } = useBrandStore();
+  const uiPreference = useUiPreference();
+
+  // Brand-entry URLs respect the user's UI preference. Both namespaces
+  // share the canonical /<ns>/:slug/setup shape (Phase A v2 / Commit 6
+  // harmonization). Studio's Setup is the cosmos editor; Classic's
+  // /a/:slug/setup is the legacy BrandHomePage at the same canonical
+  // path.
+  //
+  // The `uiPreference` value comes from `useUiPreference()` above and is
+  // re-read on every render — when the user toggles in Settings, this
+  // page re-renders with the new value, and the click closures below
+  // pick up the new value. Don't memoize these helpers; that would
+  // capture a stale reference. Don't move them outside the component
+  // body either; they need to read the live store.
+  const homeUrlFor = (slug: string) =>
+    uiPreference === 'classic' ? `/a/${slug}/setup` : `/b/${slug}/setup`;
+  const kitUrlFor = (slug: string) =>
+    uiPreference === 'classic' ? `/a/${slug}/brand-kit` : `/b/${slug}/brand-kit`;
+  // Identity is unmigrated in Studio (Phase B will port it). For now both
+  // namespaces land on the Classic page directly to avoid a redirect hop.
+  const identityUrlFor = (slug: string) => `/a/${slug}/identity`;
 
   useEffect(() => {
     loadAll();
@@ -118,7 +140,7 @@ export default function BrandsPage() {
                         variant="ghost"
                         size="icon"
                         title="Edit Brand"
-                        onClick={() => navigate(`/b/${brand.slug}/identity`)}
+                        onClick={() => navigate(identityUrlFor(brand.slug))}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -126,13 +148,13 @@ export default function BrandsPage() {
                         variant="ghost"
                         size="icon"
                         title="Brand Kit"
-                        onClick={() => navigate(`/b/${brand.slug}/kit`)}
+                        onClick={() => navigate(kitUrlFor(brand.slug))}
                       >
                         <Folder className="w-4 h-4" />
                       </Button>
                       <Button
                         className="gap-2"
-                        onClick={() => navigate(`/b/${brand.slug}`)}
+                        onClick={() => navigate(homeUrlFor(brand.slug))}
                       >
                         Open
                         <ArrowRight className="w-4 h-4" />

@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import DesignCosmosPage from '@/features/design-cosmos/DesignCosmosPage';
+import DesignCosmosPage from '@/features/design-alt/DesignCosmosPage';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 
 /**

@@ -44,6 +44,8 @@ import {
   Wand2,
   CalendarDays,
   Share2,
+  BookOpen,
+  Wrench,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
+import { getBrandHomeUrl } from '@/shared/hooks/useUiPreference';
 import { cn } from '@/lib/utils';
 
 interface RailItem {
@@ -92,76 +95,118 @@ const workspaceItems: RailItem[] = [
 ];
 
 /**
- * Brand-mode items (the brand scope).
+ * Studio (canonical) brand-mode items.
  *
- * Seven top-level sections only. Sub-navigation (Identity tabs, Templates
- * categories, Share tabs, etc.) does NOT render here — it lives inside
- * each page as `?tab=` and surfaces in the InnerNavRail ("Sections" panel)
- * when that page is active. Keeps the rail scannable as the product grows.
+ * Five top-level sections matching the Cosmos workspace IA. Visible at
+ * /b/:slug/* only — when AppRail mounts inside BrandRouteLayout for the
+ * Studio launchpad page (/b/:slug/design). Other Studio sections use
+ * WorkspaceShell directly and don't render this rail at all.
+ */
+function brandItemsStudio(slug: string): RailItem[] {
+  return [
+    {
+      title: 'Setup',
+      url: `/b/${slug}/setup`,
+      icon: Compass,
+    },
+    {
+      title: 'Brand Kit',
+      url: `/b/${slug}/brand-kit`,
+      icon: Sparkles,
+    },
+    {
+      title: 'Guideline',
+      url: `/b/${slug}/guideline`,
+      icon: BookOpen,
+    },
+    {
+      title: 'Design',
+      url: `/b/${slug}/design`,
+      icon: Wand2,
+    },
+    {
+      title: 'Tools',
+      url: `/b/${slug}/tools`,
+      icon: Wrench,
+    },
+  ];
+}
+
+/**
+ * Classic (alternate) brand-mode items.
+ *
+ * Seven top-level sections — the legacy IA. Visible at /a/:slug/* only.
+ * URLs all stay in the /a namespace so navigation between Classic
+ * sections never bounces the user into Studio.
  *
  * Fullscreen tools (Brand Board, Bento, AI Design, Social Media editor,
  * Variant Studio, Analytics, Approvals, Consistency Studio) are reached
  * from the section they belong to (mostly Templates / Design) and via
  * direct URL — no rail entry.
  */
-function brandItems(slug: string): RailItem[] {
+function brandItemsClassic(slug: string): RailItem[] {
   return [
     {
       title: 'Overview',
-      url: `/b/${slug}`,
+      url: `/a/${slug}/setup`,
       icon: LayoutDashboard,
-      exact: true,
+      // Match the bare /a/:slug too — it redirects to /setup but
+      // briefly shows this rail in transition.
+      matchPrefixes: [`/a/${slug}`],
+      exact: false,
     },
     {
       title: 'Identity',
-      url: `/b/${slug}/identity`,
+      url: `/a/${slug}/identity`,
       icon: Sparkles,
-      matchPrefixes: [`/b/${slug}/edit`, `/b/${slug}/identity`],
+      matchPrefixes: [`/a/${slug}/edit`, `/a/${slug}/identity`],
     },
     {
       title: 'Templates',
-      url: `/b/${slug}/templates`,
+      url: `/a/${slug}/templates`,
       icon: LayoutTemplate,
       matchPrefixes: [
-        `/b/${slug}/templates`,
-        `/b/${slug}/assets`,
-        `/b/${slug}/kit`,
-        `/b/${slug}/brandkit`,
-        `/b/${slug}/brand-board`,
-        `/b/${slug}/bento`,
+        `/a/${slug}/templates`,
+        `/a/${slug}/assets`,
+        `/a/${slug}/brand-kit`,
+        `/a/${slug}/kit`,
+        `/a/${slug}/brandkit`,
+        `/a/${slug}/brand-board`,
+        `/a/${slug}/bento`,
       ],
     },
     {
       title: 'Design',
-      url: `/b/${slug}/design`,
+      url: `/a/${slug}/design`,
       icon: Wand2,
       matchPrefixes: [
-        `/b/${slug}/design`,
-        `/b/${slug}/ai-design`,
-        `/b/${slug}/design-ai`,
+        `/a/${slug}/design`,
+        `/a/${slug}/ai-design`,
+        `/a/${slug}/design-ai`,
       ],
     },
     {
       title: 'Content',
-      url: `/b/${slug}/content`,
+      url: `/a/${slug}/content`,
       icon: CalendarDays,
-      matchPrefixes: [`/b/${slug}/content`, `/b/${slug}/social-media`],
+      matchPrefixes: [`/a/${slug}/content`, `/a/${slug}/social-media`],
     },
     {
       title: 'Folders',
-      url: `/b/${slug}/folders`,
+      url: `/a/${slug}/folders`,
       icon: FolderTree,
-      matchPrefixes: [`/b/${slug}/folders`, `/b/${slug}/dam`],
+      matchPrefixes: [`/a/${slug}/folders`, `/a/${slug}/dam`],
     },
     {
       title: 'Share',
-      url: `/b/${slug}/share`,
+      url: `/a/${slug}/share`,
       icon: Share2,
       matchPrefixes: [
-        `/b/${slug}/share`,
-        `/b/${slug}/guidelines`,
-        `/b/${slug}/brand-guides`,
-        `/b/${slug}/logo-presentation`,
+        `/a/${slug}/share`,
+        `/a/${slug}/guideline`,
+        `/a/${slug}/guidelines`,
+        `/a/${slug}/brand-guides`,
+        `/a/${slug}/logo-presentation`,
       ],
     },
   ];
@@ -195,9 +240,19 @@ export function AppRail({ brandSlug }: AppRailProps) {
 
   // Scope-aware item set: brand items when we're inside a brand, workspace
   // items otherwise. The rail's role swaps with the user's context.
+  //
+  // Inside a brand, the rail also splits by namespace — Classic at /a/:slug
+  // gets the legacy 7-section IA, Studio at /b/:slug gets the 5 Cosmos
+  // sections. Detection is pathname-based so the rail items always link
+  // within the user's current namespace (never bouncing them between the
+  // two experiences mid-click).
   const items = useMemo<RailItem[]>(
-    () => (brandSlug ? brandItems(brandSlug) : workspaceItems),
-    [brandSlug],
+    () => {
+      if (!brandSlug) return workspaceItems;
+      const isClassic = location.pathname.startsWith('/a/');
+      return isClassic ? brandItemsClassic(brandSlug) : brandItemsStudio(brandSlug);
+    },
+    [brandSlug, location.pathname],
   );
 
   const isItemActive = (item: RailItem) => {
@@ -216,12 +271,16 @@ export function AppRail({ brandSlug }: AppRailProps) {
 
   /**
    * Section-preserving brand switch — when the user is mid-section and picks
-   * another brand, drop them into the same section in the new brand. This
-   * matches the behavior we already had on BrandNavbar so muscle memory holds
-   * up after the rewrite.
+   * another brand, drop them into the same section in the new brand. From
+   * a workspace context (no current brand) the destination respects the
+   * user's UI preference (Studio → /b/:slug/setup, Classic → /a/:slug).
    */
   const handleSwitchBrand = (newSlug: string) => {
     if (newSlug === brandSlug) return;
+    if (!brandSlug) {
+      navigate(getBrandHomeUrl(newSlug));
+      return;
+    }
     navigate(rewriteBrandPath(location.pathname, brandSlug, newSlug, location.search));
   };
 

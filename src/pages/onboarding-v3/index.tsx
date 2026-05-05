@@ -1,2 +1,6 @@
-import { SetUpScreen } from '@/features/onboarding-v3/screens/SetUpScreen';
-export default function OnboardingV3Page() { return <SetUpScreen />; }
+// Phase A — superseded /onboarding-v3. Canonical lives at /onboard-brand.
+import { Navigate } from 'react-router-dom';
+
+export default function OnboardingV3Page() {
+  return <Navigate to="/onboard-brand" replace />;
+}

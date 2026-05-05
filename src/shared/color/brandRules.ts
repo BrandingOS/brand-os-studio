@@ -131,7 +131,7 @@ export interface LogoVariant {
   downloadFormats: string[];
 
   // ── Brand-aware metadata (optional — additive to keep existing
-  // consumers such as brandkit-v2 LogoSection and bulkExport working
+  // consumers such as brand-kit-alt LogoSection and bulkExport working
   // unchanged). See `generateLogoVariants` for how these are populated. ──
 
   /** High-level grouping for UI organization. */

@@ -31,7 +31,7 @@ const OnboardingV4CreatePage = lazy(() => import("./pages/onboarding-v4/create")
 // New canonical Cosmos onboarding + workspace routes. The onboarding screens
 // are shared with /onboarding-v4 (the prior preview alias); the workspace
 // pages (Setup / Brand Kit / Guideline / Design / Tools) live under a new
-// top-center-nav shell, see src/shared/layouts/CosmosWorkspaceShell.tsx.
+// top-center-nav shell, see src/shared/layouts/WorkspaceShell.tsx.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
 const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
 const WorkspaceSetupPage = lazy(() => import("./pages/setup"));
@@ -152,31 +152,94 @@ const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelin
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
 const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
-const BrandKitV2Page = lazy(() => import('./features/brandkit-v2/BrandKitPage'));
-const BrandSettingsV2Page = lazy(() => import('./features/brandkit-v2/BrandSettingsPage'));
+const BrandKitV2Page = lazy(() => import('./features/brand-kit-alt/BrandKitPage'));
+const BrandSettingsV2Page = lazy(() => import('./features/brand-kit-alt/BrandSettingsPage'));
 
-/** Tiny helper that redirects the legacy `/brandkit` (no moduleId) URL
- * to the merged Brand Kit v2 page at `/kit`. Preserves the slug. */
+/** /brandkit (no moduleId) → canonical brand-kit hub at /a/:slug/brand-kit. */
 function BrandKitRedirect() {
   const { slug } = useParams<{ slug: string }>();
-  return <Navigate to={`/b/${slug}/kit`} replace />;
+  return <Navigate to={`/a/${slug}/brand-kit`} replace />;
 }
 
-/** Legacy /dam URL → new /folders home. Lives as a child of the brand
- *  shell so the redirect happens inside the persistent layout (no flash
- *  of unmount). Preserves any ?category= filter the user had on the URL. */
+/** Legacy /dam URL → /folders. Phase A: target lives at /a. Preserves
+ *  any ?category= filter on the URL. */
 function DamRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
-  return <Navigate to={`/b/${slug}/folders${search}`} replace />;
+  return <Navigate to={`/a/${slug}/folders${search}`} replace />;
 }
 
-/** /b/:slug/assets → /b/:slug/templates. The Assets deliverable catalog
- *  folded into Templates (see docs/ux-redesign/ARCHITECTURE.md §3 revised). */
+/** /assets → /templates. The Assets deliverable catalog folded into
+ *  Templates (see docs/ux-redesign/ARCHITECTURE.md §3 revised). Phase A:
+ *  Templates is unmigrated, lives at /a/:slug/templates. */
 function AssetsRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
-  return <Navigate to={`/b/${slug}/templates${search}`} replace />;
+  return <Navigate to={`/a/${slug}/templates${search}`} replace />;
+}
+
+/**
+ * Phase A v2 — Classic path harmonization helpers.
+ *
+ * The canonical path names match Studio's (`<ns>/:slug/setup`,
+ * `<ns>/:slug/brand-kit`, `<ns>/:slug/guideline`). These three helpers
+ * redirect the old Classic paths to the harmonized ones so that
+ * bookmarks and inbound links keep working through the renames.
+ *
+ * Bare /a/:slug → /a/:slug/setup. Classic's "Overview" content (the
+ * BrandHomePage with Recent/Search/Templates tabs) now lives at /setup.
+ */
+function ClassicIndexToSetupRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/setup${search}`} replace />;
+}
+function ClassicKitToBrandKitRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/brand-kit${search}`} replace />;
+}
+function ClassicGuidelinesToGuidelineRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/guideline${search}`} replace />;
+}
+
+/**
+ * Phase A graceful fallback: `/b/:slug/<unmigrated section>` → `/a/:slug/<same>`.
+ *
+ * Day-1 migrated Studio sections: setup, brand-kit, guideline, design, tools
+ * (plus the unified-editor, fullscreen surfaces, and Studio launchpad). Any
+ * other path under /b/:slug — e.g. /b/:slug/identity, /b/:slug/content — is
+ * not yet ported to a Studio shell. Per Concern 1 decision (1b: graceful
+ * redirect map), bounce to the Classic equivalent until Phase B ports it.
+ *
+ * The migrated sections are mounted as explicit Routes higher up the tree
+ * and win React Router v6's specificity ranking, so they never reach this
+ * fallback. Phase B removes the corresponding /a entries as features port.
+ */
+export function StudioToClassicFallback() {
+  const { slug } = useParams<{ slug: string }>();
+  const { pathname, search } = useLocation();
+  const tail = slug ? pathname.replace(new RegExp(`^/b/${slug}/?`), '') : '';
+  const target = tail ? `/a/${slug}/${tail}` : `/a/${slug}`;
+  return <Navigate to={`${target}${search}`} replace />;
+}
+
+/**
+ * Phase A legacy URL push: `/dashboard/brand/:slug/*` → `/b/:slug/*`.
+ *
+ * Existing bookmarks and external links land on Studio (canonical). If the
+ * specific section isn't migrated yet, StudioToClassicFallback then bounces
+ * to /a. Two-hop is acceptable for old deep-links (the user's settings
+ * preference doesn't enter into legacy URLs since they predate the toggle).
+ */
+export function DashboardBrandToStudioRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { pathname, search } = useLocation();
+  const tail = slug ? pathname.replace(new RegExp(`^/dashboard/brand/${slug}/?`), '') : '';
+  const target = tail ? `/b/${slug}/${tail}` : `/b/${slug}`;
+  return <Navigate to={`${target}${search}`} replace />;
 }
 
 
@@ -244,7 +307,7 @@ const App = () => (
             Onboarding:  /onboard-brand (+ /onboard-brand/create)
             Workspace:   /setup · /brand-kit · /guideline
                          /design-workspace · /tools-workspace
-            The workspace tabs share the CosmosWorkspaceShell — a top-
+            The workspace tabs share the WorkspaceShell — a top-
             center segmented nav with Setup · Brand Kit · Guideline ·
             Design · Tools. Setup replaces the legacy "Sitemap" concept
             as the first and primary tab.
@@ -308,114 +371,123 @@ const App = () => (
             </ProtectedRoute>
           } />
           {/*
-            ─────────────────────────────────────────────────────────────
-            Brand scope — nested under BrandRouteLayout.
+            ═══════════════════════════════════════════════════════════════
+            Phase A namespace split — Studio (/b/:slug) + Classic (/a/:slug)
 
-            BrandRouteLayout mounts BrandLayout EXACTLY ONCE for all of
-            these child routes. As the user navigates between Overview,
-            Setup, Guidelines, etc., AppRail / BrandNavbar / InnerNavRail
-            stay mounted; only the Outlet (the page contents) swaps. No
-            flicker, no scroll loss, no re-running of the brand-list lazy
-            load. Pages publish their config (innerNav, maxWidth, brandName)
-            via `useBrandPageConfig` so the parent layout knows what to
-            render.
-
-            Fullscreen / standalone surfaces under the same prefix
-            (brand-guides editor, guidelines/canvas, etc.) stay as flat
-            sibling routes below — they intentionally bypass this shell.
-            ─────────────────────────────────────────────────────────────
+            /b/:slug/*  Studio (canonical). Five Cosmos sections (Setup,
+                        Brand Kit, Guideline, Design, Tools), Studio
+                        launchpad, fullscreen surfaces, unified editor.
+                        Anything else under /b/:slug → StudioToClassicFallback.
+            /a/:slug/*  Classic (alternate). Full legacy 7-section IA.
+                        Sticky — rail items stay in /a so users don't
+                        bounce between experiences mid-click.
+            /dashboard/brand/:slug/*  legacy URLs → /b/:slug catch-all
+                        push to canonical Studio first; if the section
+                        isn't migrated yet StudioToClassicFallback bounces
+                        to Classic in a second hop.
+            ═══════════════════════════════════════════════════════════════
           */}
-          <Route path="/dashboard/brand/:slug" element={
+
+          {/* ─── Studio (/b/:slug/*) ─────────────────────────────────── */}
+
+          {/* Studio launchpad uses BrandRouteLayout (AppRail). Other
+              Cosmos sections render their own WorkspaceShell so
+              they live as flat sibling routes below. */}
+          <Route path="/b/:slug" element={
             <ProtectedRoute>
               <BrandRouteLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<BrandHomePage />} />
-            <Route path="edit" element={<BrandEditPage />} />
-            <Route path="identity" element={<IdentityPage />} />
+            {/* Studio doesn't have an Overview page yet — bare /b/:slug
+                falls back to Classic Overview at /a/:slug. */}
+            <Route index element={<StudioToClassicFallback />} />
             <Route path="design" element={<DesignLaunchpadPage />} />
-            <Route path="content" element={<ContentHubPage />} />
-            <Route path="share" element={<SharePage />} />
-            <Route path="templates" element={<BrandTemplatesPage />} />
-            <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
-            <Route path="folders" element={<DamPage />} />
-            <Route path="studio" element={<ConsistencyStudioPage />} />
-            {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
-            <Route path="assets" element={<AssetsRedirect />} />
-            <Route path="guidelines" element={<GuidelinesHubPage />} />
-            {/* Legacy /dam path — child redirect into the new /folders home,
-                so old bookmarks keep working without breaking the shell. */}
-            <Route path="dam" element={<DamRedirect />} />
           </Route>
-          {/* Phase 3.5 absorption (commit 9): /ai-design and /design-ai
-              routes deleted. Both legacy AI design surfaces are folded
-              into the unified editor's top-chrome AI prompt bar. The
-              launchpad now opens a seeded design at
-              /b/:slug/design/:designSlug — see DesignLaunchpadPage. */}
-          {/* Legacy brandkit hub merged into Brand Kit v2 — redirect to /kit */}
-          <Route path="/dashboard/brand/:slug/brandkit" element={
-            <ProtectedRoute>
-              <BrandKitRedirect />
-            </ProtectedRoute>
+
+          {/* Studio Cosmos sections — own shell internally. */}
+          <Route path="/b/:slug/setup" element={
+            <ProtectedRoute><BrandSetupPageV2 /></ProtectedRoute>
           } />
-          {/* Legacy standalone module route — kept for backward compat */}
-          <Route path="/dashboard/brand/:slug/brandkit/:moduleId" element={
-            <ProtectedRoute>
-              <BrandKitModulePage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/brand-kit" element={
+            <ProtectedRoute><BrandBrandKitPageV2 /></ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/brand-guides" element={
-            <ProtectedRoute>
-              <BrandGuidesPage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/guideline" element={
+            <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/logo-presentation" element={
-            <ProtectedRoute>
-              <LogoPresentationPage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/tools" element={
+            <ProtectedRoute><BrandToolsPageV2 /></ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/presentations" element={
-            <ProtectedRoute>
-              <PresentationsPage />
-            </ProtectedRoute>
+
+          {/* Studio fullscreen surfaces — no shell, namespace-orthogonal.
+              Reachable from either Studio or Classic via these canonical
+              /b/:slug/<surface> URLs. */}
+          <Route path="/b/:slug/editor" element={
+            <ProtectedRoute><EditorLauncherPage /></ProtectedRoute>
           } />
-          {/* Adaptive Case Study Deck — Behance-style brand presentation. */}
-          <Route path="/dashboard/brand/:slug/case-study" element={
-            <ProtectedRoute>
-              <CaseStudyPage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/design/:designSlug" element={
+            <ProtectedRoute><BrandDesignEditorPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/social-media" element={
+            <ProtectedRoute><SocialMediaPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/presentations" element={
+            <ProtectedRoute><PresentationsPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/case-study" element={
-            <ProtectedRoute>
-              <CaseStudyPage />
-            </ProtectedRoute>
+            <ProtectedRoute><CaseStudyPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/case-study/edit/:idx" element={
-            <ProtectedRoute>
-              <CaseStudySlideEditorPage />
-            </ProtectedRoute>
+            <ProtectedRoute><CaseStudySlideEditorPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/pitch-deck" element={
-            <ProtectedRoute>
-              <PitchDeckPage />
-            </ProtectedRoute>
+            <ProtectedRoute><PitchDeckPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/deck-v2" element={
-            <ProtectedRoute>
-              <DeckV2Page />
-            </ProtectedRoute>
+            <ProtectedRoute><DeckV2Page /></ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/social-media" element={
-            <ProtectedRoute>
-              <SocialMediaPage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/brand-guides" element={
+            <ProtectedRoute><BrandGuidesPage /></ProtectedRoute>
           } />
-          {/* /dashboard/brand/:slug/guidelines is now nested under BrandRouteLayout above. */}
-          <Route path="/dashboard/brand/:slug/guidelines/canvas" element={
-            <ProtectedRoute>
-              <CanvasGuidelinesPage />
-            </ProtectedRoute>
+          <Route path="/b/:slug/logo-presentation" element={
+            <ProtectedRoute><LogoPresentationPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guidelines/canvas" element={
+            <ProtectedRoute><CanvasGuidelinesPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/guidelines/blocks" element={
+            <ProtectedRoute><BlocksGuidelinesPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/brand-board" element={
+            <ProtectedRoute><BrandBoardPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/bento" element={
+            <ProtectedRoute><BrandBentoPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/analytics" element={
+            <ProtectedRoute><AnalyticsPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/approvals" element={
+            <ProtectedRoute><ApprovalsPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/variant-studio" element={
+            <ProtectedRoute><VariantStudioInAppPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/ui-color-system" element={
+            <ProtectedRoute><InAppUiColorSystemPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/typescale" element={
+            <ProtectedRoute><InAppTypescalePage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/tools/mockup-studio" element={
+            <ProtectedRoute><BrandMockupStudioPage /></ProtectedRoute>
+          } />
+
+          {/* Studio fallback — Identity / Templates / Content / Folders /
+              Share / Settings / Kit / Brandkit / etc. are unmigrated.
+              302 to the Classic equivalent. Phase B removes /a entries
+              one-by-one as features port to a Studio shell. */}
+          <Route path="/b/:slug/*" element={
+            <ProtectedRoute><StudioToClassicFallback /></ProtectedRoute>
           } />
           {/* Phase 5 — `/editor` now launches the unified editor with
               an auto-created "Untitled design" persisted into My
@@ -444,11 +516,9 @@ const App = () => (
             - `/tools/<slug>` — public landing + studio for a single tool.
             - `/claim` — the after-signup landing that materializes any
               anonymous tool session into a real brand.
-            - `/dashboard/brand/:slug/tools/variant-studio` and the short
-              form `/b/:slug/tools/variant-studio` — in-app entry into
-              the studio inside an existing brand. These intentionally
-              live as flat sibling routes so they get the `h-12` editor
-              chrome instead of the brand shell.
+            - `/b/:slug/tools/<slug>` — in-app entry into the studio
+              inside an existing brand. Mounted in the Studio block above
+              with `h-12` editor chrome instead of the brand shell.
             ─────────────────────────────────────────────────────────────
           */}
           <Route path="/tools" element={<ToolsDirectoryPage />} />
@@ -458,50 +528,12 @@ const App = () => (
           <Route path="/tools/typescale" element={<PublicTypescalePage />} />
           <Route path="/tools/mockup-studio" element={<StandaloneMockupStudioPage />} />
           <Route path="/claim" element={<ClaimPage />} />
-          <Route path="/dashboard/brand/:slug/tools/variant-studio" element={
-            <ProtectedRoute>
-              <VariantStudioInAppPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/tools/variant-studio" element={
-            <ProtectedRoute>
-              <VariantStudioInAppPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/tools/ui-color-system" element={
-            <ProtectedRoute>
-              <InAppUiColorSystemPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/tools/ui-color-system" element={
-            <ProtectedRoute>
-              <InAppUiColorSystemPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/tools/typescale" element={
-            <ProtectedRoute>
-              <InAppTypescalePage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/tools/typescale" element={
-            <ProtectedRoute>
-              <InAppTypescalePage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/tools/mockup-studio" element={
-            <ProtectedRoute>
-              <BrandMockupStudioPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/tools/mockup-studio" element={
-            <ProtectedRoute>
-              <BrandMockupStudioPage />
-            </ProtectedRoute>
-          } />
+
+          {/* In-app variants of the public Tools above are mounted in
+              the Studio block (and reachable from Classic via the same
+              canonical /b/:slug/tools/<slug> URLs). */}
 
           {/* BrandOS v5 — DAM, Templates marketplace, Brand Portal v2 */}
-          {/* /dashboard/brand/:slug/kit and /dam are nested under BrandRouteLayout above.
-              The /b/:slug short-form aliases are nested under their own BrandRouteLayout below. */}
           {/* v2 workspace: Templates marketplace now lives in WorkspaceShell. */}
           <Route path="/templates" element={
             <ProtectedRoute>
@@ -523,141 +555,6 @@ const App = () => (
               <MarketplacePage />
             </ProtectedRoute>
           } />
-          <Route path="/b/:slug/guidelines/blocks" element={
-            <ProtectedRoute>
-              <BlocksGuidelinesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/guidelines/blocks" element={
-            <ProtectedRoute>
-              <BlocksGuidelinesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/analytics" element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/analytics" element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/approvals" element={
-            <ProtectedRoute>
-              <ApprovalsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/approvals" element={
-            <ProtectedRoute>
-              <ApprovalsPage />
-            </ProtectedRoute>
-          } />
-
-          {/*
-            Stage 14 — Short-form `/b/:slug/...` aliases.
-            See docs/ux-redesign/ARCHITECTURE.md §8 for the full migration map.
-            These render the SAME components as the legacy `/dashboard/brand/...`
-            routes; old URLs still work, new URLs are now bookmarkable. The
-            full migration of internal links to the short form is deferred and
-            documented in docs/ux-redesign/EXECUTION.md.
-          */}
-          {/* Short-form /b/:slug aliases — same nested-shell pattern. */}
-          <Route path="/b/:slug" element={
-            <ProtectedRoute>
-              <BrandRouteLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<BrandHomePage />} />
-            <Route path="edit" element={<BrandEditPage />} />
-            <Route path="identity" element={<IdentityPage />} />
-            <Route path="design" element={<DesignLaunchpadPage />} />
-            <Route path="content" element={<ContentHubPage />} />
-            <Route path="share" element={<SharePage />} />
-            <Route path="templates" element={<BrandTemplatesPage />} />
-            <Route path="kit" element={<BrandKitV2Page />} />
-            <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
-            <Route path="folders" element={<DamPage />} />
-            <Route path="studio" element={<ConsistencyStudioPage />} />
-            {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
-            <Route path="assets" element={<AssetsRedirect />} />
-            <Route path="guidelines" element={<GuidelinesHubPage />} />
-            {/* Legacy /dam path — child redirect into the new /folders home,
-                so old bookmarks keep working without breaking the shell. */}
-            <Route path="dam" element={<DamRedirect />} />
-          </Route>
-          {/* Phase 5 — brand-scoped instant-on launcher. Hitting
-              /b/:slug/editor auto-creates an "Untitled design" under
-              that brand and replace-navigates to the design route. */}
-          <Route path="/b/:slug/editor" element={
-            <ProtectedRoute>
-              <EditorLauncherPage />
-            </ProtectedRoute>
-          } />
-          {/* Production unified-editor route — short + long form. Mounts
-              the unified Editor with a brand-scoped saved design loaded
-              by id from IDesignStorage. Phase 4.5 finishes the auth
-              gates / 404 polish / share URLs / brand-picker URL wiring. */}
-          <Route path="/b/:slug/design/:designSlug" element={
-            <ProtectedRoute>
-              <BrandDesignEditorPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/design/:designSlug" element={
-            <ProtectedRoute>
-              <BrandDesignEditorPage />
-            </ProtectedRoute>
-          } />
-          {/* Short-form aliases for brand-scoped fullscreen pages
-              (social-media, presentations, brand-guides, logo-presentation).
-              These were only reachable via the long-form /dashboard/brand/:slug/... URLs. */}
-          <Route path="/b/:slug/social-media" element={
-            <ProtectedRoute>
-              <SocialMediaPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/presentations" element={
-            <ProtectedRoute>
-              <PresentationsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/brand-guides" element={
-            <ProtectedRoute>
-              <BrandGuidesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/logo-presentation" element={
-            <ProtectedRoute>
-              <LogoPresentationPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/guidelines/canvas" element={
-            <ProtectedRoute>
-              <CanvasGuidelinesPage />
-            </ProtectedRoute>
-          } />
-          {/* Brand Board — fullscreen brand identity explorer. */}
-          <Route path="/b/:slug/brand-board" element={
-            <ProtectedRoute>
-              <BrandBoardPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/brand-board" element={
-            <ProtectedRoute>
-              <BrandBoardPage />
-            </ProtectedRoute>
-          } />
-          {/* Bento Grid — brand-scoped, fullscreen. */}
-          <Route path="/b/:slug/bento" element={
-            <ProtectedRoute>
-              <BrandBentoPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/brand/:slug/bento" element={
-            <ProtectedRoute>
-              <BrandBentoPage />
-            </ProtectedRoute>
-          } />
           {/* Bento Grid — standalone (no brand required). */}
           <Route path="/tools/bento" element={
             <ProtectedRoute>
@@ -666,54 +563,65 @@ const App = () => (
           } />
           {/* Public Bento — unauthenticated read-only view. */}
           <Route path="/brand/:slug/bento/:bentoId" element={<PublicBentoPage />} />
-          <Route path="/b/:slug/brandkit" element={
+
+          {/* ─── Classic (/a/:slug/*) ────────────────────────────────── */}
+
+          {/* Legacy 7-section IA in BrandRouteLayout (AppRail + InnerNav).
+              Sticky — when the rail is rendered at /a/:slug/<X> its items
+              all link within /a so users stay in Classic until they
+              switch via Settings. */}
+          <Route path="/a/:slug" element={
             <ProtectedRoute>
-              <BrandKitRedirect />
+              <BrandRouteLayout />
             </ProtectedRoute>
+          }>
+            {/* Phase A v2 — bare /a/:slug redirects to canonical Classic
+                entry at /a/:slug/setup. The shell (BrandRouteLayout)
+                stays mounted across the redirect so there's no flash. */}
+            <Route index element={<ClassicIndexToSetupRedirect />} />
+            <Route path="setup" element={<BrandHomePage />} />
+            <Route path="edit" element={<BrandEditPage />} />
+            <Route path="identity" element={<IdentityPage />} />
+            <Route path="content" element={<ContentHubPage />} />
+            <Route path="share" element={<SharePage />} />
+            <Route path="templates" element={<BrandTemplatesPage />} />
+            {/* Renamed: kit → brand-kit (matches Studio canonical path).
+                Old /a/:slug/kit redirects to /a/:slug/brand-kit. */}
+            <Route path="brand-kit" element={<BrandKitV2Page />} />
+            <Route path="kit" element={<ClassicKitToBrandKitRedirect />} />
+            <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
+            <Route path="folders" element={<DamPage />} />
+            <Route path="studio" element={<ConsistencyStudioPage />} />
+            {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
+            <Route path="assets" element={<AssetsRedirect />} />
+            {/* Renamed: guidelines → guideline (singular, matches Studio).
+                Old /a/:slug/guidelines redirects to /a/:slug/guideline. */}
+            <Route path="guideline" element={<GuidelinesHubPage />} />
+            <Route path="guidelines" element={<ClassicGuidelinesToGuidelineRedirect />} />
+            {/* Legacy /dam path → /folders. */}
+            <Route path="dam" element={<DamRedirect />} />
+          </Route>
+
+          {/* Classic flat routes — own shell or special: design uses
+              WorkspaceShell (can't nest), settings has its own
+              shell, brandkit (no moduleId) is a redirect to /kit. */}
+          <Route path="/a/:slug/design" element={
+            <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
           } />
-          <Route path="/b/:slug/settings" element={
-            <ProtectedRoute>
-              <BrandSettingsV2Page />
-            </ProtectedRoute>
+          <Route path="/a/:slug/settings" element={
+            <ProtectedRoute><BrandSettingsV2Page /></ProtectedRoute>
           } />
-          <Route path="/dashboard/brand/:slug/settings" element={
-            <ProtectedRoute>
-              <BrandSettingsV2Page />
-            </ProtectedRoute>
+          <Route path="/a/:slug/brandkit" element={
+            <ProtectedRoute><BrandKitRedirect /></ProtectedRoute>
           } />
-          <Route path="/b/:slug/brandkit/:moduleId" element={
-            <ProtectedRoute>
-              <BrandKitModulePage />
-            </ProtectedRoute>
-          } />
-          {/* v2 brand-scoped tabs: the 5 tabs always live inside a brand.
-              Setup reuses the existing SetupPage; the other four are
-              placeholders in Phase 1 and get wired to real features in
-              Phase 3. See docs/ux-v2/PLAN.md for the full plan. */}
-          <Route path="/b/:slug/setup" element={
-            <ProtectedRoute>
-              <BrandSetupPageV2 />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/brand-kit" element={
-            <ProtectedRoute>
-              <BrandBrandKitPageV2 />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/guideline" element={
-            <ProtectedRoute>
-              <BrandGuidelinePageV2 />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/design" element={
-            <ProtectedRoute>
-              <BrandDesignPageV2 />
-            </ProtectedRoute>
-          } />
-          <Route path="/b/:slug/tools" element={
-            <ProtectedRoute>
-              <BrandToolsPageV2 />
-            </ProtectedRoute>
+
+          {/* ─── Legacy URLs (/dashboard/brand/:slug/*) ─────────────── */}
+
+          {/* Single catch-all: 302 every legacy URL to its /b/:slug
+              canonical equivalent. StudioToClassicFallback then bounces
+              unmigrated sections onward to /a in a second hop. */}
+          <Route path="/dashboard/brand/:slug/*" element={
+            <ProtectedRoute><DashboardBrandToStudioRedirect /></ProtectedRoute>
           } />
           {/* Dev-only all-features inventory. Self-gated on import.meta.env.DEV
               or ?dev=1. Not linked from any user nav. */}

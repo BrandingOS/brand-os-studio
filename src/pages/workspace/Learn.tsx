@@ -1,4 +1,4 @@
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 
 /**
  * Workspace Learn — tutorials / docs index.

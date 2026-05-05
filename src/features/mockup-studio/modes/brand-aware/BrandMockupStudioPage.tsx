@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SERVICE_KEYS, useService } from '@/core';
 import type { IBrandsService, IMockupTemplatesService } from '@/core/types/services';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import type { Brand } from '@/shared/types/brand';
 
 import { ExportButton } from '../../components/ExportButton';
@@ -142,7 +142,7 @@ export default function BrandMockupStudioPage() {
 
   if (brandError) {
     return (
-      <CosmosWorkspaceShell>
+      <WorkspaceShell>
         <div className="ms-shell" style={{ gridTemplateColumns: '1fr', placeItems: 'center' }}>
           <div className="panel" style={{ padding: 24, maxWidth: 420, textAlign: 'center' }}>
             <h2 className="panel-heading-title" style={{ fontSize: 24, marginBottom: 8 }}>
@@ -156,12 +156,12 @@ export default function BrandMockupStudioPage() {
             </Button>
           </div>
         </div>
-      </CosmosWorkspaceShell>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <CosmosWorkspaceShell
+    <WorkspaceShell
       rightActions={
         <button
           type="button"
@@ -237,6 +237,6 @@ export default function BrandMockupStudioPage() {
 
         <PropertiesSidebar />
       </div>
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }

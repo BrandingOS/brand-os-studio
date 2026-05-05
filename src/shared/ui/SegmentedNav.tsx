@@ -9,7 +9,7 @@
 // Two modes share the same animated pill + open keyframe:
 //
 //   • route mode — items carry `to` paths; selection is driven by
-//     React Router's NavLink isActive. Used by CosmosWorkspaceShell
+//     React Router's NavLink isActive. Used by WorkspaceShell
 //     for the workspace-level tabs (Setup / Brand Kit / Guideline /
 //     Design / Tools).
 //

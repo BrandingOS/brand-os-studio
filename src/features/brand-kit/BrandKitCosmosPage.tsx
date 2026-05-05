@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
-import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { ArrowRight } from '@/features/setup/components/SetupIcons';
 import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
 import { hexToName } from '@/features/setup/data/colorNames';
@@ -614,7 +614,7 @@ export function BrandKitCosmosPage({
   }, [view, drilldownTarget]);
 
   return (
-    <CosmosWorkspaceShell
+    <WorkspaceShell
       rightActions={
         <button type="button" className="pill-btn pill-btn--primary">
           <span>Export kit</span>
@@ -869,7 +869,7 @@ export function BrandKitCosmosPage({
         }}
         onClose={() => setPickerLabel(null)}
       />
-    </CosmosWorkspaceShell>
+    </WorkspaceShell>
   );
 }
 
