@@ -11,6 +11,7 @@ import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { PageSpinner } from "@/components/PageSpinner";
 import { CommandPaletteProvider } from "@/shared/search/CommandPaletteProvider";
 import { BrandAssistantProvider } from "@/features/ai/v5/BrandAssistantProvider";
+import { BrandSettingsProvider } from "@/shared/brand-settings";
 
 // Eager: only pages needed on first paint or critical to routing
 import IndexPage from "./pages/Index";
@@ -656,8 +657,19 @@ const App = () => (
           <Route path="/a/:slug/design" element={
             <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
           } />
+          {/* Phase B Group 2 (l) — wrap legacy /a/:slug/settings in
+              BrandSettingsProvider. The legacy BrandSettingsV2Page mounts
+              BrandLayout (legacy chrome) but never had the provider; the
+              BrandSettingsHub it renders calls useBrandSettings and
+              throws "must be used within a <BrandSettingsProvider>".
+              This was a latent pre-Phase-B bug — fix is namespace-
+              orthogonal (provider only, no chrome change). */}
           <Route path="/a/:slug/settings" element={
-            <ProtectedRoute><BrandSettingsV2Page /></ProtectedRoute>
+            <ProtectedRoute>
+              <BrandSettingsProvider>
+                <BrandSettingsV2Page />
+              </BrandSettingsProvider>
+            </ProtectedRoute>
           } />
           <Route path="/a/:slug/brandkit" element={
             <ProtectedRoute><BrandKitRedirect /></ProtectedRoute>
