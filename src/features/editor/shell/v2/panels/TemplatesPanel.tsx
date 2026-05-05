@@ -8,6 +8,16 @@
 // Reads from ITemplatesService (LocalTemplatesService in dev).
 // Writes to IDesignStorage on open (creates a fresh design from the
 // template's BrandOSDocument with applyBrandToDocument).
+//
+// Phase B Templates port — `mode` prop discriminates between two
+// mount contexts:
+//   • mode='editor' (default) — mounted inside the unified editor's
+//     secondary panel. AI-generated images can be placed onto the
+//     active adapter via the `onPlaceImage` callback.
+//   • mode='browser' — mounted as a standalone page at
+//     /b/:slug/templates inside WorkspaceShell. No active adapter;
+//     AI images clipboard-fallback. Template clicks behave the same
+//     in both modes (seed doc → save → navigate to /b/:slug/design/:id).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -33,10 +43,17 @@ import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { Layer } from '@/features/editor/schema';
 
 interface TemplatesPanelProps {
+  /** Where the panel is mounted. Defaults to 'editor' for backward
+   *  compatibility with existing in-editor mounts. Pass 'browser' from
+   *  the standalone /b/:slug/templates Studio page. The behavior split
+   *  is documented in the file header. */
+  mode?: 'editor' | 'browser';
   /** Phase 5 — passed by EditorSecondaryPanel for the AI image
-   *  place-on-canvas flow. Optional so test mounts can omit. */
+   *  place-on-canvas flow. Optional so test mounts can omit. Only
+   *  consulted when `mode === 'editor'`. */
   adapter?: EditorAdapter;
-  /** Phase 5 — page id where image-as-layer lands. */
+  /** Phase 5 — page id where image-as-layer lands. Only consulted
+   *  when `mode === 'editor'`. */
   activePageId?: string;
 }
 
@@ -55,7 +72,7 @@ const MOOD_OPTIONS: TemplateMood[] = [
   'vintage', 'natural', 'tech', 'maximalist',
 ];
 
-export function TemplatesPanel({ adapter, activePageId }: TemplatesPanelProps = {}) {
+export function TemplatesPanel({ mode = 'editor', adapter, activePageId }: TemplatesPanelProps = {}) {
   // Defensive lookup — some test harnesses + dev mounts clear the
   // container without re-registering all services. Render a graceful
   // "service unavailable" placeholder instead of crashing.
@@ -233,7 +250,7 @@ export function TemplatesPanel({ adapter, activePageId }: TemplatesPanelProps = 
           initialPrompt={generatorPrompt}
           onClose={() => setGeneratorOpen(false)}
           onPlaceImage={
-            adapter && activePageId
+            mode === 'editor' && adapter && activePageId
               ? (imageUrl, dims) => {
                   // Phase 5 — place AI-generated image as a layer on
                   // the active page, sized to fit ~60% of the page

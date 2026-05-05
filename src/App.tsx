@@ -46,6 +46,7 @@ const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
+const BrandTemplatesStudioPage = lazy(() => import("./pages/b/[slug]/templates"));
 // v2 workspace shell pages (outside a brand). Simpler shell, no tabs.
 const WorkspaceHomePage = lazy(() => import("./pages/workspace/Home"));
 const WorkspaceLearnPage = lazy(() => import("./pages/workspace/Learn"));
@@ -416,6 +417,16 @@ const App = () => (
           } />
           <Route path="/b/:slug/tools" element={
             <ProtectedRoute><BrandToolsPageV2 /></ProtectedRoute>
+          } />
+          {/* Phase B Templates port — Studio Templates page wraps
+              WorkspaceShell + TemplatesPanel in browser mode. Mounted
+              ABOVE the /b/:slug/* StudioToClassicFallback so React Router
+              v6's specificity ranking selects this route over the
+              catch-all that would otherwise redirect /b/:slug/templates
+              to /a/:slug/templates. /a/:slug/templates stays untouched
+              (legacy BrandTemplatesPage) for Classic-preference users. */}
+          <Route path="/b/:slug/templates" element={
+            <ProtectedRoute><BrandTemplatesStudioPage /></ProtectedRoute>
           } />
 
           {/* Studio fullscreen surfaces — no shell, namespace-orthogonal.
