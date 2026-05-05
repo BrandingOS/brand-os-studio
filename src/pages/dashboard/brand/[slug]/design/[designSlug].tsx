@@ -39,6 +39,7 @@ import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { PageSpinner } from '@/components/PageSpinner';
+import { activityService } from '@/shared/services/activityService';
 
 export default function BrandDesignEditorPage() {
   const { slug, designSlug } = useParams<{
@@ -156,6 +157,16 @@ export default function BrandDesignEditorPage() {
           // Anyone with the URL can see the design without an auth wall.
           const url = `${window.location.origin}/d/${brand.slug}/${designSlug}`;
           void copyToClipboard(url);
+          // Phase 7.4c — log share to the activity feed so creators
+          // can see "where this design went" across the workspace.
+          void activityService.log({
+            brandId: brand.id,
+            brandName: brand.name,
+            eventType: 'asset_exported',
+            title: 'Design link copied',
+            description: `Public link to "${doc?.metadata?.name ?? designSlug}"`,
+            metadata: { share: true, designId: designSlug, url },
+          });
         }}
       />
     </Suspense>
