@@ -8,7 +8,7 @@
 // catch-all (a migrated /b/:slug/setup must NOT fall into the fallback).
 import { describe, expect, it } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
-import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { MemoryRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { afterEach } from 'vitest';
 import {
   StudioToClassicFallback,
@@ -114,6 +114,68 @@ describe('Phase A — DashboardBrandToStudioRedirect', () => {
       dashboardRoutes,
     );
     expect(getPath()).toBe('/b/raqm/tools/variant-studio');
+  });
+});
+
+describe('Phase A v2 — Classic path harmonization redirects', () => {
+  // Mirrors the actual /a/:slug nested block from App.tsx so the
+  // redirects are exercised through real React Router resolution.
+  // Index → setup, /kit → /brand-kit, /guidelines → /guideline.
+  function ClassicIndexToSetupRedirect() {
+    const { slug } = useParams<{ slug: string }>();
+    return <Navigate to={`/a/${slug}/setup`} replace />;
+  }
+  function ClassicKitToBrandKitRedirect() {
+    const { slug } = useParams<{ slug: string }>();
+    return <Navigate to={`/a/${slug}/brand-kit`} replace />;
+  }
+  function ClassicGuidelinesToGuidelineRedirect() {
+    const { slug } = useParams<{ slug: string }>();
+    return <Navigate to={`/a/${slug}/guideline`} replace />;
+  }
+  // Need useParams import locally for the inline components above.
+
+  const harmonizedRoutes = (
+    <Route path="/a/:slug" element={<div data-testid="classic-shell">classic-shell<Outlet /></div>}>
+      <Route index element={<ClassicIndexToSetupRedirect />} />
+      <Route path="setup" element={<div data-testid="setup-page">setup</div>} />
+      <Route path="brand-kit" element={<div data-testid="brand-kit-page">brand-kit</div>} />
+      <Route path="kit" element={<ClassicKitToBrandKitRedirect />} />
+      <Route path="guideline" element={<div data-testid="guideline-page">guideline</div>} />
+      <Route path="guidelines" element={<ClassicGuidelinesToGuidelineRedirect />} />
+    </Route>
+  );
+
+  it('bare /a/:slug redirects to /a/:slug/setup', () => {
+    const { getPath } = mount('/a/raqm', harmonizedRoutes);
+    expect(getPath()).toBe('/a/raqm/setup');
+  });
+
+  it('/a/:slug/kit redirects to /a/:slug/brand-kit', () => {
+    const { getPath } = mount('/a/raqm/kit', harmonizedRoutes);
+    expect(getPath()).toBe('/a/raqm/brand-kit');
+  });
+
+  it('/a/:slug/guidelines redirects to /a/:slug/guideline', () => {
+    const { getPath } = mount('/a/raqm/guidelines', harmonizedRoutes);
+    expect(getPath()).toBe('/a/raqm/guideline');
+  });
+
+  it('/a/:slug/setup renders BrandHomePage directly (no redirect)', () => {
+    const { getByTestId, getPath } = mount('/a/raqm/setup', harmonizedRoutes);
+    expect(getPath()).toBe('/a/raqm/setup');
+    expect(getByTestId('setup-page')).toBeTruthy();
+  });
+
+  it('/a/:slug/brand-kit renders the brand-kit hub directly', () => {
+    const { getByTestId, getPath } = mount('/a/raqm/brand-kit', harmonizedRoutes);
+    expect(getPath()).toBe('/a/raqm/brand-kit');
+    expect(getByTestId('brand-kit-page')).toBeTruthy();
+  });
+
+  it('/a/:slug/guideline renders the guideline hub directly', () => {
+    const { getByTestId } = mount('/a/raqm/guideline', harmonizedRoutes);
+    expect(getByTestId('guideline-page')).toBeTruthy();
   });
 });
 

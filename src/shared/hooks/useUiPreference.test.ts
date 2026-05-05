@@ -50,14 +50,20 @@ describe('getBrandHomeUrl', () => {
     expect(getBrandHomeUrl('raqm')).toBe('/b/raqm/setup');
   });
 
-  it('returns /a/:slug for Classic preference', () => {
+  it('returns /a/:slug/setup for Classic preference (harmonized path)', () => {
     useUiPreferenceStore.getState().setPreference('classic');
-    expect(getBrandHomeUrl('raqm')).toBe('/a/raqm');
+    expect(getBrandHomeUrl('raqm')).toBe('/a/raqm/setup');
   });
 
   it('returns /b/:slug/setup again when toggled back to Studio', () => {
     useUiPreferenceStore.getState().setPreference('classic');
     useUiPreferenceStore.getState().setPreference('studio');
     expect(getBrandHomeUrl('skam')).toBe('/b/skam/setup');
+  });
+
+  it('canonical path is the same shape across namespaces (<ns>/:slug/setup)', () => {
+    expect(getBrandHomeUrl('raqm')).toBe('/b/raqm/setup');
+    useUiPreferenceStore.getState().setPreference('classic');
+    expect(getBrandHomeUrl('raqm')).toBe('/a/raqm/setup');
   });
 });

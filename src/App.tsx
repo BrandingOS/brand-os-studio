@@ -155,10 +155,10 @@ const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
 const BrandKitV2Page = lazy(() => import('./features/brand-kit-alt/BrandKitPage'));
 const BrandSettingsV2Page = lazy(() => import('./features/brand-kit-alt/BrandSettingsPage'));
 
-/** Phase A: brand-kit hub lives in Classic at /a/:slug/kit. */
+/** /brandkit (no moduleId) → canonical brand-kit hub at /a/:slug/brand-kit. */
 function BrandKitRedirect() {
   const { slug } = useParams<{ slug: string }>();
-  return <Navigate to={`/a/${slug}/kit`} replace />;
+  return <Navigate to={`/a/${slug}/brand-kit`} replace />;
 }
 
 /** Legacy /dam URL → /folders. Phase A: target lives at /a. Preserves
@@ -176,6 +176,33 @@ function AssetsRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
   return <Navigate to={`/a/${slug}/templates${search}`} replace />;
+}
+
+/**
+ * Phase A v2 — Classic path harmonization helpers.
+ *
+ * The canonical path names match Studio's (`<ns>/:slug/setup`,
+ * `<ns>/:slug/brand-kit`, `<ns>/:slug/guideline`). These three helpers
+ * redirect the old Classic paths to the harmonized ones so that
+ * bookmarks and inbound links keep working through the renames.
+ *
+ * Bare /a/:slug → /a/:slug/setup. Classic's "Overview" content (the
+ * BrandHomePage with Recent/Search/Templates tabs) now lives at /setup.
+ */
+function ClassicIndexToSetupRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/setup${search}`} replace />;
+}
+function ClassicKitToBrandKitRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/brand-kit${search}`} replace />;
+}
+function ClassicGuidelinesToGuidelineRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/a/${slug}/guideline${search}`} replace />;
 }
 
 /**
@@ -548,19 +575,29 @@ const App = () => (
               <BrandRouteLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<BrandHomePage />} />
+            {/* Phase A v2 — bare /a/:slug redirects to canonical Classic
+                entry at /a/:slug/setup. The shell (BrandRouteLayout)
+                stays mounted across the redirect so there's no flash. */}
+            <Route index element={<ClassicIndexToSetupRedirect />} />
+            <Route path="setup" element={<BrandHomePage />} />
             <Route path="edit" element={<BrandEditPage />} />
             <Route path="identity" element={<IdentityPage />} />
             <Route path="content" element={<ContentHubPage />} />
             <Route path="share" element={<SharePage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
-            <Route path="kit" element={<BrandKitV2Page />} />
+            {/* Renamed: kit → brand-kit (matches Studio canonical path).
+                Old /a/:slug/kit redirects to /a/:slug/brand-kit. */}
+            <Route path="brand-kit" element={<BrandKitV2Page />} />
+            <Route path="kit" element={<ClassicKitToBrandKitRedirect />} />
             <Route path="brandkit/:moduleId" element={<BrandKitModulePage />} />
             <Route path="folders" element={<DamPage />} />
             <Route path="studio" element={<ConsistencyStudioPage />} />
             {/* Absorbed: Assets deliverable catalog lives inside Templates. */}
             <Route path="assets" element={<AssetsRedirect />} />
-            <Route path="guidelines" element={<GuidelinesHubPage />} />
+            {/* Renamed: guidelines → guideline (singular, matches Studio).
+                Old /a/:slug/guidelines redirects to /a/:slug/guideline. */}
+            <Route path="guideline" element={<GuidelinesHubPage />} />
+            <Route path="guidelines" element={<ClassicGuidelinesToGuidelineRedirect />} />
             {/* Legacy /dam path → /folders. */}
             <Route path="dam" element={<DamRedirect />} />
           </Route>

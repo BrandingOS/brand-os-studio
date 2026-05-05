@@ -148,9 +148,12 @@ function brandItemsClassic(slug: string): RailItem[] {
   return [
     {
       title: 'Overview',
-      url: `/a/${slug}`,
+      url: `/a/${slug}/setup`,
       icon: LayoutDashboard,
-      exact: true,
+      // Match the bare /a/:slug too — it redirects to /setup but
+      // briefly shows this rail in transition.
+      matchPrefixes: [`/a/${slug}`],
+      exact: false,
     },
     {
       title: 'Identity',
@@ -165,6 +168,7 @@ function brandItemsClassic(slug: string): RailItem[] {
       matchPrefixes: [
         `/a/${slug}/templates`,
         `/a/${slug}/assets`,
+        `/a/${slug}/brand-kit`,
         `/a/${slug}/kit`,
         `/a/${slug}/brandkit`,
         `/a/${slug}/brand-board`,
@@ -199,6 +203,7 @@ function brandItemsClassic(slug: string): RailItem[] {
       icon: Share2,
       matchPrefixes: [
         `/a/${slug}/share`,
+        `/a/${slug}/guideline`,
         `/a/${slug}/guidelines`,
         `/a/${slug}/brand-guides`,
         `/a/${slug}/logo-presentation`,

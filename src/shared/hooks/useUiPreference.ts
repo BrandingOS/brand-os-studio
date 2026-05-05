@@ -57,14 +57,14 @@ export function getCurrentUiPreference(): UiPreference {
 
 /**
  * Returns the canonical entry URL for a brand, respecting the user's
- * UI preference. Studio users land on /b/:slug/setup (the canonical
- * Studio entry — Setup is the first migrated tab); Classic users land
- * on /a/:slug (Overview, the legacy IA's home page). Use at brand-entry
- * sites (workspace brand list, search results, brand switcher when
- * switching from outside a brand) so users land directly in their
- * preferred namespace's canonical home, no redirect hop.
+ * UI preference. Both namespaces use the harmonized `<ns>/:slug/setup`
+ * path: Studio → /b/:slug/setup (Setup editor in Cosmos shell), Classic
+ * → /a/:slug/setup (BrandHomePage overview in legacy shell). Use at
+ * brand-entry sites (workspace brand list, search results, brand
+ * switcher when switching from outside a brand) so users land directly
+ * in their preferred namespace's canonical home, no redirect hop.
  */
 export function getBrandHomeUrl(slug: string): string {
   const pref = getCurrentUiPreference();
-  return pref === 'classic' ? `/a/${slug}` : `/b/${slug}/setup`;
+  return pref === 'classic' ? `/a/${slug}/setup` : `/b/${slug}/setup`;
 }

@@ -51,7 +51,7 @@ function BrandCard({ brand }: { brand: Brand }) {
   // Brand-entry URL respects the user's UI preference: Studio users land
   // on Setup (canonical Studio entry); Classic users land on Overview.
   const uiPreference = useUiPreference();
-  const entryUrl = uiPreference === 'classic' ? `/a/${brand.slug}` : `/b/${brand.slug}/setup`;
+  const entryUrl = uiPreference === 'classic' ? `/a/${brand.slug}/setup` : `/b/${brand.slug}/setup`;
 
   return (
     <Link

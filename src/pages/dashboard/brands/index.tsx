@@ -22,9 +22,9 @@ export default function BrandsPage() {
   // to /a/:slug/identity for Studio users — but skipping the redirect
   // here saves a hop).
   const homeUrlFor = (slug: string) =>
-    uiPreference === 'classic' ? `/a/${slug}` : `/b/${slug}/setup`;
+    uiPreference === 'classic' ? `/a/${slug}/setup` : `/b/${slug}/setup`;
   const kitUrlFor = (slug: string) =>
-    uiPreference === 'classic' ? `/a/${slug}/kit` : `/b/${slug}/brand-kit`;
+    uiPreference === 'classic' ? `/a/${slug}/brand-kit` : `/b/${slug}/brand-kit`;
   // Identity is unmigrated in Studio (Phase B will port it). For now both
   // namespaces land on the Classic page directly to avoid a redirect hop.
   const identityUrlFor = (slug: string) => `/a/${slug}/identity`;
