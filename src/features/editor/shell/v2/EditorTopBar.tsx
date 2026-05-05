@@ -134,6 +134,12 @@ interface Props {
    * solo work.
    */
   presenceSlot?: React.ReactNode;
+  /**
+   * Phase 7.5 — slot for the "Duplicate design" button. The Editor
+   * passes <EditorDuplicateDesignButton/> here. Brand-scoped only;
+   * absent when there's no brand context.
+   */
+  duplicateSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -153,6 +159,7 @@ export function EditorTopBar({
   exportFamilySlot,
   republishFamilySlot,
   presenceSlot,
+  duplicateSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -231,6 +238,7 @@ export function EditorTopBar({
         {republishFamilySlot}
         {exportFamilySlot}
         {generateVariantsSlot}
+        {duplicateSlot}
         {saveAsTemplateSlot}
         {onShare ? (
           <button

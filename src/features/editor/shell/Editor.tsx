@@ -64,6 +64,7 @@ import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
 import { EditorWelcomeTip } from './v2/EditorWelcomeTip';
+import { EditorDuplicateDesignButton } from './v2/EditorDuplicateDesignButton';
 import { useDesignCursors } from '@/features/editor/collab/useDesignCursors';
 import { EditorCursorOverlay } from '@/features/editor/collab/EditorCursorOverlay';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
@@ -516,6 +517,16 @@ export function Editor({
           generateVariantsSlot={
             brand ? (
               <EditorGenerateVariantsButton
+                getDoc={() => adapter.getDocument()}
+                brandId={brand.id}
+                brandSlug={brand.slug}
+                sourceName={doc.metadata?.name as string | undefined}
+              />
+            ) : undefined
+          }
+          duplicateSlot={
+            brand ? (
+              <EditorDuplicateDesignButton
                 getDoc={() => adapter.getDocument()}
                 brandId={brand.id}
                 brandSlug={brand.slug}
