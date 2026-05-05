@@ -1,68 +1,48 @@
-import { useCallback, useRef, useState } from 'react';
-import { toast } from 'sonner';
+// Design landing — brand-scoped surface at /b/:slug/design.
+//
+// Single scroll page composed of three sections:
+//   1. Hero — brand-aware title + AI prompt + format chips
+//   2. Recent projects — IDesignStorage.listDesigns(brand.id)
+//   3. Templates gallery — ITemplatesService, brand-aware open
+//
+// All affordances eventually land on the unified editor at
+// /b/:slug/design/:designId. The hero forwards a typed prompt via
+// ?prompt=… so the editor's AI prompt bar pre-fills.
+
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { container as serviceContainer } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS } from '@/core';
+import type { IDesignStorage } from '@/core/types/services';
+import type { ITemplatesService } from '@/core/services/ITemplatesService';
 import type { Brand } from '@/shared/types/brand';
-import { ArrowRightIcon } from './DesignIcons';
-import { DesignSidebar, type DesignSectionKey } from './DesignSidebar';
-import { DesignBoard, type DesignBoardRefs } from './DesignBoard';
+import { DesignHero } from './DesignHero';
+import { DesignRecentRow } from './DesignRecentRow';
+import { DesignTemplateGallery } from './DesignTemplateGallery';
 import './design-alt.css';
 
-type Props = {
+interface Props {
   slug: string;
   brand: Brand | undefined;
   isLoading: boolean;
   error: string | undefined;
-};
+}
 
-/**
- * Design — v2 launchpad surface.
- *
- * This is the brand-scoped "start something new" page. It is NOT a canvas —
- * all fullscreen editor surfaces (AI Design, Design-with-AI, Presentations,
- * Social Media, the core Fabric editor) keep their own routes. This page
- * links into each of them from a single composed shell that matches the
- * Setup tab's rhythm.
- *
- * Layout follows the shared `.shell` + `.panel` + `.board-wrap` primitives
- * documented in src/shared/styles/workspace.css. Section-local
- * styling lives in ./design-alt.css.
- */
-export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
-  const [activeKey, setActiveKey] = useState<DesignSectionKey | null>('start');
-  const sectionRefs = useRef<DesignBoardRefs>({
-    start: null,
-    templates: null,
-    recent: null,
-    content: null,
-    social: null,
-    presentations: null,
-    ai: null,
-  });
-
-  const handleJump = useCallback((key: DesignSectionKey) => {
-    setActiveKey(key);
-    const el = sectionRefs.current[key];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, []);
-
-  const handleUpload = useCallback(() => {
-    // Upload-from-device is currently a placeholder — the real hook-up goes
-    // through AssetSourcePopover in the canonical picker pattern (see CLAUDE.md).
-    // Keeping this as a toast so the affordance isn't dead, but the dialog
-    // integration is a follow-up tracked inline.
-    toast('Upload Design', {
-      description:
-        'File upload wiring lands when the shared AssetSourcePopover is pulled into the v2 shell.',
-    });
-  }, []);
+export function DesignCosmosPage({ brand, isLoading, error }: Props) {
+  // Defensive service lookup — some test harnesses clear the
+  // container without re-registering. Render a graceful state
+  // rather than crashing the whole brand page.
+  const designStorage = serviceContainer.has(SERVICE_KEYS.DESIGN_STORAGE)
+    ? serviceContainer.get<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE)
+    : null;
+  const templates = serviceContainer.has(SERVICE_KEYS.TEMPLATES)
+    ? serviceContainer.get<ITemplatesService>(SERVICE_KEYS.TEMPLATES)
+    : null;
 
   if (isLoading && !brand) {
     return (
       <WorkspaceShell>
-        <div className="workspace-empty" role="main">
-          <span className="workspace-empty-eyebrow">Design</span>
+        <div className="dh-state" role="main">
+          <span className="dh-state-eyebrow">Design</span>
           <h1>Loading brand…</h1>
           <p>One moment while we resolve this brand.</p>
         </div>
@@ -73,8 +53,8 @@ export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
   if (error || !brand) {
     return (
       <WorkspaceShell>
-        <div className="workspace-empty" role="main">
-          <span className="workspace-empty-eyebrow">Design</span>
+        <div className="dh-state" role="main">
+          <span className="dh-state-eyebrow">Design</span>
           <h1>We couldn't find that brand.</h1>
           <p>{error ?? 'The brand may have been renamed or deleted.'}</p>
         </div>
@@ -83,31 +63,41 @@ export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {
   }
 
   return (
-    <WorkspaceShell
-      rightActions={
-        <a
-          href={`/b/${slug}/ai-design`}
-          className="pill-btn pill-btn--primary"
-        >
-          <span>New with AI</span>
-          <ArrowRightIcon size={14} className="pill-btn-arrow" />
-        </a>
-      }
-    >
-      <div className="shell">
-        <DesignSidebar
-          brandName={brand.name}
-          activeKey={activeKey}
-          onJump={handleJump}
-        />
-        <DesignBoard
-          slug={slug}
-          brandName={brand.name}
-          sectionRefs={sectionRefs}
-          onUpload={handleUpload}
-        />
-      </div>
+    <WorkspaceShell>
+      <main className="dh-page" data-design-landing>
+        {designStorage ? (
+          <DesignHero brand={brand} designStorage={designStorage} />
+        ) : (
+          <ServiceUnavailableHero brand={brand} />
+        )}
+
+        {designStorage ? (
+          <DesignRecentRow brand={brand} designStorage={designStorage} />
+        ) : null}
+
+        {templates && designStorage ? (
+          <DesignTemplateGallery
+            brand={brand}
+            templates={templates}
+            designStorage={designStorage}
+          />
+        ) : null}
+      </main>
     </WorkspaceShell>
+  );
+}
+
+function ServiceUnavailableHero({ brand }: { brand: Brand }) {
+  return (
+    <section className="dh-hero">
+      <div className="dh-hero-inner">
+        <p className="dh-hero-eyebrow">{brand.name} · Design</p>
+        <h1 className="dh-hero-title">Design is offline right now</h1>
+        <p className="dh-hero-sub">
+          Storage isn't configured for this session — refresh the page to retry.
+        </p>
+      </div>
+    </section>
   );
 }
 

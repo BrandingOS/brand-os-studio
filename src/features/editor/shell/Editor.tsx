@@ -138,6 +138,12 @@ interface EditorProps {
    * Optional — when omitted, the Share button is hidden.
    */
   onShare?: () => void;
+  /**
+   * Pre-filled AI prompt. Set by the design-page hero — the user
+   * typed a prompt before navigating; the prompt bar shows it
+   * staged so they can tweak + send. Optional.
+   */
+  initialPrompt?: string;
 }
 
 export function Editor({
@@ -149,6 +155,7 @@ export function Editor({
   onBrandSwitch,
   aiAgent,
   onShare,
+  initialPrompt,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
@@ -565,6 +572,7 @@ export function Editor({
             effectiveAgent && brand ? (
               <EditorAiPromptBar
                 agent={effectiveAgent}
+                initialValue={initialPrompt}
                 getDoc={() => adapter.getDocument()}
                 getContext={(): AICommandContext => ({
                   activePageId,

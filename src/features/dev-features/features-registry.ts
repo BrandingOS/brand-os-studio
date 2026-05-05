@@ -236,30 +236,12 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
   // ────────────────────────────────────────────────────────────────
   {
     id: 'design-launchpad',
-    name: 'Design Launchpad',
+    name: 'Design (cosmos)',
     tab: 'design',
     route: '/b/:slug/design',
-    entry: 'src/pages/dashboard/brand/[slug]/design',
+    entry: 'src/pages/b/[slug]/design.tsx',
     status: 'active',
-    description: 'Primary Design landing — Blank Canvas · AI Design · Recent.',
-  },
-  {
-    id: 'ai-design-fullscreen',
-    name: 'AI Design (fullscreen)',
-    tab: 'design',
-    route: '/b/:slug/ai-design',
-    entry: 'src/pages/dashboard/brand/[slug]/ai-design',
-    status: 'active',
-    description: 'Fullscreen AI-driven design surface (hideSidebar).',
-  },
-  {
-    id: 'design-ai',
-    name: 'Design with AI',
-    tab: 'design',
-    route: '/b/:slug/design-ai',
-    entry: 'src/pages/dashboard/brand/[slug]/design-ai',
-    status: 'active',
-    description: 'Alternate AI design workflow, fullscreen (hideSidebar).',
+    description: 'Brand-scoped Design landing — hero prompt, recents, templates.',
   },
   {
     id: 'design-canvas-editor',

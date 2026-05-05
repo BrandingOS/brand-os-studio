@@ -21,8 +21,8 @@
  *     ships when bundle size justifies.
  */
 
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
 // Phase 5 — lazy-load the unified Editor so the route's initial
@@ -47,8 +47,17 @@ export default function BrandDesignEditorPage() {
     designSlug: string;
   }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const designStorage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
   const { brand, isLoading: brandLoading, error: brandError } = useBrandBySlug(slug);
+  // The Design hero passes a typed prompt via ?prompt=… so the editor
+  // can stage it in the AI prompt bar. We freeze the param value at
+  // mount — once read, it's the user's text to keep or edit, not a
+  // URL-driven re-render trigger.
+  const initialPrompt = useMemo(() => {
+    const v = searchParams.get('prompt');
+    return v && v.trim().length > 0 ? v : undefined;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [doc, setDoc] = useState<BrandOSDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
@@ -147,6 +156,7 @@ export default function BrandDesignEditorPage() {
       <Editor
         initialDocument={doc}
         brand={brand}
+        initialPrompt={initialPrompt}
         onBrandSwitch={onBrandSwitch}
         save={async (next) => {
           await designStorage.saveDesign(brand.id, doc.id, next);

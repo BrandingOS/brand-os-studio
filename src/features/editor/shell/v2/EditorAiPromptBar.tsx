@@ -50,6 +50,10 @@ interface Props {
   onApply: (result: AICommandResult) => void;
   /** Optional placeholder override. Defaults to a brand-aware string. */
   placeholder?: string;
+  /** Pre-filled prompt text. Used when the user typed a prompt in the
+   *  Design page hero before navigating to the editor — they expect the
+   *  text to land in the prompt bar so they can tweak + submit. */
+  initialValue?: string;
 }
 
 const PLACEHOLDER_DEFAULT = 'Ask the AI to edit your design…';
@@ -61,8 +65,9 @@ export function EditorAiPromptBar({
   getContext,
   onApply,
   placeholder = PLACEHOLDER_DEFAULT,
+  initialValue,
 }: Props) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialValue ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<boolean>(() => isNarrowViewport());
@@ -83,6 +88,16 @@ export function EditorAiPromptBar({
   useEffect(() => {
     if (popoverOpen) inputRef.current?.focus();
   }, [popoverOpen]);
+
+  // If the bar mounted with a pre-filled prompt (user typed in the
+  // Design hero before navigating here), auto-open the popover on
+  // narrow viewports so the staged text is visible immediately.
+  useEffect(() => {
+    if (initialValue && collapsed) setPopoverOpen(true);
+    // Run only on mount / when collapsed flips. Subsequent value
+    // changes shouldn't re-open the popover.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed]);
 
   const submit = useCallback(async () => {
     const command = value.trim();
