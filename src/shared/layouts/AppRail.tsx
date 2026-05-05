@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
+import { getBrandHomeUrl } from '@/shared/hooks/useUiPreference';
 import { cn } from '@/lib/utils';
 
 interface RailItem {
@@ -265,12 +266,16 @@ export function AppRail({ brandSlug }: AppRailProps) {
 
   /**
    * Section-preserving brand switch — when the user is mid-section and picks
-   * another brand, drop them into the same section in the new brand. This
-   * matches the behavior we already had on BrandNavbar so muscle memory holds
-   * up after the rewrite.
+   * another brand, drop them into the same section in the new brand. From
+   * a workspace context (no current brand) the destination respects the
+   * user's UI preference (Studio → /b/:slug/setup, Classic → /a/:slug).
    */
   const handleSwitchBrand = (newSlug: string) => {
     if (newSlug === brandSlug) return;
+    if (!brandSlug) {
+      navigate(getBrandHomeUrl(newSlug));
+      return;
+    }
     navigate(rewriteBrandPath(location.pathname, brandSlug, newSlug, location.search));
   };
 

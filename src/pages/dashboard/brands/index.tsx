@@ -7,10 +7,27 @@ import { useEffect } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
+import { useUiPreference } from '@/shared/hooks/useUiPreference';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
   const { list: brands, loadAll, isLoading } = useBrandStore();
+  const uiPreference = useUiPreference();
+
+  // Brand-entry URLs respect the user's UI preference. Studio users land
+  // on Setup (the canonical Studio entry) for "Open"; Classic users land
+  // on Overview. "Brand Kit" picks the cosmos hub for Studio and the
+  // legacy anchored hub for Classic. "Edit" goes to Identity in either
+  // namespace (Identity is unmigrated, so /b/:slug/identity will redirect
+  // to /a/:slug/identity for Studio users — but skipping the redirect
+  // here saves a hop).
+  const homeUrlFor = (slug: string) =>
+    uiPreference === 'classic' ? `/a/${slug}` : `/b/${slug}/setup`;
+  const kitUrlFor = (slug: string) =>
+    uiPreference === 'classic' ? `/a/${slug}/kit` : `/b/${slug}/brand-kit`;
+  // Identity is unmigrated in Studio (Phase B will port it). For now both
+  // namespaces land on the Classic page directly to avoid a redirect hop.
+  const identityUrlFor = (slug: string) => `/a/${slug}/identity`;
 
   useEffect(() => {
     loadAll();
@@ -118,7 +135,7 @@ export default function BrandsPage() {
                         variant="ghost"
                         size="icon"
                         title="Edit Brand"
-                        onClick={() => navigate(`/b/${brand.slug}/identity`)}
+                        onClick={() => navigate(identityUrlFor(brand.slug))}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -126,13 +143,13 @@ export default function BrandsPage() {
                         variant="ghost"
                         size="icon"
                         title="Brand Kit"
-                        onClick={() => navigate(`/b/${brand.slug}/kit`)}
+                        onClick={() => navigate(kitUrlFor(brand.slug))}
                       >
                         <Folder className="w-4 h-4" />
                       </Button>
                       <Button
                         className="gap-2"
-                        onClick={() => navigate(`/b/${brand.slug}`)}
+                        onClick={() => navigate(homeUrlFor(brand.slug))}
                       >
                         Open
                         <ArrowRight className="w-4 h-4" />
