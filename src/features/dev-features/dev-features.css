@@ -2,7 +2,7 @@
  * Dev features inventory page — scoped to [data-dev-features]
  * so it can't leak into the rest of the workspace.
  *
- * Reads the cosmos-workspace theme tokens (--surface, --text-primary, …)
+ * Reads the workspace theme tokens (--surface, --text-primary, …)
  * via inheritance from its CosmosWorkspaceShell parent, so it responds
  * to light/dark toggles automatically.
  */

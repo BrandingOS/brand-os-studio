@@ -62,7 +62,7 @@ import type { Brand } from '@/shared/types/brand';
 import { toast } from 'sonner';
 import { UNIEX_SLIDES, type UniexSlide } from '../uniexPitchContent';
 import { VARIANTS, type SlideKind, type VariantKey } from '../variants';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 const ARABIC_FONTS = [
   'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap',

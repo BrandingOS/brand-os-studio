@@ -10,7 +10,7 @@
   inset: 0;
   overflow: hidden;
   font-family: 'Patrick Hand', 'Caveat', cursive;
-  /* Light tokens — same palette as the Setup page (cosmos-workspace.css)
+  /* Light tokens — same palette as the Setup page (workspace.css)
      so the 404 reads as "same brand, different room". `--ink` is also
      currentColor for the stamp masks, so flipping theme flips every
      doodle to the opposite tone of the paper. */

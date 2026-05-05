@@ -65,7 +65,7 @@ export function EditorLockBadge({ layer, zoom = 1 }: Props) {
         </Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content
-            data-cosmos="workspace"
+            data-workspace
             side="top"
             sideOffset={6}
             className="z-50 max-w-[220px] rounded-lg px-2 py-1.5 text-[11px]"

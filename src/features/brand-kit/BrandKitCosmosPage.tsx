@@ -1036,7 +1036,7 @@ function BrandKitDrilldown({
   // (e.g. black tint in dark mode, white in light mode).
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   useEffect(() => {
-    const ws = document.querySelector('[data-cosmos="workspace"]');
+    const ws = document.querySelector('[data-workspace]');
     const read = () =>
       setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
     read();

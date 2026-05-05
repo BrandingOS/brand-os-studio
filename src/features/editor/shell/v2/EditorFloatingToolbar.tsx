@@ -393,7 +393,7 @@ function TextControls({
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content
-              data-cosmos="workspace"
+              data-workspace
               align="start"
               sideOffset={4}
               className="z-50 min-w-[180px] rounded-lg p-1"
@@ -599,7 +599,7 @@ function ImageControls({
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            data-cosmos="workspace"
+            data-workspace
             align="start"
             sideOffset={4}
             className="z-50 rounded-lg p-1"
@@ -690,7 +690,7 @@ function LogoControls({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          data-cosmos="workspace"
+          data-workspace
           align="start"
           sideOffset={4}
           className="z-50 rounded-lg p-1"
@@ -753,7 +753,7 @@ function MoreMenu({
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          data-cosmos="workspace"
+          data-workspace
           align="end"
           sideOffset={6}
           className="z-50 min-w-[200px] rounded-lg p-1.5"
@@ -866,7 +866,7 @@ function BrandManagedRow({
           </Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content
-              data-cosmos="workspace"
+              data-workspace
               side="left"
               sideOffset={8}
               className="z-50 max-w-[220px] rounded-lg px-2 py-1.5 text-[11px]"
@@ -968,7 +968,7 @@ function LockedGate({
         </Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content
-            data-cosmos="workspace"
+            data-workspace
             side="bottom"
             sideOffset={8}
             className="z-50 inline-flex max-w-[260px] items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px]"
@@ -1009,7 +1009,7 @@ function NumberPill({
    * next to the input and opens a Radix dropdown of click-to-pick
    * values. The free-form input remains usable. Max-height + scroll
    * are inherited from the cosmos `[role="menu"]` cap in
-   * cosmos-workspace.css — no per-site styling needed.
+   * workspace.css — no per-site styling needed.
    */
   presets?: ReadonlyArray<number>;
 }) {
@@ -1067,7 +1067,7 @@ function NumberPill({
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            data-cosmos="workspace"
+            data-workspace
             align="start"
             sideOffset={6}
             className="z-50 min-w-[80px] rounded-lg p-1"

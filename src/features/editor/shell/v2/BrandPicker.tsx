@@ -75,7 +75,7 @@ export function BrandPicker({ brand, onBrandSwitch, onReapplyBrand }: Props) {
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         {/* Radix portals the Content under document.body — OUTSIDE
-            the editor's `[data-cosmos="workspace"]` wrapper. CSS
+            the editor's `[data-workspace]` wrapper. CSS
             vars defined on that scope (`--surface-elevated` etc.)
             don't resolve here, so the dropdown previously rendered
             transparent. Re-establish the cosmos var scope on the
@@ -87,7 +87,7 @@ export function BrandPicker({ brand, onBrandSwitch, onReapplyBrand }: Props) {
           align="start"
           sideOffset={6}
           className="z-50 min-w-[260px] rounded-xl p-1.5"
-          data-cosmos="workspace"
+          data-workspace
           data-brand-picker-content
           style={{
             background: 'var(--surface-elevated, #ffffff)',

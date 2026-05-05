@@ -30,7 +30,7 @@ import type { Brand } from '@/shared/types/brand';
 import { useDeck, useDeckStore, useEnsureDeck } from '../store/deckStore';
 import { buildEmptySlide, getLayoutMeta } from '../layouts/catalog';
 import '@/shared/presentation/theme/deck.css';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 export default function DeckV2Page() {
   const { slug } = useParams<{ slug: string }>();

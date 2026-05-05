@@ -24,7 +24,7 @@ export type ToolCardProps = {
 /**
  * ToolCard — the single primitive used across every section of the Tools
  * hub. Styling follows the cosmos workspace surface + shadow tokens so it
- * inherits light/dark theme automatically from the `[data-cosmos]` scope.
+ * inherits light/dark theme automatically from the `[data-workspace]` scope.
  *
  * Clickable-surface pattern: the whole card is a link. The outer element
  * is an <a> for external and a <Link> for internal routes.

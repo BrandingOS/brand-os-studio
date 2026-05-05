@@ -1,29 +1,29 @@
 /* ============================================================
  * Tools Hub — cards + grid styling
  *
- * Scoped to [data-cosmos="workspace"] so it only applies inside
+ * Scoped to [data-workspace] so it only applies inside
  * the new workspace shell, and picks up every design token from
- * `src/shared/styles/cosmos-workspace.css` automatically (surface,
+ * `src/shared/styles/workspace.css` automatically (surface,
  * border, shadow, text colors, dark-mode, etc).
  * ============================================================ */
 
 /* Grid wrapper for the card sections — 2 or 3 columns. */
-[data-cosmos="workspace"] .tools-grid {
+[data-workspace] .tools-grid {
   display: grid;
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-[data-cosmos="workspace"] .tools-grid--3 {
+[data-workspace] .tools-grid--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-[data-cosmos="workspace"] .tools-grid--1 {
+[data-workspace] .tools-grid--1 {
   grid-template-columns: minmax(0, 1fr);
 }
 
 /* Responsive: collapse to single column on narrow boards. */
 @media (max-width: 880px) {
-  [data-cosmos="workspace"] .tools-grid,
-  [data-cosmos="workspace"] .tools-grid--3 {
+  [data-workspace] .tools-grid,
+  [data-workspace] .tools-grid--3 {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -31,7 +31,7 @@
 /* ============================================================
  * ToolCard
  * ============================================================ */
-[data-cosmos="workspace"] .tools-card {
+[data-workspace] .tools-card {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -50,39 +50,39 @@
   position: relative;
   min-height: 76px;
 }
-[data-cosmos="workspace"] .tools-card:hover {
+[data-workspace] .tools-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--border-strong);
   background: var(--surface-elevated);
 }
-[data-cosmos="workspace"] .tools-card:focus-visible {
+[data-workspace] .tools-card:focus-visible {
   outline: none;
   box-shadow:
     var(--shadow-md),
     0 0 0 3px var(--accent-ring);
   border-color: var(--border-strong);
 }
-[data-cosmos="workspace"] .tools-card:active {
+[data-workspace] .tools-card:active {
   transform: translateY(-1px);
 }
 
 /* "Feature" variant — taller, slightly more pad for a hero card. */
-[data-cosmos="workspace"] .tools-card--feature {
+[data-workspace] .tools-card--feature {
   padding: 22px 22px;
   min-height: 96px;
   border-radius: 18px;
 }
 
 /* "Compact" variant — denser row for utilities grid. */
-[data-cosmos="workspace"] .tools-card--compact {
+[data-workspace] .tools-card--compact {
   padding: 14px 14px;
   gap: 12px;
   min-height: 66px;
 }
 
 /* Icon wrapper — sunken square, currentColor so the SVG theme-flips. */
-[data-cosmos="workspace"] .tools-card-icon {
+[data-workspace] .tools-card-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -94,36 +94,36 @@
   color: var(--text-primary);
   transition: background 180ms var(--ease), color 180ms var(--ease);
 }
-[data-cosmos="workspace"] .tools-card--feature .tools-card-icon {
+[data-workspace] .tools-card--feature .tools-card-icon {
   width: 46px;
   height: 46px;
   border-radius: 12px;
 }
-[data-cosmos="workspace"] .tools-card--compact .tools-card-icon {
+[data-workspace] .tools-card--compact .tools-card-icon {
   width: 34px;
   height: 34px;
   border-radius: 9px;
 }
-[data-cosmos="workspace"] .tools-card:hover .tools-card-icon {
+[data-workspace] .tools-card:hover .tools-card-icon {
   background: var(--accent-muted);
   color: var(--accent);
 }
 
 /* Body column */
-[data-cosmos="workspace"] .tools-card-body {
+[data-workspace] .tools-card-body {
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
   flex: 1;
 }
-[data-cosmos="workspace"] .tools-card-head {
+[data-workspace] .tools-card-head {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-[data-cosmos="workspace"] .tools-card-title {
+[data-workspace] .tools-card-title {
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.012em;
@@ -134,10 +134,10 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
-[data-cosmos="workspace"] .tools-card--feature .tools-card-title {
+[data-workspace] .tools-card--feature .tools-card-title {
   font-size: 15px;
 }
-[data-cosmos="workspace"] .tools-card-desc {
+[data-workspace] .tools-card-desc {
   font-size: 12px;
   line-height: 1.4;
   color: var(--text-muted);
@@ -150,7 +150,7 @@
 }
 
 /* Optional badge (e.g. asset count) */
-[data-cosmos="workspace"] .tools-card-badge {
+[data-workspace] .tools-card-badge {
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -163,7 +163,7 @@
 }
 
 /* Right chevron */
-[data-cosmos="workspace"] .tools-card-arrow {
+[data-workspace] .tools-card-arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -173,7 +173,7 @@
   color: var(--text-muted);
   transition: color 180ms var(--ease), transform 220ms var(--ease);
 }
-[data-cosmos="workspace"] .tools-card:hover .tools-card-arrow {
+[data-workspace] .tools-card:hover .tools-card-arrow {
   color: var(--accent);
   transform: translateX(2px);
 }

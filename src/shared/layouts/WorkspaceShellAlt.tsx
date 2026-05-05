@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
 /**
@@ -16,7 +16,7 @@ import '@/shared/styles/workspace-home.css';
  *     left; never the BrandSwitcher pill.
  *
  * Shared with WorkspaceShell:
- *   - `[data-cosmos="workspace"]` scope → all cosmos-workspace tokens
+ *   - `[data-workspace]` scope → all workspace tokens
  *     (surface, text, shadow, ease) apply identically.
  *   - Theme toggle persists to the same `brandos-theme` localStorage
  *     key so a user's light/dark choice carries across shells.
@@ -71,7 +71,7 @@ export function WorkspaceShell({
   const displayName = user?.name ?? 'Guest';
 
   return (
-    <div data-cosmos="workspace" data-theme={theme}>
+    <div data-workspace data-theme={theme}>
       <header className="workspace-top-nav" role="banner">
         <div className="workspace-top-nav-left">
           <NavLink to="/" className="top-nav-brand" aria-label={brandName}>

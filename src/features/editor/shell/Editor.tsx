@@ -58,7 +58,7 @@ import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 // Layout constants — kept in sync with the CSS vars defined on the
 // editor body wrapper (--rail-w, --panel-w, --pagenav-w). Used by
@@ -150,7 +150,7 @@ export function Editor({
   );
   const [editingMasterId, setEditingMasterId] = useState<string | null>(null);
 
-  // Theme — driven via [data-cosmos][data-theme] on the wrapper.
+  // Theme — driven via [data-workspace][data-theme] on the wrapper.
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // App Rail / Secondary Panel state.
@@ -433,7 +433,7 @@ export function Editor({
     contentType.pageModel === 'multi' && navigatorOpen;
 
   return (
-    <div data-cosmos="workspace" data-theme={theme}>
+    <div data-workspace data-theme={theme}>
       <div
         className="min-h-screen w-full"
         style={{

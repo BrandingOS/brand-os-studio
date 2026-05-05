@@ -1,13 +1,13 @@
 /**
  * Cosmos-native styling for the UI Color System tool.
  *
- * The editor panel already uses `.panel` from cosmos-workspace.css.
+ * The editor panel already uses `.panel` from workspace.css.
  * This stylesheet aligns the right-hand board (palette strips + tabs +
  * showcase) to the same design system: same radii, same border tokens,
  * same shadow rhythm, same top-line baseline.
  */
 
-[data-cosmos="workspace"] .color-board {
+[data-workspace] .color-board {
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -16,7 +16,7 @@
   font-family: var(--brand-font-body, inherit);
 }
 
-[data-cosmos="workspace"] .color-board-head {
+[data-workspace] .color-board-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -25,7 +25,7 @@
   padding-bottom: 4px;
 }
 
-[data-cosmos="workspace"] .color-board-title {
+[data-workspace] .color-board-title {
   font-family: var(--brand-font-display, "Instrument Serif", "DM Serif Display", "Playfair Display", serif);
   font-size: 34px;
   line-height: 1;
@@ -38,14 +38,14 @@
   padding: 0;
 }
 
-[data-cosmos="workspace"] .color-board-actions {
+[data-workspace] .color-board-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
 }
 
-[data-cosmos="workspace"] .color-action-link {
+[data-workspace] .color-action-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -59,12 +59,12 @@
   font-size: 12px;
   font-weight: 500;
 }
-[data-cosmos="workspace"] .color-action-link:hover {
+[data-workspace] .color-action-link:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
-[data-cosmos="workspace"] .color-board-save {
+[data-workspace] .color-board-save {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -79,29 +79,29 @@
   font-weight: 600;
   transition: opacity 0.15s;
 }
-[data-cosmos="workspace"] .color-board-save:hover {
+[data-workspace] .color-board-save:hover {
   opacity: 0.88;
 }
 
 /* ─── Palette strip ─────────────────────────────────────────── */
 
-[data-cosmos="workspace"] .color-strip {
+[data-workspace] .color-strip {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-[data-cosmos="workspace"] .color-strip-head {
+[data-workspace] .color-strip-head {
   display: flex;
   align-items: center;
   gap: 10px;
   padding-left: 2px;
 }
-[data-cosmos="workspace"] .color-strip-name {
+[data-workspace] .color-strip-name {
   font-size: 15px;
   font-weight: 500;
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .color-strip-tag {
+[data-workspace] .color-strip-tag {
   padding: 2px 8px;
   border-radius: 6px;
   background: var(--text-primary);
@@ -111,13 +111,13 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-[data-cosmos="workspace"] .color-strip-grid {
+[data-workspace] .color-strip-grid {
   display: grid;
   grid-template-columns: repeat(11, minmax(0, 1fr));
   gap: 8px;
 }
 
-[data-cosmos="workspace"] .color-swatch {
+[data-workspace] .color-swatch {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -133,28 +133,28 @@
   box-shadow: var(--shadow-xs);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
-[data-cosmos="workspace"] .color-swatch:hover {
+[data-workspace] .color-swatch:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
 }
-[data-cosmos="workspace"] .color-swatch:focus-visible {
+[data-workspace] .color-swatch:focus-visible {
   outline: 2px solid var(--text-primary);
   outline-offset: 2px;
 }
-[data-cosmos="workspace"] .color-swatch-stop {
+[data-workspace] .color-swatch-stop {
   opacity: 0.9;
 }
-[data-cosmos="workspace"] .color-swatch-hex {
+[data-workspace] .color-swatch-hex {
   font-family: "SF Mono", ui-monospace, Menlo, monospace;
   font-size: 11px;
   letter-spacing: -0.02em;
 }
-[data-cosmos="workspace"] .color-swatch-dot {
+[data-workspace] .color-swatch-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
 }
-[data-cosmos="workspace"] .color-swatch-action {
+[data-workspace] .color-swatch-action {
   position: absolute;
   right: 6px;
   bottom: 6px;
@@ -170,17 +170,17 @@
   transition: opacity 0.15s, background 0.15s;
   cursor: pointer;
 }
-[data-cosmos="workspace"] .color-swatch:hover .color-swatch-action,
-[data-cosmos="workspace"] .color-swatch:focus-within .color-swatch-action {
+[data-workspace] .color-swatch:hover .color-swatch-action,
+[data-workspace] .color-swatch:focus-within .color-swatch-action {
   opacity: 1;
 }
-[data-cosmos="workspace"] .color-swatch-action:hover {
+[data-workspace] .color-swatch-action:hover {
   background: rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Tabs ──────────────────────────────────────────────────── */
 
-[data-cosmos="workspace"] .color-board-tabs {
+[data-workspace] .color-board-tabs {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -189,7 +189,7 @@
   margin: 4px -6px 0;
   padding: 0 6px;
 }
-[data-cosmos="workspace"] .color-board-tab {
+[data-workspace] .color-board-tab {
   position: relative;
   flex-shrink: 0;
   padding: 10px 14px;
@@ -201,13 +201,13 @@
   cursor: pointer;
   transition: color 0.15s;
 }
-[data-cosmos="workspace"] .color-board-tab:hover {
+[data-workspace] .color-board-tab:hover {
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .color-board-tab.is-active {
+[data-workspace] .color-board-tab.is-active {
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .color-board-tab.is-active::after {
+[data-workspace] .color-board-tab.is-active::after {
   content: "";
   position: absolute;
   inset: auto 10px -1px;
@@ -218,13 +218,13 @@
 
 /* ─── Showcase body ─────────────────────────────────────────── */
 
-[data-cosmos="workspace"] .color-board-body {
+[data-workspace] .color-board-body {
   margin-top: 4px;
 }
 
 /* Showcase tile card — used inside every showcase so radii, shadows,
  * and strokes match the cosmos system consistently. */
-[data-cosmos="workspace"] .tile {
+[data-workspace] .tile {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -234,22 +234,22 @@
   background: var(--surface);
   box-shadow: var(--shadow-sm);
 }
-[data-cosmos="workspace"] .tile--brand {
+[data-workspace] .tile--brand {
   border-color: transparent;
   box-shadow: var(--shadow-md);
 }
-[data-cosmos="workspace"] .tile-photo {
+[data-workspace] .tile-photo {
   position: relative;
   overflow: hidden;
   background: var(--surface-sunken);
 }
-[data-cosmos="workspace"] .tile-photo-img {
+[data-workspace] .tile-photo-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-[data-cosmos="workspace"] .tile-photo-fallback {
+[data-workspace] .tile-photo-fallback {
   position: absolute;
   inset: 0;
   display: flex;
@@ -261,7 +261,7 @@
 }
 
 /* Dark-mode photo tone */
-[data-cosmos="workspace"][data-theme="dark"] .tile-photo-fallback {
+[data-workspace][data-theme="dark"] .tile-photo-fallback {
   color: rgba(255, 255, 255, 0.06);
 }
 
@@ -269,7 +269,7 @@
  * EDITOR PANEL — left sidebar form controls (cosmos tokens only)
  * ============================================================ */
 
-[data-cosmos="workspace"] .editor-panel {
+[data-workspace] .editor-panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -278,14 +278,14 @@
 }
 
 /* Brand / Neutral / Status / Fonts tabs */
-[data-cosmos="workspace"] .editor-cats {
+[data-workspace] .editor-cats {
   display: flex;
   align-items: center;
   gap: 14px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
 }
-[data-cosmos="workspace"] .editor-cat {
+[data-workspace] .editor-cat {
   position: relative;
   background: transparent;
   border: 0;
@@ -297,13 +297,13 @@
   cursor: pointer;
   transition: color 0.15s;
 }
-[data-cosmos="workspace"] .editor-cat:hover:not(:disabled) {
+[data-workspace] .editor-cat:hover:not(:disabled) {
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .editor-cat.is-active {
+[data-workspace] .editor-cat.is-active {
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .editor-cat.is-active::after {
+[data-workspace] .editor-cat.is-active::after {
   content: "";
   position: absolute;
   inset: auto 0 -1px;
@@ -311,24 +311,24 @@
   background: var(--text-primary);
   border-radius: 2px 2px 0 0;
 }
-[data-cosmos="workspace"] .editor-cat:disabled {
+[data-workspace] .editor-cat:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
 /* Label row above a color input */
-[data-cosmos="workspace"] .editor-field-head {
+[data-workspace] .editor-field-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
-[data-cosmos="workspace"] .editor-field-label {
+[data-workspace] .editor-field-label {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--text-secondary);
 }
-[data-cosmos="workspace"] .editor-field-meta {
+[data-workspace] .editor-field-meta {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -338,7 +338,7 @@
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .editor-field-meta-btn {
+[data-workspace] .editor-field-meta-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -351,14 +351,14 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-[data-cosmos="workspace"] .editor-field-meta-btn:hover,
-[data-cosmos="workspace"] .editor-field-meta-btn.is-open {
+[data-workspace] .editor-field-meta-btn:hover,
+[data-workspace] .editor-field-meta-btn.is-open {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
 /* Color input row — pill with swatch + hex + lock */
-[data-cosmos="workspace"] .editor-color-input {
+[data-workspace] .editor-color-input {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -370,11 +370,11 @@
   box-shadow: var(--shadow-xs);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-[data-cosmos="workspace"] .editor-color-input:focus-within {
+[data-workspace] .editor-color-input:focus-within {
   border-color: var(--border-strong);
   box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
 }
-[data-cosmos="workspace"] .editor-color-chip {
+[data-workspace] .editor-color-chip {
   position: relative;
   flex-shrink: 0;
   width: 18px;
@@ -387,10 +387,10 @@
   overflow: hidden;
   transition: transform 0.15s;
 }
-[data-cosmos="workspace"] .editor-color-chip:hover {
+[data-workspace] .editor-color-chip:hover {
   transform: scale(1.08);
 }
-[data-cosmos="workspace"] .editor-color-hex {
+[data-workspace] .editor-color-hex {
   flex: 1;
   min-width: 0;
   background: transparent;
@@ -403,7 +403,7 @@
   letter-spacing: -0.01em;
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .editor-color-lock {
+[data-workspace] .editor-color-lock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -416,17 +416,17 @@
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
-[data-cosmos="workspace"] .editor-color-lock:hover {
+[data-workspace] .editor-color-lock:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
-[data-cosmos="workspace"] .editor-color-lock.is-active {
+[data-workspace] .editor-color-lock.is-active {
   background: var(--text-primary);
   color: var(--surface);
 }
 
 /* Settings popover (inline) */
-[data-cosmos="workspace"] .editor-settings {
+[data-workspace] .editor-settings {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -435,7 +435,7 @@
   border: 1px solid var(--border);
   background: var(--surface-sunken);
 }
-[data-cosmos="workspace"] .editor-settings label {
+[data-workspace] .editor-settings label {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -445,7 +445,7 @@
 }
 
 /* Select styled */
-[data-cosmos="workspace"] .editor-select {
+[data-workspace] .editor-select {
   height: 30px;
   padding: 0 8px;
   border-radius: 7px;
@@ -456,7 +456,7 @@
   color: var(--text-primary);
   box-shadow: var(--shadow-xs);
 }
-[data-cosmos="workspace"] .editor-select-lg {
+[data-workspace] .editor-select-lg {
   height: 38px;
   padding: 0 12px;
   border-radius: 10px;
@@ -465,7 +465,7 @@
 }
 
 /* Add secondary CTA — dark pill with light text */
-[data-cosmos="workspace"] .editor-cta {
+[data-workspace] .editor-cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -484,11 +484,11 @@
   transition: transform 0.12s, opacity 0.15s;
   box-shadow: var(--shadow-sm);
 }
-[data-cosmos="workspace"] .editor-cta:hover { opacity: 0.9; }
-[data-cosmos="workspace"] .editor-cta:active { transform: scale(0.98); }
+[data-workspace] .editor-cta:hover { opacity: 0.9; }
+[data-workspace] .editor-cta:active { transform: scale(0.98); }
 
 /* Randomize (ghost) */
-[data-cosmos="workspace"] .editor-ghost {
+[data-workspace] .editor-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -506,13 +506,13 @@
   transition: background 0.15s, border-color 0.15s, transform 0.12s;
   box-shadow: var(--shadow-xs);
 }
-[data-cosmos="workspace"] .editor-ghost:hover {
+[data-workspace] .editor-ghost:hover {
   background: var(--surface-hover);
   border-color: var(--border-strong);
 }
-[data-cosmos="workspace"] .editor-ghost:active { transform: scale(0.98); }
+[data-workspace] .editor-ghost:active { transform: scale(0.98); }
 
-[data-cosmos="workspace"] .editor-key-hint {
+[data-workspace] .editor-key-hint {
   display: inline-flex;
   align-items: center;
   padding: 2px 6px;
@@ -525,47 +525,47 @@
 }
 
 /* Harmony group */
-[data-cosmos="workspace"] .editor-harmony {
+[data-workspace] .editor-harmony {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-[data-cosmos="workspace"] .editor-harmony-label {
+[data-workspace] .editor-harmony-label {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .editor-harmony-hint {
+[data-workspace] .editor-harmony-hint {
   font-size: 11px;
   line-height: 1.5;
   color: var(--text-muted);
 }
 
 /* Delete button for secondary color */
-[data-cosmos="workspace"] .editor-field-meta-btn.is-destructive:hover {
+[data-workspace] .editor-field-meta-btn.is-destructive:hover {
   background: color-mix(in srgb, #dc2626 12%, transparent);
   color: #dc2626;
 }
 
 /* ─── Brand identity section (sits above the color controls) ─── */
 
-[data-cosmos="workspace"] .editor-identity {
+[data-workspace] .editor-identity {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
-[data-cosmos="workspace"] .editor-identity-label {
+[data-workspace] .editor-identity-label {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .editor-identity-input {
+[data-workspace] .editor-identity-input {
   height: 38px;
   padding: 0 12px;
   border-radius: 10px;
@@ -580,44 +580,44 @@
   transition: border-color 0.15s, box-shadow 0.15s;
   width: 100%;
 }
-[data-cosmos="workspace"] .editor-identity-input::placeholder {
+[data-workspace] .editor-identity-input::placeholder {
   color: var(--text-muted);
   font-weight: 400;
 }
-[data-cosmos="workspace"] .editor-identity-input:focus {
+[data-workspace] .editor-identity-input:focus {
   border-color: var(--border-strong);
   box-shadow: 0 0 0 3px var(--accent-ring, rgba(0, 0, 0, 0.06));
 }
 
 /* ─── Picker overrides inside the narrow editor panel ────── */
-[data-cosmos="workspace"] .editor-panel .cp-expand.is-open {
+[data-workspace] .editor-panel .cp-expand.is-open {
   max-height: 440px;
 }
-[data-cosmos="workspace"] .editor-panel .cp-footer {
+[data-workspace] .editor-panel .cp-footer {
   flex-wrap: wrap;
   row-gap: 10px;
   justify-content: space-between;
 }
-[data-cosmos="workspace"] .editor-panel .cp-hex-wrap {
+[data-workspace] .editor-panel .cp-hex-wrap {
   flex: 1 1 100%;
   min-width: 0;
 }
-[data-cosmos="workspace"] .editor-panel .cp-hex-input {
+[data-workspace] .editor-panel .cp-hex-input {
   flex: 1;
   width: auto;
   min-width: 0;
 }
-[data-cosmos="workspace"] .editor-panel .cp-actions {
+[data-workspace] .editor-panel .cp-actions {
   margin-left: auto;
 }
 
 /* ─── Font pair picker ────────────────────────────────────── */
-[data-cosmos="workspace"] .font-pair-list {
+[data-workspace] .font-pair-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-[data-cosmos="workspace"] .font-pair {
+[data-workspace] .font-pair {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -632,15 +632,15 @@
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   width: 100%;
 }
-[data-cosmos="workspace"] .font-pair:hover {
+[data-workspace] .font-pair:hover {
   border-color: var(--border-strong);
   transform: translateY(-1px);
 }
-[data-cosmos="workspace"] .font-pair.is-active {
+[data-workspace] .font-pair.is-active {
   border-color: var(--text-primary);
   box-shadow: 0 0 0 2px var(--accent-ring, rgba(0, 0, 0, 0.06));
 }
-[data-cosmos="workspace"] .font-pair-head {
+[data-workspace] .font-pair-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -651,21 +651,21 @@
   letter-spacing: 0.12em;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .font-pair-display {
+[data-workspace] .font-pair-display {
   font-size: 22px;
   font-weight: 500;
   line-height: 1;
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
-[data-cosmos="workspace"] .font-pair-body {
+[data-workspace] .font-pair-body {
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.35;
 }
 
 /* ─── Logo upload ─────────────────────────────────────────── */
-[data-cosmos="workspace"] .logo-drop {
+[data-workspace] .logo-drop {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -680,14 +680,14 @@
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
-[data-cosmos="workspace"] .logo-drop:hover {
+[data-workspace] .logo-drop:hover {
   border-color: var(--text-primary);
   background: var(--surface);
 }
-[data-cosmos="workspace"] .logo-drop input {
+[data-workspace] .logo-drop input {
   display: none;
 }
-[data-cosmos="workspace"] .logo-preview {
+[data-workspace] .logo-preview {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -697,7 +697,7 @@
   background: var(--surface);
   box-shadow: var(--shadow-xs);
 }
-[data-cosmos="workspace"] .logo-preview-thumb {
+[data-workspace] .logo-preview-thumb {
   width: 48px;
   height: 48px;
   border-radius: 8px;
@@ -709,18 +709,18 @@
   overflow: hidden;
   flex-shrink: 0;
 }
-[data-cosmos="workspace"] .logo-preview-thumb img {
+[data-workspace] .logo-preview-thumb img {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
 }
-[data-cosmos="workspace"] .logo-preview-meta {
+[data-workspace] .logo-preview-meta {
   flex: 1;
   min-width: 0;
   font-size: 12px;
   color: var(--text-secondary);
 }
-[data-cosmos="workspace"] .logo-preview-meta strong {
+[data-workspace] .logo-preview-meta strong {
   display: block;
   color: var(--text-primary);
   font-weight: 600;
@@ -729,7 +729,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-[data-cosmos="workspace"] .logo-preview-remove {
+[data-workspace] .logo-preview-remove {
   padding: 6px 10px;
   font-size: 11px;
   font-weight: 500;
@@ -740,37 +740,37 @@
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
 }
-[data-cosmos="workspace"] .logo-preview-remove:hover {
+[data-workspace] .logo-preview-remove:hover {
   color: var(--text-primary);
   border-color: var(--border-strong);
 }
 
 /* ─── Harmony preview strip ──────────────────────────────── */
-[data-cosmos="workspace"] .harmony-preview {
+[data-workspace] .harmony-preview {
   display: flex;
   gap: 4px;
   height: 20px;
   margin-top: 6px;
 }
-[data-cosmos="workspace"] .harmony-preview span {
+[data-workspace] .harmony-preview span {
   flex: 1;
   border-radius: 6px;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
 /* ─── Photo swap ──────────────────────────────────────────── */
-[data-cosmos="workspace"] .photo-swap {
+[data-workspace] .photo-swap {
   position: absolute;
   inset: 0;
 }
-[data-cosmos="workspace"] .photo-swap > img,
-[data-cosmos="workspace"] .photo-swap > .tile-photo-fallback {
+[data-workspace] .photo-swap > img,
+[data-workspace] .photo-swap > .tile-photo-fallback {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-[data-cosmos="workspace"] .photo-swap-btn {
+[data-workspace] .photo-swap-btn {
   position: absolute;
   right: 8px;
   top: 8px;
@@ -787,21 +787,21 @@
   backdrop-filter: blur(10px);
   z-index: 5;
 }
-[data-cosmos="workspace"] .photo-swap-btn--dark {
+[data-workspace] .photo-swap-btn--dark {
   background: rgba(10, 10, 10, 0.6);
   color: #ffffff;
 }
-[data-cosmos="workspace"] .photo-swap-btn--light {
+[data-workspace] .photo-swap-btn--light {
   background: rgba(255, 255, 255, 0.75);
   color: #111111;
 }
-[data-cosmos="workspace"] .photo-swap:hover .photo-swap-btn {
+[data-workspace] .photo-swap:hover .photo-swap-btn {
   opacity: 1;
 }
-[data-cosmos="workspace"] .photo-swap-btn:hover {
+[data-workspace] .photo-swap-btn:hover {
   transform: scale(1.08);
 }
-[data-cosmos="workspace"] .photo-swap-popover {
+[data-workspace] .photo-swap-popover {
   position: absolute;
   right: 8px;
   top: 42px;
@@ -814,7 +814,7 @@
   box-shadow: 0 20px 40px -8px rgba(16, 16, 20, 0.35);
   color: var(--text-primary, #111111);
 }
-[data-cosmos="workspace"] .photo-swap-popover-title {
+[data-workspace] .photo-swap-popover-title {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -822,12 +822,12 @@
   color: var(--text-muted, rgba(0, 0, 0, 0.5));
   margin-bottom: 8px;
 }
-[data-cosmos="workspace"] .photo-swap-grid {
+[data-workspace] .photo-swap-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
-[data-cosmos="workspace"] .photo-swap-thumb {
+[data-workspace] .photo-swap-thumb {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
@@ -838,21 +838,21 @@
   cursor: pointer;
   transition: border-color 140ms var(--ease, ease), transform 140ms var(--ease, ease);
 }
-[data-cosmos="workspace"] .photo-swap-thumb:hover {
+[data-workspace] .photo-swap-thumb:hover {
   transform: translateY(-1px);
   border-color: var(--text-primary, #111111);
 }
-[data-cosmos="workspace"] .photo-swap-thumb.is-active {
+[data-workspace] .photo-swap-thumb.is-active {
   border-color: var(--text-primary, #111111);
   box-shadow: 0 0 0 2px var(--accent-ring, rgba(0, 0, 0, 0.08));
 }
-[data-cosmos="workspace"] .photo-swap-thumb img {
+[data-workspace] .photo-swap-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-[data-cosmos="workspace"] .photo-swap-thumb-check {
+[data-workspace] .photo-swap-thumb-check {
   position: absolute;
   right: 4px;
   top: 4px;
@@ -873,15 +873,15 @@
  * display family so picking a new font pair actually changes the
  * look of every showcase, not just the places that opted in inline.
  */
-[data-cosmos="workspace"] .color-board-body h1,
-[data-cosmos="workspace"] .color-board-body h2,
-[data-cosmos="workspace"] .color-board-body h3,
-[data-cosmos="workspace"] .color-board-body h4 {
+[data-workspace] .color-board-body h1,
+[data-workspace] .color-board-body h2,
+[data-workspace] .color-board-body h3,
+[data-workspace] .color-board-body h4 {
   font-family: var(--brand-font-display, inherit);
 }
 
 /* ─── Font search input ──────────────────────────────────── */
-[data-cosmos="workspace"] .font-search {
+[data-workspace] .font-search {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -893,7 +893,7 @@
   box-shadow: var(--shadow-xs);
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .font-search input {
+[data-workspace] .font-search input {
   flex: 1;
   min-width: 0;
   font: inherit;
@@ -904,15 +904,15 @@
   outline: none;
   padding: 0;
 }
-[data-cosmos="workspace"] .font-search input::placeholder {
+[data-workspace] .font-search input::placeholder {
   color: var(--text-muted);
 }
 
 /* ─── Photo swap — search ───────────────────────────────── */
-[data-cosmos="workspace"] .photo-swap-popover {
+[data-workspace] .photo-swap-popover {
   width: 240px;
 }
-[data-cosmos="workspace"] .photo-swap-search {
+[data-workspace] .photo-swap-search {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -924,7 +924,7 @@
   color: var(--text-muted);
   margin-bottom: 8px;
 }
-[data-cosmos="workspace"] .photo-swap-search input {
+[data-workspace] .photo-swap-search input {
   flex: 1;
   min-width: 0;
   font: inherit;
@@ -935,20 +935,20 @@
   outline: none;
   padding: 0;
 }
-[data-cosmos="workspace"] .photo-swap-search input::placeholder {
+[data-workspace] .photo-swap-search input::placeholder {
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .photo-swap-search input:disabled {
+[data-workspace] .photo-swap-search input:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
-[data-cosmos="workspace"] .photo-swap-spin {
+[data-workspace] .photo-swap-spin {
   animation: uics-spin 900ms linear infinite;
 }
 @keyframes uics-spin {
   to { transform: rotate(360deg); }
 }
-[data-cosmos="workspace"] .photo-swap-empty {
+[data-workspace] .photo-swap-empty {
   font-size: 11px;
   color: var(--text-muted);
   margin: 4px 0;
@@ -957,7 +957,7 @@
 
 /* ─── Portal popover — lives on document.body so it escapes any
  * ancestor overflow:hidden that would clip it inside the tile. */
-[data-cosmos="workspace"] .photo-swap-popover--portal,
+[data-workspace] .photo-swap-popover--portal,
 .photo-swap-popover--portal {
   position: fixed;
   z-index: 2000;
@@ -980,15 +980,15 @@
  * — the icon only appeared when the cursor was over the bare photo.
  * Listen on the whole tile instead so any hover reveals the button.
  */
-[data-cosmos="workspace"] .tile:hover .photo-swap-btn,
-[data-cosmos="workspace"] .tile:focus-within .photo-swap-btn {
+[data-workspace] .tile:hover .photo-swap-btn,
+[data-workspace] .tile:focus-within .photo-swap-btn {
   opacity: 1;
 }
 
 /* ─── Portaled popover — rules mirrored without the full cosmos
  * root so we don't inherit min-height: 100vh (which made the
  * popover viewport-tall). Keep these in sync with the
- * [data-cosmos="workspace"] versions above. */
+ * [data-workspace] versions above. */
 [data-uics-popover] .photo-swap-popover-title {
   font-size: 10px;
   font-weight: 600;

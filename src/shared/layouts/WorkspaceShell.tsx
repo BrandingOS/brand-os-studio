@@ -8,7 +8,7 @@ import {
 import { NavLink, useLocation } from 'react-router-dom';
 import { BrandSwitcher } from '@/features/brand/components/BrandSwitcher';
 import { SegmentedNav } from '@/shared/ui/SegmentedNav';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 /**
  * Shared shell for the v2 UI direction.
@@ -23,7 +23,7 @@ import '@/shared/styles/cosmos-workspace.css';
  *   - Otherwise, if the current URL matches `/b/:slug/...`, brand-scoped tabs are built automatically.
  *   - Otherwise, falls back to the flat workspace tabs (legacy `/setup`, etc.).
  *
- * Theme: scoped to [data-cosmos="workspace"], persisted in localStorage key "brandos-theme".
+ * Theme: scoped to [data-workspace], persisted in localStorage key "brandos-theme".
  */
 
 export type WorkspaceTab = {
@@ -122,7 +122,7 @@ export function WorkspaceShell({
   }, []);
 
   return (
-    <div data-cosmos="workspace" data-theme={theme}>
+    <div data-workspace data-theme={theme}>
       <header className="top-nav-wrap" role="banner">
         <div className="top-nav-left">
           {slug ? (

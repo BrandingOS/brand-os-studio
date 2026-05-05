@@ -24,7 +24,7 @@ type Props = {
  * Setup tab's rhythm.
  *
  * Layout follows the shared `.shell` + `.panel` + `.board-wrap` primitives
- * documented in src/shared/styles/cosmos-workspace.css. Section-local
+ * documented in src/shared/styles/workspace.css. Section-local
  * styling lives in ./design-alt.css.
  */
 export function DesignCosmosPage({ slug, brand, isLoading, error }: Props) {

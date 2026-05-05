@@ -554,7 +554,7 @@ export function BrandKitCardEditor({
 
   useEffect(() => {
     if (!target) return;
-    const ws = document.querySelector('[data-cosmos="workspace"]');
+    const ws = document.querySelector('[data-workspace]');
     setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 
     const onKey = (e: KeyboardEvent) => {

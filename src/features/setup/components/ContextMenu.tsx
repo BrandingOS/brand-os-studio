@@ -38,7 +38,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useLayoutEffect(() => {
-    const ws = document.querySelector('[data-cosmos="workspace"]');
+    const ws = document.querySelector('[data-workspace]');
     const dt = ws?.getAttribute('data-theme');
     setTheme(dt === 'dark' ? 'dark' : 'light');
   }, []);

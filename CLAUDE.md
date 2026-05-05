@@ -343,18 +343,24 @@ one, update the other.
 
 Radix `Popover`, `Dialog`, `DropdownMenu`, `Select`, etc. render their content
 inside a `Portal` that mounts under `document.body` — **outside** any
-cosmos/workspace wrapper. CSS rules written as `[data-cosmos="workspace"] .x`
+workspace wrapper. CSS rules written as `[data-workspace] .x`
 never apply to portaled content.
 
 **Rule.** When styling the interior of a Radix popover/dialog/menu:
-- Use unscoped selectors (no `[data-cosmos=...]` prefix).
+- Use unscoped selectors (no `[data-workspace]` prefix).
 - Reach theme tokens via `hsl(var(--muted))` / `hsl(var(--foreground))` /
   etc. so light + dark mode still work.
-- If you need cosmos-scoped styles for the trigger (not the content), that's
+- If you need workspace-scoped styles for the trigger (not the content), that's
   fine — the trigger isn't portaled.
+- If a portaled surface NEEDS workspace tokens (e.g. a brand-picker dropdown),
+  set `data-workspace` on the Radix Content element itself + use `var(--name, fallback)`
+  so the fallback paints if the var doesn't resolve. See `BrandPicker.tsx`.
 
 This caught us on the Typescale `FontPicker` (2026-04-24) where the Aa-swatch
 items rendered as unstyled run-on text until the scope prefix was removed.
+
+(Phase B Group 2 renamed `cosmos-workspace.css` → `workspace.css` and
+`[data-cosmos="workspace"]` → `[data-workspace]`. The semantics are unchanged.)
 
 ## Auth flow gotchas
 

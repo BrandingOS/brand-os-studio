@@ -1,19 +1,19 @@
 /* ============================================================
  * Brand Kit v2 — flat sidebar + uniform placeholder-card grid.
  *
- * All selectors scoped to [data-cosmos="workspace"] so they stay
+ * All selectors scoped to [data-workspace] so they stay
  * theme-aware (light + dark) via the shell's CSS tokens.
  * ============================================================ */
 
 /* ─── Section grid ─────────────────────────────────────────── */
 
-[data-cosmos="workspace"] .bk-grid {
+[data-workspace] .bk-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
 }
 
-[data-cosmos="workspace"] .bk-card {
+[data-workspace] .bk-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -28,7 +28,7 @@
    crossfade — both views share the same section structure, so
    overlapping rectangles read as one stable tile whose contents
    are crossfading. */
-[data-cosmos="workspace"] .bk-card-cover {
+[data-workspace] .bk-card-cover {
   position: relative;
   aspect-ratio: 1.6 / 1;
   border-radius: 14px;
@@ -40,7 +40,7 @@
     box-shadow 180ms var(--ease),
     border-color 180ms var(--ease);
 }
-[data-cosmos="workspace"] .bk-card:hover .bk-card-cover {
+[data-workspace] .bk-card:hover .bk-card-cover {
   box-shadow: var(--shadow-md);
   border-color: var(--border-strong);
 }
@@ -48,7 +48,7 @@
    This is what the cross-layer fade animates; the frame around it
    stays at opacity 1, so the rectangles never appear to move or
    blink during the transition. */
-[data-cosmos="workspace"] .bk-card-cover-image {
+[data-workspace] .bk-card-cover-image {
   position: absolute;
   inset: 0;
   background-color: #0a0a0a;
@@ -59,7 +59,7 @@
 
 /* Hover-reveal action buttons (edit · download). Mirrors the
    photo-tile-actions pattern from Setup so the UI reads the same. */
-[data-cosmos="workspace"] .bk-card-actions {
+[data-workspace] .bk-card-actions {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -73,14 +73,14 @@
   z-index: 2;
   pointer-events: none;
 }
-[data-cosmos="workspace"] .bk-card:hover .bk-card-actions,
-[data-cosmos="workspace"] .bk-card:focus-within .bk-card-actions,
-[data-cosmos="workspace"] .bk-card.is-ctx-active .bk-card-actions {
+[data-workspace] .bk-card:hover .bk-card-actions,
+[data-workspace] .bk-card:focus-within .bk-card-actions,
+[data-workspace] .bk-card.is-ctx-active .bk-card-actions {
   opacity: 1;
   transform: translateY(0);
   pointer-events: auto;
 }
-[data-cosmos="workspace"] .bk-card-action {
+[data-workspace] .bk-card-action {
   width: 30px;
   height: 30px;
   display: grid;
@@ -96,11 +96,11 @@
   font-family: inherit;
   transition: background 180ms var(--ease);
 }
-[data-cosmos="workspace"] .bk-card-action:hover {
+[data-workspace] .bk-card-action:hover {
   background: rgba(17, 17, 20, 0.92);
 }
 
-[data-cosmos="workspace"] .bk-card-label {
+[data-workspace] .bk-card-label {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-secondary);
@@ -1085,14 +1085,14 @@
    (translateY −2px) and box-shadow at the card's bounds. The other
    optimizations (no backdrop-filter, will-change: opacity, killing
    transitions on the OUT layer) cover the perf budget without it. */
-[data-cosmos="workspace"] .bk-variant-card {
+[data-workspace] .bk-variant-card {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin: 0;
 }
 
-[data-cosmos="workspace"] .bk-variant-label {
+[data-workspace] .bk-variant-label {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-secondary);
@@ -1133,7 +1133,7 @@
     box-shadow 180ms var(--ease),
     border-color 180ms var(--ease);
 }
-[data-cosmos="workspace"] .bk-card-cover {
+[data-workspace] .bk-card-cover {
   box-sizing: border-box;
 }
 .bk-variant-tile:hover {
@@ -1189,10 +1189,10 @@
 }
 
 /* Suppress the global .section > * fade-up animation from
-   cosmos-workspace.css for the Brand Kit page only — we run our
+   workspace.css for the Brand Kit page only — we run our
    own staggered fade-in below, scoped to the stage's "in" layer.
    Scoped to .bk-cosmos-board so other Cosmos pages keep theirs. */
-[data-cosmos="workspace"] .bk-cosmos-board .section > * {
+[data-workspace] .bk-cosmos-board .section > * {
   animation: none;
 }
 
@@ -1206,27 +1206,27 @@
    crossfades, with a per-tile delay based on distance from the
    click point (--bk-d, set in useLayoutEffect on the page).
    ────────────────────────────────────────────────────────────────── */
-[data-cosmos="workspace"] .bk-stage {
+[data-workspace] .bk-stage {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas: "stack";
 }
-[data-cosmos="workspace"] .bk-stage-layer--page1,
-[data-cosmos="workspace"] .bk-stage-layer--page2 {
+[data-workspace] .bk-stage-layer--page1,
+[data-workspace] .bk-stage-layer--page2 {
   grid-area: stack;
   align-self: start;
   min-width: 0;
 }
-[data-cosmos="workspace"] .bk-stage-layer--page1 {
+[data-workspace] .bk-stage-layer--page1 {
   z-index: 2;
 }
-[data-cosmos="workspace"] .bk-stage-layer--page2 {
+[data-workspace] .bk-stage-layer--page2 {
   z-index: 1;
 }
 /* Pointer events route to the active layer only — the inactive
    layer's invisible content shouldn't intercept clicks. */
-[data-cosmos="workspace"] .bk-stage[data-active="sections"] .bk-stage-layer--page2,
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 {
+[data-workspace] .bk-stage[data-active="sections"] .bk-stage-layer--page2,
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 {
   pointer-events: none;
 }
 
@@ -1248,27 +1248,27 @@
    (computed in the page's useLayoutEffect from each tile's
    distance from the click origin), so the wipe still ripples
    outward from the click point. */
-[data-cosmos="workspace"] .bk-stage-layer--page1 .bk-card,
-[data-cosmos="workspace"] .bk-stage-layer--page1 .section-header {
+[data-workspace] .bk-stage-layer--page1 .bk-card,
+[data-workspace] .bk-stage-layer--page1 .section-header {
   opacity: 1;
   transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--bk-d, 0ms);
   will-change: opacity;
 }
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .bk-card,
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section-header {
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .bk-card,
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section-header {
   opacity: 0;
 }
 
-[data-cosmos="workspace"] .bk-stage-layer--page2 .bk-variant-card,
-[data-cosmos="workspace"] .bk-stage-layer--page2 .bk-drilldown-head {
+[data-workspace] .bk-stage-layer--page2 .bk-variant-card,
+[data-workspace] .bk-stage-layer--page2 .bk-drilldown-head {
   opacity: 0;
   transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--bk-d, 0ms);
   will-change: opacity;
 }
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-variant-card,
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-drilldown-head {
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-variant-card,
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page2 .bk-drilldown-head {
   opacity: 1;
 }
 
@@ -1276,10 +1276,10 @@
    painted regardless of the .bk-card / .section-header opacity
    rules, so they bleed through into page 2's view. Fade the
    border-color to transparent when drilldown is active. */
-[data-cosmos="workspace"] .bk-stage-layer--page1 .section {
+[data-workspace] .bk-stage-layer--page1 .section {
   transition: border-top-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-[data-cosmos="workspace"] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section {
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 .section {
   border-top-color: transparent;
 }
 
@@ -1295,12 +1295,12 @@
    title · download) plus a flat grid of variants. Visually
    distinct from the sections list so the user feels like they
    "entered" the card. */
-[data-cosmos="workspace"] .bk-drilldown {
+[data-workspace] .bk-drilldown {
   padding-top: 0;
 }
 /* anchor: drilldown-anchor-v1 — user-approved baseline (2026-04-27).
    Don't change these values without confirming first. */
-[data-cosmos="workspace"] .bk-drilldown-head {
+[data-workspace] .bk-drilldown-head {
   display: flex;
   align-items: baseline;
   gap: 16px;
@@ -1317,7 +1317,7 @@
   margin-bottom: 44px;
   margin-left: 0;
   /* Sticky — same `top` as the sidebar panel (`.panel` uses
-     top: 80px in cosmos-workspace.css). Keeps the pill visible
+     top: 80px in workspace.css). Keeps the pill visible
      while the user scrolls through a long variant list. */
   position: sticky;
   top: 80px;
@@ -1327,7 +1327,7 @@
    so they stay legible against scrolling tiles when the header
    sticks. Compact pill — small enough to feel like a control,
    not a page header. */
-[data-cosmos="workspace"] .bk-drilldown-pill {
+[data-workspace] .bk-drilldown-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1338,7 +1338,7 @@
   box-shadow: var(--shadow-sm);
 }
 
-[data-cosmos="workspace"] .bk-drilldown-back {
+[data-workspace] .bk-drilldown-back {
   appearance: none;
   background: var(--surface-sunken);
   border: 1px solid transparent;
@@ -1356,15 +1356,15 @@
   flex: 0 0 auto;
   align-self: center;
 }
-[data-cosmos="workspace"] .bk-drilldown-back:hover {
+[data-workspace] .bk-drilldown-back:hover {
   color: var(--accent);
   background: var(--accent-muted);
 }
-[data-cosmos="workspace"] .bk-drilldown-back:focus-visible {
+[data-workspace] .bk-drilldown-back:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
-[data-cosmos="workspace"] .bk-drilldown-title {
+[data-workspace] .bk-drilldown-title {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -1373,7 +1373,7 @@
   margin: 0;
   padding-right: 2px;
 }
-[data-cosmos="workspace"] .bk-drilldown-actions {
+[data-workspace] .bk-drilldown-actions {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
@@ -1381,7 +1381,7 @@
   position: relative;
   top: -3px;
 }
-[data-cosmos="workspace"] .bk-drilldown-grid {
+[data-workspace] .bk-drilldown-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 20px;
@@ -1393,7 +1393,7 @@
  * slot with real Setup data (logo combo, color, font, etc.).
  * ============================================================ */
 
-[data-cosmos="workspace"] .brand-asset-render {
+[data-workspace] .brand-asset-render {
   width: 100%;
   height: 100%;
   display: flex;
@@ -1401,22 +1401,22 @@
 }
 
 /* ─── Logo combo ───────────────────────────────────────────── */
-[data-cosmos="workspace"] .brand-asset-render--logo {
+[data-workspace] .brand-asset-render--logo {
   align-items: center;
   justify-content: center;
   padding: 14% 16%;
 }
-[data-cosmos="workspace"] .brand-asset-render-logo-svg {
+[data-workspace] .brand-asset-render-logo-svg {
   width: 100%;
   height: 100%;
   display: block;
 }
-[data-cosmos="workspace"] .brand-asset-render-logo-svg svg {
+[data-workspace] .brand-asset-render-logo-svg svg {
   width: 100%;
   height: 100%;
   display: block;
 }
-[data-cosmos="workspace"] .brand-asset-render-logo-mask {
+[data-workspace] .brand-asset-render-logo-mask {
   width: 100%;
   height: 100%;
   display: block;
@@ -1432,12 +1432,12 @@
 /* Centered role / name / hex stack — same composition the editor's
    big preview uses. Text color is set inline per swatch so it flips
    to black on light backgrounds and white on dark ones. */
-[data-cosmos="workspace"] .brand-asset-render--color {
+[data-workspace] .brand-asset-render--color {
   align-items: center;
   justify-content: center;
   padding: 14px 16px;
 }
-[data-cosmos="workspace"] .brand-asset-render-color-meta {
+[data-workspace] .brand-asset-render-color-meta {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1445,20 +1445,20 @@
   gap: 6px;
   color: inherit;
 }
-[data-cosmos="workspace"] .brand-asset-render-color-role {
+[data-workspace] .brand-asset-render-color-role {
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   opacity: 0.85;
 }
-[data-cosmos="workspace"] .brand-asset-render-color-name {
+[data-workspace] .brand-asset-render-color-name {
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.05;
 }
-[data-cosmos="workspace"] .brand-asset-render-color-hex {
+[data-workspace] .brand-asset-render-color-hex {
   font-size: 10px;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
@@ -1467,7 +1467,7 @@
 }
 
 /* ─── Font preview ─────────────────────────────────────────── */
-[data-cosmos="workspace"] .brand-asset-render--font {
+[data-workspace] .brand-asset-render--font {
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
@@ -1475,25 +1475,25 @@
   background: var(--surface, transparent);
   color: var(--text);
 }
-[data-cosmos="workspace"] .brand-asset-render-font-sample {
+[data-workspace] .brand-asset-render-font-sample {
   font-size: clamp(48px, 38%, 96px);
   line-height: 1;
   letter-spacing: -0.02em;
   color: var(--text);
 }
-[data-cosmos="workspace"] .brand-asset-render-font-meta {
+[data-workspace] .brand-asset-render-font-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-[data-cosmos="workspace"] .brand-asset-render-font-role {
+[data-workspace] .brand-asset-render-font-role {
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-tertiary, var(--text-secondary));
 }
-[data-cosmos="workspace"] .brand-asset-render-font-family {
+[data-workspace] .brand-asset-render-font-family {
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
@@ -1501,7 +1501,7 @@
 }
 
 /* ─── Icon ─────────────────────────────────────────────────── */
-[data-cosmos="workspace"] .brand-asset-render--icon {
+[data-workspace] .brand-asset-render--icon {
   align-items: center;
   justify-content: center;
   padding: 22%;
@@ -1514,9 +1514,9 @@
   border-radius: inherit;
   transition: background 160ms ease;
 }
-[data-cosmos="workspace"] .brand-asset-render-icon-glyph,
-[data-cosmos="workspace"] .brand-asset-render-icon-glyph svg,
-[data-cosmos="workspace"] .brand-asset-render-icon-img {
+[data-workspace] .brand-asset-render-icon-glyph,
+[data-workspace] .brand-asset-render-icon-glyph svg,
+[data-workspace] .brand-asset-render-icon-img {
   width: 100%;
   height: 100%;
   display: block;
@@ -1524,7 +1524,7 @@
 }
 /* Flaticon webfont glyphs render via the <i> element's ::before
    pseudo — size with font-size and center inside the padded panel. */
-[data-cosmos="workspace"] i.brand-asset-render-icon-glyph {
+[data-workspace] i.brand-asset-render-icon-glyph {
   width: auto;
   height: auto;
   font-size: 64px;
@@ -1536,7 +1536,7 @@
 }
 
 /* ─── Photo ────────────────────────────────────────────────── */
-[data-cosmos="workspace"] .brand-asset-render--photo {
+[data-workspace] .brand-asset-render--photo {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -1544,7 +1544,7 @@
   justify-content: flex-start;
   padding: 14px 16px;
 }
-[data-cosmos="workspace"] .brand-asset-render-photo-slot {
+[data-workspace] .brand-asset-render-photo-slot {
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -1558,20 +1558,20 @@
 }
 
 /* ─── About ────────────────────────────────────────────────── */
-[data-cosmos="workspace"] .brand-asset-render--about {
+[data-workspace] .brand-asset-render--about {
   flex-direction: column;
   justify-content: center;
   gap: 8px;
   padding: 8% 10%;
   background: var(--surface, transparent);
 }
-[data-cosmos="workspace"] .brand-asset-render-about-title {
+[data-workspace] .brand-asset-render-about-title {
   font-size: 18px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--text);
 }
-[data-cosmos="workspace"] .brand-asset-render-about-body {
+[data-workspace] .brand-asset-render-about-body {
   font-size: 11.5px;
   line-height: 1.5;
   color: var(--text-secondary);
@@ -1584,14 +1584,14 @@
 
 /* Icon-weight popover — anchored to the Edit button in the Icons
    drilldown actions row. */
-[data-cosmos="workspace"] .bk-drilldown-weight {
+[data-workspace] .bk-drilldown-weight {
   position: relative;
 }
-[data-cosmos="workspace"] .section-add.is-active {
+[data-workspace] .section-add.is-active {
   background: rgba(17, 17, 19, 0.06);
   color: #111113;
 }
-[data-cosmos="workspace"] .bk-weight-popover {
+[data-workspace] .bk-weight-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
@@ -1606,19 +1606,19 @@
   flex-direction: column;
   gap: 8px;
 }
-[data-cosmos="workspace"] .bk-weight-popover-title {
+[data-workspace] .bk-weight-popover-title {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #6b6b6b;
 }
-[data-cosmos="workspace"] .bk-weight-popover-grid {
+[data-workspace] .bk-weight-popover-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell {
+[data-workspace] .bk-weight-popover-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1632,34 +1632,34 @@
   color: #111113;
   transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell i {
+[data-workspace] .bk-weight-popover-cell i {
   font-size: 18px;
   line-height: 1;
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell span {
+[data-workspace] .bk-weight-popover-cell span {
   font-size: 10.5px;
   letter-spacing: 0.02em;
   color: #6b6b6b;
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell:hover {
+[data-workspace] .bk-weight-popover-cell:hover {
   border-color: rgba(17, 17, 19, 0.18);
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell:active {
+[data-workspace] .bk-weight-popover-cell:active {
   transform: scale(0.98);
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell.is-selected {
+[data-workspace] .bk-weight-popover-cell.is-selected {
   border-color: #111113;
   background: #fff;
 }
-[data-cosmos="workspace"] .bk-weight-popover-cell.is-selected span {
+[data-workspace] .bk-weight-popover-cell.is-selected span {
   color: #111113;
 }
-[data-cosmos="workspace"] .bk-weight-popover-swatches {
+[data-workspace] .bk-weight-popover-swatches {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 5px;
 }
-[data-cosmos="workspace"] .bk-weight-popover-swatch {
+[data-workspace] .bk-weight-popover-swatch {
   aspect-ratio: 1;
   border-radius: 6px;
   border: 1.5px solid rgba(17, 17, 19, 0.08);
@@ -1667,10 +1667,10 @@
   padding: 0;
   transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
-[data-cosmos="workspace"] .bk-weight-popover-swatch:hover {
+[data-workspace] .bk-weight-popover-swatch:hover {
   transform: scale(1.06);
 }
-[data-cosmos="workspace"] .bk-weight-popover-swatch.is-selected {
+[data-workspace] .bk-weight-popover-swatch.is-selected {
   border-color: #111113;
   box-shadow: 0 0 0 2px #fff inset;
 }
@@ -1680,10 +1680,10 @@
    the inner `.cp-body` provides its own surface and rounding, so
    this layer is just positioning + drop shadow. Mirrors the icon
    weight popover's anchor (below, right-aligned). */
-[data-cosmos="workspace"] .bk-drilldown-color {
+[data-workspace] .bk-drilldown-color {
   position: relative;
 }
-[data-cosmos="workspace"] .bk-color-popover {
+[data-workspace] .bk-color-popover {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
@@ -1691,7 +1691,7 @@
   width: 248px;
   max-width: min(35vw, 280px);
 }
-[data-cosmos="workspace"] .bk-color-popover .cp-body {
+[data-workspace] .bk-color-popover .cp-body {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.14),
     0 4px 10px rgba(0, 0, 0, 0.06),
@@ -1701,7 +1701,7 @@
 /* Drilldown empty state — used by the Icons section when the brand
    has no icons yet. Spans the full grid via grid-column: 1 / -1 so
    it doesn't try to fit a single tile slot. */
-[data-cosmos="workspace"] .bk-drilldown-empty {
+[data-workspace] .bk-drilldown-empty {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
@@ -1716,14 +1716,14 @@
   cursor: pointer;
   transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
-[data-cosmos="workspace"] .bk-drilldown-empty:hover {
+[data-workspace] .bk-drilldown-empty:hover {
   background: rgba(17, 17, 19, 0.04);
   border-color: rgba(17, 17, 19, 0.32);
 }
-[data-cosmos="workspace"] .bk-drilldown-empty:active {
+[data-workspace] .bk-drilldown-empty:active {
   transform: scale(0.995);
 }
-[data-cosmos="workspace"] .bk-drilldown-empty-icon {
+[data-workspace] .bk-drilldown-empty-icon {
   width: 44px;
   height: 44px;
   border-radius: 999px;
@@ -1734,13 +1734,13 @@
   justify-content: center;
   margin-bottom: 4px;
 }
-[data-cosmos="workspace"] .bk-drilldown-empty-title {
+[data-workspace] .bk-drilldown-empty-title {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #111113;
 }
-[data-cosmos="workspace"] .bk-drilldown-empty-sub {
+[data-workspace] .bk-drilldown-empty-sub {
   font-size: 13px;
   color: #666;
   text-align: center;

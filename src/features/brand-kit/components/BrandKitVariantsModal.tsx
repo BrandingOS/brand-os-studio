@@ -53,7 +53,7 @@ export function BrandKitVariantsModal({
   // independently of `paused`.
   useEffect(() => {
     if (!target) return;
-    const ws = document.querySelector('[data-cosmos="workspace"]');
+    const ws = document.querySelector('[data-workspace]');
     setTheme(ws?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

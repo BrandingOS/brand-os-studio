@@ -1,4 +1,8 @@
-import opentype from 'opentype.js';
+// opentype.js exposes itself as a CJS module without a default export;
+// Vite's pre-bundler can't synthesize one ("does not provide an export
+// named 'default'"). Namespace import works against both the named-
+// exports surface and the CJS module.exports pattern.
+import * as opentype from 'opentype.js';
 import { triggerBlobDownload } from './colorPaletteExport';
 
 /**

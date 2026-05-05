@@ -1,14 +1,14 @@
 /*
  * Guideline tab — editorial surface styles.
  *
- * Scoped to [data-cosmos="workspace"] so it reads the same theme tokens
+ * Scoped to [data-workspace] so it reads the same theme tokens
  * (--text-primary, --surface-sunken, --accent-muted, …) as the rest of
  * the Cosmos shell. Styles here are additive — nothing overrides core
  * shell classes like .section, .panel, .board-wrap.
  */
 
 /* Empty-state copy used inside each guideline section. */
-[data-cosmos="workspace"] .guideline-empty {
+[data-workspace] .guideline-empty {
   color: var(--text-muted);
   font-size: 14px;
   line-height: 1.6;
@@ -17,14 +17,14 @@
 }
 
 /* Strategy — mission/vision/values card grid. */
-[data-cosmos="workspace"] .guideline-strategy {
+[data-workspace] .guideline-strategy {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 16px;
 }
 
 /* Shared card primitive for anything that renders as "label · body". */
-[data-cosmos="workspace"] .guideline-card {
+[data-workspace] .guideline-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -34,17 +34,17 @@
   border-radius: 14px;
   min-width: 0;
 }
-[data-cosmos="workspace"] .guideline-card--wide {
+[data-workspace] .guideline-card--wide {
   grid-column: 1 / -1;
 }
-[data-cosmos="workspace"] .guideline-card-label {
+[data-workspace] .guideline-card-label {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
   font-weight: 500;
 }
-[data-cosmos="workspace"] .guideline-card-body {
+[data-workspace] .guideline-card-body {
   font-size: 14.5px;
   line-height: 1.55;
   color: var(--text-primary);
@@ -52,7 +52,7 @@
 }
 
 /* Pill chips for values / personality / tone attributes. */
-[data-cosmos="workspace"] .guideline-chips {
+[data-workspace] .guideline-chips {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -60,7 +60,7 @@
   flex-wrap: wrap;
   gap: 6px;
 }
-[data-cosmos="workspace"] .guideline-chip {
+[data-workspace] .guideline-chip {
   display: inline-flex;
   align-items: center;
   padding: 5px 11px;
@@ -73,18 +73,18 @@
 }
 
 /* Logo usage — tiles + rules. */
-[data-cosmos="workspace"] .guideline-logo-grid {
+[data-workspace] .guideline-logo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
-[data-cosmos="workspace"] .guideline-logo-tile {
+[data-workspace] .guideline-logo-tile {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-[data-cosmos="workspace"] .guideline-logo-plate {
+[data-workspace] .guideline-logo-plate {
   position: relative;
   border-radius: 14px;
   aspect-ratio: 4 / 3;
@@ -94,25 +94,25 @@
   align-items: center;
   justify-content: center;
 }
-[data-cosmos="workspace"] .guideline-logo-plate img {
+[data-workspace] .guideline-logo-plate img {
   width: 66%;
   height: 66%;
   object-fit: contain;
   display: block;
 }
-[data-cosmos="workspace"] .guideline-logo-meta {
+[data-workspace] .guideline-logo-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
-[data-cosmos="workspace"] .guideline-logo-label {
+[data-workspace] .guideline-logo-label {
   font-size: 13.5px;
   font-weight: 500;
   color: var(--text-primary);
   letter-spacing: -0.005em;
 }
-[data-cosmos="workspace"] .guideline-logo-note {
+[data-workspace] .guideline-logo-note {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.4;
@@ -120,21 +120,21 @@
 
 /* Shared "rules" block — wraps clear-space / min-size cards and a
    dos-donts list. Appears inside the Logo and Color sections. */
-[data-cosmos="workspace"] .guideline-rules {
+[data-workspace] .guideline-rules {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
 /* Do / don't columns — reused by Logo, Color, and Voice sections. */
-[data-cosmos="workspace"] .guideline-dos-donts {
+[data-workspace] .guideline-dos-donts {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 8px;
 }
-[data-cosmos="workspace"] .guideline-dos,
-[data-cosmos="workspace"] .guideline-donts {
+[data-workspace] .guideline-dos,
+[data-workspace] .guideline-donts {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -143,21 +143,21 @@
   flex-direction: column;
   gap: 10px;
 }
-[data-cosmos="workspace"] .guideline-dos-label,
-[data-cosmos="workspace"] .guideline-donts-label {
+[data-workspace] .guideline-dos-label,
+[data-workspace] .guideline-donts-label {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-weight: 500;
 }
-[data-cosmos="workspace"] .guideline-dos-label {
+[data-workspace] .guideline-dos-label {
   color: var(--ok, #10b981);
 }
-[data-cosmos="workspace"] .guideline-donts-label {
+[data-workspace] .guideline-donts-label {
   color: var(--danger, #ef4444);
 }
-[data-cosmos="workspace"] .guideline-dos ul,
-[data-cosmos="workspace"] .guideline-donts ul {
+[data-workspace] .guideline-dos ul,
+[data-workspace] .guideline-donts ul {
   list-style: none;
   padding: 0;
   margin: 0;
@@ -165,16 +165,16 @@
   flex-direction: column;
   gap: 8px;
 }
-[data-cosmos="workspace"] .guideline-dos li,
-[data-cosmos="workspace"] .guideline-donts li {
+[data-workspace] .guideline-dos li,
+[data-workspace] .guideline-donts li {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--text-primary);
   padding-left: 14px;
   position: relative;
 }
-[data-cosmos="workspace"] .guideline-dos li::before,
-[data-cosmos="workspace"] .guideline-donts li::before {
+[data-workspace] .guideline-dos li::before,
+[data-workspace] .guideline-donts li::before {
   content: '';
   position: absolute;
   left: 0;
@@ -185,45 +185,45 @@
   background: currentColor;
   opacity: 0.5;
 }
-[data-cosmos="workspace"] .guideline-dos li::before {
+[data-workspace] .guideline-dos li::before {
   background: var(--ok, #10b981);
   opacity: 1;
 }
-[data-cosmos="workspace"] .guideline-donts li::before {
+[data-workspace] .guideline-donts li::before {
   background: var(--danger, #ef4444);
   opacity: 1;
 }
 
 /* Color — palette rows and swatches. */
-[data-cosmos="workspace"] .guideline-palette {
+[data-workspace] .guideline-palette {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 24px;
 }
-[data-cosmos="workspace"] .guideline-palette-head {
+[data-workspace] .guideline-palette-head {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-[data-cosmos="workspace"] .guideline-palette-label {
+[data-workspace] .guideline-palette-label {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
   font-weight: 500;
 }
-[data-cosmos="workspace"] .guideline-palette-hint {
+[data-workspace] .guideline-palette-hint {
   font-size: 12.5px;
   color: var(--text-muted);
   line-height: 1.5;
 }
-[data-cosmos="workspace"] .guideline-palette-row {
+[data-workspace] .guideline-palette-row {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
 }
-[data-cosmos="workspace"] .guideline-swatch {
+[data-workspace] .guideline-swatch {
   position: relative;
   border-radius: 14px;
   aspect-ratio: 4 / 3;
@@ -234,7 +234,7 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
 }
-[data-cosmos="workspace"] .guideline-swatch-meta {
+[data-workspace] .guideline-swatch-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -242,23 +242,23 @@
   mix-blend-mode: normal;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
-[data-cosmos="workspace"] .guideline-swatch-meta.is-on-light {
+[data-workspace] .guideline-swatch-meta.is-on-light {
   color: #0d0d0d;
   text-shadow: none;
 }
-[data-cosmos="workspace"] .guideline-swatch-name {
+[data-workspace] .guideline-swatch-name {
   font-size: 13px;
   font-weight: 500;
   letter-spacing: -0.005em;
 }
-[data-cosmos="workspace"] .guideline-swatch-hex {
+[data-workspace] .guideline-swatch-hex {
   font-size: 11.5px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   opacity: 0.85;
 }
 
 /* Typography — per-face block + scale table. */
-[data-cosmos="workspace"] .guideline-type {
+[data-workspace] .guideline-type {
   padding: 22px 24px;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -268,38 +268,38 @@
   flex-direction: column;
   gap: 18px;
 }
-[data-cosmos="workspace"] .guideline-type-head {
+[data-workspace] .guideline-type-head {
   display: flex;
   align-items: baseline;
   gap: 16px;
   flex-wrap: wrap;
 }
-[data-cosmos="workspace"] .guideline-type-role {
+[data-workspace] .guideline-type-role {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-muted);
   font-weight: 500;
 }
-[data-cosmos="workspace"] .guideline-type-family {
+[data-workspace] .guideline-type-family {
   font-size: 15px;
   color: var(--text-primary);
   font-weight: 500;
   letter-spacing: -0.005em;
 }
-[data-cosmos="workspace"] .guideline-type-weights {
+[data-workspace] .guideline-type-weights {
   font-size: 12px;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .guideline-type-sample {
+[data-workspace] .guideline-type-sample {
   color: var(--text-primary);
   word-break: break-word;
 }
 
-[data-cosmos="workspace"] .guideline-scale {
+[data-workspace] .guideline-scale {
   margin-top: 16px;
 }
-[data-cosmos="workspace"] .guideline-scale-label {
+[data-workspace] .guideline-scale-label {
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -308,7 +308,7 @@
   display: block;
   margin-bottom: 10px;
 }
-[data-cosmos="workspace"] .guideline-scale-grid {
+[data-workspace] .guideline-scale-grid {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -316,33 +316,33 @@
   border-radius: 12px;
   overflow: hidden;
 }
-[data-cosmos="workspace"] .guideline-scale-row {
+[data-workspace] .guideline-scale-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--surface-elevated);
   padding: 12px 16px;
 }
-[data-cosmos="workspace"] .guideline-scale-name {
+[data-workspace] .guideline-scale-name {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--text-muted);
 }
-[data-cosmos="workspace"] .guideline-scale-size {
+[data-workspace] .guideline-scale-size {
   font-size: 13.5px;
   color: var(--text-primary);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
 /* Voice examples — good/bad pairs. */
-[data-cosmos="workspace"] .guideline-examples {
+[data-workspace] .guideline-examples {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 16px;
 }
-[data-cosmos="workspace"] .guideline-example {
+[data-workspace] .guideline-example {
   padding: 16px 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -351,14 +351,14 @@
   flex-direction: column;
   gap: 8px;
 }
-[data-cosmos="workspace"] .guideline-example-context {
+[data-workspace] .guideline-example-context {
   font-size: 11px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-[data-cosmos="workspace"] .guideline-example-good,
-[data-cosmos="workspace"] .guideline-example-bad {
+[data-workspace] .guideline-example-good,
+[data-workspace] .guideline-example-bad {
   margin: 0;
   font-size: 13.5px;
   line-height: 1.5;
@@ -367,8 +367,8 @@
   gap: 10px;
   align-items: baseline;
 }
-[data-cosmos="workspace"] .guideline-example-good span,
-[data-cosmos="workspace"] .guideline-example-bad span {
+[data-workspace] .guideline-example-good span,
+[data-workspace] .guideline-example-bad span {
   flex: 0 0 auto;
   font-size: 10.5px;
   text-transform: uppercase;
@@ -377,22 +377,22 @@
   padding: 2px 8px;
   border-radius: 999px;
 }
-[data-cosmos="workspace"] .guideline-example-good span {
+[data-workspace] .guideline-example-good span {
   background: color-mix(in srgb, var(--ok, #10b981) 16%, transparent);
   color: var(--ok, #10b981);
 }
-[data-cosmos="workspace"] .guideline-example-bad span {
+[data-workspace] .guideline-example-bad span {
   background: color-mix(in srgb, var(--danger, #ef4444) 16%, transparent);
   color: var(--danger, #ef4444);
 }
 
 /* Photography — mood-board grid. */
-[data-cosmos="workspace"] .guideline-photo-grid {
+[data-workspace] .guideline-photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 12px;
 }
-[data-cosmos="workspace"] .guideline-photo-tile {
+[data-workspace] .guideline-photo-tile {
   position: relative;
   aspect-ratio: 4 / 3;
   border-radius: 14px;
@@ -400,7 +400,7 @@
   border: 1px solid var(--border);
   background: var(--surface-sunken);
 }
-[data-cosmos="workspace"] .guideline-photo-tile img {
+[data-workspace] .guideline-photo-tile img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -408,22 +408,22 @@
 }
 
 /* Applications — bucketed grids. */
-[data-cosmos="workspace"] .guideline-apps {
+[data-workspace] .guideline-apps {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-[data-cosmos="workspace"] .guideline-apps-bucket {
+[data-workspace] .guideline-apps-bucket {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-[data-cosmos="workspace"] .guideline-apps-grid {
+[data-workspace] .guideline-apps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
 }
-[data-cosmos="workspace"] .guideline-app-tile {
+[data-workspace] .guideline-app-tile {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -432,8 +432,8 @@
   overflow: hidden;
   background: var(--surface-elevated);
 }
-[data-cosmos="workspace"] .guideline-app-tile img,
-[data-cosmos="workspace"] .guideline-app-placeholder {
+[data-workspace] .guideline-app-tile img,
+[data-workspace] .guideline-app-placeholder {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
@@ -446,19 +446,19 @@
   font-weight: 500;
   letter-spacing: -0.01em;
 }
-[data-cosmos="workspace"] .guideline-app-meta {
+[data-workspace] .guideline-app-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 12px 14px 14px;
 }
-[data-cosmos="workspace"] .guideline-app-name {
+[data-workspace] .guideline-app-name {
   font-size: 13.5px;
   font-weight: 500;
   color: var(--text-primary);
   letter-spacing: -0.005em;
 }
-[data-cosmos="workspace"] .guideline-app-desc {
+[data-workspace] .guideline-app-desc {
   font-size: 12.5px;
   color: var(--text-muted);
   line-height: 1.45;
@@ -466,7 +466,7 @@
 
 /* Collapse the two-column do/don't grid on narrow viewports. */
 @media (max-width: 720px) {
-  [data-cosmos="workspace"] .guideline-dos-donts {
+  [data-workspace] .guideline-dos-donts {
     grid-template-columns: 1fr;
   }
 }

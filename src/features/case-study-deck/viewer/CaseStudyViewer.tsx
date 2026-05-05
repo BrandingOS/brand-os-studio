@@ -48,7 +48,7 @@ import { CATALOGS } from '../shapes';
 import { exportDeck } from '../export';
 import { toast } from 'sonner';
 import { MasterPanel } from './MasterPanel';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 interface Props {
   brand: Brand;

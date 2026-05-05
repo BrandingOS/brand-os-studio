@@ -37,7 +37,7 @@ import { resolveStyledSlide } from '../slides/styled';
 import { ARCHETYPE_LABELS } from '../slides/renderer';
 import { resolveSlideStyle, STYLES } from '../styles';
 import { SLIDE_HEIGHT, SLIDE_WIDTH } from '../constants';
-import '@/shared/styles/cosmos-workspace.css';
+import '@/shared/styles/workspace.css';
 
 export default function CaseStudySlideEditorPage() {
   const { slug, idx: idxParam } = useParams<{ slug: string; idx: string }>();

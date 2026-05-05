@@ -118,14 +118,14 @@ describe('BrandPicker — dropdown lists brands from IBrandsService', () => {
 
   it('dropdown content has a SOLID background, not transparent (Step 5/7 fix 3)', async () => {
     // Radix portals the Content under document.body, OUTSIDE the
-    // editor's `[data-cosmos="workspace"]` scope. The cosmos CSS
+    // editor's `[data-workspace]` scope. The cosmos CSS
     // vars wouldn't resolve there and the dropdown rendered
-    // transparent. Fix is: data-cosmos="workspace" on the Content
+    // transparent. Fix is: data-workspace on the Content
     // itself + var(name, fallback) on the inline style. This test
     // catches a regression where someone removes either.
     render(<BrandPicker brand={RAQM} onBrandSwitch={vi.fn()} />);
     const content = await openDropdown();
-    expect(content.getAttribute('data-cosmos')).toBe('workspace');
+    expect(content.hasAttribute('data-workspace')).toBe(true);
     // Inline style declares a non-empty background.
     expect(content.style.background).toBeTruthy();
     expect(content.style.background).toMatch(/var\(--surface-elevated/);
