@@ -285,8 +285,9 @@ describe('Step 5a — Floating toolbar appears on selection', () => {
     expect(toolbar?.querySelector('button[data-control="font"]')).toBeTruthy();
     expect(toolbar?.querySelector('button[data-control="more"]')).toBeTruthy();
 
-    // Scope toggle is always present.
-    expect(toolbar?.querySelector('button[data-scope-toggle]')).toBeTruthy();
+    // Scope toggle is hidden on single-page docs (commit 37044c4); the
+    // multi-page branch is exercised in v2.test.tsx.
+    expect(toolbar?.querySelector('button[data-scope-toggle]')).toBeNull();
   });
 
   it('hides the toolbar when selection is cleared', async () => {

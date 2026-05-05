@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { StudioBrandShell } from './_studioBrandShell';
 import { TemplatesPanel } from '@/features/editor/shell/v2/panels/TemplatesPanel';
+import { BrandMemoryColorsPanel } from '@/features/brand-memory/BrandMemoryColorsPanel';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 
 /**
@@ -48,6 +49,7 @@ export default function BrandTemplatesStudioPage() {
             brand-aware.
           </p>
         </header>
+        <BrandMemoryColorsPanel brandId={brand.id} className="mb-4" />
         <TemplatesPanel mode="browser" />
       </div>
     </StudioBrandShell>
