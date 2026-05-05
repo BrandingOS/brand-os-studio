@@ -145,7 +145,7 @@ export const TYPOGRAPHY_SHAPES: SlideShape[] = [
         ]),
         h('div', { key: 'right', style: { border: `1px solid ${surface.border}`, padding: 24, fontFamily: fonts.body, color: surface.ink, fontSize: 11, lineHeight: 1.85, alignSelf: 'start' } }, [
           h('div', { key: 'h1', style: { opacity: 0.55, letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 16 } }, '// SCALE'),
-          ...rows.map(([name, size]) => h('div', { key: name }, `${name}  ${size}px`)),
+          ...rows.map(([name, size]) => h('div', { key: name }, `${name}  ${size}px`)),
           h('div', { key: 'h2', style: { opacity: 0.55, letterSpacing: '0.2em', textTransform: 'uppercase', marginTop: 22, marginBottom: 16 } }, '// FAMILY'),
           h('div', { key: 'p' }, `primary  ${profile.typography.headingFamily}`),
           h('div', { key: 's' }, `body     ${profile.typography.bodyFamily}`),

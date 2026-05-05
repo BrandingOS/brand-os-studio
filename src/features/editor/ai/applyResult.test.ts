@@ -30,6 +30,29 @@ vi.mock('fabric', async () => {
           const i = objects.indexOf(o);
           if (i >= 0) objects.splice(i, 1);
         },
+        // Reorder helpers used by FabricAdapter's recreate paths
+        // (FabricAdapter.ts:428 + 463). Without these the adapter's
+        // post-update render throws "moveObjectTo is not a function"
+        // and pollutes the unhandled-rejection log even though the
+        // test assertions still pass.
+        moveObjectTo: (o: unknown, idx: number) => {
+          const i = objects.indexOf(o);
+          if (i < 0) return;
+          objects.splice(i, 1);
+          objects.splice(Math.max(0, Math.min(idx, objects.length)), 0, o);
+        },
+        bringObjectToFront: (o: unknown) => {
+          const i = objects.indexOf(o);
+          if (i < 0) return;
+          objects.splice(i, 1);
+          objects.push(o);
+        },
+        sendObjectToBack: (o: unknown) => {
+          const i = objects.indexOf(o);
+          if (i < 0) return;
+          objects.splice(i, 1);
+          objects.unshift(o);
+        },
         clear: () => { objects.length = 0; },
         renderAll: noop,
         requestRenderAll: noop,
