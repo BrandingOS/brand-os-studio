@@ -25,6 +25,28 @@ const docWith = (background: string, fills: string[]): BrandOSDocument => ({
   }],
 } as BrandOSDocument);
 
+const docWithFonts = (fonts: string[]): BrandOSDocument => ({
+  schemaVersion: 1,
+  id: '11111111-1111-1111-1111-aaaaaaaaaaaa',
+  contentType: 'social-post',
+  brandId: 'brand-raqm',
+  masterPages: [],
+  metadata: {},
+  pages: [{
+    id: '22222222-2222-2222-2222-222222222222',
+    name: 'P', width: 1080, height: 1080,
+    background: '#fff',
+    layers: fonts.map((family, i) => ({
+      id: `33333333-3333-3333-3333-${String(i).padStart(12, '0')}`,
+      kind: 'text' as const, name: 'Headline',
+      transform: { x: 0, y: 0, width: 100, height: 100, rotation: 0, scaleX: 1, scaleY: 1 },
+      opacity: 1, visible: true, locked: false, brandLocked: false,
+      text: 'x', fontFamily: family, fontSize: 24, fontWeight: 400,
+      textAlign: 'left' as const, lineHeight: 1.2, color: '#000',
+    })),
+  }],
+} as BrandOSDocument);
+
 function makeStorage(designsByBrand: Record<string, BrandOSDocument[]>): IDesignStorage {
   const summaries: Record<string, DesignSummary[]> = {};
   for (const [brandId, docs] of Object.entries(designsByBrand)) {
@@ -95,5 +117,23 @@ describe('LocalBrandMemoryService', () => {
     await new Promise((r) => setTimeout(r, 5));
     const second = await svc.refresh('b');
     expect(first!.computedAt).not.toBe(second!.computedAt);
+  });
+
+  it('emits a ranked fonts list alongside colors (Phase 6.5)', async () => {
+    const a = docWithFonts(['Inter', 'Inter']);
+    const b = docWithFonts(['Inter', 'Roboto']);
+    a.id = '11111111-1111-1111-1111-aaaaaaaaaaaa';
+    b.id = '11111111-1111-1111-1111-bbbbbbbbbbbb';
+    const svc = new LocalBrandMemoryService(makeStorage({ b: [a, b] }));
+    const snap = await svc.getSnapshot('b');
+    expect(snap!.fonts[0]).toEqual({ family: 'Inter', count: 3 });
+    expect(snap!.fonts.find((f) => f.family === 'Roboto')?.count).toBe(1);
+  });
+
+  it('truncates fonts to caller-supplied limit', async () => {
+    const doc = docWithFonts(['A', 'B', 'C', 'D', 'E']);
+    const svc = new LocalBrandMemoryService(makeStorage({ b: [doc] }));
+    const snap = await svc.getSnapshot('b', { limit: 2 });
+    expect(snap!.fonts).toHaveLength(2);
   });
 });

@@ -14,14 +14,17 @@
 // impl writes through to a `brand_memory` table for cross-device
 // synchronization.
 import type { BrandColorEntry } from '@/features/brand-memory/analyzeBrandColors';
+import type { BrandFontEntry } from '@/features/brand-memory/analyzeBrandFonts';
 
 export type BrandMemoryCategory = 'color' | 'font' | 'position';
 
 export interface BrandMemorySnapshot {
   /** When the analysis was computed. */
   computedAt: string;
-  /** Top entries per category. v1 only populates 'color'. */
+  /** Top color entries (Phase 6.1). */
   colors: BrandColorEntry[];
+  /** Top font-family entries (Phase 6.5). */
+  fonts: BrandFontEntry[];
 }
 
 export interface IBrandMemoryService {

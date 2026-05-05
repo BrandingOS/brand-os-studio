@@ -63,6 +63,7 @@ describe('BrandMemoryColorsPanel', () => {
           { hex: '#00ff00', count: 2 },
           { hex: '#0000ff', count: 1 },
         ],
+        fonts: [],
       },
       loading: false,
       error: null,
@@ -79,12 +80,49 @@ describe('BrandMemoryColorsPanel', () => {
 
   it('forwards limit to useBrandMemory', () => {
     useBrandMemoryMock.mockReturnValue({
-      snapshot: { computedAt: 'x', colors: [{ hex: '#fff', count: 1 }] },
+      snapshot: {
+        computedAt: 'x',
+        colors: [{ hex: '#fff', count: 1 }],
+        fonts: [],
+      },
       loading: false,
       error: null,
       refresh: vi.fn(),
     });
     render(<BrandMemoryColorsPanel brandId="b1" limit={3} />);
     expect(useBrandMemoryMock).toHaveBeenCalledWith('b1', { limit: 3 });
+  });
+
+  it('renders fonts row when snapshot has fonts (Phase 6.5)', () => {
+    useBrandMemoryMock.mockReturnValue({
+      snapshot: {
+        computedAt: 'x',
+        colors: [],
+        fonts: [
+          { family: 'Inter', count: 5 },
+          { family: 'Roboto', count: 2 },
+        ],
+      },
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+    const { container, getByLabelText } = render(
+      <BrandMemoryColorsPanel brandId="b1" />,
+    );
+    expect(container.querySelector('[data-brand-memory-fonts]')).not.toBeNull();
+    expect(getByLabelText(/Inter used 5 times/i)).not.toBeNull();
+    expect(getByLabelText(/Roboto used 2 times/i)).not.toBeNull();
+  });
+
+  it('renders nothing when both colors and fonts are empty', () => {
+    useBrandMemoryMock.mockReturnValue({
+      snapshot: { computedAt: 'x', colors: [], fonts: [] },
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    });
+    const { container } = render(<BrandMemoryColorsPanel brandId="b1" />);
+    expect(container.firstChild).toBeNull();
   });
 });

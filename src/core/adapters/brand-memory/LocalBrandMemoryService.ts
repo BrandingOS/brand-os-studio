@@ -14,6 +14,10 @@ import {
   analyzeDocumentColors,
   rankBrandColors,
 } from '@/features/brand-memory/analyzeBrandColors';
+import {
+  analyzeDocumentFonts,
+  rankBrandFonts,
+} from '@/features/brand-memory/analyzeBrandFonts';
 
 const DEFAULT_LIMIT = 12;
 
@@ -44,17 +48,21 @@ export class LocalBrandMemoryService implements IBrandMemoryService {
       return null;
     }
 
-    const perDoc: Map<string, number>[] = [];
+    const perDocColors: Map<string, number>[] = [];
+    const perDocFonts: Map<string, number>[] = [];
     for (const s of summaries) {
       const doc = await this.designStorage.loadDesign(brandId, s.id);
       if (!doc) continue;
-      perDoc.push(analyzeDocumentColors(doc as BrandOSDocument));
+      perDocColors.push(analyzeDocumentColors(doc as BrandOSDocument));
+      perDocFonts.push(analyzeDocumentFonts(doc as BrandOSDocument));
     }
 
-    const colors = rankBrandColors(perDoc);
+    const colors = rankBrandColors(perDocColors);
+    const fonts = rankBrandFonts(perDocFonts);
     const snapshot: BrandMemorySnapshot = {
       computedAt: new Date().toISOString(),
       colors,
+      fonts,
     };
     this.cache.set(brandId, snapshot);
     return snapshot;
@@ -71,5 +79,9 @@ function truncateSnapshot(
   snap: BrandMemorySnapshot,
   limit: number,
 ): BrandMemorySnapshot {
-  return { ...snap, colors: snap.colors.slice(0, limit) };
+  return {
+    ...snap,
+    colors: snap.colors.slice(0, limit),
+    fonts: snap.fonts.slice(0, limit),
+  };
 }
