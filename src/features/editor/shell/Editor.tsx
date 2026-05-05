@@ -61,6 +61,7 @@ import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
+import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import '@/shared/styles/workspace.css';
 
@@ -479,6 +480,14 @@ export function Editor({
                 getDoc={() => adapter.getDocument()}
                 brandId={brand.id}
                 sourceName={doc.metadata?.name as string | undefined}
+              />
+            ) : undefined
+          }
+          presenceSlot={
+            brand ? (
+              <EditorPresenceAvatars
+                brandId={brand.id}
+                designId={doc.id}
               />
             ) : undefined
           }

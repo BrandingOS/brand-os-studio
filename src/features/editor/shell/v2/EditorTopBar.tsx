@@ -127,6 +127,13 @@ interface Props {
    * every variant from the current source state.
    */
   republishFamilySlot?: React.ReactNode;
+  /**
+   * Phase 7.2 — slot for the multiplayer presence avatar stack. The
+   * Editor passes <EditorPresenceAvatars/> here. Renders nothing when
+   * no other users are connected, so the stack is invisible during
+   * solo work.
+   */
+  presenceSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -145,6 +152,7 @@ export function EditorTopBar({
   generateVariantsSlot,
   exportFamilySlot,
   republishFamilySlot,
+  presenceSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -203,6 +211,7 @@ export function EditorTopBar({
       ) : null}
 
       <div className="top-nav-right">
+        {presenceSlot}
         {saveEnabled ? (
           <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
         ) : (
