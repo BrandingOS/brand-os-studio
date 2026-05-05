@@ -115,6 +115,12 @@ interface Props {
    * a content type with non-trivial dimension presets.
    */
   generateVariantsSlot?: React.ReactNode;
+  /**
+   * Phase 5.4 — slot for the "Export family" button. The Editor passes
+   * <EditorExportFamilyButton/> here. Renders only when the active doc
+   * has a familyId (so the button never appears on lone designs).
+   */
+  exportFamilySlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -131,6 +137,7 @@ export function EditorTopBar({
   aiPromptSlot,
   saveAsTemplateSlot,
   generateVariantsSlot,
+  exportFamilySlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -205,6 +212,7 @@ export function EditorTopBar({
             Dev — saves disabled
           </span>
         )}
+        {exportFamilySlot}
         {generateVariantsSlot}
         {saveAsTemplateSlot}
         {onShare ? (

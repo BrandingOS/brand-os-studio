@@ -42,6 +42,7 @@ import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
 import { EditorGenerateVariantsButton } from './v2/EditorGenerateVariantsButton';
+import { EditorExportFamilyButton } from './v2/EditorExportFamilyButton';
 import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import type {
@@ -466,6 +467,15 @@ export function Editor({
                 getDoc={() => adapter.getDocument()}
                 brandId={brand.id}
                 brandSlug={brand.slug}
+                sourceName={doc.metadata?.name as string | undefined}
+              />
+            ) : undefined
+          }
+          exportFamilySlot={
+            brand && doc.familyId ? (
+              <EditorExportFamilyButton
+                getDoc={() => adapter.getDocument()}
+                brandId={brand.id}
                 sourceName={doc.metadata?.name as string | undefined}
               />
             ) : undefined
