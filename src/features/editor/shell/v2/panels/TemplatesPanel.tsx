@@ -20,7 +20,7 @@
 //     in both modes (seed doc → save → navigate to /b/:slug/design/:id).
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -87,7 +87,28 @@ export function TemplatesPanel({ mode = 'editor', adapter, activePageId }: Templ
   const { brand } = useBrandBySlug(slug);
   const brandKit = useBrandKit(brand);
 
-  const [tab, setTab] = useState<'browse' | 'my-designs'>('browse');
+  // Phase 5.3a — tab persists in `?tab=` so deep links land users on
+  // the right tab. The "View" toast action from the variants generator
+  // (and any future inbound link to /b/:slug/templates?tab=my-designs)
+  // now opens My Designs directly. Falls back to 'browse' if the param
+  // is absent or malformed.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'browse' | 'my-designs' =
+    searchParams.get('tab') === 'my-designs' ? 'my-designs' : 'browse';
+  const setTab = useCallback(
+    (next: 'browse' | 'my-designs') => {
+      setSearchParams(
+        (prev) => {
+          const out = new URLSearchParams(prev);
+          if (next === 'browse') out.delete('tab');
+          else out.set('tab', next);
+          return out;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [generatorPrompt, setGeneratorPrompt] = useState('');
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
@@ -417,6 +438,15 @@ function MyDesignsGrid({
   brandSlug: string;
   onOpen: (id: string) => void;
 }) {
+  // Phase 5.3a — family-aware ordering. Designs that share a familyId
+  // cluster together; the source (no sourceDesignId) renders first,
+  // then its variants. Lone designs (no familyId at all) sort last.
+  // Ordering inside each cluster preserves the underlying list order
+  // (which is updatedAt-desc from listDesigns).
+  const orderedDesigns = useMemo(() => {
+    return groupByFamily(designs);
+  }, [designs]);
+
   if (loading) return <SkeletonGrid />;
   if (designs.length === 0) {
     return (
@@ -427,15 +457,17 @@ function MyDesignsGrid({
   }
   return (
     <div data-my-designs-grid className="grid grid-cols-2 gap-2">
-      {designs.map((d) => (
+      {orderedDesigns.map(({ design: d, role, familySize }) => (
         <button
           key={d.id}
           type="button"
           data-my-design-card
           data-design-id={d.id}
+          data-family-id={d.familyId ?? undefined}
+          data-family-role={role}
           onClick={() => onOpen(d.id)}
           disabled={!brandSlug}
-          className="group rounded-md border overflow-hidden bg-background hover:shadow-md transition-all text-left"
+          className="group relative rounded-md border overflow-hidden bg-background hover:shadow-md transition-all text-left"
           style={{ borderColor: 'var(--border)' }}
           title={d.name ?? d.id}
         >
@@ -450,6 +482,31 @@ function MyDesignsGrid({
                 no preview
               </div>
             )}
+            {role === 'source' && familySize > 1 ? (
+              <span
+                data-family-badge="source"
+                className="absolute top-1 left-1 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm font-semibold"
+                style={{
+                  background: 'var(--accent, #111)',
+                  color: 'var(--accent-contrast, #fff)',
+                }}
+              >
+                Source · {familySize}
+              </span>
+            ) : null}
+            {role === 'variant' ? (
+              <span
+                data-family-badge="variant"
+                className="absolute top-1 left-1 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-sm font-medium"
+                style={{
+                  background: 'var(--surface-elevated, #fff)',
+                  color: 'var(--text-secondary, #555)',
+                  border: '1px solid var(--border, rgba(0,0,0,0.1))',
+                }}
+              >
+                Variant
+              </span>
+            ) : null}
           </div>
           <div className="p-1.5">
             <p className="text-[11px] font-medium leading-tight truncate">{d.name ?? 'Untitled'}</p>
@@ -461,6 +518,79 @@ function MyDesignsGrid({
       ))}
     </div>
   );
+}
+
+// ─── Family grouping (Phase 5.3a) ─────────────────────────────────────
+
+type FamilyRole = 'source' | 'variant' | 'lone';
+
+export interface OrderedDesignEntry {
+  design: DesignSummary;
+  role: FamilyRole;
+  /** Total cluster size for the family this design belongs to. 1 for
+   *  lone designs. Used by the badge to show "Source · 3" etc. */
+  familySize: number;
+}
+
+/**
+ * Re-order a flat list of design summaries so family members cluster
+ * together with the source first, variants after. Designs without a
+ * familyId render in their original relative order at the end.
+ *
+ * Edge cases:
+ *  - Multiple sources sharing a familyId (shouldn't happen but defensive):
+ *    the first one wins as the cluster head; the others demote to variants.
+ *  - Variants whose source isn't in the list (filtered out, deleted,
+ *    different brand): the variant cluster is treated as a lone group
+ *    headed by the first variant.
+ */
+export function groupByFamily(designs: DesignSummary[]): OrderedDesignEntry[] {
+  const families = new Map<string, DesignSummary[]>();
+  const lone: DesignSummary[] = [];
+  const familyOrder: string[] = [];
+
+  for (const d of designs) {
+    if (!d.familyId) {
+      lone.push(d);
+      continue;
+    }
+    if (!families.has(d.familyId)) {
+      families.set(d.familyId, []);
+      familyOrder.push(d.familyId);
+    }
+    families.get(d.familyId)!.push(d);
+  }
+
+  const out: OrderedDesignEntry[] = [];
+  for (const familyId of familyOrder) {
+    const members = families.get(familyId)!;
+    // Find the source — the entry without sourceDesignId. If multiple,
+    // first one wins.
+    const sourceIdx = members.findIndex((m) => !m.sourceDesignId);
+    const source = sourceIdx >= 0 ? members[sourceIdx] : null;
+    const variants = members.filter((_, i) => i !== sourceIdx);
+    const familySize = members.length;
+
+    if (source) {
+      out.push({ design: source, role: 'source', familySize });
+    }
+    for (const v of variants) {
+      out.push({
+        design: v,
+        // If we couldn't find a source the cluster has no anchor;
+        // surface its members as 'variant' anyway so the badge still
+        // tells the user this is part of a family.
+        role: 'variant',
+        familySize,
+      });
+    }
+  }
+
+  for (const d of lone) {
+    out.push({ design: d, role: 'lone', familySize: 1 });
+  }
+
+  return out;
 }
 
 // ─── Subcomponents ─────────────────────────────────────────────────────

@@ -141,6 +141,13 @@ export interface DesignSummary {
   sourceTemplateId?: string;
   /** Phase 4.2 — set when the user marked this design as a personal template. */
   isTemplate?: boolean;
+  /** Phase 5 — design family link. Set on the source design and every
+   *  variant generated from it; lets the My Designs grid group family
+   *  members and surface "X variants" affordances. */
+  familyId?: string;
+  /** Phase 5 — pointer back to the source design when this entry IS a
+   *  variant. Absent on the source itself. */
+  sourceDesignId?: string;
 }
 
 export interface IDesignStorage {
