@@ -187,6 +187,7 @@ describe('Phase A — route specificity (migrated routes win the catch-all)', ()
     <>
       <Route path="/b/:slug/setup" element={<div data-testid="setup-mounted">setup</div>} />
       <Route path="/b/:slug/brand-kit" element={<div data-testid="kit-mounted">kit</div>} />
+      <Route path="/b/:slug/templates" element={<div data-testid="templates-mounted">templates</div>} />
       <Route path="/b/:slug/design/:designSlug" element={<div data-testid="editor-mounted">editor</div>} />
       <Route path="/b/:slug" element={<div data-testid="studio-shell">studio-shell<Outlet /></div>}>
         <Route path="design" element={<div data-testid="launchpad-mounted">launchpad</div>} />
@@ -220,5 +221,11 @@ describe('Phase A — route specificity (migrated routes win the catch-all)', ()
     const { getPath, getByTestId } = mount('/b/raqm/identity', studioMigratedRoutes);
     expect(getPath()).toBe('/a/raqm/identity');
     expect(getByTestId('classic-fallback')).toBeTruthy();
+  });
+
+  it('/b/:slug/templates (Phase B Studio port) mounts the Studio Templates page', () => {
+    const { getByTestId, getPath } = mount('/b/raqm/templates', studioMigratedRoutes);
+    expect(getPath()).toBe('/b/raqm/templates');
+    expect(getByTestId('templates-mounted')).toBeTruthy();
   });
 });
