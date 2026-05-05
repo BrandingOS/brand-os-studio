@@ -62,6 +62,7 @@ import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed'
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
+import { EditorWelcomeTip } from './v2/EditorWelcomeTip';
 import { useDesignCursors } from '@/features/editor/collab/useDesignCursors';
 import { EditorCursorOverlay } from '@/features/editor/collab/EditorCursorOverlay';
 import { CommentsPanel } from '@/features/comments/CommentsPanel';
@@ -812,6 +813,11 @@ export function Editor({
             </div>
           ) : null}
         </div>
+
+        {/* Phase 11.1 — First-visit welcome tip pointing at the
+            new AI prompt + comments + presence affordances.
+            Self-dismissing; only ever shows once per browser. */}
+        <EditorWelcomeTip />
 
         {/* Phase 7.3 — Multiplayer cursor overlay. Sits at the
             top-most fixed layer; renders nothing for solo work
