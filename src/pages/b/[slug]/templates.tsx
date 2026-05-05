@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { StudioBrandShell } from './_studioBrandShell';
 import { TemplatesPanel } from '@/features/editor/shell/v2/panels/TemplatesPanel';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 
@@ -24,7 +24,7 @@ export default function BrandTemplatesStudioPage() {
 
   if (!brand) {
     return (
-      <WorkspaceShell>
+      <StudioBrandShell>
         <div className="workspace-empty" role="main">
           <span className="workspace-empty-eyebrow">Templates</span>
           <h1>{isLoading ? 'Loading brand…' : "We couldn't find that brand."}</h1>
@@ -34,12 +34,12 @@ export default function BrandTemplatesStudioPage() {
               : 'The brand may have been renamed or deleted.'}
           </p>
         </div>
-      </WorkspaceShell>
+      </StudioBrandShell>
     );
   }
 
   return (
-    <WorkspaceShell>
+    <StudioBrandShell>
       <div data-templates-studio-page className="mx-auto max-w-5xl px-4 py-6">
         <header className="mb-4">
           <h1 className="text-2xl font-semibold tracking-tight">Templates</h1>
@@ -50,6 +50,6 @@ export default function BrandTemplatesStudioPage() {
         </header>
         <TemplatesPanel mode="browser" />
       </div>
-    </WorkspaceShell>
+    </StudioBrandShell>
   );
 }

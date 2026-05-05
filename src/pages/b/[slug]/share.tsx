@@ -2,13 +2,13 @@
 //
 // Reuses SharePage (Guidelines/Showcase/Exports tabs) wrapped in
 // WorkspaceShell. Legacy /a/:slug/share untouched.
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { StudioBrandShell } from './_studioBrandShell';
 import SharePage from '@/pages/dashboard/brand/[slug]/share';
 
 export default function StudioSharePage() {
   return (
-    <WorkspaceShell>
+    <StudioBrandShell>
       <SharePage />
-    </WorkspaceShell>
+    </StudioBrandShell>
   );
 }

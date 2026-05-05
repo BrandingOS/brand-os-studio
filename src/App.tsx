@@ -54,6 +54,7 @@ const StudioIdentityPage = lazy(() => import("./pages/b/[slug]/identity"));
 const StudioContentPage = lazy(() => import("./pages/b/[slug]/content"));
 const StudioFoldersPage = lazy(() => import("./pages/b/[slug]/folders"));
 const StudioSharePage = lazy(() => import("./pages/b/[slug]/share"));
+const StudioSettingsPage = lazy(() => import("./pages/b/[slug]/settings"));
 // v2 workspace shell pages (outside a brand). Simpler shell, no tabs.
 const WorkspaceHomePage = lazy(() => import("./pages/workspace/Home"));
 const WorkspaceLearnPage = lazy(() => import("./pages/workspace/Learn"));
@@ -453,7 +454,7 @@ const App = () => (
             <ProtectedRoute><StudioSharePage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/settings" element={
-            <ProtectedRoute><BrandSettingsV2Page /></ProtectedRoute>
+            <ProtectedRoute><StudioSettingsPage /></ProtectedRoute>
           } />
           {/* Phase B Overview decision: NOT porting BrandHomePage to /b/.
               Studio's canonical brand entry is /b/:slug/setup (cosmos

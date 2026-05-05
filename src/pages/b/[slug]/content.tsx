@@ -2,13 +2,13 @@
 //
 // Reuses ContentHubPage (Calendar/Posts/Drafts tabs) wrapped in
 // WorkspaceShell. Legacy /a/:slug/content untouched.
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { StudioBrandShell } from './_studioBrandShell';
 import ContentHubPage from '@/pages/dashboard/brand/[slug]/content';
 
 export default function StudioContentPage() {
   return (
-    <WorkspaceShell>
+    <StudioBrandShell>
       <ContentHubPage />
-    </WorkspaceShell>
+    </StudioBrandShell>
   );
 }

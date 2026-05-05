@@ -8,13 +8,13 @@
 //
 // Studio chrome via WorkspaceShell. Classic chrome (AppRail + InnerNavRail)
 // stays at /a/:slug/identity, untouched.
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { StudioBrandShell } from './_studioBrandShell';
 import IdentityPage from '@/pages/dashboard/brand/[slug]/identity';
 
 export default function StudioIdentityPage() {
   return (
-    <WorkspaceShell>
+    <StudioBrandShell>
       <IdentityPage />
-    </WorkspaceShell>
+    </StudioBrandShell>
   );
 }

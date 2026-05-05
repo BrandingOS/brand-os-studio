@@ -2,13 +2,13 @@
 //
 // Reuses DamPage (Assets + Designs tabs) wrapped in WorkspaceShell.
 // Legacy /a/:slug/folders untouched.
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
+import { StudioBrandShell } from './_studioBrandShell';
 import DamPage from '@/features/dam/DamPage';
 
 export default function StudioFoldersPage() {
   return (
-    <WorkspaceShell>
+    <StudioBrandShell>
       <DamPage />
-    </WorkspaceShell>
+    </StudioBrandShell>
   );
 }
