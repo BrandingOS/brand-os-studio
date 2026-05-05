@@ -14,13 +14,18 @@ export default function BrandsPage() {
   const { list: brands, loadAll, isLoading } = useBrandStore();
   const uiPreference = useUiPreference();
 
-  // Brand-entry URLs respect the user's UI preference. Studio users land
-  // on Setup (the canonical Studio entry) for "Open"; Classic users land
-  // on Overview. "Brand Kit" picks the cosmos hub for Studio and the
-  // legacy anchored hub for Classic. "Edit" goes to Identity in either
-  // namespace (Identity is unmigrated, so /b/:slug/identity will redirect
-  // to /a/:slug/identity for Studio users — but skipping the redirect
-  // here saves a hop).
+  // Brand-entry URLs respect the user's UI preference. Both namespaces
+  // share the canonical /<ns>/:slug/setup shape (Phase A v2 / Commit 6
+  // harmonization). Studio's Setup is the cosmos editor; Classic's
+  // /a/:slug/setup is the legacy BrandHomePage at the same canonical
+  // path.
+  //
+  // The `uiPreference` value comes from `useUiPreference()` above and is
+  // re-read on every render — when the user toggles in Settings, this
+  // page re-renders with the new value, and the click closures below
+  // pick up the new value. Don't memoize these helpers; that would
+  // capture a stale reference. Don't move them outside the component
+  // body either; they need to read the live store.
   const homeUrlFor = (slug: string) =>
     uiPreference === 'classic' ? `/a/${slug}/setup` : `/b/${slug}/setup`;
   const kitUrlFor = (slug: string) =>

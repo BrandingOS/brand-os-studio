@@ -48,6 +48,65 @@ There are also legacy landing page versions at `src/domains/landing` (v1) and `s
 > rules, and the editor primitives all live there. Do not start a UX task
 > against the assumption of the legacy structure.
 
+## UI Architecture (Phase A — 2026-05-05)
+
+BrandOS has **two brand-scoped UI experiences**:
+
+- **Studio** (canonical): `/b/:slug/...`. The active development surface.
+  All new features land here. Cosmos top-segmented chrome via
+  `WorkspaceShell` (formerly `CosmosWorkspaceShell`). Five sections at
+  Day 1: Setup · Brand Kit · Guideline · Design · Tools.
+- **Classic** (alternate): `/a/:slug/...`. Maintained for users who
+  prefer the legacy 7-section IA (Overview · Identity · Templates ·
+  Design · Content · Folders · Share). Bug fixes only — no new feature
+  work. Uses `BrandRouteLayout` with `AppRail` + `InnerNavRail`.
+
+**Path harmonization (Commit 6):** `<ns>/:slug/<X>` means the same
+feature in either namespace. Studio canonical names win — Classic
+renamed `kit` → `brand-kit`, `guidelines` → `guideline`, and bare
+`/a/:slug` → `/a/:slug/setup`. Old paths 302-redirect.
+
+**Per-user preference toggle:** Settings → Account → Interface. Stored
+in `useUiPreferenceStore` (zustand + persist, key
+`brandos:ui-preference`). Default for new + existing users: `studio`.
+Brand-entry sites (`/dashboard/brands`, `pages/workspace/Home.tsx`,
+`AppRail` brand switcher) consult `getBrandHomeUrl(slug)` from
+`shared/hooks/useUiPreference.ts` so the user lands directly in their
+preferred namespace's canonical home with no redirect hop.
+
+**Studio fallback for unmigrated sections:** `/b/:slug/<X>` where X is
+not in the Studio migrated set redirects to `/a/:slug/<X>` via
+`StudioToClassicFallback`. Day 1 migrated set:
+`['setup','brand-kit','guideline','design','tools']`. Phase B removes
+`/a` entries one-by-one as features port to a Studio shell.
+
+**Folder convention:**
+- Canonical UI components live without a suffix: `features/brand-kit/`,
+  `features/design-alt/` (named alt because the launchpad is the
+  working canonical at `/b/:slug/design`, the cosmos design page is the
+  alternate), `features/guideline/`.
+- Alternate UI components live with `-alt` suffix:
+  `features/brand-kit-alt/`, `shared/layouts/WorkspaceShellAlt.tsx`.
+- Shared business logic / services / schemas / DI live without UI
+  affiliation: `features/brandkit/` (47 importers, the foundational
+  domain layer for both UI shells), `features/tools/` (foundational
+  tools backend; the brand-tools cosmos hub stays at
+  `features/tools-cosmos/` until that namespace conflict is resolved
+  in Phase B).
+- `BrandSettingsV2Page` and `BrandKitV2Page` (legacy hub) live in
+  `features/brand-kit-alt/` and are mounted at `/a/:slug/settings`
+  and `/a/:slug/brand-kit` respectively.
+
+**Defaulting agent behavior:** when asked to build a feature, default
+to Studio (`/b/:slug/`) unless explicitly told otherwise. When asked
+to fix a bug, identify which UI the bug is in (Studio or Classic) and
+fix only that one — don't fix in both. The exception is `features/brandkit/`
+(domain layer): bugs there affect both UIs and need fixing.
+
+**Legacy `/dashboard/brand/:slug/*` URLs:** single catch-all 302 to
+`/b/:slug/<same>`. Studio's fallback chain handles unmigrated sections
+in a second hop.
+
 ## UX & IA — current structure (post-redesign)
 
 BrandOS has **three scopes**: Workspace · Brand · Editor. Each scope has
