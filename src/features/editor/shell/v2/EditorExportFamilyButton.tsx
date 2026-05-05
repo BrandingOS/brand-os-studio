@@ -58,12 +58,16 @@ export function EditorExportFamilyButton({ getDoc, brandId, sourceName }: Props)
         brandId,
         familyId: doc.familyId,
       });
-      const safeBase = (sourceName ?? 'family')
+      // Sanitize the source name into a filesystem-safe slug, then
+      // suffix it with "-family". When we have no source name, drop
+      // the leading slug entirely so the file is just "family.zip"
+      // (avoids the "family-family.zip" double-naming).
+      const slug = (sourceName ?? '')
         .replace(/[^\w\s-]/g, '')
         .trim()
         .replace(/\s+/g, '-')
-        .slice(0, 64) || 'family';
-      const filename = `${safeBase}-family.zip`;
+        .slice(0, 64);
+      const filename = slug ? `${slug}-family.zip` : 'family.zip';
       triggerDownload(blob, filename);
       toast.success(
         `Exported ${manifest.members.length} design${manifest.members.length === 1 ? '' : 's'}.`,
