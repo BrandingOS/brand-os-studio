@@ -47,6 +47,13 @@ const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
 const BrandTemplatesStudioPage = lazy(() => import("./pages/b/[slug]/templates"));
+// Phase B feature ports — Studio versions of the 5 legacy /a/:slug
+// pages, wrapping the same components in WorkspaceShell. Legacy /a/:slug
+// pages stay mounted untouched for Classic-preference users.
+const StudioIdentityPage = lazy(() => import("./pages/b/[slug]/identity"));
+const StudioContentPage = lazy(() => import("./pages/b/[slug]/content"));
+const StudioFoldersPage = lazy(() => import("./pages/b/[slug]/folders"));
+const StudioSharePage = lazy(() => import("./pages/b/[slug]/share"));
 // v2 workspace shell pages (outside a brand). Simpler shell, no tabs.
 const WorkspaceHomePage = lazy(() => import("./pages/workspace/Home"));
 const WorkspaceLearnPage = lazy(() => import("./pages/workspace/Learn"));
@@ -428,6 +435,35 @@ const App = () => (
           <Route path="/b/:slug/templates" element={
             <ProtectedRoute><BrandTemplatesStudioPage /></ProtectedRoute>
           } />
+          {/* Phase B feature ports — Studio versions of the 5 legacy
+              brand-scoped pages. Each is a thin WorkspaceShell wrapper
+              over the same legacy component used at /a/:slug/<X>. The
+              legacy /a routes stay mounted untouched. Settings reuses
+              BrandSettingsV2Page directly since it has its own shell. */}
+          <Route path="/b/:slug/identity" element={
+            <ProtectedRoute><StudioIdentityPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/content" element={
+            <ProtectedRoute><StudioContentPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/folders" element={
+            <ProtectedRoute><StudioFoldersPage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/share" element={
+            <ProtectedRoute><StudioSharePage /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/settings" element={
+            <ProtectedRoute><BrandSettingsV2Page /></ProtectedRoute>
+          } />
+          {/* Phase B Overview decision: NOT porting BrandHomePage to /b/.
+              Studio's canonical brand entry is /b/:slug/setup (cosmos
+              setup editor — reads/writes brand data). The legacy
+              BrandHomePage at /a/:slug/setup serves a different role
+              (Recent designs / Search / Featured templates). Studio
+              users get equivalent functionality via /b/:slug/templates
+              (My Designs tab + curated browse), the unified editor's
+              "My Designs" tab, and the global command palette for
+              search. No /b/:slug/overview route created. */}
 
           {/* Studio fullscreen surfaces — no shell, namespace-orthogonal.
               Reachable from either Studio or Classic via these canonical
