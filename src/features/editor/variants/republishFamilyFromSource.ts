@@ -51,9 +51,9 @@ export interface RepublishFamilyOutput {
  * Throws if the source has no `familyId` — caller should hide the
  * Republish UI in that case.
  */
-export function republishFamilyFromSource(
+export async function republishFamilyFromSource(
   input: RepublishFamilyInput,
-): RepublishFamilyOutput {
+): Promise<RepublishFamilyOutput> {
   const { source, existingVariants, resolvePresetLabel } = input;
   if (!source.familyId) {
     throw new Error(
@@ -75,7 +75,7 @@ export function republishFamilyFromSource(
     return { label, width, height };
   });
 
-  const generated = generateResizeVariants({
+  const generated = await generateResizeVariants({
     source,
     targets,
     familyId: source.familyId,

@@ -30,24 +30,24 @@ function squareSource(): BrandOSDocument {
 }
 
 describe('republishFamilyFromSource', () => {
-  it('throws if source has no familyId', () => {
+  it('throws if source has no familyId', async () => {
     const source = squareSource();
-    expect(() =>
+    await expect(
       republishFamilyFromSource({ source, existingVariants: [] }),
-    ).toThrow(/familyId/);
+    ).rejects.toThrow(/familyId/);
   });
 
-  it('returns empty variants when family has no variants yet', () => {
+  it('returns empty variants when family has no variants yet', async () => {
     const source = squareSource();
     source.familyId = '00000000-0000-0000-0000-0000000000aa';
-    const result = republishFamilyFromSource({ source, existingVariants: [] });
+    const result = await republishFamilyFromSource({ source, existingVariants: [] });
     expect(result.variants).toEqual([]);
     expect(result.source.familyId).toBe(source.familyId);
   });
 
-  it('preserves each existing variant id; overwrites the doc body with current source state', () => {
+  it('preserves each existing variant id; overwrites the doc body with current source state', async () => {
     const source = squareSource();
-    const initial = generateResizeVariants({
+    const initial = await generateResizeVariants({
       source,
       targets: [
         { label: 'Story 9:16', width: 1080, height: 1920 },
@@ -64,7 +64,7 @@ describe('republishFamilyFromSource', () => {
       ),
     }));
 
-    const result = republishFamilyFromSource({
+    const result = await republishFamilyFromSource({
       source: updated,
       existingVariants: initial.variants,
     });
@@ -82,13 +82,13 @@ describe('republishFamilyFromSource', () => {
     expect(result.variants[1].pages[0].height).toBe(1350);
   });
 
-  it('preserves familyId across the rebuild', () => {
+  it('preserves familyId across the rebuild', async () => {
     const source = squareSource();
-    const initial = generateResizeVariants({
+    const initial = await generateResizeVariants({
       source,
       targets: [{ label: 'Story', width: 1080, height: 1920 }],
     });
-    const result = republishFamilyFromSource({
+    const result = await republishFamilyFromSource({
       source: initial.sourceWithFamily,
       existingVariants: initial.variants,
     });
@@ -96,20 +96,20 @@ describe('republishFamilyFromSource', () => {
     expect(result.variants[0].familyId).toBe(initial.familyId);
   });
 
-  it('preserves sourceDesignId pointer on each rebuilt variant', () => {
+  it('preserves sourceDesignId pointer on each rebuilt variant', async () => {
     const source = squareSource();
-    const initial = generateResizeVariants({
+    const initial = await generateResizeVariants({
       source,
       targets: [{ label: 'Story', width: 1080, height: 1920 }],
     });
-    const result = republishFamilyFromSource({
+    const result = await republishFamilyFromSource({
       source: initial.sourceWithFamily,
       existingVariants: initial.variants,
     });
     expect(result.variants[0].sourceDesignId).toBe(source.id);
   });
 
-  it('uses the resolvePresetLabel hook when supplied', () => {
+  it('uses the resolvePresetLabel hook when supplied', async () => {
     const source = squareSource();
     source.familyId = 'fam-1';
     const variant = {
@@ -120,7 +120,7 @@ describe('republishFamilyFromSource', () => {
       pages: [{ ...source.pages[0], width: 1080, height: 1920 }],
     } as BrandOSDocument;
 
-    const result = republishFamilyFromSource({
+    const result = await republishFamilyFromSource({
       source,
       existingVariants: [variant],
       resolvePresetLabel: (w, h) =>
@@ -129,7 +129,7 @@ describe('republishFamilyFromSource', () => {
     expect(result.presetLabels).toEqual(['Story 9:16']);
   });
 
-  it('falls back to "WxH" label when no resolver', () => {
+  it('falls back to "WxH" label when no resolver', async () => {
     const source = squareSource();
     source.familyId = 'fam-1';
     const variant = {
@@ -140,7 +140,7 @@ describe('republishFamilyFromSource', () => {
       pages: [{ ...source.pages[0], width: 1080, height: 1920 }],
     } as BrandOSDocument;
 
-    const result = republishFamilyFromSource({
+    const result = await republishFamilyFromSource({
       source,
       existingVariants: [variant],
     });

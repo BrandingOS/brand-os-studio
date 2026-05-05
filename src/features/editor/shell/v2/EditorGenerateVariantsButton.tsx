@@ -23,6 +23,11 @@ import {
   generateResizeVariants,
   variantName,
 } from '@/features/editor/variants/generateResizeVariants';
+import { createAiReflowFn } from '@/features/editor/variants/aiReflow';
+import { useAiAgent } from '@/features/editor/ai/useAiAgent';
+import { useBrandKit } from '@/features/editor/brand/useBrandKit';
+import { useBrandBySlug } from '@/shared/hooks/useBrandBySlug';
+import { useParams } from 'react-router-dom';
 
 interface Props {
   /** Lazy doc accessor — read fresh on submit so unsaved edits land in
@@ -47,9 +52,18 @@ export function EditorGenerateVariantsButton({
   getDoc, brandId, brandSlug, sourceName, getThumbnailUrl,
 }: Props) {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
+  const { brand } = useBrandBySlug(slug);
+  const brandKit = useBrandKit(brand);
+  const aiAgent = useAiAgent(brandKit);
   const [open, setOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  // Phase 5.2 — opt-in AI reflow toggle. Default OFF: dumb-clone is
+  // the predictable v1 baseline. Enabling AI lets the agent re-flow
+  // each variant semantically, falling back to dumb-clone on any
+  // failure (createAiReflowFn handles the degradation).
+  const [aiReflowEnabled, setAiReflowEnabled] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   // Phase 5.1b — presets come from IFormatPresetsService instead of
@@ -144,9 +158,22 @@ export function EditorGenerateVariantsButton({
 
     setBusy(true);
     try {
-      const { familyId, sourceWithFamily, variants } = generateResizeVariants({
+      // Phase 5.2 — wire the AI reflow strategy when the user toggled it
+      // on AND we have an agent available. Falls back to dumb-clone on
+      // any agent failure (handled inside createAiReflowFn).
+      const reflowFn =
+        aiReflowEnabled && aiAgent
+          ? createAiReflowFn({
+              agent: aiAgent,
+              onFallback: (reason) => {
+                console.warn(`[Variants] AI reflow fallback: ${reason}`);
+              },
+            })
+          : undefined;
+      const { familyId, sourceWithFamily, variants } = await generateResizeVariants({
         source: doc,
         targets,
+        reflowFn,
       });
 
       // Persist source (with new familyId) + every variant under the
@@ -242,6 +269,29 @@ export function EditorGenerateVariantsButton({
               <X size={14} />
             </button>
           </div>
+
+          {/* Phase 5.2 — AI reflow opt-in. Hidden when no agent is
+              available (standalone editor / test mounts). */}
+          {aiAgent ? (
+            <label
+              data-ai-reflow-toggle
+              className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] border-b cursor-pointer hover:bg-muted/30"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <span className="flex flex-col">
+                <span className="font-medium">AI reflow (preview)</span>
+                <span className="text-[10px] text-muted-foreground">
+                  Semantic-aware layout per aspect ratio. Falls back to scaling on failure.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={aiReflowEnabled}
+                onChange={(e) => setAiReflowEnabled(e.target.checked)}
+                className="h-3.5 w-3.5 cursor-pointer"
+              />
+            </label>
+          ) : null}
 
           {presetsLoading ? (
             <div className="p-4 text-[11px] text-muted-foreground" data-generate-variants-loading>

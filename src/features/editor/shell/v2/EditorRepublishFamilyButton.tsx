@@ -114,7 +114,7 @@ export function EditorRepublishFamilyButton({ getDoc, brandId, sourceName }: Pro
           return match?.label ?? null;
         };
 
-        const result = republishFamilyFromSource({
+        const result = await republishFamilyFromSource({
           source,
           existingVariants,
           resolvePresetLabel,

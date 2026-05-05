@@ -53,16 +53,16 @@ const STORY: DimensionPreset = { label: 'Story 9:16', width: 1080, height: 1920 
 const PORTRAIT: DimensionPreset = { label: 'Portrait 4:5', width: 1080, height: 1350 };
 
 describe('generateResizeVariants', () => {
-  it('returns one variant per target preset', () => {
-    const result = generateResizeVariants({
+  it('returns one variant per target preset', async () => {
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY, PORTRAIT],
     });
     expect(result.variants).toHaveLength(2);
   });
 
-  it('all variants + source share the same familyId', () => {
-    const result = generateResizeVariants({
+  it('all variants + source share the same familyId', async () => {
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY, PORTRAIT],
     });
@@ -73,16 +73,16 @@ describe('generateResizeVariants', () => {
     }
   });
 
-  it('variants point sourceDesignId at the source; source has no sourceDesignId', () => {
+  it('variants point sourceDesignId at the source; source has no sourceDesignId', async () => {
     const source = squareSource();
-    const result = generateResizeVariants({ source, targets: [STORY] });
+    const result = await generateResizeVariants({ source, targets: [STORY] });
     expect(result.sourceWithFamily.sourceDesignId).toBeUndefined();
     expect(result.variants[0].sourceDesignId).toBe(source.id);
   });
 
-  it('honors an externally-supplied familyId', () => {
+  it('honors an externally-supplied familyId', async () => {
     const presetId = '00000000-0000-0000-0000-000000000abc';
-    const result = generateResizeVariants({
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY],
       familyId: presetId,
@@ -90,9 +90,9 @@ describe('generateResizeVariants', () => {
     expect(result.familyId).toBe(presetId);
   });
 
-  it('each variant gets a fresh id distinct from source and siblings', () => {
+  it('each variant gets a fresh id distinct from source and siblings', async () => {
     const source = squareSource();
-    const result = generateResizeVariants({
+    const result = await generateResizeVariants({
       source,
       targets: [STORY, PORTRAIT],
     });
@@ -100,8 +100,8 @@ describe('generateResizeVariants', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('sets target dimensions on every page of each variant', () => {
-    const result = generateResizeVariants({
+  it('sets target dimensions on every page of each variant', async () => {
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY],
     });
@@ -109,8 +109,8 @@ describe('generateResizeVariants', () => {
     expect(result.variants[0].pages[0].height).toBe(1920);
   });
 
-  it('proportionally scales layer transforms (1000x1000 → 1080x1920)', () => {
-    const result = generateResizeVariants({
+  it('proportionally scales layer transforms (1000x1000 → 1080x1920)', async () => {
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY],
     });
@@ -124,9 +124,9 @@ describe('generateResizeVariants', () => {
     expect(text.transform.height).toBeCloseTo(384, 5); // 200 * 1.92
   });
 
-  it('preserves layer ids across variants (stable identity for 5.3 propagation)', () => {
+  it('preserves layer ids across variants (stable identity for 5.3 propagation)', async () => {
     const source = squareSource();
-    const result = generateResizeVariants({
+    const result = await generateResizeVariants({
       source,
       targets: [STORY, PORTRAIT],
     });
@@ -137,8 +137,8 @@ describe('generateResizeVariants', () => {
     }
   });
 
-  it('preserves non-transform layer fields (text content, fonts, colors, etc.)', () => {
-    const result = generateResizeVariants({
+  it('preserves non-transform layer fields (text content, fonts, colors, etc.)', async () => {
+    const result = await generateResizeVariants({
       source: squareSource(),
       targets: [STORY],
     });
@@ -154,7 +154,7 @@ describe('generateResizeVariants', () => {
     });
   });
 
-  it('discards brandResolution preview annotation on variants', () => {
+  it('discards brandResolution preview annotation on variants', async () => {
     const source = squareSource();
     source.brandResolution = {
       mode: 'preview',
@@ -162,7 +162,7 @@ describe('generateResizeVariants', () => {
       timestamp: new Date().toISOString(),
       resolutions: [],
     } as never;
-    const result = generateResizeVariants({ source, targets: [STORY] });
+    const result = await generateResizeVariants({ source, targets: [STORY] });
     expect(result.variants[0].brandResolution).toBeUndefined();
   });
 });

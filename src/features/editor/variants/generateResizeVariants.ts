@@ -21,11 +21,36 @@
 import type { BrandOSDocument, Page, Layer } from '../schema';
 import type { DimensionPreset } from '../content-types/types';
 
+/**
+ * A reflow function transforms a source document to fit a new
+ * (width, height). Phase 5.1a ships `dumbCloneReflowFn` (proportional
+ * scaling per layer); Phase 5.2 ships `createAiReflowFn(agent, ...)`
+ * which calls the AI for semantic-aware redistribution. Both share
+ * this signature so generateResizeVariants doesn't care which is in
+ * use.
+ *
+ * The returned doc only has to carry the right pages/layers — the
+ * caller (generateResizeVariants) re-stamps id, familyId, and
+ * sourceDesignId. So a reflow function can simply mutate the source
+ * shape without worrying about identity fields.
+ */
+export type ReflowFn = (
+  source: BrandOSDocument,
+  targetWidth: number,
+  targetHeight: number,
+) => Promise<BrandOSDocument>;
+
 export interface VariantGenerationInput {
   source: BrandOSDocument;
   targets: DimensionPreset[];
   /** Optional override; defaults to a freshly-minted UUID. */
   familyId?: string;
+  /**
+   * Phase 5.2 — pluggable reflow strategy. Defaults to
+   * `dumbCloneReflowFn` (independent scaleX/scaleY on each layer).
+   * Pass `createAiReflowFn(agent, ...)` for semantic-aware reflow.
+   */
+  reflowFn?: ReflowFn;
 }
 
 export interface VariantGenerationResult {
@@ -52,51 +77,64 @@ export interface VariantGenerationResult {
  * stay STABLE across variants in the same family (5.3 needs this for
  * propagating edits source → variants).
  */
-export function generateResizeVariants(
+export async function generateResizeVariants(
   input: VariantGenerationInput,
-): VariantGenerationResult {
+): Promise<VariantGenerationResult> {
   const { source, targets } = input;
   const familyId = input.familyId ?? crypto.randomUUID();
+  const reflowFn = input.reflowFn ?? dumbCloneReflowFn;
 
   const sourceWithFamily: BrandOSDocument = {
     ...source,
     familyId,
   };
 
-  const sourcePage = source.pages[0];
-  const sourceWidth = sourcePage?.width ?? source.pages[0]?.width ?? 1080;
-  const sourceHeight = sourcePage?.height ?? source.pages[0]?.height ?? 1080;
-
-  const variants: BrandOSDocument[] = targets.map((target) => {
-    const scaleX = target.width / sourceWidth;
-    const scaleY = target.height / sourceHeight;
-
-    const newPages: Page[] = source.pages.map((page) => ({
-      ...page,
-      // Each page in the variant takes the target dimensions; if the
-      // source had multiple pages of varying sizes, all variant pages
-      // get the same target. Multi-page mixed-size docs aren't a
-      // primary 5.1a use case (those are usually presentations where
-      // every page is the same size anyway).
-      width: target.width,
-      height: target.height,
-      layers: page.layers.map((layer) => scaleLayer(layer, scaleX, scaleY)),
-    }));
-
-    return {
-      ...source,
-      id: crypto.randomUUID(),
-      pages: newPages,
-      familyId,
-      sourceDesignId: source.id,
-      // Discard preview-mode brand resolution if present — variants
-      // are fresh authoring contexts, not preview snapshots.
-      brandResolution: undefined,
-    };
-  });
+  const variants: BrandOSDocument[] = await Promise.all(
+    targets.map(async (target) => {
+      const reflowed = await reflowFn(source, target.width, target.height);
+      return {
+        ...reflowed,
+        id: crypto.randomUUID(),
+        familyId,
+        sourceDesignId: source.id,
+        // Discard preview-mode brand resolution — variants are fresh
+        // authoring contexts, not preview snapshots.
+        brandResolution: undefined,
+      };
+    }),
+  );
 
   return { familyId, sourceWithFamily, variants };
 }
+
+/**
+ * Phase 5.1a — dumb-clone reflow. Independent scaleX / scaleY on
+ * every layer's transform. Layer ids stay stable. Layers WILL distort
+ * when the source and target have very different aspect ratios — this
+ * is the deliberate v1 stand-in for AI reflow.
+ *
+ * Async signature for ReflowFn parity even though the work is sync.
+ */
+export const dumbCloneReflowFn: ReflowFn = async (
+  source,
+  targetWidth,
+  targetHeight,
+) => {
+  const sourcePage = source.pages[0];
+  const sourceWidth = sourcePage?.width ?? 1080;
+  const sourceHeight = sourcePage?.height ?? 1080;
+  const scaleX = targetWidth / sourceWidth;
+  const scaleY = targetHeight / sourceHeight;
+
+  const newPages: Page[] = source.pages.map((page) => ({
+    ...page,
+    width: targetWidth,
+    height: targetHeight,
+    layers: page.layers.map((layer) => scaleLayer(layer, scaleX, scaleY)),
+  }));
+
+  return { ...source, pages: newPages };
+};
 
 /**
  * Apply proportional scaling to a layer's transform. Layer ids and
