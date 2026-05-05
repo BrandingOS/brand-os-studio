@@ -61,6 +61,7 @@ import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
+import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import '@/shared/styles/workspace.css';
 
 // Layout constants — kept in sync with the CSS vars defined on the
@@ -754,6 +755,18 @@ export function Editor({
             </div>
           ) : null}
         </div>
+
+        {/* Phase 7.1 — Collaboration: comments scoped to the active
+            design. Floating bottom-right; trigger button hides while
+            the drawer is open. Shows nothing when there's no brand
+            (standalone editor mode). */}
+        {brand ? (
+          <CommentsPanel
+            brandId={brand.id}
+            pageKey={`design:${doc.id}`}
+            pageLabel={(doc.metadata?.name as string | undefined) ?? 'Design'}
+          />
+        ) : null}
       </div>
     </div>
   );
