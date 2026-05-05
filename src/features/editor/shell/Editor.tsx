@@ -46,6 +46,7 @@ import { EditorExportFamilyButton } from './v2/EditorExportFamilyButton';
 import { EditorRepublishFamilyButton } from './v2/EditorRepublishFamilyButton';
 import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
+import { activityService } from '@/shared/services/activityService';
 import type {
   AIAgent,
   AICommandContext,
@@ -568,6 +569,23 @@ export function Editor({
                   // undo entry. 'rejected' is a no-op here — the
                   // prompt bar surfaces the message inline.
                   applyAICommandResult(adapter, result);
+                  // Phase 7.4b — log successful applies (delta /
+                  // replace) to the activity feed so designers can
+                  // see "where the AI helped" across the workspace.
+                  if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
+                    void activityService.log({
+                      brandId: brand.id,
+                      brandName: brand.name,
+                      eventType: 'brand_updated',
+                      title: result.label || 'AI: design update',
+                      description: result.message,
+                      metadata: {
+                        ai: true,
+                        kind: result.kind,
+                        designId: doc.id,
+                      },
+                    });
+                  }
                 }}
               />
             ) : undefined
