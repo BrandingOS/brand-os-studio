@@ -121,6 +121,12 @@ interface Props {
    * has a familyId (so the button never appears on lone designs).
    */
   exportFamilySlot?: React.ReactNode;
+  /**
+   * Phase 5.3b — slot for the "Republish family" button. Renders only
+   * on family SOURCES (familyId set + no sourceDesignId). Click rebuilds
+   * every variant from the current source state.
+   */
+  republishFamilySlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -138,6 +144,7 @@ export function EditorTopBar({
   saveAsTemplateSlot,
   generateVariantsSlot,
   exportFamilySlot,
+  republishFamilySlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -212,6 +219,7 @@ export function EditorTopBar({
             Dev — saves disabled
           </span>
         )}
+        {republishFamilySlot}
         {exportFamilySlot}
         {generateVariantsSlot}
         {saveAsTemplateSlot}
