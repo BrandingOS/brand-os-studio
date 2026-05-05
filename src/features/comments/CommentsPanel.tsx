@@ -8,6 +8,7 @@ import * as React from 'react';
 import { MessageSquare, X, Send, Check, Reply, Trash2 } from 'lucide-react';
 import { useCommentsStore, type Comment } from './commentsStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { activityService } from '@/shared/services/activityService';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -32,13 +33,24 @@ export function CommentsPanel({ brandId, pageKey, pageLabel }: CommentsPanelProp
   const startThread = () => {
     if (!draft.trim()) return;
     const threadId = crypto.randomUUID();
+    const body = draft.trim();
     add({
       threadId,
       brandId,
       pageKey,
       author,
       authorEmail,
-      body: draft.trim(),
+      body,
+    });
+    // Phase 7.4 — log to the activity feed so /dashboard/activity
+    // surfaces threads as they happen across the workspace.
+    void activityService.log({
+      brandId,
+      userName: author,
+      eventType: 'comment_posted',
+      title: `${author} started a thread`,
+      description: body.length > 80 ? body.slice(0, 80) + '…' : body,
+      metadata: { pageKey, threadId },
     });
     setDraft('');
   };
@@ -143,6 +155,7 @@ function Thread({ thread }: { thread: Comment[] }) {
 
   const submit = () => {
     if (!draft.trim()) return;
+    const body = draft.trim();
     add({
       threadId: root.threadId,
       brandId: root.brandId,
@@ -150,8 +163,19 @@ function Thread({ thread }: { thread: Comment[] }) {
       anchor: root.anchor,
       author,
       authorEmail: user?.email,
-      body: draft.trim(),
+      body,
       parentId: root.id,
+    });
+    // Phase 7.4 — log replies as comment activity too. The /dashboard
+    // activity page already groups by brand so this naturally clusters
+    // under the parent thread's brand.
+    void activityService.log({
+      brandId: root.brandId,
+      userName: author,
+      eventType: 'comment_posted',
+      title: `${author} replied`,
+      description: body.length > 80 ? body.slice(0, 80) + '…' : body,
+      metadata: { pageKey: root.pageKey, threadId: root.threadId, parentId: root.id },
     });
     setDraft('');
     setReplying(false);
