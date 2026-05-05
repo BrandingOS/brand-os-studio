@@ -264,5 +264,20 @@ export const BrandOSDocumentSchema = z.object({
    * docs.
    */
   brandResolution: BrandResolutionSchema.optional(),
+  /**
+   * Phase 5 — Resize Variants. Documents that share a `familyId` are
+   * variants of the same source design (e.g. an Instagram post and its
+   * Story / Twitter / LinkedIn re-flowed variants). Phase 5.3 will use
+   * this to surface a "family" group in My Designs and propagate edits
+   * from source → variants. Phase 5.1 just sets it on each variant +
+   * the source so the link exists.
+   *
+   * `sourceDesignId` is the original document this variant was generated
+   * from; null/absent on the source itself. Promoting these to a
+   * `design_families` table (Phase 5.3) is a 1-line shape change here
+   * to a reference field — the on-document storage works for v1.
+   */
+  familyId: z.string().uuid().optional(),
+  sourceDesignId: z.string().uuid().optional(),
 });
 export type BrandOSDocument = z.infer<typeof BrandOSDocumentSchema>;

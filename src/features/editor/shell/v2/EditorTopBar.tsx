@@ -108,6 +108,13 @@ interface Props {
    * cluster, left of Export, only when the editor has a brandKit.
    */
   saveAsTemplateSlot?: React.ReactNode;
+  /**
+   * Phase 5.1a — slot for the "Generate variants" button. The Editor
+   * passes <EditorGenerateVariantsButton/> here. Sits in the right
+   * cluster, left of Save-as-template, only when the active doc has
+   * a content type with non-trivial dimension presets.
+   */
+  generateVariantsSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -123,6 +130,7 @@ export function EditorTopBar({
   onShare,
   aiPromptSlot,
   saveAsTemplateSlot,
+  generateVariantsSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -197,6 +205,7 @@ export function EditorTopBar({
             Dev — saves disabled
           </span>
         )}
+        {generateVariantsSlot}
         {saveAsTemplateSlot}
         {onShare ? (
           <button

@@ -41,6 +41,7 @@ import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/cros
 import { EditorTopBar } from './v2/EditorTopBar';
 import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
+import { EditorGenerateVariantsButton } from './v2/EditorGenerateVariantsButton';
 import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import type {
@@ -456,6 +457,16 @@ export function Editor({
               <EditorSaveAsTemplateButton
                 getDoc={() => adapter.getDocument()}
                 brandKit={brandKit}
+              />
+            ) : undefined
+          }
+          generateVariantsSlot={
+            brand ? (
+              <EditorGenerateVariantsButton
+                getDoc={() => adapter.getDocument()}
+                brandId={brand.id}
+                brandSlug={brand.slug}
+                sourceName={doc.metadata?.name as string | undefined}
               />
             ) : undefined
           }
