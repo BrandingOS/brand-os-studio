@@ -412,7 +412,6 @@ const App = () => (
             {/* Studio doesn't have an Overview page yet — bare /b/:slug
                 falls back to Classic Overview at /a/:slug. */}
             <Route index element={<StudioToClassicFallback />} />
-            <Route path="design" element={<DesignLaunchpadPage />} />
           </Route>
 
           {/* Studio Cosmos sections — own shell internally. */}
@@ -424,6 +423,9 @@ const App = () => (
           } />
           <Route path="/b/:slug/guideline" element={
             <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>
+          } />
+          <Route path="/b/:slug/design" element={
+            <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
           } />
           <Route path="/b/:slug/tools" element={
             <ProtectedRoute><BrandToolsPageV2 /></ProtectedRoute>
@@ -633,6 +635,7 @@ const App = () => (
             <Route path="edit" element={<BrandEditPage />} />
             <Route path="identity" element={<IdentityPage />} />
             <Route path="content" element={<ContentHubPage />} />
+            <Route path="design" element={<DesignLaunchpadPage />} />
             <Route path="share" element={<SharePage />} />
             <Route path="templates" element={<BrandTemplatesPage />} />
             {/* Renamed: kit → brand-kit (matches Studio canonical path).
@@ -652,12 +655,8 @@ const App = () => (
             <Route path="dam" element={<DamRedirect />} />
           </Route>
 
-          {/* Classic flat routes — own shell or special: design uses
-              WorkspaceShell (can't nest), settings has its own
-              shell, brandkit (no moduleId) is a redirect to /kit. */}
-          <Route path="/a/:slug/design" element={
-            <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
-          } />
+          {/* Classic flat routes — settings has its own shell,
+              brandkit (no moduleId) is a redirect to /kit. */}
           {/* Phase B Group 2 (l) — wrap legacy /a/:slug/settings in
               BrandSettingsProvider. The legacy BrandSettingsV2Page mounts
               BrandLayout (legacy chrome) but never had the provider; the

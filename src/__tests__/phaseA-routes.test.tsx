@@ -188,9 +188,10 @@ describe('Phase A — route specificity (migrated routes win the catch-all)', ()
       <Route path="/b/:slug/setup" element={<div data-testid="setup-mounted">setup</div>} />
       <Route path="/b/:slug/brand-kit" element={<div data-testid="kit-mounted">kit</div>} />
       <Route path="/b/:slug/templates" element={<div data-testid="templates-mounted">templates</div>} />
+      <Route path="/b/:slug/design" element={<div data-testid="cosmos-design-mounted">cosmos-design</div>} />
       <Route path="/b/:slug/design/:designSlug" element={<div data-testid="editor-mounted">editor</div>} />
       <Route path="/b/:slug" element={<div data-testid="studio-shell">studio-shell<Outlet /></div>}>
-        <Route path="design" element={<div data-testid="launchpad-mounted">launchpad</div>} />
+        <Route index element={<div>studio-index</div>} />
       </Route>
       <Route path="/b/:slug/*" element={<StudioToClassicFallback />} />
       <Route path="/a/:slug/*" element={<div data-testid="classic-fallback">classic</div>} />
@@ -207,9 +208,9 @@ describe('Phase A — route specificity (migrated routes win the catch-all)', ()
     expect(getByTestId('kit-mounted')).toBeTruthy();
   });
 
-  it('/b/:slug/design (nested launchpad) mounts launchpad (does NOT fall through)', () => {
+  it('/b/:slug/design mounts the cosmos design page (does NOT fall through)', () => {
     const { getByTestId } = mount('/b/raqm/design', studioMigratedRoutes);
-    expect(getByTestId('launchpad-mounted')).toBeTruthy();
+    expect(getByTestId('cosmos-design-mounted')).toBeTruthy();
   });
 
   it('/b/:slug/design/:designSlug mounts the unified editor (does NOT fall through)', () => {

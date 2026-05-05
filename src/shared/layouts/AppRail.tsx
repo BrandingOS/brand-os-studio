@@ -97,10 +97,11 @@ const workspaceItems: RailItem[] = [
 /**
  * Studio (canonical) brand-mode items.
  *
- * Five top-level sections matching the Cosmos workspace IA. Visible at
- * /b/:slug/* only — when AppRail mounts inside BrandRouteLayout for the
- * Studio launchpad page (/b/:slug/design). Other Studio sections use
- * WorkspaceShell directly and don't render this rail at all.
+ * Five top-level sections matching the Cosmos workspace IA. All Studio
+ * sections (including Design) render WorkspaceShell directly — AppRail
+ * is essentially unrendered for /b/:slug/* surfaces. Kept here for the
+ * bare /b/:slug index transition and as the source of truth for Studio
+ * top-nav targets.
  */
 function brandItemsStudio(slug: string): RailItem[] {
   return [

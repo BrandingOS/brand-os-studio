@@ -169,9 +169,9 @@ export default function DesignLaunchpadPage() {
                 id: 'tabs',
                 label: 'Start from',
                 items: [
-                  { id: 'blank', label: 'Blank Canvas', icon: Paintbrush, href: `/b/${slug}/design` },
-                  { id: 'ai', label: 'AI Design', icon: Wand2, href: `/b/${slug}/design?tab=ai` },
-                  { id: 'recent', label: 'Recent', icon: Clock, href: `/b/${slug}/design?tab=recent` },
+                  { id: 'blank', label: 'Blank Canvas', icon: Paintbrush, href: `/a/${slug}/design` },
+                  { id: 'ai', label: 'AI Design', icon: Wand2, href: `/a/${slug}/design?tab=ai` },
+                  { id: 'recent', label: 'Recent', icon: Clock, href: `/a/${slug}/design?tab=recent` },
                 ],
               },
             ],
