@@ -6,8 +6,8 @@ import { KitSection } from '@/features/brand-kit/components/KitSection';
 import {
   ToolsSidebar,
   type ToolsSectionKey,
-} from '@/features/tools-cosmos/components/ToolsSidebar';
-import { ToolCard } from '@/features/tools-cosmos/components/ToolCard';
+} from '@/features/tools-page/components/ToolsSidebar';
+import { ToolCard } from '@/features/tools-page/components/ToolCard';
 import {
   ChartIcon,
   ContrastIcon,
@@ -19,8 +19,8 @@ import {
   PenToolIcon,
   ShareIcon,
   ShieldCheckIcon,
-} from '@/features/tools-cosmos/components/icons';
-import '@/features/tools-cosmos/tools-cosmos.css';
+} from '@/features/tools-page/components/icons';
+import '@/features/tools-page/tools-page.css';
 
 /**
  * Brand-scoped Tools tab at `/b/:slug/tools`.
