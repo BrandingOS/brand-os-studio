@@ -14,6 +14,7 @@
 
 import { container } from './container/ServiceContainer';
 import { SERVICE_KEYS } from './types/services';
+import type { IDesignStorage } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { LocalUploadService } from './adapters/upload/LocalUploadService';
@@ -21,6 +22,7 @@ import { LocalBrandConsistencyService } from '@/features/brand-consistency/servi
 import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
 import { LocalFormatPresetsService } from './adapters/format-presets/LocalFormatPresetsService';
+import { LocalBrandMemoryService } from './adapters/brand-memory/LocalBrandMemoryService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -63,6 +65,15 @@ export function bootServices(): void {
   // (migration deliberately deferred until an admin UI ships) will
   // swap in here behind the same interface.
   container.register(SERVICE_KEYS.FORMAT_PRESETS, () => new LocalFormatPresetsService());
+
+  // ─── Phase 6.3 — Brand Memory ──────────────────────────────
+  // Re-analyzes a brand's saved designs on demand and caches the
+  // ranked color/font/position usage in memory. Supabase impl will
+  // write through to a `brand_memory` table for cross-device sync.
+  container.register(SERVICE_KEYS.BRAND_MEMORY, () => {
+    const ds = container.get<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
+    return new LocalBrandMemoryService(ds);
+  });
 }
 
 /**

@@ -367,6 +367,10 @@ export const SERVICE_KEYS = {
    *  impl will read from a `format_presets` table once the migration
    *  deploys. 1-line DI swap when Supabase auth flips. */
   FORMAT_PRESETS: 'formatPresets',
+  /** Phase 6.3 — Brand memory (per-brand observed user preferences).
+   *  Local impl re-analyzes designs on demand; Supabase impl will
+   *  write through to a `brand_memory` table for cross-device sync. */
+  BRAND_MEMORY: 'brandMemory',
   /** Phase 5 — AI agent (Phase 3.5's `AIAgent`). Registered so
    *  panels can pull a stub agent in tests without constructing
    *  their own EdgeFunctionAgent (which calls fetch). Production
