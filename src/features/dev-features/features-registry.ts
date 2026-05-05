@@ -663,15 +663,6 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     status: 'dead',
     description: 'Dead layout. Remove in Phase 6.',
   },
-  {
-    id: 'landing-v2',
-    name: 'Landing v2 (experimental)',
-    tab: 'dev',
-    route: '/v2',
-    entry: 'src/features/landing-v2/DashboardV2.tsx',
-    status: 'dead',
-    description: 'Unused experimental landing. Delete candidate.',
-  },
 ];
 
 export const FEATURE_STATUS_LABELS: Record<FeatureStatus, string> = {

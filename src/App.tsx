@@ -153,7 +153,8 @@ const StandaloneMockupStudioPage = lazy(
 const BrandMockupStudioPage = lazy(
   () => import('./features/mockup-studio/modes/brand-aware/BrandMockupStudioPage'),
 );
-const DashboardV2Page = lazy(() => import('./features/landing-v2/DashboardV2'));
+// Phase B Group 2 (i): /v2 route + features/landing-v2/ sunset.
+// DashboardV2Page lazy import removed; folder deleted in same commit.
 const DamPage = lazy(() => import('./features/dam/DamPage'));
 const TemplatesMarketplacePage = lazy(() => import('./features/templates/v5/TemplatesMarketplacePage'));
 const TemplateBuilderPage = lazy(() => import('./features/templates/builder/TemplateBuilderPage'));
@@ -302,7 +303,6 @@ const App = () => (
           <Route path="/" element={<IndexPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/account-deletion" element={<AccountDeletionPage />} />
-          <Route path="/v2" element={<DashboardV2Page />} />
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/onboarding-brand" element={<OnboardingBrandPage />} />
           {logoMakerFlowRoutes}
