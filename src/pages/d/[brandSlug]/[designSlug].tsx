@@ -9,7 +9,8 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Check, Link2, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
@@ -19,6 +20,7 @@ import {
 } from '@/features/editor/schema';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { DocumentRenderer } from '@/features/editor/render/DocumentRenderer';
+import { useDocumentMeta } from '@/shared/hooks/useDocumentMeta';
 
 export default function PublicDesignPage() {
   const { brandSlug, designSlug } = useParams<{
@@ -61,6 +63,18 @@ export default function PublicDesignPage() {
     };
   }, [brand?.id, designSlug, designStorage]);
 
+  const designName = (doc?.metadata?.name as string | undefined) ?? 'Untitled design';
+  const ogImage = brandKit?.logos.primary?.url;
+
+  useDocumentMeta({
+    title: brand && doc ? `${designName} · ${brand.name}` : 'BrandOS',
+    description:
+      brand && doc
+        ? `${designName} — a design from ${brand.name}, built with BrandOS.`
+        : undefined,
+    image: ogImage,
+  });
+
   if (brandLoading || (!brand && !brandSlug)) {
     return <Centered>Loading…</Centered>;
   }
@@ -90,8 +104,6 @@ export default function PublicDesignPage() {
     );
   }
 
-  const designName = (doc.metadata?.name as string | undefined) ?? 'Untitled design';
-
   return (
     <div
       data-public-design-page
@@ -111,6 +123,7 @@ export default function PublicDesignPage() {
           <h1 className="text-sm font-semibold truncate">{brand.name}</h1>
           <p className="text-[11px] text-muted-foreground truncate">{designName}</p>
         </div>
+        <CopyLinkButton />
       </header>
 
       <main className="flex-1 px-4 py-8 sm:px-8">
@@ -135,5 +148,31 @@ function Centered({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6">
       {children}
     </div>
+  );
+}
+
+function CopyLinkButton() {
+  const [copied, setCopied] = useState(false);
+  const onClick = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      toast.success('Link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy — try a longer-press to grab the URL.");
+    }
+  };
+  return (
+    <button
+      type="button"
+      data-copy-link-button
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium hover:bg-muted/40"
+      aria-label="Copy link"
+    >
+      {copied ? <Check size={12} aria-hidden /> : <Link2 size={12} aria-hidden />}
+      <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy link'}</span>
+    </button>
   );
 }
