@@ -705,7 +705,14 @@ const App = () => (
               <BrandGuidelinePageV2 />
             </ProtectedRoute>
           } />
-          <Route path="/b/:slug/design" element={
+          {/* /b/:slug/design canonical = the working DesignLaunchpadPage, mounted
+              as a child of the BrandRouteLayout block above (it shadowed this
+              flat route via React Router v6 ranking anyway). DesignCosmosPage
+              (the cosmos-styled visual scaffold from features/design-cosmos/)
+              moves to /a/:slug/design — Phase A "Classic" namespace. Its
+              broken /b/:slug/ai-design links are documented as known-broken
+              in the alternate experience until Phase B reworks it. */}
+          <Route path="/a/:slug/design" element={
             <ProtectedRoute>
               <BrandDesignPageV2 />
             </ProtectedRoute>
