@@ -18,6 +18,7 @@ import { validateAICommandResult } from './modeFive';
 import type { AIAgent, AICommandContext, AICommandResult } from './types';
 import type { BrandKit } from '@/features/editor/brand/BrandKit';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import type { BrandMemorySnapshot } from '@/core/services/IBrandMemoryService';
 
 const ENDPOINT_PATH = '/functions/v1/ai-apply-command';
 /** Network timeout — generous because Anthropic calls can take 5-10s. */
@@ -40,8 +41,15 @@ export function createEdgeFunctionAgent(args: {
   /** Force mock mode regardless of Edge Function env. Useful for
    *  client-side testing of the rejected-mock-mode toast UX. */
   forceMock?: boolean;
+  /** Phase 6.6 — optional brand-memory getter. Called per applyCommand
+   *  call; the result is threaded into the system prompt as the
+   *  `<brand_memory>` block. Returning null/undefined skips the block.
+   *  The getter is called inside the agent so the snapshot is fresh on
+   *  every prompt (the user might have just saved a design that should
+   *  shift the AI's tiebreaker). */
+  getBrandMemory?: () => Promise<BrandMemorySnapshot | null>;
 }): AIAgent {
-  const { brandKit, endpoint, fetchImpl, forceMock } = args;
+  const { brandKit, endpoint, fetchImpl, forceMock, getBrandMemory } = args;
   const fetcher = fetchImpl ?? fetch;
   const url =
     endpoint ?? `${import.meta.env.VITE_SUPABASE_URL}${ENDPOINT_PATH}`;
@@ -56,6 +64,7 @@ export function createEdgeFunctionAgent(args: {
       // is identical across calls (cache hits at Anthropic); the
       // dynamic blocks vary per call.
       const brandCard = buildBrandCard(context.brand);
+      const brandMemory = getBrandMemory ? await getBrandMemory() : null;
       const systemPrompt = buildSystemPrompt({
         brand: context.brand,
         brandKit,
@@ -66,6 +75,7 @@ export function createEdgeFunctionAgent(args: {
           selection: context.selection,
           modeHint: context.modeHint,
         },
+        brandMemory,
       });
 
       // Resolve a session id for rate-limiting. Auth session is the

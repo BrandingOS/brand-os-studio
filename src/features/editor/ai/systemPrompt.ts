@@ -66,7 +66,9 @@
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKit } from '@/features/editor/brand/BrandKit';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import type { BrandMemorySnapshot } from '@/core/services/IBrandMemoryService';
 import { buildBrandResolutionBlock } from './brandResolutionBlock';
+import { buildBrandMemoryBlock } from './brandMemoryBlock';
 
 /**
  * Active editor state at command-time. Mirrors `AICommandContext` from the
@@ -98,8 +100,11 @@ export function buildSystemPrompt(args: {
   brandCardBlock: string;   // produced by buildBrandCard(brand).block
   doc: BrandOSDocument;
   context: SystemPromptContext;
+  /** Optional Phase 6.6 — observed user preferences. Rendered as the
+   *  `<brand_memory>` block when present. Empty/null → block omitted. */
+  brandMemory?: BrandMemorySnapshot | null;
 }): string {
-  const { brand: _brand, brandKit, brandCardBlock, doc, context } = args;
+  const { brand: _brand, brandKit, brandCardBlock, doc, context, brandMemory } = args;
 
   return [
     SYSTEM_PROMPT_SPINE,
@@ -111,6 +116,8 @@ export function buildSystemPrompt(args: {
     brandCardBlock,
     '',
     buildBrandResolutionBlock(brandKit),
+    '',
+    buildBrandMemoryBlock(brandMemory),
     '',
     renderSelectionBlock(doc, context),
     context.modeHint ? `\n<mode_hint>${context.modeHint}</mode_hint>` : '',

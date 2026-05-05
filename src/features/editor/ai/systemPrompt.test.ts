@@ -282,4 +282,37 @@ describe('buildSystemPrompt — assembly', () => {
     // The dynamic block is the closed-tag form with a `mode-` value.
     expect(prompt).not.toMatch(/<mode_hint>mode-[a-z0-9-]+<\/mode_hint>/);
   });
+
+  it('omits <brand_memory> when no snapshot is provided (Phase 6.6)', () => {
+    const prompt = buildSystemPrompt({
+      brand: fixtureBrand(),
+      brandKit: fixtureKit(),
+      brandCardBlock: '<brand handle="@test"></brand>',
+      doc: fixtureDoc(),
+      context: { activePageId: '00000000-0000-0000-0000-0000000000bb', selection: [] },
+    });
+    expect(prompt).not.toContain('<brand_memory>');
+  });
+
+  it('renders <brand_memory> after <brand_resolution> when snapshot present (Phase 6.6)', () => {
+    const prompt = buildSystemPrompt({
+      brand: fixtureBrand(),
+      brandKit: fixtureKit(),
+      brandCardBlock: '<brand handle="@test"></brand>',
+      doc: fixtureDoc(),
+      context: { activePageId: '00000000-0000-0000-0000-0000000000bb', selection: [] },
+      brandMemory: {
+        computedAt: '2026-05-04T00:00:00Z',
+        colors: [{ hex: '#ff0000', count: 5 }],
+        fonts: [{ family: 'Inter', count: 3 }],
+      },
+    });
+    const resIdx = prompt.indexOf('<brand_resolution>\n');
+    const memIdx = prompt.indexOf('<brand_memory>\n');
+    const selIdx = prompt.indexOf('<selection>\n');
+    expect(memIdx).toBeGreaterThan(resIdx);
+    expect(selIdx).toBeGreaterThan(memIdx);
+    expect(prompt).toContain('- #ff0000 (×5)');
+    expect(prompt).toContain('- Inter (×3)');
+  });
 });
