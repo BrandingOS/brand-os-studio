@@ -17,9 +17,8 @@ import { toast } from 'sonner';
 import { SERVICE_KEYS } from '@/core';
 import { container as serviceContainer } from '@/core/container/ServiceContainer';
 import type { IDesignStorage } from '@/core/types/services';
+import type { IFormatPresetsService, FormatPreset } from '@/core/services/IFormatPresetsService';
 import type { BrandOSDocument } from '@/features/editor/schema';
-import { getContentTypeConfig } from '@/features/editor/content-types';
-import type { DimensionPreset } from '@/features/editor/content-types/types';
 import {
   generateResizeVariants,
   variantName,
@@ -53,31 +52,53 @@ export function EditorGenerateVariantsButton({
   const [busy, setBusy] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Read the doc's content-type config for available presets. The doc
-  // shape may not be loaded yet when the topbar first mounts, so we
-  // re-read on every popover open.
-  const presets = useMemo<DimensionPreset[]>(() => {
-    if (!open) return [];
+  // Phase 5.1b — presets come from IFormatPresetsService instead of
+  // reading ContentTypeConfig directly. Local impl wraps the same
+  // hardcoded data; Supabase impl will read the format_presets table.
+  // Async fetch on popover open; clear when popover closes.
+  const [presets, setPresets] = useState<FormatPreset[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setPresets([]);
+      setSelectedLabels(new Set());
+      return;
+    }
+    let cancelled = false;
+    const svc = serviceContainer.has(SERVICE_KEYS.FORMAT_PRESETS)
+      ? serviceContainer.get<IFormatPresetsService>(SERVICE_KEYS.FORMAT_PRESETS)
+      : null;
+    if (!svc) {
+      setPresets([]);
+      return;
+    }
+    setPresetsLoading(true);
+    let doc: BrandOSDocument;
     try {
-      const doc = getDoc();
-      const cfg = getContentTypeConfig(doc.contentType);
+      doc = getDoc();
+    } catch {
+      setPresets([]);
+      setPresetsLoading(false);
+      return;
+    }
+    void svc.listForContentType(doc.contentType).then((all) => {
+      if (cancelled) return;
       // Filter presets that match the source's current dimensions —
       // generating an "identical" variant is a no-op the user doesn't
       // want. The source's first page is the reference.
       const sourceWidth = doc.pages[0]?.width;
       const sourceHeight = doc.pages[0]?.height;
-      return cfg.dimensionPresets.filter(
+      const filtered = all.filter(
         (p) => p.width !== sourceWidth || p.height !== sourceHeight,
       );
-    } catch {
-      return [];
-    }
+      setPresets(filtered);
+      setPresetsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open, getDoc]);
-
-  // Reset selection when popover opens fresh.
-  useEffect(() => {
-    if (open) setSelectedLabels(new Set());
-  }, [open]);
 
   // Close on outside-click.
   useEffect(() => {
@@ -222,7 +243,11 @@ export function EditorGenerateVariantsButton({
             </button>
           </div>
 
-          {presets.length === 0 ? (
+          {presetsLoading ? (
+            <div className="p-4 text-[11px] text-muted-foreground" data-generate-variants-loading>
+              Loading formats…
+            </div>
+          ) : presets.length === 0 ? (
             <div className="p-4 text-[11px] text-muted-foreground" data-generate-variants-empty>
               No alternate formats are configured for this content type.
             </div>
@@ -232,7 +257,7 @@ export function EditorGenerateVariantsButton({
                 const checked = selectedLabels.has(p.label);
                 return (
                   <button
-                    key={p.label}
+                    key={p.id}
                     type="button"
                     data-generate-variants-preset={p.label}
                     onClick={() => toggle(p.label)}

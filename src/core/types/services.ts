@@ -362,6 +362,11 @@ export const SERVICE_KEYS = {
   MOCKUP_TEMPLATES: 'mockupTemplates',
   /** Phase 4 — Content Universe (templates + categories). */
   TEMPLATES: 'templates',
+  /** Phase 5.1b — Format presets (dimension presets per content type).
+   *  Local impl reads from ContentTypeConfig.dimensionPresets; Supabase
+   *  impl will read from a `format_presets` table once the migration
+   *  deploys. 1-line DI swap when Supabase auth flips. */
+  FORMAT_PRESETS: 'formatPresets',
   /** Phase 5 — AI agent (Phase 3.5's `AIAgent`). Registered so
    *  panels can pull a stub agent in tests without constructing
    *  their own EdgeFunctionAgent (which calls fetch). Production

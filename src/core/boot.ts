@@ -20,6 +20,7 @@ import { LocalUploadService } from './adapters/upload/LocalUploadService';
 import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
 import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
+import { LocalFormatPresetsService } from './adapters/format-presets/LocalFormatPresetsService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -55,6 +56,13 @@ export function bootServices(): void {
   // define the production schema; deploying them + swapping to a
   // Supabase implementation is a one-line change here.
   container.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
+
+  // ─── Phase 5.1b — Format Presets ────────────────────────────
+  // Reads from the in-memory ContentTypeConfig registry. A future
+  // SupabaseFormatPresetsService backed by the format_presets table
+  // (migration deliberately deferred until an admin UI ships) will
+  // swap in here behind the same interface.
+  container.register(SERVICE_KEYS.FORMAT_PRESETS, () => new LocalFormatPresetsService());
 }
 
 /**
