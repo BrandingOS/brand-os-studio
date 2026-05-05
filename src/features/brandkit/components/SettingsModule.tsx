@@ -3,14 +3,14 @@
  *
  * This module used to be the per-brandkit-module settings form. v2.1
  * centralizes brand settings into a single canonical component
- * `BrandSettingsHub` (in features/brandkit-v2/) so editing the brand
+ * `BrandSettingsHub` (in features/brand-kit-alt/) so editing the brand
  * is identical no matter where you do it. This file now delegates to
  * that component to satisfy any legacy deep link
  * (/dashboard/brand/:slug/brandkit/settings).
  *
  * Do not extend this file — extend BrandSettingsHub instead.
  */
-import { BrandSettingsHub } from '@/features/brandkit-v2/BrandSettingsHub';
+import { BrandSettingsHub } from '@/features/brand-kit-alt/BrandSettingsHub';
 import type { Brand } from '@/shared/types/brand';
 
 interface SettingsModuleProps {

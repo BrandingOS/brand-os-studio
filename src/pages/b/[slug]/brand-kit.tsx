@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
-import { BrandKitCosmosPage } from '@/features/brand-kit-v2-cosmos/BrandKitCosmosPage';
+import { BrandKitCosmosPage } from '@/features/brand-kit/BrandKitCosmosPage';
 
 /**
  * Brand-scoped Brand Kit tab at /b/:slug/brand-kit.

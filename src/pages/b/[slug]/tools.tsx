@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CosmosWorkspaceShell } from '@/shared/layouts/CosmosWorkspaceShell';
 import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
-import { KitSection } from '@/features/brand-kit-v2-cosmos/components/KitSection';
+import { KitSection } from '@/features/brand-kit/components/KitSection';
 import {
   ToolsSidebar,
   type ToolsSectionKey,

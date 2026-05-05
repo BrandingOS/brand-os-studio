@@ -35,7 +35,7 @@ import {
   type BrandColorAnalysis,
 } from '../engine/brandRules';
 import { collapseVariants } from '@/shared/color/collapseVariants';
-import { LogoVariantCard } from '@/features/brandkit-v2/sections/LogoVariantCard';
+import { LogoVariantCard } from '@/features/brand-kit-alt/sections/LogoVariantCard';
 import type { Brand } from '@/shared/types/brand';
 import { hasLogo } from '@/shared/brand/logoUrl';
 import { toast } from 'sonner';

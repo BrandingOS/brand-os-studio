@@ -152,8 +152,8 @@ const BlocksGuidelinesPage = lazy(() => import('./features/blocks/BlocksGuidelin
 const AnalyticsPage = lazy(() => import('./features/analytics/AnalyticsPage'));
 const MarketplacePage = lazy(() => import('./features/marketplace/MarketplacePage'));
 const ApprovalsPage = lazy(() => import('./features/approvals/ApprovalsPage'));
-const BrandKitV2Page = lazy(() => import('./features/brandkit-v2/BrandKitPage'));
-const BrandSettingsV2Page = lazy(() => import('./features/brandkit-v2/BrandSettingsPage'));
+const BrandKitV2Page = lazy(() => import('./features/brand-kit-alt/BrandKitPage'));
+const BrandSettingsV2Page = lazy(() => import('./features/brand-kit-alt/BrandSettingsPage'));
 
 /** Tiny helper that redirects the legacy `/brandkit` (no moduleId) URL
  * to the merged Brand Kit v2 page at `/kit`. Preserves the slug. */
