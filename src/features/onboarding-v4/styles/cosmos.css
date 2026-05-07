@@ -2642,7 +2642,7 @@
 }
 
 /* Brand Intelligence badge inside the workspace-style modal */
-[data-cosmos="workspace"] .modal-content-head {
+[data-workspace] .modal-content-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2741,7 +2741,7 @@
  * a small layout adjustment for how it sits inside the narrower review panel.
  * Reset the workspace-root defaults (min-height: 100vh, page background, font
  * family) so the wrapper behaves like any inline div inside the article. */
-[data-onboarding="cosmos"] .onboarding-colors-scope[data-cosmos="workspace"] {
+[data-onboarding="cosmos"] .onboarding-colors-scope[data-workspace] {
   position: relative;
   min-height: 0;
   background: transparent;

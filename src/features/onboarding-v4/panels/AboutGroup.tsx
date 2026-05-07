@@ -150,7 +150,7 @@ export function AboutGroup() {
 
       {typeof document !== 'undefined' &&
         createPortal(
-          <div data-cosmos="workspace" data-theme={theme}>
+          <div data-workspace data-theme={theme}>
             <AboutEditorModal
               open={!!editing}
               initial={editing}

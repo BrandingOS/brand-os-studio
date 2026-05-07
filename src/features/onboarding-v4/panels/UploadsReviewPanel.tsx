@@ -717,7 +717,7 @@ interface SwatchProps {
 }
 
 /** Onboarding-v4 colors swatch — mirrors the Setup page's Swatch markup so the
- *  shared `[data-cosmos="workspace"] .swatch` styles apply identically (same
+ *  shared `[data-workspace] .swatch` styles apply identically (same
  *  hover wave, same name/hex copy affordance, same active picker state). */
 function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex, onContextMenu }: SwatchProps) {
   const iconRef = useRef<OrganicIconHandle>(null);
@@ -787,8 +787,8 @@ interface ColorsBoardProps {
 
 /** Drop-in colors panel for the onboarding review step — same markup the
  *  Setup page renders (`.colors-row`, `.swatch`, `.cp-expand`) so the shared
- *  cosmos-workspace.css styles cover hover wave, copy affordance, picker
- *  expansion, etc. without redefinition. The wrapping `data-cosmos="workspace"`
+ *  workspace.css styles cover hover wave, copy affordance, picker
+ *  expansion, etc. without redefinition. The wrapping `data-workspace`
  *  div is what brings those styles into scope inside the onboarding shell. */
 function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
   const [theme] = useCosmosTheme();
@@ -959,7 +959,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
         </span>
       </header>
 
-      <div data-cosmos="workspace" data-theme={theme} className="onboarding-colors-scope" ref={groupRef}>
+      <div data-workspace data-theme={theme} className="onboarding-colors-scope" ref={groupRef}>
         {colors.length === 0 ? (
           <p className="review-group-empty">No colors yet — extract from your logos, or pick a color below.</p>
         ) : (
