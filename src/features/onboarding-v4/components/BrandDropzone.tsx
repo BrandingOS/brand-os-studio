@@ -1,28 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useV4Store } from '../store/onboardingV4Store';
 import { FileTile } from './FileTile';
-import { formatSize, iconForMime } from '../utils/assetIcons';
 import type { OnboardingAsset } from '../types';
+import { enqueueFile, genId, simulateUpload } from '../utils/assetUpload';
 
-const MAX_ASSETS = 10;
-
-function genId(): string {
-  return typeof crypto?.randomUUID === 'function' ? `a-${crypto.randomUUID()}` : `a-${Math.random().toString(36).slice(2, 11)}`;
-}
-
-/** Simulated upload — mirrors the HTML script. Real uploader goes behind this seam. */
-function simulateUpload(onProgress: (pct: number) => void, onDone: () => void) {
-  const start = performance.now();
-  const duration = 900 + Math.random() * 700;
-  function step(now: number) {
-    const p = Math.min(1, (now - start) / duration);
-    const eased = 1 - Math.pow(1 - p, 2.2);
-    onProgress(eased);
-    if (p < 1) requestAnimationFrame(step);
-    else onDone();
-  }
-  requestAnimationFrame(step);
-}
+const MAX_ASSETS = 20;
 
 export function BrandDropzone() {
   const assets = useV4Store((s) => s.assets);
@@ -36,59 +18,26 @@ export function BrandDropzone() {
   const urlInputRef = useRef<HTMLInputElement>(null);
   const [isDrag, setIsDrag] = useState(false);
   const [urlValue, setUrlValue] = useState('');
-  const blobs = useRef<Map<string, string>>(new Map());
 
-  useEffect(
-    () => () => {
-      blobs.current.forEach(URL.revokeObjectURL);
-      blobs.current.clear();
-    },
-    []
-  );
+  const deps = {
+    max: MAX_ASSETS,
+    getCount: () => useV4Store.getState().assets.length,
+    addAsset,
+    updateAssetProgress,
+    markAssetDone,
+  };
 
-  const queueAsset = useCallback(
-    (asset: OnboardingAsset, file?: File) => {
-      addAsset(asset);
-      if (file && file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        blobs.current.set(asset.id, url);
-        // Update preview once created (fires via markAssetDone later)
-        simulateUpload(
-          (p) => updateAssetProgress(asset.id, p),
-          () => markAssetDone(asset.id, url)
-        );
-      } else {
-        simulateUpload(
-          (p) => updateAssetProgress(asset.id, p),
-          () => markAssetDone(asset.id)
-        );
-      }
+  const addFile = useCallback(
+    (file: File) => {
+      void enqueueFile(file, deps);
+      return true;
     },
     [addAsset, updateAssetProgress, markAssetDone]
   );
 
-  const addFile = useCallback(
-    (file: File) => {
-      if (assets.length >= MAX_ASSETS) return false;
-      const asset: OnboardingAsset = {
-        id: genId(),
-        name: file.name,
-        sub: `${(file.type ? file.type.split('/').pop() || 'FILE' : 'FILE').toUpperCase()} · ${formatSize(file.size)}`,
-        kind: iconForMime(file.type),
-        previewUrl: null,
-        uploadStatus: 'uploading',
-        uploadProgress: 0,
-        _file: file,
-      };
-      queueAsset(asset, file);
-      return true;
-    },
-    [assets.length, queueAsset]
-  );
-
   const addUrl = useCallback(
     (raw: string) => {
-      if (assets.length >= MAX_ASSETS) return false;
+      if (useV4Store.getState().assets.length >= MAX_ASSETS) return false;
       let url = String(raw || '').trim();
       if (!url) return false;
       if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
@@ -108,10 +57,14 @@ export function BrandDropzone() {
         uploadStatus: 'uploading',
         uploadProgress: 0,
       };
-      queueAsset(asset);
+      addAsset(asset);
+      simulateUpload(
+        (p) => updateAssetProgress(asset.id, p),
+        () => markAssetDone(asset.id)
+      );
       return true;
     },
-    [assets.length, queueAsset]
+    [addAsset, updateAssetProgress, markAssetDone]
   );
 
   const handleFiles = useCallback(
@@ -183,8 +136,18 @@ export function BrandDropzone() {
     }
   };
 
+  // Hide things that only exist as a result of the review step so the user
+  // doesn't see them double-counted when they step back here:
+  //   - logos already placed in a slot
+  //   - auto-generated B&W variants
+  //   - colors (added or extracted inside the review)
+  const visibleAssets = assets.filter((a) => {
+    if (a.kind === 'image' && (a.logoSlot || a.generated)) return false;
+    if (a.kind === 'color') return false;
+    return true;
+  });
   const atLimit = assets.length >= MAX_ASSETS;
-  const itemsLabel = `${assets.length} ${assets.length === 1 ? 'item' : 'items'}`;
+  const itemsLabel = `${visibleAssets.length} ${visibleAssets.length === 1 ? 'item' : 'items'}`;
 
   return (
     <div
@@ -268,7 +231,7 @@ export function BrandDropzone() {
             />
           </label>
 
-          <div className={`drop-items-wrap${assets.length ? ' has-items' : ''}`}>
+          <div className={`drop-items-wrap${visibleAssets.length ? ' has-items' : ''}`}>
             <div className="drop-items-bar">
               <span className="drop-items-count">{itemsLabel}</span>
               <button
@@ -283,7 +246,7 @@ export function BrandDropzone() {
               </button>
             </div>
             <div className="drop-items" aria-live="polite">
-              {assets.map((a) => (
+              {visibleAssets.map((a) => (
                 <FileTile key={a.id} asset={a} onRemove={removeAsset} />
               ))}
             </div>
@@ -311,7 +274,7 @@ export function BrandDropzone() {
         type="file"
         multiple
         hidden
-        accept="image/*,.pdf,.ai,.sketch,.fig,.psd,.zip,.otf,.ttf,.woff,.woff2"
+        accept="image/*,image/svg+xml,.svg,.pdf,.ai,.sketch,.fig,.psd,.zip,.otf,.ttf,.woff,.woff2"
         onChange={(e) => {
           if (e.target.files?.length) handleFiles(e.target.files);
           e.target.value = '';

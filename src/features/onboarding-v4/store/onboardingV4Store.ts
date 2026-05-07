@@ -1,12 +1,24 @@
 import { create } from 'zustand';
-import type { CreateStep, DefineAnswers, FeelPalette, OnboardingAsset, StyleCardState } from '../types';
+import type {
+  AboutSection,
+  CreateStep,
+  DefineAnswers,
+  FeelPalette,
+  LogoSlot,
+  OnboardingAsset,
+  SetupPanel,
+  StyleCardState,
+} from '../types';
 import { STYLE_CARDS, poolForCard } from '../data/styleCards';
 import { initialPalettes } from '../data/seedPalettes';
 
 interface V4State {
   step: CreateStep;
+  setupPanel: SetupPanel;
   define: DefineAnswers;
   assets: OnboardingAsset[];
+  aboutSections: AboutSection[];
+  extraLogoSlots: LogoSlot[];
   styleCards: StyleCardState[];
   palettes: FeelPalette[];
   selectedPaletteId: string | null;
@@ -15,12 +27,21 @@ interface V4State {
 
 interface V4Actions {
   setStep(s: CreateStep): void;
+  setSetupPanel(p: SetupPanel): void;
   updateDefine(patch: Partial<DefineAnswers>): void;
   addAsset(a: OnboardingAsset): void;
   updateAssetProgress(id: string, pct: number): void;
   markAssetDone(id: string, previewUrl?: string | null): void;
   removeAsset(id: string): void;
   clearAssets(): void;
+  renameAsset(id: string, name: string): void;
+  toggleAssetLogo(id: string): void;
+  updateAsset(id: string, patch: Partial<OnboardingAsset>): void;
+  addAboutSection(section: Omit<AboutSection, 'id'>): void;
+  updateAboutSection(id: string, patch: Partial<AboutSection>): void;
+  removeAboutSection(id: string): void;
+  addLogoSlot(slot: LogoSlot): void;
+  removeLogoSlot(slot: LogoSlot): void;
   toggleStyleLock(id: string): void;
   shuffleStyles(): void;
   selectPalette(id: string): void;
@@ -40,18 +61,28 @@ const initialStyleCards = (): StyleCardState[] =>
 
 const initial: V4State = {
   step: 1,
+  setupPanel: 1,
   define: { name: '', description: '' },
   assets: [],
+  aboutSections: [],
+  extraLogoSlots: [],
   styleCards: initialStyleCards(),
   palettes: initialPalettes(),
   selectedPaletteId: null,
   editingPaletteId: null,
 };
 
+function genSectionId(): string {
+  return typeof crypto?.randomUUID === 'function'
+    ? `s-${crypto.randomUUID()}`
+    : `s-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 export const useV4Store = create<V4State & V4Actions>((set, get) => ({
   ...initial,
 
   setStep: (step) => set({ step }),
+  setSetupPanel: (setupPanel) => set({ setupPanel }),
   updateDefine: (patch) => set({ define: { ...get().define, ...patch } }),
 
   addAsset: (a) => set({ assets: [...get().assets, a] }),
@@ -71,6 +102,38 @@ export const useV4Store = create<V4State & V4Actions>((set, get) => ({
     }),
   removeAsset: (id) => set({ assets: get().assets.filter((a) => a.id !== id) }),
   clearAssets: () => set({ assets: [] }),
+  renameAsset: (id, name) =>
+    set({
+      assets: get().assets.map((a) => (a.id === id ? { ...a, name: name.trim() || a.name } : a)),
+    }),
+  toggleAssetLogo: (id) =>
+    set({
+      assets: get().assets.map((a) => (a.id === id ? { ...a, isLogo: !a.isLogo } : a)),
+    }),
+  updateAsset: (id, patch) =>
+    set({
+      assets: get().assets.map((a) => (a.id === id ? { ...a, ...patch } : a)),
+    }),
+
+  addAboutSection: (section) =>
+    set({ aboutSections: [...get().aboutSections, { id: genSectionId(), ...section }] }),
+  updateAboutSection: (id, patch) =>
+    set({
+      aboutSections: get().aboutSections.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    }),
+  removeAboutSection: (id) =>
+    set({ aboutSections: get().aboutSections.filter((s) => s.id !== id) }),
+  addLogoSlot: (slot) => {
+    const cur = get().extraLogoSlots;
+    if (cur.includes(slot)) return;
+    set({ extraLogoSlots: [...cur, slot] });
+  },
+  removeLogoSlot: (slot) => {
+    const next = get().extraLogoSlots.filter((s) => s !== slot);
+    // Drop any asset that was bound to this slot
+    const cleanedAssets = get().assets.filter((a) => a.logoSlot !== slot);
+    set({ extraLogoSlots: next, assets: cleanedAssets });
+  },
 
   toggleStyleLock: (id) =>
     set({

@@ -911,6 +911,7 @@
   place-items: center;
   z-index: 1;
   color: currentColor;
+  pointer-events: none;
 }
 @keyframes cosmos-ws-dash-flow {
   to { stroke-dashoffset: -2800; }
@@ -1997,6 +1998,7 @@
   display: grid;
   place-items: center;
   color: currentColor;
+  pointer-events: none;
 }
 
 @media (max-width: 900px) {

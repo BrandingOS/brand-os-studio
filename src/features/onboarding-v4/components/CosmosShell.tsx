@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import '../styles/cosmos.css';
+import '@/shared/styles/cosmos-workspace.css';
 import { ThemeToggle } from './ThemeToggle';
 import { useCosmosTheme } from './useCosmosTheme';
 
