@@ -28,6 +28,17 @@ const BENTO_ROWS = 3;
 const BENTO_COLS = 4;
 const CORNER_R = 0.07; // rounded corner radius in cell units (≈14px for 200px cells)
 
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp', 'heic'];
+
+/** Some browsers (and some OS file managers) drop files with an empty
+ *  `type` — falling back to the extension keeps drag-drop working when
+ *  the MIME header is missing. */
+function isImageFile(file: File): boolean {
+  if (file.type && file.type.startsWith('image/')) return true;
+  const ext = (file.name.split('.').pop() ?? '').toLowerCase();
+  return IMAGE_EXTENSIONS.includes(ext);
+}
+
 type EmptyRegion = {
   bbox: SlotRect;
   /** Rounded-corner SVG path that traces the exact outline of the region. */
@@ -1091,9 +1102,7 @@ export function SetupBoard({
               if (!onDropFiles) return;
               e.preventDefault();
               (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
-              const files = Array.from(e.dataTransfer.files).filter((f) =>
-                f.type.startsWith('image/'),
-              );
+              const files = Array.from(e.dataTransfer.files).filter(isImageFile);
               if (files.length > 0) onDropFiles('logo', files);
             }}
           >
@@ -1354,9 +1363,7 @@ export function SetupBoard({
                     if (!onDropFiles) return;
                     e.preventDefault();
                     (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
-                    const files = Array.from(e.dataTransfer.files).filter((f) =>
-                      f.type.startsWith('image/'),
-                    );
+                    const files = Array.from(e.dataTransfer.files).filter(isImageFile);
                     if (files.length > 0) onDropFiles('photos', files);
                   }}
                 >

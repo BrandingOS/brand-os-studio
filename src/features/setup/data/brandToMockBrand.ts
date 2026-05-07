@@ -38,6 +38,11 @@ export function brandToMockBrand(brand: Brand): MockBrand {
   };
 }
 
+// Neutral surface tones used for logo tiles. We never pull from the
+// brand palette here — the tile is just a stage for the artwork.
+const LIGHT_BG = '#F5F4EF';
+const DARK_BG = '#111113';
+
 function mapLogos(brand: Brand): BrandLogo[] {
   const logos: BrandLogo[] = [];
 
@@ -45,40 +50,78 @@ function mapLogos(brand: Brand): BrandLogo[] {
     brand.logoSystem?.primary?.url ?? brand.logoAssets?.full ?? brand.logo;
   const wordmarkUrl = brand.logoSystem?.wordmark?.url ?? brand.logoAssets?.wordmark;
   const iconUrl = brand.logoSystem?.iconmark?.url ?? brand.logoAssets?.icon;
+  // `BrandLogoAssets.light` is the LIGHT-colored logo (for use ON a dark
+  // surface), and `.dark` is the DARK-colored logo (for use ON a light
+  // surface). The naming flipped between the legacy field and the
+  // onboarding slot, so be careful here.
+  const lightLogoUrl = brand.logoAssets?.light; // for dark backgrounds
+  const darkLogoUrl = brand.logoAssets?.dark; // for light backgrounds
+  const alternateUrl = brand.logoAssets?.alternate;
 
+  const seen = new Set<string>();
+  const pushOnce = (url: string | undefined, entry: BrandLogo) => {
+    if (!url) return;
+    if (seen.has(url)) return;
+    seen.add(url);
+    logos.push(entry);
+  };
+
+  // Default tile uses a safe neutral cream — it never matches the brand's
+  // primary color, so a logo rendered in that color doesn't disappear
+  // (e.g., a yellow KAAFEX logo on yellow). For light-colored logos that
+  // would vanish on cream, the explicit "On dark" variant covers that
+  // case. We deliberately do NOT pull the bg from `primaryColor` here —
+  // that's where the "yellow on yellow" / "blue tinted" surprises came
+  // from.
   if (primaryUrl) {
-    logos.push({
+    pushOnce(primaryUrl, {
       id: 'primary',
       label: 'Primary',
       variant: 'light',
-      svg: buildLogoSvg(primaryUrl, brand.name, brand.primaryColor, brand.secondaryColor),
+      svg: buildLogoSvg(primaryUrl, brand.name, LIGHT_BG, '#111113'),
     });
   }
-  if (wordmarkUrl && wordmarkUrl !== primaryUrl) {
-    logos.push({
-      id: 'wordmark',
-      label: 'Wordmark',
-      variant: 'light',
-      svg: buildLogoSvg(wordmarkUrl, brand.name, brand.secondaryColor ?? '#F1EEE4', brand.primaryColor),
-    });
-  }
-  if (iconUrl && iconUrl !== primaryUrl) {
-    logos.push({
-      id: 'mark',
-      label: 'Mark',
-      variant: 'dark',
-      svg: buildLogoSvg(iconUrl, brand.name.slice(0, 1), '#111113', '#F1EEE4'),
-    });
-  }
+  // Light-colored logo (designed to sit on a dark surface) — always dark bg.
+  pushOnce(lightLogoUrl, {
+    id: 'on-dark',
+    label: 'On dark',
+    variant: 'dark',
+    svg: buildLogoSvg(lightLogoUrl!, brand.name, DARK_BG, '#F5F4EF'),
+  });
+  // Dark-colored logo (designed to sit on a light surface) — always light bg.
+  pushOnce(darkLogoUrl, {
+    id: 'on-light',
+    label: 'On light',
+    variant: 'light',
+    svg: buildLogoSvg(darkLogoUrl!, brand.name, LIGHT_BG, '#111113'),
+  });
+  pushOnce(iconUrl, {
+    id: 'mark',
+    label: 'Mark',
+    variant: 'light',
+    svg: buildLogoSvg(iconUrl!, brand.name.slice(0, 1), LIGHT_BG, '#111113'),
+  });
+  pushOnce(wordmarkUrl, {
+    id: 'wordmark',
+    label: 'Wordmark',
+    variant: 'light',
+    svg: buildLogoSvg(wordmarkUrl!, brand.name, LIGHT_BG, '#111113'),
+  });
+  pushOnce(alternateUrl, {
+    id: 'alternate',
+    label: 'Alternate',
+    variant: 'light',
+    svg: buildLogoSvg(alternateUrl!, brand.name, LIGHT_BG, '#111113'),
+  });
 
   if (logos.length === 0) {
-    // No logo assets at all — render a text-based placeholder in the
-    // brand's primary color so the section isn't empty.
+    // No logo at all — render a text-based placeholder in the brand's
+    // primary color on the neutral tile so the section isn't empty.
     logos.push({
       id: 'placeholder',
       label: 'Primary',
       variant: 'light',
-      svg: buildTextLogo(brand.name, brand.primaryColor, brand.secondaryColor ?? '#F1EEE4'),
+      svg: buildTextLogo(brand.name, LIGHT_BG, brand.primaryColor),
     });
   }
   return logos;
@@ -126,45 +169,93 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   const background =
     brand.colorSystem?.background?.hex ?? '#111113';
 
-  const usedCore = new Set<string>();
+  // Shared dedupe state across ALL color groups (core / accent / grey).
+  // - usedNames keeps every label unique across the whole palette so
+  //   "Black" can't appear twice between Core and Neutral.
+  // - usedHexes drops the literal duplicate before we even try to name
+  //   it, so the same swatch can't show up in two groups (or twice in
+  //   one group from different sources).
+  const usedNames = new Set<string>();
+  const usedHexes = new Set<string>();
+  const normHex = (hex: string) => hex.toUpperCase().replace(/^#?/, '#');
+
   const pushUnique = (
     bucket: BrandColor[],
-    used: Set<string>,
     hex: string,
     explicitName: string | undefined,
-  ) => {
-    const base = explicitName ?? hexToName(hex);
+  ): boolean => {
+    const norm = normHex(hex);
+    if (usedHexes.has(norm)) return false;
+    usedHexes.add(norm);
+    const base = explicitName ?? hexToName(norm);
     let name = base;
     let n = 2;
-    while (used.has(name)) {
+    while (usedNames.has(name)) {
       name = `${base} ${n}`;
       n += 1;
     }
-    used.add(name);
-    bucket.push({ hex, name });
+    usedNames.add(name);
+    bucket.push({ hex: norm, name });
+    return true;
   };
 
-  if (primary) pushUnique(core, usedCore, primary, undefined);
-  if (secondary) pushUnique(core, usedCore, secondary, undefined);
-  if (background) pushUnique(core, usedCore, background, undefined);
+  if (primary) pushUnique(core, primary, undefined);
+  if (secondary) pushUnique(core, secondary, undefined);
+  if (background) pushUnique(core, background, undefined);
 
   const accent: BrandColor[] = [];
-  const usedAccent = new Set<string>();
   const accentHex = brand.accentColor ?? brand.colorSystem?.accents?.[0]?.hex;
   if (accentHex) {
-    pushUnique(accent, usedAccent, accentHex, undefined);
+    pushUnique(accent, accentHex, undefined);
   }
   for (const a of brand.colorSystem?.accents ?? []) {
     if (a.hex && a.hex !== accentHex) {
-      pushUnique(accent, usedAccent, a.hex, undefined);
+      pushUnique(accent, a.hex, undefined);
     }
   }
 
+  // Neutral Colors: a fixed black→white grayscale ramp for every brand —
+  // even ones that never uploaded colors and even ones whose stored
+  // `neutrals[]` was auto-derived from a primary hue (which produced
+  // tinted yellows/blues that didn't read as "neutral"). Any
+  // user-stored `brand.neutrals` that's actually grayscale is merged
+  // in so genuine custom neutrals still surface; tinted entries are
+  // dropped so the section stays a true black-to-white spectrum.
+  // 32 distinct shade names for the 32-step ramp — `hexToName` would
+  // only resolve a dozen grayscale words from its dictionary, so most
+  // steps would collide and get suffixed "Black 2 / Black 3 / …" which
+  // reads as duplicates. Hand-mapping gives each step its own word.
+  const NEUTRAL_NAMES = [
+    'Black',     'Jet',        'Onyx',     'Obsidian',
+    'Coal',      'Charcoal',   'Iron',     'Graphite',
+    'Anthracite','Slate',      'Lead',     'Pewter',
+    'Steel',     'Storm',      'Smoke',    'Granite',
+    'Stone',     'Ash',        'Dove',     'Silver',
+    'Fog',       'Mist',       'Cloud',    'Platinum',
+    'Pearl',     'Linen',      'Bone',     'Ivory',
+    'Eggshell',  'Snow',       'Chalk',    'White',
+  ];
   const greys: BrandColor[] = [];
-  const usedGrey = new Set<string>();
-  for (const hex of brand.neutrals ?? []) {
-    pushUnique(greys, usedGrey, hex, undefined);
+  const ramp: Array<{ hex: string; name: string }> = (() => {
+    const steps = NEUTRAL_NAMES.length;
+    const out: Array<{ hex: string; name: string }> = [];
+    for (let i = 0; i < steps; i++) {
+      const v = Math.round((i / (steps - 1)) * 255);
+      const h = v.toString(16).padStart(2, '0').toUpperCase();
+      out.push({ hex: `#${h}${h}${h}`, name: NEUTRAL_NAMES[i] });
+    }
+    return out;
+  })();
+  for (const { hex, name } of ramp) {
+    pushUnique(greys, hex, name);
   }
+  // Intentionally NOT merging `brand.neutrals` — even when filtered to
+  // grayscale, they tend to land near (but not exactly on) the ramp
+  // values, slip past the hex-dedupe, and then `hexToName` resolves
+  // them to the same handful of words ("Black" / "Onyx" / "Slate"), so
+  // every "almost-#080808" leak shows up as "Black 2 / Black 3". The
+  // user wants this section to be the canonical black→white ladder
+  // without per-brand drift.
 
   return { core, accent, grey: greys };
 }
