@@ -176,10 +176,10 @@ export function EditorSaveAsTemplateButton({
         onClick={() => setOpen((v) => !v)}
         aria-label="Save as template"
         title="Save as template"
-        className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/30"
+        className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium hover:bg-muted/30 whitespace-nowrap shrink-0"
         style={{ borderColor: 'var(--border)' }}
       >
-        <BookmarkPlus className="h-3.5 w-3.5" aria-hidden />
+        <BookmarkPlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="hidden sm:inline">Save as template</span>
       </button>
 

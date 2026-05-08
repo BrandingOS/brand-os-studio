@@ -243,11 +243,11 @@ export function EditorGenerateVariantsButton({
         onClick={() => setOpen((v) => !v)}
         aria-label="Generate variants"
         title="Generate brand-aware variants in other formats"
-        className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/30"
+        className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium hover:bg-muted/30 whitespace-nowrap shrink-0"
         style={{ borderColor: 'var(--border)' }}
         disabled={!brandId}
       >
-        <Sparkles size={14} aria-hidden />
+        <Sparkles size={14} aria-hidden className="shrink-0" />
         <span className="hidden sm:inline">Variants</span>
       </button>
 

@@ -168,10 +168,10 @@ export function EditorRepublishFamilyButton({ getDoc, brandId, sourceName }: Pro
       disabled={busy}
       aria-label="Republish family from source"
       title="Rebuild every variant in this family from the current source state"
-      className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/30 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium hover:bg-muted/30 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
       style={{ borderColor: 'var(--border)' }}
     >
-      <RefreshCw size={14} aria-hidden />
+      <RefreshCw size={14} aria-hidden className="shrink-0" />
       <span className="hidden sm:inline">{busy ? 'Republishing…' : 'Republish'}</span>
     </button>
   );

@@ -158,6 +158,15 @@
   background: transparent;
 }
 
+/* Editor variant — adds the AI prompt bar as a 4th column between
+   the segmented nav and the right utility cluster. Brand picker and
+   segmented nav collapse to auto width on the left; AI bar stretches
+   in the remaining space; right cluster sits at the end. Used by
+   `EditorTopBar` whenever an `aiPromptSlot` is rendered. */
+[data-workspace] .top-nav-wrap--with-ai {
+  grid-template-columns: auto auto 1fr auto;
+}
+
 [data-workspace] .top-nav-left,
 [data-workspace] .top-nav-right {
   display: inline-flex;
@@ -166,6 +175,13 @@
 }
 [data-workspace] .top-nav-right {
   justify-self: end;
+  flex-wrap: nowrap;
+}
+[data-workspace] .top-nav-ai {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
 }
 
 [data-workspace] .top-nav-brand {

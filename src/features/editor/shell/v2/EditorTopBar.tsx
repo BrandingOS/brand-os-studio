@@ -185,8 +185,12 @@ export function EditorTopBar({
     }
   };
 
+  const wrapClassName = aiPromptSlot
+    ? 'top-nav-wrap top-nav-wrap--with-ai'
+    : 'top-nav-wrap';
+
   return (
-    <header className="top-nav-wrap" role="banner">
+    <header className={wrapClassName} role="banner">
       <div className="top-nav-left">
         <BrandPicker
           brand={brand}
@@ -212,7 +216,7 @@ export function EditorTopBar({
       />
 
       {aiPromptSlot ? (
-        <div data-ai-prompt-slot className="flex items-center mx-2">
+        <div data-ai-prompt-slot className="top-nav-ai">
           {aiPromptSlot}
         </div>
       ) : null}
@@ -224,7 +228,7 @@ export function EditorTopBar({
         ) : (
           <span
             data-save-disabled-badge
-            className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium whitespace-nowrap shrink-0"
             style={{
               background: 'var(--surface-sunken, #f2f1f0)',
               color: 'var(--text-secondary, #6e6a69)',
@@ -247,10 +251,10 @@ export function EditorTopBar({
             onClick={onShare}
             aria-label="Copy share link"
             title="Copy share link"
-            className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[11px] font-medium hover:bg-muted/30"
+            className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium hover:bg-muted/30 whitespace-nowrap shrink-0"
             style={{ borderColor: 'var(--border)' }}
           >
-            <Share2 size={14} aria-hidden />
+            <Share2 size={14} aria-hidden className="shrink-0" />
             <span className="hidden sm:inline">Share</span>
           </button>
         ) : null}
