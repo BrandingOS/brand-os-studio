@@ -44,6 +44,7 @@ function LogoTile({
   uploading,
   fallbackInitial,
   fallbackColor,
+  duplicateOf,
   onPickSource,
 }: {
   slot: LogoSlot;
@@ -51,6 +52,10 @@ function LogoTile({
   uploading: boolean;
   fallbackInitial?: string;
   fallbackColor?: string;
+  /** When set, the label of an earlier tile this one is a duplicate
+   *  of. Surfaces a small badge so the user knows to upload a unique
+   *  asset instead of reusing the same image across roles. */
+  duplicateOf?: string;
   onPickSource: (source: AssetSource) => void;
 }) {
   const dark = slot.surface === 'dark';
@@ -58,13 +63,19 @@ function LogoTile({
   const trigger = (
     <button
       type="button"
-      title={`Change ${slot.label} logo`}
+      title={
+        duplicateOf
+          ? `${slot.label} reuses the ${duplicateOf} asset — upload a unique one to avoid duplicates`
+          : `Change ${slot.label} logo`
+      }
       aria-label={`Change ${slot.label} logo`}
       className="relative rounded-2xl overflow-hidden text-left"
       style={{
         background: dark ? '#0f0f12' : '#ffffff',
         aspectRatio: '1 / 1',
         boxShadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 16px -10px rgba(0,0,0,0.10)',
+        outline: duplicateOf ? '1.5px dashed rgba(245,158,11,0.5)' : undefined,
+        outlineOffset: duplicateOf ? -3 : undefined,
       }}
     >
       <div className="absolute inset-0 flex items-center justify-center p-3 pointer-events-none">
@@ -105,6 +116,18 @@ function LogoTile({
       >
         {slot.label}
       </span>
+      {duplicateOf ? (
+        <span
+          className="absolute top-1.5 right-1.5 rounded-full px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.08em] pointer-events-none"
+          style={{
+            background: 'rgba(245,158,11,0.18)',
+            color: '#92500a',
+            border: '1px solid rgba(245,158,11,0.4)',
+          }}
+        >
+          Same as {duplicateOf}
+        </span>
+      ) : null}
     </button>
   );
 
@@ -126,11 +149,31 @@ export function LogosPanel() {
   const [uploading, setUploading] = useState<LogoRole | null>(null);
 
   const tiles = useMemo(() => {
-    if (!currentBrand) return SLOTS.map((s) => ({ slot: s, url: undefined as string | undefined }));
-    return SLOTS.map((s) => ({
-      slot: s,
-      url: resolveBrandLogo(currentBrand, s.role)?.url,
-    }));
+    if (!currentBrand) {
+      return SLOTS.map((s) => ({
+        slot: s,
+        url: undefined as string | undefined,
+        duplicateOf: undefined as string | undefined,
+      }));
+    }
+    // Walk slots in display order, recording the first slot for each
+    // unique URL. A later slot whose URL matches an earlier one gets
+    // tagged with the earlier slot's label so the tile can flag the
+    // duplication to the user. Empty slots aren't compared (no URL).
+    const seenUrls = new Map<string, string>();
+    return SLOTS.map((s) => {
+      const url = resolveBrandLogo(currentBrand, s.role)?.url;
+      let duplicateOf: string | undefined;
+      if (url) {
+        const firstLabel = seenUrls.get(url);
+        if (firstLabel) {
+          duplicateOf = firstLabel;
+        } else {
+          seenUrls.set(url, s.label);
+        }
+      }
+      return { slot: s, url, duplicateOf };
+    });
   }, [currentBrand]);
 
   const initial = currentBrand?.name?.charAt(0).toUpperCase() ?? 'B';
@@ -208,7 +251,7 @@ export function LogosPanel() {
       </div>
 
       <div className="grid grid-cols-4 gap-2">
-        {tiles.map(({ slot, url }) => (
+        {tiles.map(({ slot, url, duplicateOf }) => (
           <LogoTile
             key={slot.role}
             slot={slot}
@@ -216,6 +259,7 @@ export function LogosPanel() {
             uploading={uploading === slot.role}
             fallbackInitial={slot.role === 'primary' || slot.role === 'iconmark' ? initial : undefined}
             fallbackColor={primaryColor}
+            duplicateOf={duplicateOf}
             onPickSource={(source) => handlePick(slot.role, source)}
           />
         ))}

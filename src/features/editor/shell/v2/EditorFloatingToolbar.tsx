@@ -53,6 +53,11 @@ import type {
 } from '@/features/editor/schema';
 import { isBrandBound } from './brandBound';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
+import {
+  ALL_LOGO_VARIANTS,
+  uniqueLogoVariants,
+  type LogoVariantOption,
+} from '@/shared/brand/uniqueLogoVariants';
 
 const SELECTION_BLUE = '#2965f6';
 
@@ -659,24 +664,6 @@ function SvgControls({
 
 // ─── Logo ─────────────────────────────────────────────────────────────
 
-const LOGO_VARIANT_OPTIONS: ReadonlyArray<{
-  label: string;
-  value: LogoLayer['variant'];
-  /** Logo role to resolve for the thumbnail. `auto` previews `primary`. */
-  resolveRole: 'primary' | 'secondary' | 'wordmark' | 'iconmark' | 'mono.black' | 'mono.white';
-  /** Tile background — mono variants need an explicit contrast bg so
-   *  white-on-white / black-on-black thumbnails stay visible. */
-  tileBg: 'light' | 'dark' | 'auto';
-}> = [
-  { label: 'Auto',       value: 'auto',       resolveRole: 'primary',    tileBg: 'auto'  },
-  { label: 'Primary',    value: 'primary',    resolveRole: 'primary',    tileBg: 'auto'  },
-  { label: 'Secondary',  value: 'secondary',  resolveRole: 'secondary',  tileBg: 'auto'  },
-  { label: 'Wordmark',   value: 'wordmark',   resolveRole: 'wordmark',   tileBg: 'auto'  },
-  { label: 'Iconmark',   value: 'iconmark',   resolveRole: 'iconmark',   tileBg: 'auto'  },
-  { label: 'Mono Black', value: 'mono.black', resolveRole: 'mono.black', tileBg: 'light' },
-  { label: 'Mono White', value: 'mono.white', resolveRole: 'mono.white', tileBg: 'dark'  },
-];
-
 function LogoControls({
   layer,
   update,
@@ -690,9 +677,24 @@ function LogoControls({
   // The user's contract: logos are never locked — clicking the logo
   // always opens the variant picker, the same way clicking a text
   // layer opens the font picker.
-  const currentOpt =
-    LOGO_VARIANT_OPTIONS.find((o) => o.value === layer.variant) ??
-    LOGO_VARIANT_OPTIONS[0];
+  //
+  // Catalog comes from `uniqueLogoVariants(brand)` so the picker only
+  // shows visually distinct variants. For brands that only have a
+  // primary asset (e.g. a wordmark used as primary, secondary, and
+  // wordmark all pointing at the same URL), the picker collapses to
+  // ~3 tiles instead of 7 lookalike copies.
+  const variantOptions = useMemo(
+    () => uniqueLogoVariants(brand),
+    [brand],
+  );
+
+  // Current variant might not be in the deduped list (e.g. user set
+  // 'wordmark' previously, but now 'wordmark' resolves to the same URL
+  // as 'auto' so it collapsed out). Resolve from the full catalog so
+  // the trigger always shows a sensible label.
+  const currentOpt: LogoVariantOption =
+    ALL_LOGO_VARIANTS.find((o) => o.value === layer.variant) ??
+    ALL_LOGO_VARIANTS[0];
 
   return (
     <DropdownMenu.Root>
@@ -733,35 +735,44 @@ function LogoControls({
           >
             Logo variants
           </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            {LOGO_VARIANT_OPTIONS.map((o) => (
-              <DropdownMenu.Item
-                key={o.value}
-                data-logo-variant-option={o.value}
-                onSelect={() => update({ variant: o.value })}
-                className="flex cursor-pointer flex-col items-center gap-1 rounded-lg p-1.5 text-[10px] outline-none"
-                style={{
-                  color: 'var(--text-primary)',
-                  border:
-                    layer.variant === o.value
-                      ? '1.5px solid var(--accent)'
-                      : '1px solid var(--border)',
-                  background:
-                    layer.variant === o.value
-                      ? 'var(--accent-muted)'
-                      : 'var(--surface)',
-                }}
-              >
-                <LogoVariantThumb
-                  brand={brand}
-                  role={o.resolveRole}
-                  tileBg={o.tileBg}
-                  size={48}
-                />
-                <span className="text-center leading-tight">{o.label}</span>
-              </DropdownMenu.Item>
-            ))}
-          </div>
+          {variantOptions.length === 0 ? (
+            <div
+              className="px-3 py-4 text-center text-[11px]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              No logos in this brand kit yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5">
+              {variantOptions.map((o) => (
+                <DropdownMenu.Item
+                  key={o.value}
+                  data-logo-variant-option={o.value}
+                  onSelect={() => update({ variant: o.value })}
+                  className="flex cursor-pointer flex-col items-center gap-1 rounded-lg p-1.5 text-[10px] outline-none"
+                  style={{
+                    color: 'var(--text-primary)',
+                    border:
+                      layer.variant === o.value
+                        ? '1.5px solid var(--accent)'
+                        : '1px solid var(--border)',
+                    background:
+                      layer.variant === o.value
+                        ? 'var(--accent-muted)'
+                        : 'var(--surface)',
+                  }}
+                >
+                  <LogoVariantThumb
+                    brand={brand}
+                    role={o.resolveRole}
+                    tileBg={o.tileBg}
+                    size={48}
+                  />
+                  <span className="text-center leading-tight">{o.label}</span>
+                </DropdownMenu.Item>
+              ))}
+            </div>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
