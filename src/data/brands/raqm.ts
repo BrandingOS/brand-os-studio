@@ -38,25 +38,17 @@ export const raqmBrand: Brand = {
       targetAudience: 'Primary: E-commerce brands (5–30M SAR annually) and structured real estate companies/developers in Saudi Arabia. Pain points include unclear ROAS-to-profit correlation, CAC bleeding, unclear contribution margins, inaccurate tracking, and decisions made without financial visibility.',
     },
     logoSystem: {
+      // Raqm only has three distinct production assets — the colored
+      // wordmark, the black mono, and the white mono. Aliasing the
+      // colored wordmark across `secondary` / `wordmark` / `iconmark`
+      // (as the seed used to) created lookalike duplicates everywhere
+      // the variants surface (editor picker, brand-board panel). Roles
+      // without a unique asset are intentionally LEFT UNSET so the
+      // resolver returns undefined for them.
       primary: {
         url: '/brands/raqm/logo.svg',
         description: 'The RAQM wordmark features bold geometric letterforms with angular cuts and rectangular counters. Each letter is constructed on a strict grid system — the R has a rectangular counter with a geometric leg, the A features angular negative space, the Q has a distinctive diagonal notch, and the M uses precise diagonal strokes. The geometry reflects precision, structure, and mathematical confidence.',
         usage: 'Primary brand identifier for all major touchpoints — website headers, proposals, contracts, presentations, and official communications. Always use the SVG source file.',
-      },
-      secondary: {
-        url: RAQM_LOGO_URL,
-        description: 'Compact version of the wordmark optimized for smaller contexts. Same letterforms, tighter tracking.',
-        usage: 'Email signatures, sidebar navigation, footer placements, and co-branding contexts. Minimum 80px width for digital.',
-      },
-      wordmark: {
-        url: RAQM_LOGO_URL,
-        description: 'The RAQM name set in the custom geometric letterforms with precise angular construction.',
-        usage: 'Text-heavy contexts, editorial content, formal documents, and proposal covers.',
-      },
-      iconmark: {
-        url: RAQM_LOGO_URL,
-        description: 'The "R" monogram extracted from the full wordmark — a bold geometric R with the rectangular counter. Works independently at any size.',
-        usage: 'App icons, favicons, social media avatars, watermarks, and compact brand placements.',
       },
       blackVersion: {
         url: RAQM_LOGO_BLACK_URL,

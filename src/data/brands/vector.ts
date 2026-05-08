@@ -99,16 +99,9 @@ export const vectorBrand: Brand = {
           'Use on Bright Blue (#1934ee), Black Charcoal (#212121) and Blue Charcoal (#0f1622) ' +
           'surfaces — hero bands, dark-mode UI, social cards, video, packaging.',
       },
-      wordmark: {
-        url: VECTOR_LOGO_URL,
-        description:
-          'Same horizontal lockup as the primary — there is no separate wordmark-only file. ' +
-          'When pairing with another mark in co-branding contexts, use this colored variant on ' +
-          'light surfaces.',
-        usage:
-          'Co-branding rows, footer placements, partner pages, and editorial contexts where ' +
-          'the icon-only mark would be too small.',
-      },
+      // `wordmark` intentionally unset — there's no separate wordmark-
+      // only file; the primary lockup is the wordmark. Aliasing it
+      // here would surface as a duplicate tile.
       iconmark: {
         url: VECTOR_ICON_URL,
         description:
@@ -118,15 +111,11 @@ export const vectorBrand: Brand = {
           'App icons, favicons, social media avatars, loading splashes, watermarks, and any ' +
           'context where the wordmark is too wide.',
       },
-      blackVersion: {
-        url: VECTOR_LOGO_URL,
-        description:
-          'The standard colored variant doubles as the high-contrast option for light backgrounds — ' +
-          'the wordmark sits in Black-Charcoal #232323. For strict single-color print runs, ' +
-          'flatten the arrow to the same #232323.',
-        usage:
-          'Print on light stock, fax / scanned documents, embossing, and any single-color reproduction.',
-      },
+      // `blackVersion` intentionally unset — the colored primary IS
+      // the high-contrast option for light backgrounds (its wordmark
+      // sits in Black-Charcoal). A separate single-color black file
+      // doesn't exist; aliasing the primary URL here just produced
+      // duplicates downstream.
       whiteVersion: {
         url: VECTOR_LOGO_LIGHT_URL,
         description:

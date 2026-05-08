@@ -122,11 +122,18 @@ export interface BrandStrategy {
 
 export interface LogoSystem {
   primary: LogoVariant;
+  /**
+   * Non-primary roles are OPTIONAL. Brand seeds and user uploads should
+   * leave a role unset rather than aliasing it to the primary URL — a
+   * "wordmark" entry pointing at the same image as primary just creates
+   * lookalike duplicates everywhere the variants are surfaced. The
+   * `dedupeLogoSystem` helper enforces this on read/migration.
+   */
   secondary?: LogoVariant;
-  wordmark: LogoVariant;
-  iconmark: LogoVariant;
-  blackVersion: LogoVariant;
-  whiteVersion: LogoVariant;
+  wordmark?: LogoVariant;
+  iconmark?: LogoVariant;
+  blackVersion?: LogoVariant;
+  whiteVersion?: LogoVariant;
   clearSpace: string;
   minSize: string;
   usage: LogoUsageRule[];

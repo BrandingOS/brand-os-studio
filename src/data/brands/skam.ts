@@ -39,25 +39,15 @@ export const skamBrand: Brand = {
       targetAudience: 'Primary: Young adults (18–30) in Turkey and the Arab world — university students, social groups, and party-goers. Egyptian and Arab student communities in Istanbul. People who prefer face-to-face connection over screen time. Secondary: Card game enthusiasts and party game collectors globally.',
     },
     logoSystem: {
+      // SKAM has three distinct production assets — the colored wordmark
+      // and the black/white mono variants. Aliasing the wordmark URL
+      // across `secondary` / `wordmark` / `iconmark` (as the seed used
+      // to) created lookalike duplicates everywhere variants surface.
+      // Roles without a unique asset are intentionally LEFT UNSET.
       primary: {
         url: SKAM_LOGO_URL,
         description: 'The SKAM wordmark set in bold Bricolage Grotesque display type. Large, commanding letterforms designed for maximum impact on dark backgrounds. The typography itself IS the logo — no icon, no embellishment.',
         usage: 'Primary brand identifier for all major touchpoints — website hero, packaging, event banners, and official communications. Always use at large scale for maximum impact.',
-      },
-      secondary: {
-        url: SKAM_LOGO_URL,
-        description: 'Compact version of the SKAM wordmark optimized for smaller contexts. Same bold letterforms, tighter tracking.',
-        usage: 'Social media profiles, packaging details, partner co-branding, and secondary placements. Minimum 60px width for digital.',
-      },
-      wordmark: {
-        url: SKAM_LOGO_URL,
-        description: 'The SKAM name set in Bricolage Grotesque Bold — the full brand name as the primary visual identity. Clean, geometric, commanding.',
-        usage: 'Hero sections, packaging fronts, event materials, and any context where the brand name leads.',
-      },
-      iconmark: {
-        url: SKAM_LOGO_URL,
-        description: 'An icon mark component exists in the brand system. Used as a compact brand identifier for contexts where the full wordmark does not fit.',
-        usage: 'App icons, favicons, social media avatars, card backs, watermarks, and compact brand placements.',
       },
       blackVersion: {
         url: SKAM_LOGO_BLACK_URL,

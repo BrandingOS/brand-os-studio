@@ -30,6 +30,7 @@ import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, Page } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import { logoUrl } from '@/shared/brand/logoUrl';
+import { uniqueLogoVariants } from '@/shared/brand/uniqueLogoVariants';
 import type { LogoRole } from '@/shared/types/brandAssets';
 
 interface Props {
@@ -582,19 +583,20 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 
 // ─── Brand → section data collectors ────────────────────────────────────
 
-const LOGO_ROLES: Array<{ role: LogoRole; label: string }> = [
-  { role: 'primary', label: 'Primary' },
-  { role: 'secondary', label: 'Secondary' },
-  { role: 'wordmark', label: 'Wordmark' },
-  { role: 'iconmark', label: 'Iconmark' },
-  { role: 'mono.black', label: 'Black' },
-  { role: 'mono.white', label: 'White' },
-];
-
 function collectLogoVariants(brand: Brand): LogoVariantInfo[] {
-  return LOGO_ROLES
-    .map(({ role, label }) => ({ role, label, url: logoUrl(brand, role) }))
-    .filter((v) => !!v.url);
+  // Shared dedup utility — also used by the editor's floating-toolbar
+  // logo picker. Filters out roles that resolve to the same URL as a
+  // higher-priority role and roles with no asset, so a brand whose
+  // primary/secondary/wordmark/iconmark all share one mark surfaces as
+  // ONE tile in the brand panel instead of four duplicates.
+  return uniqueLogoVariants(brand)
+    .filter((v) => v.value !== 'auto')
+    .map((v) => ({
+      role: v.resolveRole,
+      label: v.label,
+      url: logoUrl(brand, v.resolveRole),
+    }))
+    .filter((info) => !!info.url);
 }
 
 function collectColors(brand: Brand): ColorInfo[] {

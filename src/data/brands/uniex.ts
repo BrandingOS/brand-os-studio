@@ -74,11 +74,11 @@ export const uniexBrand: Brand = {
         description: 'Compact navy wordmark for tighter contexts.',
         usage: 'Footers, partner co-brand strips, social profile spaces.',
       },
-      wordmark: {
-        url: UNIEX_LOGO_NAVY,
-        description: 'Navy wordmark — text-only Uniex.',
-        usage: 'Headlines and contexts where the icon would distract.',
-      },
+      // `wordmark` intentionally unset — it pointed at the same NAVY
+      // asset as `secondary`, which surfaced as a lookalike duplicate
+      // in the editor's variant picker and the brand-board panel.
+      // The colored wordmark IS the secondary variant; we don't need
+      // a redundant role for it.
       iconmark: {
         url: UNIEX_ICON_NAVY,
         description: 'The standalone iconmark — derived from the «ui» letterforms.',

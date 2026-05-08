@@ -18,6 +18,7 @@
  * New code should read through the v3 fields or the `useBrandLogo` hook.
  */
 import type { Brand, BrandLogoAssets, LogoSystem, Asset } from '@/shared/types/brand';
+import { dedupeLogoSystem, dedupeLogoSystemRefs } from './dedupeLogoSystem';
 import type {
   BrandAsset,
   LogoRef,
@@ -239,30 +240,54 @@ function buildLogoSystemAndAssets(brand: Brand): {
   const hasAny =
     primaryId || secondaryId || wordmarkId || iconmarkId || blackId || whiteId;
 
+  // Drop a non-primary role's ref when its asset id matches a higher-
+  // priority role's id — `upsertLogoAsset` returns the same id when
+  // two roles point at the same URL, so this is the v3 equivalent of
+  // `dedupeLogoSystem`'s URL check on the legacy shape. Without this
+  // step a brand whose primary/secondary/wordmark all came from the
+  // same upload still surfaces as three lookalike refs in
+  // `brand.logoSystem`, which is what the user's "fix the data, not
+  // just the frontend filter" feedback called out.
+  const seenIds = new Set<string>();
+  const dedupId = (
+    id: string | undefined,
+  ): string | undefined => {
+    if (!id) return undefined;
+    if (seenIds.has(id)) return undefined;
+    seenIds.add(id);
+    return id;
+  };
+  const primaryDeduped = dedupId(primaryId);
+  const secondaryDeduped = dedupId(secondaryId);
+  const wordmarkDeduped = dedupId(wordmarkId);
+  const iconmarkDeduped = dedupId(iconmarkId);
+  const blackDeduped = dedupId(blackId);
+  const whiteDeduped = dedupId(whiteId);
+
   const logoSystem: LogoSystemRefs | undefined = hasAny
     ? {
-        primary: logoRef(primaryId, {
+        primary: logoRef(primaryDeduped, {
           description: legacySystem?.primary?.description,
           usage: legacySystem?.primary?.usage,
         }),
-        secondary: logoRef(secondaryId, {
+        secondary: logoRef(secondaryDeduped, {
           description: legacySystem?.secondary?.description,
           usage: legacySystem?.secondary?.usage,
         }),
-        wordmark: logoRef(wordmarkId, {
+        wordmark: logoRef(wordmarkDeduped, {
           description: legacySystem?.wordmark?.description,
           usage: legacySystem?.wordmark?.usage,
         }),
-        iconmark: logoRef(iconmarkId, {
+        iconmark: logoRef(iconmarkDeduped, {
           description: legacySystem?.iconmark?.description,
           usage: legacySystem?.iconmark?.usage,
         }),
         mono: {
-          black: logoRef(blackId, {
+          black: logoRef(blackDeduped, {
             description: legacySystem?.blackVersion?.description,
             usage: legacySystem?.blackVersion?.usage,
           }),
-          white: logoRef(whiteId, {
+          white: logoRef(whiteDeduped, {
             description: legacySystem?.whiteVersion?.description,
             usage: legacySystem?.whiteVersion?.usage,
           }),
@@ -319,21 +344,49 @@ function buildLogoSystemAndAssets(brand: Brand): {
  */
 export function migrateBrandToCurrent(brand: Brand): Brand {
   if (!brand) return brand;
-  if ((brand.schemaVersion ?? 0) >= BRAND_SCHEMA_VERSION) {
-    return brand;
+
+  // Always normalize the legacy `guidelines.logoSystem` AND the v3
+  // `brand.logoSystem` refs so seed brands and stored data with
+  // duplicate URLs/assetIds across roles get cleaned in place. This
+  // runs even on already-migrated brands so previously-stored data
+  // improves on next read. The dedupe is a pure transform — no
+  // migration version bump needed.
+  const dedupedGuidelinesLogoSystem = brand.guidelines?.logoSystem
+    ? dedupeLogoSystem(brand.guidelines.logoSystem)
+    : undefined;
+  const guidelinesNormalized = dedupedGuidelinesLogoSystem
+    ? { ...brand.guidelines, logoSystem: dedupedGuidelinesLogoSystem }
+    : brand.guidelines;
+  const dedupedV3 = brand.logoSystem
+    ? dedupeLogoSystemRefs(brand.logoSystem)
+    : undefined;
+
+  const guidelinesChanged = guidelinesNormalized !== brand.guidelines;
+  const v3Changed = dedupedV3 !== undefined && dedupedV3 !== brand.logoSystem;
+  const cleanBrand: Brand =
+    guidelinesChanged || v3Changed
+      ? {
+          ...brand,
+          ...(guidelinesChanged ? { guidelines: guidelinesNormalized } : {}),
+          ...(v3Changed ? { logoSystem: dedupedV3 } : {}),
+        }
+      : brand;
+
+  if ((cleanBrand.schemaVersion ?? 0) >= BRAND_SCHEMA_VERSION) {
+    return cleanBrand;
   }
 
-  const { logoSystem, brandAssets } = buildLogoSystemAndAssets(brand);
-  const colorSystem = buildColorSystem(brand);
-  const typography = buildTypographySystem(brand);
+  const { logoSystem, brandAssets } = buildLogoSystemAndAssets(cleanBrand);
+  const colorSystem = buildColorSystem(cleanBrand);
+  const typography = buildTypographySystem(cleanBrand);
 
   return {
-    ...brand,
+    ...cleanBrand,
     schemaVersion: BRAND_SCHEMA_VERSION,
-    logoSystem: brand.logoSystem ?? logoSystem,
-    colorSystem: brand.colorSystem ?? colorSystem,
-    typography: brand.typography ?? typography,
-    brandAssets: brand.brandAssets ?? brandAssets,
+    logoSystem: cleanBrand.logoSystem ?? logoSystem,
+    colorSystem: cleanBrand.colorSystem ?? colorSystem,
+    typography: cleanBrand.typography ?? typography,
+    brandAssets: cleanBrand.brandAssets ?? brandAssets,
   };
 }
 
