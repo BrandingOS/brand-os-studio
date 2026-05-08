@@ -1210,6 +1210,10 @@
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas: "stack";
+  /* Anchor for the absolute inactive layer (rule below). Without
+     this, the inactive layer would anchor to the next positioned
+     ancestor and overflow the wrong region. */
+  position: relative;
 }
 [data-workspace] .bk-stage-layer--page1,
 [data-workspace] .bk-stage-layer--page2 {
@@ -1228,6 +1232,19 @@
 [data-workspace] .bk-stage[data-active="sections"] .bk-stage-layer--page2,
 [data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1 {
   pointer-events: none;
+}
+
+/* Take the inactive layer OUT of layout flow so it doesn't drive the
+   stage's height. Without this, the sections list (page 1, very tall)
+   stretches the grid row even when the user is on the drilldown
+   (page 2, short), leaving a scroll-tall column of empty whitespace
+   below the drilldown grid. The fading layer still paints because
+   it stays anchored at top:0; only its size contribution is removed.
+   The active layer's natural height becomes the stage's height. */
+[data-workspace] .bk-stage[data-active="drilldown"] .bk-stage-layer--page1,
+[data-workspace] .bk-stage[data-active="sections"] .bk-stage-layer--page2 {
+  position: absolute;
+  inset: 0 0 auto 0;
 }
 
 /* The wipe — entire cards fade together (frame + cover + label).
