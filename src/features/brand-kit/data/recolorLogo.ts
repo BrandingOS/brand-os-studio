@@ -140,6 +140,34 @@ export function colorsTooSimilar(a: string, b: string): boolean {
   return contrastRatio(a, b) < MIN_LOGO_CONTRAST;
 }
 
+/** Squared Euclidean distance in RGB space — fast, no sqrt. */
+function rgbDistanceSquared(a: string, b: string): number {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const dr = ar - br;
+  const dg = ag - bg;
+  const db = ab - bb;
+  return dr * dr + dg * dg + db * db;
+}
+
+/**
+ * Whether two colors are visually close enough that pairing the same
+ * mark with each would produce indistinguishable tiles. Used to dedupe
+ * the gallery's BACKGROUND list — `colorsTooSimilar` is a contrast
+ * gate (will the mark disappear?), this is a perceptual gate (do the
+ * two backgrounds look the same?).
+ *
+ * Threshold is squared Euclidean RGB distance ≤ 60² (3600). 60 RGB
+ * units is roughly the gap between adjacent slots on a 6-step ramp
+ * spanning black to white — anything closer collapses to one
+ * representative tile. Tuned against the 32-step brandToMockBrand
+ * grayscale ramp: at threshold 60 the ramp collapses to ~5–6 visually
+ * distinct neutrals, which is what a designer actually needs.
+ */
+export function visuallyClose(a: string, b: string): boolean {
+  return rgbDistanceSquared(a, b) <= 60 * 60;
+}
+
 /**
  * Build the (logoIndex, markHex, bgHex) triples for the Brand Assets
  * Logos drilldown.
@@ -161,11 +189,22 @@ export function logoCombosFor(brand: {
   mark: { hex: string; name: string };
   bg: { hex: string; name: string };
 }> {
-  const backgrounds = [
+  // Dedupe backgrounds by perceptual proximity. `brandToMockBrand`
+  // generates a 32-step grayscale ramp for every brand, which —
+  // multiplied by 3 mark colors — used to produce ~93 logo tiles, most
+  // of them visually identical near-black variants. Iterate in
+  // priority order (core → accent → grey) so brand-specific colors
+  // win over generic neutrals when two backgrounds are close.
+  const allBackgrounds = [
     ...brand.colors.core,
     ...brand.colors.accent,
     ...brand.colors.grey,
   ];
+  const backgrounds: typeof allBackgrounds = [];
+  for (const bg of allBackgrounds) {
+    if (backgrounds.some((kept) => visuallyClose(kept.hex, bg.hex))) continue;
+    backgrounds.push(bg);
+  }
 
   // Marks: Primary (core[0]), Secondary (core[1]), White. Dedupe by
   // hex so a brand whose secondary IS white doesn't yield a duplicate
