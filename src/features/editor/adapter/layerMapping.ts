@@ -521,23 +521,33 @@ export async function renderPage(
   canvas: Canvas,
   page: Page,
   doc: BrandOSDocument,
-  options: { editingMaster: boolean; brand?: Brand } = { editingMaster: false },
+  options: {
+    editingMaster: boolean;
+    brand?: Brand;
+    /**
+     * Optional cancellation hook. Called after every async load so
+     * the caller can short-circuit a concurrent stale render. When
+     * it returns true the function leaves the canvas untouched and
+     * returns an empty map. Without this, two concurrent renderPage
+     * calls would both clear+add and produce duplicate objects.
+     */
+    isCancelled?: () => boolean;
+  } = { editingMaster: false },
 ): Promise<Map<string, FabricObject>> {
-  canvas.clear();
-  canvas.setDimensions({ width: page.width, height: page.height });
-  const bg = typeof page.background === 'string' ? page.background : DEFAULT_FILL;
-  canvas.backgroundColor = resolveResolvedValue(page.background, bg);
-
-  // 1. Master overlay (only when this page has a master AND we're not
-  // editing it directly).
+  // Phase 1: pre-load every Fabric object asynchronously. We don't
+  // touch the canvas yet — that way a concurrent `renderPage` can't
+  // observe an intermediate state where we've cleared the canvas
+  // but haven't finished adding our new objects.
+  const masterObjs: FabricObject[] = [];
   if (!options.editingMaster && page.masterPageId) {
     const master = doc.masterPages.find((m) => m.id === page.masterPageId);
     if (master) {
       for (const layer of master.layers) {
         const obj = await layerToFabric(layer, options.brand);
-        // Master layers are decorative-from-this-view: locked from any
-        // canvas-level interaction so the user has to enter master mode
-        // to edit them.
+        if (options.isCancelled?.()) return new Map();
+        // Master layers are decorative-from-this-view: locked from
+        // any canvas-level interaction so the user has to enter
+        // master mode to edit them.
         obj.set({
           selectable: false,
           evented: false,
@@ -548,17 +558,30 @@ export async function renderPage(
           lockRotation: true,
           hoverCursor: 'default',
         });
-        canvas.add(obj);
+        masterObjs.push(obj);
       }
     }
   }
 
-  // 2. The page's own layers on top of the master overlay.
-  const objsById = new Map<string, FabricObject>();
+  const pageEntries: Array<{ layerId: string; obj: FabricObject }> = [];
   for (const layer of page.layers) {
     const obj = await layerToFabric(layer, options.brand);
+    if (options.isCancelled?.()) return new Map();
+    pageEntries.push({ layerId: layer.id, obj });
+  }
+
+  // Phase 2: now that all loads are done, apply atomically.
+  if (options.isCancelled?.()) return new Map();
+  canvas.clear();
+  canvas.setDimensions({ width: page.width, height: page.height });
+  const bg = typeof page.background === 'string' ? page.background : DEFAULT_FILL;
+  canvas.backgroundColor = resolveResolvedValue(page.background, bg);
+  for (const obj of masterObjs) canvas.add(obj);
+
+  const objsById = new Map<string, FabricObject>();
+  for (const { layerId, obj } of pageEntries) {
     canvas.add(obj);
-    objsById.set(layer.id, obj);
+    objsById.set(layerId, obj);
   }
   canvas.requestRenderAll();
   return objsById;

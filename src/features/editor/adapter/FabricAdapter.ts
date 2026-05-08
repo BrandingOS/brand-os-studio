@@ -99,6 +99,16 @@ export class FabricAdapter implements EditorAdapter {
   private suppressChange = false;
 
   /**
+   * Monotonic counter that invalidates in-flight async canvas work
+   * (image / svg / logo loads). Bumped at the start of every
+   * `renderActivePage` and every `updateLayer` recreate. The async
+   * work captures the value at start and bails on apply if the
+   * counter advanced — so a race between a full re-render and a
+   * partial recreate can't end up with two layers stacked.
+   */
+  private renderToken = 0;
+
+  /**
    * Batch depth and pending label for `batch()`. While `batchDepth > 0`,
    * mutation methods skip both `history.commit` and `emitChange`; the
    * outer-most batch fires one of each at the end with `batchLabel`.
@@ -457,8 +467,16 @@ export class FabricAdapter implements EditorAdapter {
         if (needsRecreate) {
           this.canvas?.remove(obj);
           this.fabricByLayerId.delete(layerId);
+          const token = ++this.renderToken;
           void layerToFabric(nextLayer, this.brand).then((newObj) => {
+            // Bail if our async work is stale — a newer recreate
+            // started, or a renderActivePage replaced the canvas
+            // while we were loading. Without this guard a fast
+            // variant click sequence stacked two FabricImages
+            // because both .then's added.
             if (!this.canvas) return;
+            if (token !== this.renderToken) return;
+            if (this.fabricByLayerId.has(layerId)) return;
             this.canvas.add(newObj);
             this.canvas.moveObjectTo(newObj, idx);
             this.fabricByLayerId.set(layerId, newObj);
@@ -467,6 +485,23 @@ export class FabricAdapter implements EditorAdapter {
         } else {
           this.canvas?.requestRenderAll();
         }
+      } else if (this.brand) {
+        // No existing Fabric object for this layer (a previous
+        // recreate's async load may not have applied because of
+        // a token bump). Schedule a fresh load against the latest
+        // doc state so the canvas eventually converges with the
+        // doc — without this, rapid variant clicks would leave
+        // the logo invisible.
+        const token = ++this.renderToken;
+        void layerToFabric(nextLayer, this.brand).then((newObj) => {
+          if (!this.canvas) return;
+          if (token !== this.renderToken) return;
+          if (this.fabricByLayerId.has(layerId)) return;
+          this.canvas.add(newObj);
+          this.canvas.moveObjectTo(newObj, idx);
+          this.fabricByLayerId.set(layerId, newObj);
+          this.canvas.requestRenderAll();
+        });
       }
     }
     this.commitToHistory();
@@ -677,25 +712,38 @@ export class FabricAdapter implements EditorAdapter {
 
   private async renderActivePage(): Promise<void> {
     if (!this.canvas || !this.doc) return;
+    // Bump the render token first so any in-flight partial-recreate
+    // `.then` callbacks (from updateLayer's needsRecreate path) bail
+    // before they double-add to the canvas. The same token is also
+    // passed into renderPage as `isCancelled` so a stale renderPage
+    // bails before mutating the canvas.
+    const token = ++this.renderToken;
+    const isCancelled = () => token !== this.renderToken;
     // In master-edit mode the canvas mirrors the master itself — its
     // layers become the editable surface. Otherwise render the active
     // page (with master overlay if it has one).
     if (this.editingMasterId) {
       const master = this.doc.masterPages.find((m) => m.id === this.editingMasterId);
       if (!master) return;
-      this.fabricByLayerId = await renderPage(this.canvas, master, this.doc, {
+      const result = await renderPage(this.canvas, master, this.doc, {
         editingMaster: true,
         brand: this.brand,
+        isCancelled,
       });
+      if (isCancelled()) return;
+      this.fabricByLayerId = result;
       return;
     }
     if (!this.activePageId) return;
     const page = this.doc.pages.find((p) => p.id === this.activePageId);
     if (!page) return;
-    this.fabricByLayerId = await renderPage(this.canvas, page, this.doc, {
+    const result = await renderPage(this.canvas, page, this.doc, {
       editingMaster: false,
       brand: this.brand,
+      isCancelled,
     });
+    if (isCancelled()) return;
+    this.fabricByLayerId = result;
   }
 
   /**
