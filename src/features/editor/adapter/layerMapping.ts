@@ -97,21 +97,29 @@ export const SELECTION_MARQUEE_FILL = 'rgba(124, 58, 237, 0.08)';
 
 // ─── Layer → Fabric ──────────────────────────────────────────────────────
 
-const baseProps = (layer: Layer) => ({
-  left: layer.transform.x,
-  top: layer.transform.y,
-  angle: layer.transform.rotation,
-  scaleX: layer.transform.scaleX,
-  scaleY: layer.transform.scaleY,
-  opacity: layer.opacity,
-  visible: layer.visible,
-  selectable: !layer.locked,
-  evented: !layer.locked,
-  lockMovementX: layer.locked || layer.brandLocked,
-  lockMovementY: layer.locked || layer.brandLocked,
-  lockScalingX: layer.locked || layer.brandLocked,
-  lockScalingY: layer.locked || layer.brandLocked,
-  lockRotation: layer.locked || layer.brandLocked,
+const baseProps = (layer: Layer) => {
+  // Logo layers are exempt from `brandLocked` movement/scaling locks.
+  // Locking them froze the canvas position when the user just wanted
+  // to keep the variant in sync with the brand kit. Logos always move
+  // / resize freely; only an explicit `locked: true` (the manual lock
+  // affordance) restricts them.
+  const isLogo = layer.kind === 'logo';
+  const frozenByBrand = !isLogo && layer.brandLocked;
+  return {
+    left: layer.transform.x,
+    top: layer.transform.y,
+    angle: layer.transform.rotation,
+    scaleX: layer.transform.scaleX,
+    scaleY: layer.transform.scaleY,
+    opacity: layer.opacity,
+    visible: layer.visible,
+    selectable: !layer.locked,
+    evented: !layer.locked,
+    lockMovementX: layer.locked || frozenByBrand,
+    lockMovementY: layer.locked || frozenByBrand,
+    lockScalingX: layer.locked || frozenByBrand,
+    lockScalingY: layer.locked || frozenByBrand,
+    lockRotation: layer.locked || frozenByBrand,
   // Outline-only selection styling (overrides Fabric's blue overlay defaults).
   borderColor: SELECTION_BORDER_COLOR,
   cornerColor: SELECTION_HANDLE_COLOR,
@@ -121,7 +129,8 @@ const baseProps = (layer: Layer) => ({
   cornerSize: 12,
   padding: 0,
   borderScaleFactor: 1.5,
-});
+  };
+};
 
 function textLayerToFabric(layer: TextLayer): Textbox {
   const tb = new Textbox(layer.text, {

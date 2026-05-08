@@ -30,6 +30,10 @@ interface Props {
 
 export function EditorLockBadge({ layer, zoom = 1 }: Props) {
   if (!layer.brandLocked) return null;
+  // Logo layers are exempt from the brand-managed lock — the variant
+  // stays brand-bound but the layer itself is freely editable, so the
+  // lock badge would mislead.
+  if (layer.kind === 'logo') return null;
   // Top-right of the layer's visual bounding box, with an 8 SCREEN
   // px outset so the badge sits visually on the corner.
   const left = (layer.transform.x + layer.transform.width) * zoom - 8;

@@ -52,6 +52,7 @@ import type {
   TextLayer,
 } from '@/features/editor/schema';
 import { isBrandBound } from './brandBound';
+import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 
 const SELECTION_BLUE = '#2965f6';
 
@@ -319,6 +320,7 @@ function KindControls({
         <LogoControls
           layer={layer as unknown as LogoLayer}
           update={update as unknown as (p: Partial<LogoLayer>) => void}
+          brand={brand}
         />
       );
     case 'group':
@@ -657,63 +659,178 @@ function SvgControls({
 
 // ─── Logo ─────────────────────────────────────────────────────────────
 
+const LOGO_VARIANT_OPTIONS: ReadonlyArray<{
+  label: string;
+  value: LogoLayer['variant'];
+  /** Logo role to resolve for the thumbnail. `auto` previews `primary`. */
+  resolveRole: 'primary' | 'secondary' | 'wordmark' | 'iconmark' | 'mono.black' | 'mono.white';
+  /** Tile background — mono variants need an explicit contrast bg so
+   *  white-on-white / black-on-black thumbnails stay visible. */
+  tileBg: 'light' | 'dark' | 'auto';
+}> = [
+  { label: 'Auto',       value: 'auto',       resolveRole: 'primary',    tileBg: 'auto'  },
+  { label: 'Primary',    value: 'primary',    resolveRole: 'primary',    tileBg: 'auto'  },
+  { label: 'Secondary',  value: 'secondary',  resolveRole: 'secondary',  tileBg: 'auto'  },
+  { label: 'Wordmark',   value: 'wordmark',   resolveRole: 'wordmark',   tileBg: 'auto'  },
+  { label: 'Iconmark',   value: 'iconmark',   resolveRole: 'iconmark',   tileBg: 'auto'  },
+  { label: 'Mono Black', value: 'mono.black', resolveRole: 'mono.black', tileBg: 'light' },
+  { label: 'Mono White', value: 'mono.white', resolveRole: 'mono.white', tileBg: 'dark'  },
+];
+
 function LogoControls({
   layer,
   update,
+  brand,
 }: {
   layer: LogoLayer;
   update: (patch: Partial<LogoLayer>) => void;
+  brand?: Brand;
 }) {
-  const opts: Array<{ label: string; value: LogoLayer['variant'] }> = [
-    { label: 'Auto', value: 'auto' },
-    { label: 'Primary', value: 'primary' },
-    { label: 'Secondary', value: 'secondary' },
-    { label: 'Wordmark', value: 'wordmark' },
-    { label: 'Iconmark', value: 'iconmark' },
-    { label: 'Mono · black', value: 'mono.black' },
-    { label: 'Mono · white', value: 'mono.white' },
-  ];
-  const variantLocked = isBrandBound(layer, 'variant');
+  // Variant is intentionally NOT gated by `isBrandBound` / `LockedGate`.
+  // The user's contract: logos are never locked — clicking the logo
+  // always opens the variant picker, the same way clicking a text
+  // layer opens the font picker.
+  const currentOpt =
+    LOGO_VARIANT_OPTIONS.find((o) => o.value === layer.variant) ??
+    LOGO_VARIANT_OPTIONS[0];
+
   return (
-    <LockedGate locked={variantLocked}>
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] transition-colors"
           data-control="variant"
           title="Logo variant"
         >
-          {layer.variant}
+          <LogoVariantThumb
+            brand={brand}
+            role={currentOpt.resolveRole}
+            tileBg={currentOpt.tileBg}
+            size={20}
+          />
+          <span>{currentOpt.label}</span>
           <ChevronDown className="h-3 w-3" style={{ color: 'var(--text-muted)' }} />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           data-workspace
+          data-control-popover="logo-variant"
           align="start"
-          sideOffset={4}
-          className="z-50 rounded-lg p-1"
+          sideOffset={6}
+          className="z-50 rounded-xl p-2"
           style={{
             background: 'var(--surface-elevated)',
             border: '1px solid var(--border)',
             boxShadow: 'var(--shadow-md)',
+            width: 232,
           }}
         >
-          {opts.map((o) => (
-            <DropdownMenu.Item
-              key={o.value}
-              onSelect={() => update({ variant: o.value })}
-              className="cursor-pointer rounded-md px-2 py-1 text-[12px] outline-none"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {o.label}
-            </DropdownMenu.Item>
-          ))}
+          <div
+            className="px-1.5 pb-1.5 text-[10px] font-medium uppercase"
+            style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}
+          >
+            Logo variants
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {LOGO_VARIANT_OPTIONS.map((o) => (
+              <DropdownMenu.Item
+                key={o.value}
+                data-logo-variant-option={o.value}
+                onSelect={() => update({ variant: o.value })}
+                className="flex cursor-pointer flex-col items-center gap-1 rounded-lg p-1.5 text-[10px] outline-none"
+                style={{
+                  color: 'var(--text-primary)',
+                  border:
+                    layer.variant === o.value
+                      ? '1.5px solid var(--accent)'
+                      : '1px solid var(--border)',
+                  background:
+                    layer.variant === o.value
+                      ? 'var(--accent-muted)'
+                      : 'var(--surface)',
+                }}
+              >
+                <LogoVariantThumb
+                  brand={brand}
+                  role={o.resolveRole}
+                  tileBg={o.tileBg}
+                  size={48}
+                />
+                <span className="text-center leading-tight">{o.label}</span>
+              </DropdownMenu.Item>
+            ))}
+          </div>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
-    </LockedGate>
+  );
+}
+
+function LogoVariantThumb({
+  brand,
+  role,
+  tileBg,
+  size,
+}: {
+  brand?: Brand;
+  role: 'primary' | 'secondary' | 'wordmark' | 'iconmark' | 'mono.black' | 'mono.white';
+  tileBg: 'light' | 'dark' | 'auto';
+  size: number;
+}) {
+  const resolved = useMemo(
+    () => (brand ? resolveBrandLogo(brand, role) : undefined),
+    [brand, role],
+  );
+
+  const bg =
+    tileBg === 'dark'
+      ? '#0d0d0d'
+      : tileBg === 'light'
+        ? '#ffffff'
+        : 'var(--surface-sunken, #f4f4f3)';
+
+  return (
+    <span
+      data-logo-variant-thumb={role}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: size,
+        height: size,
+        borderRadius: 6,
+        background: bg,
+        border: '1px solid var(--border)',
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}
+    >
+      {resolved?.url ? (
+        <img
+          src={resolved.url}
+          alt=""
+          style={{
+            maxWidth: '85%',
+            maxHeight: '85%',
+            objectFit: 'contain',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <span
+          style={{
+            fontSize: Math.max(8, size * 0.32),
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            letterSpacing: '0.04em',
+          }}
+        >
+          {role.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -810,11 +927,19 @@ function MoreMenu({
             )}
             {layer.locked ? 'Unlock' : 'Lock'}
           </DropdownMenu.Item>
-          <DropdownMenu.Separator
-            className="my-1 h-px"
-            style={{ background: 'var(--border)' }}
-          />
-          <BrandManagedRow layer={layer} update={update} />
+          {/* Brand-managed toggle is hidden for logo layers — logos
+              are never locked at the layer level; the variant picker
+              keeps them in sync with the brand kit, the lock would
+              only freeze position/size pointlessly. */}
+          {layer.kind !== 'logo' ? (
+            <>
+              <DropdownMenu.Separator
+                className="my-1 h-px"
+                style={{ background: 'var(--border)' }}
+              />
+              <BrandManagedRow layer={layer} update={update} />
+            </>
+          ) : null}
           <DropdownMenu.Separator
             className="my-1 h-px"
             style={{ background: 'var(--border)' }}
