@@ -270,6 +270,15 @@ export function Editor({
   // Lazy-create the adapter once; pass to <EditorCanvasMount> for mount.
   const adapter = useMemo<EditorAdapter>(() => new FabricAdapter(), []);
 
+  // Keep the adapter's brand context in sync with the prop. The
+  // adapter uses this to resolve logo variant URLs through
+  // `resolveBrandLogo` — without it, every logo layer renders as a
+  // placeholder rect. setBrand is a no-op when the reference is
+  // unchanged, and re-renders the active page when a logo is on it.
+  useEffect(() => {
+    adapter.setBrand(brand);
+  }, [adapter, brand]);
+
   // Phase 3.5 — AI agent. The `useAiAgent` hook picks DI override
   // first (test stub), then falls back to a production
   // EdgeFunctionAgent built from the brandKit. The `aiAgent` prop

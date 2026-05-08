@@ -9,6 +9,7 @@
 // canvas-implementation detail (no x/y math, no Fabric types leaking).
 
 import type { BrandOSDocument, Layer, Page } from '@/features/editor/schema';
+import type { Brand } from '@/shared/types/brand';
 
 export interface SelectionState {
   layerIds: string[];
@@ -185,6 +186,17 @@ export interface EditorAdapter {
    * cleaned up so subsequent mutations behave normally.
    */
   batch(label: string, fn: () => void): void;
+
+  // Brand context
+  /**
+   * Sets the active brand for asset resolution. Currently used by
+   * logo layers — `<LogoLayer variant>` resolves through
+   * `resolveBrandLogo(brand, role)` to a real asset URL. When the
+   * brand changes (or arrives late after mount), the adapter
+   * re-renders all logo layers on the active page so the new
+   * variants paint immediately. Pass `undefined` to clear.
+   */
+  setBrand(brand: Brand | undefined): void;
 
   // Export
   exportAs(options: ExportOptions): Promise<Blob>;

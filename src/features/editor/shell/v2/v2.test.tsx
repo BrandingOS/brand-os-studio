@@ -78,6 +78,7 @@ function stubAdapter(): EditorAdapter & StubAdapter {
     canUndo: vi.fn(() => false),
     canRedo: vi.fn(() => false),
     batch: vi.fn((_label: string, fn: () => void) => fn()),
+    setBrand: vi.fn(),
     exportAs: vi.fn(),
     on: vi.fn(() => () => undefined),
   } as unknown as EditorAdapter & StubAdapter;

@@ -43,6 +43,9 @@ import type {
   TextLayer,
   Transform,
 } from '@/features/editor/schema';
+import type { Brand } from '@/shared/types/brand';
+import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
+import type { LogoRole } from '@/shared/types/brandAssets';
 
 /** Property name on every Fabric object pointing back to the document layer. */
 export const BRANDOS_ID_KEY = 'brandosId' as const;
@@ -227,14 +230,81 @@ function svgLayerToFabric(layer: SvgLayer): FabricObject {
   return placeholderRect(layer, 'rgba(99,102,241,0.06)', '#6366f1');
 }
 
-function logoLayerToFabric(layer: LogoLayer): FabricObject {
-  // Phase 1 placeholder. Phase 3 wires brand asset resolution and
-  // `pickLogoOnBackground(brand, bgHex)` for variant 'auto'.
-  return placeholderRect(layer, 'rgba(0,0,0,0.04)', '#000000');
+/**
+ * Map a logo `variant` to the brand-asset role we resolve through
+ * `resolveBrandLogo`. `'auto'` previews `'primary'` for now — the real
+ * `pickLogoOnBackground(brand, bgHex)` selection is layered on top of
+ * this in a follow-up; the placeholder behavior is "show primary so
+ * the user always sees something."
+ */
+function variantToRole(variant: LogoLayer['variant']): LogoRole {
+  switch (variant) {
+    case 'primary': return 'primary';
+    case 'secondary': return 'secondary';
+    case 'wordmark': return 'wordmark';
+    case 'iconmark': return 'iconmark';
+    case 'mono.black': return 'mono.black';
+    case 'mono.white': return 'mono.white';
+    case 'auto':
+    default: return 'primary';
+  }
 }
 
-async function groupLayerToFabric(layer: GroupLayer): Promise<Group> {
-  const children = await Promise.all(layer.children.map((c) => layerToFabric(c)));
+async function logoLayerToFabric(
+  layer: LogoLayer,
+  brand?: Brand,
+): Promise<FabricObject> {
+  const resolved = brand
+    ? resolveBrandLogo(brand, variantToRole(layer.variant))
+    : undefined;
+
+  if (!resolved?.url) {
+    // No brand context yet, or this brand has no asset for this role —
+    // render a light placeholder so the layer still has a visible
+    // bounding box to select / move. The Editor calls `setBrand` on
+    // the adapter once brand context is available, which re-creates
+    // the logo objects via the variant-change recreate path.
+    return placeholderRect(layer, 'rgba(0,0,0,0.04)', '#9ca3af');
+  }
+
+  try {
+    const img = await FabricImage.fromURL(resolved.url, {
+      crossOrigin: 'anonymous',
+    });
+    img.set({
+      ...baseProps(layer),
+      // Fit "contain": preserve aspect ratio inside the layer's box.
+      // Logos look broken when stretched, unlike Image layers which
+      // can legitimately be cropped/stretched per `fit`.
+      scaleX: img.width
+        ? Math.min(
+            layer.transform.width / img.width,
+            layer.transform.height / (img.height || 1),
+          )
+        : 1,
+      scaleY: img.height
+        ? Math.min(
+            layer.transform.width / (img.width || 1),
+            layer.transform.height / img.height,
+          )
+        : 1,
+    });
+    setLayerId(img, layer.id);
+    return img;
+  } catch {
+    // Network / CORS failure — fall back to placeholder so the layer
+    // is still visible and selectable.
+    return placeholderRect(layer, 'rgba(220,38,38,0.06)', '#dc2626');
+  }
+}
+
+async function groupLayerToFabric(
+  layer: GroupLayer,
+  brand?: Brand,
+): Promise<Group> {
+  const children = await Promise.all(
+    layer.children.map((c) => layerToFabric(c, brand)),
+  );
   const grp = new Group(children, { ...baseProps(layer) });
   setLayerId(grp, layer.id);
   return grp;
@@ -278,6 +348,11 @@ export function applyLayerToFabric(
     return { needsRecreate: true };
   }
 
+  // Logo layers are exempt from `brandLocked` movement/scaling locks
+  // (mirrors the rule in `baseProps`).
+  const isLogo = nextLayer.kind === 'logo';
+  const frozenByBrand = !isLogo && nextLayer.brandLocked;
+
   // Common: transform, opacity, visibility, lock + selection styling.
   obj.set({
     left: nextLayer.transform.x,
@@ -291,11 +366,11 @@ export function applyLayerToFabric(
     visible: nextLayer.visible,
     selectable: !nextLayer.locked,
     evented: !nextLayer.locked,
-    lockMovementX: nextLayer.locked || nextLayer.brandLocked,
-    lockMovementY: nextLayer.locked || nextLayer.brandLocked,
-    lockScalingX: nextLayer.locked || nextLayer.brandLocked,
-    lockScalingY: nextLayer.locked || nextLayer.brandLocked,
-    lockRotation: nextLayer.locked || nextLayer.brandLocked,
+    lockMovementX: nextLayer.locked || frozenByBrand,
+    lockMovementY: nextLayer.locked || frozenByBrand,
+    lockScalingX: nextLayer.locked || frozenByBrand,
+    lockScalingY: nextLayer.locked || frozenByBrand,
+    lockRotation: nextLayer.locked || frozenByBrand,
     borderColor: SELECTION_BORDER_COLOR,
     cornerColor: SELECTION_HANDLE_COLOR,
     cornerStrokeColor: SELECTION_HANDLE_STROKE,
@@ -359,9 +434,17 @@ export function applyLayerToFabric(
       return { needsRecreate: false };
     }
     case 'logo': {
-      // Logo variant change: in Phase 1 we render a placeholder regardless of
-      // variant, so no recreate needed. Phase 3 will recreate when variant
-      // resolves to a different brand asset.
+      // Variant change resolves through `resolveBrandLogo` to a different
+      // brand asset URL — the existing FabricImage was constructed from
+      // the old URL, so we recreate the object via the variant-change
+      // branch in FabricAdapter.updateLayer.
+      if (
+        prevLayer &&
+        prevLayer.kind === 'logo' &&
+        prevLayer.variant !== nextLayer.variant
+      ) {
+        return { needsRecreate: true };
+      }
       return { needsRecreate: false };
     }
     case 'group':
@@ -378,7 +461,10 @@ function srcKey(src: unknown): string {
 }
 
 /** Convert a layer to its Fabric representation. */
-export async function layerToFabric(layer: Layer): Promise<FabricObject> {
+export async function layerToFabric(
+  layer: Layer,
+  brand?: Brand,
+): Promise<FabricObject> {
   switch (layer.kind) {
     case 'text':
       return textLayerToFabric(layer);
@@ -389,9 +475,9 @@ export async function layerToFabric(layer: Layer): Promise<FabricObject> {
     case 'svg':
       return svgLayerToFabric(layer);
     case 'logo':
-      return logoLayerToFabric(layer);
+      return logoLayerToFabric(layer, brand);
     case 'group':
-      return groupLayerToFabric(layer);
+      return groupLayerToFabric(layer, brand);
   }
 }
 
@@ -435,7 +521,7 @@ export async function renderPage(
   canvas: Canvas,
   page: Page,
   doc: BrandOSDocument,
-  options: { editingMaster: boolean } = { editingMaster: false },
+  options: { editingMaster: boolean; brand?: Brand } = { editingMaster: false },
 ): Promise<Map<string, FabricObject>> {
   canvas.clear();
   canvas.setDimensions({ width: page.width, height: page.height });
@@ -448,7 +534,7 @@ export async function renderPage(
     const master = doc.masterPages.find((m) => m.id === page.masterPageId);
     if (master) {
       for (const layer of master.layers) {
-        const obj = await layerToFabric(layer);
+        const obj = await layerToFabric(layer, options.brand);
         // Master layers are decorative-from-this-view: locked from any
         // canvas-level interaction so the user has to enter master mode
         // to edit them.
@@ -470,7 +556,7 @@ export async function renderPage(
   // 2. The page's own layers on top of the master overlay.
   const objsById = new Map<string, FabricObject>();
   for (const layer of page.layers) {
-    const obj = await layerToFabric(layer);
+    const obj = await layerToFabric(layer, options.brand);
     canvas.add(obj);
     objsById.set(layer.id, obj);
   }

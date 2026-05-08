@@ -42,6 +42,7 @@ import type {
   Unsubscribe,
 } from './EditorAdapter';
 import type { GroupLayer, SlotRef } from '@/features/editor/schema';
+import type { Brand } from '@/shared/types/brand';
 import { HistoryRing } from './historyRing';
 import {
   applyLayerToFabric,
@@ -75,6 +76,14 @@ export class FabricAdapter implements EditorAdapter {
 
   /** Map from layer id to its current Fabric representation on the canvas. */
   private fabricByLayerId = new Map<string, FabricObject>();
+
+  /**
+   * Active brand — passed to `layerToFabric` for asset resolution
+   * (currently logo variants). Set via `setBrand`; updates re-render
+   * the active page so existing logo placeholders swap to real
+   * brand assets immediately.
+   */
+  private brand: Brand | undefined = undefined;
 
   /** Snapshot ring for undo/redo. */
   private history = new HistoryRing<BrandOSDocument>();
@@ -383,13 +392,39 @@ export class FabricAdapter implements EditorAdapter {
     return this.editingMasterId;
   }
 
+  // ─── Brand context ────────────────────────────────────────────────────
+
+  setBrand(brand: Brand | undefined): void {
+    // No-op when the same Brand reference comes through twice. The
+    // Editor effect that calls this fires on every doc change, so
+    // skipping unchanged brands avoids gratuitous re-renders.
+    if (this.brand === brand) return;
+    const prev = this.brand;
+    this.brand = brand;
+    if (!this.canvas || !this.doc) return;
+    // Re-render only when the active surface has at least one logo
+    // layer — otherwise the brand swap has no visible effect.
+    if (this.activePageHasLogo() || prev !== brand) {
+      void this.renderActivePage();
+    }
+  }
+
+  private activePageHasLogo(): boolean {
+    if (!this.doc) return false;
+    const page = this.editingMasterId
+      ? this.doc.masterPages.find((m) => m.id === this.editingMasterId)
+      : this.doc.pages.find((p) => p.id === this.activePageId);
+    if (!page) return false;
+    return page.layers.some((l) => layerTreeHasLogo(l));
+  }
+
   // ─── Layer operations ─────────────────────────────────────────────────
 
   addLayer(pageId: string, layer: Layer): void {
     const page = this.requirePage(pageId);
     page.layers.push(clone(layer));
     if (this.isActiveSurface(pageId)) {
-      void layerToFabric(layer).then((obj) => {
+      void layerToFabric(layer, this.brand).then((obj) => {
         this.canvas?.add(obj);
         this.fabricByLayerId.set(layer.id, obj);
         this.canvas?.requestRenderAll();
@@ -422,7 +457,7 @@ export class FabricAdapter implements EditorAdapter {
         if (needsRecreate) {
           this.canvas?.remove(obj);
           this.fabricByLayerId.delete(layerId);
-          void layerToFabric(nextLayer).then((newObj) => {
+          void layerToFabric(nextLayer, this.brand).then((newObj) => {
             if (!this.canvas) return;
             this.canvas.add(newObj);
             this.canvas.moveObjectTo(newObj, idx);
@@ -650,6 +685,7 @@ export class FabricAdapter implements EditorAdapter {
       if (!master) return;
       this.fabricByLayerId = await renderPage(this.canvas, master, this.doc, {
         editingMaster: true,
+        brand: this.brand,
       });
       return;
     }
@@ -658,6 +694,7 @@ export class FabricAdapter implements EditorAdapter {
     if (!page) return;
     this.fabricByLayerId = await renderPage(this.canvas, page, this.doc, {
       editingMaster: false,
+      brand: this.brand,
     });
   }
 
@@ -995,4 +1032,12 @@ function walkLayersForPredicate(
       );
     }
   }
+}
+
+function layerTreeHasLogo(layer: Layer): boolean {
+  if (layer.kind === 'logo') return true;
+  if (layer.kind === 'group') {
+    return layer.children.some((c) => layerTreeHasLogo(c));
+  }
+  return false;
 }
