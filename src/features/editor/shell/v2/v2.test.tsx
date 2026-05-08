@@ -279,19 +279,18 @@ describe('EditorTopBar', () => {
     expect(onToggleTheme).toHaveBeenCalled();
   });
 
-  it('renders "Dev — saves disabled" badge when saveEnabled is false (Round 2 fix 1)', () => {
+  it('omits the save indicator entirely when saveEnabled is false', () => {
+    // The dev "Dev — saves disabled" badge was removed (2026-05-08
+    // cleanup) — its dev-only chrome was leaking into product. When
+    // saves are disabled, we render NOTHING in its place.
     const { container } = renderTopBar({ saveEnabled: false });
-    const badge = container.querySelector('[data-save-disabled-badge]');
-    expect(badge).toBeTruthy();
-    expect(badge?.textContent ?? '').toContain('Dev');
-    // The live save indicator must NOT render when saves are
-    // disabled — the badge replaces it (no chance of a "Save failed"
-    // text appearing in dev).
+    expect(container.querySelector('[data-save-disabled-badge]')).toBeNull();
+    expect(container.textContent ?? '').not.toContain('Dev — saves');
     expect(container.textContent ?? '').not.toContain('Save failed');
     expect(container.textContent ?? '').not.toContain('Saving…');
   });
 
-  it('renders the SaveStateIndicator when saveEnabled is true (default)', () => {
+  it('does not render the dev badge when saveEnabled is true (default)', () => {
     const { container } = renderTopBar();
     expect(container.querySelector('[data-save-disabled-badge]')).toBeNull();
   });

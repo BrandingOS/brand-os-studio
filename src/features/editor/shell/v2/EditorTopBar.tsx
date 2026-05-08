@@ -1,18 +1,26 @@
 // EditorTopBar — cosmos top-nav for the unified editor.
 //
-// Variant 4 (approved Step 5 direction). Three-column layout:
-//   • LEFT  — brand picker (current brand + chevron). 5a is mocked:
-//             the dropdown opens but only shows the current brand;
-//             5b wires `IBrandsService.list()` and route navigation.
-//   • CENTER — segmented Edit / Preview / Comments pill. Only "Edit"
-//             is functional in 5a; the others are visual placeholders.
-//   • RIGHT — Export pill-btn--primary + theme toggle.
+// Three-column layout, deliberately kept SIMPLE:
+//   • LEFT  — brand picker.
+//   • CENTER — segmented section nav (Setup · Brand Kit · Guideline ·
+//              Design · Tools). Pinned to the geometric center.
+//   • RIGHT — utility cluster: optional presence avatars, save-state
+//             dot, optional "More actions" dropdown (held by callers
+//             for Variants/Duplicate/Save-as-template/Share/Family),
+//             primary Export button, and theme toggle.
 //
-// Save state lives inline left of the Export button so the user can
-// always see whether their changes are persisted.
+// What used to live here and was removed (2026-05-08 cleanup):
+//   • The 360px AI prompt bar — moved to a floating "Ask AI" pill at
+//     the bottom of the canvas region (`EditorAiFloatingButton`).
+//   • The "Dev — saves disabled" badge — when `saveEnabled` is false
+//     we now render NOTHING in its place; dev harness state shouldn't
+//     leak into product chrome.
+//   • Per-action pill buttons (Variants, Duplicate, Save as template,
+//     Share, Family export, Republish) — folded into a single "⋯"
+//     `EditorMoreActionsMenu` rendered through the `moreActionsSlot`.
 
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Share2 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import {
   SaveStateIndicator,
@@ -81,65 +89,27 @@ interface Props {
   /** Auto-save state — feeds the inline indicator. */
   saveState: EditorSaveState;
   onRetrySave?: () => void;
-  /** When false, the topbar replaces the live save indicator with a
-   *  small "Dev — saves disabled" badge. Used by /_dev/editor. */
+  /** When false, the live save indicator is omitted entirely. */
   saveEnabled?: boolean;
   /** Theme — driven by the cosmos data-theme attribute on the wrapper. */
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  /** Optional Export click handler. 5a fires a placeholder; real
-   *  export wiring is part of Phase 4 (templates). */
+  /** Optional Export click handler. */
   onExport?: () => void;
-  /** Phase 4.5 — Share button. Copies the canonical share URL to
-   *  clipboard. When undefined, the Share button is hidden. */
-  onShare?: () => void;
   /**
-   * Phase 3.5 — slot for the AI prompt bar. The Editor passes
-   * <EditorAiPromptBar /> here. Sits between the workspace section
-   * nav and the right cluster (save indicator + Export + theme),
-   * matching the vision §3 top-chrome layout. The slot is optional
-   * so callers without an AI agent (tests, dev harnesses) can still
-   * render the topbar.
-   */
-  aiPromptSlot?: React.ReactNode;
-  /**
-   * Phase 4.2 — slot for the "Save as template" button. The Editor
-   * passes <EditorSaveAsTemplateButton/> here. Sits in the right
-   * cluster, left of Export, only when the editor has a brandKit.
-   */
-  saveAsTemplateSlot?: React.ReactNode;
-  /**
-   * Phase 5.1a — slot for the "Generate variants" button. The Editor
-   * passes <EditorGenerateVariantsButton/> here. Sits in the right
-   * cluster, left of Save-as-template, only when the active doc has
-   * a content type with non-trivial dimension presets.
-   */
-  generateVariantsSlot?: React.ReactNode;
-  /**
-   * Phase 5.4 — slot for the "Export family" button. The Editor passes
-   * <EditorExportFamilyButton/> here. Renders only when the active doc
-   * has a familyId (so the button never appears on lone designs).
-   */
-  exportFamilySlot?: React.ReactNode;
-  /**
-   * Phase 5.3b — slot for the "Republish family" button. Renders only
-   * on family SOURCES (familyId set + no sourceDesignId). Click rebuilds
-   * every variant from the current source state.
-   */
-  republishFamilySlot?: React.ReactNode;
-  /**
-   * Phase 7.2 — slot for the multiplayer presence avatar stack. The
-   * Editor passes <EditorPresenceAvatars/> here. Renders nothing when
-   * no other users are connected, so the stack is invisible during
-   * solo work.
+   * Slot for the multiplayer presence avatar stack. Renders nothing
+   * when no teammates are connected, so it's invisible during solo
+   * work.
    */
   presenceSlot?: React.ReactNode;
   /**
-   * Phase 7.5 — slot for the "Duplicate design" button. The Editor
-   * passes <EditorDuplicateDesignButton/> here. Brand-scoped only;
-   * absent when there's no brand context.
+   * Optional "More actions" dropdown (Variants / Duplicate / Save as
+   * template / Share / Family export / Republish). The Editor passes
+   * `<EditorMoreActionsMenu>` containing the active action buttons.
+   * When the menu has no children to show, callers should pass
+   * `undefined` so the trigger is hidden.
    */
-  duplicateSlot?: React.ReactNode;
+  moreActionsSlot?: React.ReactNode;
 }
 
 export function EditorTopBar({
@@ -152,14 +122,8 @@ export function EditorTopBar({
   theme,
   onToggleTheme,
   onExport,
-  onShare,
-  aiPromptSlot,
-  saveAsTemplateSlot,
-  generateVariantsSlot,
-  exportFamilySlot,
-  republishFamilySlot,
   presenceSlot,
-  duplicateSlot,
+  moreActionsSlot,
 }: Props) {
   const navigate = useNavigate();
 
@@ -185,12 +149,8 @@ export function EditorTopBar({
     }
   };
 
-  const wrapClassName = aiPromptSlot
-    ? 'top-nav-wrap top-nav-wrap--with-ai'
-    : 'top-nav-wrap';
-
   return (
-    <header className={wrapClassName} role="banner">
+    <header className="top-nav-wrap" role="banner">
       <div className="top-nav-left">
         <BrandPicker
           brand={brand}
@@ -199,11 +159,10 @@ export function EditorTopBar({
         />
       </div>
 
-      {/* Round 2 fix 2 — workspace section nav (Setup / Brand Kit /
-          Guideline / Design / Tools). Same shared SegmentedNav
-          primitive /setup uses. "Design" is always active because
-          the editor IS the Design surface; clicking another section
-          navigates away from the editor to that brand-section page. */}
+      {/* Workspace section nav (Setup / Brand Kit / Guideline / Design /
+          Tools). Same shared SegmentedNav /setup uses. "Design" is
+          always active because the editor IS the Design surface;
+          clicking another section navigates away. */}
       <SegmentedNav
         mode="state"
         ariaLabel="Brand sections"
@@ -215,49 +174,12 @@ export function EditorTopBar({
         }}
       />
 
-      {aiPromptSlot ? (
-        <div data-ai-prompt-slot className="top-nav-ai">
-          {aiPromptSlot}
-        </div>
-      ) : null}
-
       <div className="top-nav-right">
         {presenceSlot}
         {saveEnabled ? (
           <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
-        ) : (
-          <span
-            data-save-disabled-badge
-            className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium whitespace-nowrap shrink-0"
-            style={{
-              background: 'var(--surface-sunken, #f2f1f0)',
-              color: 'var(--text-secondary, #6e6a69)',
-              border: '1px solid var(--border, rgba(13, 13, 13, 0.12))',
-            }}
-            title="Auto-save is disabled in this dev harness."
-          >
-            Dev — saves disabled
-          </span>
-        )}
-        {republishFamilySlot}
-        {exportFamilySlot}
-        {generateVariantsSlot}
-        {duplicateSlot}
-        {saveAsTemplateSlot}
-        {onShare ? (
-          <button
-            type="button"
-            data-share-button
-            onClick={onShare}
-            aria-label="Copy share link"
-            title="Copy share link"
-            className="inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-[11px] font-medium hover:bg-muted/30 whitespace-nowrap shrink-0"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <Share2 size={14} aria-hidden className="shrink-0" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
         ) : null}
+        {moreActionsSlot}
         <button
           type="button"
           className="pill-btn pill-btn--primary"

@@ -39,11 +39,13 @@ import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocume
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar } from './v2/EditorTopBar';
-import { EditorAiPromptBar } from './v2/EditorAiPromptBar';
+import { EditorAiFloatingButton } from './v2/EditorAiFloatingButton';
+import { EditorMoreActionsMenu } from './v2/EditorMoreActionsMenu';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
 import { EditorGenerateVariantsButton } from './v2/EditorGenerateVariantsButton';
 import { EditorExportFamilyButton } from './v2/EditorExportFamilyButton';
 import { EditorRepublishFamilyButton } from './v2/EditorRepublishFamilyButton';
+import { Share2 } from 'lucide-react';
 import { useAiAgent } from '@/features/editor/ai/useAiAgent';
 import { applyAICommandResult } from '@/features/editor/ai/applyResult';
 import { activityService } from '@/shared/services/activityService';
@@ -68,7 +70,6 @@ import { EditorDuplicateDesignButton } from './v2/EditorDuplicateDesignButton';
 import { EditorShortcutHelp } from './v2/EditorShortcutHelp';
 import { useDesignCursors } from '@/features/editor/collab/useDesignCursors';
 import { EditorCursorOverlay } from '@/features/editor/collab/EditorCursorOverlay';
-import { CommentsPanel } from '@/features/comments/CommentsPanel';
 import '@/shared/styles/workspace.css';
 
 // Layout constants — kept in sync with the CSS vars defined on the
@@ -513,44 +514,6 @@ export function Editor({
           saveEnabled={saveEnabled}
           theme={theme}
           onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-          onShare={onShare}
-          saveAsTemplateSlot={
-            brandKit ? (
-              <EditorSaveAsTemplateButton
-                getDoc={() => adapter.getDocument()}
-                brandKit={brandKit}
-              />
-            ) : undefined
-          }
-          generateVariantsSlot={
-            brand ? (
-              <EditorGenerateVariantsButton
-                getDoc={() => adapter.getDocument()}
-                brandId={brand.id}
-                brandSlug={brand.slug}
-                sourceName={doc.metadata?.name as string | undefined}
-              />
-            ) : undefined
-          }
-          duplicateSlot={
-            brand ? (
-              <EditorDuplicateDesignButton
-                getDoc={() => adapter.getDocument()}
-                brandId={brand.id}
-                brandSlug={brand.slug}
-                sourceName={doc.metadata?.name as string | undefined}
-              />
-            ) : undefined
-          }
-          exportFamilySlot={
-            brand && doc.familyId ? (
-              <EditorExportFamilyButton
-                getDoc={() => adapter.getDocument()}
-                brandId={brand.id}
-                sourceName={doc.metadata?.name as string | undefined}
-              />
-            ) : undefined
-          }
           presenceSlot={
             brand ? (
               <EditorPresenceAvatars
@@ -559,55 +522,60 @@ export function Editor({
               />
             ) : undefined
           }
-          republishFamilySlot={
-            brand && doc.familyId && !doc.sourceDesignId ? (
-              <EditorRepublishFamilyButton
-                getDoc={() => adapter.getDocument()}
-                brandId={brand.id}
-                sourceName={doc.metadata?.name as string | undefined}
-              />
-            ) : undefined
-          }
-          aiPromptSlot={
-            effectiveAgent && brand ? (
-              <EditorAiPromptBar
-                agent={effectiveAgent}
-                initialValue={initialPrompt}
-                getDoc={() => adapter.getDocument()}
-                getContext={(): AICommandContext => ({
-                  activePageId,
-                  selection: selection.layerIds,
-                  brand,
-                })}
-                onApply={(result: AICommandResult) => {
-                  // Phase 3.5 commit 6 — Mode 2/3/4 dispatcher.
-                  // Mode 5 (validateAICommandResult) has already
-                  // run inside applyCommand; we hand the validated
-                  // result to applyAICommandResult which wraps
-                  // every op in adapter.batch(label, fn) so the
-                  // entire AI mutation lands as a single labeled
-                  // undo entry. 'rejected' is a no-op here — the
-                  // prompt bar surfaces the message inline.
-                  applyAICommandResult(adapter, result);
-                  // Phase 7.4b — log successful applies (delta /
-                  // replace) to the activity feed so designers can
-                  // see "where the AI helped" across the workspace.
-                  if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
-                    void activityService.log({
-                      brandId: brand.id,
-                      brandName: brand.name,
-                      eventType: 'brand_updated',
-                      title: result.label || 'AI: design update',
-                      description: result.message,
-                      metadata: {
-                        ai: true,
-                        kind: result.kind,
-                        designId: doc.id,
-                      },
-                    });
-                  }
-                }}
-              />
+          moreActionsSlot={
+            brand || brandKit || onShare ? (
+              <EditorMoreActionsMenu>
+                {brand ? (
+                  <EditorGenerateVariantsButton
+                    getDoc={() => adapter.getDocument()}
+                    brandId={brand.id}
+                    brandSlug={brand.slug}
+                    sourceName={doc.metadata?.name as string | undefined}
+                  />
+                ) : null}
+                {brand ? (
+                  <EditorDuplicateDesignButton
+                    getDoc={() => adapter.getDocument()}
+                    brandId={brand.id}
+                    brandSlug={brand.slug}
+                    sourceName={doc.metadata?.name as string | undefined}
+                  />
+                ) : null}
+                {brandKit ? (
+                  <EditorSaveAsTemplateButton
+                    getDoc={() => adapter.getDocument()}
+                    brandKit={brandKit}
+                  />
+                ) : null}
+                {onShare ? (
+                  <button
+                    type="button"
+                    data-share-button
+                    onClick={onShare}
+                    aria-label="Copy share link"
+                    title="Copy share link"
+                    className="inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-[12px] font-medium hover:bg-muted/30 whitespace-nowrap"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    <Share2 size={14} aria-hidden className="shrink-0" />
+                    <span>Share link</span>
+                  </button>
+                ) : null}
+                {brand && doc.familyId && !doc.sourceDesignId ? (
+                  <EditorRepublishFamilyButton
+                    getDoc={() => adapter.getDocument()}
+                    brandId={brand.id}
+                    sourceName={doc.metadata?.name as string | undefined}
+                  />
+                ) : null}
+                {brand && doc.familyId ? (
+                  <EditorExportFamilyButton
+                    getDoc={() => adapter.getDocument()}
+                    brandId={brand.id}
+                    sourceName={doc.metadata?.name as string | undefined}
+                  />
+                ) : null}
+              </EditorMoreActionsMenu>
             ) : undefined
           }
         />
@@ -850,19 +818,52 @@ export function Editor({
               )}
             </div>
           ) : null}
+
+          {/* Floating "Ask AI" pill — replaces the inline AI prompt
+              bar that used to sit in the top chrome. Anchored to the
+              bottom of the canvas region; click opens a popover with
+              the prompt input. Hidden when there's no agent or no
+              brand (the prompt needs brand context to ground edits). */}
+          {effectiveAgent && brand ? (
+            <EditorAiFloatingButton
+              agent={effectiveAgent}
+              initialValue={initialPrompt}
+              getDoc={() => adapter.getDocument()}
+              getContext={(): AICommandContext => ({
+                activePageId,
+                selection: selection.layerIds,
+                brand,
+              })}
+              onApply={(result: AICommandResult) => {
+                applyAICommandResult(adapter, result);
+                if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
+                  void activityService.log({
+                    brandId: brand.id,
+                    brandName: brand.name,
+                    eventType: 'brand_updated',
+                    title: result.label || 'AI: design update',
+                    description: result.message,
+                    metadata: {
+                      ai: true,
+                      kind: result.kind,
+                      designId: doc.id,
+                    },
+                  });
+                }
+              }}
+            />
+          ) : null}
         </div>
 
-        {/* Phase 11.1 — First-visit welcome tip pointing at the
-            new AI prompt + comments + presence affordances.
-            Self-dismissing; only ever shows once per browser. */}
+        {/* First-visit welcome tip — self-dismissing, ever shows once
+            per browser. */}
         <EditorWelcomeTip />
 
-        {/* Phase 11.3 — Keyboard shortcut help. Press `?` to open. */}
+        {/* Keyboard shortcut help — press `?` to open. */}
         <EditorShortcutHelp />
 
-        {/* Phase 7.3 — Multiplayer cursor overlay. Sits at the
-            top-most fixed layer; renders nothing for solo work
-            (cursorPeers is empty). */}
+        {/* Multiplayer cursor overlay — top-most fixed layer; renders
+            nothing during solo work (cursorPeers is empty). */}
         {brand ? (
           <EditorCursorOverlay
             others={cursorPeers}
@@ -871,17 +872,9 @@ export function Editor({
           />
         ) : null}
 
-        {/* Phase 7.1 — Collaboration: comments scoped to the active
-            design. Floating bottom-right; trigger button hides while
-            the drawer is open. Shows nothing when there's no brand
-            (standalone editor mode). */}
-        {brand ? (
-          <CommentsPanel
-            brandId={brand.id}
-            pageKey={`design:${doc.id}`}
-            pageLabel={(doc.metadata?.name as string | undefined) ?? 'Design'}
-          />
-        ) : null}
+        {/* CommentsPanel intentionally not rendered during the design
+            session — comments belong to share/review mode, not active
+            editing. Re-mount it from the share surface when that lands. */}
       </div>
     </div>
   );

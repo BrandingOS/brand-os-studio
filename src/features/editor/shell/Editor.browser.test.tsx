@@ -290,17 +290,13 @@ describe('Step 5a — Floating toolbar appears on selection', () => {
     expect(toolbar?.querySelector('button[data-scope-toggle]')).toBeNull();
   });
 
-  it('mounts a Comments trigger when brand is supplied (Phase 7.1)', async () => {
+  it('does not mount the Comments trigger during the design session (2026-05-08 cleanup)', async () => {
+    // Comments belong to share/review mode, not active editing. The
+    // CommentsPanel render was removed from the editor; it'll be
+    // re-mounted from the share surface when that lands.
     const { container } = await mountEditor();
     const trigger = container.querySelector('button[aria-label="Open comments"]');
-    expect(trigger, 'Comments trigger should mount when brand is present').toBeTruthy();
-    // Click opens the drawer.
-    fireEvent.click(trigger!);
-    // The drawer is portaled inside the same DOM tree (not a Radix
-    // portal) so the heading shows up under the same container.
-    await new Promise((r) => setTimeout(r, 30));
-    expect(container.textContent ?? '').toContain('Comments');
-    expect(container.textContent ?? '').toContain('No comments yet');
+    expect(trigger, 'Comments trigger must NOT render in the editor session').toBeNull();
   });
 
   it('hides the toolbar when selection is cleared', async () => {

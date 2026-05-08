@@ -111,19 +111,36 @@ async function mountEditor(opts: MountOpts = {}) {
 
 // ─── Flow 1 — Save as template ─────────────────────────────────────────
 
-describe('Phase 4.2 — Save as template (top-chrome button)', () => {
+// "Save as template" lives inside the editor's "More actions" (⋯)
+// dropdown in the top chrome (2026-05-08 cleanup) — these helpers
+// open it before fetching the trigger.
+async function openSaveAsTemplateForm(container: HTMLElement) {
+  const moreTrigger = container.querySelector<HTMLButtonElement>(
+    '[data-editor-more-actions-trigger]',
+  );
+  expect(moreTrigger, 'More actions trigger should be present').toBeTruthy();
+  fireEvent.click(moreTrigger!);
+  await waitFor(() => {
+    expect(
+      container.querySelector('[data-editor-more-actions-popover]'),
+    ).toBeTruthy();
+  });
+
+  const trigger = container.querySelector<HTMLButtonElement>(
+    '[data-save-as-template-trigger]',
+  );
+  expect(trigger, 'save-as-template trigger should be inside More menu').toBeTruthy();
+  fireEvent.click(trigger!);
+  await waitFor(() => {
+    expect(container.querySelector('[data-save-as-template-popover]')).toBeTruthy();
+  });
+}
+
+describe('Phase 4.2 — Save as template (More actions menu)', () => {
   it('clicking Save → fills name → submits → ITemplatesService.createTemplate called with brand-bound doc', async () => {
     const { container, createSpy } = await mountEditor();
 
-    // Open the popover.
-    const trigger = container.querySelector<HTMLButtonElement>('[data-save-as-template-trigger]');
-    expect(trigger).toBeTruthy();
-    fireEvent.click(trigger!);
-
-    // Form mounts.
-    await waitFor(() => {
-      expect(container.querySelector('[data-save-as-template-popover]')).toBeTruthy();
-    });
+    await openSaveAsTemplateForm(container);
 
     // Fill name + submit.
     const nameInput = container.querySelector<HTMLInputElement>('[data-save-as-template-name]')!;
@@ -149,8 +166,8 @@ describe('Phase 4.2 — Save as template (top-chrome button)', () => {
 
   it('public visibility → uploadStatus = pending (4.4 admin queue)', async () => {
     const { container, createSpy } = await mountEditor();
-    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-save-as-template-trigger]')!);
-    await waitFor(() => container.querySelector('[data-save-as-template-popover]'));
+
+    await openSaveAsTemplateForm(container);
 
     fireEvent.change(
       container.querySelector<HTMLInputElement>('[data-save-as-template-name]')!,
@@ -170,8 +187,8 @@ describe('Phase 4.2 — Save as template (top-chrome button)', () => {
 
   it('rejects empty name (toast + no createTemplate call)', async () => {
     const { container, createSpy } = await mountEditor();
-    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-save-as-template-trigger]')!);
-    await waitFor(() => container.querySelector('[data-save-as-template-popover]'));
+
+    await openSaveAsTemplateForm(container);
 
     // Submit button is disabled when name is empty (defensive check
     // beyond the toast — verify the submit can't fire).

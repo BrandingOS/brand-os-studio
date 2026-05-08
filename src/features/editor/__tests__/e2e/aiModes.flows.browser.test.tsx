@@ -87,8 +87,18 @@ async function mount(args: {
 }
 
 async function submitPrompt(container: HTMLElement, text: string): Promise<void> {
+  // The AI prompt now lives in a floating "Ask AI" popover anchored
+  // at the bottom of the canvas region (2026-05-08 cleanup). Open it
+  // before driving the input.
+  if (!container.querySelector('[data-ai-prompt-input]')) {
+    const trigger = container.querySelector<HTMLButtonElement>(
+      '[data-editor-ai-floating-trigger]',
+    );
+    if (!trigger) throw new Error('Ask AI floating trigger not in DOM');
+    fireEvent.click(trigger);
+  }
   const input = container.querySelector<HTMLTextAreaElement>('[data-ai-prompt-input]');
-  if (!input) throw new Error('AI prompt input not in DOM');
+  if (!input) throw new Error('AI prompt input not in DOM after opening popover');
   fireEvent.change(input, { target: { value: text } });
   fireEvent.click(container.querySelector<HTMLButtonElement>('[data-ai-prompt-send]')!);
 }

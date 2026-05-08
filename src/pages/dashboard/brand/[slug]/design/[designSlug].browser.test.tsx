@@ -168,9 +168,21 @@ describe('BrandDesignEditorPage — production editor route', () => {
       expect(container.querySelector('[data-editor-canvas-region]')).toBeTruthy();
     }, { timeout: 5000 });
 
-    // Click Share.
+    // Share now lives inside the editor's "More actions" (⋯) dropdown
+    // (2026-05-08 cleanup) — open the menu before clicking it.
+    const moreTrigger = container.querySelector<HTMLButtonElement>(
+      '[data-editor-more-actions-trigger]',
+    );
+    expect(moreTrigger, 'More actions trigger not in topbar').toBeTruthy();
+    fireEvent.click(moreTrigger!);
+    await waitFor(() => {
+      expect(
+        container.querySelector('[data-editor-more-actions-popover]'),
+      ).toBeTruthy();
+    });
+
     const shareBtn = container.querySelector<HTMLButtonElement>('[data-share-button]');
-    expect(shareBtn, 'Share button not in topbar').toBeTruthy();
+    expect(shareBtn, 'Share button not in More menu').toBeTruthy();
     fireEvent.click(shareBtn!);
 
     await waitFor(() => {
