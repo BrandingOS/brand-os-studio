@@ -173,9 +173,11 @@ export function visuallyClose(a: string, b: string): boolean {
  * Logos drilldown.
  *
  * Mark colors are restricted to {Primary, Secondary, White} — the
- * three logo treatments every brand kit needs. Backgrounds span every
- * brand color (core + accent + grey). Pairs where the mark would be
- * invisible against the bg (exact match or low contrast) are skipped.
+ * three logo treatments every brand kit needs. Backgrounds span the
+ * brand's core + accent colors only — neutrals are intentionally
+ * excluded so the kit shows on-brand pairings, not grey-on-grey
+ * variations. Pairs where the mark would be invisible against the
+ * bg (exact match or low contrast) are skipped.
  *
  * Used both to enumerate synthetic templates and to look up a combo
  * by index from the renderer.
@@ -198,7 +200,6 @@ export function logoCombosFor(brand: {
   const allBackgrounds = [
     ...brand.colors.core,
     ...brand.colors.accent,
-    ...brand.colors.grey,
   ];
   const backgrounds: typeof allBackgrounds = [];
   for (const bg of allBackgrounds) {
