@@ -153,10 +153,12 @@ function brandAssetTemplates(
   moduleId: string,
   brand: MockBrand,
 ): BrandKitTemplate[] {
+  // Neutrals (grey) are intentionally excluded from the Colors
+  // drilldown — the brand kit should surface on-brand swatches, not
+  // the auto-generated grey ramp.
   const allColors = [
     ...brand.colors.core,
     ...brand.colors.accent,
-    ...brand.colors.grey,
   ];
 
   if (moduleId === '__brand-asset-logo__') {

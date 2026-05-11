@@ -66,22 +66,19 @@ export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
 export function BrandAssetColorRenderer({ brand, templateIndex }: Props) {
   const core = brand.colors.core;
   const accent = brand.colors.accent;
-  const grey = brand.colors.grey;
-  const colors = [...core, ...accent, ...grey];
+  // Neutrals are intentionally excluded from the Colors drilldown —
+  // keep the renderer's color array in sync with the template list.
+  const colors = [...core, ...accent];
   const c = colors[templateIndex];
   if (!c) return null;
   // Resolve the usage role for the small-caps label above the name.
   // Mirrors the editor's mapping: core slots are Primary / Secondary
-  // / Background, accents and neutrals get bucket-level labels.
+  // / Background; accents get the bucket-level "Accent" label.
   const CORE_ROLES = ['Primary', 'Secondary', 'Background'] as const;
-  let role: string;
-  if (templateIndex < core.length) {
-    role = CORE_ROLES[templateIndex] ?? `Core ${templateIndex + 1}`;
-  } else if (templateIndex - core.length < accent.length) {
-    role = 'Accent';
-  } else {
-    role = 'Neutral';
-  }
+  const role =
+    templateIndex < core.length
+      ? CORE_ROLES[templateIndex] ?? `Core ${templateIndex + 1}`
+      : 'Accent';
   return (
     <div
       className="brand-asset-render brand-asset-render--color"
