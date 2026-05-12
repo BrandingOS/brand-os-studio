@@ -14,11 +14,28 @@
 
 ### Spec corrections discovered during plan write
 
-1. **Migration number is `010`, not `009`.** Spec says "Migration 009 (idempotent)" but the live `supabase/migrations/` already contains `20260504000000_009_templates_phase_4.sql`. The next available number is **010**. Filename convention is `YYYYMMDDhhmmss_NNN_<name>.sql`. Today (2026-05-12) → `20260512000000_010_brand_kit_premium.sql`. All references to "migration 009" in spec text refer to this 010 file in practice.
+1. **Migration number is `010`, not `009`.** Spec says "Migration 009 (idempotent)" but the live `supabase/migrations/` already contains `20260504000000_009_templates_phase_4.sql`. The next available number is **010**. Filename convention is `YYYYMMDDhhmmss_NNN_<name>.sql`. Today (2026-05-12) → `20260512230000_010_brand_kit_premium.sql`. All references to "migration 009" in spec text refer to this 010 file in practice.
 
 2. **`BrandKitCardEditor` lives at `src/features/brand-kit/components/BrandKitCardEditor.tsx:475`** (NOT at the top-level of `features/brand-kit/`). The `tech-debt-tag: brand-kit-overlay-v1` applies to this file. Mounted from `BrandKitCosmosPage.tsx:819`.
 
 3. **`BrandKitCosmosPage.tsx` is 1407 LOC.** Every sub-project touches it. Per constraint #7, each sub-project groups its `BrandKitCosmosPage.tsx` edits into ONE task to minimize merge surface with parallel pipelines.
+
+4. **Migration timestamp uses `230000` (11pm UTC) hour slot.** Migrations 001–009 used `000000`, `100000`, or `200000` (midnight, 10am, 8pm UTC). Parallel pipelines following the same convention would collide. Plan uses `20260512230000_010_brand_kit_premium.sql` to be safe even though no 010 file currently exists.
+
+5. **`ai-proxy` Edge Function (referenced in spec) is actually `ai-apply-command`.** Live file: `supabase/functions/ai-apply-command/index.ts` — shipped in Phase 3.5 commit 4. The spec's "ai-proxy" naming is generic; the actual function name is `ai-apply-command`. All plan references use the actual name.
+
+6. **`generateFromPrompt` AI routing is ALREADY SAFE for the path Sub-project B introduces.** Investigation: `generateFromPrompt → args.agent.applyCommand(...) → injected agent from useAiAgent → createEdgeFunctionAgent (src/features/editor/ai/applyCommand.ts) → ai-apply-command Edge Function`. Sub-project B does NOT introduce new inline-key usage. The broader Issue #2 concern (other features still use `VITE_ANTHROPIC_API_KEY`: `claudeProvider.ts:77,97`, `anthropicProvider.ts:17`) is a public-launch blocker but NOT a B-specific blocker. See **Task B.0** for the explicit Issue #2 ownership / status documentation step.
+
+### Execution mode (mixed — per user mandate)
+
+| Sub-project | Mode | Reason |
+|-------------|------|--------|
+| **A** | `superpowers:subagent-driven-development` | Schema + service layer + store helpers. **High blast radius** — wrong schema or store helper poisons every other sub-project. Fresh subagent per task + two-stage review prevents drift. |
+| **B** | `superpowers:subagent-driven-development` | AI integration + editor save-back + overwrite-warning dialog. **High blast radius** — wrong AI routing or save-back logic corrupts user designs. Per-task review catches issues early. |
+| **C** | `superpowers:executing-plans` | Templates UI integration + seed data + URL filter wiring. **Lower risk** — UI changes are recoverable; seed data adds are isolated. Inline execution with batch checkpoints is faster. |
+| **D** | `superpowers:executing-plans` | UI components (cards, button, modal) + ports of existing helpers. **Lower risk** — most code is new + isolated; alt-fork promotion (D.1) is the one delicate task but is well-bounded. Inline execution with batch checkpoints is faster. |
+
+When kicking off A/B subagents: one task = one fresh subagent invocation, two-stage review at completion (PR-style review + verification), then next subagent dispatched. When kicking off C/D inline: review in batches at logical commit boundaries (every 3–5 tasks) plus the mandatory checkpoint at sub-project end.
 
 ### Spec reference
 
@@ -119,14 +136,14 @@ C and D run as **two parallel subagent pipelines** after Checkpoint B closes. Ea
 ### Task A.1: Write migration 010 SQL (up + down) — no apply
 
 **Files:**
-- Create: `supabase/migrations/20260512000000_010_brand_kit_premium.sql`
+- Create: `supabase/migrations/20260512230000_010_brand_kit_premium.sql`
 - Create: `supabase/migrations/down/010_brand_kit_premium.down.sql`
 
 Estimated: 1 hour.
 
 - [ ] **Step 1: Create the up migration file**
 
-Write to `supabase/migrations/20260512000000_010_brand_kit_premium.sql`:
+Write to `supabase/migrations/20260512230000_010_brand_kit_premium.sql`:
 
 ```sql
 -- Migration 010: Brand Kit Premium
@@ -201,14 +218,14 @@ ALTER TABLE brands DROP COLUMN IF EXISTS brand_kit_designs;
 
 If the dev has a local Postgres, run:
 ```bash
-psql -h localhost -U postgres -c "$(cat supabase/migrations/20260512000000_010_brand_kit_premium.sql)" --dry-run 2>&1 | head -20
+psql -h localhost -U postgres -c "$(cat supabase/migrations/20260512230000_010_brand_kit_premium.sql)" --dry-run 2>&1 | head -20
 ```
 Expected: no syntax errors. (psql dry-run isn't a real thing — use `EXPLAIN` against statements or just trust the migration applies in A.2.)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/20260512000000_010_brand_kit_premium.sql supabase/migrations/down/010_brand_kit_premium.down.sql
+git add supabase/migrations/20260512230000_010_brand_kit_premium.sql supabase/migrations/down/010_brand_kit_premium.down.sql
 git commit -m "feat(brandkit): add migration 010 — brand_kit_designs + brand_kit_exports
 
 Adds brand_kit_designs JSONB column to brands (per-card binding pointers)
@@ -239,7 +256,7 @@ Run from project root:
 ```bash
 supabase db push --linked
 ```
-Expected: "Applied migration 20260512000000_010_brand_kit_premium". If you don't have CLI access, use the Supabase dashboard SQL editor to paste `up.sql`.
+Expected: "Applied migration 20260512230000_010_brand_kit_premium". If you don't have CLI access, use the Supabase dashboard SQL editor to paste `up.sql`.
 
 - [ ] **Step 2: Verify `brand_kit_designs` column exists**
 
@@ -1265,70 +1282,156 @@ Verify before unblocking B:
 
 **Touches:** `src/features/editor/schema/index.ts` (metadata fields) · `src/features/brandkit/ai/useGenerateForCard.ts` (new) · `BrandKitChoiceModal.tsx` (new) · `BrandKitCosmosPage.tsx` (grouped task) · editor's autosave hook (one task)
 
-**Estimated total:** ~32 hours across 14 tasks.
+**Estimated total:** ~32 hours across 15 tasks (was 14 — B.0 added).
 
-⚠ **Prerequisite P1 check (Task B.1) gates the AI branch.** If `generateFromPrompt` still uses `VITE_ANTHROPIC_API_KEY`, the AI option in the Choice modal renders as "Coming soon" until Issue #2 closes. B's Blank + Templates branches still ship.
+⚠ **Prerequisite P1.** Per plan-write investigation, the specific code path this sub-project introduces (`useGenerateForCard → generateFromPrompt → agent.applyCommand → ai-apply-command Edge Function`) is already safe. The broader Issue #2 concern — `VITE_ANTHROPIC_API_KEY` still embedded in the client bundle via OTHER providers (`claudeProvider.ts`, `anthropicProvider.ts`) — is a public-launch blocker that this plan does NOT address but MUST document. **Task B.0 documents Issue #2 ownership and status before B.1's narrower path-specific verification.**
 
 ---
 
-### Task B.1: Verify generateFromPrompt routing (P1 gate)
+### Task B.0: Issue #2 ownership + status documentation (hard prerequisite)
 
-**Files:** read-only investigation. No code changes.
+**Files:**
+- Create: `docs/superpowers/plans/runbook/B.0-issue-2-status.md`
 
-Estimated: 1 hour.
+Estimated: 0.5 hours.
 
-- [ ] **Step 1: Inspect generateFromPrompt for inline key usage**
+This task does NOT close Issue #2. It DOCUMENTS its current state, owner (or absence thereof), and the scope boundary between what Sub-project B does and does not address.
 
+- [ ] **Step 1: Determine Issue #2 owner**
+
+If `gh` CLI is available:
 ```bash
-grep -n "VITE_ANTHROPIC_API_KEY\|process.env.ANTHROPIC\|import.meta.env" src/features/templates/generateFromPrompt.ts
-grep -n "ai-proxy\|aiProxy" src/features/templates/generateFromPrompt.ts
+gh issue view 2
 ```
 
-- [ ] **Step 2: Inspect the underlying agent transport**
+If not available, ask the user explicitly: "Who owns Issue #2 (AI proxy migration)?" Record the answer. If unowned → flag in the doc that this is a known unowned blocker for public launch.
 
-```bash
-grep -rn "ai-proxy" supabase/functions 2>/dev/null
-grep -rn "anthropic\|@anthropic-ai/sdk" src/features/templates 2>/dev/null
-```
+- [ ] **Step 2: Write the status doc**
 
-- [ ] **Step 3: Record findings in a verification doc**
-
-Write `docs/superpowers/plans/runbook/B.1-p1-check.md`:
+Write `docs/superpowers/plans/runbook/B.0-issue-2-status.md`:
 
 ```markdown
-# P1 check — AI proxy routing for generateFromPrompt
+# Issue #2 — AI proxy migration status (gating context for B)
 
 Date: 2026-05-12
-Verifier: <agent name>
+Plan: docs/superpowers/plans/2026-05-12-brand-kit-premium.md
 
-## Findings
+## Current state (verified from codebase, 2026-05-12)
 
-- `generateFromPrompt` uses VITE_ANTHROPIC_API_KEY directly: YES / NO
-- `ai-proxy` Edge Function deployed: YES / NO
-- Path used by `generateFromPrompt` for the actual API call: <path>
+- `ai-apply-command` Edge Function: **shipped** (Phase 3.5 commit 4) at
+  `supabase/functions/ai-apply-command/index.ts`.
+- `generateFromPrompt` (used by Sub-project B's "Generate with AI"
+  branch) routes through this Edge Function via the injected `AIAgent`
+  built by `useAiAgent → createEdgeFunctionAgent`. **Safe path.**
+- `VITE_ANTHROPIC_API_KEY` STILL embedded in client bundle via:
+  - `src/features/ai/v5/providers/claudeProvider.ts:77,97`
+  - `src/features/brand-consistency/providers/anthropicProvider.ts:17`
+    (direct fetch to `api.anthropic.com/v1/messages` from browser)
+
+## What this means for Sub-project B
+
+- B's AI branch (Choice modal "Generate with AI") IS safe to ship —
+  it does NOT add a new inline-key code path.
+- B does NOT close Issue #2.
+
+## What this means for public launch
+
+- **Public launch is still blocked** by the OTHER inline-key call sites
+  (claudeProvider, anthropicProvider). Until they migrate to
+  `ai-apply-command` (or a new Edge Function), the key is in the
+  bundle.
+
+## Owner
+
+- Issue #2 owner: [FILL FROM gh CLI or USER]
+- Last progress: commit 244465b (Step 1 — ai_rate_limits + shared
+  edge function helpers), commit b0ec5ac (fix migration 008
+  idempotency). Steps 2+ paused per CLAUDE.md.
 
 ## Decision
 
-- [ ] **P1 SATISFIED** — `generateFromPrompt` routes through `ai-proxy`.
-      Sub-project B's "Generate with AI" branch is GO.
-- [ ] **P1 BLOCKED** — `generateFromPrompt` still uses inline key.
-      Sub-project B ships Blank + Templates branches only. AI option
-      shows "Coming soon" placeholder. Issue #2 must close before AI
-      branch ships. Escalate to user.
+- [ ] **Sub-project B GO** — B's AI branch ships via the safe
+      `ai-apply-command` path. Issue #2 remains open as a separate
+      public-launch blocker.
+- [ ] **Sub-project B AI branch HOLD** — User decides to block B's
+      AI branch until Issue #2 closes entirely. Choice modal "Generate
+      with AI" option renders as "Coming soon" placeholder. Blank +
+      Templates branches still ship.
 
-(Mark exactly one — based on findings above.)
+(Mark exactly one — based on user decision after reading.)
 ```
 
-- [ ] **Step 4: Commit + ESCALATE if blocked**
+- [ ] **Step 3: Commit + WAIT for user decision before B.1**
 
 ```bash
-git add docs/superpowers/plans/runbook/B.1-p1-check.md
-git commit -m "docs(brandkit): P1 check — verify generateFromPrompt routing
+git add docs/superpowers/plans/runbook/B.0-issue-2-status.md
+git commit -m "docs(brandkit): B.0 — Issue #2 status + Sub-project B scope boundary
+
+Documents that B's AI branch uses the safe ai-apply-command Edge
+Function path. Issue #2 remains a separate public-launch blocker
+owned by [pending]. User decides B's AI branch GO/HOLD.
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
-If P1 is BLOCKED, ping the user before starting B.2.
+After committing, ping the user with the doc + ask for the GO/HOLD decision. Do NOT proceed to B.1 until user marks the decision.
+
+---
+
+### Task B.1: Re-verify generateFromPrompt routing at task-execution time
+
+**Files:** read-only re-verification. No code changes.
+
+Estimated: 0.5 hours.
+
+Dependencies: B.0 (user marked GO).
+
+This is a defensive re-check right before code lands. B.0's investigation captured state on 2026-05-12; if B.1 runs days/weeks later, branches may have moved. Re-confirm the agent chain still routes through `ai-apply-command`.
+
+- [ ] **Step 1: Re-verify the agent chain at execution time**
+
+```bash
+grep -n "createEdgeFunctionAgent\|ai-apply-command" src/features/editor/ai/applyCommand.ts
+grep -n "useAiAgent" src/features/editor/ai/useAiAgent.ts
+grep -n "applyCommand" src/features/templates/generateFromPrompt.ts
+```
+
+Expected output (must match these three patterns, otherwise STOP and ping user):
+- `applyCommand.ts` contains `createEdgeFunctionAgent` AND a reference to `ai-apply-command` (function name or endpoint).
+- `useAiAgent.ts` imports `createEdgeFunctionAgent` from `./applyCommand`.
+- `generateFromPrompt.ts` calls `args.agent.applyCommand(...)` (NOT directly hitting any Anthropic URL or VITE_ANTHROPIC_API_KEY).
+
+- [ ] **Step 2: Re-verify no NEW inline-key call sites were added**
+
+```bash
+grep -rln "VITE_ANTHROPIC_API_KEY" src 2>/dev/null
+```
+
+Expected: only 2 known files — `src/features/ai/v5/providers/claudeProvider.ts` and `src/features/brand-consistency/providers/anthropicProvider.ts`. If a third file appeared, escalate — someone added a new inline-key path during the time between B.0 and B.1.
+
+- [ ] **Step 3: Append result to the B.0 doc**
+
+Edit `docs/superpowers/plans/runbook/B.0-issue-2-status.md` and append:
+
+```markdown
+## B.1 re-verification (execution time)
+
+Re-checked on: <date>
+Agent chain intact: YES / NO
+New inline-key sites since B.0: 0 / N
+Decision still valid: YES / NO
+```
+
+If NO on any line, STOP and ping user.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add docs/superpowers/plans/runbook/B.0-issue-2-status.md
+git commit -m "docs(brandkit): B.1 re-verify — agent chain intact, no new inline-key sites
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+```
 
 ---
 
@@ -3483,12 +3586,17 @@ Manual verification across ALL 4 sub-projects together:
 
 ## Plan summary stats
 
-| Sub-project | Tasks | Est. hours | High-contention groups |
-|-------------|-------|-----------|------------------------|
-| A | 12 | ~28 | 2 (types+services, BrandKitCosmosPage+BrandKitCardEditor) |
-| B | 14 | ~32 | 1 (BrandKitCosmosPage) |
-| C | 13 | ~22 | 1 (BrandKitCosmosPage) |
-| D | 20 | ~46 | 1 (BrandKitCosmosPage + new components) |
-| **Total** | **59 tasks** | **~128 hours** | 5 high-contention groups |
+> **Note on estimates.** Per user mandate, the total estimate is NOT
+> a commitment. The value of this plan is the **ordering**, the
+> **4 checkpoints**, and the **high-contention groupings**.
+> Re-estimate at each checkpoint based on learnings.
+
+| Sub-project | Tasks | High-contention groups | Execution mode |
+|-------------|-------|------------------------|----------------|
+| A | 11 (A.1–A.11) + Checkpoint A | 2 (types+services, BrandKitCosmosPage+BrandKitCardEditor) | subagent-driven-development |
+| B | 14 (B.0–B.13) + Checkpoint B | 1 (BrandKitCosmosPage) | subagent-driven-development |
+| C | 13 (C.1–C.13) + Checkpoint C | 1 (BrandKitCosmosPage) | executing-plans |
+| D | 20 (D.1–D.20) + Checkpoint D | 1 (BrandKitCosmosPage + new components) | executing-plans |
+| **Total** | **58 tasks** + 4 checkpoints | 5 high-contention groups | mixed |
 
 ---
