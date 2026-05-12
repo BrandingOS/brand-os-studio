@@ -75,6 +75,35 @@ Future scope: │ E. Auto-fill Brand Kit                    │
 | **D** | Live `brandGuidePdf.ts` + `bulkExport.ts` in `brand-kit-alt/`; `AssetSourcePopover` for Photos | ✅ READY (port + promote per Q5 below) |
 | **E** (future) | A + B (specifically: `origin` + `userEdited` fields on bindings); `generateFromPrompt` from Phase 4.3 | Out of scope for this spec — designed-around only |
 
+## Prerequisites (hard blockers)
+
+The following must be in place before the AI-touching paths in this spec
+can ship. They are out of this spec's implementation scope but the plan
+must verify and gate on them.
+
+### P1. AI proxy migration must reach production
+
+Per CLAUDE.md: `VITE_ANTHROPIC_API_KEY` is currently inlined into the
+client bundle at build time and MUST be moved behind a Supabase Edge
+Function (`ai-proxy`) before any public-facing AI feature can ship. The
+migration is paused at Step 1 (Issue #2 in the repo).
+
+**Mandate for this spec:** `useGenerateForCard` and every call site
+that ultimately invokes `generateFromPrompt` MUST go through the
+`ai-proxy` Edge Function from day one — never the inline-key path.
+If `generateFromPrompt`'s current implementation still uses the inline
+key, completing the AI proxy migration is a hard prerequisite for
+shipping:
+
+- Sub-project B's Choice modal **"Generate with AI"** branch
+- Future Sub-project E's Auto-fill action
+
+Sub-projects A, C, and D have no AI dependency and are unblocked by P1.
+The plan must verify the current state of `generateFromPrompt` (does it
+read `VITE_ANTHROPIC_API_KEY` or call `ai-proxy`?) and either confirm
+the prerequisite is satisfied or escalate to complete it before B's AI
+branch ships.
+
 ## Mental model
 
 Brand Kit cards split into **two families**:
@@ -151,11 +180,21 @@ export interface BrandKitBinding {
 }
 
 export type BindOrigin =
-  | 'customize'    // user used the BrandKitCardEditor overlay only
-  | 'editor'       // user opened in /b/:slug/design and saved
-  | 'template'     // user picked a template from Templates page → "Use as my X"
-  | 'ai';          // future Sub-project E auto-generation
+  | 'customize'        // user used the BrandKitCardEditor overlay only
+  | 'editor'           // user opened in /b/:slug/design and saved
+  | 'template'         // user picked a template from Templates page → "Use as my X"
+  | 'ai-individual'    // Choice modal "Generate with AI" → single card (Sub-project B)
+  | 'ai-bulk';         // future Sub-project E: Auto-fill batch generation
 ```
+
+**Why split `ai` into two from day one.** Sub-project B ships the
+individual AI flow (Choice modal). Sub-project E ships the batch flow
+(Auto-fill). They need to be telemetry-distinguishable and policy-
+distinguishable from the very first binding write. Future "regenerate
+this card" actions might be allowed on `ai-individual` (the user opted
+in once) but disallowed on `ai-bulk` until the user confirms they want
+to lose the entire batch. Without the split designed in from day one,
+this distinction is unrecoverable.
 
 **Why `userEdited` is mandatory:** future Sub-project E (Auto-fill) MUST be
 able to ask "is this card safe to overwrite?". A card whose origin is `ai`
@@ -201,12 +240,81 @@ brand_kit_exports {
 }
 ```
 
-### Migration
+### Migration 009 (idempotent)
+
+Filename: `supabase/migrations/009_brand_kit_premium.sql`. All statements
+use `IF NOT EXISTS` / `IF EXISTS` guards per the idempotency lessons from
+migrations 001–008 — every migration must be safe to re-run on a partial-
+applied database.
+
+**`up.sql`:**
+
+```sql
+-- 1. Add brand_kit_designs to brands
+ALTER TABLE brands
+  ADD COLUMN IF NOT EXISTS brand_kit_designs JSONB NULL;
+
+-- 2. Frozen export snapshots table
+CREATE TABLE IF NOT EXISTS brand_kit_exports (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  brand_id      UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  pdf_url       TEXT NULL,
+  zip_url       TEXT NULL,
+  bindings_snapshot JSONB NOT NULL,
+  brand_snapshot    JSONB NOT NULL,
+  doc_snapshots     JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS brand_kit_exports_brand_id_idx
+  ON brand_kit_exports(brand_id, created_at DESC);
+
+-- 3. RLS: brand owner can read/insert their own exports
+ALTER TABLE brand_kit_exports ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'brand_kit_exports'
+      AND policyname = 'brand_owner_select_exports'
+  ) THEN
+    CREATE POLICY brand_owner_select_exports ON brand_kit_exports
+      FOR SELECT USING (
+        brand_id IN (SELECT id FROM brands WHERE user_id = auth.uid())
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'brand_kit_exports'
+      AND policyname = 'brand_owner_insert_exports'
+  ) THEN
+    CREATE POLICY brand_owner_insert_exports ON brand_kit_exports
+      FOR INSERT WITH CHECK (
+        brand_id IN (SELECT id FROM brands WHERE user_id = auth.uid())
+      );
+  END IF;
+END $$;
+```
+
+**`down.sql`:**
+
+```sql
+DROP POLICY IF EXISTS brand_owner_insert_exports ON brand_kit_exports;
+DROP POLICY IF EXISTS brand_owner_select_exports ON brand_kit_exports;
+DROP INDEX IF EXISTS brand_kit_exports_brand_id_idx;
+DROP TABLE IF EXISTS brand_kit_exports;
+ALTER TABLE brands DROP COLUMN IF EXISTS brand_kit_designs;
+```
+
+### Other migration concerns
 
 | Layer | Change |
 |-------|--------|
-| Supabase `brands` table | `ALTER TABLE brands ADD COLUMN brand_kit_designs JSONB NULL` |
-| Supabase new table | `CREATE TABLE brand_kit_exports (...)` (see above) |
 | `LocalBrandsService` | Read with default `{}` for absent `brandKitDesigns` |
 | Existing brands | Lazy populate on first bind. No backfill. |
 | TypeScript types | Extend `Brand`, add `BrandKitBinding`, `CardType`, `BindOrigin` |
@@ -301,11 +409,46 @@ show a modal with three options:
   brand.id`. Binding is NOT created yet — created on first save.
 - **Generate with AI** → call `generateFromPrompt({ agent, brand, brandKit,
   prompt: `Generate a ${cardType.replace('-', ' ')} for {{brand.name}}`,
-  contentTypeId: cardType })` from
-  `src/features/templates/generateFromPrompt.ts:29` → persist the resulting
-  doc → set `brand.brandKitDesigns[cardType] = { origin: 'ai', userEdited:
-  false, ... }` → navigate to editor.
+  contentTypeId: cardType })` (routed through the `ai-proxy` Edge Function
+  per Prerequisite P1, never the inline-key path) → persist the resulting
+  doc → set `brand.brandKitDesigns[cardType] = { origin: 'ai-individual',
+  userEdited: false, ... }` → navigate to editor.
 - **Browse templates** → forwards to Sub-project C flow.
+
+### Generate with AI — loading + cancel states in the Choice modal
+
+The "Generate with AI" branch does NOT close the Choice modal on click.
+Instead, the modal transitions to an in-place loading state. State
+machine:
+
+1. **Initial** — three-option Choice modal as drawn above.
+2. **Generating** (on AI click) — modal swaps body to:
+   - Title: "Generating your [card type name]…"
+   - Subtitle: "This usually takes 10–30 seconds."
+   - Indeterminate progress bar (if Edge Function doesn't stream tokens)
+     OR percentage if it does.
+   - **Cancel** button (always visible, wired to an `AbortController`
+     passed into `generateFromPrompt`).
+3. **Slow** (after 60s without completion) — body adds a third line:
+   "Taking longer than usual — you can keep waiting or cancel and try
+   again." Cancel button gains emphasis (filled button vs ghost).
+4. **Failed** (on error or non-OK response) — body swaps to:
+   - Title: "Couldn't generate your [card type name]"
+   - Error message (mapped from Edge Function error code where possible)
+   - **Retry** button + **Cancel** button. No binding written.
+5. **Success** — modal closes. Navigation to `/b/:slug/design/:newDesignId`
+   begins. Binding is written before navigation.
+
+**Cancel semantics.** User-initiated cancel calls `AbortController.abort()`,
+which Edge Function honors and returns early. No binding written.
+`generateFromPrompt` returns a sentinel `{ ok: false, message: 'cancelled' }`
+that the modal interprets as returning to **Initial** state (not Failed).
+
+**Failure isolation.** A failed AI generation MUST NOT corrupt
+`brand.brandKitDesigns` — the write only happens on success, after the
+designId is generated and the doc is persisted to `IDesignStorage`. If
+persistence fails after generation, surface the persistence error
+specifically (different copy from generation failure).
 
 ### Existing binding flow
 
@@ -386,16 +529,108 @@ the drilldown, next to Customize / Open in Editor / Download).
 
 ## Sub-project D — Premium polish + Export
 
-### D1. Placeholder card content
+### D1. Placeholder card content (scope-aware)
 
-| Card | Current | Build |
-|------|---------|-------|
-| **Photos** | Placeholder grid | Gallery of brand photos (slot A–F). Upload via `AssetSourcePopover` (canonical primitive per CLAUDE.md). Drag-reorder. Stored on `Brand.photos[]`. |
-| **About** | Placeholder grid | Form fields: name, tagline, description, mission, vision, values. Stored on `Brand.about[]` (existing field, extend shape if needed). Renders as a typographic card in Brand Kit. |
-| **Favicon** | Cosmos-only stub | Auto-derive 16×16 / 32×32 / 180×180 (apple-touch-icon) / maskable from `Brand.logoSystem`. Inline preview + Download button outputs `.ico` + PNG set. |
-| **Website** | Cosmos-only stub | Static hero+nav mockup using brand palette via `surfacePalette()` (canonical helper per CLAUDE.md). Read-only preview; no live page. |
-| **Email Signature** | Cosmos-only stub | HTML email signature template using brand. Preview as rendered email. Download button outputs `.htm` file. |
-| **Landing Page** | Cosmos-only stub | Single-section landing-page mockup using brand. Read-only preview. |
+D1 implementation is scoped by the MVP / Polish / Future bucketing.
+
+| Card | Family | Scope | D1 build |
+|------|--------|-------|----------|
+| **Photos** | Brand Asset | MVP | Gallery of brand photos (slot A–F). Upload via `AssetSourcePopover` (canonical primitive per CLAUDE.md). Drag-reorder. Stored on `Brand.photos[]`. **Built in D1.** |
+| **About** | Brand Asset | MVP | Form fields: name, tagline, description, mission, vision, values. Stored on `Brand.about[]` (existing field, extend shape if needed). Renders as a typographic card in Brand Kit. **Built in D1.** |
+| **Favicon** | Template-based | Polish | Auto-derive 16×16 / 32×32 / 180×180 (apple-touch-icon) / maskable from `Brand.logoSystem`. Pure generator (no template). Inline preview + Download outputs `.ico` + PNG set. **Built in D1 — trivial.** |
+| **Email Signature** | Template-based | MVP | See "Email signature template (TODO #5 resolution)" below for full spec. **Built in D1.** |
+| **Website** | Template-based | Future | "Coming soon" placeholder card with brand-colored skeleton illustration. No template, no Customize, no Open in Editor handoff in this spec. Future spec ships the `BrandMockupRenderer` (see TODO #4 resolution below for the component scaffold). |
+| **Landing Page** | Template-based | Future | Same as Website — "Coming soon" placeholder. |
+| **Animations** (×4) | Template-based | Future | "Coming soon" placeholders. CardTypes defined in schema for forward-compat. No Customize/Editor/Browse handoffs in B or C; render-only as placeholder in this spec. |
+
+### TODO #4 resolution (technical) — Web mockup component (deferred to future spec)
+
+When Website + Landing Page are built in a future spec, the resolution
+is a single shared component `src/features/brandkit/preview/BrandMockupRenderer.tsx`:
+
+```ts
+type BrandMockupKind = 'website' | 'landing-page' | 'email-signature-frame';
+interface Props {
+  brand: Brand;
+  kind: BrandMockupKind;
+  width?: number;     // defaults: website=1440, landing=1440, email=600
+  height?: number;    // defaults: website=900, landing=1200, email=auto
+}
+```
+
+Renders a static SVG/HTML mockup with brand-applied via `surfacePalette()`
+(canonical helper). Website kind: navbar + hero + 3-feature grid + CTA +
+footer. Landing kind: hero + form + 3-benefit grid + footer.
+
+This spec does NOT implement `BrandMockupRenderer`. The Future-scope
+cards (Website, Landing Page) render generic "Coming soon" placeholders
+in D1 until the mockup component lands in its own spec.
+
+### TODO #5 resolution (technical) — Email signature template format
+
+Email signature template format is **table-based HTML with inline styles
+only**. This is the only format that renders consistently across Gmail,
+Outlook 365, Outlook desktop, and Apple Mail.
+
+**Template source:** `src/features/brandkit/templates/emailSignature.html.ts`
+as a template-literal function:
+
+```ts
+export function emailSignatureHtml(brand: Brand, opts?: {
+  variant?: 'standard' | 'minimal' | 'photo-led';
+}): string;
+```
+
+**Rules:**
+- 2-column `<table role="presentation">` layout (avatar/logo column,
+  text column). NO `<div>` for layout — only tables.
+- All styles inline via `style="..."` attribute. NO `<style>` blocks,
+  NO external CSS.
+- Web-safe font stack only: `font-family: Arial, Helvetica, sans-serif`
+  (brand font is RENDERED, not embedded — embedded fonts don't survive
+  email clients).
+- No JavaScript. No `<script>` tags.
+- Brand color rendered as inline `color:` and `background-color:`.
+- Logo embedded as data-URI (≤40KB) or absolute URL to brand asset
+  storage.
+- Max width 600px (Outlook clipping safety).
+- Variants for the MVP build: `standard` only. Other variants are
+  Polish-scope.
+
+**Compatibility test matrix (acceptance):**
+- Gmail web (light + dark theme)
+- Gmail iOS app
+- Outlook 365 web
+- Outlook desktop (Windows)
+- Apple Mail
+
+Plan must include rendering test artifacts for each.
+
+### TODO #6 resolution (technical) — Export concurrency
+
+Resolved: **client-side via Web Worker.** Justification:
+
+- `jsPDF` + `jsZip` already in the stack per CLAUDE.md.
+- Estimated Brand Kit export size: PDF 5–15 MB, ZIP 10–50 MB — well
+  within browser memory.
+- Web Worker keeps main thread responsive during generation (the
+  3-state Export button + progress reporting depend on this).
+- Zero infrastructure cost.
+- No security surface (no API keys involved, unlike the AI proxy
+  paths in B which DO need the Edge Function per P1).
+- `bulkExport.ts` from `brand-kit-alt/` is already client-side, so
+  porting fits naturally.
+
+Worker file: `src/features/brandkit/export/exportWorker.ts`. Receives
+`{ brand: Brand, bindings: BrandKitBinding[], docs: Record<string,
+BrandOSDocument> }` from the main thread, posts back `{ kind: 'progress',
+percent }` and finally `{ kind: 'done', pdfBlob, zipBlob }` (or `{ kind:
+'error', stage, code }`).
+
+If we hit memory or perf limits in the future for very large brands
+(>100MB output), the worker boundary stays — we just swap the worker
+implementation for an Edge Function call without changing the export
+button state machine or the consumer code. The seam is intentional.
 
 ### D2. PDF Brand Guide
 
@@ -460,37 +695,118 @@ brand-kit-<slug>-v<exportNumber>.zip
 
 ### D4. Export action UX (Q2: Premium safe + frozen snapshots)
 
-Top of Brand Kit page: **Export Brand Kit** primary button.
+**Single entry point.** The Export Brand Kit button lives in the `actions`
+slot of the shared `PageHeader` (`@/shared/ui/PageHeader`) at the top of
+the Brand Kit sections-list view. No duplicate entry points — no topbar
+button, no FAB, no drilldown button. The single entry point is by design;
+discoverability is handled by the PageHeader placement, not redundant
+controls.
 
-On click:
-1. Generate PDF + ZIP server-side (or via Web Worker for the ZIP — TBD in plan).
-2. Upload both to Supabase Storage under `brand-kit-exports/<brandId>/<exportId>/`.
-3. Insert row into `brand_kit_exports` with `bindings_snapshot`,
-   `brand_snapshot`, and `doc_snapshots` (full freeze of every bound design's
-   document JSON at export time).
-4. Show success modal with download links.
-5. Past exports listed under a "Previous exports" surface (location TBD —
-   probably a small section above the Export button showing the last 3 with
-   "Download" + "Show all" link).
+**Button state machine (3 states):**
+
+1. **Idle (default)** — label: "Export Brand Kit", icon: download.
+   Disabled when brand is incomplete (see "Brand-completeness gate" below);
+   tooltip explains what's missing.
+2. **Generating** — label changes to "Generating… (NN%)" with progress
+   indicator. Worker reports progress via `postMessage` for both PDF and
+   ZIP stages. Button click during this state shows a "Generation in
+   progress" toast.
+3. **Ready-to-download** — label: "Download" (with chevron showing
+   PDF / ZIP / both). Click reveals a popover with two buttons:
+   "Download PDF" and "Download ZIP". This state persists for the session
+   after a successful export; navigating away resets back to Idle.
+
+### Brand-completeness gate
+
+The Export button is **disabled** when the brand is missing required
+fields. MVP-tier requirements (minimum bar to ship a Brand Kit):
+
+| Required | Source field |
+|----------|--------------|
+| Brand name | `brand.name` (non-empty string) |
+| At least one logo | `brand.logoSystem` OR `brand.logo` (any logo variant) |
+| Primary color | `brand.colorSystem?.primary?.hex` OR `brand.primaryColor` |
+
+When any of these are missing, the button is disabled and shows a tooltip:
+`"Missing: <list of missing items>"`. Clicking does nothing; the user must
+go to Setup to fix.
+
+Brand-completeness check lives in a single helper:
+`src/features/brandkit/export/isBrandReadyForExport.ts` — returns
+`{ ready: boolean, missing: string[] }`. Reused by telemetry and any future
+UI that needs the same gate (e.g., Auto-fill in E).
+
+### Generation flow
+
+On click (when button is Idle and brand is ready):
+
+1. Spawn a dedicated Web Worker (`src/features/brandkit/export/exportWorker.ts`).
+2. Worker generates PDF (D2) and ZIP (D3) in sequence; reports progress.
+3. Main thread uploads both blobs to Supabase Storage under
+   `brand-kit-exports/<brandId>/<exportId>/`.
+4. Insert row into `brand_kit_exports` with `bindings_snapshot`,
+   `brand_snapshot`, and `doc_snapshots` (full freeze of every bound
+   design's document JSON at export time).
+5. Transition to **Ready-to-download** state. Show success toast: "Brand
+   Kit exported — your client deliverable is ready."
+
+**Past exports listing.** A "Previous exports" inline section sits below
+the PageHeader and above the sections list — shows the last 3 exports
+(date + size + Download buttons) with a "Show all" link to a modal.
+Order: newest first.
 
 Each export is **immutable**. If the user re-exports later, a new row is
 created. Past exports never auto-update.
 
-### D5. Helpers promotion (port out of brand-kit-alt)
+### D5. Helpers promotion (Hybrid — Option c)
 
-Per Q5, the `brand-kit-alt/` fork is LIVE (mounted at `/a/:slug/brand-kit`,
-shipping to Classic users, bug-fix only). Helpers are not dead code, so a
-port is safe — but the right move is to **promote** the shared helpers
-into the domain layer so both forks consume the same pipeline:
+Per Q5 the `brand-kit-alt/` fork is LIVE (mounted at `/a/:slug/brand-kit`,
+shipping to Classic users, bug-fix only). Naive copy-only creates a drift
+fault line; full-move (delete from alt + rewire) would re-touch frozen
+code. **Resolution: Hybrid (Option c)** — canonical files move to the
+domain layer; `brand-kit-alt/`'s imports are updated to point at the new
+canonical location; no `brand-kit-alt/` logic, UI, or tests are touched.
+
+**Canonical new location:**
 
 ```
-src/features/brand-kit-alt/brandGuidePdf.ts → src/features/brandkit/export/brandGuidePdf.ts
-src/features/brand-kit-alt/bulkExport.ts    → src/features/brandkit/export/bulkExport.ts
+src/features/brandkit/export/brandGuidePdf.ts
+src/features/brandkit/export/bulkExport.ts
+src/features/brandkit/export/exportWorker.ts        (new — D4)
+src/features/brandkit/export/isBrandReadyForExport.ts (new — D4)
 ```
 
-After the move, `brand-kit-alt`'s callers re-import from the new shared
-location. This eliminates the risk of the two forks drifting in their
-export logic.
+**Implementation constraints (per user mandate):**
+
+1. **`brand-kit-alt/` files: imports updated ONLY.** No logic edits,
+   no UI edits, no deletions. Diff per affected file must be ≤3 lines
+   (the import statement swaps).
+2. **Optional re-export shims.** If `brand-kit-alt/brandGuidePdf.ts`
+   and `bulkExport.ts` paths have stray external importers (anything
+   outside `brand-kit-alt/` that imports those files), leave thin re-
+   export shims in the original locations:
+   ```ts
+   // src/features/brand-kit-alt/brandGuidePdf.ts (shim)
+   export { generateBrandGuidePdf } from '@/features/brandkit/export/brandGuidePdf';
+   ```
+   The shim's presence vs. absence is a per-file judgment based on
+   importer count. Plan must audit importers and decide for each file.
+3. **Tests move, not duplicate.** Test files that previously sat next to
+   `brand-kit-alt/brandGuidePdf.ts` move to live next to the canonical
+   file at `src/features/brandkit/export/brandGuidePdf.test.ts`. CI runs
+   them exactly once against the canonical source. No duplicate test
+   files anywhere.
+4. **Atomic commit boundary.** The promotion is a SINGLE git commit:
+   - Add canonical files to `src/features/brandkit/export/`
+   - Update all `brand-kit-alt/` imports to point at canonical
+   - Move test files
+   - (Optionally) add re-export shims
+   No "phase 1: copy, phase 2: rewire" — that's a window where drift
+   can occur.
+5. **Commit tag.** The promotion commit message includes the marker
+   `refactor/brand-kit-export-promoted` (in the body, not subject) so
+   future agents searching `git log --grep=brand-kit-export-promoted`
+   can find the migration boundary.
 
 ### Acceptance
 
@@ -506,24 +822,35 @@ export logic.
 **Not in this spec's implementation scope.** Designed-around only.
 
 E is a single top-level action on Brand Kit ("Auto-fill empty cards") that
-batch-fires `generateFromPrompt` for every template-based card that has no
-binding or has `origin === 'ai' && userEdited === false`. The result: a
-freshly-onboarded brand can have all 25 template-based cards filled with AI-
-generated drafts in one click — the true premium export-readiness primitive.
+batch-fires `useGenerateForCard({ origin: 'ai-bulk', ... })` for every
+template-based card that has no binding or has an AI-origin binding the
+user hasn't touched. The result: a freshly-onboarded brand can have all
+25 template-based cards filled with AI-generated drafts in one click —
+the true premium export-readiness primitive.
 
 ### Design constraints imposed on A + B by E
 
-- `BrandKitBinding.origin` must include `'ai'` from day one. ✅ Included.
+- `BrandKitBinding.origin` must include both `'ai-individual'` and
+  `'ai-bulk'` from day one (not just a single `'ai'`). ✅ Included — the
+  enum is split in the schema definition above.
 - `BrandKitBinding.userEdited: boolean` must be present from day one, and
   every editor save must flip it to `true`. ✅ Included.
-- Auto-fill must be able to query "all cards eligible for re-generation" —
-  the canonical query is:
-  ```
-  (cardType has no binding) OR
-  (binding.origin === 'ai' && binding.userEdited === false)
+- Auto-fill must be able to query "all cards eligible for re-generation".
+  The canonical eligibility check:
+  ```ts
+  function isEligibleForAutofill(binding?: BrandKitBinding): boolean {
+    if (!binding) return true;
+    if (binding.userEdited) return false;
+    return binding.origin === 'ai-individual' || binding.origin === 'ai-bulk';
+  }
   ```
 - Auto-fill must NEVER overwrite a `userEdited === true` binding without a
   separate, explicit "force re-generate this card" action.
+- Distinguishing `ai-individual` from `ai-bulk` in the binding allows
+  future "regenerate this card" UX to know whether the user explicitly
+  chose AI for THIS card (`ai-individual` — safer to retry without
+  warning) versus accepted it as part of a batch (`ai-bulk` — may warrant
+  a confirmation to lose the batch).
 
 ### Out of scope here, on roadmap for later
 
@@ -532,36 +859,80 @@ generated drafts in one click — the true premium export-readiness primitive.
 - AI image generation vendor wiring (Phase 4.3 debt #6 still open per CLAUDE.md).
 - Streaming progress UI for batch operations.
 
-## Card type catalog
+## Card scope — MVP / Polish / Future
 
-The 11 Phase 4.1 template categories already map to Brand Kit card types
-one-to-one for most cases:
+The 25 cards are bucketed by **user value** for the export deliverable:
 
-| Brand Kit card | Category `contentTypeId` | Notes |
-|----------------|--------------------------|-------|
-| Business Card | `business-card` | ✅ direct |
-| Letterhead | `letterhead` | ✅ direct |
-| Envelope | — | ❌ not yet a category (add in C if needed) |
-| Invoice | `invoice` | ✅ direct |
-| Social Profile | — | ❌ no category yet (square avatar size) |
-| Social Cover | — | ❌ no category yet (banner ratios) |
-| Social Post | `social-post` | ✅ direct |
-| Social Story | — | ❌ no category yet (9:16) |
-| Favicon | — | ❌ derived from logos, no template needed |
-| Website | — | ❌ deferred (only mockup, no editable template in scope) |
-| Email Signature | `email-signature` | ✅ direct |
-| Landing Page | — | ❌ deferred |
-| Brand Guides (×5) | `brand-guideline-slide` | ✅ shared category — drilldown filters by slide kind |
-| Pitch Deck | `presentation` | ✅ direct |
-| Business Plan | `presentation` | ⚠️ shares category — distinguish by sub-tag |
-| Proposal | `presentation` | ⚠️ shares category — distinguish by sub-tag |
-| Case Studies | `presentation` | ⚠️ shares category — distinguish by sub-tag |
-| Animations (×4) | — | ❌ deferred — animations don't fit the static template seed model; the four animation `CardType`s are defined in schema (so future bindings remain forward-compatible) but Animations cards render placeholders in this spec's D1 scope. No Open in Editor handoff for animations in B; no Browse Other in C. Implementation belongs to a later animation-engine spec. |
+- **MVP (8 cards)** — universal must-haves. Every brand needs these in
+  the deliverable. Without them, the PDF + ZIP isn't a deliverable.
+  Sub-projects A/B/C/D ship the full flow for these 8.
+- **Polish (11 cards)** — extends MVP categories. Polish completes the
+  showcase but is not blocking ship. A/B/C work for these too; D's
+  PDF/ZIP includes them when bound but doesn't require them to bind.
+- **Future (6 cards)** — needs subsystems outside this spec.
+  Website + Landing Page need a separate visual mockup design system;
+  Animations need an animation engine outside the static template
+  seed model. `CardType`s defined in schema for forward-compat;
+  cards render placeholders with "Coming soon" badge in this spec's
+  D1 scope.
 
-**Plan task:** in C's scope, add missing categories (`envelope`,
-`social-profile`, `social-cover`, `social-story`) to the Phase 4.1 seed.
-For shared categories (`presentation` covers Pitch/Plan/Proposal/Case
-Studies), filter additionally on a `subType` tag in template metadata.
+### Card type catalog (with scope + category mapping)
+
+The 11 Phase 4.1 template categories already map to MVP/Polish Brand
+Kit card types one-to-one for most cases:
+
+| Brand Kit card | Category `contentTypeId` | Scope | Notes |
+|----------------|--------------------------|-------|-------|
+| Business Card | `business-card` | **MVP** | Universal stationery |
+| Letterhead | `letterhead` | **MVP** | Formal correspondence — every brand has these |
+| Envelope | `envelope` *(new — add in C)* | Polish | Same family as Letterhead |
+| Invoice | `invoice` | Polish | Useful but not every brand sends them |
+| Social Profile | `social-profile` *(new — add in C)* | Polish | 1080×1080 avatar |
+| Social Cover | `social-cover` *(new — add in C)* | Polish | Banner — pick LinkedIn 1584×396 as canonical, document in C |
+| Social Post | `social-post` | **MVP** | Highest social-media frequency, universal |
+| Social Story | `social-story` *(new — add in C)* | Polish | 1080×1920 |
+| Favicon | — | Polish | Auto-derived from logos; trivial generator, no template |
+| Website | — | Future | Mockup needs separate visual design system |
+| Email Signature | `email-signature` | **MVP** | Universal use, low complexity, high value |
+| Landing Page | — | Future | Mockup needs separate visual design system |
+| Logo Guide | `brand-guideline-slide` + `subType: 'logo'` | **MVP** | Critical PDF brand-guide section |
+| Color Guide | `brand-guideline-slide` + `subType: 'color'` | **MVP** | Critical PDF brand-guide section |
+| Typography Guide | `brand-guideline-slide` + `subType: 'typography'` | **MVP** | Critical PDF brand-guide section |
+| Voice Guide | `brand-guideline-slide` + `subType: 'voice'` | Polish | Useful but lower frequency |
+| Imagery Guide | `brand-guideline-slide` + `subType: 'imagery'` | Polish | Useful but lower frequency |
+| Pitch Deck | `presentation` + `subType: 'pitch-deck'` | **MVP** | Every brand needs one |
+| Business Plan | `presentation` + `subType: 'business-plan'` | Polish | Some brands |
+| Proposal | `presentation` + `subType: 'proposal'` | Polish | Sales-facing brands |
+| Case Studies | `presentation` + `subType: 'case-studies'` | Polish | Marketing-mature brands |
+| Animations (×4) | — | **Future** | Animations don't fit static template seed model; the four animation `CardType`s are defined in schema (so future bindings remain forward-compatible) but Animations cards render "Coming soon" placeholders in D1. No Open in Editor handoff for animations in B; no Browse Other in C. Implementation belongs to a later animation-engine spec. |
+
+**Tally:** 8 MVP + 11 Polish + 6 Future = 25 cards. ✓
+
+### Resolution of catalog gaps (TODOs #2 + #3 — technical, resolved)
+
+**Sub-typed categories (TODO #2).** Pitch Deck / Business Plan / Proposal
+/ Case Studies share the `presentation` category. Same for Brand Guides
+(×5) sharing `brand-guideline-slide`. Resolution: **add a `subType: string`
+field to template metadata** (templates author tags) and filter on
+`category=X AND subType=Y` in the Templates panel. Justification: less
+migration than splitting categories (single metadata field add vs 4
+category splits); keeps the Phase 4.1 seed schema stable; filtering on
+subType is a small predicate addition. Brand Kit Pitch Deck card queries
+`category=presentation AND subType=pitch-deck` for its "Browse Other"
+target.
+
+**Missing categories (TODO #3).** Resolution: in Sub-project C's scope,
+append these 4 new categories to `src/features/templates/seeds/categories.ts`:
+
+```ts
+{ id: 'cat-envelopes',       contentTypeId: 'envelope',       name: 'Envelopes',       ... },
+{ id: 'cat-social-profiles', contentTypeId: 'social-profile', name: 'Profile pictures',... },
+{ id: 'cat-social-covers',   contentTypeId: 'social-cover',   name: 'Cover banners',   ... },
+{ id: 'cat-social-stories',  contentTypeId: 'social-story',   name: 'Stories',         ... },
+```
+
+Each new category needs at least 2 seed templates to ship Polish-tier
+"Browse other" experience. Plan must enumerate the seed templates.
 
 ## Save & versioning policy (Q2 — Premium safe)
 
@@ -580,9 +951,21 @@ with signature `{ agent, brand, brandKit, prompt, contentTypeId } →
 { ok, doc?, message }`. Currently invoked only by
 `GenerateWithAiSection.tsx:79` inside the TemplatesPanel.
 
+### Security mandate (P1 reinforcement)
+
+`generateFromPrompt` and every code path consumed by `useGenerateForCard`
+MUST route through the `ai-proxy` Supabase Edge Function. The inline
+`VITE_ANTHROPIC_API_KEY` path is forbidden for all new code. If
+`generateFromPrompt`'s current implementation still uses the inline key,
+the plan must either (a) confirm `ai-proxy` has shipped and `generateFromPrompt`
+is already routed through it, or (b) gate Sub-project B's AI branch on
+completing the AI proxy migration first. Sub-project A, C, and D-without-
+AI can ship in parallel; the AI branch waits.
+
 ### Reuse strategy
 
-Extract a thin reusable hook in Sub-project B:
+Extract a thin reusable hook in Sub-project B, in a shared location so
+future Sub-project E (Auto-fill) imports the same hook:
 
 ```ts
 // src/features/brandkit/ai/useGenerateForCard.ts
@@ -590,19 +973,137 @@ export function useGenerateForCard() {
   return useCallback(async (args: {
     brand: Brand;
     cardType: CardType;
-    prompt?: string; // defaults to "Generate a ${cardType} for {{brand.name}}"
-  }) => {
-    // 1. Call generateFromPrompt
-    // 2. Persist via IDesignStorage.saveDesign
-    // 3. Write brand.brandKitDesigns[cardType] with origin: 'ai', userEdited: false
-    // 4. Return { designId, doc }
+    prompt?: string;          // defaults to `Generate a ${cardType} for ${brand.name}`
+    origin: 'ai-individual' | 'ai-bulk';  // mandatory — set by caller
+    abortSignal?: AbortSignal;            // cancellation support
+  }): Promise<{
+    ok: true; designId: string; doc: BrandOSDocument
+  } | { ok: false; reason: 'cancelled' | 'failed'; message?: string }> => {
+    // 1. Call generateFromPrompt (routed through ai-proxy per P1)
+    // 2. On success: persist via IDesignStorage.saveDesign
+    // 3. Write brand.brandKitDesigns[cardType] with the provided origin,
+    //    userEdited: false
+    // 4. Return { ok: true, designId, doc } | { ok: false, reason }
   }, []);
 }
 ```
 
-Both the Choice modal's "Generate with AI" option (B) and the future Auto-
-fill (E) consume this hook. No new generation logic added — just a thin
-binding wrapper.
+**Both consumers use the same hook with different `origin`:**
+- Sub-project B's Choice modal → `origin: 'ai-individual'`
+- Future Sub-project E's Auto-fill → `origin: 'ai-bulk'` (one call per
+  empty card; batch is N parallel hook invocations with concurrency cap).
+
+No new generation logic added — just a thin binding + origin-tagging
+wrapper.
+
+## Telemetry events
+
+This spec ships the following telemetry events. Event names are snake_case
+and event versions are tracked as a `v` property (start at `1`). All
+events include `brandId` + `userId` + `sessionId` + `ts` by default
+(provided by the telemetry transport — out of this spec's scope to define
+the transport).
+
+### Mandatory events
+
+| Event | Fires when | Properties (in addition to defaults) |
+|-------|------------|--------------------------------------|
+| `brand_kit_export_started` | User clicks Export Brand Kit (idle → generating) | `cardBindingsCount: number`, `mvpCardsBoundCount: number`, `polishCardsBoundCount: number` |
+| `brand_kit_exported` | PDF + ZIP successfully uploaded + row inserted | `exportId: uuid`, `pdfBytes: number`, `zipBytes: number`, `durationMs: number`, `cardBindingsCount: number`, `mvpCardsBoundCount: number` |
+| `brand_kit_export_failed` | PDF gen, ZIP gen, or upload fails | `stage: 'pdf' \| 'zip' \| 'upload' \| 'db_insert'`, `errorCode: string`, `errorMessage: string`, `durationMs: number` |
+| `card_bound` | A binding is created or updated | `cardType: CardType`, `origin: BindOrigin`, `isInitialBind: boolean`, `version: number` |
+| `card_customized` | Customize overlay saves overrides | `cardType: CardType`, `fieldsChanged: string[]` |
+| `ai_generated_for_card` | `useGenerateForCard` returns success | `cardType: CardType`, `origin: 'ai-individual' \| 'ai-bulk'`, `promptVariant: 'default' \| 'custom'`, `tokensUsed?: number`, `durationMs: number` |
+| `ai_generation_failed` | `useGenerateForCard` returns failure | `cardType: CardType`, `origin: 'ai-individual' \| 'ai-bulk'`, `reason: 'cancelled' \| 'failed' \| 'timeout'`, `errorCode?: string` |
+| `card_template_applied` | Sub-project C: "Use as my X" applies a template | `cardType: CardType`, `templateId: string`, `templateCategory: string` |
+| `brand_kit_export_downloaded` | User downloads PDF or ZIP from ready-state | `exportId: uuid`, `kind: 'pdf' \| 'zip'` |
+
+### Why telemetry is mandatory in this spec
+
+The Brand Kit is the product's central deliverable promise. Without
+telemetry on bind rates, AI success rates, and export rates, we cannot
+answer the post-ship questions that matter:
+
+- What fraction of brands actually reach export?
+- Where does the funnel break (which cards never get bound)?
+- Is AI generation reliable enough for E (Auto-fill) to be safe?
+- Which MVP cards see the most Customize vs Editor vs Template usage?
+
+Each event is small and stable; plan must wire them with care but the
+events themselves are non-negotiable.
+
+## Error + offline states
+
+### Sub-project D — Export failure handling
+
+**PDF generation failure (in Worker).** Worker posts `{ kind: 'error',
+stage: 'pdf', code }` back to main thread. Main thread:
+- Aborts the export transaction. NO row written to `brand_kit_exports`.
+- Discards any partial PDF blob.
+- Returns Export button to **Idle** state.
+- Shows error toast: "PDF generation failed — please try again. If this
+  keeps happening, contact support." with a Retry action.
+- Fires `brand_kit_export_failed` with `stage: 'pdf'`.
+
+**ZIP partial failure (in Worker).** A ZIP entry fetch can fail (e.g., a
+logo SVG URL no longer resolves, a font file is missing). Policy:
+**abort-and-toast** — do NOT deliver a partial ZIP. Premium feel demands
+that the user receives either a complete deliverable or none. Worker
+posts `{ kind: 'error', stage: 'zip', code, missingAssets: string[] }`.
+Main thread:
+- Aborts the transaction. No row written.
+- Shows error modal (not toast — needs more space): "Some brand assets
+  couldn't be included in your export" with a list of missing items and
+  links to fix them in Brand Kit. Retry button.
+- Fires `brand_kit_export_failed` with `stage: 'zip'` and the
+  `missingAssets` list.
+
+**Storage upload failure.** Retry once silently (network blip). If
+second attempt fails:
+- Aborts the transaction. No row written.
+- Toast: "Couldn't upload your Brand Kit — check your connection and try
+  again."
+- Fires `brand_kit_export_failed` with `stage: 'upload'`.
+
+**DB insert failure (last step).** PDF and ZIP are already in Storage at
+this point. Retry once. If still fails:
+- Leaves uploaded files in Storage (will be garbage-collected by a
+  future job — out of scope here).
+- Shows error toast with a Retry action that re-inserts the row using
+  the already-uploaded URLs (skip re-generation).
+- Fires `brand_kit_export_failed` with `stage: 'db_insert'`.
+
+### Offline state
+
+The Export button respects `navigator.onLine`:
+- **Offline at click time:** button is disabled. Tooltip overrides the
+  brand-completeness tooltip: `"You need an internet connection to
+  export."`
+- **Goes offline mid-export:** Worker continues (offline-safe for PDF +
+  ZIP generation — both purely client-side). When generation completes
+  and the main thread tries to upload, fetch fails → handled as Storage
+  upload failure (see above). Toast tells the user to come back when
+  online and retry.
+- **Comes back online:** no automatic retry. User must click Export
+  again. Past partial generations are discarded.
+
+A small `useOnlineStatus()` hook (new or existing — plan to check)
+provides reactive state for the Export button.
+
+### Sub-project B — AI Choice modal failure handling
+
+See "Generate with AI — loading + cancel states in the Choice modal"
+in Sub-project B above. Failure does not corrupt `brandKitDesigns`;
+binding is only written after success.
+
+### Other failure modes
+
+| Mode | Handling |
+|------|----------|
+| `BrandKitCardEditor.onSave` fails (A) | Keep overlay open, toast error, do not clear edits. User can retry. |
+| Open in Editor binding write fails (B) | Editor still opens; show banner "Couldn't link this design to Brand Kit. Save again to retry binding." |
+| Templates "Use as my X" fails (C) | Stay on Templates page, toast error. No partial bind. |
+| Migration 009 not applied yet | Brand Kit page falls back to read-only (no binding writes attempted); shows a banner "Brand Kit is in maintenance — your work is safe." |
 
 ## Tech debt tags
 
@@ -664,29 +1165,53 @@ Per CLAUDE.md's three-layer requirement:
 C and D are independent of each other once A and B are in place — they can
 be implemented in parallel by separate agents/sessions if needed.
 
-## Open questions / TODO before plan
+## Resolution log — original open questions
 
-- [ ] **Export trigger location**: confirm the "Export Brand Kit" button
-      lives at the top of the Brand Kit page (sections list view), not
-      inside the drilldown. Default: top of sections list. Confirm in plan.
-- [ ] **Sub-typed categories**: Pitch Deck / Business Plan / Proposal /
-      Case Studies all share `presentation` category. Plan must specify
-      whether to (a) add `subType` to template metadata + filter or
-      (b) split into four categories. Default: option (a) — less migration.
-- [ ] **Missing categories**: Envelope, Social Profile/Cover/Story need
-      categories added to Phase 4.1 seed in C. Plan to enumerate the
-      template seeds for each.
-- [ ] **Web cards mockup source**: Website + Landing Page render as static
-      mockups using `surfacePalette()`. Plan must specify the mockup
-      component (probably a new `BrandMockupRenderer` in `features/brandkit/`).
-- [ ] **Email signature template format**: HTML inline-styled `.htm` is the
-      target. Plan must specify the template structure (table-based for
-      Gmail/Outlook compatibility).
-- [ ] **Export concurrency**: PDF generation is heavy. Plan must specify
-      whether server-side via Supabase Edge Function or client-side via
-      Web Worker. Default recommendation: Edge Function (per CLAUDE.md's
-      note about moving heavy work behind server proxies for security
-      anyway).
+All 6 original TODOs are resolved. Cross-reference table for plan
+continuity:
 
-These are blocker items for the implementation plan, not the design. They
-get resolved during plan-writing (`superpowers:writing-plans`).
+| TODO | Type | Resolution | Where in spec |
+|------|------|------------|---------------|
+| #1 — Export trigger location | UX | Top of sections list, as `actions` slot of shared `PageHeader`. 3-state button (Idle / Generating / Ready-to-download). Brand-completeness gate (name + logo + primary color). No duplicate entry points. | Sub-project D § D4 |
+| #2 — Sub-typed categories | Technical | `subType` metadata field on templates + filter; no category splitting. | Card scope § "Resolution of catalog gaps" |
+| #3 — Missing categories | Technical | Add 4 new categories (`cat-envelopes`, `cat-social-profiles`, `cat-social-covers`, `cat-social-stories`) to Phase 4.1 seed in C's scope. | Card scope § "Resolution of catalog gaps" |
+| #4 — Web mockup component | Technical | `BrandMockupRenderer` deferred to future spec. Website + Landing Page render "Coming soon" placeholders in this spec's D1. | Sub-project D § "TODO #4 resolution" |
+| #5 — Email signature format | Technical | Table-based HTML inline-styled `.htm` via `emailSignatureHtml(brand, opts)`. 5-client compatibility matrix in acceptance criteria. | Sub-project D § "TODO #5 resolution" |
+| #6 — Export concurrency | Technical | Client-side via Web Worker (`exportWorker.ts`). Edge Function swap remains a future seam if perf demands it. | Sub-project D § "TODO #6 resolution" |
+
+## Open questions for the plan author
+
+These are NOT design gaps — they're concrete implementation decisions
+the plan writer must resolve during `superpowers:writing-plans`:
+
+- [ ] **`generateFromPrompt` current routing.** Plan must verify
+      whether the current implementation already calls the `ai-proxy`
+      Edge Function or still uses the inline `VITE_ANTHROPIC_API_KEY`.
+      Resolution determines whether Sub-project B's AI branch is
+      unblocked or blocks on Issue #2 (AI proxy migration).
+- [ ] **Telemetry transport.** Spec defines event names + properties
+      but not the transport (PostHog / Supabase Analytics / custom
+      table). Plan picks the transport based on what's already wired in
+      the codebase; if nothing is wired, defer the transport
+      implementation to a separate spec and have the events `console.info`
+      as a placeholder (still satisfies the schema contract).
+- [ ] **Re-export shim audit for D5.** Plan must `grep` for every
+      external importer of `src/features/brand-kit-alt/brandGuidePdf.ts`
+      and `bulkExport.ts` (anything outside `brand-kit-alt/`) and decide
+      per file whether to leave a re-export shim. Per user constraint,
+      shims are optional but useful when importer count >0.
+- [ ] **Templates "subType" backfill.** When Sub-project C lands the
+      `subType` filter, existing seeded templates in the `presentation`
+      and `brand-guideline-slide` categories need `subType` values
+      added. Plan must enumerate the existing templates and assign each
+      a subType. Templates without an assignable subType remain
+      unfiltered (visible in all subType queries within their category).
+- [ ] **`useOnlineStatus` existence.** Spec assumes a small reactive
+      online-status hook exists or will be added. Plan must verify
+      `navigator.onLine` reactive support — add the hook if absent
+      (5-line implementation; not a spec concern).
+- [ ] **Brand completeness for non-MVP exports.** This spec mandates
+      name + logo + primary color as the export gate. If product later
+      wants stricter gating (e.g., typography also required), the
+      `isBrandReadyForExport()` helper is the single place to update.
+      Plan should note this seam.
