@@ -316,6 +316,28 @@ export function SetupPage({
     [],
   );
 
+  const handleSetColorRole = useCallback(
+    (group: ColorGroupKey, index: number, role: 'primary' | 'secondary') => {
+      if (group !== 'core') return;
+      const targetIndex = role === 'primary' ? 0 : 1;
+      setBrand((prev) => {
+        const list = prev.colors.core;
+        if (index === targetIndex) return prev;
+        const item = list[index];
+        if (!item) return prev;
+        const without = list.filter((_, i) => i !== index);
+        const clampedTarget = Math.min(targetIndex, without.length);
+        const next = [
+          ...without.slice(0, clampedTarget),
+          item,
+          ...without.slice(clampedTarget),
+        ];
+        return { ...prev, colors: { ...prev.colors, core: next } };
+      });
+    },
+    [],
+  );
+
   const handleDownloadColor = useCallback((color: { hex: string; name: string }) => {
     const slug = slugify(color.name);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><title>${color.name} ${color.hex}</title><rect width="512" height="512" fill="${color.hex}"/></svg>`;
@@ -1315,6 +1337,7 @@ export function SetupPage({
           onAddColor={handleAddColor}
           onDeleteColor={handleDeleteColor}
           onMoveColor={handleMoveColor}
+          onSetColorRole={handleSetColorRole}
           onDownloadColor={handleDownloadColor}
           onCopyText={handleCopyText}
           onDeleteLogo={handleDeleteLogo}

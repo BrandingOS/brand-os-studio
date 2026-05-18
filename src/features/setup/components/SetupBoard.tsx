@@ -393,6 +393,14 @@ type Props = {
   onAddColor?: (group: AddableColorGroup, hex: string) => void;
   onDeleteColor?: (group: ColorGroupKey, index: number) => void;
   onMoveColor?: (from: ColorGroupKey, to: ColorGroupKey, index: number) => void;
+  /** Reorder within the Core group so the selected color takes the
+   *  primary (index 0) or secondary (index 1) slot. Only invoked for
+   *  the `core` group. */
+  onSetColorRole?: (
+    group: ColorGroupKey,
+    index: number,
+    role: 'primary' | 'secondary',
+  ) => void;
   onDownloadColor?: (color: BrandColor) => void;
   onCopyText?: (text: string) => void;
   onDeleteLogo?: (id: string) => void;
@@ -431,6 +439,7 @@ export function SetupBoard({
   onAddColor,
   onDeleteColor,
   onMoveColor,
+  onSetColorRole,
   onDownloadColor,
   onCopyText,
   onDeleteLogo,
@@ -548,6 +557,29 @@ export function SetupBoard({
           </svg>
         ),
       });
+    }
+    if (onSetColorRole && group === 'core') {
+      const roles: Array<{ role: 'primary' | 'secondary'; targetIndex: number; label: string }> = [
+        { role: 'primary', targetIndex: 0, label: 'Set as Primary' },
+        { role: 'secondary', targetIndex: 1, label: 'Set as Secondary' },
+      ];
+      for (const r of roles) {
+        const isCurrent = index === r.targetIndex;
+        items.push({
+          label: isCurrent ? `${r.label} (current)` : r.label,
+          disabled: isCurrent,
+          onSelect: () => onSetColorRole(group, index, r.role),
+          icon: (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              {r.role === 'primary' ? (
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              ) : (
+                <polygon points="12 4 14.36 9.18 20 9.97 16 13.86 16.94 19.36 12 16.77 7.06 19.36 8 13.86 4 9.97 9.64 9.18 12 4" />
+              )}
+            </svg>
+          ),
+        });
+      }
     }
     if (onMoveColor && group !== 'grey') {
       for (const t of moveTargets) {

@@ -2984,6 +2984,11 @@
 .ctx-menu[data-theme="dark"] .ctx-menu-item.is-destructive:hover {
   background: color-mix(in srgb, #ef4444 14%, transparent);
 }
+.ctx-menu .ctx-menu-item.is-disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: transparent !important;
+}
 
 .ctx-menu-label {
   min-width: 0;

@@ -6,6 +6,9 @@ export type ContextMenuItem = {
   onSelect: () => void;
   /** Visual tone — destructive items render in the warn palette. */
   destructive?: boolean;
+  /** Greyed out, non-clickable. Used to show the current state of a
+   *  toggleable option (e.g. the role a color already occupies). */
+  disabled?: boolean;
   /** Optional 14px icon shown before the label. */
   icon?: React.ReactNode;
 };
@@ -98,8 +101,10 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
           key={i}
           type="button"
           role="menuitem"
-          className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}`}
+          className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
+          disabled={it.disabled}
           onClick={() => {
+            if (it.disabled) return;
             it.onSelect();
             onClose();
           }}

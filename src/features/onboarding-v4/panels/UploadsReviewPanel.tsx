@@ -714,12 +714,13 @@ interface SwatchProps {
   onPickerToggle(): void;
   onCopyHex(anchor: HTMLElement): void;
   onContextMenu?(e: React.MouseEvent<HTMLButtonElement>): void;
+  buttonRef?: (el: HTMLButtonElement | null) => void;
 }
 
 /** Onboarding-v4 colors swatch — mirrors the Setup page's Swatch markup so the
  *  shared `[data-workspace] .swatch` styles apply identically (same
  *  hover wave, same name/hex copy affordance, same active picker state). */
-function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex, onContextMenu }: SwatchProps) {
+function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex, onContextMenu, buttonRef }: SwatchProps) {
   const iconRef = useRef<OrganicIconHandle>(null);
   const resetTimerRef = useRef<number | null>(null);
   const light = isLightHex(renderedHex);
@@ -742,6 +743,7 @@ function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex,
   const displayName = hexToName(hex);
   return (
     <button
+      ref={buttonRef}
       type="button"
       className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
       style={{ background: renderedHex, zIndex }}
@@ -802,6 +804,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const flashTimerRef = useRef<number | null>(null);
   const groupRef = useRef<HTMLDivElement>(null);
+  const swatchRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
   // Element the context menu was triggered from. While the menu is open the
   // anchor gets `is-ctx-active` so the swatch keeps its lifted+rotated pose,
   // matching the Setup page's behavior.
@@ -978,6 +981,10 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
                     onPickerToggle={() => handleSwatchClick(i)}
                     onCopyHex={(anchor) => handleCopy(renderedHex.toUpperCase(), anchor)}
                     onContextMenu={(e) => openColorMenu(e, c, i)}
+                    buttonRef={(el) => {
+                      if (el) swatchRefs.current.set(c.id, el);
+                      else swatchRefs.current.delete(c.id);
+                    }}
                   />
                 );
               })}
@@ -1013,10 +1020,30 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
               hex={addDraft}
               onChange={(h) => setAddDraft(h)}
               onCommit={(h) => {
-                if (onAdd(h)) {
-                  setAddMode(false);
-                  setAddDraft('#5B6BFF');
+                const normalized = normalizeHex(h);
+                if (!normalized) return;
+                const existing = colors.find(
+                  (c) => (c.value ?? '').toUpperCase() === normalized,
+                );
+                if (existing) {
+                  const el = swatchRefs.current.get(existing.id);
+                  if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const id = Date.now() + Math.random();
+                    setFlash({
+                      id,
+                      text: 'Already in palette',
+                      x: rect.left + rect.width / 2,
+                      y: rect.top,
+                    });
+                    if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current);
+                    flashTimerRef.current = window.setTimeout(() => setFlash(null), 1400);
+                  }
+                } else {
+                  onAdd(normalized);
                 }
+                setAddMode(false);
+                setAddDraft('#5B6BFF');
               }}
               onCancel={() => setAddMode(false)}
               commitLabel="Add"
