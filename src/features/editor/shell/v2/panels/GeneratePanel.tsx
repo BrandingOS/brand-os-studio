@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import {
   Sparkles, Image as ImageIcon, Layers, X as XIcon, Paperclip,
   Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
-  Settings2, Cpu, UserCircle, Mountain, Megaphone, Award, Zap, Brain, MessageSquare,
+  Settings2, UserCircle, Mountain, Megaphone, Award,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -75,20 +75,90 @@ const CONTENT_TYPES: ContentType[] = [
   { id: 'logo',        label: 'Logo concept',  Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background', defaultAspect: 'square' },
 ];
 
-// ─── Models — with per-item icons for the dropdown ───────────────────
+// ─── Model brand badges — small inline SVGs unique to each model. ────
+// Lucide is for generic UI icons; models have their own brand and a
+// recognizable mark beats a generic Sparkles/Zap for picking at a glance.
+
+function FluxBadge({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="fluxg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FF6B35" />
+          <stop offset="55%" stopColor="#E11D48" />
+          <stop offset="100%" stopColor="#7C3AED" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M8 1.2c1.6 2.4 3.1 4.2 3.1 6.6 0 3.4-2.4 6-3.1 7-0.7-1-3.1-3.6-3.1-7 0-2.4 1.5-4.2 3.1-6.6z"
+        fill="url(#fluxg)"
+      />
+    </svg>
+  );
+}
+
+function TurboBadge({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="turbog" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F59E0B" />
+          <stop offset="100%" stopColor="#DC2626" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M9.6 1.4 4 9.2h3.4L6.4 14.6 12 6.8H8.6l1-5.4z"
+        fill="url(#turbog)"
+      />
+    </svg>
+  );
+}
+
+function GptImageBadge({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="gptg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#10B981" />
+          <stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+      </defs>
+      <circle cx="8" cy="8" r="6.5" stroke="url(#gptg)" strokeWidth="1.6" />
+      <circle cx="8" cy="8" r="2.2" fill="url(#gptg)" />
+    </svg>
+  );
+}
+
+function KontextBadge({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="kontextg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#3B82F6" />
+          <stop offset="100%" stopColor="#0EA5E9" />
+        </linearGradient>
+      </defs>
+      <rect x="2" y="4" width="8" height="8" rx="1.5" stroke="url(#kontextg)" strokeWidth="1.4" fill="none" />
+      <rect x="6" y="2" width="8" height="8" rx="1.5" fill="url(#kontextg)" />
+    </svg>
+  );
+}
+
+type ModelBadge = (props: { className?: string }) => JSX.Element;
+
 interface ModelEntry {
   id: ImageModel | 'kontext';
   label: string;
   hint: string;
-  Icon: typeof SquareIcon;
+  Badge: ModelBadge;
 }
 const MODEL_ENTRIES: ModelEntry[] = [
-  { id: 'flux',     label: 'Flux',     hint: 'Best quality',   Icon: Sparkles },
-  { id: 'turbo',    label: 'Turbo',    hint: 'Faster',         Icon: Zap },
-  { id: 'gptimage', label: 'Gptimage', hint: 'Text-aware',     Icon: MessageSquare },
+  { id: 'flux',     label: 'Flux',     hint: 'Best quality',  Badge: FluxBadge },
+  { id: 'turbo',    label: 'Turbo',    hint: 'Faster',        Badge: TurboBadge },
+  { id: 'gptimage', label: 'GPT Image',hint: 'Text in images',Badge: GptImageBadge },
 ];
 const KONTEXT_ENTRY: ModelEntry = {
-  id: 'kontext', label: 'Kontext', hint: 'Image-to-image', Icon: Brain,
+  id: 'kontext', label: 'Kontext', hint: 'Image-to-image', Badge: KontextBadge,
 };
 
 // ─── Premade prompt presets — adapt to the active brand on click ─────
@@ -427,14 +497,19 @@ export function GeneratePanel({
         </div>
       ) : null}
 
-      {/* Toolbar — only in Image mode */}
+      {/* Toolbar — only in Image mode.
+          Layout: 2-col row for Aspect + Type (compact), then Model on
+          its own full-width row (longer labels deserve more space and
+          a clearer badge). Each trigger is h-11 with icon top-left,
+          short caption + value below, chevron right. */}
       {mode === 'image' ? (
         <>
-          <div className="grid grid-cols-3 gap-1.5">
-            <IconSelect
-              triggerIcon={<activeAspect.Icon className="h-3 w-3" aria-hidden />}
-              triggerLabel={activeAspect.short}
+          <div className="grid grid-cols-2 gap-2">
+            <TallSelect
+              caption="Aspect"
+              icon={<activeAspect.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={aspectId}
+              valueLabel={activeAspect.short}
               onChange={setAspectId}
               disabled={busy}
               title="Aspect ratio"
@@ -442,41 +517,49 @@ export function GeneratePanel({
                 value: s.id,
                 label: s.label,
                 trailing: s.short,
-                Icon: s.Icon,
+                renderIcon: (cn) => <s.Icon className={cn} aria-hidden />,
               }))}
             />
-            <IconSelect
-              triggerIcon={<activeType.Icon className="h-3 w-3" aria-hidden />}
-              triggerLabel={activeType.id === 'image' ? 'Type' : activeType.label}
+            <TallSelect
+              caption="Type"
+              icon={<activeType.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={typeId}
+              valueLabel={activeType.id === 'image' ? 'Default' : activeType.label}
               onChange={onTypeChange}
               disabled={busy}
               title="Content type"
               items={CONTENT_TYPES.map((c) => ({
                 value: c.id,
                 label: c.label,
-                Icon: c.Icon,
+                renderIcon: (cn) => <c.Icon className={cn} aria-hidden />,
               }))}
             />
-            <IconSelect
-              triggerIcon={<activeModelEntry.Icon className="h-3 w-3" aria-hidden />}
-              triggerLabel={activeModelEntry.label}
-              value={reference ? 'kontext' : model}
-              onChange={(v) => setModel(v as ImageModel)}
-              disabled={busy || !!reference}
-              title="Model"
-              items={
-                reference
-                  ? [{ value: 'kontext', label: 'Kontext', trailing: 'img2img', Icon: KONTEXT_ENTRY.Icon }]
-                  : MODEL_ENTRIES.map((m) => ({
-                      value: m.id as string,
-                      label: m.label,
-                      trailing: m.hint,
-                      Icon: m.Icon,
-                    }))
-              }
-            />
           </div>
+          <TallSelect
+            caption="Model"
+            icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
+            value={reference ? 'kontext' : model}
+            valueLabel={activeModelEntry.label}
+            valueHint={activeModelEntry.hint}
+            onChange={(v) => setModel(v as ImageModel)}
+            disabled={busy || !!reference}
+            title="Model"
+            items={
+              reference
+                ? [{
+                    value: 'kontext',
+                    label: KONTEXT_ENTRY.label,
+                    trailing: KONTEXT_ENTRY.hint,
+                    renderIcon: (cn) => <KONTEXT_ENTRY.Badge className={cn} />,
+                  }]
+                : MODEL_ENTRIES.map((m) => ({
+                    value: m.id as string,
+                    label: m.label,
+                    trailing: m.hint,
+                    renderIcon: (cn) => <m.Badge className={cn} />,
+                  }))
+            }
+          />
 
           {/* Advanced — Negative prompt only */}
           <button
@@ -593,41 +676,53 @@ function ModeButton({
   );
 }
 
-interface IconSelectItem {
+interface TallSelectItem {
   value: string;
   label: string;
   trailing?: string;
-  Icon: typeof SquareIcon;
+  renderIcon: (className: string) => React.ReactNode;
 }
 
-function IconSelect({
-  triggerIcon, triggerLabel, value, onChange, disabled, title, items,
+function TallSelect({
+  caption, icon, value, valueLabel, valueHint, onChange, disabled, title, items,
 }: {
-  triggerIcon: React.ReactNode;
-  triggerLabel: string;
+  caption: string;
+  icon: React.ReactNode;
   value: string;
+  valueLabel: string;
+  valueHint?: string;
   onChange: (v: string) => void;
   disabled?: boolean;
   title: string;
-  items: IconSelectItem[];
+  items: TallSelectItem[];
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger
-        className="h-7 px-2 text-[11px] [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50"
+        // Override the default h-10 padding so the trigger has room
+        // for caption above + value below, with breathing room and
+        // chevron offset from the right edge.
+        className="h-11 px-2.5 py-1 text-[12px] gap-1.5 [&>span]:line-clamp-none [&>svg]:opacity-60"
         title={title}
       >
-        <span className="inline-flex items-center gap-1 min-w-0 truncate">
-          {triggerIcon}
-          <span className="truncate">{triggerLabel}</span>
-        </span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="shrink-0">{icon}</div>
+          <div className="flex flex-col items-start min-w-0 leading-tight">
+            <span className="text-[9.5px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              {caption}
+            </span>
+            <span className="text-[11.5px] font-medium truncate w-full text-left" style={{ color: 'var(--text-primary)' }}>
+              {valueLabel}{valueHint ? <span className="font-normal" style={{ color: 'var(--text-muted)' }}> · {valueHint}</span> : null}
+            </span>
+          </div>
+        </div>
       </SelectTrigger>
-      <SelectContent data-workspace className="min-w-[200px]">
+      <SelectContent data-workspace className="min-w-[220px]">
         {items.map((it) => (
           <SelectItem key={it.value} value={it.value} className="text-[12px]">
-            <div className="flex items-center justify-between gap-3 w-full">
-              <span className="inline-flex items-center gap-1.5">
-                <it.Icon className="h-3 w-3 shrink-0" aria-hidden />
+            <div className="flex items-center justify-between gap-3 w-full py-0.5">
+              <span className="inline-flex items-center gap-2">
+                {it.renderIcon('h-3.5 w-3.5 shrink-0')}
                 {it.label}
               </span>
               {it.trailing ? (
