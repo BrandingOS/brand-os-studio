@@ -1,27 +1,17 @@
-// GeneratePanel — the canonical AI surface in the editor sidebar.
+// GeneratePanel — dense, Freepik-inspired AI surface in the sidebar.
 //
-// Best-practice AI image generation, in the spirit of Hexfield /
-// Lovart / Freepik / Stitch:
-//
-//   • Mode toggle: Image (default) | Editable
-//   • Prompt textarea, ⌘/Ctrl+Enter to submit
-//   • Reference image — drag/drop or click to upload; uploads to the
-//     brand-assets bucket and routes the request through Pollinations
-//     Kontext (image-to-image) automatically.
-//   • Aspect ratio · Style · Model — proper Radix dropdowns so the
-//     surface scales as we add presets / vendors / templates.
-//   • Editable mode = Claude agent (existing layered-edit path).
-//
-// Token notes:
-//   • Use --accent / --accent-contrast for primary surfaces. The
-//     workspace doesn't define --primary; the previous chip styling
-//     resolved that to a generic Tailwind default and produced a
-//     white-on-white selected state.
-//   • Radix dropdown content is portaled outside the workspace root
-//     so we set data-workspace on the Select Content to keep tokens.
+// Density-first layout: the prompt is the hero, everything else is
+// compact chrome packed into a bottom toolbar + reference card row.
+// No giant LABEL FIELD stacks. Sections are 6–8 px apart, dropdowns
+// are 28 px tall, buttons are 28 px tall, and the whole panel fits
+// inside the 300 px secondary panel without scrolling at zero refs.
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { Sparkles, Image as ImageIcon, Layers, Upload, X as XIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Sparkles, Image as ImageIcon, Layers, Plus, X as XIcon,
+  Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
+  Settings2, Palette, Cpu, Star,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, Layer } from '@/features/editor/schema';
@@ -47,23 +37,24 @@ type Mode = 'image' | 'editable';
 interface SizePreset {
   id: string;
   label: string;
+  short: string;
   width: number;
   height: number;
-  hint: string;
+  Icon: typeof SquareIcon;
 }
 
 const SIZE_PRESETS: SizePreset[] = [
-  { id: 'square',    label: 'Square',    width: 1024, height: 1024, hint: '1:1 · 1024' },
-  { id: 'portrait',  label: 'Portrait',  width: 1024, height: 1280, hint: '4:5 · IG post' },
-  { id: 'story',     label: 'Story',     width: 1024, height: 1820, hint: '9:16 · stories' },
-  { id: 'landscape', label: 'Landscape', width: 1820, height: 1024, hint: '16:9 · banner' },
-  { id: 'wide',      label: 'Wide',      width: 1920, height: 832,  hint: '21:9 · cinematic' },
+  { id: 'square',    label: 'Square',    short: '1:1',  width: 1024, height: 1024, Icon: SquareIcon },
+  { id: 'portrait',  label: 'Portrait',  short: '4:5',  width: 1024, height: 1280, Icon: RectangleVertical },
+  { id: 'story',     label: 'Story',     short: '9:16', width: 1024, height: 1820, Icon: Smartphone },
+  { id: 'landscape', label: 'Landscape', short: '16:9', width: 1820, height: 1024, Icon: RectangleHorizontal },
+  { id: 'wide',      label: 'Wide',      short: '21:9', width: 1920, height: 832,  Icon: MonitorPlay },
 ];
 
 const MODEL_HINTS: Record<ImageModel, string> = {
-  flux:     'Best quality — default',
-  turbo:    'Faster, looser detail',
-  gptimage: 'Better at text in images',
+  flux:     'Best quality',
+  turbo:    'Faster',
+  gptimage: 'Text-aware',
 };
 
 interface Props {
@@ -82,15 +73,10 @@ interface ReferenceImageState {
   fileName: string;
 }
 
+const REFERENCE_LIMIT = 3;
+
 export function GeneratePanel({
-  adapter,
-  activePageId,
-  doc,
-  brand,
-  agent,
-  getContext,
-  initialPrompt,
-  onApply,
+  adapter, activePageId, doc, brand, agent, getContext, initialPrompt, onApply,
 }: Props) {
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [mode, setMode] = useState<Mode>('image');
@@ -99,7 +85,6 @@ export function GeneratePanel({
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  // Image-mode settings
   const [sizeId, setSizeId] = useState<string>('square');
   const [styleId, setStyleId] = useState<string>('none');
   const [model, setModel] = useState<ImageModel>('flux');
@@ -119,7 +104,7 @@ export function GeneratePanel({
   // ─── Reference image upload ──────────────────────────────────────
   const handleFileChosen = useCallback(async (file: File) => {
     if (!brand) {
-      toast.error('Reference uploads need a brand. Open a brand-scoped design first.');
+      toast.error('Reference uploads need a brand context.');
       return;
     }
     if (!file.type.startsWith('image/')) {
@@ -136,7 +121,7 @@ export function GeneratePanel({
       const safeName = `ai-references/${Date.now()}-${crypto.randomUUID()}.${ext}`;
       const { url } = await storage.current.uploadAsset(brand.id, file, safeName);
       setReference({ url, fileName: file.name });
-      toast.success('Reference image attached.');
+      toast.success('Reference attached.');
     } catch (err) {
       console.error('[GeneratePanel] reference upload failed:', err);
       toast.error('Could not upload reference image.');
@@ -148,7 +133,7 @@ export function GeneratePanel({
   const onPickFile = useCallback(() => fileInputRef.current?.click(), []);
   const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    e.target.value = ''; // allow re-picking the same file
+    e.target.value = '';
     if (f) void handleFileChosen(f);
   }, [handleFileChosen]);
 
@@ -195,20 +180,14 @@ export function GeneratePanel({
         name: 'AI image',
         src: result.imageUrl,
         fit: 'cover',
-        transform: {
-          x: 0, y: 0, width: pageW, height: pageH,
-          rotation: 0, scaleX: 1, scaleY: 1,
-        },
+        transform: { x: 0, y: 0, width: pageW, height: pageH, rotation: 0, scaleX: 1, scaleY: 1 },
         opacity: 1, visible: true, locked: false, brandLocked: false,
       };
-      adapter.batch('AI: place image', () => {
-        adapter.addLayer(activePageId, layer);
-      });
-      toast.success(result.mock ? 'Image placed (mock mode).' : 'AI image placed on canvas.');
+      adapter.batch('AI: place image', () => { adapter.addLayer(activePageId, layer); });
+      toast.success(result.mock ? 'Image placed (mock).' : 'AI image placed.');
       setPrompt('');
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Image generation failed: ${message}`);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -237,8 +216,7 @@ export function GeneratePanel({
         setPrompt('');
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Unexpected error: ${message}`);
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -264,78 +242,96 @@ export function GeneratePanel({
     [submit],
   );
 
+  const activeSize = SIZE_PRESETS.find((s) => s.id === sizeId) ?? SIZE_PRESETS[0];
+  const activeStyle = IMAGE_STYLES.find((s) => s.id === styleId) ?? IMAGE_STYLES[0];
+  const refCount = reference ? 1 : 0;
+
   const placeholder =
     mode === 'image'
       ? reference
-        ? 'Describe how to transform the reference — e.g. "make it cyberpunk neon"…'
+        ? 'Describe how to transform the reference…'
         : brand
-          ? `Generate an image — e.g. "neon ${brand.name} hero shot at dusk"…`
-          : 'Describe the image you want to generate…'
+          ? `Describe an image — "neon ${brand.name} hero at dusk"`
+          : 'Describe the image…'
       : brand
-        ? `Edit the design — e.g. "make the headline bigger and brand-red"…`
-        : 'Describe the edit you want…';
+        ? `Edit the design — "make headline bigger and brand-red"`
+        : 'Describe the edit…';
 
   // ─── Render ──────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-3 px-3 py-3 text-[12.5px]" style={{ color: 'var(--text-primary)' }}>
-      {/* Mode toggle */}
+    <div className="flex flex-col gap-2.5 px-2.5 py-2.5 text-[12px]" style={{ color: 'var(--text-primary)' }}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={onFileInputChange}
+        className="hidden"
+      />
+
+      {/* Mode pills */}
       <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
 
-      {/* Prompt */}
-      <div
-        className="rounded-xl border transition-colors"
-        style={{
-          borderColor: error ? 'var(--accent-red, #ef4444)' : 'var(--border)',
-          background: 'var(--surface)',
-        }}
-      >
-        <textarea
-          data-generate-prompt
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          disabled={busy}
-          rows={4}
-          className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-[12.5px] leading-snug focus:outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
-        />
-        <div className="flex items-center justify-between px-2 pb-2 pt-0.5">
-          <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
-            ⌘/Ctrl + Enter
-          </span>
-          <button
-            type="button"
-            data-generate-submit
-            onClick={() => void submit()}
-            disabled={busy || !prompt.trim() || (mode === 'editable' && !agent)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11.5px] font-medium transition-all disabled:opacity-50"
-            style={{
-              background: 'var(--accent)',
-              color: 'var(--accent-contrast)',
-              boxShadow: busy ? 'none' : '0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent)',
-            }}
-          >
-            {busy ? (
-              <span className="flex gap-0.5">
-                <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '0ms' }} />
-                <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '150ms' }} />
-                <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '300ms' }} />
-              </span>
+      {/* References — only in Image mode */}
+      {mode === 'image' ? (
+        <section className="flex flex-col gap-1.5">
+          <Caption text="References" trailing={`${refCount}/${REFERENCE_LIMIT}`} />
+          <div className="grid grid-cols-3 gap-1.5">
+            {reference ? (
+              <ReferenceFilledSlot
+                kind="Style"
+                Icon={Star}
+                src={reference.url}
+                onRemove={clearReference}
+              />
             ) : (
-              <>
-                <Sparkles className="h-3 w-3" aria-hidden />
-                Generate
-              </>
+              <ReferenceEmptySlot
+                kind="Style"
+                Icon={Star}
+                onClick={onPickFile}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                uploading={uploading}
+              />
             )}
-          </button>
+            <ReferenceComingSoon Icon={Palette} label="Brand" />
+            <ReferenceAddMore Icon={Plus} onClick={onPickFile} disabled={!!reference || uploading} />
+          </div>
+        </section>
+      ) : null}
+
+      {/* Prompt — the hero */}
+      <section className="flex flex-col gap-1.5">
+        <Caption text="Prompt" />
+        <div
+          className="rounded-lg border transition-colors focus-within:ring-1"
+          style={{
+            borderColor: error ? 'var(--accent-red, #ef4444)' : 'var(--border)',
+            background: 'var(--surface)',
+          }}
+        >
+          <textarea
+            data-generate-prompt
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={placeholder}
+            disabled={busy}
+            rows={4}
+            className="w-full resize-none bg-transparent px-2.5 pt-2 pb-1 text-[12px] leading-snug focus:outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+          />
+          <div className="flex items-center justify-between px-2 pb-1.5 pt-0.5">
+            <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              ⌘/Ctrl + Enter
+            </span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* Inline error */}
       {error ? (
         <div
           data-generate-error
-          className="rounded-md px-2 py-1.5 text-[11.5px]"
+          className="rounded-md px-2 py-1 text-[11px]"
           style={{
             background: 'color-mix(in oklab, var(--accent-red, #ef4444) 8%, transparent)',
             color: 'var(--accent-red, #ef4444)',
@@ -362,189 +358,146 @@ export function GeneratePanel({
         </div>
       ) : null}
 
-      {/* Image-only sections */}
+      {/* Toolbar — only in Image mode */}
       {mode === 'image' ? (
         <>
-          {/* Reference image */}
-          <Field label="Reference image" hint={reference ? 'Kontext (img2img)' : 'Optional'}>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={onFileInputChange}
-              className="hidden"
+          <div className="grid grid-cols-3 gap-1.5">
+            <ToolbarSelect
+              icon={<activeSize.Icon className="h-3 w-3" aria-hidden />}
+              value={sizeId}
+              onChange={setSizeId}
+              disabled={busy}
+              title="Aspect ratio"
+              shortLabel={activeSize.short}
+              items={SIZE_PRESETS.map((s) => ({
+                value: s.id,
+                label: s.label,
+                trailing: s.short,
+              }))}
             />
-            {reference ? (
-              <div
-                className="flex items-center gap-2 rounded-lg border p-1.5"
-                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-              >
-                <div
-                  className="h-10 w-10 shrink-0 rounded-md overflow-hidden border"
-                  style={{ borderColor: 'var(--border)' }}
-                >
-                  <img src={reference.url} alt="Reference" className="h-full w-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[11.5px] truncate" title={reference.fileName}>
-                    {reference.fileName}
-                  </div>
-                  <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    Auto-routed to Kontext model
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearReference}
-                  aria-label="Remove reference"
-                  className="rounded-md p-1 transition-colors hover:bg-muted"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <XIcon className="h-3 w-3" aria-hidden />
-                </button>
-              </div>
-            ) : (
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={onPickFile}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onPickFile(); }}
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                className="flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-3 px-2 text-center transition-colors hover:bg-muted/30 cursor-pointer"
-                style={{ borderColor: 'var(--border)', background: 'transparent' }}
-              >
-                <Upload className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} aria-hidden />
-                <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  {uploading ? 'Uploading…' : 'Drop image or click to attach'}
-                </span>
-                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                  Use as Omni-style reference
-                </span>
-              </div>
-            )}
-          </Field>
-
-          {/* Aspect ratio */}
-          <Field label="Aspect ratio">
-            <Select value={sizeId} onValueChange={setSizeId} disabled={busy}>
-              <SelectTrigger className="h-8 text-[12px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent data-workspace>
-                {SIZE_PRESETS.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="text-[12px]">
-                    <div className="flex items-center justify-between gap-3 w-full">
-                      <span>{s.label}</span>
-                      <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{s.hint}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          {/* Style */}
-          <Field label="Style">
-            <Select value={styleId} onValueChange={setStyleId} disabled={busy}>
-              <SelectTrigger className="h-8 text-[12px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent data-workspace>
-                {IMAGE_STYLES.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="text-[12px]">
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          {/* Model — locked to kontext when reference is set */}
-          <Field label="Model" hint={reference ? 'Locked: Kontext (img2img)' : undefined}>
-            <Select
+            <ToolbarSelect
+              icon={<Palette className="h-3 w-3" aria-hidden />}
+              value={styleId}
+              onChange={setStyleId}
+              disabled={busy}
+              title="Style"
+              shortLabel={activeStyle.id === 'none' ? 'Style' : activeStyle.label}
+              items={IMAGE_STYLES.map((s) => ({ value: s.id, label: s.label }))}
+            />
+            <ToolbarSelect
+              icon={<Cpu className="h-3 w-3" aria-hidden />}
               value={reference ? 'kontext' : model}
-              onValueChange={(v) => setModel(v as ImageModel)}
+              onChange={(v) => setModel(v as ImageModel)}
               disabled={busy || !!reference}
-            >
-              <SelectTrigger className="h-8 text-[12px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent data-workspace>
-                {reference ? (
-                  <SelectItem value="kontext" className="text-[12px]">
-                    Kontext · image-to-image
-                  </SelectItem>
-                ) : (
-                  IMAGE_MODELS.map((m) => (
-                    <SelectItem key={m} value={m} className="text-[12px]">
-                      <div className="flex items-center justify-between gap-3 w-full">
-                        <span className="capitalize">{m}</span>
-                        <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{MODEL_HINTS[m]}</span>
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          {/* Advanced */}
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setAdvancedOpen((v) => !v)}
-              className="inline-flex items-center justify-between text-[10.5px] uppercase tracking-wider"
-              style={{ color: 'var(--text-muted)' }}
-              aria-expanded={advancedOpen}
-            >
-              <span>Advanced</span>
-              {advancedOpen ? <ChevronUp className="h-3 w-3" aria-hidden /> : <ChevronDown className="h-3 w-3" aria-hidden />}
-            </button>
-            {advancedOpen ? (
-              <div className="flex flex-col gap-3">
-                <Field label="Negative prompt" hint="What to avoid">
-                  <textarea
-                    value={negativePrompt}
-                    onChange={(e) => setNegativePrompt(e.target.value)}
-                    placeholder="e.g. blurry, low quality, text artifacts"
-                    rows={2}
-                    disabled={busy}
-                    className="w-full resize-none rounded-md border px-2 py-1 text-[11.5px] focus:outline-none disabled:opacity-60"
-                    style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                  />
-                </Field>
-                <Field label="Seed" hint="Empty = random">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={seedText}
-                    onChange={(e) => setSeedText(e.target.value.replace(/[^0-9]/g, ''))}
-                    placeholder="random"
-                    disabled={busy}
-                    className="w-full rounded-md border px-2 py-1 text-[11.5px] focus:outline-none disabled:opacity-60"
-                    style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                  />
-                </Field>
-              </div>
-            ) : null}
+              title="Model"
+              shortLabel={reference ? 'Kontext' : (model.charAt(0).toUpperCase() + model.slice(1))}
+              items={
+                reference
+                  ? [{ value: 'kontext', label: 'Kontext', trailing: 'img2img' }]
+                  : IMAGE_MODELS.map((m) => ({
+                      value: m,
+                      label: m.charAt(0).toUpperCase() + m.slice(1),
+                      trailing: MODEL_HINTS[m],
+                    }))
+              }
+            />
           </div>
+
+          {/* Advanced toggle */}
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="inline-flex items-center gap-1 self-start rounded-md px-1.5 py-0.5 text-[10px] transition-colors hover:bg-muted"
+            style={{ color: 'var(--text-muted)' }}
+            aria-expanded={advancedOpen}
+          >
+            <Settings2 className="h-3 w-3" aria-hidden />
+            {advancedOpen ? 'Hide advanced' : 'Advanced'}
+          </button>
+
+          {advancedOpen ? (
+            <div className="flex flex-col gap-2">
+              <Field label="Negative prompt">
+                <textarea
+                  value={negativePrompt}
+                  onChange={(e) => setNegativePrompt(e.target.value)}
+                  placeholder="blurry, low quality, text"
+                  rows={2}
+                  disabled={busy}
+                  className="w-full resize-none rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                />
+              </Field>
+              <Field label="Seed (empty = random)">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={seedText}
+                  onChange={(e) => setSeedText(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="random"
+                  disabled={busy}
+                  className="w-full rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                />
+              </Field>
+            </div>
+          ) : null}
         </>
       ) : null}
 
-      {/* Mode-specific helper text */}
-      <p className="text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
-        {mode === 'image'
-          ? `${reference ? 'Reference-guided' : 'Text-to-image'} — placed full-bleed on the active page.`
-          : agent
-            ? 'AI edits the current design with brand-bound layers.'
-            : 'Editable mode needs a brand context.'}
-      </p>
+      {/* Generate button — full width, primary */}
+      <button
+        type="button"
+        data-generate-submit
+        onClick={() => void submit()}
+        disabled={busy || !prompt.trim() || (mode === 'editable' && !agent)}
+        className="mt-0.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium transition-all disabled:opacity-50"
+        style={{
+          background: 'var(--accent)',
+          color: 'var(--accent-contrast)',
+          boxShadow: busy ? 'none' : '0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent)',
+        }}
+      >
+        {busy ? (
+          <span className="flex gap-0.5">
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '0ms' }} />
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '150ms' }} />
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ background: 'currentColor', animationDelay: '300ms' }} />
+          </span>
+        ) : (
+          <>
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            Generate
+          </>
+        )}
+      </button>
     </div>
   );
 }
 
 // ─── Local primitives ────────────────────────────────────────────────
+
+function Caption({ text, trailing }: { text: string; trailing?: string }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className="text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+        {text}
+      </span>
+      {trailing ? (
+        <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{trailing}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Caption text={label} />
+      {children}
+    </div>
+  );
+}
 
 function ModeToggle({
   mode, busy, agentAvailable, onChange,
@@ -598,18 +551,137 @@ function ModeButton({
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+interface ToolbarSelectItem {
+  value: string;
+  label: string;
+  trailing?: string;
+}
+
+function ToolbarSelect({
+  icon, value, onChange, disabled, title, shortLabel, items,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  title: string;
+  shortLabel: string;
+  items: ToolbarSelectItem[];
+}) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          {label}
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger
+        className="h-7 px-2 text-[11px] [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-50"
+        title={title}
+      >
+        <span className="inline-flex items-center gap-1 min-w-0 truncate">
+          {icon}
+          <span className="truncate">{shortLabel}</span>
         </span>
-        {hint ? (
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{hint}</span>
-        ) : null}
+      </SelectTrigger>
+      <SelectContent data-workspace className="min-w-[180px]">
+        {items.map((it) => (
+          <SelectItem key={it.value} value={it.value} className="text-[12px]">
+            <div className="flex items-center justify-between gap-3 w-full">
+              <span>{it.label}</span>
+              {it.trailing ? (
+                <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{it.trailing}</span>
+              ) : null}
+            </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// ─── Reference slot cards ────────────────────────────────────────────
+
+function ReferenceFilledSlot({
+  kind, Icon, src, onRemove,
+}: { kind: string; Icon: typeof Star; src: string; onRemove: () => void }) {
+  return (
+    <div
+      className="relative aspect-square rounded-lg border overflow-hidden group"
+      style={{ borderColor: 'var(--border)' }}
+    >
+      <img src={src} alt={kind} className="h-full w-full object-cover" />
+      <div
+        className="absolute inset-x-0 bottom-0 px-1 py-0.5 flex items-center justify-between"
+        style={{ background: 'color-mix(in oklab, #000 60%, transparent)', color: '#fff' }}
+      >
+        <span className="inline-flex items-center gap-0.5 text-[9.5px] font-medium">
+          <Icon className="h-2.5 w-2.5" aria-hidden /> {kind}
+        </span>
       </div>
-      {children}
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove reference"
+        className="absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full transition-opacity opacity-0 group-hover:opacity-100"
+        style={{ background: 'color-mix(in oklab, #000 70%, transparent)', color: '#fff' }}
+      >
+        <XIcon className="h-2.5 w-2.5" aria-hidden />
+      </button>
     </div>
+  );
+}
+
+function ReferenceEmptySlot({
+  kind, Icon, onClick, onDrop, onDragOver, uploading,
+}: {
+  kind: string;
+  Icon: typeof Star;
+  onClick: () => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  uploading: boolean;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors hover:bg-muted/30"
+      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="text-[10px] font-medium">
+        {uploading ? '…' : kind}
+      </span>
+    </div>
+  );
+}
+
+function ReferenceComingSoon({ Icon, label }: { Icon: typeof Star; label: string }) {
+  return (
+    <div
+      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 opacity-40 cursor-not-allowed"
+      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+      title="Coming soon"
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="text-[10px] font-medium">{label}</span>
+    </div>
+  );
+}
+
+function ReferenceAddMore({
+  Icon, onClick, disabled,
+}: { Icon: typeof Star; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors hover:bg-muted/30 disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden />
+      <span className="text-[10px] font-medium">Add</span>
+    </button>
   );
 }
