@@ -860,6 +860,46 @@ export function Editor({
                   });
                 }
               }}
+              onPlaceImage={(imageUrl, dims) => {
+                const docNow = adapter.getDocument();
+                const page = docNow.pages.find((p) => p.id === activePageId);
+                const pageW = page?.width ?? 1080;
+                const pageH = page?.height ?? 1080;
+                // Cover the full page — Image mode is the "deliver a
+                // finished image" path, so the user expects it to fill
+                // the canvas, not sit as a thumbnail. The aspect ratio
+                // already matches the page because we pass the page
+                // dims to generateImage in the bar.
+                const aspect = dims.width / dims.height;
+                let w = pageW;
+                let h = w / aspect;
+                if (h < pageH) {
+                  h = pageH;
+                  w = h * aspect;
+                }
+                adapter.batch('AI: place image', () => {
+                  adapter.addLayer(activePageId, {
+                    id: crypto.randomUUID(),
+                    kind: 'image',
+                    name: 'AI image',
+                    src: imageUrl,
+                    fit: 'cover',
+                    transform: {
+                      x: (pageW - w) / 2,
+                      y: (pageH - h) / 2,
+                      width: w,
+                      height: h,
+                      rotation: 0,
+                      scaleX: 1,
+                      scaleY: 1,
+                    },
+                    opacity: 1,
+                    visible: true,
+                    locked: false,
+                    brandLocked: false,
+                  });
+                });
+              }}
             />
           ) : null}
         </div>

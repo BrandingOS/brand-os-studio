@@ -27,7 +27,7 @@
 // re-rendering on every doc change. Phase 3.5 spec §5.2.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Sparkles, Send, X } from 'lucide-react';
+import { Sparkles, Send, X, Image as ImageIcon, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type {
@@ -36,6 +36,7 @@ import type {
   AICommandResult,
 } from '@/features/editor/ai/types';
 import type { BrandOSDocument } from '@/features/editor/schema';
+import { generateImage } from '@/features/editor/ai/generateImage';
 
 interface Props {
   /** AI agent (production: createEdgeFunctionAgent; test: stub). */
@@ -54,7 +55,15 @@ interface Props {
    *  Design page hero before navigating to the editor — they expect the
    *  text to land in the prompt bar so they can tweak + submit. */
   initialValue?: string;
+  /** Image-mode handler — when the user picks Image and submits, the
+   *  bar calls ai-generate-image and invokes this with the resulting
+   *  image URL + dimensions. The editor wires this to place an image
+   *  layer on the active page. When absent, the Image mode toggle is
+   *  hidden and only the layered path is available. */
+  onPlaceImage?: (imageUrl: string, dims: { width: number; height: number }) => void;
 }
+
+type Mode = 'image' | 'editable';
 
 const PLACEHOLDER_DEFAULT = 'Ask the AI to edit your design…';
 const NARROW_BREAKPOINT_PX = 1024;
@@ -66,6 +75,7 @@ export function EditorAiPromptBar({
   onApply,
   placeholder = PLACEHOLDER_DEFAULT,
   initialValue,
+  onPlaceImage,
 }: Props) {
   const [value, setValue] = useState(initialValue ?? '');
   const [busy, setBusy] = useState(false);
@@ -73,6 +83,9 @@ export function EditorAiPromptBar({
   const [collapsed, setCollapsed] = useState<boolean>(() => isNarrowViewport());
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  // Image as default when the parent wires onPlaceImage — mirrors the
+  // Design hero's UX. When onPlaceImage is absent, force Editable.
+  const [mode, setMode] = useState<Mode>(onPlaceImage ? 'image' : 'editable');
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -105,6 +118,29 @@ export function EditorAiPromptBar({
     setBusy(true);
     setError(null);
     setSuggestions([]);
+
+    // Image mode — generate a flat image via ai-generate-image and
+    // hand it to the editor for canvas placement. Bypasses the
+    // layered-edit path entirely.
+    if (mode === 'image' && onPlaceImage) {
+      try {
+        const doc = getDoc();
+        const activePage = doc.pages.find((p) => p.id === getContext().activePageId) ?? doc.pages[0];
+        const w = activePage?.width ?? 1024;
+        const h = activePage?.height ?? 1024;
+        const result = await generateImage({ prompt: command, width: w, height: h });
+        onPlaceImage(result.imageUrl, { width: w, height: h });
+        toast.success(result.mock ? 'Image placed (mock mode).' : 'AI image placed on canvas.');
+        setValue('');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Image generation failed: ${message}`);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     try {
       const result = await agent.applyCommand(getDoc(), command, getContext());
       onApply(result);
@@ -139,7 +175,7 @@ export function EditorAiPromptBar({
     } finally {
       setBusy(false);
     }
-  }, [agent, busy, getContext, getDoc, onApply, value]);
+  }, [agent, busy, getContext, getDoc, mode, onApply, onPlaceImage, value]);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -161,6 +197,44 @@ export function EditorAiPromptBar({
 
   const form = (
     <div data-ai-prompt-form className="flex flex-col gap-1.5 w-full">
+      {onPlaceImage ? (
+        <div
+          data-ai-prompt-mode-group
+          role="radiogroup"
+          aria-label="Generation mode"
+          className="inline-flex items-center gap-0.5 self-start rounded-full p-0.5"
+          style={{ background: 'color-mix(in oklab, var(--foreground) 5%, transparent)' }}
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === 'image'}
+            data-ai-prompt-mode="image"
+            onClick={() => setMode('image')}
+            disabled={busy}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
+              mode === 'image' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <ImageIcon className="h-3 w-3" aria-hidden /> Image
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === 'editable'}
+            data-ai-prompt-mode="editable"
+            onClick={() => setMode('editable')}
+            disabled={busy}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
+              mode === 'editable' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Layers className="h-3 w-3" aria-hidden /> Editable
+          </button>
+        </div>
+      ) : null}
       <div
         className="flex items-stretch gap-1.5 rounded-xl border bg-background"
         data-ai-prompt-input-wrap
@@ -179,7 +253,11 @@ export function EditorAiPromptBar({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
+          placeholder={
+            onPlaceImage && mode === 'image'
+              ? 'Describe an image to generate and place on the canvas…'
+              : placeholder
+          }
           disabled={busy}
           rows={1}
           className="flex-1 resize-none bg-transparent text-sm leading-snug py-1.5 focus:outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
