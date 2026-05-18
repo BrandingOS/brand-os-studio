@@ -12,6 +12,7 @@ import type { BrandOSDocument } from '@/features/editor/schema';
 // id; the test fetcher receives the resulting bearer header but
 // doesn't care about the value.
 vi.mock('@/integrations/supabase/client', () => ({
+  SUPABASE_URL: 'https://mock.supabase.co',
   supabase: {
     auth: {
       getSession: vi.fn(async () => ({ data: { session: null } })),

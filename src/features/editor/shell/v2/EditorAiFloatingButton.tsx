@@ -20,6 +20,7 @@ interface Props {
   getContext: () => AICommandContext;
   onApply: (result: AICommandResult) => void;
   initialValue?: string;
+  onPlaceImage?: (imageUrl: string, dims: { width: number; height: number }) => void;
 }
 
 export function EditorAiFloatingButton(props: Props) {
@@ -90,6 +91,7 @@ export function EditorAiFloatingButton(props: Props) {
             getContext={props.getContext}
             onApply={props.onApply}
             initialValue={props.initialValue}
+            onPlaceImage={props.onPlaceImage}
           />
         </div>
       ) : null}

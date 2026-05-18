@@ -39,7 +39,8 @@ import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocume
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar } from './v2/EditorTopBar';
-import { EditorAiFloatingButton } from './v2/EditorAiFloatingButton';
+// EditorAiFloatingButton removed — AI now lives in the Generate
+// sidebar panel via EditorSecondaryPanel → GeneratePanel.
 import { EditorMoreActionsMenu } from './v2/EditorMoreActionsMenu';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
 import { EditorGenerateVariantsButton } from './v2/EditorGenerateVariantsButton';
@@ -62,6 +63,7 @@ import {
 } from './v2/EditorFloatingToolbar';
 import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
+import { EditorGenerationsStrip } from './v2/EditorGenerationsStrip';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
@@ -172,8 +174,13 @@ export function Editor({
   // Theme — driven via [data-workspace][data-theme] on the wrapper.
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // App Rail / Secondary Panel state.
-  const [activeRail, setActiveRail] = useState<RailItem>('insert');
+  // App Rail / Secondary Panel state. When the editor mounts with a
+  // staged prompt (user came from /b/:slug/design's hero with ?prompt=…),
+  // open the Generate panel by default so the prompt is visible and
+  // submit-ready.
+  const [activeRail, setActiveRail] = useState<RailItem>(
+    initialPrompt ? 'generate' : 'insert',
+  );
   const [secondaryOpen, setSecondaryOpen] = useState(true);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
 
@@ -676,6 +683,27 @@ export function Editor({
                 activePageId={activePageId}
                 brand={brand}
                 onCollapse={() => setSecondaryOpen(false)}
+                agent={effectiveAgent ?? null}
+                initialPrompt={initialPrompt}
+                getContext={(): AICommandContext => ({
+                  activePageId,
+                  selection: selection.layerIds,
+                  brand: brand as Brand,
+                })}
+                onAIApply={(result: AICommandResult) => {
+                  applyAICommandResult(adapter, result);
+                  if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
+                    void activityService.log({
+                      brandId: brand.id,
+                      brandName: brand.name,
+                      eventType: 'brand_updated',
+                      title: result.label || 'AI: design update',
+                      description: result.message,
+                      metadata: { ai: true, kind: result.kind, designId: doc.id },
+                    });
+                  }
+                }}
+                onActivePageChange={(id) => adapter.setActivePage(id)}
               />
             </div>
           ) : null}
@@ -828,40 +856,27 @@ export function Editor({
             </div>
           ) : null}
 
-          {/* Floating "Ask AI" pill — replaces the inline AI prompt
-              bar that used to sit in the top chrome. Anchored to the
-              bottom of the canvas region; click opens a popover with
-              the prompt input. Hidden when there's no agent or no
-              brand (the prompt needs brand context to ground edits). */}
-          {effectiveAgent && brand ? (
-            <EditorAiFloatingButton
-              agent={effectiveAgent}
-              initialValue={initialPrompt}
-              getDoc={() => adapter.getDocument()}
-              getContext={(): AICommandContext => ({
-                activePageId,
-                selection: selection.layerIds,
-                brand,
-              })}
-              onApply={(result: AICommandResult) => {
-                applyAICommandResult(adapter, result);
-                if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
-                  void activityService.log({
-                    brandId: brand.id,
-                    brandName: brand.name,
-                    eventType: 'brand_updated',
-                    title: result.label || 'AI: design update',
-                    description: result.message,
-                    metadata: {
-                      ai: true,
-                      kind: result.kind,
-                      designId: doc.id,
-                    },
-                  });
-                }
-              }}
-            />
-          ) : null}
+          {/* AI lives in the Generate sidebar panel now — see
+              EditorSecondaryPanel + panels/GeneratePanel. The old
+              floating "Ask AI" pill was removed in favor of this
+              persistent sidebar surface so size/style/model
+              controls have a home. */}
+
+          {/* Generations strip — floating vertical thumbnail column
+              on the right side of the canvas. Surfaces every page so
+              AI generations (which append pages) are reachable
+              without opening the side page navigator. Hides itself
+              for single-page docs.
+
+              IMPORTANT: page-switching goes through adapter.setActivePage
+              (not React's setActivePageId). The editor mirrors the
+              adapter's active page on every event — calling React's
+              setter alone gets clobbered by the next event.  */}
+          <EditorGenerationsStrip
+            doc={doc}
+            activePageId={activePageId}
+            onActivePageChange={(id) => adapter.setActivePage(id)}
+          />
         </div>
 
         {/* First-visit welcome tip — self-dismissing, ever shows once

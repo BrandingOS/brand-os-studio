@@ -339,6 +339,77 @@ one, update the other.
   seed brands (Raqm, SKAM, Vector) in both modes — 13/13 contrast
   assertions pass.
 
+## Brand Kit (Studio canonical) — `/b/:slug/brand-kit`
+
+The heart of every brand in Studio. Major feature under active iteration —
+default any "brand kit" task to the canonical fork (`features/brand-kit/`),
+NOT the alternate (`features/brand-kit-alt/`).
+
+**Entry & shell:**
+- Route page: `src/pages/b/[slug]/brand-kit.tsx` — fetches via
+  `useBrandFromSlug`, converts to `MockBrand` shape (setup-era schema),
+  wraps in `WorkspaceShell`, mounts `BrandSetupChecklist` above for
+  incomplete-starter steps.
+- Main component: `src/features/brand-kit/BrandKitCosmosPage.tsx`
+  (~1.4k LOC). Single page, two views: **sections list** (default) +
+  **drilldown overlay** (history-based back, popstate-aware).
+
+**Seven sections + their cards:**
+- **Brand Assets** — Logos · Colors · Fonts · Icons · Photos · About
+- **Stationery** — Business Card · Letterhead · Envelope · Invoice
+- **Social Media** — Profile · Cover · Post · Story
+- **Web** — Favicon · Website · Email Signature · Landing Page
+- **Brand Guides** — Logo · Color · Typography · Voice · Imagery
+- **Presentations** — Pitch Deck · Business Plan · Proposal · Case Studies
+- **Animations** — Logo Reveal · Slide In · Fade · Rotate
+
+**Two card patterns:**
+- Brand-asset cards (Logos/Colors/Fonts/Icons) render the full variant
+  grid inline AND support an inline `+` add for colors/icons (session-
+  only, see below). Photos + About are placeholder grids.
+- Every other section uses **3 featured tiles + "More" picker modal**.
+- Right-click any card → "Edit" opens `BrandKitCardEditor.tsx` (~1.8k
+  LOC) as a full-page overlay with live preview + template overrides.
+
+**Data flow + the persistence gap:**
+`effectiveBrand` = base brand + session overlays (`iconsOverride`,
+`colorAddsOverride`, `suggestedIcons`). Color/icon adds are
+**session-only** — they don't write back to the store. Same for the
+card editor's `onSave` — it currently toasts only. Explicit follow-up
+markers at `BrandKitCosmosPage.tsx` ~232–249 and ~824. When persistence
+lands, it must mirror the existing `iconsOverride` overlay pattern.
+
+**Brand-kit-specific helpers:**
+- `features/brand-kit/data/recolorLogo.ts` — `logoCombosFor(logos, bgs)`
+  generates every logo-on-background combination; `visuallyClose(a, b)`
+  collapses tiles with RGB distance ≤ 60² (the helper that shrunk the
+  93-tile logo wall to a curated set on 2026-05-09 in commit 021e1b1).
+- Neutrals are excluded from drilldown grids for Logos + Colors (commit
+  90d8eb6, 2026-05-10). Don't reintroduce them without explicit ask.
+- `shared/brand/logoOnBackground.ts:contrastRatio()` is used at line
+  ~1094 to flip icon-tile surfaces to inverse when WCAG contrast < 2.
+  Don't roll your own contrast check — go through the helper.
+
+**Export status:** Colors / Fonts / Icons downloads work end-to-end via
+`features/brand-kit/data/iconExport.ts` and siblings. Every other card's
+Download button toasts a placeholder (line ~657). Bulk export + brand-
+guides PDF live ONLY in the alternate fork; the canonical fork doesn't
+have them yet.
+
+**Canonical vs alternate (recap):** `features/brand-kit/` is the
+read-only visual showcase (Studio). `features/brand-kit-alt/` is the
+edit-first hub with bulk export + PDF guides (Classic, legacy). New
+brand-kit feature work lands in the canonical fork; the alternate is
+bug-fix only.
+
+**Open active debt (as of 2026-05-11):**
+1. Session-only color/icon adds → store persistence
+2. Card-editor `onSave` → write back to brand
+3. Export placeholders for stationery / social / web / guides / decks /
+   animations (~7 of 11 surfaces)
+4. Photos + About cards are placeholder grids
+5. Web section cards are cosmos-only stubs (no renderer yet)
+
 ## Radix Portal + scoped CSS (gotcha)
 
 Radix `Popover`, `Dialog`, `DropdownMenu`, `Select`, etc. render their content

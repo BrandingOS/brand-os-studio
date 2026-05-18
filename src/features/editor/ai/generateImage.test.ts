@@ -10,6 +10,7 @@ const getSessionMock = vi.fn(async () => ({ data: { session: null as unknown } }
 const getUserMock = vi.fn(async () => ({ data: { user: null as unknown } }));
 
 vi.mock('@/integrations/supabase/client', () => ({
+  SUPABASE_URL: 'https://mock.supabase.co',
   supabase: {
     auth: {
       getSession: () => getSessionMock(),

@@ -794,6 +794,12 @@ function InlineEditableSlide({
   const [docHtml, setDocHtml] = useState<string | null>(frozenHtml ?? null);
   const isApplyingRef = useRef(false);
   const didMountRef = useRef(false);
+  // Gate the MutationObserver: capture as a "user edit" only after the
+  // user has actually interacted with this slide. Without this, React's
+  // own layout-effect-driven mutations (FitText binary search, setResolved
+  // re-render) freeze the slide on first paint and every later template
+  // change becomes a no-op visually.
+  const userInteractedRef = useRef(false);
 
   // Per-slide undo/redo history. Each entry is the slide's content HTML
   // at a moment in time. `index` points at the currently-displayed entry.
@@ -882,6 +888,30 @@ function InlineEditableSlide({
     return clone.innerHTML;
   };
 
+  // Mark this slide as user-touched the first time a real input event
+  // lands inside it. Pointerdown covers click/select/drag, input/paste
+  // covers contentEditable typing, keydown covers Delete/Backspace
+  // shortcuts while the slide has focus. Once flipped, the flag stays
+  // set — the user has shown intent to edit this slide, so subsequent
+  // mutations are theirs.
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const onInteract = () => {
+      userInteractedRef.current = true;
+    };
+    const events: Array<keyof HTMLElementEventMap> = [
+      'pointerdown',
+      'keydown',
+      'input',
+      'paste',
+    ];
+    events.forEach((ev) => node.addEventListener(ev, onInteract, true));
+    return () => {
+      events.forEach((ev) => node.removeEventListener(ev, onInteract, true));
+    };
+  }, [slideIndex]);
+
   useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
@@ -889,6 +919,9 @@ function InlineEditableSlide({
       if (isApplyingRef.current) return;
       // Don't capture mutations triggered by our own undo/redo apply.
       if (isHistoryNavRef.current) return;
+      // Don't capture passive React-driven mutations — only freeze when
+      // the user has actually edited this slide.
+      if (!userInteractedRef.current) return;
       const next = readSlideHtml();
       if (next === null) return;
       // Dedupe: if the captured HTML is identical to the current

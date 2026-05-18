@@ -127,9 +127,12 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
       if (!archetype) return;
       const options = SLIDE_CATALOG[archetype] ?? [];
       if (!options.includes(variant)) return;
+      const nextFrozen = { ...(state.slideFrozenHtml ?? {}) };
+      delete nextFrozen[index];
       persist({
         ...state,
         variantOverrides: { ...state.variantOverrides, [index]: variant },
+        slideFrozenHtml: nextFrozen,
       });
     },
     [state, persist],
@@ -152,9 +155,14 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
   const setStyle = useCallback(
     (styleId: DeckStyleId) => {
       if (!state || !STYLES[styleId]) return;
+      // Wipe frozen HTML for every slide — a different template re-renders
+      // each slide from scratch, and a cached HTML snapshot would pin the
+      // old composition via dangerouslySetInnerHTML and silently swallow
+      // the picker click.
       persist({
         ...state,
         plan: { ...state.plan, style: styleId },
+        slideFrozenHtml: {},
       });
     },
     [state, persist],
@@ -169,7 +177,9 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
       } else {
         delete next[index];
       }
-      persist({ ...state, slideStyles: next });
+      const nextFrozen = { ...(state.slideFrozenHtml ?? {}) };
+      delete nextFrozen[index];
+      persist({ ...state, slideStyles: next, slideFrozenHtml: nextFrozen });
     },
     [state, persist],
   );
@@ -183,7 +193,9 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
       } else {
         delete next[index];
       }
-      persist({ ...state, slideShapes: next });
+      const nextFrozen = { ...(state.slideFrozenHtml ?? {}) };
+      delete nextFrozen[index];
+      persist({ ...state, slideShapes: next, slideFrozenHtml: nextFrozen });
     },
     [state, persist],
   );
@@ -212,7 +224,13 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
           delete (nextMaster as Record<string, unknown>)[k];
         }
       });
-      persist({ ...state, plan: { ...state.plan, master: nextMaster } });
+      // Master tokens flow into every slide's typography/spacing — wipe
+      // the frozen-HTML cache so the change is visible everywhere.
+      persist({
+        ...state,
+        plan: { ...state.plan, master: nextMaster },
+        slideFrozenHtml: {},
+      });
     },
     [state, persist],
   );
@@ -220,7 +238,11 @@ export function useDeckPlan(brand: Brand | null | undefined): UseDeckPlan | null
   const resetMaster = useCallback(() => {
     if (!state) return;
     const { master: _ignored, ...planWithoutMaster } = state.plan;
-    persist({ ...state, plan: planWithoutMaster as typeof state.plan });
+    persist({
+      ...state,
+      plan: planWithoutMaster as typeof state.plan,
+      slideFrozenHtml: {},
+    });
   }, [state, persist]);
 
   const toggleHidden = useCallback(
