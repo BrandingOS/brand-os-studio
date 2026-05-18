@@ -9,8 +9,13 @@
 // ─── Vendor dispatch ──────────────────────────────────────────────────
 //
 // AI_IMAGE_VENDOR=…    Behavior
-//   (unset)            → pollinations (default; free, no key needed)
-//   pollinations       → Pollinations.ai (free, no key)
+//   (unset)            → fal if FAL_API_KEY is set, else pollinations.
+//                        Pollinations free quietly uses NVIDIA SANA
+//                        (square-native), which visibly stretches
+//                        any non-square aspect — Fal Flux Schnell
+//                        at $0.003/image is the proper fix.
+//   fal                → Fal.ai Flux Schnell (needs FAL_API_KEY)
+//   pollinations       → Pollinations.ai (free, no key; stretches)
 //   cloudflare         → Cloudflare Workers AI (Flux schnell; needs
 //                        CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN)
 //   huggingface        → HF Inference API (needs HUGGINGFACE_API_KEY)
@@ -238,6 +243,72 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+// ─── Vendor: Fal.ai ──────────────────────────────────────────────────
+// Flux Schnell at $0.003 / image; honours custom width × height
+// natively so the output is never stretched. We submit and
+// synchronously wait for the result (Schnell averages ~2-4 s).
+async function dispatchFal(
+  prompt: string,
+  width: number,
+  height: number,
+  opts: { seed?: number; referenceImageUrl?: string } = {},
+): Promise<{ dataUrl: string; width?: number; height?: number }> {
+  const key = Deno.env.get('FAL_API_KEY');
+  if (!key) throw new Response('FAL vendor selected but FAL_API_KEY missing', { status: 500 });
+
+  // Schnell accepts custom dimensions clamped to 256–2048 in steps
+  // of 64. Pin to the closest valid bucket so the request never gets
+  // rejected for a fractional value.
+  const clamp = (n: number) => {
+    const lo = 256;
+    const hi = 2048;
+    const step = 64;
+    const r = Math.round(n / step) * step;
+    return Math.max(lo, Math.min(hi, r));
+  };
+  const body: Record<string, unknown> = {
+    prompt,
+    image_size: { width: clamp(width), height: clamp(height) },
+    num_inference_steps: 4,
+    enable_safety_checker: false,
+  };
+  if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) body.seed = Math.trunc(opts.seed);
+  if (opts.referenceImageUrl) body.image_url = opts.referenceImageUrl;
+
+  // Use the synchronous run endpoint so we don't have to poll. Falls
+  // back to flux-dev if the user picked a richer model in opts later.
+  const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Key ${key}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Response(`fal ${res.status}: ${errBody.slice(0, 200)}`, { status: 502 });
+  }
+  const out = await res.json() as {
+    images?: Array<{ url: string; width?: number; height?: number; content_type?: string }>;
+  };
+  const first = out.images?.[0];
+  if (!first?.url) throw new Response('fal returned no image', { status: 502 });
+
+  // Fetch the actual bytes so we can return a data URI (browser-side
+  // contract is unchanged). Fal CDN allows direct GETs.
+  const imgRes = await fetch(first.url);
+  if (!imgRes.ok) throw new Response(`fal image fetch ${imgRes.status}`, { status: 502 });
+  const ct = imgRes.headers.get('content-type') ?? first.content_type ?? 'image/jpeg';
+  const buf = new Uint8Array(await imgRes.arrayBuffer());
+  const parsed = readImageDimensions(buf);
+  return {
+    dataUrl: `data:${ct};base64,${base64Encode(buf)}`,
+    width: parsed?.width ?? first.width,
+    height: parsed?.height ?? first.height,
+  };
+}
+
 async function dispatchVendor(
   vendor: string,
   prompt: string,
@@ -246,6 +317,18 @@ async function dispatchVendor(
   opts: { model?: string; seed?: number; referenceImageUrl?: string },
 ): Promise<{ imageUrl: string; model: string; width?: number; height?: number }> {
   switch (vendor) {
+    case 'fal': {
+      const out = await dispatchFal(prompt, width, height, {
+        seed: opts.seed,
+        referenceImageUrl: opts.referenceImageUrl,
+      });
+      return {
+        imageUrl: out.dataUrl,
+        model: 'fal:flux-schnell',
+        width: out.width,
+        height: out.height,
+      };
+    }
     case 'pollinations': {
       const out = await dispatchPollinations(prompt, width, height, opts);
       const effectiveModel = opts.referenceImageUrl ? 'kontext' : (opts.model ?? 'flux');
@@ -293,10 +376,15 @@ Deno.serve(withCors(cors, async (req) => {
   });
 
   // ─── Vendor dispatch ────────────────────────────────────────────────
-  // Default to Pollinations.ai when AI_IMAGE_VENDOR is unset — it's
-  // free with no key, so this surface "just works" out of the box.
-  // Explicit `AI_IMAGE_VENDOR=mock` forces the SVG mock.
-  const vendor = (Deno.env.get('AI_IMAGE_VENDOR') ?? 'pollinations').toLowerCase();
+  // Auto-pick the best wired vendor when AI_IMAGE_VENDOR is unset:
+  //   • Fal (proper aspect, $0.003/image) when FAL_API_KEY is set
+  //   • Pollinations as the no-cost fallback otherwise (note: free
+  //     tier silently uses NVIDIA SANA which stretches non-square)
+  // An explicit env value (fal | pollinations | cloudflare | huggingface
+  // | mock) always wins.
+  const explicitVendor = Deno.env.get('AI_IMAGE_VENDOR');
+  const hasFalKey = !!Deno.env.get('FAL_API_KEY');
+  const vendor = (explicitVendor ?? (hasFalKey ? 'fal' : 'pollinations')).toLowerCase();
 
   if (vendor === 'mock') {
     await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: 'mock', inputTokens: 0, outputTokens: 0 });
