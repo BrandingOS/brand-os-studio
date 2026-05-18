@@ -21,6 +21,7 @@ import { X } from 'lucide-react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
+import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import type { RailItem } from './EditorAppRail';
 import { GeneratePanel } from './panels/GeneratePanel';
 import { TemplatesPanel } from './panels/TemplatesPanel';
@@ -56,6 +57,18 @@ interface Props {
   activePageId: string;
   brand?: Brand;
   onCollapse: () => void;
+  /** AI agent for the Generate panel's "Editable" mode. Optional —
+   *  when absent, the panel hides the Editable toggle and offers
+   *  Image mode only. */
+  agent?: AIAgent | null;
+  /** Lazy context accessor for the agent's applyCommand calls. */
+  getContext?: () => AICommandContext;
+  /** Staged prompt from the Design hero (?prompt=…). Pre-fills the
+   *  Generate panel on mount. */
+  initialPrompt?: string;
+  /** Wires the Generate panel's "Editable" output to the editor's
+   *  applyAICommandResult path. */
+  onAIApply?: (result: AICommandResult) => void;
 }
 
 export function EditorSecondaryPanel({
@@ -65,6 +78,10 @@ export function EditorSecondaryPanel({
   activePageId,
   brand,
   onCollapse,
+  agent,
+  getContext,
+  initialPrompt,
+  onAIApply,
 }: Props) {
   return (
     <div className="flex items-start py-3 pr-1" style={{ flexShrink: 0 }}>
@@ -138,7 +155,18 @@ export function EditorSecondaryPanel({
             overflowY: 'auto',
           }}
         >
-          {active === 'generate' && <GeneratePanel />}
+          {active === 'generate' && (
+            <GeneratePanel
+              adapter={adapter}
+              activePageId={activePageId}
+              doc={doc}
+              brand={brand}
+              agent={agent ?? null}
+              getContext={getContext ?? (() => ({ activePageId, selection: [], brand: brand as Brand }))}
+              initialPrompt={initialPrompt}
+              onApply={onAIApply ?? (() => undefined)}
+            />
+          )}
           {active === 'templates' && (
             <TemplatesPanel adapter={adapter} activePageId={activePageId} />
           )}

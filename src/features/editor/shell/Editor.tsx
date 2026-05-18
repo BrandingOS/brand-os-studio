@@ -39,7 +39,8 @@ import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocume
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
 import { triggerCrossPagePromptIfApplicable } from '@/features/editor/brand/crossPagePropagation';
 import { EditorTopBar } from './v2/EditorTopBar';
-import { EditorAiFloatingButton } from './v2/EditorAiFloatingButton';
+// EditorAiFloatingButton removed — AI now lives in the Generate
+// sidebar panel via EditorSecondaryPanel → GeneratePanel.
 import { EditorMoreActionsMenu } from './v2/EditorMoreActionsMenu';
 import { EditorSaveAsTemplateButton } from './v2/EditorSaveAsTemplateButton';
 import { EditorGenerateVariantsButton } from './v2/EditorGenerateVariantsButton';
@@ -172,8 +173,13 @@ export function Editor({
   // Theme — driven via [data-workspace][data-theme] on the wrapper.
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // App Rail / Secondary Panel state.
-  const [activeRail, setActiveRail] = useState<RailItem>('insert');
+  // App Rail / Secondary Panel state. When the editor mounts with a
+  // staged prompt (user came from /b/:slug/design's hero with ?prompt=…),
+  // open the Generate panel by default so the prompt is visible and
+  // submit-ready.
+  const [activeRail, setActiveRail] = useState<RailItem>(
+    initialPrompt ? 'generate' : 'insert',
+  );
   const [secondaryOpen, setSecondaryOpen] = useState(true);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
 
@@ -676,6 +682,26 @@ export function Editor({
                 activePageId={activePageId}
                 brand={brand}
                 onCollapse={() => setSecondaryOpen(false)}
+                agent={effectiveAgent ?? null}
+                initialPrompt={initialPrompt}
+                getContext={(): AICommandContext => ({
+                  activePageId,
+                  selection: selection.layerIds,
+                  brand: brand as Brand,
+                })}
+                onAIApply={(result: AICommandResult) => {
+                  applyAICommandResult(adapter, result);
+                  if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
+                    void activityService.log({
+                      brandId: brand.id,
+                      brandName: brand.name,
+                      eventType: 'brand_updated',
+                      title: result.label || 'AI: design update',
+                      description: result.message,
+                      metadata: { ai: true, kind: result.kind, designId: doc.id },
+                    });
+                  }
+                }}
               />
             </div>
           ) : null}
@@ -828,80 +854,11 @@ export function Editor({
             </div>
           ) : null}
 
-          {/* Floating "Ask AI" pill — replaces the inline AI prompt
-              bar that used to sit in the top chrome. Anchored to the
-              bottom of the canvas region; click opens a popover with
-              the prompt input. Hidden when there's no agent or no
-              brand (the prompt needs brand context to ground edits). */}
-          {effectiveAgent && brand ? (
-            <EditorAiFloatingButton
-              agent={effectiveAgent}
-              initialValue={initialPrompt}
-              getDoc={() => adapter.getDocument()}
-              getContext={(): AICommandContext => ({
-                activePageId,
-                selection: selection.layerIds,
-                brand,
-              })}
-              onApply={(result: AICommandResult) => {
-                applyAICommandResult(adapter, result);
-                if (brand && (result.kind === 'delta' || result.kind === 'replace')) {
-                  void activityService.log({
-                    brandId: brand.id,
-                    brandName: brand.name,
-                    eventType: 'brand_updated',
-                    title: result.label || 'AI: design update',
-                    description: result.message,
-                    metadata: {
-                      ai: true,
-                      kind: result.kind,
-                      designId: doc.id,
-                    },
-                  });
-                }
-              }}
-              onPlaceImage={(imageUrl, dims) => {
-                const docNow = adapter.getDocument();
-                const page = docNow.pages.find((p) => p.id === activePageId);
-                const pageW = page?.width ?? 1080;
-                const pageH = page?.height ?? 1080;
-                // Cover the full page — Image mode is the "deliver a
-                // finished image" path, so the user expects it to fill
-                // the canvas, not sit as a thumbnail. The aspect ratio
-                // already matches the page because we pass the page
-                // dims to generateImage in the bar.
-                const aspect = dims.width / dims.height;
-                let w = pageW;
-                let h = w / aspect;
-                if (h < pageH) {
-                  h = pageH;
-                  w = h * aspect;
-                }
-                adapter.batch('AI: place image', () => {
-                  adapter.addLayer(activePageId, {
-                    id: crypto.randomUUID(),
-                    kind: 'image',
-                    name: 'AI image',
-                    src: imageUrl,
-                    fit: 'cover',
-                    transform: {
-                      x: (pageW - w) / 2,
-                      y: (pageH - h) / 2,
-                      width: w,
-                      height: h,
-                      rotation: 0,
-                      scaleX: 1,
-                      scaleY: 1,
-                    },
-                    opacity: 1,
-                    visible: true,
-                    locked: false,
-                    brandLocked: false,
-                  });
-                });
-              }}
-            />
-          ) : null}
+          {/* AI lives in the Generate sidebar panel now — see
+              EditorSecondaryPanel + panels/GeneratePanel. The old
+              floating "Ask AI" pill was removed in favor of this
+              persistent sidebar surface so size/style/model
+              controls have a home. */}
         </div>
 
         {/* First-visit welcome tip — self-dismissing, ever shows once

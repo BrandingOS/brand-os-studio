@@ -42,6 +42,10 @@ interface GenerateImageBody {
   /** width × height — defaults to 1024×1024. */
   width?: number;
   height?: number;
+  /** Vendor model. Pollinations: 'flux' | 'turbo' | 'gptimage'. */
+  model?: string;
+  /** Optional seed for reproducibility — random when omitted. */
+  seed?: number;
 }
 
 interface GenerateImageResult {
@@ -79,16 +83,26 @@ function buildMockSvg(prompt: string, width: number, height: number): string {
 // Fabric canvas (which needs CORS for untainted export), we fetch the
 // PNG bytes server-side here and return a data URI. The browser then
 // gets a same-origin-equivalent payload, no CORS handshake needed.
-async function dispatchPollinations(prompt: string, width: number, height: number): Promise<string> {
+async function dispatchPollinations(
+  prompt: string,
+  width: number,
+  height: number,
+  opts: { model?: string; seed?: number } = {},
+): Promise<string> {
   const encoded = encodeURIComponent(prompt).slice(0, 1500);
+  const allowedModels = new Set(['flux', 'turbo', 'gptimage', 'kontext']);
+  const model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),
     nologo: 'true',
     enhance: 'true',
-    model: 'flux',
+    model,
     referrer: 'brandos',
   });
+  if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) {
+    params.set('seed', String(Math.trunc(opts.seed)));
+  }
   const url = `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'brandos-edge/1.0' } });
   if (!res.ok) {
@@ -163,10 +177,13 @@ async function dispatchVendor(
   prompt: string,
   width: number,
   height: number,
+  opts: { model?: string; seed?: number },
 ): Promise<{ imageUrl: string; model: string }> {
   switch (vendor) {
-    case 'pollinations':
-      return { imageUrl: await dispatchPollinations(prompt, width, height), model: 'pollinations:flux' };
+    case 'pollinations': {
+      const url = await dispatchPollinations(prompt, width, height, opts);
+      return { imageUrl: url, model: `pollinations:${opts.model ?? 'flux'}` };
+    }
     case 'cloudflare':
       return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
     case 'huggingface':
@@ -220,7 +237,10 @@ Deno.serve(withCors(cors, async (req) => {
   }
 
   try {
-    const { imageUrl, model } = await dispatchVendor(vendor, prompt, width, height);
+    const { imageUrl, model } = await dispatchVendor(vendor, prompt, width, height, {
+      model: typeof body.model === 'string' ? body.model : undefined,
+      seed: typeof body.seed === 'number' ? body.seed : undefined,
+    });
     await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model, inputTokens: 0, outputTokens: 0 });
     const result: GenerateImageResult = { imageUrl, mock: false, prompt };
     return Response.json(result, { headers: cors });
