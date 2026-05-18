@@ -350,12 +350,27 @@ export function GeneratePanel({
         negativePrompt: negativePrompt.trim() || undefined,
         referenceImageUrl: reference?.url,
       });
+
+      // Probe the image's NATURAL dimensions before placing it on the
+      // canvas. Pollinations sometimes returns an image at a size
+      // that doesn't match the requested width/height (e.g. clamps to
+      // model-native resolution). If we placed it on a page sized to
+      // the request, the image gets stretched/cropped. Using the
+      // natural dims for both page and layer keeps every generation
+      // pixel-perfect — no stretch, no crop.
+      const naturalDims = await probeImageDimensions(result.imageUrl).catch(() => ({
+        width: targetW,
+        height: targetH,
+      }));
+      const pageW = naturalDims.width;
+      const pageH = naturalDims.height;
+
       const newPageId = crypto.randomUUID();
       const newPage: Page = {
         id: newPageId,
         name: text.slice(0, 32) || 'AI generation',
-        width: targetW,
-        height: targetH,
+        width: pageW,
+        height: pageH,
         background: '#ffffff',
         masterPageId: null,
         layers: [{
@@ -364,7 +379,7 @@ export function GeneratePanel({
           name: 'AI image',
           src: result.imageUrl,
           fit: 'cover',
-          transform: { x: 0, y: 0, width: targetW, height: targetH, rotation: 0, scaleX: 1, scaleY: 1 },
+          transform: { x: 0, y: 0, width: pageW, height: pageH, rotation: 0, scaleX: 1, scaleY: 1 },
           opacity: 1, visible: true, locked: false, brandLocked: false,
         }],
       };
@@ -381,8 +396,8 @@ export function GeneratePanel({
 
       toast.success(
         result.mock
-          ? `Image generated (mock) at ${targetW}×${targetH}.`
-          : `Generated at ${targetW}×${targetH} with ${activeModelEntry.label}.`
+          ? `Image generated (mock) at ${pageW}×${pageH}.`
+          : `Generated at ${pageW}×${pageH} with ${activeModelEntry.label}.`
       );
       setPrompt('');
     } catch (err) {
@@ -900,6 +915,30 @@ function PresetsGallery({
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Load an image src and return its natural pixel dimensions. Used to
+ * size the page + layer to exactly what the vendor produced — never
+ * to what we asked for. Pollinations occasionally returns a different
+ * resolution from the request; trusting the request size leads to
+ * stretched / cropped output.
+ */
+function probeImageDimensions(src: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    // crossOrigin isn't needed for the data:/signed URLs we get from
+    // our own Edge Function; setting it would force a preflight that
+    // some providers reject.
+    img.onload = () => {
+      const w = img.naturalWidth || 0;
+      const h = img.naturalHeight || 0;
+      if (w > 0 && h > 0) resolve({ width: w, height: h });
+      else reject(new Error('image has zero dimensions'));
+    };
+    img.onerror = () => reject(new Error('image failed to load'));
+    img.src = src;
+  });
+}
 
 async function fileToBase64(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
