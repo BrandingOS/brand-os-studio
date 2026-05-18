@@ -1,8 +1,8 @@
-// EditorGenerationsStrip — floating horizontal page-thumbnail strip
-// anchored to the bottom of the canvas. Surfaces every page in the
-// doc so AI generations (which append new pages) are reachable
-// without opening the side page navigator. Each thumb shows the
-// first image-layer's src if present, otherwise a gradient stub.
+// EditorGenerationsStrip — floating vertical page-thumbnail column
+// anchored to the right edge of the canvas. Surfaces every page in
+// the doc so AI generations (which append new pages) are reachable
+// next to the image they relate to. Each thumb shows the first
+// image-layer's src if present, otherwise a numbered gradient stub.
 
 import { useMemo } from 'react';
 import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
@@ -10,34 +10,31 @@ import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
 interface Props {
   doc: BrandOSDocument;
   activePageId: string;
+  /** Switch the canvas to the picked page. Editor.tsx must route
+   *  this through adapter.setActivePage so the adapter mirrors the
+   *  intent — calling React state alone gets clobbered by the next
+   *  adapter event. */
   onActivePageChange: (pageId: string) => void;
 }
 
 export function EditorGenerationsStrip({ doc, activePageId, onActivePageChange }: Props) {
-  // Only worth showing when there's more than one page to flip
-  // between. For the typical "single page social post" surface, a
-  // fresh doc has 1 page and the strip stays hidden until the first
-  // AI generation appends another.
   if (doc.pages.length <= 1) return null;
 
   return (
     <div
       data-editor-generations-strip
-      className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 max-w-[calc(100%-32px)]"
+      className="absolute top-1/2 right-3 -translate-y-1/2 z-20"
       style={{
         background: 'var(--surface-elevated, #fff)',
         border: '1px solid var(--border)',
         borderRadius: 14,
         padding: 6,
         boxShadow: '0 10px 24px -16px color-mix(in oklab, var(--text-primary) 40%, transparent)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
       }}
     >
       <div
-        className="flex items-center gap-1.5 overflow-x-auto px-0.5"
-        style={{ scrollbarWidth: 'thin', maxWidth: '70vw' }}
+        className="flex flex-col items-center gap-1.5 overflow-y-auto py-0.5"
+        style={{ scrollbarWidth: 'thin', maxHeight: 'calc(100vh - 200px)' }}
       >
         {doc.pages.map((page, idx) => (
           <PageThumb
@@ -70,11 +67,12 @@ function PageThumb({
     return typeof imageLayer.src === 'string' ? imageLayer.src : null;
   }, [page.layers]);
 
+  // Vertical strip: keep width constant so the column reads cleanly,
+  // vary height with aspect (clamped so tall stories don't dominate
+  // and wide banners don't disappear).
   const aspect = page.width / page.height;
-  const isLandscape = aspect > 1.1;
-  const isPortrait = aspect < 0.9;
-  const thumbW = isLandscape ? 64 : (isPortrait ? 36 : 48);
-  const thumbH = isLandscape ? 36 : (isPortrait ? 64 : 48);
+  const thumbW = 56;
+  const thumbH = Math.max(32, Math.min(80, Math.round(thumbW / aspect)));
 
   return (
     <button

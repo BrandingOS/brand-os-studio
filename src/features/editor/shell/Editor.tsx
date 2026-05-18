@@ -703,7 +703,7 @@ export function Editor({
                     });
                   }
                 }}
-                onActivePageChange={setActivePageId}
+                onActivePageChange={(id) => adapter.setActivePage(id)}
               />
             </div>
           ) : null}
@@ -862,14 +862,20 @@ export function Editor({
               persistent sidebar surface so size/style/model
               controls have a home. */}
 
-          {/* Generations strip — floating thumbnail row at the bottom
-              of the canvas. Surfaces every page so AI generations
-              (which append pages) are reachable without opening the
-              side page navigator. Hides itself for single-page docs. */}
+          {/* Generations strip — floating vertical thumbnail column
+              on the right side of the canvas. Surfaces every page so
+              AI generations (which append pages) are reachable
+              without opening the side page navigator. Hides itself
+              for single-page docs.
+
+              IMPORTANT: page-switching goes through adapter.setActivePage
+              (not React's setActivePageId). The editor mirrors the
+              adapter's active page on every event — calling React's
+              setter alone gets clobbered by the next event.  */}
           <EditorGenerationsStrip
             doc={doc}
             activePageId={activePageId}
-            onActivePageChange={setActivePageId}
+            onActivePageChange={(id) => adapter.setActivePage(id)}
           />
         </div>
 
