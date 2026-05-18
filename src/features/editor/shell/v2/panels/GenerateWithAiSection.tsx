@@ -99,7 +99,7 @@ export function GenerateWithAiSection({
         const h = cfg?.defaultDimensions.height ?? 1024;
         const result = await generateImage({ prompt: trimmed, width: w, height: h });
         if (result.mock) {
-          toast.message('AI image (mock mode) — set AI_IMAGE_VENDOR on the Edge Function for a real vendor.');
+          toast.message('AI image (mock mode). Unset AI_IMAGE_VENDOR (or set to "pollinations") for real images.');
         } else {
           toast.success('AI image generated.');
         }

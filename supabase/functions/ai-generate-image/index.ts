@@ -1,25 +1,24 @@
-// Edge Function: ai-generate-image (Phase 4.3 — MOCK ONLY).
+// Edge Function: ai-generate-image.
 //
-// ─── Status: vendor-pending ───────────────────────────────────────────
+// ─── Status: pollinations default, mock fallback ──────────────────────
 //
-// Phase 4.3 ships this surface as a deterministic mock so the
-// browser-side AI image generation UI works end-to-end without a
-// real vendor wired. Anthropic does not have an image-gen API; the
-// vendor selection (OpenAI DALL-E, Replicate, Stable Diffusion via
-// Stability AI, Recraft, etc.) is a separate billing/legal/quality
-// decision. Once a vendor is picked, swapping the mock for a real
-// call is a single function-body change inside this file — the
-// browser contract is unchanged.
+// Real image generation via Pollinations.ai (free, no key) by default.
+// Swap to any other vendor by setting AI_IMAGE_VENDOR (see vendors
+// table below). The browser contract is unchanged across vendors.
 //
-// ─── Mock behavior ────────────────────────────────────────────────────
+// ─── Vendor dispatch ──────────────────────────────────────────────────
 //
-// Returns a JSON payload with an SVG data URI that visually shows the
-// prompt text on a brand-color band. Browser-side renders it as a
-// regular ImageLayer (or download button). No real generation.
+// AI_IMAGE_VENDOR=…    Behavior
+//   (unset)            → pollinations (default; free, no key needed)
+//   pollinations       → Pollinations.ai (free, no key)
+//   cloudflare         → Cloudflare Workers AI (Flux schnell; needs
+//                        CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN)
+//   huggingface        → HF Inference API (needs HUGGINGFACE_API_KEY)
+//   mock               → deterministic SVG mock (no network)
 //
-// Per request body field `mock` (true|undefined): always-mock path.
-// Per env var `AI_IMAGE_VENDOR` (unset → mock; set → would dispatch
-// to the real vendor in a future swap).
+// To add a paid/better vendor (Replicate, Fal, Stability, OpenAI),
+// add a `dispatchX` function below and a case in `dispatchVendor`.
+// Everything else stays the same.
 
 import { corsHeaders } from '../_shared/cors.ts';
 import {
@@ -71,6 +70,101 @@ function buildMockSvg(prompt: string, width: number, height: number): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+// ─── Vendor: Pollinations.ai ─────────────────────────────────────────
+// Free, no API key, no signup. Returns an absolute URL that resolves
+// directly to a generated PNG. Browser fetches the URL when rendering
+// or downloading the image — no server-side bandwidth for the bytes.
+// CORS is enabled on pollinations' side so the browser can also fetch
+// the image into a canvas without a proxy.
+function dispatchPollinations(prompt: string, width: number, height: number): string {
+  const encoded = encodeURIComponent(prompt).slice(0, 1500);
+  const params = new URLSearchParams({
+    width: String(width),
+    height: String(height),
+    nologo: 'true',
+    enhance: 'true',
+    model: 'flux',
+    referrer: 'brandos',
+  });
+  return `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
+}
+
+// ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
+// Free tier (10k neurons/day). Real Flux schnell. Returns the image
+// bytes; we re-encode to a data URI so the browser contract is the
+// same (`imageUrl` is renderable directly).
+async function dispatchCloudflare(prompt: string, width: number, height: number): Promise<string> {
+  const accountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
+  const apiToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
+  if (!accountId || !apiToken) {
+    throw new Response('cloudflare vendor selected but CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing', { status: 500 });
+  }
+  const model = '@cf/black-forest-labs/flux-1-schnell';
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
+    body: JSON.stringify({ prompt, width, height }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Response(`cloudflare ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
+  }
+  // Workers AI returns either binary image/png or { result: { image: <base64> } } depending on model.
+  const ct = res.headers.get('content-type') ?? '';
+  if (ct.startsWith('image/')) {
+    const buf = new Uint8Array(await res.arrayBuffer());
+    return `data:${ct};base64,${base64Encode(buf)}`;
+  }
+  const j = await res.json() as { result?: { image?: string } };
+  const b64 = j?.result?.image;
+  if (!b64) throw new Response('cloudflare returned no image', { status: 502 });
+  return `data:image/png;base64,${b64}`;
+}
+
+// ─── Vendor: Hugging Face Inference API ──────────────────────────────
+async function dispatchHuggingFace(prompt: string, _width: number, _height: number): Promise<string> {
+  const key = Deno.env.get('HUGGINGFACE_API_KEY');
+  if (!key) throw new Response('huggingface vendor selected but HUGGINGFACE_API_KEY missing', { status: 500 });
+  const model = Deno.env.get('HUGGINGFACE_MODEL') ?? 'black-forest-labs/FLUX.1-schnell';
+  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ inputs: prompt }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Response(`huggingface ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
+  }
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const ct = res.headers.get('content-type') ?? 'image/png';
+  return `data:${ct};base64,${base64Encode(buf)}`;
+}
+
+function base64Encode(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+async function dispatchVendor(
+  vendor: string,
+  prompt: string,
+  width: number,
+  height: number,
+): Promise<{ imageUrl: string; model: string }> {
+  switch (vendor) {
+    case 'pollinations':
+      return { imageUrl: dispatchPollinations(prompt, width, height), model: 'pollinations:flux' };
+    case 'cloudflare':
+      return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
+    case 'huggingface':
+      return { imageUrl: await dispatchHuggingFace(prompt, width, height), model: 'hf:flux-schnell' };
+    default:
+      throw new Response(`unknown AI_IMAGE_VENDOR: ${vendor}`, { status: 500 });
+  }
+}
+
 Deno.serve(withCors(cors, async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
@@ -99,29 +193,33 @@ Deno.serve(withCors(cors, async (req) => {
   });
 
   // ─── Vendor dispatch ────────────────────────────────────────────────
-  // For Phase 4.3 we always return a mock. When AI_IMAGE_VENDOR is set
-  // (e.g. 'openai', 'replicate', 'stability'), switch on it and call
-  // the real provider. Single change here; browser shape unchanged.
-  const vendor = Deno.env.get('AI_IMAGE_VENDOR');
-  const isMock = !vendor;
+  // Default to Pollinations.ai when AI_IMAGE_VENDOR is unset — it's
+  // free with no key, so this surface "just works" out of the box.
+  // Explicit `AI_IMAGE_VENDOR=mock` forces the SVG mock.
+  const vendor = (Deno.env.get('AI_IMAGE_VENDOR') ?? 'pollinations').toLowerCase();
 
-  if (!isMock) {
-    // Future: dispatch to real vendor. For now, return mock with
-    // a different message so we can spot drift in production logs.
-    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: vendor, inputTokens: 0, outputTokens: 0 });
+  if (vendor === 'mock') {
+    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: 'mock', inputTokens: 0, outputTokens: 0 });
     const result: GenerateImageResult = {
-      imageUrl: buildMockSvg(`(vendor=${vendor} not yet wired) ${prompt}`, width, height),
+      imageUrl: buildMockSvg(prompt, width, height),
       mock: true,
       prompt,
     };
     return Response.json(result, { headers: cors });
   }
 
-  await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: 'mock', inputTokens: 0, outputTokens: 0 });
-  const result: GenerateImageResult = {
-    imageUrl: buildMockSvg(prompt, width, height),
-    mock: true,
-    prompt,
-  };
-  return Response.json(result, { headers: cors });
+  try {
+    const { imageUrl, model } = await dispatchVendor(vendor, prompt, width, height);
+    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model, inputTokens: 0, outputTokens: 0 });
+    const result: GenerateImageResult = { imageUrl, mock: false, prompt };
+    return Response.json(result, { headers: cors });
+  } catch (err) {
+    // dispatchVendor throws a Response on misconfig / upstream failure;
+    // re-emit with CORS so the browser sees a proper error body.
+    if (err instanceof Response) {
+      const body = await err.text().catch(() => 'vendor error');
+      return new Response(body, { status: err.status, headers: cors });
+    }
+    return new Response(`vendor error: ${(err as Error).message}`, { status: 502, headers: cors });
+  }
 }));
