@@ -11,7 +11,7 @@
 // thin proxy that handles auth/rate-limit/Anthropic call/JSON
 // extraction.
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { buildSystemPrompt } from './systemPrompt';
 import { buildBrandCard } from './brandCard';
 import { validateAICommandResult } from './modeFive';
@@ -21,8 +21,9 @@ import type { BrandOSDocument } from '@/features/editor/schema';
 import type { BrandMemorySnapshot } from '@/core/services/IBrandMemoryService';
 
 const ENDPOINT_PATH = '/functions/v1/ai-apply-command';
-/** Network timeout — generous because Anthropic calls can take 5-10s. */
-const TIMEOUT_MS = 30_000;
+/** Network timeout. Long-form `replace` responses on Opus can run
+ *  60-90s; we give 2 minutes of headroom. */
+const TIMEOUT_MS = 120_000;
 
 /**
  * Production AIAgent implementation backed by the Edge Function.
@@ -51,8 +52,11 @@ export function createEdgeFunctionAgent(args: {
 }): AIAgent {
   const { brandKit, endpoint, fetchImpl, forceMock, getBrandMemory } = args;
   const fetcher = fetchImpl ?? fetch;
-  const url =
-    endpoint ?? `${import.meta.env.VITE_SUPABASE_URL}${ENDPOINT_PATH}`;
+  // VITE_SUPABASE_URL is not populated in .env; fall back to the
+  // hard-coded URL exported by the supabase client so the URL doesn't
+  // resolve to the literal string "undefined".
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+  const url = endpoint ?? `${baseUrl}${ENDPOINT_PATH}`;
 
   return {
     async applyCommand(

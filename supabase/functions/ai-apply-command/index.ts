@@ -52,8 +52,13 @@ import {
 } from '../_shared/ai.ts';
 
 const FUNCTION_NAME = 'ai-apply-command';
-const MODEL = 'claude-opus-4-7';
-const MAX_TOKENS = 2048;
+// Sonnet 4.6 — ~5x faster + ~5x cheaper than Opus, ample quality for
+// the doc-mutation task. Swap to 'claude-opus-4-7' if a specific
+// generation needs the bigger model.
+const MODEL = 'claude-sonnet-4-6';
+// 8192 covers a full single-page `replace` (Instagram post, business
+// card, banner, etc.). The shared ceiling (16384) is the hard cap.
+const MAX_TOKENS = 8192;
 
 const cors = {
   ...corsHeaders,
@@ -245,7 +250,12 @@ Deno.serve(withCors(cors, async (req) => {
         result: {
           kind: 'rejected',
           reason: 'agent_error',
-          message: 'Anthropic returned non-JSON content.',
+          message: `Anthropic returned non-JSON content. First 400 chars: ${rawText.slice(0, 400)}`,
+          debug: {
+            stopReason: response.stop_reason,
+            contentBlockTypes: response.content.map((b: { type: string }) => b.type),
+            rawTextLength: rawText.length,
+          },
         },
       },
       { headers: cors },

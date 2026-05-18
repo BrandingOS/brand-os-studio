@@ -23,8 +23,12 @@ const TIER_TO_MODEL: Record<ModelTier, string> = {
   opus:   'claude-opus-4-7',
 };
 
-/** Hard server cap on max_tokens regardless of what the client requests. */
-export const MAX_TOKENS_CEILING = 4096;
+/** Hard server cap on max_tokens regardless of what the client requests.
+ *  Raised to 16384 so AI-apply-command can return a full `replace`
+ *  doc (single-page social posts often need ~4-8k tokens; presentations
+ *  more). Cost-per-call is still bounded; this only matters for the
+ *  worst case. */
+export const MAX_TOKENS_CEILING = 16384;
 
 /**
  * Resolve a tier name to a concrete model id. Throws 400 on invalid

@@ -3,7 +3,7 @@
 // stays vendor-agnostic so swapping to a real vendor is a single
 // Edge Function change.
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 
 export interface GenerateImageRequest {
   prompt: string;
@@ -25,7 +25,10 @@ export async function generateImage(
   opts: { fetchImpl?: typeof fetch; endpoint?: string } = {},
 ): Promise<GenerateImageResult> {
   const fetcher = opts.fetchImpl ?? fetch;
-  const url = opts.endpoint ?? `${import.meta.env.VITE_SUPABASE_URL}${ENDPOINT_PATH}`;
+  // VITE_SUPABASE_URL is not populated in .env; fall back to the
+  // hard-coded URL exported by the supabase client.
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+  const url = opts.endpoint ?? `${baseUrl}${ENDPOINT_PATH}`;
 
   const sessionId = await resolveSessionId();
   const { data } = await supabase.auth.getSession();
