@@ -31,7 +31,7 @@ import {
   generateImage,
   type ImageModel,
 } from '@/features/editor/ai/generateImage';
-import { StorageService } from '@/shared/services/storage.supabase';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -57,6 +57,9 @@ interface FormatPreset {
   promptSuffix: string;
 }
 const FORMAT_PRESETS: FormatPreset[] = [
+  // Auto = follow the active page's current dimensions, no resize.
+  // ratio shown as "—" in the trigger because it varies.
+  { id: 'auto',        ratio: 'Auto', name: 'Auto',       width: 0,    height: 0,    Icon: ImageIcon,           promptSuffix: '' },
   { id: 'square',      ratio: '1:1',  name: 'Square',     width: 1024, height: 1024, Icon: SquareIcon,          promptSuffix: '' },
   { id: 'portrait',    ratio: '4:5',  name: 'Portrait',   width: 1024, height: 1280, Icon: RectangleVertical,   promptSuffix: '' },
   { id: 'tall',        ratio: '2:3',  name: 'Tall',       width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: '' },
@@ -131,9 +134,17 @@ interface ModelEntry {
   available: boolean;
 }
 
+// Auto-badge — purple sparkle. Sentinel id ('auto') is never sent to
+// the API; the panel resolves Auto to a real model right before submit.
+const AutoBadge: ModelBadge = ({ className }) => (
+  <Sparkles className={className} style={{ color: '#7C3AED' }} aria-hidden />
+);
+
 // Available models — wired to Pollinations today via the Edge Function.
-// Flux is the recommended default and first in the list.
+// "Auto" is first because it's the friendliest default; Flux remains
+// the recommended quality leader behind it.
 const AVAILABLE_MODELS: ModelEntry[] = [
+  { id: 'auto',     label: 'Auto',      short: 'Auto',  hint: 'Pick the best',  Badge: AutoBadge,    available: true },
   { id: 'flux',     label: 'Flux',      short: 'Flux',  hint: 'Best quality',   Badge: FluxBadge,    available: true },
   { id: 'turbo',    label: 'Flux Turbo',short: 'Turbo', hint: 'Faster',         Badge: FluxBadge,    available: true },
   { id: 'gptimage', label: 'GPT Image', short: 'GPT',   hint: 'Text-aware',     Badge: OpenAiBadge,  available: true },
@@ -208,14 +219,15 @@ export function GeneratePanel({
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const [formatId, setFormatId] = useState<string>('square');
-  const [model, setModel] = useState<ImageModel>('flux');
+  const [formatId, setFormatId] = useState<string>('auto');
+  // Stored as string (not ImageModel) so 'auto' is a first-class
+  // selectable value. Resolved to a real ImageModel at submit time.
+  const [model, setModel] = useState<string>('auto');
   const [reference, setReference] = useState<ReferenceImageState | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const storage = useRef<StorageService>(new StorageService());
 
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
@@ -224,11 +236,13 @@ export function GeneratePanel({
 
 
   // ─── Reference image upload ──────────────────────────────────────
+  // Routes through the upload-ai-reference Edge Function. The function
+  // uses service-role to upload into the (private) brand-assets bucket
+  // under an `ai-refs/{userId}/...` path and returns a 1-hour signed
+  // URL the AI vendor can fetch. Direct-from-browser uploads can't do
+  // this because brand-assets' RLS requires the first path segment to
+  // be a brand UUID the user belongs to — which fails for seed brands.
   const handleFileChosen = useCallback(async (file: File) => {
-    if (!brand) {
-      toast.error('Reference uploads need a brand context.');
-      return;
-    }
     if (!file.type.startsWith('image/')) {
       toast.error('Reference must be an image.');
       return;
@@ -239,18 +253,43 @@ export function GeneratePanel({
     }
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop() || 'png';
-      const safeName = `ai-references/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { url } = await storage.current.uploadAsset(brand.id, file, safeName);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        toast.error('Sign in to upload reference images.');
+        return;
+      }
+      const fileBase64 = await fileToBase64(file);
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
+      const res = await fetch(`${baseUrl}/functions/v1/upload-ai-reference`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          sessionId: sessionData?.session?.user?.id ?? `anon-${crypto.randomUUID()}`,
+          fileBase64,
+          contentType: file.type,
+          ext,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`${res.status} ${text.slice(0, 140)}`);
+      }
+      const { url } = await res.json() as { url: string };
       setReference({ url, fileName: file.name });
       toast.success('Reference attached.');
     } catch (err) {
       console.error('[GeneratePanel] reference upload failed:', err);
-      toast.error('Could not upload reference image.');
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Could not upload reference: ${msg.slice(0, 80)}`);
     } finally {
       setUploading(false);
     }
-  }, [brand]);
+  }, []);
 
   const onPickFile = useCallback(() => fileInputRef.current?.click(), []);
   const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,31 +304,53 @@ export function GeneratePanel({
     setError(null);
     setSuggestions([]);
     setBusy(true);
-    const format = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
-    const effectivePrompt = `${text}${format.promptSuffix}`;
+
+    // Resolve format. 'auto' means "use the active page's dimensions";
+    // every other preset has explicit width/height.
+    const docNow = adapter.getDocument();
+    const page = docNow.pages.find((p) => p.id === activePageId) ?? docNow.pages[0];
+    const formatPreset = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
+    const isAutoFormat = formatPreset.id === 'auto';
+    const targetW = isAutoFormat ? (page?.width ?? 1024) : formatPreset.width;
+    const targetH = isAutoFormat ? (page?.height ?? 1024) : formatPreset.height;
+
+    // Resolve model. 'auto' picks flux (it accepts the image= param on
+    // the free endpoint, so it doubles as img2img when a reference is
+    // attached). Real ids pass through.
+    const resolvedModel: ImageModel = (() => {
+      if (model === 'auto') return 'flux';
+      return model as ImageModel;
+    })();
+
+    const effectivePrompt = `${text}${formatPreset.promptSuffix}`;
+
     try {
       const result = await generateImage({
         prompt: effectivePrompt,
-        width: format.width,
-        height: format.height,
-        model,
+        width: targetW,
+        height: targetH,
+        model: resolvedModel,
         negativePrompt: negativePrompt.trim() || undefined,
         referenceImageUrl: reference?.url,
       });
-      const docNow = adapter.getDocument();
-      const page = docNow.pages.find((p) => p.id === activePageId);
-      const pageW = page?.width ?? format.width;
-      const pageH = page?.height ?? format.height;
-      const layer: Layer = {
-        id: crypto.randomUUID(),
-        kind: 'image',
-        name: 'AI image',
-        src: result.imageUrl,
-        fit: 'cover',
-        transform: { x: 0, y: 0, width: pageW, height: pageH, rotation: 0, scaleX: 1, scaleY: 1 },
-        opacity: 1, visible: true, locked: false, brandLocked: false,
-      };
-      adapter.batch('AI: place image', () => { adapter.addLayer(activePageId, layer); });
+      adapter.batch('AI: place image', () => {
+        // When the user explicitly picked a non-Auto format that
+        // doesn't match the current page, resize the page first so
+        // the image isn't aspect-cropped away.
+        if (!isAutoFormat && page && (page.width !== targetW || page.height !== targetH)) {
+          adapter.updatePageDimensions(activePageId, targetW, targetH);
+        }
+        const layer: Layer = {
+          id: crypto.randomUUID(),
+          kind: 'image',
+          name: 'AI image',
+          src: result.imageUrl,
+          fit: 'cover',
+          transform: { x: 0, y: 0, width: targetW, height: targetH, rotation: 0, scaleX: 1, scaleY: 1 },
+          opacity: 1, visible: true, locked: false, brandLocked: false,
+        };
+        adapter.addLayer(activePageId, layer);
+      });
       toast.success(result.mock ? 'Image placed (mock).' : 'AI image placed.');
       setPrompt('');
     } catch (err) {
@@ -359,14 +420,16 @@ export function GeneratePanel({
   }, [brand]);
 
   const activeFormat = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
-  const activeModelEntry = reference
-    ? KONTEXT_ENTRY
-    : (MODEL_ENTRIES.find((m) => m.id === model) ?? MODEL_ENTRIES[0]);
+  // Reference attached doesn't force Kontext anymore — Flux on the
+  // free Pollinations endpoint accepts the image= param too, so we
+  // let the user keep their model selection.
+  const activeModelEntry =
+    MODEL_ENTRIES.find((m) => m.id === model) ?? MODEL_ENTRIES[0];
 
   const placeholder =
     mode === 'image'
       ? reference
-        ? 'Describe how to transform the reference…'
+        ? 'Describe what to generate using this reference as guidance…'
         : brand
           ? `Describe — "neon ${brand.name} hero shot at dusk"`
           : 'Describe the image…'
@@ -500,48 +563,35 @@ export function GeneratePanel({
               caption="Format"
               icon={<activeFormat.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={formatId}
-              valueLabel={`${activeFormat.ratio} ${activeFormat.name}`}
+              valueLabel={activeFormat.id === 'auto' ? 'Auto' : `${activeFormat.ratio} ${activeFormat.name}`}
               onChange={setFormatId}
               disabled={busy}
               title="Format"
               items={FORMAT_PRESETS.map((f) => ({
                 value: f.id,
                 label: f.name,
-                trailing: f.ratio,
+                trailing: f.id === 'auto' ? undefined : f.ratio,
                 renderIcon: (cn) => <f.Icon className={cn} aria-hidden />,
               }))}
             />
             <TallSelect
               caption="Model"
               icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
-              value={reference ? 'kontext' : model}
+              value={model}
               valueLabel={activeModelEntry.short}
               onChange={(v) => {
-                // Defensive: never set an unavailable model. The
-                // dropdown disables them but enforce here too in case
-                // a downstream keyboard interaction slips through.
                 const entry = MODEL_ENTRIES.find((m) => m.id === v);
-                if (entry?.available) setModel(v as ImageModel);
+                if (entry?.available) setModel(v);
               }}
-              disabled={busy || !!reference}
+              disabled={busy}
               title="Model"
-              items={
-                reference
-                  ? [{
-                      value: 'kontext',
-                      label: KONTEXT_ENTRY.label,
-                      trailing: KONTEXT_ENTRY.hint,
-                      renderIcon: (cn) => <KONTEXT_ENTRY.Badge className={cn} />,
-                      available: true,
-                    }]
-                  : MODEL_ENTRIES.map((m) => ({
-                      value: m.id,
-                      label: m.label,
-                      trailing: m.available ? m.hint : undefined,
-                      renderIcon: (cn) => <m.Badge className={cn} />,
-                      available: m.available,
-                    }))
-              }
+              items={MODEL_ENTRIES.map((m) => ({
+                value: m.id,
+                label: m.label,
+                trailing: m.available ? m.hint : undefined,
+                renderIcon: (cn) => <m.Badge className={cn} />,
+                available: m.available,
+              }))}
             />
           </div>
 
@@ -811,4 +861,19 @@ function PresetsGallery({
       </div>
     </section>
   );
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  // btoa can't handle very long strings reliably; chunk through it
+  // to keep the call stack safe for files up to ~8 MB.
+  let bin = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+  }
+  return btoa(bin);
 }

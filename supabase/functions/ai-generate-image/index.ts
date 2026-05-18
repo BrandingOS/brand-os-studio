@@ -96,14 +96,11 @@ async function dispatchPollinations(
 ): Promise<string> {
   const encoded = encodeURIComponent(prompt).slice(0, 1500);
   const allowedModels = new Set(['flux', 'turbo', 'gptimage', 'kontext']);
-  // Auto-route to Kontext when a reference image is provided — it's the
-  // only Pollinations model that consumes the `image` param. If the
-  // caller passed an explicit model, respect it ONLY if it's also
-  // image-to-image-capable; otherwise fall back to kontext.
-  let model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
-  if (opts.referenceImageUrl) {
-    if (model !== 'kontext') model = 'kontext';
-  }
+  // Kontext is paid (enter.pollinations.ai). For the free tier we use
+  // the requested model (default flux) and pass `image` for img2img
+  // when a reference is provided — Pollinations Flux accepts the
+  // image= param on the free endpoint.
+  const model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),
