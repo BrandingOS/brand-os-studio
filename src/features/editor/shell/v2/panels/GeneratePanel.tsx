@@ -40,45 +40,35 @@ import {
 
 type Mode = 'image' | 'editable';
 
-// ─── Aspect presets ──────────────────────────────────────────────────
-interface AspectPreset {
+// ─── Format presets — merges aspect ratio + content type ────────────
+// Each preset bundles a ratio (1:1, 9:16, …), a descriptive name
+// (Square, Social story, …), the actual width × height to request,
+// the matching icon, and the prompt suffix that nudges the model
+// toward the intended use case. One dropdown, one decision.
+interface FormatPreset {
   id: string;
-  label: string;
-  short: string;
+  ratio: string;
+  name: string;
   width: number;
   height: number;
   Icon: typeof SquareIcon;
-}
-const ASPECT_PRESETS: AspectPreset[] = [
-  { id: 'square',    label: 'Square',    short: '1:1',  width: 1024, height: 1024, Icon: SquareIcon },
-  { id: 'portrait',  label: 'Portrait',  short: '4:5',  width: 1024, height: 1280, Icon: RectangleVertical },
-  { id: 'story',     label: 'Story',     short: '9:16', width: 1024, height: 1820, Icon: Smartphone },
-  { id: 'landscape', label: 'Landscape', short: '16:9', width: 1820, height: 1024, Icon: RectangleHorizontal },
-  { id: 'wide',      label: 'Wide',      short: '21:9', width: 1920, height: 832,  Icon: MonitorPlay },
-];
-
-// ─── Content types — replaces "Style" per user request ───────────────
-interface ContentType {
-  id: string;
-  /** Full label — shown in the dropdown menu. */
-  label: string;
-  /** Compact label — shown in the toolbar trigger. ≤ 6 chars. */
-  short: string;
-  Icon: typeof SquareIcon;
-  /** Suffix appended to the user's prompt for context, browser-side. */
   promptSuffix: string;
-  /** Default aspect when this type is picked. */
-  defaultAspect: string;
 }
-const CONTENT_TYPES: ContentType[] = [
-  { id: 'image',       label: 'Image',         short: 'Image',  Icon: ImageIcon,           promptSuffix: '', defaultAspect: 'square' },
-  { id: 'social-post', label: 'Social post',   short: 'Post',   Icon: SquareIcon,          promptSuffix: ', social media post composition', defaultAspect: 'square' },
-  { id: 'story',       label: 'Story',         short: 'Story',  Icon: Smartphone,          promptSuffix: ', vertical mobile story layout', defaultAspect: 'story' },
-  { id: 'banner',      label: 'Banner',        short: 'Banner', Icon: Megaphone,           promptSuffix: ', wide web banner composition', defaultAspect: 'landscape' },
-  { id: 'poster',      label: 'Poster',        short: 'Poster', Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space', defaultAspect: 'portrait' },
-  { id: 'avatar',      label: 'Avatar',        short: 'Avatar', Icon: UserCircle,          promptSuffix: ', centered avatar portrait', defaultAspect: 'square' },
-  { id: 'background',  label: 'Background',    short: 'BG',     Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay', defaultAspect: 'landscape' },
-  { id: 'logo',        label: 'Logo concept',  short: 'Logo',   Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background', defaultAspect: 'square' },
+const FORMAT_PRESETS: FormatPreset[] = [
+  { id: 'square',       ratio: '1:1',  name: 'Square',       width: 1024, height: 1024, Icon: SquareIcon,          promptSuffix: '' },
+  { id: 'social-post',  ratio: '4:5',  name: 'Social post',  width: 1024, height: 1280, Icon: SquareIcon,          promptSuffix: ', social media post composition' },
+  { id: 'social-story', ratio: '9:16', name: 'Story',        width: 1024, height: 1820, Icon: Smartphone,          promptSuffix: ', vertical mobile story layout' },
+  { id: 'portrait',     ratio: '2:3',  name: 'Portrait',     width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: '' },
+  { id: 'poster',       ratio: '2:3',  name: 'Poster',       width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space' },
+  { id: 'traditional',  ratio: '3:4',  name: 'Traditional',  width: 1024, height: 1365, Icon: RectangleVertical,   promptSuffix: '' },
+  { id: 'classic',      ratio: '4:3',  name: 'Classic',      width: 1365, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'landscape',    ratio: '3:2',  name: 'Landscape',    width: 1536, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'widescreen',   ratio: '16:9', name: 'Widescreen',   width: 1820, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'ultrawide',    ratio: '21:9', name: 'Ultrawide',    width: 1920, height: 832,  Icon: MonitorPlay,         promptSuffix: ', wide cinematic composition' },
+  { id: 'banner',       ratio: '7:3',  name: 'Banner',       width: 1792, height: 768,  Icon: Megaphone,           promptSuffix: ', wide web banner composition' },
+  { id: 'avatar',       ratio: '1:1',  name: 'Avatar',       width: 1024, height: 1024, Icon: UserCircle,          promptSuffix: ', centered avatar portrait' },
+  { id: 'background',   ratio: '16:9', name: 'Background',   width: 1820, height: 1024, Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay' },
+  { id: 'logo',         ratio: '1:1',  name: 'Logo',         width: 1024, height: 1024, Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background' },
 ];
 
 // ─── Model brand marks ───────────────────────────────────────────────
@@ -126,19 +116,19 @@ interface PromptPreset {
   title: string;
   /** Use {brand} as a placeholder; replaced with brand.name at click time. */
   prompt: string;
-  typeId: string;
+  formatId: string;
   /** Pollinations preview URL — small thumbnail, cached by URL params. */
   previewSeed: number;
 }
 const PROMPT_PRESETS: PromptPreset[] = [
-  { id: 'football-poster',  title: 'Football Poster',  prompt: 'Epic football stadium aerial shot at golden hour, dramatic lighting, cinematic film grain, {brand} colors',                                typeId: 'poster',      previewSeed: 101 },
-  { id: 'cyber-hero',       title: 'Cyber Hero',       prompt: 'Neon cyberpunk hero composition at night, glowing red accents, dramatic mood, ultra-detailed, {brand} aesthetic',                          typeId: 'social-post', previewSeed: 202 },
-  { id: 'product-clean',    title: 'Clean Product',    prompt: 'Professional product photography, clean white background, soft studio lighting, premium {brand} product on pedestal',                       typeId: 'social-post', previewSeed: 303 },
-  { id: 'team-mood',        title: 'Team Mood',        prompt: 'Moody locker room with team jerseys, dramatic accent lighting, {brand} colors, cinematic',                                                  typeId: 'banner',      previewSeed: 404 },
-  { id: 'minimal-bg',       title: 'Minimal BG',       prompt: 'Minimalist abstract gradient background, subtle grain, {brand}-colored, leaves space for headline',                                         typeId: 'background',  previewSeed: 505 },
-  { id: 'event-banner',     title: 'Event Banner',     prompt: 'Wide event banner, bold geometric shapes, energetic composition, {brand} palette, ultra-sharp',                                             typeId: 'banner',      previewSeed: 606 },
-  { id: 'avatar-portrait',  title: 'Avatar',           prompt: 'Centered avatar portrait, neutral background, premium studio lighting, {brand} mood',                                                       typeId: 'avatar',      previewSeed: 707 },
-  { id: 'logo-mark',        title: 'Logo Mark',        prompt: 'Minimalist logo concept on neutral background, geometric, balanced, contemporary, {brand} essence',                                         typeId: 'logo',        previewSeed: 808 },
+  { id: 'football-poster',  title: 'Football Poster',  prompt: 'Epic football stadium aerial shot at golden hour, dramatic lighting, cinematic film grain, {brand} colors',                                formatId: 'poster',      previewSeed: 101 },
+  { id: 'cyber-hero',       title: 'Cyber Hero',       prompt: 'Neon cyberpunk hero composition at night, glowing red accents, dramatic mood, ultra-detailed, {brand} aesthetic',                          formatId: 'social-post', previewSeed: 202 },
+  { id: 'product-clean',    title: 'Clean Product',    prompt: 'Professional product photography, clean white background, soft studio lighting, premium {brand} product on pedestal',                       formatId: 'social-post', previewSeed: 303 },
+  { id: 'team-mood',        title: 'Team Mood',        prompt: 'Moody locker room with team jerseys, dramatic accent lighting, {brand} colors, cinematic',                                                  formatId: 'banner',      previewSeed: 404 },
+  { id: 'minimal-bg',       title: 'Minimal BG',       prompt: 'Minimalist abstract gradient background, subtle grain, {brand}-colored, leaves space for headline',                                         formatId: 'background',  previewSeed: 505 },
+  { id: 'event-banner',     title: 'Event Banner',     prompt: 'Wide event banner, bold geometric shapes, energetic composition, {brand} palette, ultra-sharp',                                             formatId: 'banner',      previewSeed: 606 },
+  { id: 'avatar-portrait',  title: 'Avatar',           prompt: 'Centered avatar portrait, neutral background, premium studio lighting, {brand} mood',                                                       formatId: 'avatar',      previewSeed: 707 },
+  { id: 'logo-mark',        title: 'Logo Mark',        prompt: 'Minimalist logo concept on neutral background, geometric, balanced, contemporary, {brand} essence',                                         formatId: 'logo',        previewSeed: 808 },
 ];
 
 interface Props {
@@ -167,8 +157,7 @@ export function GeneratePanel({
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const [aspectId, setAspectId] = useState<string>('square');
-  const [typeId, setTypeId] = useState<string>('image');
+  const [formatId, setFormatId] = useState<string>('square');
   const [model, setModel] = useState<ImageModel>('flux');
   const [reference, setReference] = useState<ReferenceImageState | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -182,14 +171,6 @@ export function GeneratePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Type → default aspect (only if user hasn't set aspect explicitly).
-  // Simple: every type-change updates aspect to the type's default.
-  // The user can override afterward.
-  const onTypeChange = useCallback((nextTypeId: string) => {
-    setTypeId(nextTypeId);
-    const t = CONTENT_TYPES.find((c) => c.id === nextTypeId);
-    if (t) setAspectId(t.defaultAspect);
-  }, []);
 
   // ─── Reference image upload ──────────────────────────────────────
   const handleFileChosen = useCallback(async (file: File) => {
@@ -233,22 +214,21 @@ export function GeneratePanel({
     setError(null);
     setSuggestions([]);
     setBusy(true);
-    const aspect = ASPECT_PRESETS.find((s) => s.id === aspectId) ?? ASPECT_PRESETS[0];
-    const type = CONTENT_TYPES.find((c) => c.id === typeId) ?? CONTENT_TYPES[0];
-    const effectivePrompt = `${text}${type.promptSuffix}`;
+    const format = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
+    const effectivePrompt = `${text}${format.promptSuffix}`;
     try {
       const result = await generateImage({
         prompt: effectivePrompt,
-        width: aspect.width,
-        height: aspect.height,
+        width: format.width,
+        height: format.height,
         model,
         negativePrompt: negativePrompt.trim() || undefined,
         referenceImageUrl: reference?.url,
       });
       const docNow = adapter.getDocument();
       const page = docNow.pages.find((p) => p.id === activePageId);
-      const pageW = page?.width ?? aspect.width;
-      const pageH = page?.height ?? aspect.height;
+      const pageW = page?.width ?? format.width;
+      const pageH = page?.height ?? format.height;
       const layer: Layer = {
         id: crypto.randomUUID(),
         kind: 'image',
@@ -266,7 +246,7 @@ export function GeneratePanel({
     } finally {
       setBusy(false);
     }
-  }, [adapter, activePageId, aspectId, typeId, model, negativePrompt, reference]);
+  }, [adapter, activePageId, formatId, model, negativePrompt, reference]);
 
   const runEditable = useCallback(async (text: string) => {
     if (!agent) {
@@ -317,16 +297,17 @@ export function GeneratePanel({
     [submit],
   );
 
-  // Apply a preset — fills the prompt, sets type/aspect, ready to generate.
+  // Apply a preset — fills the prompt, sets matching format, ready to generate.
   const applyPreset = useCallback((preset: PromptPreset) => {
     const brandName = brand?.name ?? 'your brand';
     setPrompt(preset.prompt.replace(/\{brand\}/g, brandName));
-    onTypeChange(preset.typeId);
+    if (FORMAT_PRESETS.some((f) => f.id === preset.formatId)) {
+      setFormatId(preset.formatId);
+    }
     setMode('image');
-  }, [brand, onTypeChange]);
+  }, [brand]);
 
-  const activeAspect = ASPECT_PRESETS.find((s) => s.id === aspectId) ?? ASPECT_PRESETS[0];
-  const activeType = CONTENT_TYPES.find((c) => c.id === typeId) ?? CONTENT_TYPES[0];
+  const activeFormat = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
   const activeModelEntry = reference
     ? KONTEXT_ENTRY
     : (MODEL_ENTRIES.find((m) => m.id === model) ?? MODEL_ENTRIES[0]);
@@ -457,46 +438,33 @@ export function GeneratePanel({
       ) : null}
 
       {/* Toolbar — only in Image mode.
-          Three side-by-side compact selects: Aspect / Type / Model.
-          Each is a TallSelect with caption above + value below; the
-          layout stays single-row at default panel width. */}
+          Two side-by-side selects: Format (aspect + use case merged
+          into one decision, à la Freepik) and Model. Each cell is
+          wider now that we're at 2-col, so values like "Social post"
+          and "GPT Image" fit cleanly. */}
       {mode === 'image' ? (
         <>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
             <TallSelect
-              caption="Aspect"
-              icon={<activeAspect.Icon className="h-3.5 w-3.5" aria-hidden />}
-              value={aspectId}
-              valueLabel={activeAspect.short}
-              onChange={setAspectId}
+              caption="Format"
+              icon={<activeFormat.Icon className="h-3.5 w-3.5" aria-hidden />}
+              value={formatId}
+              valueLabel={`${activeFormat.ratio} ${activeFormat.name}`}
+              onChange={setFormatId}
               disabled={busy}
-              title="Aspect ratio"
-              items={ASPECT_PRESETS.map((s) => ({
-                value: s.id,
-                label: s.label,
-                trailing: s.short,
-                renderIcon: (cn) => <s.Icon className={cn} aria-hidden />,
-              }))}
-            />
-            <TallSelect
-              caption="Type"
-              icon={<activeType.Icon className="h-3.5 w-3.5" aria-hidden />}
-              value={typeId}
-              valueLabel={activeType.short}
-              onChange={onTypeChange}
-              disabled={busy}
-              title="Content type"
-              items={CONTENT_TYPES.map((c) => ({
-                value: c.id,
-                label: c.label,
-                renderIcon: (cn) => <c.Icon className={cn} aria-hidden />,
+              title="Format"
+              items={FORMAT_PRESETS.map((f) => ({
+                value: f.id,
+                label: f.name,
+                trailing: f.ratio,
+                renderIcon: (cn) => <f.Icon className={cn} aria-hidden />,
               }))}
             />
             <TallSelect
               caption="Model"
               icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
               value={reference ? 'kontext' : model}
-              valueLabel={activeModelEntry.short}
+              valueLabel={activeModelEntry.label}
               onChange={(v) => setModel(v as ImageModel)}
               disabled={busy || !!reference}
               title="Model"
@@ -671,17 +639,24 @@ function TallSelect({
           </span>
         </div>
       </SelectTrigger>
-      <SelectContent data-workspace className="min-w-[220px]">
+      <SelectContent data-workspace className="min-w-[240px]">
         {items.map((it) => (
           <SelectItem key={it.value} value={it.value} className="text-[12px]">
-            <div className="flex items-center justify-between gap-3 w-full py-0.5">
-              <span className="inline-flex items-center gap-2">
+            {/* 3-column layout per Freepik-style: icon · ratio · name.
+                When trailing is absent (model items don't have a
+                ratio), the trailing slot gracefully collapses. */}
+            <div className="grid grid-cols-[16px_minmax(0,auto)_1fr] items-center gap-2 w-full py-0.5">
+              <span className="inline-flex items-center justify-center">
                 {it.renderIcon('h-3.5 w-3.5 shrink-0')}
-                {it.label}
               </span>
               {it.trailing ? (
-                <span className="text-[10.5px] shrink-0" style={{ color: 'var(--text-muted)' }}>{it.trailing}</span>
-              ) : null}
+                <span className="font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                  {it.trailing}
+                </span>
+              ) : <span />}
+              <span className="text-right truncate" style={{ color: it.trailing ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                {it.label}
+              </span>
             </div>
           </SelectItem>
         ))}
