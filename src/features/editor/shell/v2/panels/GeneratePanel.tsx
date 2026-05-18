@@ -17,6 +17,9 @@ import {
   Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
   Settings2, UserCircle, Mountain, Megaphone, Award,
 } from 'lucide-react';
+// Real brand marks from simple-icons via react-icons/si — used for the
+// Model dropdown so each entry carries the actual provider's logo.
+import { SiFlux, SiOpenai } from 'react-icons/si';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, Layer } from '@/features/editor/schema';
@@ -57,7 +60,10 @@ const ASPECT_PRESETS: AspectPreset[] = [
 // ─── Content types — replaces "Style" per user request ───────────────
 interface ContentType {
   id: string;
+  /** Full label — shown in the dropdown menu. */
   label: string;
+  /** Compact label — shown in the toolbar trigger. ≤ 6 chars. */
+  short: string;
   Icon: typeof SquareIcon;
   /** Suffix appended to the user's prompt for context, browser-side. */
   promptSuffix: string;
@@ -65,100 +71,53 @@ interface ContentType {
   defaultAspect: string;
 }
 const CONTENT_TYPES: ContentType[] = [
-  { id: 'image',       label: 'Image',         Icon: ImageIcon,           promptSuffix: '', defaultAspect: 'square' },
-  { id: 'social-post', label: 'Social post',   Icon: SquareIcon,          promptSuffix: ', social media post composition', defaultAspect: 'square' },
-  { id: 'story',       label: 'Story',         Icon: Smartphone,          promptSuffix: ', vertical mobile story layout', defaultAspect: 'story' },
-  { id: 'banner',      label: 'Banner',        Icon: Megaphone,           promptSuffix: ', wide web banner composition', defaultAspect: 'landscape' },
-  { id: 'poster',      label: 'Poster',        Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space', defaultAspect: 'portrait' },
-  { id: 'avatar',      label: 'Avatar',        Icon: UserCircle,          promptSuffix: ', centered avatar portrait', defaultAspect: 'square' },
-  { id: 'background',  label: 'Background',    Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay', defaultAspect: 'landscape' },
-  { id: 'logo',        label: 'Logo concept',  Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background', defaultAspect: 'square' },
+  { id: 'image',       label: 'Image',         short: 'Image',  Icon: ImageIcon,           promptSuffix: '', defaultAspect: 'square' },
+  { id: 'social-post', label: 'Social post',   short: 'Post',   Icon: SquareIcon,          promptSuffix: ', social media post composition', defaultAspect: 'square' },
+  { id: 'story',       label: 'Story',         short: 'Story',  Icon: Smartphone,          promptSuffix: ', vertical mobile story layout', defaultAspect: 'story' },
+  { id: 'banner',      label: 'Banner',        short: 'Banner', Icon: Megaphone,           promptSuffix: ', wide web banner composition', defaultAspect: 'landscape' },
+  { id: 'poster',      label: 'Poster',        short: 'Poster', Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space', defaultAspect: 'portrait' },
+  { id: 'avatar',      label: 'Avatar',        short: 'Avatar', Icon: UserCircle,          promptSuffix: ', centered avatar portrait', defaultAspect: 'square' },
+  { id: 'background',  label: 'Background',    short: 'BG',     Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay', defaultAspect: 'landscape' },
+  { id: 'logo',        label: 'Logo concept',  short: 'Logo',   Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background', defaultAspect: 'square' },
 ];
 
-// ─── Model brand badges — small inline SVGs unique to each model. ────
-// Lucide is for generic UI icons; models have their own brand and a
-// recognizable mark beats a generic Sparkles/Zap for picking at a glance.
-
-function FluxBadge({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="fluxg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#FF6B35" />
-          <stop offset="55%" stopColor="#E11D48" />
-          <stop offset="100%" stopColor="#7C3AED" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M8 1.2c1.6 2.4 3.1 4.2 3.1 6.6 0 3.4-2.4 6-3.1 7-0.7-1-3.1-3.6-3.1-7 0-2.4 1.5-4.2 3.1-6.6z"
-        fill="url(#fluxg)"
-      />
-    </svg>
-  );
-}
-
-function TurboBadge({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="turbog" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#F59E0B" />
-          <stop offset="100%" stopColor="#DC2626" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M9.6 1.4 4 9.2h3.4L6.4 14.6 12 6.8H8.6l1-5.4z"
-        fill="url(#turbog)"
-      />
-    </svg>
-  );
-}
-
-function GptImageBadge({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="gptg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#10B981" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-      </defs>
-      <circle cx="8" cy="8" r="6.5" stroke="url(#gptg)" strokeWidth="1.6" />
-      <circle cx="8" cy="8" r="2.2" fill="url(#gptg)" />
-    </svg>
-  );
-}
-
-function KontextBadge({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="kontextg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#3B82F6" />
-          <stop offset="100%" stopColor="#0EA5E9" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="4" width="8" height="8" rx="1.5" stroke="url(#kontextg)" strokeWidth="1.4" fill="none" />
-      <rect x="6" y="2" width="8" height="8" rx="1.5" fill="url(#kontextg)" />
-    </svg>
-  );
-}
+// ─── Model brand marks ───────────────────────────────────────────────
+// Real provider logos from simple-icons. Flux family (Flux / Turbo /
+// Kontext) all wrap Black Forest Labs models, so they share the SiFlux
+// mark — only the label distinguishes the variant. GPT Image is
+// OpenAI's provider, so it carries the OpenAI logo.
+//
+// Each entry exposes a `Badge` render function so the SVG props
+// (className, color) are owned by the caller and the icon scales
+// uniformly with the rest of the dropdown UI.
 
 type ModelBadge = (props: { className?: string }) => JSX.Element;
 
+const FluxBadge: ModelBadge = ({ className }) => (
+  // Flux family — colored to match BFL's brand red/orange.
+  <SiFlux className={className} style={{ color: '#E11D48' }} aria-hidden />
+);
+
+const OpenAiBadge: ModelBadge = ({ className }) => (
+  <SiOpenai className={className} style={{ color: '#0F8C5F' }} aria-hidden />
+);
+
 interface ModelEntry {
   id: ImageModel | 'kontext';
+  /** Full label — shown in the dropdown menu. */
   label: string;
+  /** Compact label — shown in the toolbar trigger. ≤ 6 chars. */
+  short: string;
   hint: string;
   Badge: ModelBadge;
 }
 const MODEL_ENTRIES: ModelEntry[] = [
-  { id: 'flux',     label: 'Flux',     hint: 'Best quality',  Badge: FluxBadge },
-  { id: 'turbo',    label: 'Turbo',    hint: 'Faster',        Badge: TurboBadge },
-  { id: 'gptimage', label: 'GPT Image',hint: 'Text in images',Badge: GptImageBadge },
+  { id: 'flux',     label: 'Flux',      short: 'Flux',  hint: 'Best quality',   Badge: FluxBadge },
+  { id: 'turbo',    label: 'Turbo',     short: 'Turbo', hint: 'Faster',         Badge: FluxBadge },
+  { id: 'gptimage', label: 'GPT Image', short: 'GPT',   hint: 'Text in images', Badge: OpenAiBadge },
 ];
 const KONTEXT_ENTRY: ModelEntry = {
-  id: 'kontext', label: 'Kontext', hint: 'Image-to-image', Badge: KontextBadge,
+  id: 'kontext', label: 'Kontext', short: 'Kontext', hint: 'Image-to-image', Badge: FluxBadge,
 };
 
 // ─── Premade prompt presets — adapt to the active brand on click ─────
@@ -498,13 +457,12 @@ export function GeneratePanel({
       ) : null}
 
       {/* Toolbar — only in Image mode.
-          Layout: 2-col row for Aspect + Type (compact), then Model on
-          its own full-width row (longer labels deserve more space and
-          a clearer badge). Each trigger is h-11 with icon top-left,
-          short caption + value below, chevron right. */}
+          Three side-by-side compact selects: Aspect / Type / Model.
+          Each is a TallSelect with caption above + value below; the
+          layout stays single-row at default panel width. */}
       {mode === 'image' ? (
         <>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <TallSelect
               caption="Aspect"
               icon={<activeAspect.Icon className="h-3.5 w-3.5" aria-hidden />}
@@ -524,7 +482,7 @@ export function GeneratePanel({
               caption="Type"
               icon={<activeType.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={typeId}
-              valueLabel={activeType.id === 'image' ? 'Default' : activeType.label}
+              valueLabel={activeType.short}
               onChange={onTypeChange}
               disabled={busy}
               title="Content type"
@@ -534,32 +492,31 @@ export function GeneratePanel({
                 renderIcon: (cn) => <c.Icon className={cn} aria-hidden />,
               }))}
             />
+            <TallSelect
+              caption="Model"
+              icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
+              value={reference ? 'kontext' : model}
+              valueLabel={activeModelEntry.short}
+              onChange={(v) => setModel(v as ImageModel)}
+              disabled={busy || !!reference}
+              title="Model"
+              items={
+                reference
+                  ? [{
+                      value: 'kontext',
+                      label: KONTEXT_ENTRY.label,
+                      trailing: KONTEXT_ENTRY.hint,
+                      renderIcon: (cn) => <KONTEXT_ENTRY.Badge className={cn} />,
+                    }]
+                  : MODEL_ENTRIES.map((m) => ({
+                      value: m.id as string,
+                      label: m.label,
+                      trailing: m.hint,
+                      renderIcon: (cn) => <m.Badge className={cn} />,
+                    }))
+              }
+            />
           </div>
-          <TallSelect
-            caption="Model"
-            icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
-            value={reference ? 'kontext' : model}
-            valueLabel={activeModelEntry.label}
-            valueHint={activeModelEntry.hint}
-            onChange={(v) => setModel(v as ImageModel)}
-            disabled={busy || !!reference}
-            title="Model"
-            items={
-              reference
-                ? [{
-                    value: 'kontext',
-                    label: KONTEXT_ENTRY.label,
-                    trailing: KONTEXT_ENTRY.hint,
-                    renderIcon: (cn) => <KONTEXT_ENTRY.Badge className={cn} />,
-                  }]
-                : MODEL_ENTRIES.map((m) => ({
-                    value: m.id as string,
-                    label: m.label,
-                    trailing: m.hint,
-                    renderIcon: (cn) => <m.Badge className={cn} />,
-                  }))
-            }
-          />
 
           {/* Advanced — Negative prompt only */}
           <button
@@ -686,6 +643,7 @@ interface TallSelectItem {
 function TallSelect({
   caption, icon, value, valueLabel, valueHint, onChange, disabled, title, items,
 }: {
+  /** Tooltip caption — also shown as the placeholder when there's no value. */
   caption: string;
   icon: React.ReactNode;
   value: string;
@@ -699,22 +657,18 @@ function TallSelect({
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger
-        // Override the default h-10 padding so the trigger has room
-        // for caption above + value below, with breathing room and
-        // chevron offset from the right edge.
-        className="h-11 px-2.5 py-1 text-[12px] gap-1.5 [&>span]:line-clamp-none [&>svg]:opacity-60"
-        title={title}
+        // Compact single-row trigger optimised for 3-col density at
+        // 300px panel width: tighter padding/gap and a smaller chevron
+        // give the value 100% of the remaining width.
+        className="h-8 px-1.5 py-0 text-[11px] gap-1 [&>span]:line-clamp-none [&>svg]:opacity-50 [&>svg]:h-2.5 [&>svg]:w-2.5 [&>svg]:shrink-0"
+        title={`${title}${valueHint ? ` — ${valueHint}` : ''}`}
+        aria-label={`${title}: ${valueLabel}`}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="shrink-0">{icon}</div>
-          <div className="flex flex-col items-start min-w-0 leading-tight">
-            <span className="text-[9.5px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              {caption}
-            </span>
-            <span className="text-[11.5px] font-medium truncate w-full text-left" style={{ color: 'var(--text-primary)' }}>
-              {valueLabel}{valueHint ? <span className="font-normal" style={{ color: 'var(--text-muted)' }}> · {valueHint}</span> : null}
-            </span>
-          </div>
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          <div className="shrink-0 flex items-center">{icon}</div>
+          <span className="font-medium truncate text-left" style={{ color: 'var(--text-primary)' }}>
+            {valueLabel}
+          </span>
         </div>
       </SelectTrigger>
       <SelectContent data-workspace className="min-w-[220px]">
