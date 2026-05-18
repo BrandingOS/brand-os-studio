@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import {
   Sparkles, Image as ImageIcon, Layers, X as XIcon, Paperclip,
   Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
-  Settings2, UserCircle, Mountain, Megaphone, Award,
+  Settings2,
 } from 'lucide-react';
 // Real brand marks from simple-icons via react-icons/si — used for the
 // Model dropdown so each entry carries the actual provider's logo.
@@ -40,11 +40,11 @@ import {
 
 type Mode = 'image' | 'editable';
 
-// ─── Format presets — merges aspect ratio + content type ────────────
-// Each preset bundles a ratio (1:1, 9:16, …), a descriptive name
-// (Square, Social story, …), the actual width × height to request,
-// the matching icon, and the prompt suffix that nudges the model
-// toward the intended use case. One dropdown, one decision.
+// ─── Format presets — one entry per unique aspect ratio. ─────────────
+// Names are intentionally generic ("Square" works for posts, avatars,
+// logos, icons; "Vertical" works for stories, reels, posters in
+// portrait phones). No ratio appears twice — the user picks the shape,
+// the prompt provides the use case.
 interface FormatPreset {
   id: string;
   ratio: string;
@@ -55,20 +55,14 @@ interface FormatPreset {
   promptSuffix: string;
 }
 const FORMAT_PRESETS: FormatPreset[] = [
-  { id: 'square',       ratio: '1:1',  name: 'Square',       width: 1024, height: 1024, Icon: SquareIcon,          promptSuffix: '' },
-  { id: 'social-post',  ratio: '4:5',  name: 'Social post',  width: 1024, height: 1280, Icon: SquareIcon,          promptSuffix: ', social media post composition' },
-  { id: 'social-story', ratio: '9:16', name: 'Story',        width: 1024, height: 1820, Icon: Smartphone,          promptSuffix: ', vertical mobile story layout' },
-  { id: 'portrait',     ratio: '2:3',  name: 'Portrait',     width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: '' },
-  { id: 'poster',       ratio: '2:3',  name: 'Poster',       width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space' },
-  { id: 'traditional',  ratio: '3:4',  name: 'Traditional',  width: 1024, height: 1365, Icon: RectangleVertical,   promptSuffix: '' },
-  { id: 'classic',      ratio: '4:3',  name: 'Classic',      width: 1365, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
-  { id: 'landscape',    ratio: '3:2',  name: 'Landscape',    width: 1536, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
-  { id: 'widescreen',   ratio: '16:9', name: 'Widescreen',   width: 1820, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
-  { id: 'ultrawide',    ratio: '21:9', name: 'Ultrawide',    width: 1920, height: 832,  Icon: MonitorPlay,         promptSuffix: ', wide cinematic composition' },
-  { id: 'banner',       ratio: '7:3',  name: 'Banner',       width: 1792, height: 768,  Icon: Megaphone,           promptSuffix: ', wide web banner composition' },
-  { id: 'avatar',       ratio: '1:1',  name: 'Avatar',       width: 1024, height: 1024, Icon: UserCircle,          promptSuffix: ', centered avatar portrait' },
-  { id: 'background',   ratio: '16:9', name: 'Background',   width: 1820, height: 1024, Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay' },
-  { id: 'logo',         ratio: '1:1',  name: 'Logo',         width: 1024, height: 1024, Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background' },
+  { id: 'square',      ratio: '1:1',  name: 'Square',     width: 1024, height: 1024, Icon: SquareIcon,          promptSuffix: '' },
+  { id: 'portrait',    ratio: '4:5',  name: 'Portrait',   width: 1024, height: 1280, Icon: RectangleVertical,   promptSuffix: '' },
+  { id: 'tall',        ratio: '2:3',  name: 'Tall',       width: 1024, height: 1536, Icon: RectangleVertical,   promptSuffix: '' },
+  { id: 'vertical',    ratio: '9:16', name: 'Vertical',   width: 1024, height: 1820, Icon: Smartphone,          promptSuffix: ', vertical mobile composition' },
+  { id: 'classic',     ratio: '4:3',  name: 'Classic',    width: 1365, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'landscape',   ratio: '3:2',  name: 'Landscape',  width: 1536, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'widescreen',  ratio: '16:9', name: 'Widescreen', width: 1820, height: 1024, Icon: RectangleHorizontal, promptSuffix: '' },
+  { id: 'cinematic',   ratio: '21:9', name: 'Cinematic',  width: 1920, height: 832,  Icon: MonitorPlay,         promptSuffix: ', cinematic ultrawide composition' },
 ];
 
 // ─── Model brand marks ───────────────────────────────────────────────
@@ -121,14 +115,14 @@ interface PromptPreset {
   previewSeed: number;
 }
 const PROMPT_PRESETS: PromptPreset[] = [
-  { id: 'football-poster',  title: 'Football Poster',  prompt: 'Epic football stadium aerial shot at golden hour, dramatic lighting, cinematic film grain, {brand} colors',                                formatId: 'poster',      previewSeed: 101 },
-  { id: 'cyber-hero',       title: 'Cyber Hero',       prompt: 'Neon cyberpunk hero composition at night, glowing red accents, dramatic mood, ultra-detailed, {brand} aesthetic',                          formatId: 'social-post', previewSeed: 202 },
-  { id: 'product-clean',    title: 'Clean Product',    prompt: 'Professional product photography, clean white background, soft studio lighting, premium {brand} product on pedestal',                       formatId: 'social-post', previewSeed: 303 },
-  { id: 'team-mood',        title: 'Team Mood',        prompt: 'Moody locker room with team jerseys, dramatic accent lighting, {brand} colors, cinematic',                                                  formatId: 'banner',      previewSeed: 404 },
-  { id: 'minimal-bg',       title: 'Minimal BG',       prompt: 'Minimalist abstract gradient background, subtle grain, {brand}-colored, leaves space for headline',                                         formatId: 'background',  previewSeed: 505 },
-  { id: 'event-banner',     title: 'Event Banner',     prompt: 'Wide event banner, bold geometric shapes, energetic composition, {brand} palette, ultra-sharp',                                             formatId: 'banner',      previewSeed: 606 },
-  { id: 'avatar-portrait',  title: 'Avatar',           prompt: 'Centered avatar portrait, neutral background, premium studio lighting, {brand} mood',                                                       formatId: 'avatar',      previewSeed: 707 },
-  { id: 'logo-mark',        title: 'Logo Mark',        prompt: 'Minimalist logo concept on neutral background, geometric, balanced, contemporary, {brand} essence',                                         formatId: 'logo',        previewSeed: 808 },
+  { id: 'football-poster',  title: 'Football Poster',  prompt: 'Epic football stadium aerial shot at golden hour, dramatic lighting, cinematic film grain, {brand} colors',                                formatId: 'tall',       previewSeed: 101 },
+  { id: 'cyber-hero',       title: 'Cyber Hero',       prompt: 'Neon cyberpunk hero composition at night, glowing red accents, dramatic mood, ultra-detailed, {brand} aesthetic',                          formatId: 'square',     previewSeed: 202 },
+  { id: 'product-clean',    title: 'Clean Product',    prompt: 'Professional product photography, clean white background, soft studio lighting, premium {brand} product on pedestal',                       formatId: 'square',     previewSeed: 303 },
+  { id: 'team-mood',        title: 'Team Mood',        prompt: 'Moody locker room with team jerseys, dramatic accent lighting, {brand} colors, cinematic',                                                  formatId: 'widescreen', previewSeed: 404 },
+  { id: 'minimal-bg',       title: 'Minimal BG',       prompt: 'Minimalist abstract gradient background, subtle grain, {brand}-colored, leaves space for headline',                                         formatId: 'widescreen', previewSeed: 505 },
+  { id: 'event-banner',     title: 'Event Banner',     prompt: 'Wide event banner, bold geometric shapes, energetic composition, {brand} palette, ultra-sharp',                                             formatId: 'cinematic',  previewSeed: 606 },
+  { id: 'avatar-portrait',  title: 'Avatar',           prompt: 'Centered avatar portrait, neutral background, premium studio lighting, {brand} mood',                                                       formatId: 'square',     previewSeed: 707 },
+  { id: 'logo-mark',        title: 'Logo Mark',        prompt: 'Minimalist logo concept on neutral background, geometric, balanced, contemporary, {brand} essence',                                         formatId: 'square',     previewSeed: 808 },
 ];
 
 interface Props {
