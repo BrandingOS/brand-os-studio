@@ -1300,6 +1300,24 @@
   border-top-color: transparent;
 }
 
+/* Align the drilldown header with the sidebar's sticky TOP edge.
+   The default `.board-wrap` padding-top is 28px (workspace.css),
+   which puts the drilldown-head's natural viewport-y at ~96px —
+   while the sidebar `.panel` (sticky top:80) clamps to viewport-y 80.
+   Trimming the board-wrap padding-top to 12px on the brand-kit page
+   brings the drilldown-head's natural position to 80 too, so the
+   pill and the sidebar's top edge sit on the same line at scrollY=0
+   and stay aligned on scroll (both sticky at top:80).
+
+   Both page-1 (sections list) and page-2 (drilldown) content shift
+   up by the same 16px, so the per-tile wipe transition between
+   them stays pixel-aligned — only the empty band above the first
+   row shrinks. Scoped to `.bk-cosmos-board` so other workspace
+   pages keep their original 28px top padding. */
+[data-workspace] .board-wrap.bk-cosmos-board {
+  padding-top: 12px;
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Drilldown view — replaces the sections list inside .board-wrap
    when a card is picked. Mirrors the sections-list rhythm exactly so

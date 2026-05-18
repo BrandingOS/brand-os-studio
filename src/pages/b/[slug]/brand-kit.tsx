@@ -23,9 +23,13 @@ export default function BrandBrandKitPage() {
 
   if (!brand) return null;
 
+  // `empty:hidden` collapses the checklist wrapper to display:none
+  // whenever BrandSetupChecklist returns null for a fully-configured
+  // brand. Without it the empty wrapper + flex gap left a 32px band
+  // above the sticky WorkspaceShell navbar.
   return (
-    <div className="flex flex-col gap-4">
-      <div className="px-4 sm:px-6 pt-4">
+    <div className="flex flex-col">
+      <div className="px-4 sm:px-6 pt-4 empty:hidden">
         <BrandSetupChecklist brand={brand} />
       </div>
       <BrandKitCosmosPage
