@@ -63,6 +63,7 @@ import {
 } from './v2/EditorFloatingToolbar';
 import { EditorPageNavigator } from './v2/EditorPageNavigator';
 import { EditorPageNavigatorCollapsed } from './v2/EditorPageNavigatorCollapsed';
+import { EditorGenerationsStrip } from './v2/EditorGenerationsStrip';
 import { EditorLockBadge } from './v2/EditorLockBadge';
 import { EditorZoomControls } from './v2/EditorZoomControls';
 import { EditorPresenceAvatars } from './v2/EditorPresenceAvatars';
@@ -860,6 +861,16 @@ export function Editor({
               floating "Ask AI" pill was removed in favor of this
               persistent sidebar surface so size/style/model
               controls have a home. */}
+
+          {/* Generations strip — floating thumbnail row at the bottom
+              of the canvas. Surfaces every page so AI generations
+              (which append pages) are reachable without opening the
+              side page navigator. Hides itself for single-page docs. */}
+          <EditorGenerationsStrip
+            doc={doc}
+            activePageId={activePageId}
+            onActivePageChange={setActivePageId}
+          />
         </div>
 
         {/* First-visit welcome tip — self-dismissing, ever shows once
