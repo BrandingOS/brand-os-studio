@@ -37,6 +37,9 @@ export interface GenerateImageRequest {
   /** Optional negative prompt — appended via "--no <terms>" syntax
    *  that Pollinations / SDXL families respect. */
   negativePrompt?: string;
+  /** Optional reference image URL — when set, dispatches the image-to-
+   *  image flow (Pollinations Kontext). Must be publicly reachable. */
+  referenceImageUrl?: string;
 }
 
 export interface GenerateImageResult {
@@ -77,6 +80,7 @@ export async function generateImage(
     height: args.height,
     model: args.model,
     seed: args.seed,
+    referenceImageUrl: args.referenceImageUrl,
   };
 
   const ctrl = new AbortController();

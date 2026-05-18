@@ -42,10 +42,15 @@ interface GenerateImageBody {
   /** width × height — defaults to 1024×1024. */
   width?: number;
   height?: number;
-  /** Vendor model. Pollinations: 'flux' | 'turbo' | 'gptimage'. */
+  /** Vendor model. Pollinations: 'flux' | 'turbo' | 'gptimage' | 'kontext'. */
   model?: string;
   /** Optional seed for reproducibility — random when omitted. */
   seed?: number;
+  /** Optional reference image URL — when set, dispatches the image-to-
+   *  image model (Pollinations Kontext) and passes the URL as the
+   *  `image` param. The URL must be publicly fetchable from
+   *  Pollinations' servers. */
+  referenceImageUrl?: string;
 }
 
 interface GenerateImageResult {
@@ -87,11 +92,18 @@ async function dispatchPollinations(
   prompt: string,
   width: number,
   height: number,
-  opts: { model?: string; seed?: number } = {},
+  opts: { model?: string; seed?: number; referenceImageUrl?: string } = {},
 ): Promise<string> {
   const encoded = encodeURIComponent(prompt).slice(0, 1500);
   const allowedModels = new Set(['flux', 'turbo', 'gptimage', 'kontext']);
-  const model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
+  // Auto-route to Kontext when a reference image is provided — it's the
+  // only Pollinations model that consumes the `image` param. If the
+  // caller passed an explicit model, respect it ONLY if it's also
+  // image-to-image-capable; otherwise fall back to kontext.
+  let model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
+  if (opts.referenceImageUrl) {
+    if (model !== 'kontext') model = 'kontext';
+  }
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),
@@ -102,6 +114,9 @@ async function dispatchPollinations(
   });
   if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) {
     params.set('seed', String(Math.trunc(opts.seed)));
+  }
+  if (opts.referenceImageUrl) {
+    params.set('image', opts.referenceImageUrl);
   }
   const url = `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
   const res = await fetch(url, { headers: { 'User-Agent': 'brandos-edge/1.0' } });
@@ -177,12 +192,13 @@ async function dispatchVendor(
   prompt: string,
   width: number,
   height: number,
-  opts: { model?: string; seed?: number },
+  opts: { model?: string; seed?: number; referenceImageUrl?: string },
 ): Promise<{ imageUrl: string; model: string }> {
   switch (vendor) {
     case 'pollinations': {
       const url = await dispatchPollinations(prompt, width, height, opts);
-      return { imageUrl: url, model: `pollinations:${opts.model ?? 'flux'}` };
+      const effectiveModel = opts.referenceImageUrl ? 'kontext' : (opts.model ?? 'flux');
+      return { imageUrl: url, model: `pollinations:${effectiveModel}` };
     }
     case 'cloudflare':
       return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
@@ -240,6 +256,7 @@ Deno.serve(withCors(cors, async (req) => {
     const { imageUrl, model } = await dispatchVendor(vendor, prompt, width, height, {
       model: typeof body.model === 'string' ? body.model : undefined,
       seed: typeof body.seed === 'number' ? body.seed : undefined,
+      referenceImageUrl: typeof body.referenceImageUrl === 'string' ? body.referenceImageUrl : undefined,
     });
     await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model, inputTokens: 0, outputTokens: 0 });
     const result: GenerateImageResult = { imageUrl, mock: false, prompt };
