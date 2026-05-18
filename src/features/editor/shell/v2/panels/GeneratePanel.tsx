@@ -19,7 +19,9 @@ import {
 } from 'lucide-react';
 // Real brand marks from simple-icons via react-icons/si — used for the
 // Model dropdown so each entry carries the actual provider's logo.
-import { SiFlux, SiOpenai } from 'react-icons/si';
+import {
+  SiFlux, SiOpenai, SiHuggingface, SiGooglegemini, SiAdobephotoshop,
+} from 'react-icons/si';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, Layer } from '@/features/editor/schema';
@@ -66,42 +68,97 @@ const FORMAT_PRESETS: FormatPreset[] = [
 ];
 
 // ─── Model brand marks ───────────────────────────────────────────────
-// Real provider logos from simple-icons. Flux family (Flux / Turbo /
-// Kontext) all wrap Black Forest Labs models, so they share the SiFlux
-// mark — only the label distinguishes the variant. GPT Image is
-// OpenAI's provider, so it carries the OpenAI logo.
-//
-// Each entry exposes a `Badge` render function so the SVG props
-// (className, color) are owned by the caller and the icon scales
-// uniformly with the rest of the dropdown UI.
+// Where simple-icons ships a brand mark we use it (Flux family,
+// OpenAI, Hugging Face, Google Gemini, Adobe). Where it doesn't
+// (Midjourney, Ideogram, Recraft, Leonardo, Playground), we render
+// a small gradient letter chip — recognizable and matches the panel
+// aesthetic.
 
 type ModelBadge = (props: { className?: string }) => JSX.Element;
 
 const FluxBadge: ModelBadge = ({ className }) => (
-  // Flux family — colored to match BFL's brand red/orange.
   <SiFlux className={className} style={{ color: '#E11D48' }} aria-hidden />
 );
-
+const FluxKontextBadge: ModelBadge = ({ className }) => (
+  <SiFlux className={className} style={{ color: '#3B82F6' }} aria-hidden />
+);
 const OpenAiBadge: ModelBadge = ({ className }) => (
   <SiOpenai className={className} style={{ color: '#0F8C5F' }} aria-hidden />
 );
+const DalleBadge: ModelBadge = ({ className }) => (
+  <SiOpenai className={className} style={{ color: '#10A37F' }} aria-hidden />
+);
+const HuggingFaceBadge: ModelBadge = ({ className }) => (
+  <SiHuggingface className={className} style={{ color: '#FFCC4D' }} aria-hidden />
+);
+const GeminiBadge: ModelBadge = ({ className }) => (
+  <SiGooglegemini className={className} style={{ color: '#4285F4' }} aria-hidden />
+);
+const FireflyBadge: ModelBadge = ({ className }) => (
+  <SiAdobephotoshop className={className} style={{ color: '#FF0000' }} aria-hidden />
+);
+
+function makeLetterBadge(letter: string, bg: string): ModelBadge {
+  return ({ className }) => (
+    <span
+      className={`inline-flex items-center justify-center rounded-sm font-bold text-white ${className ?? ''}`}
+      style={{ background: bg, fontSize: '0.5rem', lineHeight: 1 }}
+      aria-hidden
+    >
+      {letter}
+    </span>
+  );
+}
+const MidjourneyBadge   = makeLetterBadge('MJ', 'linear-gradient(135deg, #0F0F23, #2D2D4F)');
+const IdeogramBadge     = makeLetterBadge('I',  'linear-gradient(135deg, #7C3AED, #DB2777)');
+const RecraftBadge      = makeLetterBadge('R',  'linear-gradient(135deg, #000000, #FF4D8D)');
+const LeonardoBadge     = makeLetterBadge('L',  'linear-gradient(135deg, #FB923C, #F43F5E)');
+const PlaygroundBadge   = makeLetterBadge('P',  'linear-gradient(135deg, #F59E0B, #DC2626)');
+const NanoBananaBadge   = makeLetterBadge('🍌',  '#FBBF24');
 
 interface ModelEntry {
-  id: ImageModel | 'kontext';
+  /** ImageModel id when wired (sent to the Edge Function); arbitrary
+   *  string for coming-soon entries (never reaches the API). */
+  id: string;
   /** Full label — shown in the dropdown menu. */
   label: string;
-  /** Compact label — shown in the toolbar trigger. ≤ 6 chars. */
+  /** Compact label — shown in the toolbar trigger. ≤ 7 chars. */
   short: string;
   hint: string;
   Badge: ModelBadge;
+  /** False = visible in the menu but greyed-out and disabled. We use
+   *  this to signpost the model roadmap without breaking the picker. */
+  available: boolean;
 }
-const MODEL_ENTRIES: ModelEntry[] = [
-  { id: 'flux',     label: 'Flux',      short: 'Flux',  hint: 'Best quality',   Badge: FluxBadge },
-  { id: 'turbo',    label: 'Turbo',     short: 'Turbo', hint: 'Faster',         Badge: FluxBadge },
-  { id: 'gptimage', label: 'GPT Image', short: 'GPT',   hint: 'Text in images', Badge: OpenAiBadge },
+
+// Available models — wired to Pollinations today via the Edge Function.
+// Flux is the recommended default and first in the list.
+const AVAILABLE_MODELS: ModelEntry[] = [
+  { id: 'flux',     label: 'Flux',      short: 'Flux',  hint: 'Best quality',   Badge: FluxBadge,    available: true },
+  { id: 'turbo',    label: 'Flux Turbo',short: 'Turbo', hint: 'Faster',         Badge: FluxBadge,    available: true },
+  { id: 'gptimage', label: 'GPT Image', short: 'GPT',   hint: 'Text-aware',     Badge: OpenAiBadge,  available: true },
 ];
+
+// Coming-soon — render dimmed + disabled so the roadmap is visible
+// in the picker. IDs are illustrative; they're never sent to the API.
+const COMING_SOON_MODELS: ModelEntry[] = [
+  { id: 'dalle3',     label: 'DALL·E 3',         short: 'DALL·E', hint: 'Soon', Badge: DalleBadge,        available: false },
+  { id: 'sd35',       label: 'Stable Diffusion 3.5', short: 'SD 3.5', hint: 'Soon', Badge: HuggingFaceBadge, available: false },
+  { id: 'sdxl',       label: 'SDXL',             short: 'SDXL',   hint: 'Soon', Badge: HuggingFaceBadge,  available: false },
+  { id: 'imagen3',    label: 'Imagen 3',         short: 'Imagen', hint: 'Soon', Badge: GeminiBadge,       available: false },
+  { id: 'nanobanana', label: 'Nano Banana',      short: 'Nano',   hint: 'Soon', Badge: NanoBananaBadge,   available: false },
+  { id: 'midjourney', label: 'Midjourney v6',    short: 'MJ',     hint: 'Soon', Badge: MidjourneyBadge,   available: false },
+  { id: 'ideogram',   label: 'Ideogram 2.0',     short: 'Ideo',   hint: 'Soon', Badge: IdeogramBadge,     available: false },
+  { id: 'firefly',    label: 'Adobe Firefly',    short: 'Adobe',  hint: 'Soon', Badge: FireflyBadge,      available: false },
+  { id: 'recraft',    label: 'Recraft V3',       short: 'Recraft',hint: 'Soon', Badge: RecraftBadge,      available: false },
+  { id: 'leonardo',   label: 'Leonardo AI',      short: 'Leo',    hint: 'Soon', Badge: LeonardoBadge,     available: false },
+  { id: 'playground', label: 'Playground v3',    short: 'Play',   hint: 'Soon', Badge: PlaygroundBadge,   available: false },
+];
+
+const MODEL_ENTRIES: ModelEntry[] = [...AVAILABLE_MODELS, ...COMING_SOON_MODELS];
+
 const KONTEXT_ENTRY: ModelEntry = {
-  id: 'kontext', label: 'Kontext', short: 'Kontext', hint: 'Image-to-image', Badge: FluxBadge,
+  id: 'kontext', label: 'Flux Kontext', short: 'Kontext', hint: 'Image-to-image', Badge: FluxKontextBadge, available: true,
 };
 
 // ─── Premade prompt presets — adapt to the active brand on click ─────
@@ -458,8 +515,14 @@ export function GeneratePanel({
               caption="Model"
               icon={<activeModelEntry.Badge className="h-3.5 w-3.5" />}
               value={reference ? 'kontext' : model}
-              valueLabel={activeModelEntry.label}
-              onChange={(v) => setModel(v as ImageModel)}
+              valueLabel={activeModelEntry.short}
+              onChange={(v) => {
+                // Defensive: never set an unavailable model. The
+                // dropdown disables them but enforce here too in case
+                // a downstream keyboard interaction slips through.
+                const entry = MODEL_ENTRIES.find((m) => m.id === v);
+                if (entry?.available) setModel(v as ImageModel);
+              }}
               disabled={busy || !!reference}
               title="Model"
               items={
@@ -469,12 +532,14 @@ export function GeneratePanel({
                       label: KONTEXT_ENTRY.label,
                       trailing: KONTEXT_ENTRY.hint,
                       renderIcon: (cn) => <KONTEXT_ENTRY.Badge className={cn} />,
+                      available: true,
                     }]
                   : MODEL_ENTRIES.map((m) => ({
-                      value: m.id as string,
+                      value: m.id,
                       label: m.label,
-                      trailing: m.hint,
+                      trailing: m.available ? m.hint : undefined,
                       renderIcon: (cn) => <m.Badge className={cn} />,
+                      available: m.available,
                     }))
               }
             />
@@ -600,6 +665,9 @@ interface TallSelectItem {
   label: string;
   trailing?: string;
   renderIcon: (className: string) => React.ReactNode;
+  /** When false, the item shows as dimmed + disabled so the user can
+   *  see what's on the roadmap without being able to pick it. */
+  available?: boolean;
 }
 
 function TallSelect({
@@ -634,26 +702,48 @@ function TallSelect({
         </div>
       </SelectTrigger>
       <SelectContent data-workspace className="min-w-[240px]">
-        {items.map((it) => (
-          <SelectItem key={it.value} value={it.value} className="text-[12px]">
-            {/* 3-column layout per Freepik-style: icon · ratio · name.
-                When trailing is absent (model items don't have a
-                ratio), the trailing slot gracefully collapses. */}
-            <div className="grid grid-cols-[16px_minmax(0,auto)_1fr] items-center gap-2 w-full py-0.5">
-              <span className="inline-flex items-center justify-center">
-                {it.renderIcon('h-3.5 w-3.5 shrink-0')}
-              </span>
-              {it.trailing ? (
-                <span className="font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                  {it.trailing}
+        {items.map((it) => {
+          const disabled = it.available === false;
+          return (
+            <SelectItem
+              key={it.value}
+              value={it.value}
+              disabled={disabled}
+              className={`text-[12px] ${disabled ? 'opacity-45' : ''}`}
+            >
+              {/* 3-column layout: icon · ratio · name. Trailing slot
+                  collapses when no ratio (model entries don't carry
+                  one — but coming-soon entries get a "Soon" pill). */}
+              <div className="grid grid-cols-[16px_minmax(0,auto)_1fr] items-center gap-2 w-full py-0.5">
+                <span className="inline-flex items-center justify-center">
+                  {it.renderIcon('h-3.5 w-3.5 shrink-0')}
                 </span>
-              ) : <span />}
-              <span className="text-right truncate" style={{ color: it.trailing ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-                {it.label}
-              </span>
-            </div>
-          </SelectItem>
-        ))}
+                {it.trailing && !disabled ? (
+                  <span className="font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    {it.trailing}
+                  </span>
+                ) : <span />}
+                <span
+                  className="text-right truncate inline-flex items-center justify-end gap-1"
+                  style={{ color: it.trailing && !disabled ? 'var(--text-muted)' : 'var(--text-primary)' }}
+                >
+                  {it.label}
+                  {disabled ? (
+                    <span
+                      className="rounded-full px-1.5 py-[1px] text-[8.5px] font-medium uppercase tracking-wider"
+                      style={{
+                        background: 'color-mix(in oklab, var(--text-primary) 8%, transparent)',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      Soon
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
