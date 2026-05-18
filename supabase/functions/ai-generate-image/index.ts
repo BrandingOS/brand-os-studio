@@ -71,12 +71,15 @@ function buildMockSvg(prompt: string, width: number, height: number): string {
 }
 
 // ─── Vendor: Pollinations.ai ─────────────────────────────────────────
-// Free, no API key, no signup. Returns an absolute URL that resolves
-// directly to a generated PNG. Browser fetches the URL when rendering
-// or downloading the image — no server-side bandwidth for the bytes.
-// CORS is enabled on pollinations' side so the browser can also fetch
-// the image into a canvas without a proxy.
-function dispatchPollinations(prompt: string, width: number, height: number): string {
+// Free, no API key, no signup.
+//
+// IMPORTANT: Pollinations returns 403 to browser requests that include
+// an `Origin` header (i.e. `<img crossOrigin="anonymous">` or fetch
+// from JS). To make the response usable in both <img> tags AND on a
+// Fabric canvas (which needs CORS for untainted export), we fetch the
+// PNG bytes server-side here and return a data URI. The browser then
+// gets a same-origin-equivalent payload, no CORS handshake needed.
+async function dispatchPollinations(prompt: string, width: number, height: number): Promise<string> {
   const encoded = encodeURIComponent(prompt).slice(0, 1500);
   const params = new URLSearchParams({
     width: String(width),
@@ -86,7 +89,15 @@ function dispatchPollinations(prompt: string, width: number, height: number): st
     model: 'flux',
     referrer: 'brandos',
   });
-  return `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
+  const url = `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
+  const res = await fetch(url, { headers: { 'User-Agent': 'brandos-edge/1.0' } });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Response(`pollinations ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
+  }
+  const ct = res.headers.get('content-type') ?? 'image/jpeg';
+  const buf = new Uint8Array(await res.arrayBuffer());
+  return `data:${ct};base64,${base64Encode(buf)}`;
 }
 
 // ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
@@ -155,7 +166,7 @@ async function dispatchVendor(
 ): Promise<{ imageUrl: string; model: string }> {
   switch (vendor) {
     case 'pollinations':
-      return { imageUrl: dispatchPollinations(prompt, width, height), model: 'pollinations:flux' };
+      return { imageUrl: await dispatchPollinations(prompt, width, height), model: 'pollinations:flux' };
     case 'cloudflare':
       return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
     case 'huggingface':
