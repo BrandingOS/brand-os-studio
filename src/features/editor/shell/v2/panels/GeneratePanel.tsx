@@ -351,19 +351,30 @@ export function GeneratePanel({
         referenceImageUrl: reference?.url,
       });
 
-      // Probe the image's NATURAL dimensions before placing it on the
-      // canvas. Pollinations sometimes returns an image at a size
-      // that doesn't match the requested width/height (e.g. clamps to
-      // model-native resolution). If we placed it on a page sized to
-      // the request, the image gets stretched/cropped. Using the
-      // natural dims for both page and layer keeps every generation
-      // pixel-perfect — no stretch, no crop.
-      const naturalDims = await probeImageDimensions(result.imageUrl).catch(() => ({
-        width: targetW,
-        height: targetH,
-      }));
-      const pageW = naturalDims.width;
-      const pageH = naturalDims.height;
+      // Use the AUTHORITATIVE image dimensions. Source priority:
+      //   1. Server-parsed (Edge Function reads JPEG/PNG header from
+      //      the raw bytes — always correct, no async).
+      //   2. Browser probe via new Image() — fallback when the Edge
+      //      Function couldn't parse (e.g. unrecognized format).
+      //   3. Requested dims — last-resort fallback.
+      // Pollinations frequently downsizes silently (e.g. 1820×1024
+      // request → 1023×576 actual). Sizing the page to anything
+      // other than the actual image dims causes Fabric's cover-fit
+      // to scale and crop the image — what the user sees as stretch.
+      let pageW = targetW;
+      let pageH = targetH;
+      if (typeof result.width === 'number' && typeof result.height === 'number') {
+        pageW = result.width;
+        pageH = result.height;
+      } else {
+        try {
+          const probed = await probeImageDimensions(result.imageUrl);
+          pageW = probed.width;
+          pageH = probed.height;
+        } catch {
+          // keep requested dims
+        }
+      }
 
       const newPageId = crypto.randomUUID();
       const newPage: Page = {

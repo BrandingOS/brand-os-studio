@@ -60,6 +60,55 @@ interface GenerateImageResult {
   mock: boolean;
   /** Echo of the prompt for client-side captioning. */
   prompt: string;
+  /** Actual pixel dimensions of the generated image. Pollinations often
+   *  returns at a smaller size than requested; the browser uses these
+   *  to size the page exactly so there's never any stretch / crop. */
+  width?: number;
+  height?: number;
+}
+
+// ─── Image header parsing ───────────────────────────────────────────
+// Read native dimensions out of the raw bytes so the browser gets
+// reliable W×H without having to load + measure the image. Supports
+// PNG (IHDR) and JPEG (SOF markers). Returns null on unrecognized
+// formats — the caller falls back to the requested size.
+
+function readImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+  // PNG: 89 50 4E 47 0D 0A 1A 0A signature; IHDR starts at byte 8.
+  // width = big-endian uint32 at offset 16, height at offset 20.
+  if (
+    bytes.length >= 24 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+  ) {
+    const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    if (w > 0 && h > 0) return { width: w, height: h };
+  }
+  // JPEG: starts with 0xFF 0xD8. Scan for SOF markers (FFC0..FFCF
+  // except FFC4/C8/CC). The two bytes after marker + length give
+  // precision then height (BE16) then width (BE16).
+  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < bytes.length) {
+      if (bytes[i] !== 0xff) { i++; continue; }
+      const marker = bytes[i + 1];
+      if (marker === 0xd8 || marker === 0x01) { i += 2; continue; }
+      if (marker === 0xd9 || marker === 0xda) break; // EOI / SOS
+      const segLen = (bytes[i + 2] << 8) | bytes[i + 3];
+      if (segLen < 2) break;
+      const isSof =
+        marker >= 0xc0 && marker <= 0xcf &&
+        marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+      if (isSof) {
+        const h = (bytes[i + 5] << 8) | bytes[i + 6];
+        const w = (bytes[i + 7] << 8) | bytes[i + 8];
+        if (w > 0 && h > 0) return { width: w, height: h };
+        break;
+      }
+      i += 2 + segLen;
+    }
+  }
+  return null;
 }
 
 function buildMockSvg(prompt: string, width: number, height: number): string {
@@ -123,7 +172,12 @@ async function dispatchPollinations(
   }
   const ct = res.headers.get('content-type') ?? 'image/jpeg';
   const buf = new Uint8Array(await res.arrayBuffer());
-  return `data:${ct};base64,${base64Encode(buf)}`;
+  const dims = readImageDimensions(buf);
+  return {
+    dataUrl: `data:${ct};base64,${base64Encode(buf)}`,
+    width: dims?.width,
+    height: dims?.height,
+  };
 }
 
 // ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
@@ -190,12 +244,17 @@ async function dispatchVendor(
   width: number,
   height: number,
   opts: { model?: string; seed?: number; referenceImageUrl?: string },
-): Promise<{ imageUrl: string; model: string }> {
+): Promise<{ imageUrl: string; model: string; width?: number; height?: number }> {
   switch (vendor) {
     case 'pollinations': {
-      const url = await dispatchPollinations(prompt, width, height, opts);
+      const out = await dispatchPollinations(prompt, width, height, opts);
       const effectiveModel = opts.referenceImageUrl ? 'kontext' : (opts.model ?? 'flux');
-      return { imageUrl: url, model: `pollinations:${effectiveModel}` };
+      return {
+        imageUrl: out.dataUrl,
+        model: `pollinations:${effectiveModel}`,
+        width: out.width,
+        height: out.height,
+      };
     }
     case 'cloudflare':
       return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
@@ -250,13 +309,19 @@ Deno.serve(withCors(cors, async (req) => {
   }
 
   try {
-    const { imageUrl, model } = await dispatchVendor(vendor, prompt, width, height, {
+    const dispatch = await dispatchVendor(vendor, prompt, width, height, {
       model: typeof body.model === 'string' ? body.model : undefined,
       seed: typeof body.seed === 'number' ? body.seed : undefined,
       referenceImageUrl: typeof body.referenceImageUrl === 'string' ? body.referenceImageUrl : undefined,
     });
-    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model, inputTokens: 0, outputTokens: 0 });
-    const result: GenerateImageResult = { imageUrl, mock: false, prompt };
+    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: dispatch.model, inputTokens: 0, outputTokens: 0 });
+    const result: GenerateImageResult = {
+      imageUrl: dispatch.imageUrl,
+      mock: false,
+      prompt,
+      width: dispatch.width,
+      height: dispatch.height,
+    };
     return Response.json(result, { headers: cors });
   } catch (err) {
     // dispatchVendor throws a Response on misconfig / upstream failure;

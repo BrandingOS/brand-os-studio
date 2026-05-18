@@ -46,6 +46,11 @@ export interface GenerateImageResult {
   imageUrl: string;
   mock: boolean;
   prompt: string;
+  /** Actual pixel dimensions of the returned image (parsed server-side
+   *  from the image header). Undefined when the vendor couldn't be
+   *  inspected; callers should fall back to the requested W×H. */
+  width?: number;
+  height?: number;
 }
 
 const ENDPOINT_PATH = '/functions/v1/ai-generate-image';
