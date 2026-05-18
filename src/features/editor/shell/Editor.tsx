@@ -702,6 +702,7 @@ export function Editor({
                     });
                   }
                 }}
+                onActivePageChange={setActivePageId}
               />
             </div>
           ) : null}

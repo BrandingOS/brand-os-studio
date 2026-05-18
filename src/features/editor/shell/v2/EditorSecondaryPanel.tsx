@@ -69,6 +69,9 @@ interface Props {
   /** Wires the Generate panel's "Editable" output to the editor's
    *  applyAICommandResult path. */
   onAIApply?: (result: AICommandResult) => void;
+  /** Allows the Generate panel to switch the editor's active page
+   *  after creating a new page for an Image-mode generation. */
+  onActivePageChange?: (pageId: string) => void;
 }
 
 export function EditorSecondaryPanel({
@@ -82,6 +85,7 @@ export function EditorSecondaryPanel({
   getContext,
   initialPrompt,
   onAIApply,
+  onActivePageChange,
 }: Props) {
   return (
     <div className="flex items-start py-3 pr-1" style={{ flexShrink: 0 }}>
@@ -165,6 +169,7 @@ export function EditorSecondaryPanel({
               getContext={getContext ?? (() => ({ activePageId, selection: [], brand: brand as Brand }))}
               initialPrompt={initialPrompt}
               onApply={onAIApply ?? (() => undefined)}
+              onActivePageChange={onActivePageChange}
             />
           )}
           {active === 'templates' && (

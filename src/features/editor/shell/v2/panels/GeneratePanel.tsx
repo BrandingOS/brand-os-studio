@@ -24,7 +24,7 @@ import {
 } from 'react-icons/si';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
-import type { BrandOSDocument, Layer } from '@/features/editor/schema';
+import type { BrandOSDocument, Layer, Page } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import {
@@ -202,6 +202,20 @@ interface Props {
   getContext: () => AICommandContext;
   initialPrompt?: string;
   onApply: (result: AICommandResult) => void;
+  /** Switch the editor's active page — used after we add a new page
+   *  for a fresh generation so the user lands on it immediately. */
+  onActivePageChange?: (pageId: string) => void;
+}
+
+interface HistoryItem {
+  id: string;
+  pageId: string;
+  imageUrl: string;
+  prompt: string;
+  formatId: string;
+  modelId: string;
+  hadReference: boolean;
+  createdAt: number;
 }
 
 interface ReferenceImageState {
@@ -210,7 +224,7 @@ interface ReferenceImageState {
 }
 
 export function GeneratePanel({
-  adapter, activePageId, doc, brand, agent, getContext, initialPrompt, onApply,
+  adapter, activePageId, doc, brand, agent, getContext, initialPrompt, onApply, onActivePageChange,
 }: Props) {
   const [prompt, setPrompt] = useState(initialPrompt ?? '');
   const [mode, setMode] = useState<Mode>('image');
@@ -223,6 +237,15 @@ export function GeneratePanel({
   // Stored as string (not ImageModel) so 'auto' is a first-class
   // selectable value. Resolved to a real ImageModel at submit time.
   const [model, setModel] = useState<string>('auto');
+
+  // Session-scoped generation history. Each entry references a page
+  // in the doc so clicking jumps the canvas to that generation.
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  // Snapshot of the prompt + settings while a generation is in flight
+  // — drives the "what am I doing" card above the history grid.
+  const [pendingSnapshot, setPendingSnapshot] = useState<{
+    prompt: string; formatLabel: string; modelLabel: string; hadReference: boolean;
+  } | null>(null);
   const [reference, setReference] = useState<ReferenceImageState | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -300,29 +323,39 @@ export function GeneratePanel({
   const clearReference = useCallback(() => setReference(null), []);
 
   // ─── Generation paths ────────────────────────────────────────────
+  // Each Image-mode submit creates a new page in the doc holding the
+  // resulting image, and records a history entry the user can revisit
+  // from the panel. No clobbering — previous generations stay put.
   const runImage = useCallback(async (text: string) => {
     setError(null);
     setSuggestions([]);
     setBusy(true);
 
-    // Resolve format. 'auto' means "use the active page's dimensions";
-    // every other preset has explicit width/height.
     const docNow = adapter.getDocument();
-    const page = docNow.pages.find((p) => p.id === activePageId) ?? docNow.pages[0];
+    const activePage = docNow.pages.find((p) => p.id === activePageId) ?? docNow.pages[0];
+
+    // Resolve format. 'auto' = use the active page's dimensions.
     const formatPreset = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
     const isAutoFormat = formatPreset.id === 'auto';
-    const targetW = isAutoFormat ? (page?.width ?? 1024) : formatPreset.width;
-    const targetH = isAutoFormat ? (page?.height ?? 1024) : formatPreset.height;
+    const targetW = isAutoFormat ? (activePage?.width ?? 1024) : formatPreset.width;
+    const targetH = isAutoFormat ? (activePage?.height ?? 1024) : formatPreset.height;
 
-    // Resolve model. 'auto' picks flux (it accepts the image= param on
-    // the free endpoint, so it doubles as img2img when a reference is
-    // attached). Real ids pass through.
-    const resolvedModel: ImageModel = (() => {
-      if (model === 'auto') return 'flux';
-      return model as ImageModel;
-    })();
+    // Resolve model. 'auto' picks flux (which accepts the image= param
+    // on the free endpoint, doubling as img2img when a reference is
+    // attached). Other ids pass through.
+    const resolvedModel: ImageModel = model === 'auto' ? 'flux' : (model as ImageModel);
 
     const effectivePrompt = `${text}${formatPreset.promptSuffix}`;
+
+    // Show the "what am I doing" card while the request is in flight.
+    const activeFormatEntry = FORMAT_PRESETS.find((f) => f.id === formatId) ?? FORMAT_PRESETS[0];
+    const activeModelEntry = MODEL_ENTRIES.find((m) => m.id === model) ?? MODEL_ENTRIES[0];
+    setPendingSnapshot({
+      prompt: text,
+      formatLabel: activeFormatEntry.id === 'auto' ? 'Auto' : `${activeFormatEntry.ratio} ${activeFormatEntry.name}`,
+      modelLabel: activeModelEntry.label,
+      hadReference: !!reference,
+    });
 
     try {
       const result = await generateImage({
@@ -333,14 +366,15 @@ export function GeneratePanel({
         negativePrompt: negativePrompt.trim() || undefined,
         referenceImageUrl: reference?.url,
       });
-      adapter.batch('AI: place image', () => {
-        // When the user explicitly picked a non-Auto format that
-        // doesn't match the current page, resize the page first so
-        // the image isn't aspect-cropped away.
-        if (!isAutoFormat && page && (page.width !== targetW || page.height !== targetH)) {
-          adapter.updatePageDimensions(activePageId, targetW, targetH);
-        }
-        const layer: Layer = {
+      const newPageId = crypto.randomUUID();
+      const newPage: Page = {
+        id: newPageId,
+        name: text.slice(0, 32) || `Generation ${history.length + 1}`,
+        width: targetW,
+        height: targetH,
+        background: '#ffffff',
+        masterPageId: null,
+        layers: [{
           id: crypto.randomUUID(),
           kind: 'image',
           name: 'AI image',
@@ -348,17 +382,40 @@ export function GeneratePanel({
           fit: 'cover',
           transform: { x: 0, y: 0, width: targetW, height: targetH, rotation: 0, scaleX: 1, scaleY: 1 },
           opacity: 1, visible: true, locked: false, brandLocked: false,
-        };
-        adapter.addLayer(activePageId, layer);
+        }],
+      };
+      // Insert the new page directly after the currently-active one so
+      // the doc reads chronologically and the user can flip back and
+      // forth between consecutive generations.
+      const docAtInsert = adapter.getDocument();
+      const activeIdx = docAtInsert.pages.findIndex((p) => p.id === activePageId);
+      const insertIndex = activeIdx >= 0 ? activeIdx + 1 : docAtInsert.pages.length;
+      adapter.batch('AI: new generation', () => {
+        adapter.addPage(newPage, insertIndex);
       });
-      toast.success(result.mock ? 'Image placed (mock).' : 'AI image placed.');
+      onActivePageChange?.(newPageId);
+
+      const historyItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        pageId: newPageId,
+        imageUrl: result.imageUrl,
+        prompt: text,
+        formatId,
+        modelId: resolvedModel,
+        hadReference: !!reference,
+        createdAt: Date.now(),
+      };
+      setHistory((h) => [historyItem, ...h]);
+
+      toast.success(result.mock ? 'Image generated (mock).' : 'New page added with your generation.');
       setPrompt('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+      setPendingSnapshot(null);
     }
-  }, [adapter, activePageId, formatId, model, negativePrompt, reference]);
+  }, [adapter, activePageId, formatId, model, negativePrompt, reference, history.length, onActivePageChange]);
 
   const runEditable = useCallback(async (text: string) => {
     if (!agent) {
@@ -647,12 +704,131 @@ export function GeneratePanel({
         )}
       </button>
 
+      {/* Generation history — every Image-mode submit appends here +
+          adds a new page to the doc. Pending state shows the current
+          prompt while the request is in flight. */}
+      {mode === 'image' && (pendingSnapshot || history.length > 0) ? (
+        <GenerationHistory
+          pending={pendingSnapshot}
+          items={history}
+          activePageId={activePageId}
+          onPick={(it) => onActivePageChange?.(it.pageId)}
+        />
+      ) : null}
+
       {/* Presets gallery — pre-made prompts with image previews,
           adapt to the active brand on click. */}
       {mode === 'image' ? (
         <PresetsGallery brand={brand} onApply={applyPreset} />
       ) : null}
     </div>
+  );
+}
+
+// ─── Generation history ─────────────────────────────────────────────
+
+function GenerationHistory({
+  pending, items, activePageId, onPick,
+}: {
+  pending: { prompt: string; formatLabel: string; modelLabel: string; hadReference: boolean } | null;
+  items: HistoryItem[];
+  activePageId: string;
+  onPick: (item: HistoryItem) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-1.5 mt-1">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+          Your generations
+        </span>
+        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          {items.length} {items.length === 1 ? 'image' : 'images'}
+        </span>
+      </div>
+
+      {/* In-flight card — explains exactly what's being generated. */}
+      {pending ? (
+        <div
+          className="flex items-center gap-2 rounded-lg border p-1.5"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+        >
+          <div
+            className="h-10 w-10 shrink-0 rounded-md flex items-center justify-center"
+            style={{ background: 'var(--surface-sunken, color-mix(in oklab, currentColor 8%, transparent))' }}
+          >
+            <span
+              className="h-3.5 w-3.5 rounded-full animate-spin"
+              style={{
+                border: '1.5px solid color-mix(in oklab, currentColor 20%, transparent)',
+                borderTopColor: 'var(--text-primary)',
+              }}
+              aria-hidden
+            />
+          </div>
+          <div className="flex-1 min-w-0 leading-tight">
+            <div className="text-[11px] font-medium truncate" title={pending.prompt}>
+              {pending.prompt}
+            </div>
+            <div className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+              {pending.formatLabel} · {pending.modelLabel}
+              {pending.hadReference ? ' · with reference' : ''}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Finished generations — 2-col grid of thumbnails. */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {items.map((it) => {
+          const active = it.pageId === activePageId;
+          return (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => onPick(it)}
+              title={it.prompt}
+              className="group flex flex-col gap-0.5 rounded-lg border overflow-hidden text-left transition-transform hover:-translate-y-0.5"
+              style={{
+                borderColor: active ? 'var(--accent)' : 'var(--border)',
+                background: 'var(--surface)',
+                boxShadow: active
+                  ? '0 0 0 1px var(--accent), 0 4px 12px -8px color-mix(in oklab, var(--accent) 50%, transparent)'
+                  : 'none',
+              }}
+            >
+              <div
+                className="aspect-square w-full overflow-hidden relative"
+                style={{ background: 'var(--surface-sunken)' }}
+              >
+                <img
+                  src={it.imageUrl}
+                  alt={it.prompt}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                />
+                {it.hadReference ? (
+                  <span
+                    className="absolute top-0.5 right-0.5 text-[8.5px] font-medium rounded-full px-1.5 py-[1px]"
+                    style={{
+                      background: 'color-mix(in oklab, #000 70%, transparent)',
+                      color: '#fff',
+                    }}
+                  >
+                    ref
+                  </span>
+                ) : null}
+              </div>
+              <div className="px-1.5 py-1">
+                <div className="text-[10.5px] font-medium truncate" title={it.prompt}>
+                  {it.prompt}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
