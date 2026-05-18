@@ -9,13 +9,15 @@
 // ─── Vendor dispatch ──────────────────────────────────────────────────
 //
 // AI_IMAGE_VENDOR=…    Behavior
-//   (unset)            → fal if FAL_API_KEY is set, else pollinations.
-//                        Pollinations free quietly uses NVIDIA SANA
-//                        (square-native), which visibly stretches
-//                        any non-square aspect — Fal Flux Schnell
-//                        at $0.003/image is the proper fix.
-//   fal                → Fal.ai Flux Schnell (needs FAL_API_KEY)
-//   pollinations       → Pollinations.ai (free, no key; stretches)
+//   (unset)            → openai if OPENAI_API_KEY is set
+//                        else fal if FAL_API_KEY is set
+//                        else pollinations (free fallback; stretches)
+//   openai             → OpenAI gpt-image-1 (needs OPENAI_API_KEY,
+//                        ~$0.04/image medium quality, respects aspect)
+//   fal                → Fal.ai Flux Schnell (needs FAL_API_KEY,
+//                        $0.003/image, respects aspect)
+//   pollinations       → Pollinations.ai (free, no key; SANA model
+//                        silently stretches non-square aspects)
 //   cloudflare         → Cloudflare Workers AI (Flux schnell; needs
 //                        CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN)
 //   huggingface        → HF Inference API (needs HUGGINGFACE_API_KEY)
@@ -243,6 +245,100 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+// ─── Vendor: OpenAI ──────────────────────────────────────────────────
+// gpt-image-1 (preferred) and dall-e-3 both honour aspect ratio via
+// their fixed `size` enum — output content is properly composed, not
+// stretched. gpt-image-1 always returns base64; dall-e-3 returns a
+// URL by default but we request b64_json for a consistent path.
+//
+// Sizes:
+//   gpt-image-1 → 1024x1024 | 1024x1536 | 1536x1024 | auto
+//   dall-e-3    → 1024x1024 | 1024x1792 | 1792x1024
+async function dispatchOpenAi(
+  prompt: string,
+  width: number,
+  height: number,
+  opts: { referenceImageUrl?: string } = {},
+): Promise<{ dataUrl: string; width?: number; height?: number }> {
+  const key = Deno.env.get('OPENAI_API_KEY');
+  if (!key) throw new Response('OPENAI vendor selected but OPENAI_API_KEY missing', { status: 500 });
+
+  const model = Deno.env.get('OPENAI_IMAGE_MODEL') || 'gpt-image-1';
+  const quality = Deno.env.get('OPENAI_IMAGE_QUALITY') || (model === 'gpt-image-1' ? 'medium' : 'standard');
+
+  // Snap our requested aspect to the nearest OpenAI-supported size.
+  // OpenAI is strict about the `size` value — it errors on anything
+  // not in its enum.
+  const aspect = width / height;
+  const isGpt = model === 'gpt-image-1';
+  let size: string;
+  if (Math.abs(aspect - 1) < 0.2) {
+    size = '1024x1024';
+  } else if (aspect > 1) {
+    size = isGpt ? '1536x1024' : '1792x1024';
+  } else {
+    size = isGpt ? '1024x1536' : '1024x1792';
+  }
+
+  const body: Record<string, unknown> = {
+    model,
+    prompt,
+    size,
+    n: 1,
+  };
+  if (isGpt) {
+    body.quality = quality;          // 'low' | 'medium' | 'high' | 'auto'
+    // gpt-image-1 always returns b64_json; no response_format field.
+  } else {
+    body.response_format = 'b64_json';
+    if (quality === 'hd') body.quality = 'hd';
+  }
+  // Reference image: gpt-image-1 supports it via the dedicated /edits
+  // endpoint, not /generations. Keep this commit scoped to text-to-
+  // image; img2img can land as a follow-up.
+  void opts.referenceImageUrl;
+
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Response(`openai ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
+  }
+  const out = await res.json() as {
+    data?: Array<{ b64_json?: string; url?: string }>;
+  };
+  const first = out.data?.[0];
+  if (!first?.b64_json && !first?.url) {
+    throw new Response('openai returned no image', { status: 502 });
+  }
+
+  let bytes: Uint8Array;
+  let contentType = 'image/png'; // OpenAI returns PNG
+  if (first.b64_json) {
+    const bin = atob(first.b64_json);
+    bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  } else {
+    // dall-e-3 URL fallback (shouldn't hit since we requested b64).
+    const imgRes = await fetch(first.url!);
+    if (!imgRes.ok) throw new Response(`openai image fetch ${imgRes.status}`, { status: 502 });
+    contentType = imgRes.headers.get('content-type') ?? 'image/png';
+    bytes = new Uint8Array(await imgRes.arrayBuffer());
+  }
+  const parsed = readImageDimensions(bytes);
+  return {
+    dataUrl: `data:${contentType};base64,${base64Encode(bytes)}`,
+    width: parsed?.width,
+    height: parsed?.height,
+  };
+}
+
 // ─── Vendor: Fal.ai ──────────────────────────────────────────────────
 // Flux Schnell at $0.003 / image; honours custom width × height
 // natively so the output is never stretched. We submit and
@@ -317,6 +413,18 @@ async function dispatchVendor(
   opts: { model?: string; seed?: number; referenceImageUrl?: string },
 ): Promise<{ imageUrl: string; model: string; width?: number; height?: number }> {
   switch (vendor) {
+    case 'openai': {
+      const out = await dispatchOpenAi(prompt, width, height, {
+        referenceImageUrl: opts.referenceImageUrl,
+      });
+      const m = Deno.env.get('OPENAI_IMAGE_MODEL') || 'gpt-image-1';
+      return {
+        imageUrl: out.dataUrl,
+        model: `openai:${m}`,
+        width: out.width,
+        height: out.height,
+      };
+    }
     case 'fal': {
       const out = await dispatchFal(prompt, width, height, {
         seed: opts.seed,
@@ -377,14 +485,17 @@ Deno.serve(withCors(cors, async (req) => {
 
   // ─── Vendor dispatch ────────────────────────────────────────────────
   // Auto-pick the best wired vendor when AI_IMAGE_VENDOR is unset:
-  //   • Fal (proper aspect, $0.003/image) when FAL_API_KEY is set
-  //   • Pollinations as the no-cost fallback otherwise (note: free
-  //     tier silently uses NVIDIA SANA which stretches non-square)
-  // An explicit env value (fal | pollinations | cloudflare | huggingface
-  // | mock) always wins.
+  //   1. OpenAI gpt-image-1 when OPENAI_API_KEY is set
+  //   2. Fal Flux Schnell when FAL_API_KEY is set
+  //   3. Pollinations as the no-cost fallback (note: free tier
+  //      silently uses NVIDIA SANA which stretches non-square)
+  // An explicit AI_IMAGE_VENDOR always wins.
   const explicitVendor = Deno.env.get('AI_IMAGE_VENDOR');
+  const hasOpenAiKey = !!Deno.env.get('OPENAI_API_KEY');
   const hasFalKey = !!Deno.env.get('FAL_API_KEY');
-  const vendor = (explicitVendor ?? (hasFalKey ? 'fal' : 'pollinations')).toLowerCase();
+  const vendor = (
+    explicitVendor ?? (hasOpenAiKey ? 'openai' : (hasFalKey ? 'fal' : 'pollinations'))
+  ).toLowerCase();
 
   if (vendor === 'mock') {
     await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: 'mock', inputTokens: 0, outputTokens: 0 });
