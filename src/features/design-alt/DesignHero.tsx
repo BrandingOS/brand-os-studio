@@ -1,19 +1,26 @@
 // DesignHero — centered hero on the brand-scoped Design page.
 //
-// Two generation modes side-by-side:
-//   • Image (default) — flat ChatGPT/Nano-Banana-style image via the
-//     ai-generate-image Edge Function (Pollinations under the hood).
-//     Result renders inline with download / regenerate / make-editable.
-//   • Editable design — seeds a brand-bound social-post doc, navigates
-//     to the unified editor at /b/:slug/design/:id?prompt=…, where the
-//     AI prompt bar mutates the doc via ai-apply-command (Claude).
+// Two generation modes side-by-side. BOTH paths navigate to a brand-
+// new design page when the user submits — the hero never renders the
+// result inline. The user always lands inside the editor.
+//
+//   • Image (default) — flat ChatGPT/Nano-Banana-style output via
+//     ai-generate-image (Pollinations → Flux). The bar seeds a fresh
+//     BrandOSDocument with one full-bleed image layer, saves it, and
+//     navigates to /b/:slug/design/:newId. The user can keep editing
+//     in the unified editor.
+//   • Editable design — seeds a brand-bound social-post template
+//     (text/shape/logo slot-refs) and navigates to the editor with
+//     the prompt staged on the AI prompt bar so Claude can mutate the
+//     doc on submit.
 
 import { useCallback, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUp, Sparkles, Download, RotateCcw, Layers, Image as ImageIcon } from 'lucide-react';
+import { ArrowUp, Sparkles, Layers, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
 import type { IDesignStorage } from '@/core/types/services';
+import type { BrandOSDocument } from '@/features/editor/schema';
 import { seedInstagramPostTemplate } from '@/features/brandkit/templateSeeds';
 import { generateImage } from '@/features/editor/ai/generateImage';
 
@@ -45,9 +52,43 @@ const FORMAT_CHIPS: FormatChip[] = [
 
 type Mode = 'image' | 'editable';
 
-interface ImageResult {
-  url: string;
-  prompt: string;
+const IMAGE_DOC_W = 1080;
+const IMAGE_DOC_H = 1080;
+
+function buildImageDoc(brand: Brand, imageUrl: string, docId: string): BrandOSDocument {
+  return {
+    schemaVersion: 1,
+    id: docId,
+    contentType: 'social-post',
+    brandId: brand.id,
+    masterPages: [],
+    pages: [
+      {
+        id: crypto.randomUUID(),
+        name: 'Page 1',
+        width: IMAGE_DOC_W,
+        height: IMAGE_DOC_H,
+        background: '#ffffff',
+        masterPageId: null,
+        layers: [
+          {
+            id: crypto.randomUUID(),
+            kind: 'image',
+            name: 'AI image',
+            src: imageUrl,
+            fit: 'cover',
+            transform: {
+              x: 0, y: 0,
+              width: IMAGE_DOC_W, height: IMAGE_DOC_H,
+              rotation: 0, scaleX: 1, scaleY: 1,
+            },
+            opacity: 1, visible: true, locked: false, brandLocked: false,
+          },
+        ],
+      },
+    ],
+    metadata: {},
+  };
 }
 
 export function DesignHero({ brand, designStorage }: DesignHeroProps) {
@@ -55,24 +96,34 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<Mode>('image');
   const [busy, setBusy] = useState(false);
-  const [imageResult, setImageResult] = useState<ImageResult | null>(null);
 
   const runImage = useCallback(async (text: string) => {
     setBusy(true);
-    setImageResult(null);
     try {
-      const result = await generateImage({ prompt: text, width: 1024, height: 1024 });
-      setImageResult({ url: result.imageUrl, prompt: text });
+      const result = await generateImage({
+        prompt: text,
+        width: IMAGE_DOC_W,
+        height: IMAGE_DOC_H,
+      });
+      const newDocId = crypto.randomUUID();
+      const doc = buildImageDoc(brand, result.imageUrl, newDocId);
+      await designStorage.saveDesign(brand.id, newDocId, doc, {
+        id: newDocId,
+        name: text.slice(0, 60) || 'AI image',
+        contentType: 'social-post',
+        width: IMAGE_DOC_W,
+        height: IMAGE_DOC_H,
+      });
       if (result.mock) {
-        toast.message('Image generated in mock mode. Set AI_IMAGE_VENDOR to enable a real vendor.');
+        toast.message('Image generated in mock mode.');
       }
+      navigate(`/b/${brand.slug}/design/${newDocId}`);
     } catch (err) {
       console.error('[DesignHero] image generation failed:', err);
       toast.error('Could not generate image. Please try again.');
-    } finally {
       setBusy(false);
     }
-  }, []);
+  }, [brand, designStorage, navigate]);
 
   const runEditable = useCallback(async (text: string) => {
     setBusy(true);
@@ -188,47 +239,8 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
         {busy && mode === 'image' ? (
           <div className="dh-image-loading" role="status" aria-live="polite">
             <span className="dh-image-loading-spinner" aria-hidden />
-            <span>Generating image…</span>
+            <span>Generating image and opening editor…</span>
           </div>
-        ) : null}
-
-        {imageResult ? (
-          <figure className="dh-image-result">
-            <img
-              className="dh-image-result-img"
-              src={imageResult.url}
-              alt={imageResult.prompt}
-              referrerPolicy="no-referrer"
-            />
-            <figcaption className="dh-image-result-caption">{imageResult.prompt}</figcaption>
-            <div className="dh-image-actions">
-              <a
-                className="dh-image-action"
-                href={imageResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-              >
-                <Download size={13} aria-hidden /> Download
-              </a>
-              <button
-                type="button"
-                className="dh-image-action"
-                onClick={() => void runImage(imageResult.prompt)}
-                disabled={busy}
-              >
-                <RotateCcw size={13} aria-hidden /> Regenerate
-              </button>
-              <button
-                type="button"
-                className="dh-image-action"
-                onClick={() => void runEditable(imageResult.prompt)}
-                disabled={busy}
-              >
-                <Layers size={13} aria-hidden /> Make editable
-              </button>
-            </div>
-          </figure>
         ) : null}
 
         <div className="dh-chips" role="list" aria-label="Quick formats">
