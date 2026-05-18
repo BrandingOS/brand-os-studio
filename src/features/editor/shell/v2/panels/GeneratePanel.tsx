@@ -1,16 +1,21 @@
-// GeneratePanel — dense, Freepik-inspired AI surface in the sidebar.
+// GeneratePanel — dense AI surface inspired by Freepik / Hexfield / Lovart.
 //
-// Density-first layout: the prompt is the hero, everything else is
-// compact chrome packed into a bottom toolbar + reference card row.
-// No giant LABEL FIELD stacks. Sections are 6–8 px apart, dropdowns
-// are 28 px tall, buttons are 28 px tall, and the whole panel fits
-// inside the 300 px secondary panel without scrolling at zero refs.
+// Layout (top → bottom):
+//   • Mode pills (Image | Editable)
+//   • Prompt textarea — paperclip attaches a reference inline
+//   • Toolbar: Aspect ▾ · Type ▾ · Model ▾  (every dropdown item shows
+//     its icon next to the label — square for 1:1, smartphone for 9:16,
+//     etc.)
+//   • Advanced (collapsed): Negative prompt only
+//   • Generate (full-width)
+//   • Presets gallery — premade prompts with image previews that adapt
+//     to the active brand on click.
 
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import {
-  Sparkles, Image as ImageIcon, Layers, Plus, X as XIcon,
+  Sparkles, Image as ImageIcon, Layers, X as XIcon, Paperclip,
   Square as SquareIcon, RectangleHorizontal, RectangleVertical, Smartphone, MonitorPlay,
-  Settings2, Palette, Cpu, Star,
+  Settings2, Cpu, UserCircle, Mountain, Megaphone, Award, Zap, Brain, MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
@@ -19,8 +24,6 @@ import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import {
   generateImage,
-  IMAGE_MODELS,
-  IMAGE_STYLES,
   type ImageModel,
 } from '@/features/editor/ai/generateImage';
 import { StorageService } from '@/shared/services/storage.supabase';
@@ -34,7 +37,8 @@ import {
 
 type Mode = 'image' | 'editable';
 
-interface SizePreset {
+// ─── Aspect presets ──────────────────────────────────────────────────
+interface AspectPreset {
   id: string;
   label: string;
   short: string;
@@ -42,8 +46,7 @@ interface SizePreset {
   height: number;
   Icon: typeof SquareIcon;
 }
-
-const SIZE_PRESETS: SizePreset[] = [
+const ASPECT_PRESETS: AspectPreset[] = [
   { id: 'square',    label: 'Square',    short: '1:1',  width: 1024, height: 1024, Icon: SquareIcon },
   { id: 'portrait',  label: 'Portrait',  short: '4:5',  width: 1024, height: 1280, Icon: RectangleVertical },
   { id: 'story',     label: 'Story',     short: '9:16', width: 1024, height: 1820, Icon: Smartphone },
@@ -51,11 +54,63 @@ const SIZE_PRESETS: SizePreset[] = [
   { id: 'wide',      label: 'Wide',      short: '21:9', width: 1920, height: 832,  Icon: MonitorPlay },
 ];
 
-const MODEL_HINTS: Record<ImageModel, string> = {
-  flux:     'Best quality',
-  turbo:    'Faster',
-  gptimage: 'Text-aware',
+// ─── Content types — replaces "Style" per user request ───────────────
+interface ContentType {
+  id: string;
+  label: string;
+  Icon: typeof SquareIcon;
+  /** Suffix appended to the user's prompt for context, browser-side. */
+  promptSuffix: string;
+  /** Default aspect when this type is picked. */
+  defaultAspect: string;
+}
+const CONTENT_TYPES: ContentType[] = [
+  { id: 'image',       label: 'Image',         Icon: ImageIcon,           promptSuffix: '', defaultAspect: 'square' },
+  { id: 'social-post', label: 'Social post',   Icon: SquareIcon,          promptSuffix: ', social media post composition', defaultAspect: 'square' },
+  { id: 'story',       label: 'Story',         Icon: Smartphone,          promptSuffix: ', vertical mobile story layout', defaultAspect: 'story' },
+  { id: 'banner',      label: 'Banner',        Icon: Megaphone,           promptSuffix: ', wide web banner composition', defaultAspect: 'landscape' },
+  { id: 'poster',      label: 'Poster',        Icon: RectangleVertical,   promptSuffix: ', movie-poster style, bold typography space', defaultAspect: 'portrait' },
+  { id: 'avatar',      label: 'Avatar',        Icon: UserCircle,          promptSuffix: ', centered avatar portrait', defaultAspect: 'square' },
+  { id: 'background',  label: 'Background',    Icon: Mountain,            promptSuffix: ', clean abstract background, leaves room for overlay', defaultAspect: 'landscape' },
+  { id: 'logo',        label: 'Logo concept',  Icon: Award,               promptSuffix: ', minimalist logo concept on neutral background', defaultAspect: 'square' },
+];
+
+// ─── Models — with per-item icons for the dropdown ───────────────────
+interface ModelEntry {
+  id: ImageModel | 'kontext';
+  label: string;
+  hint: string;
+  Icon: typeof SquareIcon;
+}
+const MODEL_ENTRIES: ModelEntry[] = [
+  { id: 'flux',     label: 'Flux',     hint: 'Best quality',   Icon: Sparkles },
+  { id: 'turbo',    label: 'Turbo',    hint: 'Faster',         Icon: Zap },
+  { id: 'gptimage', label: 'Gptimage', hint: 'Text-aware',     Icon: MessageSquare },
+];
+const KONTEXT_ENTRY: ModelEntry = {
+  id: 'kontext', label: 'Kontext', hint: 'Image-to-image', Icon: Brain,
 };
+
+// ─── Premade prompt presets — adapt to the active brand on click ─────
+interface PromptPreset {
+  id: string;
+  title: string;
+  /** Use {brand} as a placeholder; replaced with brand.name at click time. */
+  prompt: string;
+  typeId: string;
+  /** Pollinations preview URL — small thumbnail, cached by URL params. */
+  previewSeed: number;
+}
+const PROMPT_PRESETS: PromptPreset[] = [
+  { id: 'football-poster',  title: 'Football Poster',  prompt: 'Epic football stadium aerial shot at golden hour, dramatic lighting, cinematic film grain, {brand} colors',                                typeId: 'poster',      previewSeed: 101 },
+  { id: 'cyber-hero',       title: 'Cyber Hero',       prompt: 'Neon cyberpunk hero composition at night, glowing red accents, dramatic mood, ultra-detailed, {brand} aesthetic',                          typeId: 'social-post', previewSeed: 202 },
+  { id: 'product-clean',    title: 'Clean Product',    prompt: 'Professional product photography, clean white background, soft studio lighting, premium {brand} product on pedestal',                       typeId: 'social-post', previewSeed: 303 },
+  { id: 'team-mood',        title: 'Team Mood',        prompt: 'Moody locker room with team jerseys, dramatic accent lighting, {brand} colors, cinematic',                                                  typeId: 'banner',      previewSeed: 404 },
+  { id: 'minimal-bg',       title: 'Minimal BG',       prompt: 'Minimalist abstract gradient background, subtle grain, {brand}-colored, leaves space for headline',                                         typeId: 'background',  previewSeed: 505 },
+  { id: 'event-banner',     title: 'Event Banner',     prompt: 'Wide event banner, bold geometric shapes, energetic composition, {brand} palette, ultra-sharp',                                             typeId: 'banner',      previewSeed: 606 },
+  { id: 'avatar-portrait',  title: 'Avatar',           prompt: 'Centered avatar portrait, neutral background, premium studio lighting, {brand} mood',                                                       typeId: 'avatar',      previewSeed: 707 },
+  { id: 'logo-mark',        title: 'Logo Mark',        prompt: 'Minimalist logo concept on neutral background, geometric, balanced, contemporary, {brand} essence',                                         typeId: 'logo',        previewSeed: 808 },
+];
 
 interface Props {
   adapter: EditorAdapter;
@@ -73,8 +128,6 @@ interface ReferenceImageState {
   fileName: string;
 }
 
-const REFERENCE_LIMIT = 3;
-
 export function GeneratePanel({
   adapter, activePageId, doc, brand, agent, getContext, initialPrompt, onApply,
 }: Props) {
@@ -85,13 +138,12 @@ export function GeneratePanel({
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const [sizeId, setSizeId] = useState<string>('square');
-  const [styleId, setStyleId] = useState<string>('none');
+  const [aspectId, setAspectId] = useState<string>('square');
+  const [typeId, setTypeId] = useState<string>('image');
   const [model, setModel] = useState<ImageModel>('flux');
   const [reference, setReference] = useState<ReferenceImageState | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
-  const [seedText, setSeedText] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const storage = useRef<StorageService>(new StorageService());
@@ -99,6 +151,15 @@ export function GeneratePanel({
   useEffect(() => {
     if (initialPrompt) setPrompt(initialPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Type → default aspect (only if user hasn't set aspect explicitly).
+  // Simple: every type-change updates aspect to the type's default.
+  // The user can override afterward.
+  const onTypeChange = useCallback((nextTypeId: string) => {
+    setTypeId(nextTypeId);
+    const t = CONTENT_TYPES.find((c) => c.id === nextTypeId);
+    if (t) setAspectId(t.defaultAspect);
   }, []);
 
   // ─── Reference image upload ──────────────────────────────────────
@@ -112,7 +173,7 @@ export function GeneratePanel({
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast.error('Reference image must be smaller than 8 MB.');
+      toast.error('Reference must be smaller than 8 MB.');
       return;
     }
     setUploading(true);
@@ -136,17 +197,6 @@ export function GeneratePanel({
     e.target.value = '';
     if (f) void handleFileChosen(f);
   }, [handleFileChosen]);
-
-  const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (f) void handleFileChosen(f);
-  }, [handleFileChosen]);
-
-  const onDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-  }, []);
-
   const clearReference = useCallback(() => setReference(null), []);
 
   // ─── Generation paths ────────────────────────────────────────────
@@ -154,26 +204,22 @@ export function GeneratePanel({
     setError(null);
     setSuggestions([]);
     setBusy(true);
-    const size = SIZE_PRESETS.find((s) => s.id === sizeId) ?? SIZE_PRESETS[0];
-    const seed = (() => {
-      const n = parseInt(seedText, 10);
-      return Number.isFinite(n) && n > 0 ? n : undefined;
-    })();
+    const aspect = ASPECT_PRESETS.find((s) => s.id === aspectId) ?? ASPECT_PRESETS[0];
+    const type = CONTENT_TYPES.find((c) => c.id === typeId) ?? CONTENT_TYPES[0];
+    const effectivePrompt = `${text}${type.promptSuffix}`;
     try {
       const result = await generateImage({
-        prompt: text,
-        width: size.width,
-        height: size.height,
+        prompt: effectivePrompt,
+        width: aspect.width,
+        height: aspect.height,
         model,
-        styleId,
-        seed,
         negativePrompt: negativePrompt.trim() || undefined,
         referenceImageUrl: reference?.url,
       });
       const docNow = adapter.getDocument();
       const page = docNow.pages.find((p) => p.id === activePageId);
-      const pageW = page?.width ?? size.width;
-      const pageH = page?.height ?? size.height;
+      const pageW = page?.width ?? aspect.width;
+      const pageH = page?.height ?? aspect.height;
       const layer: Layer = {
         id: crypto.randomUUID(),
         kind: 'image',
@@ -191,7 +237,7 @@ export function GeneratePanel({
     } finally {
       setBusy(false);
     }
-  }, [adapter, activePageId, sizeId, styleId, model, seedText, negativePrompt, reference]);
+  }, [adapter, activePageId, aspectId, typeId, model, negativePrompt, reference]);
 
   const runEditable = useCallback(async (text: string) => {
     if (!agent) {
@@ -242,19 +288,29 @@ export function GeneratePanel({
     [submit],
   );
 
-  const activeSize = SIZE_PRESETS.find((s) => s.id === sizeId) ?? SIZE_PRESETS[0];
-  const activeStyle = IMAGE_STYLES.find((s) => s.id === styleId) ?? IMAGE_STYLES[0];
-  const refCount = reference ? 1 : 0;
+  // Apply a preset — fills the prompt, sets type/aspect, ready to generate.
+  const applyPreset = useCallback((preset: PromptPreset) => {
+    const brandName = brand?.name ?? 'your brand';
+    setPrompt(preset.prompt.replace(/\{brand\}/g, brandName));
+    onTypeChange(preset.typeId);
+    setMode('image');
+  }, [brand, onTypeChange]);
+
+  const activeAspect = ASPECT_PRESETS.find((s) => s.id === aspectId) ?? ASPECT_PRESETS[0];
+  const activeType = CONTENT_TYPES.find((c) => c.id === typeId) ?? CONTENT_TYPES[0];
+  const activeModelEntry = reference
+    ? KONTEXT_ENTRY
+    : (MODEL_ENTRIES.find((m) => m.id === model) ?? MODEL_ENTRIES[0]);
 
   const placeholder =
     mode === 'image'
       ? reference
         ? 'Describe how to transform the reference…'
         : brand
-          ? `Describe an image — "neon ${brand.name} hero at dusk"`
+          ? `Describe — "neon ${brand.name} hero shot at dusk"`
           : 'Describe the image…'
       : brand
-        ? `Edit the design — "make headline bigger and brand-red"`
+        ? `Edit — "make headline bigger and brand-red"`
         : 'Describe the edit…';
 
   // ─── Render ──────────────────────────────────────────────────────
@@ -271,44 +327,43 @@ export function GeneratePanel({
       {/* Mode pills */}
       <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
 
-      {/* References — only in Image mode */}
-      {mode === 'image' ? (
-        <section className="flex flex-col gap-1.5">
-          <Caption text="References" trailing={`${refCount}/${REFERENCE_LIMIT}`} />
-          <div className="grid grid-cols-3 gap-1.5">
-            {reference ? (
-              <ReferenceFilledSlot
-                kind="Style"
-                Icon={Star}
-                src={reference.url}
-                onRemove={clearReference}
-              />
-            ) : (
-              <ReferenceEmptySlot
-                kind="Style"
-                Icon={Star}
-                onClick={onPickFile}
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                uploading={uploading}
-              />
-            )}
-            <ReferenceComingSoon Icon={Palette} label="Brand" />
-            <ReferenceAddMore Icon={Plus} onClick={onPickFile} disabled={!!reference || uploading} />
-          </div>
-        </section>
-      ) : null}
-
-      {/* Prompt — the hero */}
+      {/* Prompt block (textarea + inline reference chip + paperclip) */}
       <section className="flex flex-col gap-1.5">
-        <Caption text="Prompt" />
         <div
-          className="rounded-lg border transition-colors focus-within:ring-1"
+          className="rounded-lg border transition-colors"
           style={{
             borderColor: error ? 'var(--accent-red, #ef4444)' : 'var(--border)',
             background: 'var(--surface)',
           }}
         >
+          {/* Reference chip — only when attached */}
+          {reference ? (
+            <div className="px-2 pt-2">
+              <div
+                className="inline-flex items-center gap-1.5 rounded-md border px-1.5 py-1 text-[10.5px]"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken, transparent)' }}
+              >
+                <img
+                  src={reference.url}
+                  alt="Reference"
+                  className="h-5 w-5 rounded object-cover"
+                />
+                <span className="max-w-[120px] truncate" title={reference.fileName}>
+                  {reference.fileName}
+                </span>
+                <button
+                  type="button"
+                  onClick={clearReference}
+                  aria-label="Remove reference"
+                  className="rounded p-0.5 hover:bg-muted"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <XIcon className="h-2.5 w-2.5" aria-hidden />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <textarea
             data-generate-prompt
             value={prompt}
@@ -319,7 +374,21 @@ export function GeneratePanel({
             rows={4}
             className="w-full resize-none bg-transparent px-2.5 pt-2 pb-1 text-[12px] leading-snug focus:outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
           />
-          <div className="flex items-center justify-between px-2 pb-1.5 pt-0.5">
+          <div className="flex items-center justify-between px-1.5 pb-1 pt-0.5">
+            {mode === 'image' ? (
+              <button
+                type="button"
+                onClick={onPickFile}
+                disabled={busy || uploading || !!reference}
+                title={reference ? 'Reference attached' : 'Attach reference image'}
+                aria-label="Attach reference"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors hover:bg-muted disabled:opacity-40"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Paperclip className="h-3 w-3" aria-hidden />
+                {uploading ? 'Uploading…' : reference ? 'Attached' : 'Reference'}
+              </button>
+            ) : <span />}
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
               ⌘/Ctrl + Enter
             </span>
@@ -362,48 +431,54 @@ export function GeneratePanel({
       {mode === 'image' ? (
         <>
           <div className="grid grid-cols-3 gap-1.5">
-            <ToolbarSelect
-              icon={<activeSize.Icon className="h-3 w-3" aria-hidden />}
-              value={sizeId}
-              onChange={setSizeId}
+            <IconSelect
+              triggerIcon={<activeAspect.Icon className="h-3 w-3" aria-hidden />}
+              triggerLabel={activeAspect.short}
+              value={aspectId}
+              onChange={setAspectId}
               disabled={busy}
               title="Aspect ratio"
-              shortLabel={activeSize.short}
-              items={SIZE_PRESETS.map((s) => ({
+              items={ASPECT_PRESETS.map((s) => ({
                 value: s.id,
                 label: s.label,
                 trailing: s.short,
+                Icon: s.Icon,
               }))}
             />
-            <ToolbarSelect
-              icon={<Palette className="h-3 w-3" aria-hidden />}
-              value={styleId}
-              onChange={setStyleId}
+            <IconSelect
+              triggerIcon={<activeType.Icon className="h-3 w-3" aria-hidden />}
+              triggerLabel={activeType.id === 'image' ? 'Type' : activeType.label}
+              value={typeId}
+              onChange={onTypeChange}
               disabled={busy}
-              title="Style"
-              shortLabel={activeStyle.id === 'none' ? 'Style' : activeStyle.label}
-              items={IMAGE_STYLES.map((s) => ({ value: s.id, label: s.label }))}
+              title="Content type"
+              items={CONTENT_TYPES.map((c) => ({
+                value: c.id,
+                label: c.label,
+                Icon: c.Icon,
+              }))}
             />
-            <ToolbarSelect
-              icon={<Cpu className="h-3 w-3" aria-hidden />}
+            <IconSelect
+              triggerIcon={<activeModelEntry.Icon className="h-3 w-3" aria-hidden />}
+              triggerLabel={activeModelEntry.label}
               value={reference ? 'kontext' : model}
               onChange={(v) => setModel(v as ImageModel)}
               disabled={busy || !!reference}
               title="Model"
-              shortLabel={reference ? 'Kontext' : (model.charAt(0).toUpperCase() + model.slice(1))}
               items={
                 reference
-                  ? [{ value: 'kontext', label: 'Kontext', trailing: 'img2img' }]
-                  : IMAGE_MODELS.map((m) => ({
-                      value: m,
-                      label: m.charAt(0).toUpperCase() + m.slice(1),
-                      trailing: MODEL_HINTS[m],
+                  ? [{ value: 'kontext', label: 'Kontext', trailing: 'img2img', Icon: KONTEXT_ENTRY.Icon }]
+                  : MODEL_ENTRIES.map((m) => ({
+                      value: m.id as string,
+                      label: m.label,
+                      trailing: m.hint,
+                      Icon: m.Icon,
                     }))
               }
             />
           </div>
 
-          {/* Advanced toggle */}
+          {/* Advanced — Negative prompt only */}
           <button
             type="button"
             onClick={() => setAdvancedOpen((v) => !v)}
@@ -412,40 +487,23 @@ export function GeneratePanel({
             aria-expanded={advancedOpen}
           >
             <Settings2 className="h-3 w-3" aria-hidden />
-            {advancedOpen ? 'Hide advanced' : 'Advanced'}
+            {advancedOpen ? 'Hide negative' : 'Negative prompt'}
           </button>
-
           {advancedOpen ? (
-            <div className="flex flex-col gap-2">
-              <Field label="Negative prompt">
-                <textarea
-                  value={negativePrompt}
-                  onChange={(e) => setNegativePrompt(e.target.value)}
-                  placeholder="blurry, low quality, text"
-                  rows={2}
-                  disabled={busy}
-                  className="w-full resize-none rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                />
-              </Field>
-              <Field label="Seed (empty = random)">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={seedText}
-                  onChange={(e) => setSeedText(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="random"
-                  disabled={busy}
-                  className="w-full rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                />
-              </Field>
-            </div>
+            <textarea
+              value={negativePrompt}
+              onChange={(e) => setNegativePrompt(e.target.value)}
+              placeholder="What to avoid — blurry, low quality, text…"
+              rows={2}
+              disabled={busy}
+              className="w-full resize-none rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+            />
           ) : null}
         </>
       ) : null}
 
-      {/* Generate button — full width, primary */}
+      {/* Generate */}
       <button
         type="button"
         data-generate-submit
@@ -471,33 +529,17 @@ export function GeneratePanel({
           </>
         )}
       </button>
-    </div>
-  );
-}
 
-// ─── Local primitives ────────────────────────────────────────────────
-
-function Caption({ text, trailing }: { text: string; trailing?: string }) {
-  return (
-    <div className="flex items-baseline justify-between">
-      <span className="text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
-        {text}
-      </span>
-      {trailing ? (
-        <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-muted)' }}>{trailing}</span>
+      {/* Presets gallery — pre-made prompts with image previews,
+          adapt to the active brand on click. */}
+      {mode === 'image' ? (
+        <PresetsGallery brand={brand} onApply={applyPreset} />
       ) : null}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <Caption text={label} />
-      {children}
-    </div>
-  );
-}
+// ─── Local primitives ────────────────────────────────────────────────
 
 function ModeToggle({
   mode, busy, agentAvailable, onChange,
@@ -551,22 +593,23 @@ function ModeButton({
   );
 }
 
-interface ToolbarSelectItem {
+interface IconSelectItem {
   value: string;
   label: string;
   trailing?: string;
+  Icon: typeof SquareIcon;
 }
 
-function ToolbarSelect({
-  icon, value, onChange, disabled, title, shortLabel, items,
+function IconSelect({
+  triggerIcon, triggerLabel, value, onChange, disabled, title, items,
 }: {
-  icon: React.ReactNode;
+  triggerIcon: React.ReactNode;
+  triggerLabel: string;
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
   title: string;
-  shortLabel: string;
-  items: ToolbarSelectItem[];
+  items: IconSelectItem[];
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
@@ -575,17 +618,20 @@ function ToolbarSelect({
         title={title}
       >
         <span className="inline-flex items-center gap-1 min-w-0 truncate">
-          {icon}
-          <span className="truncate">{shortLabel}</span>
+          {triggerIcon}
+          <span className="truncate">{triggerLabel}</span>
         </span>
       </SelectTrigger>
-      <SelectContent data-workspace className="min-w-[180px]">
+      <SelectContent data-workspace className="min-w-[200px]">
         {items.map((it) => (
           <SelectItem key={it.value} value={it.value} className="text-[12px]">
             <div className="flex items-center justify-between gap-3 w-full">
-              <span>{it.label}</span>
+              <span className="inline-flex items-center gap-1.5">
+                <it.Icon className="h-3 w-3 shrink-0" aria-hidden />
+                {it.label}
+              </span>
               {it.trailing ? (
-                <span className="text-[10.5px]" style={{ color: 'var(--text-muted)' }}>{it.trailing}</span>
+                <span className="text-[10.5px] shrink-0" style={{ color: 'var(--text-muted)' }}>{it.trailing}</span>
               ) : null}
             </div>
           </SelectItem>
@@ -595,93 +641,66 @@ function ToolbarSelect({
   );
 }
 
-// ─── Reference slot cards ────────────────────────────────────────────
+// ─── Presets gallery ────────────────────────────────────────────────
 
-function ReferenceFilledSlot({
-  kind, Icon, src, onRemove,
-}: { kind: string; Icon: typeof Star; src: string; onRemove: () => void }) {
+function PresetsGallery({
+  brand, onApply,
+}: { brand?: Brand; onApply: (p: PromptPreset) => void }) {
+  // Build preview URLs once per (brand, preset). Pollinations caches
+  // by URL params, so identical URLs return identical images — a fresh
+  // browser fetches once and the result is shared.
+  const previews = useMemo(() => {
+    const brandName = brand?.name ?? 'modern brand';
+    return PROMPT_PRESETS.map((p) => {
+      const text = p.prompt.replace(/\{brand\}/g, brandName);
+      const enc = encodeURIComponent(text).slice(0, 1200);
+      const params = new URLSearchParams({
+        width: '512', height: '512', nologo: 'true', enhance: 'true',
+        model: 'flux', referrer: 'brandos-preview', seed: String(p.previewSeed),
+      });
+      return {
+        ...p,
+        previewUrl: `https://image.pollinations.ai/prompt/${enc}?${params.toString()}`,
+        fullPrompt: text,
+      };
+    });
+  }, [brand?.name]);
+
   return (
-    <div
-      className="relative aspect-square rounded-lg border overflow-hidden group"
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <img src={src} alt={kind} className="h-full w-full object-cover" />
-      <div
-        className="absolute inset-x-0 bottom-0 px-1 py-0.5 flex items-center justify-between"
-        style={{ background: 'color-mix(in oklab, #000 60%, transparent)', color: '#fff' }}
-      >
-        <span className="inline-flex items-center gap-0.5 text-[9.5px] font-medium">
-          <Icon className="h-2.5 w-2.5" aria-hidden /> {kind}
+    <section className="flex flex-col gap-1.5 mt-1">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[10px] font-medium uppercase tracking-[0.08em]" style={{ color: 'var(--text-muted)' }}>
+          Premade designs
+        </span>
+        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+          {brand ? `On ${brand.name}` : 'Generic'}
         </span>
       </div>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label="Remove reference"
-        className="absolute right-0.5 top-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full transition-opacity opacity-0 group-hover:opacity-100"
-        style={{ background: 'color-mix(in oklab, #000 70%, transparent)', color: '#fff' }}
-      >
-        <XIcon className="h-2.5 w-2.5" aria-hidden />
-      </button>
-    </div>
-  );
-}
-
-function ReferenceEmptySlot({
-  kind, Icon, onClick, onDrop, onDragOver, uploading,
-}: {
-  kind: string;
-  Icon: typeof Star;
-  onClick: () => void;
-  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-  uploading: boolean;
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); }}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors hover:bg-muted/30"
-      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-    >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
-      <span className="text-[10px] font-medium">
-        {uploading ? '…' : kind}
-      </span>
-    </div>
-  );
-}
-
-function ReferenceComingSoon({ Icon, label }: { Icon: typeof Star; label: string }) {
-  return (
-    <div
-      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 opacity-40 cursor-not-allowed"
-      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-      title="Coming soon"
-    >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
-      <span className="text-[10px] font-medium">{label}</span>
-    </div>
-  );
-}
-
-function ReferenceAddMore({
-  Icon, onClick, disabled,
-}: { Icon: typeof Star; onClick: () => void; disabled: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="aspect-square rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors hover:bg-muted/30 disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-    >
-      <Icon className="h-3.5 w-3.5" aria-hidden />
-      <span className="text-[10px] font-medium">Add</span>
-    </button>
+      <div className="grid grid-cols-2 gap-1.5">
+        {previews.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onApply(p)}
+            title={p.fullPrompt}
+            className="group flex flex-col gap-0.5 rounded-lg border overflow-hidden text-left transition-transform hover:-translate-y-0.5"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            <div className="aspect-square w-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+              <img
+                src={p.previewUrl}
+                alt={p.title}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
+            </div>
+            <div className="px-1.5 py-1">
+              <div className="text-[10.5px] font-medium truncate">{p.title}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
