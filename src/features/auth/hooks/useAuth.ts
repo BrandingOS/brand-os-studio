@@ -21,6 +21,29 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
   updatedAt: new Date(supabaseUser.updated_at || supabaseUser.created_at),
 });
 
+// Dev-only escape hatch for when the Supabase project is paused/unreachable
+// (this repo's project has been torn down by inactivity before — see the
+// migration comment atop integrations/supabase/client.ts). `import.meta.env.DEV`
+// is statically false in production builds, so Vite dead-code-eliminates this
+// entire branch — it is structurally impossible for this to ship to prod.
+// Enable locally with `VITE_DEV_BYPASS_AUTH=true` in .env (gitignored).
+//
+// Deliberately NOT auto-applied on mount — the user still has to land on the
+// login screen and take an explicit action (see the dev-bypass button in
+// AuthModal). This flag only controls whether that button/shortcut is shown;
+// it never signs anyone in by itself.
+export const DEV_AUTH_BYPASS =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true';
+
+export const DEV_BYPASS_USER: User = {
+  id: 'dev-bypass-user',
+  email: 'dev@local.test',
+  name: 'Dev (bypass)',
+  plan: 'agency',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 // Module-level singleton flag. The auth listener (getInitialSession +
 // onAuthStateChange + safety timeout) must only mount ONCE per app, no
 // matter how many components call useAuth(). Without this guard, every
