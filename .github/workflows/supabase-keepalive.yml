@@ -1,0 +1,79 @@
+name: Supabase Keep-Alive
+
+# Why this exists
+# ────────────────
+# Supabase free-tier projects auto-pause after 7 consecutive days with no
+# API activity, and can become permanently unrecoverable after ~90 days
+# paused (this happened once already — see the header comment in
+# src/integrations/supabase/client.ts, project iyrqpsrnjoglrxhpzjgq,
+# migrated 2026-04-09 to the current project ciojgoozobzbeglwdxcz after
+# it could not be restored from the dashboard).
+#
+# NOTE: a pg_cron job running *inside* the database does NOT prevent this.
+# Supabase's pause detection tracks external API-gateway traffic (REST /
+# Auth / Storage / Realtime), not internal SQL activity — and if the
+# project is already paused, pg_cron stops firing too, so it can't dig
+# itself out. The only reliable fix is an external, out-of-band ping like
+# this workflow: it runs on GitHub's infrastructure, independent of
+# whether the Supabase project is currently healthy.
+#
+# This hits the PostgREST root endpoint (`/rest/v1/`) with the public
+# anon key on a 3-day cadence — comfortably inside the 7-day pause
+# window even if a run or two gets skipped. The anon key below is the
+# same public, safe-to-commit key already used in
+# src/integrations/supabase/client.ts and landingpage/src/lib/supabase.ts
+# (RLS protects data; this key has no special privileges).
+#
+# Caveat (can't be fixed from CI): GitHub disables scheduled workflows on
+# a repo after 60 days with no repo activity at all (commits/pushes).
+# An active repo like this one won't hit that, but if brandingOS ever goes
+# fully dormant, this workflow will silently stop firing along with the
+# schedule pausing itself — worth an occasional manual glance at the
+# Actions tab, or re-enable via workflow_dispatch below.
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *' # every 3 days at 06:00 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping Supabase REST API
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Ping brandos-prod (ciojgoozobzbeglwdxcz)
+        run: |
+          set -uo pipefail
+
+          SUPABASE_URL="https://ciojgoozobzbeglwdxcz.supabase.co"
+          ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpb2pnb296b2J6YmVnbHdkeGN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NDQ4ODgsImV4cCI6MjA5MTMyMDg4OH0.qwfviBXKJh1i2-vyUYtCIdUXMZM5ICBJtBTEmqDYbng"
+
+          status=$(curl -sS --max-time 20 -o /tmp/resp.json -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ANON_KEY")
+          curl_exit=$?
+
+          echo "curl exit code: $curl_exit"
+          echo "HTTP status: $status"
+          echo "Response body:"
+          cat /tmp/resp.json 2>/dev/null || true
+          echo
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error::Could not reach the Supabase project at all (curl exit $curl_exit) — it may be paused or the URL/DNS is broken."
+            exit 1
+          fi
+
+          if [ "$status" -ge 500 ]; then
+            echo "::error::Supabase REST endpoint returned HTTP $status — project may be paused or degraded."
+            exit 1
+          fi
+
+          echo "Supabase project is reachable (HTTP $status)."
