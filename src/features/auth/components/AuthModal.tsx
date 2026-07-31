@@ -11,6 +11,7 @@ import { FaGoogle } from 'react-icons/fa';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
+import { DEV_AUTH_BYPASS, DEV_BYPASS_USER } from '../hooks/useAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -37,8 +38,19 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     }
   }, [isOpen, defaultMode]);
 
-  const { switchToGuest, signIn: storeSignIn } = useSessionStore();
+  const { switchToGuest, signIn: storeSignIn, setPlatformRole } = useSessionStore();
   const navigate = useNavigate();
+
+  // Dev-only: signs in locally without touching Supabase at all (auth call,
+  // getSession, everything). Only rendered when DEV_AUTH_BYPASS is true,
+  // which is itself hard-gated to `import.meta.env.DEV` — see useAuth.ts.
+  const handleDevBypass = () => {
+    storeSignIn(DEV_BYPASS_USER);
+    setPlatformRole('super_admin');
+    toast.success('Signed in as local dev user — Supabase skipped');
+    onClose();
+    navigate('/dashboard');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,6 +221,18 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
                     )}
                     Continue with Google
                   </Button>
+
+                  {DEV_AUTH_BYPASS && mode === 'login' && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full h-11 gap-2 border border-dashed border-amber-500 text-amber-700 dark:text-amber-400"
+                      onClick={handleDevBypass}
+                      disabled={submitting}
+                    >
+                      Dev bypass (skip Supabase)
+                    </Button>
+                  )}
                 </div>
 
                 <div className="relative mb-6">

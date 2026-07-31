@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, DEV_BYPASS_USER } from '../hooks/useAuth';
+import { useSessionStore } from '@/shared/store/sessionStore';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -27,10 +28,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize real Supabase auth
   useAuth();
 
+  const isDevBypassSession = useSessionStore((s) => s.user?.id === DEV_BYPASS_USER.id);
+
   // Block rendering until recovery redirect completes to prevent flash of landing page
   if (recoveryRedirecting && location.pathname !== '/auth/reset-password') {
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {isDevBypassSession && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 8,
+            right: 8,
+            zIndex: 9999,
+            background: '#f59e0b',
+            color: '#111',
+            padding: '4px 10px',
+            borderRadius: 6,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            fontWeight: 600,
+            pointerEvents: 'none',
+          }}
+        >
+          DEV AUTH BYPASS — Supabase skipped
+        </div>
+      )}
+    </>
+  );
 }
