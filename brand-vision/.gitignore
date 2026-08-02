@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+fixtures/real/
+.DS_Store
+dataset/
+models/embeddings_v1.npz

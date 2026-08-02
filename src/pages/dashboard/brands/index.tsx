@@ -8,6 +8,7 @@ import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
+import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
@@ -83,8 +84,8 @@ export default function BrandsPage() {
               const stripEnd = brand.secondaryColor || brand.accentColor || brand.primaryColor;
 
               return (
+                <BrandCardMenu key={brand.id} brand={brand} editUrl={identityUrlFor(brand.slug)}>
                 <Card
-                  key={brand.id}
                   className="group overflow-hidden border-border transform-gpu will-change-transform transition-all duration-[280ms] ease-[cubic-bezier(0.15,0.5,0.05,1)] motion-safe:hover:-translate-y-0.5 hover:shadow-xl hover:border-primary/30"
                 >
                   <div className="flex flex-row">
@@ -162,6 +163,7 @@ export default function BrandsPage() {
                     </div>
                   </div>
                 </Card>
+                </BrandCardMenu>
               );
             })}
           </div>

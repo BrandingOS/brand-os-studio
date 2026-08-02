@@ -11,7 +11,7 @@ import { FaGoogle } from 'react-icons/fa';
 import { supabase } from '@/integrations/supabase/client';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
-import { DEV_AUTH_BYPASS, DEV_BYPASS_USER } from '../hooks/useAuth';
+import { DEV_AUTH_BYPASS, DEV_BYPASS_USER, DEV_BYPASS_STORAGE_KEY } from '../hooks/useAuth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -45,6 +45,9 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
   // getSession, everything). Only rendered when DEV_AUTH_BYPASS is true,
   // which is itself hard-gated to `import.meta.env.DEV` — see useAuth.ts.
   const handleDevBypass = () => {
+    // Persist the choice so the session survives full page reloads —
+    // useAuth restores it on mount instead of the (absent) Supabase session.
+    localStorage.setItem(DEV_BYPASS_STORAGE_KEY, '1');
     storeSignIn(DEV_BYPASS_USER);
     setPlatformRole('super_admin');
     toast.success('Signed in as local dev user — Supabase skipped');

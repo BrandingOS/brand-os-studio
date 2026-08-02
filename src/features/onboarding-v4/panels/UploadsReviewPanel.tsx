@@ -12,12 +12,15 @@ import { LogoSlots } from './LogoSlots';
 import { AboutGroup } from './AboutGroup';
 import { useCosmosTheme } from '../components/useCosmosTheme';
 import { SOCIAL_PLATFORMS, detectPlatform, getPlatform } from '../data/socialPlatforms';
+import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '../utils/fontFamily';
 
 const MAX_ASSETS = 20;
 
 interface Group {
   id: 'fonts' | 'links';
   label: string;
+  /** Singular noun for the header count — "1 link", "2 links". */
+  noun: string;
   empty: string;
   match: (a: OnboardingAsset) => boolean;
 }
@@ -26,12 +29,14 @@ const GROUPS: Group[] = [
   {
     id: 'fonts',
     label: 'Fonts',
+    noun: 'font',
     empty: 'No fonts yet — pick from Google Fonts or upload a font file.',
     match: (a) => a.kind === 'font',
   },
   {
     id: 'links',
     label: 'Links',
+    noun: 'link',
     empty: 'No links added.',
     match: (a) => a.kind === 'link',
   },
@@ -39,6 +44,10 @@ const GROUPS: Group[] = [
 
 interface AssetRowProps {
   asset: OnboardingAsset;
+  /** Overrides the row title — font families show the family, not the filename. */
+  displayName?: string;
+  /** Overrides the row subtitle (e.g. "4 weights · Light · Regular…"). */
+  displaySub?: string;
   onRename(name: string): void;
   onRemove(): void;
   onMove(target: MoveTarget): void;
@@ -47,9 +56,10 @@ interface AssetRowProps {
 
 type MoveTarget = 'logo' | 'image' | 'color' | 'color-replace' | 'document' | 'font';
 
-function AssetRow({ asset, onRename, onRemove, onMove, onContextMenu }: AssetRowProps) {
+function AssetRow({ asset, displayName, displaySub, onRename, onRemove, onMove, onContextMenu }: AssetRowProps) {
+  const label = displayName ?? asset.name;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(asset.name);
+  const [draft, setDraft] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -61,8 +71,8 @@ function AssetRow({ asset, onRename, onRemove, onMove, onContextMenu }: AssetRow
 
   const commit = () => {
     setEditing(false);
-    if (draft.trim() && draft.trim() !== asset.name) onRename(draft.trim());
-    else setDraft(asset.name);
+    if (draft.trim() && draft.trim() !== label) onRename(draft.trim());
+    else setDraft(label);
   };
 
   const isUploading = asset.uploadStatus === 'uploading';
@@ -83,7 +93,7 @@ function AssetRow({ asset, onRename, onRemove, onMove, onContextMenu }: AssetRow
             Aa
           </span>
         ) : asset.kind === 'link' ? (
-          <span className="asset-thumb-platform">{getPlatform(asset.socialPlatform).icon}</span>
+          <LinkFavicon url={asset.sourceUrl} fallback={getPlatform(asset.socialPlatform).icon} />
         ) : asset.previewUrl && asset.kind === 'image' ? (
           <img src={asset.previewUrl} alt="" />
         ) : (
@@ -104,17 +114,17 @@ function AssetRow({ asset, onRename, onRemove, onMove, onContextMenu }: AssetRow
             onKeyDown={(e) => {
               if (e.key === 'Enter') commit();
               if (e.key === 'Escape') {
-                setDraft(asset.name);
+                setDraft(label);
                 setEditing(false);
               }
             }}
           />
         ) : (
           <button type="button" className="asset-name" onClick={() => setEditing(true)} title="Rename">
-            {asset.name}
+            {label}
           </button>
         )}
-        <span className="asset-sub">{asset.sub}</span>
+        <span className="asset-sub">{displaySub ?? asset.sub}</span>
       </div>
       <div className="asset-actions">
         <MoveMenu asset={asset} onMove={onMove} />
@@ -133,6 +143,33 @@ function AssetRow({ asset, onRename, onRemove, onMove, onContextMenu }: AssetRow
         </button>
       </div>
     </div>
+  );
+}
+
+/** The site's real favicon for a link row (via Google's favicon service);
+ *  falls back to the platform glyph while loading fails or for bad URLs. */
+function LinkFavicon({ url, fallback }: { url?: string; fallback: React.ReactNode }) {
+  const [failed, setFailed] = useState(false);
+  const host = useMemo(() => {
+    if (!url) return null;
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return null;
+    }
+  }, [url]);
+
+  if (!host || failed) {
+    return <span className="asset-thumb-platform">{fallback}</span>;
+  }
+  return (
+    <img
+      className="asset-thumb-favicon"
+      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -299,8 +336,23 @@ export function UploadsReviewPanel() {
     (rawHex: string, source: 'manual' | 'extracted' = 'manual') => {
       const hex = normalizeHex(rawHex);
       if (!hex) return false;
-      const exists = useV4Store.getState().assets.some((a) => a.kind === 'color' && a.value === hex);
-      if (exists) return false;
+      const existing = useV4Store.getState().assets.filter((a) => a.kind === 'color' && a.value);
+      if (existing.some((a) => a.value === hex)) return false;
+      // Extraction from two sources (logo + palette image) can yield the same
+      // brand color a few RGB points apart — collapse those instead of
+      // stacking near-identical swatches. Manual picks are always honored.
+      if (source === 'extracted') {
+        const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+        const near = existing.some((a) => {
+          const v = (a.value ?? '').replace('#', '');
+          if (v.length !== 6) return false;
+          const dr = parseInt(v.slice(0, 2), 16) - r;
+          const dg = parseInt(v.slice(2, 4), 16) - g;
+          const db = parseInt(v.slice(4, 6), 16) - b;
+          return dr * dr + dg * dg + db * db <= 24 * 24;
+        });
+        if (near) return false;
+      }
       const asset: OnboardingAsset = {
         id: genId(),
         name: hex,
@@ -406,7 +458,10 @@ export function UploadsReviewPanel() {
           <header className="review-group-head">
             <h3>Logos</h3>
             <span className="review-group-count">
-              {assets.filter((a) => a.kind === 'image' && a.isLogo).length}
+              {(() => {
+                const n = assets.filter((a) => a.kind === 'image' && a.isLogo).length;
+                return `${n} ${n === 1 ? 'logo' : 'logos'}`;
+              })()}
             </span>
           </header>
           <LogoSlots assets={assets} />
@@ -495,12 +550,78 @@ interface GroupCardProps {
 function GroupCard({ group, items, onUploadFile, onAddColor, onAddGoogleFont, onAddLink, onExtractColors, onRename, onMove, onRemove }: GroupCardProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const ctxAnchorRef = useRef<HTMLElement | null>(null);
+  // Eight uploaded files are usually two fonts — collapse weights into families.
+  const fontFamilies = useMemo(
+    () => (group.id === 'fonts' ? groupFontAssets(items) : []),
+    [group.id, items],
+  );
 
   const closeCtxMenu = useCallback(() => {
     ctxAnchorRef.current?.classList.remove('is-ctx-active');
     ctxAnchorRef.current = null;
     setCtxMenu(null);
   }, []);
+
+  /** Right-click on a font family — four actions only: copy name, rename,
+   *  move, remove. Per-weight rows live in the row subtitle, not the menu. */
+  const openFontFamilyMenu = (e: React.MouseEvent<HTMLDivElement>, family: FontFamilyGroup) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ctxAnchorRef.current?.classList.remove('is-ctx-active');
+    ctxAnchorRef.current = e.currentTarget;
+    e.currentTarget.classList.add('is-ctx-active');
+
+    const items: ContextMenuState['items'] = [
+      {
+        label: 'Copy font name',
+        onSelect: () => {
+          void copyToClipboard(family.family);
+        },
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Rename',
+        onSelect: () => {
+          const next = window.prompt('Rename font', family.family);
+          if (next && next.trim()) onRename(family.lead.id, next.trim());
+        },
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Move to documents',
+        onSelect: () => family.assets.forEach((a) => onMove(a.id, 'document')),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12h13" />
+            <path d="m13 6 6 6-6 6" />
+          </svg>
+        ),
+      },
+      {
+        label: 'Remove font',
+        destructive: true,
+        onSelect: () => family.assets.forEach((a) => onRemove(a.id)),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+          </svg>
+        ),
+      },
+    ];
+    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+  };
 
   const openAssetMenu = (e: React.MouseEvent<HTMLDivElement>, asset: OnboardingAsset) => {
     e.preventDefault();
@@ -582,11 +703,32 @@ function GroupCard({ group, items, onUploadFile, onAddColor, onAddGoogleFont, on
       <header className="review-group-head">
         <h3>{group.label}</h3>
         <span className="review-group-count">
-          {items.length} {items.length === 1 ? 'item' : 'items'}
+          {group.id === 'fonts'
+            ? `${fontFamilies.length} ${fontFamilies.length === 1 ? 'font' : 'fonts'}`
+            : `${items.length} ${items.length === 1 ? group.noun : `${group.noun}s`}`}
         </span>
       </header>
       {items.length === 0 ? (
         <p className="review-group-empty">{group.empty}</p>
+      ) : group.id === 'fonts' ? (
+        <div className="review-group-list">
+          {fontFamilies.map((family) => (
+            <AssetRow
+              key={family.key}
+              asset={family.lead}
+              displayName={family.family}
+              displaySub={
+                family.assets.length > 1
+                  ? `${family.assets.length} weights · ${weightsSummary(family)}`
+                  : family.lead.sub
+              }
+              onRename={(name) => onRename(family.lead.id, name)}
+              onMove={(target) => family.assets.forEach((a) => onMove(a.id, target))}
+              onRemove={() => family.assets.forEach((a) => onRemove(a.id))}
+              onContextMenu={(e) => openFontFamilyMenu(e, family)}
+            />
+          ))}
+        </div>
       ) : (
         <div className="review-group-list">
           {items.map((asset) => (
@@ -710,9 +852,11 @@ interface SwatchProps {
   hex: string;
   renderedHex: string;
   isActive: boolean;
+  isPrimary: boolean;
   zIndex: number;
   onPickerToggle(): void;
   onCopyHex(anchor: HTMLElement): void;
+  onSetPrimary(): void;
   onContextMenu?(e: React.MouseEvent<HTMLButtonElement>): void;
   buttonRef?: (el: HTMLButtonElement | null) => void;
 }
@@ -720,7 +864,7 @@ interface SwatchProps {
 /** Onboarding-v4 colors swatch — mirrors the Setup page's Swatch markup so the
  *  shared `[data-workspace] .swatch` styles apply identically (same
  *  hover wave, same name/hex copy affordance, same active picker state). */
-function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex, onContextMenu, buttonRef }: SwatchProps) {
+function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle, onCopyHex, onSetPrimary, onContextMenu, buttonRef }: SwatchProps) {
   const iconRef = useRef<OrganicIconHandle>(null);
   const resetTimerRef = useRef<number | null>(null);
   const light = isLightHex(renderedHex);
@@ -740,12 +884,13 @@ function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex,
     },
     [],
   );
-  const displayName = hexToName(hex);
+  // Live-follows the previewed color while the picker is being dragged.
+  const displayName = hexToName(renderedHex);
   return (
     <button
       ref={buttonRef}
       type="button"
-      className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
+      className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}${isPrimary ? ' is-primary' : ''}`}
       style={{ background: renderedHex, zIndex }}
       aria-label={`Edit ${displayName} ${renderedHex}`}
       aria-expanded={isActive}
@@ -755,6 +900,22 @@ function Swatch({ hex, renderedHex, isActive, zIndex, onPickerToggle, onCopyHex,
       }}
       onContextMenu={onContextMenu}
     >
+      {/* Nested span (not a button) — a <button> inside a <button> is invalid
+          HTML; same pattern the copy affordance below already uses. */}
+      <span
+        className={`swatch-primary-tag${isPrimary ? ' is-on' : ''}`}
+        role="button"
+        tabIndex={-1}
+        aria-pressed={isPrimary}
+        title={isPrimary ? 'Primary brand color — click to unset' : 'Set as the primary brand color'}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSetPrimary();
+        }}
+      >
+        <span className="swatch-primary-dot" aria-hidden="true" />
+        {isPrimary ? 'Primary' : 'Set primary'}
+      </span>
       <span
         className="swatch-name"
         role="button"
@@ -794,6 +955,18 @@ interface ColorsBoardProps {
  *  div is what brings those styles into scope inside the onboarding shell. */
 function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
   const [theme] = useCosmosTheme();
+  // Untagged palettes fall back to "first swatch is primary" — the same rule
+  // brand creation uses — so the badge never shows an empty state.
+  const primaryColorId = useV4Store((s) => s.primaryColorId);
+  const setPrimaryColor = useV4Store((s) => s.setPrimaryColor);
+  // The primary swatch always renders FIRST (leftmost) — same rule as the
+  // Setup page. Everything below works off this ordered view.
+  const orderedColors = useMemo(() => {
+    if (!primaryColorId) return colors;
+    const idx = colors.findIndex((c) => c.id === primaryColorId);
+    if (idx <= 0) return colors;
+    return [colors[idx], ...colors.slice(0, idx), ...colors.slice(idx + 1)];
+  }, [colors, primaryColorId]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [previewHex, setPreviewHex] = useState<string | null>(null);
   const [addMode, setAddMode] = useState(false);
@@ -860,11 +1033,20 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
     flashTimerRef.current = window.setTimeout(() => setFlash(null), 1200);
   }, []);
 
+  /** Drop keyboard focus after a picker interaction ends — a swatch left
+   *  with :focus-visible stays raised (with its texts shown) until the user
+   *  clicks somewhere else, which reads as a stuck hover. */
+  const settleFocus = () => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && groupRef.current?.contains(el)) el.blur();
+  };
+
   const handleSwatchClick = (i: number) => {
     setAddMode(false);
     setActiveIndex((prev) => {
       if (prev === i) {
         setPreviewHex(null);
+        settleFocus();
         return null;
       }
       setPreviewHex(null);
@@ -898,7 +1080,18 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
         flashTimerRef.current = window.setTimeout(() => setFlash(null), 1200);
       })();
     };
+    const isPrimary = primaryColorId ? primaryColorId === color.id : orderedColors[0]?.id === color.id;
     const items: ContextMenuState['items'] = [
+      {
+        label: isPrimary ? 'Unset as primary' : 'Set as primary color',
+        onSelect: () => setPrimaryColor(color.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+          </svg>
+        ),
+      },
       {
         label: 'Copy hex',
         onSelect: () => flashCopy(hex),
@@ -927,7 +1120,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
         destructive: true,
         onSelect: () => {
           onRemove(color.id);
-          if (activeIndex != null && colors[activeIndex]?.id === color.id) {
+          if (activeIndex != null && orderedColors[activeIndex]?.id === color.id) {
             setActiveIndex(null);
             setPreviewHex(null);
           }
@@ -950,7 +1143,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
     setAddMode((v) => !v);
   };
 
-  const activeColor = activeIndex != null ? colors[activeIndex] : null;
+  const activeColor = activeIndex != null ? orderedColors[activeIndex] : null;
   const pickerHex = activeColor?.value ?? '#5B6BFF';
 
   return (
@@ -958,7 +1151,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
       <header className="review-group-head">
         <h3>Colors</h3>
         <span className="review-group-count">
-          {colors.length} {colors.length === 1 ? 'item' : 'items'}
+          {colors.length} {colors.length === 1 ? 'color' : 'colors'}
         </span>
       </header>
 
@@ -968,7 +1161,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
         ) : (
           <div className="colors-group">
             <div className="colors-row" data-layout="accent">
-              {colors.map((c, i) => {
+              {orderedColors.map((c, i) => {
                 const renderedHex =
                   activeIndex === i && previewHex ? previewHex : (c.value ?? '#000000');
                 return (
@@ -977,9 +1170,11 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
                     hex={c.value ?? '#000000'}
                     renderedHex={renderedHex}
                     isActive={activeIndex === i}
+                    isPrimary={primaryColorId ? primaryColorId === c.id : i === 0}
                     zIndex={i + 1}
                     onPickerToggle={() => handleSwatchClick(i)}
                     onCopyHex={(anchor) => handleCopy(renderedHex.toUpperCase(), anchor)}
+                    onSetPrimary={() => setPrimaryColor(c.id)}
                     onContextMenu={(e) => openColorMenu(e, c, i)}
                     buttonRef={(el) => {
                       if (el) swatchRefs.current.set(c.id, el);
@@ -1002,10 +1197,12 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
                     onUpdate(activeColor.id, h);
                     setActiveIndex(null);
                     setPreviewHex(null);
+                    settleFocus();
                   }}
                   onCancel={() => {
                     setActiveIndex(null);
                     setPreviewHex(null);
+                    settleFocus();
                   }}
                 />
               )}
@@ -1017,6 +1214,7 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
           {addMode && (
             <ColorPickerHSV
               key="add"
+              autoFocusHex
               hex={addDraft}
               onChange={(h) => setAddDraft(h)}
               onCommit={(h) => {
@@ -1044,8 +1242,12 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
                 }
                 setAddMode(false);
                 setAddDraft('#5B6BFF');
+                settleFocus();
               }}
-              onCancel={() => setAddMode(false)}
+              onCancel={() => {
+                setAddMode(false);
+                settleFocus();
+              }}
               commitLabel="Add"
             />
           )}

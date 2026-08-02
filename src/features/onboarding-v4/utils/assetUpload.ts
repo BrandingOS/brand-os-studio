@@ -13,6 +13,37 @@ export function looksLikeLogo(file: File): boolean {
   return false;
 }
 
+/** Async logo signal for images whose filename doesn't say "logo": a raster
+ *  with a meaningfully transparent background is almost always a logo, not a
+ *  photo or a palette image. JPEGs can't carry alpha, so skip them. */
+export async function imageFileHasAlpha(file: File): Promise<boolean> {
+  if (file.type === 'image/jpeg' || /\.jpe?g$/i.test(file.name)) return false;
+  if (!(file.type.startsWith('image/') || /\.(png|webp|gif)$/i.test(file.name))) return false;
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url);
+    const w = 64;
+    const h = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    ctx.drawImage(img, 0, 0, w, h);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    let transparent = 0;
+    const total = data.length / 4;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] < 200) transparent++;
+    }
+    return transparent / total > 0.05;
+  } catch {
+    return false;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function extOf(name: string): string {
   const m = /\.([a-zA-Z0-9]+)$/.exec(name);
   return m ? m[1].toLowerCase() : '';
@@ -70,7 +101,18 @@ export interface QueueDeps {
 
 /** Queue a single file with smart routing. ZIPs are extracted and each entry is queued.
  *  Returns the parent asset id (or null if hit the limit). */
-export async function enqueueFile(file: File, deps: QueueDeps): Promise<string | null> {
+// Multi-file batches (drop 5 files at once) used to classify in parallel,
+// so whichever image DECODED first entered the asset list first — the
+// palette image could beat the logo and the slot auto-router keyed off
+// that order. Chain the calls so files enter in the order they were given.
+let enqueueChain: Promise<unknown> = Promise.resolve();
+export function enqueueFile(file: File, deps: QueueDeps): Promise<string | null> {
+  const run = enqueueChain.then(() => enqueueFileInner(file, deps));
+  enqueueChain = run.catch(() => null);
+  return run;
+}
+
+async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | null> {
   if (deps.getCount() >= deps.max) return null;
 
   const isZip = /zip/.test(file.type) || /\.zip$/i.test(file.name);
@@ -79,6 +121,15 @@ export async function enqueueFile(file: File, deps: QueueDeps): Promise<string |
   }
 
   const asset = buildAsset(file);
+  // Filename-based detection misses logos named "Frame 1.png" etc. — a
+  // transparent background is a much stronger signal, so check it too.
+  if (asset.kind === 'image' && !asset.isLogo) {
+    try {
+      if (await imageFileHasAlpha(file)) asset.isLogo = true;
+    } catch {
+      /* keep as plain image */
+    }
+  }
   let previewUrl: string | null = null;
   if (asset.kind === 'image') {
     // Some platforms hand us a File with empty `type` for SVGs — fall back
@@ -93,6 +144,14 @@ export async function enqueueFile(file: File, deps: QueueDeps): Promise<string |
     (p) => deps.updateAssetProgress(asset.id, p),
     () => deps.markAssetDone(asset.id, previewUrl)
   );
+  // Brand Vision: our trained model refines kind/isLogo/logoSlot async.
+  // Non-blocking — the heuristics above give the instant first guess and
+  // remain the answer if the service isn't running.
+  if (asset.kind === 'image') {
+    import('../services/brandVision')
+      .then(({ classifyAndRoute }) => classifyAndRoute(asset.id, file))
+      .catch(() => {});
+  }
   return asset.id;
 }
 
@@ -123,7 +182,9 @@ async function enqueueZip(zipFile: File, deps: QueueDeps): Promise<string | null
       const ext = extOf(name);
       const guessedType = guessMimeFromExt(ext) || blob.type || '';
       const asFile = new File([blob], name, { type: guessedType });
-      await enqueueFile(asFile, deps);
+      // Direct inner call — the zip itself already sits in the chain, so
+      // routing entries through the public wrapper would deadlock.
+      await enqueueFileInner(asFile, deps);
     }
   } catch (err) {
     console.warn('ZIP extraction failed', err);
@@ -329,8 +390,30 @@ export function normalizeHex(input: string): string | null {
   return null;
 }
 
-/** Extract up to `count` dominant colors from an image URL. Quantizes to a coarse RGB
- *  bucket, sorts by frequency, filters near-grayscale dups. */
+function rgbToHueSat(r: number, g: number, b: number): { hue: number; sat: number } {
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const d = max - min;
+  let hue = 0;
+  if (d > 0) {
+    const rn = r / 255, gn = g / 255, bn = b / 255;
+    if (max === rn) hue = ((gn - bn) / d + (gn < bn ? 6 : 0)) * 60;
+    else if (max === gn) hue = ((bn - rn) / d + 2) * 60;
+    else hue = ((rn - gn) / d + 4) * 60;
+  }
+  const sat = max === 0 ? 0 : d / max;
+  return { hue, sat };
+}
+
+/** Extract up to `count` dominant colors from an image URL.
+ *
+ *  Quantizes to a coarse RGB bucket and sorts by frequency. Unlike the
+ *  old version, deliberate white/black/grey palette swatches ARE included:
+ *  a neutral makes the cut when it covers a meaningful share of the image
+ *  (8–60%) — below that it's antialiasing noise, above it it's almost
+ *  certainly a background (e.g. a logo on a white canvas). Same-hue
+ *  chromatic picks are merged so a red palette doesn't come back as two
+ *  slightly different reds. */
 export async function extractDominantColors(src: string, count = 4): Promise<string[]> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -348,15 +431,14 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
         const { data } = ctx.getImageData(0, 0, w, h);
         const buckets = new Map<string, { r: number; g: number; b: number; n: number }>();
         const bucketSize = 24;
+        let opaque = 0;
         for (let i = 0; i < data.length; i += 4) {
           const a = data[i + 3];
           if (a < 200) continue;
+          opaque++;
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
-          // Skip near-white and near-black
-          if (r > 240 && g > 240 && b > 240) continue;
-          if (r < 18 && g < 18 && b < 18) continue;
           const key = `${Math.floor(r / bucketSize)},${Math.floor(g / bucketSize)},${Math.floor(b / bucketSize)}`;
           const cur = buckets.get(key);
           if (cur) {
@@ -365,21 +447,53 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
             buckets.set(key, { r, g, b, n: 1 });
           }
         }
+        if (opaque === 0) return resolve([]);
+
         const sorted = Array.from(buckets.values()).sort((a, b) => b.n - a.n);
-        const picks: string[] = [];
+        const picks: Array<{ r: number; g: number; b: number; hue: number; sat: number }> = [];
         for (const e of sorted) {
           const r = Math.round(e.r / e.n);
           const g = Math.round(e.g / e.n);
           const b = Math.round(e.b / e.n);
-          // Filter near-greys
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          if (max - min < 14) continue;
-          const hex = '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase();
-          if (!picks.includes(hex)) picks.push(hex);
+          const share = e.n / opaque;
+          const spread = Math.max(r, g, b) - Math.min(r, g, b);
+          const isNeutral = spread < 14;
+
+          if (isNeutral) {
+            // Deliberate neutral swatches occupy a real share of a palette
+            // image; tiny shares are edge noise, huge shares are backgrounds.
+            if (share < 0.08 || share > 0.6) continue;
+          } else if (share < 0.02) {
+            continue;
+          }
+
+          const { hue, sat } = rgbToHueSat(r, g, b);
+          const dupe = picks.some((p) => {
+            const dist2 = (p.r - r) ** 2 + (p.g - g) ** 2 + (p.b - b) ** 2;
+            if (dist2 <= 40 * 40) return true;
+            // Same-hue chromatic pair (a swatch + its antialiased blend with
+            // the background) collapses into the more frequent one.
+            if (sat > 0.15 && p.sat > 0.15) {
+              const dh = Math.abs(p.hue - hue);
+              return Math.min(dh, 360 - dh) < 18;
+            }
+            return false;
+          });
+          if (dupe) continue;
+
+          picks.push({ r, g, b, hue, sat });
           if (picks.length >= count) break;
         }
-        resolve(picks);
+        // Chromatic colors first (they become primary/secondary downstream),
+        // neutrals after — stable within each group by frequency.
+        picks.sort((a, b) => Number(b.sat > 0.15) - Number(a.sat > 0.15));
+        resolve(
+          picks.map(
+            (p) =>
+              '#' +
+              [p.r, p.g, p.b].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase(),
+          ),
+        );
       } catch {
         resolve([]);
       }

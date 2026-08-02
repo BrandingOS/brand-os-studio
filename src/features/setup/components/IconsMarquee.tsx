@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
+// Flaticon UICONS font — suggested icons come as `fi-rr-*` class names
+// (same catalog the Brand Kit uses), not as components in ICON_MAP.
+import '@flaticon/flaticon-uicons/css/regular/rounded.css';
 
 type IconComponent = (p: { size?: number }) => JSX.Element;
 
@@ -199,7 +202,8 @@ export function IconsMarquee({
       <div ref={trackRef} className="icons-track">
         {sequence.map((name, i) => {
           const Icon = iconMap[name];
-          if (!Icon) return null;
+          const isFlaticon = !Icon && name.startsWith('fi-');
+          if (!Icon && !isFlaticon) return null;
           return (
             <div
               key={`${name}-${i}`}
@@ -209,7 +213,15 @@ export function IconsMarquee({
                 onIconContextMenu ? (e) => onIconContextMenu(e, name) : undefined
               }
             >
-              <Icon size={iconSize} />
+              {Icon ? (
+                <Icon size={iconSize} />
+              ) : (
+                <i
+                  className={`fi ${name}`}
+                  aria-hidden
+                  style={{ fontSize: iconSize - 4, lineHeight: 1, display: 'inline-flex' }}
+                />
+              )}
             </div>
           );
         })}

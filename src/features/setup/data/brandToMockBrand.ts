@@ -9,6 +9,7 @@ import type {
   MockBrand,
 } from './mockBrand';
 import { hexToName } from './colorNames';
+import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
 
 /**
  * Best-effort mapper from the canonical `Brand` shape (store / Supabase)
@@ -30,7 +31,7 @@ export function brandToMockBrand(brand: Brand): MockBrand {
     logos: mapLogos(brand),
     colors: mapColors(brand),
     fonts: mapFonts(brand),
-    icons: [],
+    icons: mapIcons(brand),
     photos: mapPhotos(brand),
     websites: mapWebsites(brand),
     voice: mapVoice(brand),
@@ -97,7 +98,7 @@ function mapLogos(brand: Brand): BrandLogo[] {
   });
   pushOnce(iconUrl, {
     id: 'mark',
-    label: 'Mark',
+    label: 'Icon',
     variant: 'light',
     svg: buildLogoSvg(iconUrl!, brand.name.slice(0, 1), LIGHT_BG, '#111113'),
   });
@@ -166,8 +167,35 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     brand.colorSystem?.primary?.hex ?? brand.primaryColor;
   const secondary =
     brand.colorSystem?.secondary?.hex ?? brand.secondaryColor ?? '#F1EEE4';
-  const background =
-    brand.colorSystem?.background?.hex ?? '#111113';
+  // Only surface a background swatch the brand actually has — inventing a
+  // default near-black here made onboarded brands show a core color the
+  // user never picked.
+  const background = brand.colorSystem?.background?.hex;
+  // Every swatch the user picked beyond primary/secondary/accent. Stored on
+  // `neutrals` locally and inside `guidelines.colorPalette.neutral` on
+  // Supabase (no column for them) — `migrateBrandToCurrent` hydrates the
+  // latter into `colorSystem.neutrals`.
+  //
+  // Capped hard: some brands carry a whole generated grey ramp in that field,
+  // and dumping 30+ swatches into Core turns the brand's palette into a
+  // gradient strip (and starves the Neutral ramp of hexes). A brand palette
+  // is a handful of colors — anything past that is machine-generated filler.
+  const EXTRA_CORE_LIMIT = 6;
+  const isGreyscale = (hex: string): boolean => {
+    const v = hex.replace('#', '');
+    if (v.length !== 6) return false;
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+    return Math.max(r, g, b) - Math.min(r, g, b) < 14;
+  };
+  const extraColors = [
+    ...(brand.colorSystem?.neutrals ?? []).map((n) => n.hex),
+    ...(brand.neutrals ?? []),
+  ]
+    .filter(Boolean)
+    // Greys belong to the Neutral ramp, never to Core. A brand black or white
+    // that genuinely matters already arrives as primary/secondary.
+    .filter((hex) => !isGreyscale(hex))
+    .slice(0, EXTRA_CORE_LIMIT);
 
   // Shared dedupe state across ALL color groups (core / accent / grey).
   // - usedNames keeps every label unique across the whole palette so
@@ -202,16 +230,19 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   if (primary) pushUnique(core, primary, undefined);
   if (secondary) pushUnique(core, secondary, undefined);
   if (background) pushUnique(core, background, undefined);
+  // The rest of the uploaded palette belongs with the brand's colors, NOT in
+  // Accent — a swatch only becomes an accent when the user puts it there.
+  for (const hex of extraColors) {
+    pushUnique(core, hex, undefined);
+  }
 
   const accent: BrandColor[] = [];
-  const accentHex = brand.accentColor ?? brand.colorSystem?.accents?.[0]?.hex;
+  // NOTE: the canonical field is `colorSystem.accent` (singular). This used
+  // to read `colorSystem.accents[0]` — a field that doesn't exist — so an
+  // accent the user DID assign silently never rendered here.
+  const accentHex = brand.accentColor ?? brand.colorSystem?.accent?.hex;
   if (accentHex) {
     pushUnique(accent, accentHex, undefined);
-  }
-  for (const a of brand.colorSystem?.accents ?? []) {
-    if (a.hex && a.hex !== accentHex) {
-      pushUnique(accent, a.hex, undefined);
-    }
   }
 
   // Neutral Colors: a fixed black→white grayscale ramp for every brand —
@@ -246,8 +277,20 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     }
     return out;
   })();
+  // The ramp is canonical and always renders in full. It deliberately does
+  // NOT go through `pushUnique`'s shared hex set: a brand whose stored colors
+  // happen to include ramp values (e.g. #000000 / #FFFFFF as brand colors)
+  // would otherwise have those steps silently swallowed — and a brand storing
+  // the whole ramp emptied this section completely.
   for (const { hex, name } of ramp) {
-    pushUnique(greys, hex, name);
+    let label = name;
+    let n = 2;
+    while (usedNames.has(label)) {
+      label = `${name} ${n}`;
+      n += 1;
+    }
+    usedNames.add(label);
+    greys.push({ hex: normHex(hex), name: label });
   }
   // Intentionally NOT merging `brand.neutrals` — even when filtered to
   // grayscale, they tend to land near (but not exactly on) the ramp
@@ -258,6 +301,28 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   // without per-brand drift.
 
   return { core, accent, grey: greys };
+}
+
+/** Brand-appropriate icon suggestions — same heuristic the Brand Kit
+ *  uses: score the Flaticon catalog against the brand's own words
+ *  (name, audience, tone, strategy, About sections). Brands with no
+ *  text yet get the curated starter pack, so the marquee is never
+ *  empty. Names come back as `fi-rr-*` — IconsMarquee renders those
+ *  via the UICONS font. */
+function mapIcons(brand: Brand): string[] {
+  const g = brand.guidelines;
+  const text = [
+    brand.name,
+    brand.audience,
+    brand.tone,
+    g?.strategy?.positioning,
+    g?.strategy?.vision,
+    g?.strategy?.mission,
+    ...(g?.aboutSections ?? []).map((s) => `${s.title} ${s.content}`),
+  ]
+    .filter((s): s is string => Boolean(s && s.trim()))
+    .join(' ');
+  return suggestIconsForBrand(text, 50);
 }
 
 function mapFonts(brand: Brand): BrandFont[] {
@@ -291,15 +356,27 @@ function mapFonts(brand: Brand): BrandFont[] {
 }
 
 function mapPhotos(brand: Brand): BrandPhoto[] {
+  // `brandAssets` entries are BrandAsset-shaped (kind + formats), NOT the
+  // legacy Asset shape (type + url) — reading `.type`/`.url` here is why
+  // onboarding-uploaded photos never showed in Photography.
   const images = (brand.brandAssets ?? [])
-    .filter((a) => a.type === 'image')
+    .filter(
+      (a) =>
+        a.kind === 'image' &&
+        // Links get migrated with the fallback kind 'image' — their role
+        // ('reference') tells them apart from real photos.
+        a.role !== 'reference' &&
+        !String(a.role ?? '').startsWith('logo'),
+    )
     .slice(0, 6);
   const slots: BrandPhoto['slot'][] = ['A', 'B', 'C', 'D', 'E', 'F'];
-  return images.map((img, i) => ({
-    id: img.id,
-    src: img.url ?? '',
-    slot: slots[i] ?? 'F',
-  }));
+  return images
+    .map((img, i) => ({
+      id: img.id,
+      src: Object.values(img.formats ?? {})[0]?.url ?? '',
+      slot: slots[i] ?? 'F',
+    }))
+    .filter((p) => p.src);
 }
 
 function mapWebsites(brand: Brand): BrandWebsite[] {
@@ -321,7 +398,41 @@ function mapVoice(brand: Brand): MockBrand['voice'] {
   };
 }
 
+// Canonical ids for well-known About titles, so Setup's write-back
+// (extractStrategyPatch keys on 'mission'/'vision'/'messaging') keeps
+// working when sections come from the stored aboutSections list.
+const ABOUT_CANONICAL_ID: Record<string, string> = {
+  audience: 'audience',
+  'target audience': 'audience',
+  positioning: 'messaging',
+  messaging: 'messaging',
+  vision: 'vision',
+  mission: 'mission',
+  voice: 'voice',
+  'voice & tone': 'voice',
+  'tone of voice': 'voice',
+};
+
 function mapAbout(brand: Brand): AboutEntry[] {
+  // Preferred source: the full section list captured at onboarding —
+  // includes custom headings ("Brand Promise") the fixed strategy
+  // fields can't represent.
+  const stored = brand.guidelines?.aboutSections;
+  if (stored && stored.length > 0) {
+    const seen = new Set<string>();
+    return stored.map((s, i) => {
+      const base =
+        ABOUT_CANONICAL_ID[s.title.trim().toLowerCase()] ??
+        (s.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') ||
+          `section-${i}`);
+      let id = base;
+      let n = 2;
+      while (seen.has(id)) id = `${base}-${n++}`;
+      seen.add(id);
+      return { id, title: s.title, content: s.content };
+    });
+  }
+
   const g = brand.guidelines?.strategy;
   return [
     { id: 'audience', title: 'Audience', content: brand.audience ?? '' },

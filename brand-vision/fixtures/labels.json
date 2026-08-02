@@ -1,0 +1,13 @@
+{
+  "synthetic/logo_mark.png": { "category": "logo_mark", "logo_slot": "mark" },
+  "synthetic/logo_mark_white.png": { "category": "logo_mark", "logo_slot": "dark" },
+  "synthetic/logo_lockup_horizontal.png": { "category": "logo_lockup", "logo_slot": "horizontal" },
+  "synthetic/logo_wordmark.png": { "category": "logo_wordmark", "logo_slot": "wordmark" },
+  "synthetic/palette.png": { "category": "palette" },
+  "synthetic/font_specimen.png": { "category": "font_specimen" },
+  "synthetic/photo.png": { "category": "photo" },
+  "synthetic/pattern.png": { "category": "pattern" },
+  "synthetic/wordmark.svg": { "category": "logo_wordmark", "logo_slot": "wordmark" },
+  "synthetic/mark.svg": { "category": "logo_mark", "logo_slot": "mark" },
+  "synthetic/lockup.svg": { "category": "logo_lockup" }
+}

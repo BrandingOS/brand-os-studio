@@ -65,7 +65,6 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd
     { key: 'colors', name: 'Color', sub: `${brand.colors.core.length + brand.colors.accent.length} colors`, added: brand.colors.core.length > 0 },
     { key: 'fonts', name: 'Typography', sub: fontSummary, added: brand.fonts.length > 0 },
     { key: 'icons', name: 'Iconography', sub: `${brand.icons.length} icons`, added: brand.icons.length > 0 },
-    { key: 'photos', name: 'Photography', sub: `${brand.photos.length} references`, added: brand.photos.length > 0 },
     { key: 'website', name: 'Website', sub: websiteSummary, added: brand.websites.length > 0 },
     {
       key: 'voice',

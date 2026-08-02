@@ -91,9 +91,14 @@ export class SupabaseBrandsService implements IBrandsService {
     const extras = input as typeof input & {
       guidelines?: unknown;
       strategy?: unknown;
+      logoAssets?: unknown;
     };
     if (extras.guidelines !== undefined) brandData.guidelines = extras.guidelines;
     if (extras.strategy !== undefined) brandData.strategy = extras.strategy;
+    // Logo variants used to require a follow-up update() — one that silently
+    // failed left an onboarded brand with no logos at all. They're a plain
+    // JSONB column, so write them with the row.
+    if (extras.logoAssets !== undefined) brandData.logo_assets = extras.logoAssets;
 
     const { data, error } = await supabase
       .from('brands')
@@ -102,7 +107,8 @@ export class SupabaseBrandsService implements IBrandsService {
       .single();
 
     if (error) throw error;
-    return this.mapFromDatabase(data);
+    // Migrated like getBySlug — the store caches this as `current`.
+    return migrateBrandToCurrent(this.mapFromDatabase(data));
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<Brand> {
@@ -141,7 +147,8 @@ export class SupabaseBrandsService implements IBrandsService {
       .single();
 
     if (error) throw error;
-    return this.mapFromDatabase(data);
+    // Migrated like getBySlug — the store caches this as `current`.
+    return migrateBrandToCurrent(this.mapFromDatabase(data));
   }
 
   async delete(id: string): Promise<void> {

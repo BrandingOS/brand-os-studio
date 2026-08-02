@@ -1,199 +1,202 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Link as RouterLink, useParams } from 'react-router-dom';
-import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
-import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
-import { ArrowRight } from '@/features/setup/components/SetupIcons';
-import {
-  GuidelineSidebar,
-  type GuidelineEntry,
-  type GuidelineSectionKey,
-} from '@/features/guideline/components/GuidelineSidebar';
-import {
-  GuidelineBoard,
-  type GuidelineBoardRefs,
-} from '@/features/guideline/components/GuidelineBoard';
-import type { Brand } from '@/shared/types/brand';
-import '@/features/guideline/styles.css';
-
-/**
- * Brand-scoped Guideline tab at `/b/:slug/guideline`.
+/* Brand-scoped Guideline tab at `/b/:slug/guideline`.
  *
- * Renders the guideline surface inside the new 5-tab Cosmos shell: a
- * two-column shell with a left outline panel and a right editorial board
- * that projects the canonical `Brand` shape into seven documented
- * sections (Strategy, Logo Usage, Color, Typography, Voice & Tone,
- * Photography, Applications).
- *
- * The richer canvas-based editor at `/b/:slug/guidelines/canvas` stays
- * untouched — this tab gives a read-forward overview and exposes a
- * "View Canvas" affordance in the shell's top-right slot for authors who
- * want to open the fullscreen editor.
- *
- * When the slug hasn't resolved yet (still loading, or not found), the
- * page renders a graceful empty state inside the same shell so users
- * never see a white flash.
+ * Phase B (2026-05-19): rewritten on top of the Chronicle-style editor
+ * chrome. The previous WorkspaceShell + GuidelineSidebar + GuidelineBoard
+ * combo is replaced by `ChronicleShell` wrapping a multi-page
+ * `GuidelineDocument` (Cover · Strategy · Logo · Color · Typography ·
+ * Voice). The canvas-based legacy guidelines editor still lives at
+ * `/b/:slug/guidelines/canvas` and is reachable from the top-right
+ * "Open Canvas" pill via the Present action.
  */
+
+import { useCallback, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  LayoutGrid,
+  Palette,
+  Settings2,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
+import { useBrandFromSlug } from "@/shared/hooks/useBrandFromSlug";
+import { useBrandStore } from "@/shared/store/brandStore";
+import { ChronicleShell } from "@/features/editor/shell/chronicle/ChronicleShell";
+import { InsertMenu } from "@/features/editor/shell/chronicle/popovers/InsertMenu";
+import { RemixMenu } from "@/features/editor/shell/chronicle/popovers/RemixMenu";
+import { ThemeMenu } from "@/features/editor/shell/chronicle/popovers/ThemeMenu";
+import { BackgroundMenu } from "@/features/editor/shell/chronicle/popovers/BackgroundMenu";
+import { ChronicleGuidelineEditor } from "@/features/guideline/chronicle/ChronicleGuidelineEditor";
+
 export default function BrandGuidelineTabPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { brand, isLoading } = useBrandFromSlug(slug);
+  const brands = useBrandStore((s) => s.brands);
 
-  const canvasHref = slug ? `/b/${slug}/guidelines/canvas` : '/';
+  const [generateImages, setGenerateImages] = useState(false);
+  const [accent, setAccent] = useState<string | undefined>(undefined);
 
-  if (!brand) {
-    return (
-      <WorkspaceShell
-        rightActions={
-          <RouterLink to={canvasHref} className="pill-btn pill-btn--ghost">
-            <span>View Canvas</span>
-            <ArrowRight size={14} className="pill-btn-arrow" />
-          </RouterLink>
-        }
-      >
-        <div className="workspace-empty" role="main">
-          <span className="workspace-empty-eyebrow">Guideline</span>
-          <h1>{isLoading ? 'Loading your brand…' : 'Brand not found'}</h1>
-          <p>
-            {isLoading
-              ? 'Pulling strategy, logo, color, and typography from the vault.'
-              : 'We couldn’t find a brand for this URL. Try choosing one from the switcher.'}
-          </p>
-        </div>
-      </WorkspaceShell>
-    );
-  }
+  const brandSections = [
+    { id: "setup", label: "Setup", icon: <Settings2 size={18} /> },
+    { id: "brand-kit", label: "Brand Kit", icon: <Palette size={18} /> },
+    { id: "guideline", label: "Guideline", icon: <Sparkles size={18} /> },
+    { id: "design", label: "Design", icon: <Wand2 size={18} /> },
+    { id: "tools", label: "Tools", icon: <LayoutGrid size={18} /> },
+  ];
 
-  return <GuidelinePageInner brand={brand} canvasHref={canvasHref} />;
-}
+  const otherBrands = (brands ?? [])
+    .filter((b) => b.slug && b.slug !== slug)
+    .slice(0, 8)
+    .map((b) => ({
+      id: b.id,
+      name: b.name,
+      slug: b.slug!,
+      initial: b.name?.slice(0, 1).toUpperCase() ?? "•",
+    }));
 
-function GuidelinePageInner({ brand, canvasHref }: { brand: Brand; canvasHref: string }) {
-  const [activeKey, setActiveKey] = useState<GuidelineSectionKey | null>('strategy');
-  const sectionRefs = useRef<GuidelineBoardRefs>({
-    strategy: null,
-    logo: null,
-    color: null,
-    typography: null,
-    voice: null,
-    photography: null,
-    applications: null,
-  });
+  const onSectionClick = useCallback(
+    (id: string) => {
+      if (!slug) return;
+      navigate(`/b/${slug}/${id}`);
+    },
+    [slug, navigate],
+  );
 
-  const entries = useMemo<GuidelineEntry[]>(() => {
-    const s = brand.guidelines?.strategy;
-    const hasStrategy =
-      !!(s?.mission?.trim() || s?.vision?.trim() || (s?.values ?? []).some((v) => v?.trim())) ||
-      !!brand.audience?.trim();
-
-    const logoCount =
-      (brand.logoSystem?.primary ? 1 : 0) +
-      (brand.logoSystem?.wordmark ? 1 : 0) +
-      (brand.logoSystem?.iconmark ? 1 : 0) +
-      (brand.logoAssets?.full ? 1 : 0) +
-      (brand.logoAssets?.wordmark ? 1 : 0) +
-      (brand.logoAssets?.icon ? 1 : 0);
-    const hasLogo = logoCount > 0 || !!brand.logo;
-
-    const colorCount =
-      (brand.colorSystem?.primary?.hex ? 1 : 0) +
-      (brand.colorSystem?.secondary?.hex ? 1 : 0) +
-      (brand.accentColor ? 1 : 0) +
-      (brand.neutrals?.length ?? 0);
-    const hasColor = !!brand.primaryColor || colorCount > 0;
-
-    const hasTypography =
-      !!(brand.typography?.primary?.family ?? brand.fonts?.primary) ||
-      !!(brand.typography?.secondary?.family ?? brand.fonts?.secondary);
-
-    const v = brand.guidelines?.voiceAndTone;
-    const hasVoice =
-      !!v?.brandVoice?.trim() ||
-      !!brand.tone?.trim() ||
-      (v?.toneAttributes ?? []).some((t) => t?.trim());
-
-    // Accept both legacy `.type` and v3 `.kind` so this counts correctly
-    // regardless of which BrandAsset shape the store projects.
-    const photoCount = (brand.brandAssets ?? []).filter(
-      (a: any) => a?.type === 'image' || a?.kind === 'image',
-    ).length;
-    const hasPhoto = photoCount > 0;
-
-    const apps = brand.guidelines?.applications;
-    const hasApps =
-      !!(apps?.digital?.length || apps?.print?.length || apps?.packaging?.length || apps?.environmental?.length);
-
-    return [
-      {
-        key: 'strategy',
-        name: 'Strategy',
-        sub: hasStrategy ? 'Mission · Vision · Values' : 'Not set',
-        added: hasStrategy,
-      },
-      {
-        key: 'logo',
-        name: 'Logo Usage',
-        sub: hasLogo ? `${Math.max(1, logoCount)} variant${logoCount === 1 ? '' : 's'}` : 'Not set',
-        added: hasLogo,
-      },
-      {
-        key: 'color',
-        name: 'Color',
-        sub: hasColor ? 'Palette defined' : 'Not set',
-        added: hasColor,
-      },
-      {
-        key: 'typography',
-        name: 'Typography',
-        sub: hasTypography
-          ? brand.typography?.primary?.family ?? brand.fonts?.primary ?? 'Type system'
-          : 'Not set',
-        added: hasTypography,
-      },
-      {
-        key: 'voice',
-        name: 'Voice & Tone',
-        sub: hasVoice ? 'Documented' : 'Not set',
-        added: hasVoice,
-      },
-      {
-        key: 'photography',
-        name: 'Photography',
-        sub: hasPhoto ? `${photoCount} reference${photoCount === 1 ? '' : 's'}` : 'Not set',
-        added: hasPhoto,
-      },
-      {
-        key: 'applications',
-        name: 'Applications',
-        sub: hasApps ? 'Examples' : 'Not set',
-        added: hasApps,
-      },
-    ];
-  }, [brand]);
-
-  const handleJump = useCallback((key: GuidelineSectionKey) => {
-    setActiveKey(key);
-    const el = sectionRefs.current[key];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const onShare = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Guideline link copied");
+    } catch {
+      toast.message(`Copy this link: ${window.location.href}`);
     }
   }, []);
 
+  const onPresent = useCallback(() => {
+    if (!slug) return;
+    navigate(`/b/${slug}/guidelines/canvas`);
+  }, [slug, navigate]);
+
+  const insertActions = {
+    paragraph: () => toast("Insert paragraph"),
+    heading: () => toast("Insert heading"),
+    image: () => toast("Insert image"),
+    card: () => toast("Insert card"),
+    embed: () => toast("Insert embed"),
+    mockup: () => toast("Insert mockup"),
+    quote: () => toast("Insert quote"),
+    stickyNote: () => toast("Insert sticky note"),
+    diagram: () => toast("Insert diagram"),
+    template: () => toast("Choose template"),
+    blankChapter: () => toast("New chapter"),
+  };
+
+  if (!brand) {
+    return (
+      <ChronicleShell
+        workspaceName="Workspace"
+        brandSections={brandSections}
+        activeSectionId="guideline"
+        onSectionClick={onSectionClick}
+        otherBrands={[]}
+        onBrandClick={() => {}}
+        onNewDesign={() => navigate("/dashboard/brands")}
+        projectName="Brand Guidelines"
+        topAvatar="•"
+      >
+        <article className="ch-canvas-page">
+          <h1 className="ch-canvas-page-title">
+            {isLoading ? "Loading…" : "Brand not found"}
+          </h1>
+          <p className="ch-canvas-page-sub">
+            {isLoading
+              ? "Pulling brand data from the vault."
+              : "We couldn't find a brand for this URL. Try choosing one from the switcher."}
+          </p>
+        </article>
+      </ChronicleShell>
+    );
+  }
+
   return (
-    <WorkspaceShell
-      rightActions={
-        <RouterLink to={canvasHref} className="pill-btn pill-btn--ghost">
-          <span>View Canvas</span>
-          <ArrowRight size={14} className="pill-btn-arrow" />
-        </RouterLink>
+    <ChronicleShell
+      workspaceName="Workspace"
+      workspacePlan={brand.tagline ?? "Brand workspace"}
+      currentBrandName={brand.name}
+      brandSections={brandSections}
+      activeSectionId="guideline"
+      onSectionClick={onSectionClick}
+      otherBrands={otherBrands}
+      onBrandClick={(b) => navigate(`/b/${b.slug}/guideline`)}
+      onNewDesign={() => navigate(`/b/${slug}/design`)}
+      projectName={`${brand.name} · Guidelines`}
+      topAvatar={brand.name?.slice(0, 1).toUpperCase() ?? "•"}
+      onShare={onShare}
+      onExport={() => toast("Export — coming soon")}
+      onPresent={onPresent}
+      insertPopover={<InsertMenu on={insertActions} />}
+      remixPopover={
+        <RemixMenu
+          generateImages={generateImages}
+          onToggleGenerateImages={setGenerateImages}
+          onRemix={() => toast.success("Layout remixed")}
+        />
+      }
+      themePopover={
+        <ThemeMenu
+          presets={[
+            { id: "chronicle", label: "Chronicle", swatch: ["#0a0a0b", "#e8e8e8", "#7a7a7a"] },
+            { id: "minimal", label: "Minimal", swatch: ["#ffffff", "#111111", "#999999"] },
+            {
+              id: "brand",
+              label: brand.name,
+              swatch: [
+                "#0a0a0b",
+                "#f5f5f4",
+                brand.primaryColor ?? "#d4a83c",
+              ],
+            },
+            { id: "bold", label: "Bold minimalist", swatch: ["#000", "#fff", "#ffc400"] },
+          ]}
+          activeId="brand"
+          onPick={(p) => toast(`Applied ${p.label}`)}
+          onCreate={() => toast("Create theme — coming soon")}
+        />
+      }
+      backgroundPopover={
+        <BackgroundMenu
+          colors={[
+            "#000000",
+            "#0a2a6c",
+            "#0e3a32",
+            "#1b3a17",
+            "#5a4f1f",
+            brand.primaryColor ?? "#a14a1f",
+            "#8a1a1f",
+            "#7a3a3f",
+            "#5a2a6a",
+            "#ffffff",
+          ]}
+          gradients={[
+            { id: "g1", css: "linear-gradient(135deg, #b07a73 0%, #2b1e1a 100%)" },
+            { id: "g2", css: `linear-gradient(135deg, ${brand.primaryColor ?? "#d4a83c"} 0%, #2a1d05 100%)` },
+            { id: "g3", css: "linear-gradient(135deg, #7a3a5a 0%, #2a1a25 100%)" },
+            { id: "g4", css: "linear-gradient(135deg, #5a6a9a 0%, #2a2a45 100%)" },
+            { id: "g5", css: "linear-gradient(135deg, #1e6a4a 0%, #0a1f17 100%)" },
+            { id: "g6", css: "linear-gradient(135deg, #4a2a8a 0%, #0a0517 100%)" },
+          ]}
+          onPickColor={(c) => {
+            setAccent(c);
+            toast(`Accent set to ${c}`);
+          }}
+          onPickGradient={(g) => toast(`Gradient ${g.id} applied`)}
+          onBlurChange={() => {}}
+          onGenerate={(prompt) => toast(`Generating image for: ${prompt}`)}
+          onReset={() => setAccent(undefined)}
+        />
       }
     >
-      <div className="shell">
-        <GuidelineSidebar
-          brandName={brand.name}
-          entries={entries}
-          activeKey={activeKey}
-          onJump={handleJump}
-        />
-        <GuidelineBoard brand={brand} sectionRefs={sectionRefs} />
-      </div>
-    </WorkspaceShell>
+      <ChronicleGuidelineEditor brand={brand} />
+    </ChronicleShell>
   );
 }

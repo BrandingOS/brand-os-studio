@@ -132,20 +132,19 @@ export const useBrandStore = create<BrandStore>()(
       update: async (id: string, patch: Partial<Brand>) => {
         set({ isLoading: true, error: undefined }, false, 'update/start');
         try {
-          await getBrandsService().update(id, patch);
+          // Use the service's return value — it's fully MIGRATED, so derived
+          // fields (brandAssets, logoSystem, colorSystem) reflect the patch.
+          // The old `{ ...current, ...patch }` merge left stale derivations
+          // on a schemaVersion-current object nothing would ever recompute.
+          const updated = await getBrandsService().update(id, patch);
           set((state) => ({
-            list: state.list.map(brand =>
-              brand.id === id ? { ...brand, ...patch, updatedAt: new Date() } : brand
-            ),
-            current: state.current?.id === id
-              ? { ...state.current, ...patch, updatedAt: new Date() }
-              : state.current,
+            list: state.list.map(brand => (brand.id === id ? updated : brand)),
+            current: state.current?.id === id ? updated : state.current,
             isLoading: false,
           }), false, 'update/success');
           if (patch.fonts || patch.primaryColor || patch.secondaryColor || patch.typescale || patch.typography) {
-            const next = { ...(useBrandStore.getState().current ?? {}), ...patch } as Brand;
-            loadBrandFonts(next);
-            applyBrandTokens(next);
+            loadBrandFonts(updated);
+            applyBrandTokens(updated);
           }
         } catch (error) {
           // Re-throw so callers (e.g. the Setup persist wrapper) can

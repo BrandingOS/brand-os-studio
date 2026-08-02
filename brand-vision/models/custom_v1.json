@@ -1,0 +1,71 @@
+{
+ "version": 2,
+ "arch": "mlp-256",
+ "temperature": 0.6,
+ "backbone": "open_clip/ViT-B-32/laion2b_s34b_b79k",
+ "feature_path": "white+dark composite average, L2-normalized",
+ "classes": [
+  "document",
+  "font_specimen",
+  "illustration",
+  "logo_lockup",
+  "logo_mark",
+  "logo_wordmark",
+  "mockup",
+  "other",
+  "palette",
+  "pattern",
+  "photo"
+ ],
+ "val_accuracy": 0.9334,
+ "golden_accuracy": 0.9295,
+ "per_class": {
+  "document": {
+   "recall": 0.9697,
+   "support": 66
+  },
+  "font_specimen": {
+   "recall": 0.9703,
+   "support": 101
+  },
+  "illustration": {
+   "recall": 0.9878,
+   "support": 82
+  },
+  "logo_lockup": {
+   "recall": 0.7924,
+   "support": 289
+  },
+  "logo_mark": {
+   "recall": 0.9235,
+   "support": 497
+  },
+  "logo_wordmark": {
+   "recall": 0.9533,
+   "support": 257
+  },
+  "mockup": {
+   "recall": 1.0,
+   "support": 57
+  },
+  "other": {
+   "recall": 1.0,
+   "support": 22
+  },
+  "palette": {
+   "recall": 0.9898,
+   "support": 295
+  },
+  "pattern": {
+   "recall": 1.0,
+   "support": 77
+  },
+  "photo": {
+   "recall": 1.0,
+   "support": 45
+  }
+ },
+ "train_size": 10161,
+ "val_size": 1788,
+ "seed": 42
+}

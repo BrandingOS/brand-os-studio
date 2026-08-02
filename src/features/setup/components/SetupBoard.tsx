@@ -282,6 +282,19 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 /** Relative luminance check — swatches with light bg get dark text. */
+/** The logo roles a tile can be reassigned to (right-click → Change logo
+ *  type). Ids/labels/variants mirror what `brandToMockBrand.mapLogos`
+ *  produces so persistence keeps working (`logosToAssetsDict` keys off
+ *  the label + variant + position). */
+export const LOGO_ROLES: Array<{ id: string; label: string; variant: 'light' | 'dark' }> = [
+  { id: 'primary', label: 'Primary', variant: 'light' },
+  { id: 'wordmark', label: 'Wordmark', variant: 'light' },
+  { id: 'mark', label: 'Icon', variant: 'light' },
+  { id: 'on-dark', label: 'On dark', variant: 'dark' },
+  { id: 'on-light', label: 'On light', variant: 'light' },
+  { id: 'alternate', label: 'Alternate', variant: 'light' },
+];
+
 function isLightHex(hex: string): boolean {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.slice(0, 2), 16);
@@ -301,6 +314,7 @@ function Section({
   addButtonAttrs,
   addSlot,
   hideAdd,
+  collapsed,
   children,
 }: {
   dataKey: SectionKey;
@@ -317,10 +331,18 @@ function Section({
   addSlot?: React.ReactNode;
   /** Hide the + button (useful while a popover anchored to it is open). */
   hideAdd?: boolean;
+  /** Empty section: renders as a compact dashed drop bar and (via CSS
+   *  order) sinks below the filled sections. Filling it restores the
+   *  section to its normal place and size automatically. */
+  collapsed?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section ref={sectionRef} className="section" data-key={dataKey}>
+    <section
+      ref={sectionRef}
+      className={`section${collapsed ? ' is-collapsed' : ''}`}
+      data-key={dataKey}
+    >
       <div className="section-header">
         <h2>{title}</h2>
         <span className="section-spec">{spec}</span>
@@ -376,7 +398,19 @@ function Section({
           )}
         </div>
       </div>
-      <div className="section-body">{children}</div>
+      <div className="section-body">
+        {collapsed ? (
+          <button type="button" className="section-collapsed-drop" onClick={onEdit}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M12 5 L12 19" />
+              <path d="M5 12 L19 12" />
+            </svg>
+            <span>Add {title.toLowerCase()}</span>
+          </button>
+        ) : (
+          children
+        )}
+      </div>
     </section>
   );
 }
@@ -406,6 +440,8 @@ type Props = {
   onDeleteLogo?: (id: string) => void;
   onReplaceLogo?: (id: string) => void;
   onDownloadLogo?: (logo: MockBrand['logos'][number]) => void;
+  /** Reassign a logo to another role (primary / wordmark / mark / …). */
+  onChangeLogoRole?: (id: string, roleId: string) => void;
   onPreviewLogo?: (logo: MockBrand['logos'][number]) => void;
   onDeletePhoto?: (id: string) => void;
   onReplacePhoto?: (id: string) => void;
@@ -445,6 +481,7 @@ export function SetupBoard({
   onDeleteLogo,
   onReplaceLogo,
   onDownloadLogo,
+  onChangeLogoRole,
   onPreviewLogo,
   onDeletePhoto,
   onReplacePhoto,
@@ -659,6 +696,39 @@ export function SetupBoard({
             <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
           </svg>
         ),
+      });
+    }
+    if (onChangeLogoRole) {
+      items.push({
+        label: 'Change logo type',
+        onSelect: () => {},
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2H2v10l9.29 9.29a2 2 0 0 0 2.83 0l7.17-7.17a2 2 0 0 0 0-2.83Z" />
+            <circle cx="7" cy="7" r="1" fill="currentColor" />
+          </svg>
+        ),
+        // Opens INSIDE the same menu box (morph) — one option per role.
+        children: LOGO_ROLES.filter((r) => r.id !== logo.id).map((r) => ({
+          label: r.label,
+          onSelect: () => onChangeLogoRole(logo.id, r.id),
+          icon: (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              {r.variant === 'dark' ? (
+                <rect x="3" y="6" width="18" height="12" rx="3" fill="currentColor" />
+              ) : r.id === 'mark' ? (
+                <circle cx="12" cy="12" r="5" fill="currentColor" stroke="none" />
+              ) : r.id === 'wordmark' ? (
+                <rect x="4" y="10" width="16" height="4" rx="2" fill="currentColor" stroke="none" />
+              ) : (
+                <>
+                  <circle cx="7" cy="12" r="3" fill="currentColor" stroke="none" />
+                  <rect x="12" y="10" width="8" height="4" rx="2" fill="currentColor" stroke="none" />
+                </>
+              )}
+            </svg>
+          ),
+        })),
       });
     }
     if (onDeleteLogo) {
@@ -1036,6 +1106,15 @@ export function SetupBoard({
     setAddColorOpen((prev) => !prev);
   };
 
+  // Empty sections collapse to a slim dashed drop bar and sink to the
+  // bottom of the board (CSS `order` on `.section.is-collapsed`); adding
+  // content restores them to their normal spot and full size.
+  const emptyLogo = brand.logos.filter((l) => l.id !== 'placeholder').length === 0;
+  const emptyFonts = brand.fonts.length === 0;
+  const emptyIcons = brand.icons.length === 0;
+  const emptyWebsite = brand.websites.length === 0;
+  const emptyAbout = brand.about.every((a) => !a.content.trim());
+
   return (
     <main className="board-wrap" id="board">
       <header className="board-head">
@@ -1048,7 +1127,7 @@ export function SetupBoard({
       </header>
 
       {/* ─── Logo ─── */}
-      <Section sectionRef={setRef('logo')} dataKey="logo" title="Logo" spec="Primary · Variants" onEdit={() => onEdit('logo')} onExport={exportFor('logo')}>
+      <Section sectionRef={setRef('logo')} dataKey="logo" title="Logo" spec="Primary · Variants" onEdit={() => onEdit('logo')} onExport={exportFor('logo')} collapsed={emptyLogo}>
         <div className="logos">
           {brand.logos.map((logo) => (
             <div
@@ -1075,6 +1154,7 @@ export function SetupBoard({
                 dangerouslySetInnerHTML={{ __html: logo.svg }}
                 style={{ display: 'block', width: '100%', height: '100%' }}
               />
+              <span className="logo-tile-name">{logo.label}</span>
               {(onDeleteLogo || onReplaceLogo) && (
                 <div className="logo-tile-actions">
                   {onReplaceLogo && (
@@ -1197,6 +1277,9 @@ export function SetupBoard({
             onSwatchContextMenu={openColorMenu}
             onAddColor={(hex) => onAddColor?.('core', hex)}
             addFirstLabel="Add a core color"
+            onSetPrimary={
+              onSetColorRole ? (i) => onSetColorRole('core', i, 'primary') : undefined
+            }
           />
           {brand.colors.accent.length > 0 && (
             <ColorsGroup
@@ -1223,6 +1306,7 @@ export function SetupBoard({
       <Section
         sectionRef={setRef('fonts')}
         dataKey="fonts"
+        collapsed={emptyFonts}
         title="Typography"
         spec={brand.fonts.length === 0 ? 'Add your first font' : `${brand.fonts.length} / 4`}
         onEdit={() => onEdit('fonts')}
@@ -1269,7 +1353,7 @@ export function SetupBoard({
       </Section>
 
       {/* ─── Iconography ─── */}
-      <Section sectionRef={setRef('icons')} dataKey="icons" title="Iconography" spec="24 × 24px" onEdit={() => onEdit('icons')} onExport={exportFor('icons')}>
+      <Section sectionRef={setRef('icons')} dataKey="icons" title="Iconography" spec="24 × 24px" onEdit={() => onEdit('icons')} onExport={exportFor('icons')} collapsed={emptyIcons}>
         {brand.icons.length === 0 ? (
           <button
             type="button"
@@ -1296,149 +1380,11 @@ export function SetupBoard({
         )}
       </Section>
 
-      {/* ─── Photography ─── */}
-      <Section sectionRef={setRef('photos')} dataKey="photos" title="Photography" spec="Imagery & style" onEdit={() => onEdit('photos')} onExport={exportFor('photos')}>
-        {(() => {
-          const photoBySlot = new Map<PhotoSlot, (typeof brand.photos)[number]>(
-            brand.photos.map((p) => [p.slot, p]),
-          );
-          const emptySlots = new Set<PhotoSlot>(
-            SLOT_ORDER.filter((k) => !photoBySlot.has(k)),
-          );
-          const regions = emptyRegions(emptySlots);
-          return (
-            <div className="photos photos-bento">
-              {SLOT_ORDER.map((slot) => {
-                const photo = photoBySlot.get(slot);
-                if (!photo) return null;
-                return (
-                  <div
-                    key={photo.id}
-                    className={`photo-tile${onPreviewPhoto ? ' is-clickable' : ''}`}
-                    style={rectStyle(SLOT_RECTS[slot])}
-                    role={onPreviewPhoto ? 'button' : undefined}
-                    tabIndex={onPreviewPhoto ? 0 : undefined}
-                    onClick={onPreviewPhoto ? () => onPreviewPhoto(photo) : undefined}
-                    onKeyDown={
-                      onPreviewPhoto
-                        ? (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              onPreviewPhoto(photo);
-                            }
-                          }
-                        : undefined
-                    }
-                    onContextMenu={(e) => openPhotoMenu(e, photo)}
-                  >
-                    <img src={photo.src} alt="" loading="lazy" />
-                    {(onDeletePhoto || onReplacePhoto) && (
-                      <div className="photo-tile-actions">
-                        {onReplacePhoto && (
-                          <button
-                            type="button"
-                            className="photo-tile-action"
-                            aria-label="Replace image"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onReplacePhoto(photo.id);
-                            }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                              <polyline points="23 4 23 10 17 10" />
-                              <polyline points="1 20 1 14 7 14" />
-                              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-                              <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
-                            </svg>
-                          </button>
-                        )}
-                        {onDeletePhoto && (
-                          <button
-                            type="button"
-                            className="photo-tile-action"
-                            aria-label="Delete image"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeletePhoto(photo.id);
-                            }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                              <path d="M3 6h18" />
-                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {regions.map((region, i) => (
-                <button
-                  key={`slot-${region.bbox.row}-${region.bbox.col}-${i}`}
-                  type="button"
-                  className="photo-tile is-slot"
-                  style={rectStyle(region.bbox)}
-                  onClick={() => onEdit('photos')}
-                  aria-label="Add photo"
-                  onDragOver={(e) => {
-                    if (!onDropFiles) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'copy';
-                    (e.currentTarget as HTMLElement).classList.add('is-drop-target');
-                  }}
-                  onDragLeave={(e) => {
-                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
-                  }}
-                  onDrop={(e) => {
-                    if (!onDropFiles) return;
-                    e.preventDefault();
-                    (e.currentTarget as HTMLElement).classList.remove('is-drop-target');
-                    const files = Array.from(e.dataTransfer.files).filter(isImageFile);
-                    if (files.length > 0) onDropFiles('photos', files);
-                  }}
-                >
-                  {region.isRect ? (
-                    <svg className="photo-tile-dash" aria-hidden="true">
-                      <rect />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="photo-tile-dash photo-tile-dash-shape"
-                      viewBox={`0 0 ${region.bbox.colSpan} ${region.bbox.rowSpan}`}
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <path d={region.outline} />
-                    </svg>
-                  )}
-                  <span
-                    className="photo-tile-plus"
-                    aria-hidden="true"
-                    style={{
-                      position: 'absolute',
-                      left: `${region.plusLeft}%`,
-                      top: `${region.plusTop}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                  >
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                      <path d="M12 5 L12 19" />
-                      <path d="M5 12 L19 12" />
-                    </svg>
-                  </span>
-                </button>
-              ))}
-            </div>
-          );
-        })()}
-      </Section>
-
       {/* ─── Website ─── */}
       <Section
         sectionRef={setRef('website')}
         dataKey="website"
+        collapsed={emptyWebsite}
         title="Website"
         spec={
           brand.websites.length === 0
@@ -1463,6 +1409,7 @@ export function SetupBoard({
       <Section
         sectionRef={setRef('voice')}
         dataKey="voice"
+        collapsed={emptyAbout}
         title={`About ${brand.name}`}
         spec="A narrative of your brand"
         onEdit={() => onEdit('voice')}
@@ -1534,18 +1481,22 @@ function Swatch({
   renderedHex,
   light,
   isActive,
+  isPrimary,
   zIndex,
   onPickerToggle,
   onCopyHex,
+  onSetPrimary,
   onContextMenu,
 }: {
   color: BrandColor;
   renderedHex: string;
   light: boolean;
   isActive: boolean;
+  isPrimary?: boolean;
   zIndex: number;
   onPickerToggle: () => void;
   onCopyHex: (anchor: HTMLElement) => void;
+  onSetPrimary?: () => void;
   onContextMenu?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const iconRef = useRef<OrganicIconHandle>(null);
@@ -1568,7 +1519,7 @@ function Swatch({
   return (
     <button
       type="button"
-      className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}`}
+      className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}${isPrimary ? ' is-primary' : ''}`}
       style={{ background: renderedHex, zIndex }}
       aria-label={`Edit ${color.name} ${renderedHex}`}
       aria-expanded={isActive}
@@ -1578,13 +1529,31 @@ function Swatch({
       }}
       onContextMenu={onContextMenu}
     >
+      {onSetPrimary && (
+        <span
+          className={`swatch-primary-tag${isPrimary ? ' is-on' : ''}`}
+          role="button"
+          tabIndex={-1}
+          aria-pressed={isPrimary}
+          title={isPrimary ? 'Primary brand color' : 'Set as the primary brand color'}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isPrimary) onSetPrimary();
+          }}
+        >
+          <span className="swatch-primary-dot" aria-hidden="true" />
+          {isPrimary ? 'Primary' : 'Set primary'}
+        </span>
+      )}
       <span
         className="swatch-name"
         role="button"
         tabIndex={-1}
         onClick={handleCopyClick}
       >
-        {color.name}
+        {/* Name follows the LIVE previewed color, not the stored one, so it
+            re-labels in real time while the user drags the picker. */}
+        {hexToName(renderedHex)}
         <span className="swatch-copy-icon" aria-hidden onClick={handleCopyClick}>
           <CopyIcon ref={iconRef} size={13} />
         </span>
@@ -1610,6 +1579,7 @@ function ColorsGroup({
   onSwatchContextMenu,
   onAddColor,
   addFirstLabel,
+  onSetPrimary,
 }: {
   groupKey: ColorGroupKey;
   layout: 'core' | 'accent' | 'grey';
@@ -1624,6 +1594,9 @@ function ColorsGroup({
   ) => void;
   onAddColor?: (hex: string) => void;
   addFirstLabel?: string;
+  /** When set, swatches show the Primary tag (core group only) — the first
+   *  swatch reads "Primary", the rest get a "Set primary" affordance. */
+  onSetPrimary?: (index: number) => void;
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [displayedIndex, setDisplayedIndex] = useState<number | null>(null);
@@ -1847,7 +1820,7 @@ function ColorsGroup({
       ? hexToName(addDraftHex)
       : addFirstLabel ?? `Add ${title.toLowerCase()}`;
     return (
-      <div className="colors-group" ref={groupRef}>
+      <div className="colors-group" data-group={groupKey} ref={groupRef}>
         <p className="colors-group-title">{title}</p>
         <div className="colors-row" data-layout={layout}>
           <button
@@ -1889,7 +1862,7 @@ function ColorsGroup({
   }
 
   return (
-    <div className="colors-group" ref={groupRef}>
+    <div className="colors-group" data-group={groupKey} ref={groupRef}>
       <p className="colors-group-title">{title}</p>
       <div className="colors-row" data-layout={layout}>
         {colors.map((c, i) => {
@@ -1903,9 +1876,11 @@ function ColorsGroup({
               renderedHex={renderedHex}
               light={light}
               isActive={isActive}
+              isPrimary={onSetPrimary != null && i === 0}
               zIndex={i + 1}
               onPickerToggle={() => handleSwatchClick(i)}
               onCopyHex={(anchor) => handleCopy(renderedHex.toUpperCase(), anchor)}
+              onSetPrimary={onSetPrimary ? () => onSetPrimary(i) : undefined}
               onContextMenu={
                 onSwatchContextMenu
                   ? (e) => onSwatchContextMenu(e, c, groupKey, i)

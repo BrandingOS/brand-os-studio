@@ -131,6 +131,24 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
     };
   }
 
+  // Persist the full About list (incl. custom sections) so edits made in
+  // Setup survive — `brandToMockBrand.mapAbout` reads this back.
+  const nextAbout = mock.about
+    .map((a) => ({ id: a.id, title: a.title, content: a.content.trim() }))
+    .filter((a) => a.content);
+  const prevAbout = existing.guidelines?.aboutSections ?? [];
+  const aboutChanged =
+    nextAbout.length !== prevAbout.length ||
+    nextAbout.some(
+      (a, i) => a.title !== prevAbout[i]?.title || a.content !== prevAbout[i]?.content,
+    );
+  if (aboutChanged && (nextAbout.length > 0 || prevAbout.length > 0)) {
+    patch.guidelines = {
+      ...(patch.guidelines ?? existing.guidelines),
+      aboutSections: nextAbout,
+    };
+  }
+
   return patch;
 }
 

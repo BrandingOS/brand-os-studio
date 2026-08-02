@@ -91,6 +91,9 @@ type Props = {
   onSelectPalette?: (key: string) => void;
   /** Override the commit button label — "Update" for edit, "Add" for create. */
   commitLabel?: string;
+  /** Focus + select the hex input on mount — the "add a color" flow wants
+   *  the user typing/pasting a code immediately. */
+  autoFocusHex?: boolean;
 };
 
 export function ColorPickerHSV({
@@ -103,6 +106,7 @@ export function ColorPickerHSV({
   selectedPalette,
   onSelectPalette,
   commitLabel = 'Update',
+  autoFocusHex = false,
 }: Props) {
   const initial = useMemo(() => {
     const rgb = hexToRgb(hex) || ([0, 0, 0] as RGB);
@@ -111,8 +115,21 @@ export function ColorPickerHSV({
 
   const [state, setState] = useState<{ h: number; s: number; v: number }>(initial);
   const [hexInput, setHexInput] = useState<string>(hex.toUpperCase());
+  const [hexError, setHexError] = useState(false);
   const svRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);
+  const hexInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!autoFocusHex) return;
+    // Defer past the expand animation's first frame so focus isn't stolen.
+    const t = window.setTimeout(() => {
+      hexInputRef.current?.focus();
+      hexInputRef.current?.select();
+    }, 60);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentHex = useMemo(() => hsvToHex(state.h, state.s, state.v), [state]);
 
@@ -174,6 +191,7 @@ export function ColorPickerHSV({
   }, [drag]);
 
   const handleHexInput = (raw: string) => {
+    setHexError(false);
     setHexInput(raw.toUpperCase());
     let v = raw.trim();
     if (!v.startsWith('#')) v = `#${v}`;
@@ -182,6 +200,45 @@ export function ColorPickerHSV({
     const hsv = rgbToHsv(rgb[0], rgb[1], rgb[2]);
     setState(hsv);
   };
+
+  /** Commit ONLY when the typed code is a real color. The old behavior
+   *  committed `currentHex` (the picker's internal color) even when the
+   *  input held garbage — so a wrong code silently added a random color. */
+  const tryCommit = () => {
+    let v = hexInput.trim();
+    if (!v.startsWith('#')) v = `#${v}`;
+    if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+      v = `#${v.slice(1).split('').map((c) => c + c).join('')}`;
+    }
+    if (!hexToRgb(v)) {
+      setHexError(true);
+      hexInputRef.current?.focus();
+      hexInputRef.current?.select();
+      return;
+    }
+    onCommit(v.toUpperCase());
+  };
+
+  // Enter commits / Escape cancels from ANYWHERE while the picker is open —
+  // not only when the hex input has focus (e.g. right after dragging the
+  // hue/SV sliders). Fields keep their own Enter; the ref avoids re-binding
+  // the document listener on every render.
+  const keyActionsRef = useRef({ commit: tryCommit, cancel: onCancel });
+  keyActionsRef.current = { commit: tryCommit, cancel: onCancel };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        keyActionsRef.current.commit();
+      } else if (e.key === 'Escape') {
+        keyActionsRef.current.cancel();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div
@@ -205,18 +262,30 @@ export function ColorPickerHSV({
       </div>
       <div className="cp-footer">
         <div className="cp-footer-top">
-          <div className="cp-hex-wrap">
+          <div className={`cp-hex-wrap${hexError ? ' is-invalid' : ''}`}>
             <span className="cp-swatch-preview" style={{ background: currentHex }} />
             <input
+              ref={hexInputRef}
               type="text"
               className="cp-hex-input"
               value={hexInput}
               maxLength={7}
               spellCheck={false}
               onChange={(e) => handleHexInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  tryCommit();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  onCancel();
+                }
+              }}
               aria-label="Hex color"
+              aria-invalid={hexError}
             />
           </div>
+          {hexError && <span className="cp-hex-error">Invalid color code</span>}
           {paletteOptions && paletteOptions.length > 0 && (
             <div className="cp-palette-wrap">
               <select
@@ -238,7 +307,7 @@ export function ColorPickerHSV({
               <button type="button" className="cp-cancel-btn" onClick={onCancel}>
                 Cancel
               </button>
-              <button type="button" className="cp-add-btn" onClick={() => onCommit(currentHex)}>
+              <button type="button" className="cp-add-btn" onClick={tryCommit}>
                 {commitLabel}
               </button>
             </div>
@@ -248,7 +317,7 @@ export function ColorPickerHSV({
           <button
             type="button"
             className="cp-add-btn cp-add-btn--full"
-            onClick={() => onCommit(currentHex)}
+            onClick={tryCommit}
           >
             {commitLabel}
           </button>

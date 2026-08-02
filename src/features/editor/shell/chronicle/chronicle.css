@@ -1,0 +1,731 @@
+/* Chronicle-style editor chrome tokens.
+ *
+ * Two surfaces — `[data-chronicle][data-mode="dark"]` and `[data-chronicle]
+ * [data-mode="light"]`. Token names are deliberately short (`--ch-*`) so the
+ * inline styles stay readable. Brand accent comes from the host page's
+ * existing `--brand-primary` / shadcn `--primary` if present, with a fallback.
+ */
+
+[data-chronicle] {
+  /* Radius family — matches the workspace SegmentedNav so the Chronicle
+   * chrome reads as the same UI language. Outer surfaces 10px, inner
+   * pressable items 6px. Popover content is a touch larger (14px) since
+   * it groups more material. No pill (999px) anywhere in the chrome —
+   * the user explicitly asked for the SegmentedNav rounding, not pills. */
+  --ch-radius: 14px;
+  --ch-radius-sm: 10px;
+  --ch-radius-outer: 10px;
+  --ch-radius-inner: 6px;
+  /* Backwards-compat alias for inline `var(--ch-radius-pill)` usages in
+   * popover files. They now map to the outer SegmentedNav radius. */
+  --ch-radius-pill: 10px;
+  --ch-shadow-pill: 0 10px 30px -10px rgba(0, 0, 0, 0.45),
+    0 4px 12px -4px rgba(0, 0, 0, 0.35);
+  --ch-shadow-pop: 0 24px 60px -20px rgba(0, 0, 0, 0.55),
+    0 8px 20px -8px rgba(0, 0, 0, 0.35);
+  --ch-stroke: 1px solid var(--ch-border);
+  --ch-accent: var(--brand-primary, hsl(var(--primary, 0 0% 100%)));
+  --ch-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* All floating chrome (top pills, action bar, popovers) shares one surface
+ * token now — no glass, fully opaque, same hue as the left sidebar. The
+ * user wanted these to read as parts of the same "navigation bar" family
+ * rather than a translucent overlay. */
+[data-chronicle][data-mode="dark"] {
+  --ch-bg: #0a0a0b;
+  --ch-canvas-bg: #131316;
+  --ch-surface: #18181b;
+  --ch-surface-solid: #18181b;
+  --ch-surface-hover: rgba(255, 255, 255, 0.06);
+  --ch-surface-active: rgba(255, 255, 255, 0.1);
+  --ch-border: rgba(255, 255, 255, 0.08);
+  --ch-border-strong: rgba(255, 255, 255, 0.14);
+  --ch-text: #ededed;
+  --ch-text-muted: rgba(255, 255, 255, 0.55);
+  --ch-text-faint: rgba(255, 255, 255, 0.4);
+  --ch-text-on-accent: #0a0a0b;
+  --ch-divider: rgba(255, 255, 255, 0.06);
+}
+
+[data-chronicle][data-mode="light"] {
+  --ch-bg: #f6f6f4;
+  --ch-canvas-bg: #ffffff;
+  --ch-surface: #ffffff;
+  --ch-surface-solid: #ffffff;
+  --ch-surface-hover: rgba(0, 0, 0, 0.04);
+  --ch-surface-active: rgba(0, 0, 0, 0.07);
+  --ch-border: rgba(0, 0, 0, 0.08);
+  --ch-border-strong: rgba(0, 0, 0, 0.16);
+  --ch-text: #0a0a0b;
+  --ch-text-muted: rgba(0, 0, 0, 0.55);
+  --ch-text-faint: rgba(0, 0, 0, 0.4);
+  --ch-text-on-accent: #ffffff;
+  --ch-divider: rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Shell layout ─────────────────────────────────────────────────────── */
+
+.ch-shell {
+  position: relative;
+  height: 100dvh;
+  width: 100%;
+  background: var(--ch-bg);
+  color: var(--ch-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+  /* The sidebar floats on top of the canvas. Topbar uses this var to
+   * shift its left pill so the project name doesn't slide under the
+   * floating sidebar. */
+  --ch-sidebar-w: 288px;
+  --ch-sidebar-margin: 14px;
+}
+
+.ch-shell[data-sidebar-collapsed="true"] {
+  --ch-sidebar-w: 56px;
+}
+
+.ch-canvas-region {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ch-canvas-stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: hidden;
+  /* The grid pattern lives on .ch-canvas-world so it pans + zooms with
+   * content. The stage itself just clips. */
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.ch-canvas-stage[data-panning="true"] {
+  cursor: grabbing;
+}
+
+.ch-canvas-world {
+  position: relative;
+  transform-origin: 50% 50%;
+  /* The world has no fixed size — content (artboards) define its bounds.
+   * The dotted texture sits underneath as a CSS pattern so it scrolls
+   * with content. */
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    var(--ch-divider) 1px,
+    transparent 0
+  );
+  background-size: 28px 28px;
+  padding: 80px;
+  border-radius: 4px;
+  /* Smooth out the transition for programmatic zoom changes (Fit / 100%).
+   * The wheel handler clears this class so pinch-zoom stays 1:1 reactive. */
+  transition: transform 0ms;
+}
+
+.ch-canvas-world[data-animating="true"] {
+  transition: transform 220ms var(--ch-ease);
+}
+
+/* ─── Sidebar ──────────────────────────────────────────────────────────── */
+
+/* Floating sidebar — same chrome family as the top pills and bottom
+ * action bar. Lives on top of the canvas region with consistent
+ * margins on all four sides; canvas content can pan/scroll underneath. */
+.ch-sidebar {
+  position: absolute;
+  top: var(--ch-sidebar-margin);
+  left: var(--ch-sidebar-margin);
+  bottom: var(--ch-sidebar-margin);
+  width: 288px;
+  display: flex;
+  flex-direction: column;
+  background: var(--ch-surface);
+  border: var(--ch-stroke);
+  border-radius: var(--ch-radius-outer);
+  box-shadow: var(--ch-shadow-pill);
+  overflow: hidden;
+  z-index: 25;
+  transition:
+    width 280ms var(--ch-ease),
+    transform 280ms var(--ch-ease),
+    opacity 280ms var(--ch-ease);
+}
+
+.ch-sidebar[data-collapsed="true"] {
+  width: 56px;
+}
+
+.ch-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 10px;
+  min-height: 56px;
+}
+
+.ch-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--ch-surface-hover);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ch-text);
+  overflow: hidden;
+}
+
+.ch-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ch-sidebar-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.ch-sidebar-title-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-sidebar-title-sub {
+  font-size: 12px;
+  color: var(--ch-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 10px 16px;
+}
+
+.ch-cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--ch-radius-sm);
+  border: var(--ch-stroke);
+  background: transparent;
+  color: var(--ch-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms var(--ch-ease);
+}
+
+.ch-cta:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-section-label {
+  padding: 16px 10px 8px;
+  font-size: 11.5px;
+  color: var(--ch-text-faint);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.ch-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--ch-radius-sm);
+  background: transparent;
+  color: var(--ch-text);
+  font-size: 13.5px;
+  cursor: pointer;
+  border: 0;
+  text-align: left;
+  transition: background 120ms var(--ch-ease);
+}
+
+.ch-nav-item:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-nav-item[data-active="true"] {
+  background: var(--ch-surface-active);
+  font-weight: 500;
+}
+
+.ch-nav-item-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ch-text-muted);
+}
+
+.ch-nav-item[data-active="true"] .ch-nav-item-icon {
+  color: var(--ch-text);
+}
+
+.ch-nav-item-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Top bar (project pill + actions pill) ────────────────────────────── */
+
+.ch-topbar {
+  position: absolute;
+  top: 14px;
+  /* Clears the floating sidebar — leaves a 14px gap between the
+   * sidebar's right edge and the project-name pill. */
+  left: calc(var(--ch-sidebar-margin) + var(--ch-sidebar-w) + 14px);
+  right: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 30;
+  transition: left 280ms var(--ch-ease);
+}
+
+.ch-topbar > * {
+  pointer-events: auto;
+}
+
+.ch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--ch-surface);
+  border: var(--ch-stroke);
+  border-radius: var(--ch-radius-outer);
+  color: var(--ch-text);
+  box-shadow: var(--ch-shadow-pill);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ch-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--ch-radius-inner);
+  background: transparent;
+  color: var(--ch-text);
+  border: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms var(--ch-ease);
+}
+
+.ch-pill-btn:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-pill-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ch-divider);
+}
+
+.ch-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--ch-radius-inner);
+  background: transparent;
+  color: var(--ch-text);
+  border: 0;
+  cursor: pointer;
+  transition: background 120ms var(--ch-ease);
+}
+
+.ch-icon-btn:hover {
+  background: var(--ch-surface-hover);
+}
+
+/* ─── Floating action bar (Insert / Remix / Theme / Background) ────────── */
+
+.ch-actionbar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: stretch;
+  padding: 6px;
+  gap: 2px;
+  background: var(--ch-surface);
+  border: var(--ch-stroke);
+  border-radius: var(--ch-radius-outer);
+  box-shadow: var(--ch-shadow-pill);
+  z-index: 30;
+}
+
+.ch-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--ch-radius-inner);
+  background: transparent;
+  color: var(--ch-text);
+  border: 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 140ms var(--ch-ease);
+}
+
+.ch-action:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-action[data-open="true"] {
+  background: var(--ch-surface-active);
+}
+
+.ch-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ch-actionbar-sep {
+  width: 1px;
+  background: var(--ch-divider);
+  margin: 4px 4px;
+}
+
+/* ─── Popover surface (used by Insert / Remix / Theme / Background) ────── */
+
+.ch-popover {
+  background: var(--ch-surface-solid);
+  border: var(--ch-stroke);
+  /* Same outer radius as the action bar / top pills so the menus feel
+   * like the SegmentedNav stretched out vertically. */
+  border-radius: var(--ch-radius);
+  box-shadow: var(--ch-shadow-pop);
+  color: var(--ch-text);
+  padding: 8px;
+  min-width: 240px;
+  z-index: 50;
+}
+
+.ch-popover[data-wide="true"] {
+  min-width: 360px;
+}
+
+.ch-popover-label {
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  color: var(--ch-text-faint);
+}
+
+.ch-popover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--ch-radius-inner);
+  cursor: pointer;
+  color: var(--ch-text);
+  font-size: 13.5px;
+}
+
+.ch-popover-row:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-popover-row svg.lead {
+  width: 16px;
+  height: 16px;
+  color: var(--ch-text-muted);
+  flex-shrink: 0;
+}
+
+.ch-popover-row span.label {
+  flex: 1;
+}
+
+.ch-popover-row span.chev {
+  color: var(--ch-text-faint);
+}
+
+.ch-popover-section {
+  padding: 6px 0;
+  border-top: 1px solid var(--ch-divider);
+}
+
+.ch-popover-section:first-of-type {
+  border-top: 0;
+}
+
+/* Tabs (Backgrounds / Overlays / Upload / Generate) */
+.ch-tabs {
+  display: flex;
+  gap: 14px;
+  padding: 4px 4px 0;
+}
+
+.ch-tab {
+  background: transparent;
+  border: 0;
+  color: var(--ch-text-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 6px 2px 10px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.ch-tab[data-active="true"] {
+  color: var(--ch-text);
+  border-bottom-color: var(--ch-text);
+}
+
+/* All "tile" / "swatch" radii inside popovers also align with the inner
+ * button radius now, so the menus read like one cohesive sheet. The
+ * round swatches and avatar are excluded — they're meant to be discs. */
+.ch-tile {
+  border-radius: var(--ch-radius-inner);
+}
+
+.ch-tab-reset {
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  color: var(--ch-text-faint);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 4px 10px;
+}
+
+/* Color swatch row (used in background colors and item-edit) */
+.ch-swatch-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 4px;
+  flex-wrap: wrap;
+}
+
+.ch-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--ch-border);
+  cursor: pointer;
+  position: relative;
+  transition: transform 120ms var(--ch-ease);
+}
+
+.ch-swatch:hover {
+  transform: scale(1.08);
+}
+
+.ch-swatch[data-active="true"] {
+  outline: 2px solid var(--ch-text);
+  outline-offset: 2px;
+}
+
+.ch-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px;
+}
+
+.ch-tile {
+  aspect-ratio: 16/10;
+  border-radius: 10px;
+  border: 1px solid var(--ch-border);
+  background: var(--ch-surface-hover);
+  cursor: pointer;
+  transition: transform 120ms var(--ch-ease);
+}
+
+.ch-tile:hover {
+  transform: translateY(-1px);
+  border-color: var(--ch-border-strong);
+}
+
+/* ─── Empty/placeholder canvas card (used by preview surface) ──────────── */
+
+.ch-canvas-page {
+  width: min(840px, 88%);
+  background: var(--ch-canvas-bg);
+  border: var(--ch-stroke);
+  border-radius: 16px;
+  min-height: 70vh;
+  padding: 48px clamp(24px, 6vw, 80px);
+  box-shadow: var(--ch-shadow-pop);
+  color: var(--ch-text);
+}
+
+.ch-canvas-page-title {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0 0 14px;
+}
+
+.ch-canvas-page-sub {
+  font-size: 16px;
+  color: var(--ch-text-muted);
+  line-height: 1.55;
+  margin: 0 0 28px;
+  max-width: 60ch;
+}
+
+/* ─── Floating selection toolbar (shared with case-study editor) ───────
+ *
+ * The FloatingToolbar from @/shared/editor/blocks/FloatingToolbar uses
+ * hard-coded `bg-[#2a2a2a]` + white text. When it portals into a
+ * Chronicle page we tag the body element so these overrides paint the
+ * surface + text in our token family. Light mode flips both. Case-study
+ * pages are unaffected — they don't tag the body. */
+
+body[data-chronicle-active="true"] .fixed.bg-\[\#2a2a2a\],
+body[data-chronicle-active="true"] .absolute.bg-\[\#2a2a2a\] {
+  background: var(--ch-surface-solid) !important;
+  border-color: var(--ch-border) !important;
+  color: var(--ch-text) !important;
+}
+
+body[data-chronicle-active="true"] .text-white,
+body[data-chronicle-active="true"] .text-white\/70,
+body[data-chronicle-active="true"] .text-white\/60,
+body[data-chronicle-active="true"] .text-white\/50,
+body[data-chronicle-active="true"] .text-white\/40,
+body[data-chronicle-active="true"] .text-white\/30,
+body[data-chronicle-active="true"] .text-white\/20 {
+  color: var(--ch-text) !important;
+}
+
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/70 {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/60,
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/50 {
+  color: rgba(0, 0, 0, 0.55) !important;
+}
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/40,
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/30,
+body[data-chronicle-active="true"][data-chronicle-mode="light"] .text-white\/20 {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+body[data-chronicle-active="true"] .hover\:bg-white\/10:hover,
+body[data-chronicle-active="true"] .hover\:bg-white\/5:hover,
+body[data-chronicle-active="true"] .bg-white\/5,
+body[data-chronicle-active="true"] .bg-white\/10 {
+  background: var(--ch-surface-hover) !important;
+}
+
+body[data-chronicle-active="true"] .bg-white\/10[class*="h-4"],
+body[data-chronicle-active="true"] .bg-white\/10[class*="w-px"] {
+  background: var(--ch-divider) !important;
+}
+
+/* The toolbar's outer pill is a fixed-position `rounded-xl`; override
+ * to match Chronicle's outer-radius family (10px) instead of 12px. */
+body[data-chronicle-active="true"] .fixed.rounded-xl,
+body[data-chronicle-active="true"] .absolute.rounded-xl {
+  border-radius: var(--ch-radius-outer) !important;
+}
+
+body[data-chronicle-active="true"] .rounded-lg {
+  border-radius: var(--ch-radius-inner) !important;
+}
+
+/* ─── Zoom controls (bottom-right floating pill) ───────────────────────── */
+
+.ch-zoom-controls {
+  position: absolute;
+  bottom: 22px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  gap: 2px;
+  background: var(--ch-surface);
+  border: var(--ch-stroke);
+  border-radius: var(--ch-radius-outer);
+  box-shadow: var(--ch-shadow-pill);
+  z-index: 29;
+  user-select: none;
+}
+
+.ch-zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--ch-radius-inner);
+  background: transparent;
+  color: var(--ch-text);
+  border: 0;
+  cursor: pointer;
+  transition: background 120ms var(--ch-ease);
+}
+
+.ch-zoom-btn:hover {
+  background: var(--ch-surface-hover);
+}
+
+.ch-zoom-percent {
+  min-width: 54px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ch-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0 6px;
+}
+
+.ch-zoom-percent:hover {
+  color: var(--ch-text);
+}
+
+.ch-canvas-page {
+  /* In the free-canvas world we want the page to feel like a discrete
+   * artboard, not stretch with the viewport. Lock width to a magazine-
+   * style measure and rely on the world's pan/zoom for navigation. */
+  width: 920px;
+  max-width: 920px;
+}

@@ -10,7 +10,7 @@
  */
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-opus-5';
 
 const SECTION_KEYS = [
   'mission',
@@ -34,13 +34,20 @@ const SECTION_TITLES: Record<SectionKey, string> = {
 };
 
 export interface ParsedSection {
-  key: SectionKey;
+  /** Canonical section, or 'custom' when the description used a heading we
+   *  don't map (e.g. "Brand Promise") — those keep their own title. */
+  key: SectionKey | 'custom';
   title: string;
   content: string;
 }
 
 function getApiKey(): string | undefined {
-  return import.meta.env.VITE_ANTHROPIC_API_KEY;
+  const key = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
+  // A truncated copy-paste ("sk-ant-…") contains non-ASCII characters and
+  // makes fetch throw before the request is even sent — treat it as missing
+  // so we go straight to the heuristic parser instead of erroring.
+  if (!key || !/^[\x20-\x7E]+$/.test(key)) return undefined;
+  return key;
 }
 
 const SYSTEM_PROMPT = `You are a senior brand strategist. The user pastes a free-form description of their brand. Distribute the content into structured sections so each one stands on its own.
@@ -85,50 +92,125 @@ function normalizeParsed(json: unknown): ParsedSection[] {
 
 /**
  * Heuristic fallback used when the API key is missing or the call fails.
- * Looks for explicit headings ("Mission:", "## Audience", etc.) before
- * falling back to a split-by-blank-lines so we still produce something
- * structured rather than dumping the whole blob into one section.
+ * Splits the description on ANY markdown-style heading (`# X`, `## X`,
+ * `**X**`, `X:` on its own short line, numbered headings), maps known
+ * heading names to canonical sections (Mission/Vision/…), and keeps
+ * unrecognized headings as custom sections with their own title — so a
+ * full AI-generated brand doc never gets crammed into one section.
  */
-function heuristicParse(description: string): ParsedSection[] {
-  const text = description.trim();
-  if (!text) return [];
+const HEADING_KEY_PATTERNS: Array<[SectionKey, RegExp]> = [
+  ['mission', /^(?:brand\s+|our\s+)?(?:mission|purpose)\b/i],
+  ['vision', /^(?:brand\s+|our\s+)?vision\b/i],
+  ['audience', /^(?:target\s+)?audiences?\b|^who\s+we\s+serve\b|^(?:target\s+)?customers?\b/i],
+  ['voice', /^(?:brand\s+)?(?:voice|tone(?:\s+of\s+voice)?|personality)\b/i],
+  ['values', /^(?:core\s+|brand\s+)?values\b|^principles\b|^beliefs\b/i],
+  ['positioning', /^(?:brand\s+|market\s+)?positioning\b|^differentiation\b/i],
+  ['story', /^(?:brand\s+|origin\s+)?story\b|^origins?\b|^history\b|^background\b/i],
+];
 
-  const out = new Map<SectionKey, string>();
-
-  const headingPatterns: Array<[SectionKey, RegExp]> = [
-    ['mission', /^(?:#{1,3}\s*|\d+\.\s*)?(?:brand\s+)?mission\s*[:-]?\s*$/im],
-    ['vision', /^(?:#{1,3}\s*|\d+\.\s*)?(?:brand\s+)?vision\s*[:-]?\s*$/im],
-    ['audience', /^(?:#{1,3}\s*|\d+\.\s*)?(?:target\s+)?audience\s*[:-]?\s*$/im],
-    ['voice', /^(?:#{1,3}\s*|\d+\.\s*)?(?:brand\s+)?(?:voice|tone|personality)\s*[:-]?\s*$/im],
-    ['values', /^(?:#{1,3}\s*|\d+\.\s*)?(?:brand\s+)?values\s*[:-]?\s*$/im],
-    ['positioning', /^(?:#{1,3}\s*|\d+\.\s*)?positioning\s*[:-]?\s*$/im],
-    ['story', /^(?:#{1,3}\s*|\d+\.\s*)?(?:brand\s+)?story\s*[:-]?\s*$/im],
-  ];
-
-  // First pass: split on the strongest heading we find.
-  type Slice = { key: SectionKey; start: number };
-  const slices: Slice[] = [];
-  for (const [key, re] of headingPatterns) {
-    const m = re.exec(text);
-    if (m && m.index !== undefined) slices.push({ key, start: m.index });
+function headingKeyFor(title: string): SectionKey | null {
+  const t = title.trim();
+  for (const [key, re] of HEADING_KEY_PATTERNS) {
+    if (re.test(t)) return key;
   }
-  slices.sort((a, b) => a.start - b.start);
+  return null;
+}
 
-  if (slices.length > 0) {
-    for (let i = 0; i < slices.length; i++) {
-      const cur = slices[i];
-      const next = slices[i + 1];
-      const headingMatch = headingPatterns.find(([k]) => k === cur.key)?.[1].exec(text);
-      const headingEnd = headingMatch
-        ? headingMatch.index! + headingMatch[0].length
-        : cur.start;
-      const sliceEnd = next ? next.start : text.length;
-      const body = text.slice(headingEnd, sliceEnd).trim();
-      if (body) out.set(cur.key, body);
+/** Parse one line as a heading. Returns the title (plus any content that sat
+ *  on the same line after a colon), or null when the line is body text. */
+function parseHeadingLine(line: string): { title: string; inline: string } | null {
+  const t = line.trim();
+  if (!t) return null;
+
+  // # Heading / ## Heading / ### Heading — AI docs often number them
+  // ("# 2. Mission"), so strip the numbering from the title.
+  let m = /^#{1,6}\s+(.+?)\s*:?\s*$/.exec(t);
+  if (m) return { title: m[1].replace(/^\d+[.)]\s*/, ''), inline: '' };
+
+  // **Heading** or **Heading:** (optionally with inline content after)
+  m = /^\*\*(.+?)\*\*\s*:?\s*(.*)$/.exec(t);
+  if (m && m[1].length <= 48) return { title: m[1], inline: m[2] };
+
+  // "Mission: content on the same line" / "1. Target Audience:" — only when
+  // the part before the colon is short and title-like (Title Case or a known
+  // section name), so normal sentences containing a colon aren't mistaken
+  // for headings ("Our promise is simple: we show up").
+  m = /^(?:\d+[.)]\s+)?([A-Za-z][A-Za-z&/'’ -]{1,40}):\s*(.*)$/.exec(t);
+  if (m) {
+    const title = m[1].trim();
+    const words = title.split(/\s+/);
+    const connectors = new Set(['of', 'and', 'the', 'for', 'to', 'a', 'an', 'in']);
+    const titleCased = words.every(
+      (word) => /^[A-Z]/.test(word) || connectors.has(word.toLowerCase()),
+    );
+    if (words.length <= 4 && (titleCased || headingKeyFor(title))) {
+      return { title, inline: m[2] };
     }
   }
 
-  // Inline keyword sniff for anything we didn't cover via headings.
+  // Bare short line that matches a known section name ("Mission", "Vision")
+  m = /^(?:\d+[.)]\s+)?([A-Za-z][A-Za-z&/'’ -]{1,40})$/.exec(t);
+  if (m && headingKeyFor(m[1])) return { title: m[1], inline: '' };
+
+  return null;
+}
+
+export function heuristicParse(description: string): ParsedSection[] {
+  const text = description.trim();
+  if (!text) return [];
+
+  type RawSection = { title: string | null; lines: string[] };
+  const sections: RawSection[] = [{ title: null, lines: [] }];
+
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    // Horizontal rules are pure separators — never content.
+    if (/^(?:-{3,}|_{3,}|\*{3,})$/.test(trimmed)) continue;
+
+    const heading = parseHeadingLine(line);
+    if (heading) {
+      sections.push({ title: heading.title, lines: heading.inline ? [heading.inline] : [] });
+    } else {
+      sections[sections.length - 1].lines.push(line);
+    }
+  }
+
+  const out: ParsedSection[] = [];
+  const canonicalSeen = new Map<SectionKey, ParsedSection>();
+
+  const push = (key: SectionKey | 'custom', title: string, content: string) => {
+    if (!content) return;
+    if (key !== 'custom') {
+      const existing = canonicalSeen.get(key);
+      if (existing) {
+        existing.content = `${existing.content}\n\n${content}`;
+        return;
+      }
+      const section: ParsedSection = { key, title: SECTION_TITLES[key], content };
+      canonicalSeen.set(key, section);
+      out.push(section);
+      return;
+    }
+    out.push({ key, title, content });
+  };
+
+  const hasHeadings = sections.some((s) => s.title !== null);
+
+  if (hasHeadings) {
+    for (const s of sections) {
+      const content = s.lines.join('\n').trim();
+      if (s.title === null) {
+        // Preamble before the first heading — keep it if substantial.
+        if (content.length > 40) push('custom', 'Overview', content);
+        continue;
+      }
+      const key = headingKeyFor(s.title);
+      push(key ?? 'custom', s.title.trim(), content);
+    }
+    return out;
+  }
+
+  // No headings at all — sentence-level keyword sniff (unchanged behavior).
   const inlinePatterns: Array<[SectionKey, RegExp]> = [
     ['audience', /\b(?:audience|customers?|users?|targets?|for\s+(?:young|busy|small|large|aspiring|creative|professional))\b/i],
     ['voice', /\b(?:voice|tone|personality|sounds?\s+like|feels?\s+like)\b/i],
@@ -138,23 +220,21 @@ function heuristicParse(description: string): ParsedSection[] {
     ['positioning', /\b(?:positioning|premium|budget|luxury|affordable|high[-\s]?end)\b/i],
     ['story', /\b(?:story|founded|started|began|origin)\b/i],
   ];
-  if (out.size === 0) {
-    const sentences = text
-      .split(/(?<=[.!?])\s+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    for (const sentence of sentences) {
-      for (const [key, re] of inlinePatterns) {
-        if (out.has(key)) continue;
-        if (re.test(sentence)) {
-          out.set(key, sentence);
-          break;
-        }
+  const sniffed = new Map<SectionKey, string>();
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const sentence of sentences) {
+    for (const [key, re] of inlinePatterns) {
+      if (sniffed.has(key)) continue;
+      if (re.test(sentence)) {
+        sniffed.set(key, sentence);
+        break;
       }
     }
   }
-
-  return Array.from(out.entries()).map(([key, content]) => ({
+  return Array.from(sniffed.entries()).map(([key, content]) => ({
     key,
     title: SECTION_TITLES[key],
     content,

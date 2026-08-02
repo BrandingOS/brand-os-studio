@@ -37,6 +37,11 @@ export interface OnboardingAsset {
   isLogo?: boolean;
   /** Slot a logo asset is bound to (only for kind=image with isLogo). */
   logoSlot?: LogoSlot;
+  /** Slot suggested by the Brand Vision classifier. Unlike `logoSlot` this is
+   *  only a hint — the review step's router turns it into a real placement.
+   *  (Setting `logoSlot` directly at upload time would hide the tile from the
+   *  dropzone, which filters out already-placed logos.) */
+  aiLogoSlot?: LogoSlot;
   /** Whether this logo was generated from another asset (auto B&W from SVG). */
   generated?: boolean;
   /** Hex value for color-kind assets (e.g. "#3F3F88"). */

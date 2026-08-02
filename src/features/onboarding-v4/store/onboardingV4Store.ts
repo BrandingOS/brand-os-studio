@@ -23,6 +23,8 @@ interface V4State {
   palettes: FeelPalette[];
   selectedPaletteId: string | null;
   editingPaletteId: string | null;
+  /** Color asset the user tagged as the brand's primary. Null → first color wins. */
+  primaryColorId: string | null;
 }
 
 interface V4Actions {
@@ -37,6 +39,7 @@ interface V4Actions {
   renameAsset(id: string, name: string): void;
   toggleAssetLogo(id: string): void;
   updateAsset(id: string, patch: Partial<OnboardingAsset>): void;
+  setPrimaryColor(id: string | null): void;
   addAboutSection(section: Omit<AboutSection, 'id'>): void;
   updateAboutSection(id: string, patch: Partial<AboutSection>): void;
   removeAboutSection(id: string): void;
@@ -70,6 +73,7 @@ const initial: V4State = {
   palettes: initialPalettes(),
   selectedPaletteId: null,
   editingPaletteId: null,
+  primaryColorId: null,
 };
 
 function genSectionId(): string {
@@ -100,8 +104,13 @@ export const useV4Store = create<V4State & V4Actions>((set, get) => ({
           : a
       ),
     }),
-  removeAsset: (id) => set({ assets: get().assets.filter((a) => a.id !== id) }),
-  clearAssets: () => set({ assets: [] }),
+  removeAsset: (id) =>
+    set({
+      assets: get().assets.filter((a) => a.id !== id),
+      // Don't leave the primary pointing at a deleted swatch.
+      primaryColorId: get().primaryColorId === id ? null : get().primaryColorId,
+    }),
+  clearAssets: () => set({ assets: [], primaryColorId: null }),
   renameAsset: (id, name) =>
     set({
       assets: get().assets.map((a) => (a.id === id ? { ...a, name: name.trim() || a.name } : a)),
@@ -114,6 +123,7 @@ export const useV4Store = create<V4State & V4Actions>((set, get) => ({
     set({
       assets: get().assets.map((a) => (a.id === id ? { ...a, ...patch } : a)),
     }),
+  setPrimaryColor: (id) => set({ primaryColorId: get().primaryColorId === id ? null : id }),
 
   addAboutSection: (section) =>
     set({ aboutSections: [...get().aboutSections, { id: genSectionId(), ...section }] }),
@@ -172,5 +182,6 @@ export const useV4Store = create<V4State & V4Actions>((set, get) => ({
     });
   },
 
-  reset: () => set({ ...initial, styleCards: initialStyleCards(), palettes: initialPalettes() }),
+  reset: () =>
+    set({ ...initial, styleCards: initialStyleCards(), palettes: initialPalettes(), primaryColorId: null }),
 }));

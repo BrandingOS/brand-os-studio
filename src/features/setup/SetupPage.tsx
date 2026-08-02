@@ -5,7 +5,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
-import { SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
+import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
 import { AboutEditorModal, type AboutEditorInitial } from './components/AboutEditorModal';
@@ -273,7 +273,9 @@ export function SetupPage({
         const list = prev.colors[group];
         if (!list[index]) return prev;
         const nextList = list.slice();
-        nextList[index] = { ...nextList[index], hex };
+        // The display name follows the hex — editing #000 into a red
+        // shouldn't keep calling the swatch "Black".
+        nextList[index] = { ...nextList[index], hex, name: hexToName(hex) };
         return {
           ...prev,
           colors: { ...prev.colors, [group]: nextList },
@@ -412,7 +414,6 @@ export function SetupPage({
     if (brand.colors.core.length) n += 1;
     if (brand.fonts.length) n += 1;
     if (brand.icons.length) n += 1;
-    if (brand.photos.length) n += 1;
     if (brand.websites.length) n += 1;
     if (brand.about.some((a) => a.content.trim().length > 0)) n += 1;
     return n;
@@ -1236,6 +1237,48 @@ export function SetupPage({
     }));
   }, []);
 
+  /** Right-click → Change logo type. Reassigns the tile's role; if another
+   *  logo already holds that role the two swap. Primary always renders (and
+   *  persists) first, and the tile bg re-tints for light/dark variants. */
+  const handleChangeLogoRole = useCallback((id: string, roleId: string) => {
+    const role = LOGO_ROLES.find((r) => r.id === roleId);
+    if (!role) return;
+    const retint = (svg: string, variant: 'light' | 'dark') =>
+      svg.replace(
+        /(<rect[^>]*fill=")[^"]*(")/,
+        `$1${variant === 'dark' ? '#111113' : '#F5F4EF'}$2`,
+      );
+    setBrand((prev) => {
+      const logos = prev.logos.slice();
+      const idx = logos.findIndex((l) => l.id === id);
+      if (idx < 0 || logos[idx].id === role.id) return prev;
+      const current = logos[idx];
+      const currentRole = { id: current.id, label: current.label, variant: current.variant };
+      const occupiedIdx = logos.findIndex((l, i) => i !== idx && l.id === role.id);
+      logos[idx] = {
+        ...current,
+        id: role.id,
+        label: role.label,
+        variant: role.variant,
+        svg: retint(current.svg, role.variant),
+      };
+      if (occupiedIdx >= 0) {
+        const other = logos[occupiedIdx];
+        logos[occupiedIdx] = {
+          ...other,
+          ...currentRole,
+          svg: retint(other.svg, currentRole.variant),
+        };
+      }
+      const pIdx = logos.findIndex((l) => l.id === 'primary');
+      if (pIdx > 0) {
+        const [p] = logos.splice(pIdx, 1);
+        logos.unshift(p);
+      }
+      return { ...prev, logos };
+    });
+  }, []);
+
   const handleDownloadLogo = useCallback(
     (logo: MockBrand['logos'][number]) => {
       const slug = slugify(logo.label || 'logo');
@@ -1325,7 +1368,7 @@ export function SetupPage({
           brand={brand}
           activeKey={activeKey}
           completed={completed}
-          total={7}
+          total={6}
           onJump={handleJump}
           onAdd={handleSidebarAdd}
         />
@@ -1343,6 +1386,7 @@ export function SetupPage({
           onDeleteLogo={handleDeleteLogo}
           onReplaceLogo={handleReplaceLogo}
           onDownloadLogo={handleDownloadLogo}
+          onChangeLogoRole={handleChangeLogoRole}
           onPreviewLogo={handlePreviewLogo}
           onDeletePhoto={handleDeletePhoto}
           onReplacePhoto={handleReplacePhoto}

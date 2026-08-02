@@ -1,21 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useV4Store } from '../store/onboardingV4Store';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import { buildAsset, imageAspectRatio, rasterFileToVariants, simulateUpload, svgFileToVariants } from '../utils/assetUpload';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
-
-async function copyTextLogo(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* ignore */
-  }
-  return false;
-}
 
 interface SlotDef {
   key: LogoSlot;
@@ -34,8 +22,11 @@ const SLOT_DEFS: Record<LogoSlot, SlotDef> = {
   vertical: { key: 'vertical', label: 'Vertical', hint: 'Stacked lockup', tone: 'neutral' },
 };
 
-const DEFAULT_SLOTS: LogoSlot[] = ['primary', 'dark', 'mark', 'wordmark'];
-const ADDABLE_SLOTS: LogoSlot[] = ['light', 'horizontal', 'vertical'];
+// Only the two slots every brand actually has stay on screen; the rest live
+// behind "Add variation" and appear once the user picks them (or once an
+// upload is classified as one of them).
+const DEFAULT_SLOTS: LogoSlot[] = ['primary', 'wordmark'];
+const ADDABLE_SLOTS: LogoSlot[] = ['mark', 'dark', 'light', 'horizontal', 'vertical'];
 
 const VARIANT_PREVIEW: Record<LogoSlot, JSX.Element> = {
   primary: <PreviewPrimary />,
@@ -133,10 +124,12 @@ export function LogoSlots({ assets }: Props) {
   const removeAsset = useV4Store((s) => s.removeAsset);
   const updateAsset = useV4Store((s) => s.updateAsset);
 
-  const visibleSlots: LogoSlot[] = [
-    ...DEFAULT_SLOTS,
-    ...extraSlots.filter((s) => !DEFAULT_SLOTS.includes(s)),
-  ];
+  // Memoized: the auto-router effect depends on this list, and the router can
+  // itself add a slot — a fresh array every render would re-trigger it.
+  const visibleSlots: LogoSlot[] = useMemo(
+    () => [...DEFAULT_SLOTS, ...extraSlots.filter((s) => !DEFAULT_SLOTS.includes(s))],
+    [extraSlots],
+  );
 
   /** Upload a single file to a specific slot. Replaces any existing asset there. */
   const uploadToSlot = useCallback(
@@ -191,20 +184,66 @@ export function LogoSlots({ assets }: Props) {
     const taken = new Set<LogoSlot>();
     for (const a of assets) if (a.logoSlot) taken.add(a.logoSlot);
 
+    // Safety net: a logo exported flat on white has no transparency and often
+    // no "logo" in its filename, so neither the upload heuristics nor the
+    // classifier flags it — and this screen has no other home for an image,
+    // so it would vanish and the brand would be created with no logo at all.
+    // If nothing claimed a slot, the first uploaded image becomes the Primary.
+    //
+    // Guards: never rescue while uploads are still classifying, and never
+    // rescue when a REAL logo candidate exists — otherwise a palette/photo
+    // image that happened to finish first would steal the Primary slot and
+    // the actual logo would land in Wordmark (and the photo would stop
+    // being a photo).
+    const nothingPlaced = !assets.some((a) => a.logoSlot);
+    const stillUploading = assets.some((a) => a.uploadStatus === 'uploading');
+    const anyLogoCandidate = assets.some((a) => a.kind === 'image' && a.isLogo);
+    const firstImage = assets.find(
+      (a) => a.kind === 'image' && !a.generated && !a.logoSlot && a.uploadStatus === 'done',
+    );
+    const rescueId =
+      nothingPlaced && !stillUploading && !anyLogoCandidate && firstImage
+        ? firstImage.id
+        : null;
+
     (async () => {
       for (const a of assets) {
-        if (a.kind !== 'image' || !a.isLogo || a.logoSlot) continue;
+        if (a.kind !== 'image' || a.logoSlot) continue;
+        if (!a.isLogo && a.id !== rescueId) continue;
         if (claimedRef.current.has(a.id)) continue;
         claimedRef.current.add(a.id);
 
-        let target = inferSlot(a.name, taken);
-        if (target && !visibleSlots.includes(target)) target = null;
+        // Re-read placements from the store each round: an earlier iteration
+        // (or a concurrent run of this effect) may have filled a slot since
+        // the snapshot above.
+        for (const other of useV4Store.getState().assets) {
+          if (other.logoSlot) taken.add(other.logoSlot);
+        }
+
+        let target: LogoSlot | null = null;
+        if (!taken.has('primary')) {
+          // The brand's first logo is the Primary, full stop — even when the
+          // classifier calls it an icon or a wordmark. Later uploads then fan
+          // out by hint.
+          target = 'primary';
+        } else if (a.aiLogoSlot && !taken.has(a.aiLogoSlot)) {
+          // Brand Vision's suggestion — allowed to name a variant that isn't
+          // on screen yet; it gets revealed below.
+          target = a.aiLogoSlot;
+        } else {
+          target = inferSlot(a.name, taken);
+        }
         if (!target && a._file) {
+          // Square-ish uploads bias to the Icon slot.
           const ratio = await imageAspectRatio(a._file);
-          if (ratio != null && ratio < 1.35 && visibleSlots.includes('mark') && !taken.has('mark')) target = 'mark';
+          if (ratio != null && ratio < 1.35 && !taken.has('mark')) target = 'mark';
         }
         if (!target) target = nextEmpty(taken, visibleSlots);
         if (!target) continue;
+        // Reveal a variant slot the router picked but the user hasn't added.
+        if (!visibleSlots.includes(target) && ADDABLE_SLOTS.includes(target)) {
+          addLogoSlot(target);
+        }
         taken.add(target);
         updateAsset(a.id, { logoSlot: target });
 
@@ -228,7 +267,25 @@ export function LogoSlots({ assets }: Props) {
         }
       }
     })();
-  }, [assets, updateAsset, uploadToSlot, visibleSlots]);
+  }, [assets, updateAsset, uploadToSlot, visibleSlots, addLogoSlot]);
+
+  /** Move a logo to a different slot. If the target slot is occupied the two
+   *  logos swap places; a hidden variant slot gets revealed first. */
+  const reassignSlot = useCallback(
+    (assetId: string, target: LogoSlot) => {
+      const state = useV4Store.getState();
+      const moving = state.assets.find((a) => a.id === assetId);
+      if (!moving || moving.logoSlot === target) return;
+      const from = moving.logoSlot;
+      const occupant = state.assets.find((a) => a.logoSlot === target && a.id !== assetId);
+      if (!DEFAULT_SLOTS.includes(target) && !state.extraLogoSlots.includes(target)) {
+        addLogoSlot(target);
+      }
+      updateAsset(assetId, { logoSlot: target });
+      if (occupant && from) updateAsset(occupant.id, { logoSlot: from });
+    },
+    [addLogoSlot, updateAsset],
+  );
 
   // Variant picker — opens visual chooser, then immediately triggers file upload
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -270,31 +327,25 @@ export function LogoSlots({ assets }: Props) {
           </svg>
         ),
       });
-      if (asset.previewUrl) {
+      // "This is actually the …" — reassign the logo to another slot.
+      // Only the three core roles here; the rest are reachable through
+      // "Add variation". Occupied targets swap the two logos.
+      const state = useV4Store.getState();
+      const REASSIGN_TARGETS: LogoSlot[] = ['primary', 'mark', 'wordmark'];
+      for (const targetSlot of REASSIGN_TARGETS) {
+        if (targetSlot === slot) continue;
+        const targetDef = SLOT_DEFS[targetSlot];
+        const occupied = state.assets.some((a) => a.logoSlot === targetSlot);
         items.push({
-          label: 'Open preview',
-          onSelect: () => window.open(asset.previewUrl!, '_blank', 'noopener,noreferrer'),
+          label: `Set as ${targetDef.label.toLowerCase()}${occupied ? ' (swap)' : ''}`,
+          onSelect: () => reassignSlot(asset.id, targetSlot),
           icon: (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
+            <span className="ctx-menu-slot-preview" aria-hidden="true">
+              {VARIANT_PREVIEW[targetSlot]}
+            </span>
           ),
         });
       }
-      items.push({
-        label: 'Copy filename',
-        onSelect: () => {
-          void copyTextLogo(asset.name);
-        },
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="9" y="9" width="11" height="11" rx="2" />
-            <path d="M5 15V5a2 2 0 0 1 2-2h10" />
-          </svg>
-        ),
-      });
       items.push({
         label: 'Remove logo',
         destructive: true,
@@ -395,6 +446,7 @@ export function LogoSlots({ assets }: Props) {
                       aria-label={`Add ${def.label} variant`}
                     >
                       <div className="logo-variant-card-stage">{VARIANT_PREVIEW[slot]}</div>
+                      <span className="logo-variant-card-label">{def.label}</span>
                     </button>
                   );
                 })}
@@ -474,6 +526,7 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConte
           <span>Add {def.label.toLowerCase()}</span>
         </button>
       )}
+      {asset && <span className="logo-slot-name">{def.label}</span>}
       {asset?.generated && <span className="logo-slot-badge">Auto</span>}
       {isExtra && onRemoveSlot && !asset && (
         <button

@@ -11,6 +11,9 @@ export type ContextMenuItem = {
   disabled?: boolean;
   /** Optional 14px icon shown before the label. */
   icon?: React.ReactNode;
+  /** Submenu: clicking this item MORPHS the menu box into these items
+   *  (with a Back row) instead of closing. `onSelect` is ignored. */
+  children?: ContextMenuItem[];
 };
 
 type Props = {
@@ -26,6 +29,10 @@ type Props = {
  * mount we measure and nudge left/up if the natural position would push
  * past the viewport edge.
  *
+ * Items with `children` open a second page INSIDE the same box — the box
+ * morphs (width/height animate) to the new content rather than opening a
+ * separate flyout.
+ *
  * Closes on: clicking outside, pressing Escape, right-clicking again
  * elsewhere, or scrolling. Opening a new menu while one is visible is
  * handled by the parent replacing the state — the effect cleanup here
@@ -34,6 +41,10 @@ type Props = {
 export function ContextMenu({ x, y, items, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
+  // null = root page; otherwise the submenu currently shown.
+  const [subItems, setSubItems] = useState<ContextMenuItem[] | null>(null);
+  // Rect captured just before a page swap — consumed by the morph effect.
+  const morphFromRef = useRef<DOMRect | null>(null);
   // Menu is portaled to document.body and therefore sits outside the
   // workspace token scope. Read the workspace's current data-theme when
   // we mount so the pill flips black/white with the app's theme toggle
@@ -45,6 +56,33 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     const dt = ws?.getAttribute('data-theme');
     setTheme(dt === 'dark' ? 'dark' : 'light');
   }, []);
+
+  useEffect(() => {
+    setSubItems(null);
+  }, [items]);
+
+  const swapTo = (next: ContextMenuItem[] | null) => {
+    morphFromRef.current = ref.current?.getBoundingClientRect() ?? null;
+    setSubItems(next);
+  };
+
+  // FLIP morph: animate the box from its pre-swap size to the new
+  // natural size while the incoming items fade/slide in via CSS.
+  useLayoutEffect(() => {
+    const from = morphFromRef.current;
+    const el = ref.current;
+    if (!from || !el) return;
+    morphFromRef.current = null;
+    const to = el.getBoundingClientRect();
+    if (from.width === to.width && from.height === to.height) return;
+    el.animate(
+      [
+        { width: `${from.width}px`, height: `${from.height}px` },
+        { width: `${to.width}px`, height: `${to.height}px` },
+      ],
+      { duration: 240, easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)' },
+    );
+  }, [subItems]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -59,8 +97,10 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     if (ny + rect.height + pad > window.innerHeight) {
       ny = Math.max(pad, window.innerHeight - rect.height - pad);
     }
-    if (nx !== x || ny !== y) setPos({ x: nx, y: ny });
-  }, [x, y]);
+    if (nx !== pos.x || ny !== pos.y) setPos({ x: nx, y: ny });
+    // Re-clamp when the page swaps too — the submenu can be taller.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [x, y, subItems]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -88,6 +128,8 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
     };
   }, [onClose]);
 
+  const shown = subItems ?? items;
+
   return createPortal(
     <div
       ref={ref}
@@ -96,27 +138,56 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
       style={{ position: 'fixed', left: pos.x, top: pos.y }}
       role="menu"
     >
-      {items.map((it, i) => (
-        <button
-          key={i}
-          type="button"
-          role="menuitem"
-          className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
-          disabled={it.disabled}
-          onClick={() => {
-            if (it.disabled) return;
-            it.onSelect();
-            onClose();
-          }}
-        >
-          {it.icon && (
+      <div className="ctx-menu-page" key={subItems ? 'sub' : 'root'}>
+        {subItems && (
+          <button
+            type="button"
+            role="menuitem"
+            className="ctx-menu-item ctx-menu-back"
+            onClick={() => swapTo(null)}
+          >
             <span className="ctx-menu-icon" aria-hidden>
-              {it.icon}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 12H5" />
+                <path d="m12 19-7-7 7-7" />
+              </svg>
             </span>
-          )}
-          <span className="ctx-menu-label">{it.label}</span>
-        </button>
-      ))}
+            <span className="ctx-menu-label">Back</span>
+          </button>
+        )}
+        {shown.map((it, i) => (
+          <button
+            key={i}
+            type="button"
+            role="menuitem"
+            className={`ctx-menu-item${it.destructive ? ' is-destructive' : ''}${it.disabled ? ' is-disabled' : ''}`}
+            disabled={it.disabled}
+            onClick={() => {
+              if (it.disabled) return;
+              if (it.children && it.children.length > 0) {
+                swapTo(it.children);
+                return;
+              }
+              it.onSelect();
+              onClose();
+            }}
+          >
+            {it.icon && (
+              <span className="ctx-menu-icon" aria-hidden>
+                {it.icon}
+              </span>
+            )}
+            <span className="ctx-menu-label">{it.label}</span>
+            {it.children && it.children.length > 0 && (
+              <span className="ctx-menu-chevron" aria-hidden>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>,
     document.body,
   );

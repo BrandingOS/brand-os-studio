@@ -2469,9 +2469,11 @@
 }
 
 /* Slot grid */
+/* auto-fit: the two default slots stretch to fill the row; added variants
+   pack in beside them without leaving dead columns. */
 [data-onboarding="cosmos"] .logo-slots {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 6px;
 }
 [data-onboarding="cosmos"] .logo-slot {
@@ -2559,6 +2561,40 @@
 }
 [data-onboarding="cosmos"] .logo-slot-overlay-btn:hover { background: #fff; }
 [data-onboarding="cosmos"] .logo-slot-overlay-btn.is-danger:hover { color: #b34a4a; }
+/* Role label on filled slots — "Primary" / "Icon" / "Wordmark" … */
+[data-onboarding="cosmos"] .logo-slot-name {
+  position: absolute;
+  bottom: 5px; left: 6px;
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary, #55534b);
+  border: 1px solid var(--border, #e6e4dd);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+[data-onboarding="cosmos"] .logo-slot.tone-dark .logo-slot-name {
+  background: rgba(20, 20, 22, 0.85);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Slot thumbnails inside the right-click "Set as …" items */
+.ctx-menu-slot-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 12px;
+}
+.ctx-menu-slot-preview svg {
+  width: 100%;
+  height: 100%;
+}
+
 [data-onboarding="cosmos"] .logo-slot-badge {
   position: absolute;
   top: 5px; left: 6px;
@@ -2602,12 +2638,32 @@
   color: #fff;
 }
 
-/* About group + cards */
+/* About group + cards.
+ * Three across instead of one long column, and once the list gets long it
+ * scrolls inside its own box so a brand with 40+ sections doesn't turn the
+ * review step into an endless page. */
 [data-onboarding="cosmos"] .about-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  align-content: start;
 }
+[data-onboarding="cosmos"] .about-list[data-dense="true"] {
+  max-height: 268px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  /* Room for the scrollbar without the cards jumping when it appears. */
+  scrollbar-gutter: stable;
+}
+[data-onboarding="cosmos"] .about-list[data-dense="true"]::-webkit-scrollbar { width: 8px; }
+[data-onboarding="cosmos"] .about-list[data-dense="true"]::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+[data-onboarding="cosmos"] .about-list[data-dense="true"]::-webkit-scrollbar-track { background: transparent; }
 [data-onboarding="cosmos"] .about-card {
   display: flex;
   flex-direction: column;
@@ -2641,12 +2697,111 @@
   overflow: hidden;
 }
 
+/* The About editor is portaled to <body>, so it sits outside the onboarding
+ * shell and can't be scoped above. [data-workspace] alone would make this
+ * always-mounted wrapper 100vh tall with a page background — a phantom
+ * screenful of scroll below the panel (same class of bug as the portaled
+ * Radix menus reset in workspace.css). */
+.about-modal-portal[data-workspace] {
+  min-height: 0;
+  background: transparent;
+}
+
 /* Brand Intelligence badge inside the workspace-style modal */
 [data-workspace] .modal-content-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+/* AI prompt badge dropdown (badge itself opens the Open-in / Copy menu).
+   The chevron MORPHS between down/up by transitioning the path's points —
+   no rotation. Both `d` values share the same segment structure so the
+   vertices glide; browsers without CSS `d` support just swap instantly. */
+[data-onboarding="cosmos"] .ai-badge-button .ai-badge-chevron {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  opacity: 0.65;
+  /* The generic `.ai-badge svg` rule spins every badge icon (meant for the
+     star) — the chevron must stay still; only its path morphs on open. */
+  animation: none;
+}
+[data-onboarding="cosmos"] .ai-badge-button .ai-badge-chevron path {
+  d: path("M6 9.5 12 15.5 18 9.5");
+  transition: d 240ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+[data-onboarding="cosmos"] .ai-badge-button.is-open .ai-badge-chevron path {
+  d: path("M6 15.5 12 9.5 18 15.5");
+}
+
+/* Portaled (renders under <body>) — keep selectors unscoped, tokens with fallbacks */
+.ai-prompt-menu,
+[data-onboarding="cosmos"] .ai-prompt-menu {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e6e4dd);
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(16, 16, 20, 0.12);
+  overflow: hidden;
+}
+.ai-prompt-menu-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+.ai-prompt-menu-item:hover { background: var(--surface-sunken, #efede6); }
+.ai-prompt-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--text-primary, #0e0e0e);
+  flex: none;
+}
+.ai-prompt-menu-icon svg { width: 17px; height: 17px; }
+.ai-prompt-menu-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ai-prompt-menu-copy b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0e0e0e);
+}
+.ai-prompt-menu-copy small {
+  font-size: 11px;
+  color: var(--text-muted, #9a988f);
+  letter-spacing: 0.01em;
+}
+.ai-prompt-menu-ext {
+  width: 11px;
+  height: 11px;
+  opacity: 0.55;
+}
+
+/* Link rows show the site's actual favicon in the thumb */
+[data-onboarding="cosmos"] .asset-thumb-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  object-fit: contain;
 }
 
 /* Asset Move-to menu */
@@ -2770,9 +2925,93 @@
 [data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch:first-child {
   margin-left: 0;
 }
+/* Every state that reveals the name/hex (hover, keyboard focus, open picker,
+ * open context menu) must lift the swatch too — a name shown on an unlifted
+ * swatch collides with the Primary tag. Keep this selector list in sync with
+ * the tag-slide rule below and workspace.css's name-reveal rule. */
 [data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch:hover,
-[data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch.is-active {
+[data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch:focus-visible,
+[data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch.is-active,
+[data-onboarding="cosmos"] .onboarding-colors-scope .colors-row[data-layout="accent"] .swatch.is-ctx-active {
   transform: translateY(-44%) rotate(-1.4deg);
+}
+
+/* "Primary" tag on a swatch.
+ * The swatches sit in a clipped, overlapping wave: only the top strip of each
+ * is on screen at rest, and the name/hex fade in at the top on hover. So the
+ * tag lives at the top-left at rest and slides down one row on hover to make
+ * way for them. The primary swatch keeps its tag visible at all times; the
+ * others reveal a "Set primary" affordance on hover. */
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag {
+  position: absolute;
+  top: 11px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.96);
+  /* The swatch color sits behind the bare text — a soft shadow keeps it
+     readable on mid-tone brand colors without drawing a chip. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transition: opacity 160ms ease-in-out, top 300ms var(--ease);
+}
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-light .swatch-primary-tag {
+  color: rgba(0, 0, 0, 0.82);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag.is-on,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:hover .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:focus-visible .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-active .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-ctx-active .swatch-primary-tag {
+  opacity: 1;
+}
+/* Not-yet-primary reads quieter than the tagged one. */
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag:not(.is-on) {
+  font-weight: 500;
+}
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:hover .swatch-primary-tag:not(.is-on),
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:focus-visible .swatch-primary-tag:not(.is-on),
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-active .swatch-primary-tag:not(.is-on),
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-ctx-active .swatch-primary-tag:not(.is-on) {
+  opacity: 0.72;
+}
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag:not(.is-on):hover {
+  opacity: 1;
+}
+/* Keep in sync with the lift rule above and workspace.css's name-reveal —
+ * whenever the name shows, the tag must be down at 46px or they overlap. */
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:hover .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch:focus-visible .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-active .swatch-primary-tag,
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch.is-ctx-active .swatch-primary-tag {
+  top: 46px;
+}
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+/* Untagged swatches show a hollow dot — filled means "this is the primary". */
+[data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag:not(.is-on) .swatch-primary-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-onboarding="cosmos"] .onboarding-colors-scope .swatch-primary-tag { transition: none; }
 }
 
 /* Logo variant picker (Add variation popover) — icon-only, stacked vertically */
@@ -2813,6 +3052,33 @@
   background: var(--surface-hover, #faf9f5);
   border-color: var(--border, #e6e4dd);
 }
+
+/* Small role caption on each variant card — icon centered, caption tucked
+ * small at the bottom-LEFT so it reads without competing with the icon. */
+[data-onboarding="cosmos"] .logo-variant-card,
+.logo-variant-card {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: 64px;
+  padding: 8px 8px 5px;
+}
+[data-onboarding="cosmos"] .logo-variant-card .logo-variant-card-stage,
+.logo-variant-card .logo-variant-card-stage {
+  flex: 1;
+}
+[data-onboarding="cosmos"] .logo-variant-card-label,
+.logo-variant-card-label {
+  align-self: flex-start;
+  font-size: 7px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9a988f);
+  pointer-events: none;
+}
 [data-onboarding="cosmos"] .logo-variant-card-stage,
 .logo-variant-card-stage {
   width: 40px;
@@ -2835,4 +3101,8 @@
   [data-onboarding="cosmos"] .asset-chip span { display: none; }
   [data-onboarding="cosmos"] .text-section { padding: 12px; }
   [data-onboarding="cosmos"] .review-group-foot-fonts { flex-direction: column; }
+  [data-onboarding="cosmos"] .about-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  [data-onboarding="cosmos"] .about-list { grid-template-columns: minmax(0, 1fr); }
 }

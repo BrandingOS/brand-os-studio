@@ -76,7 +76,11 @@ export class LocalBrandsService implements BrandsService {
     };
     const result = safeLocalStorageSet(this.storageKey, JSON.stringify([...userBrands, brand]));
     if (!result.success) throw new Error(result.error);
-    return brand;
+    // Migrate like list()/getBySlug() do — the store caches this return
+    // value as `current`, and an un-migrated brand there means derived
+    // fields (logoSystem, brandAssets, colorSystem) are missing until a
+    // reload.
+    return migrateBrandToCurrent(brand);
   }
 
   async update(id: string, patch: Partial<Brand>): Promise<Brand> {
@@ -90,7 +94,7 @@ export class LocalBrandsService implements BrandsService {
     // edits propagate to every consumer that reads the brand.
     if (SEED_BRAND_IDS.has(id)) {
       patchSeedOverride(id, { ...patch, updatedAt: new Date() });
-      return updatedBrand;
+      return migrateBrandToCurrent(updatedBrand);
     }
 
     // User-authored brands persist as full snapshots in `brandos:brands`.
@@ -103,7 +107,7 @@ export class LocalBrandsService implements BrandsService {
     }
     const result = safeLocalStorageSet(this.storageKey, JSON.stringify(userBrands));
     if (!result.success) throw new Error(result.error);
-    return updatedBrand;
+    return migrateBrandToCurrent(updatedBrand);
   }
 
   private generateSlug(name: string): string {

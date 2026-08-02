@@ -100,6 +100,11 @@ export interface BrandLogoAssets {
 
 export interface BrandGuidelines {
   strategy?: BrandStrategy;
+  /** Free-form About sections captured at onboarding (Mission, Vision,
+   *  custom headings like "Brand Promise", …). The canonical strategy
+   *  fields above stay the queryable subset; this preserves everything
+   *  the user wrote so Setup/About can render it all. */
+  aboutSections?: Array<{ id: string; title: string; content: string }>;
   logoSystem?: LogoSystem;
   colorPalette?: ExtendedColorPalette;
   typography?: ExtendedTypography;

@@ -636,6 +636,51 @@
   width: 100%;
   min-width: 0;
   overflow-x: clip;
+  /* Flex + wrap so empty sections can be re-ordered to the bottom AND
+     sit two per row, without touching the DOM order (scroll-nav refs
+     stay stable). Filled sections span the full row. */
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+}
+[data-workspace] .board-wrap > * { width: 100%; min-width: 0; }
+[data-workspace] .board-head { order: -1; }
+[data-workspace] .board-wrap > .section.is-collapsed {
+  order: 10;
+  width: calc(50% - 8px);
+  padding: 22px 0 26px;
+}
+/* Compact header for the collapsed card */
+[data-workspace] .section.is-collapsed .section-header h2 { font-size: 18px; }
+[data-workspace] .section.is-collapsed .section-header { margin-bottom: 14px; }
+[data-workspace] .section.is-collapsed .section-spec { display: none; }
+[data-workspace] .section.is-collapsed .section-download { display: none; }
+
+/* Empty section — slim dashed drop bar instead of the full-size body. */
+[data-workspace] .section-collapsed-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 52px;
+  background: transparent;
+  border: 1.5px dashed var(--dash-strong, #cfccc3);
+  border-radius: 16px;
+  color: var(--text-muted, #9a988f);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color 160ms var(--ease),
+    border-color 160ms var(--ease),
+    background 160ms var(--ease);
+}
+[data-workspace] .section-collapsed-drop:hover {
+  color: var(--text-secondary, #55534b);
+  border-color: var(--text-muted, #9a988f);
+  background: var(--surface-hover, rgba(0, 0, 0, 0.02));
 }
 [data-workspace] .board-head {
   display: flex;
@@ -927,6 +972,12 @@
   flex-direction: column;
   gap: 40px;
 }
+/* The three palettes always read Core → Accent → Neutral. Pinning the order
+   here (rather than relying on render order alone) means Neutral can never
+   float above the brand's own colors, whatever the data or render path. */
+[data-workspace] .colors-stack > .colors-group[data-group="core"] { order: 1; }
+[data-workspace] .colors-stack > .colors-group[data-group="accent"] { order: 2; }
+[data-workspace] .colors-stack > .colors-group[data-group="grey"] { order: 3; }
 [data-workspace] .colors-group {
   display: flex;
   flex-direction: column;
@@ -1028,6 +1079,74 @@
 [data-workspace] .colors-row[data-layout="core"] .swatch.is-active,
 [data-workspace] .colors-row[data-layout="core"] .swatch.is-ctx-active {
   transform: translateY(-44%) rotate(-1.4deg);
+}
+
+/* "Primary" tag on a swatch — same interaction as the onboarding review:
+ * lives at the top-left at rest and slides down one row whenever the
+ * name/hex reveal (hover / focus / active / context menu), so they never
+ * overlap. The primary swatch keeps its tag visible at all times; the
+ * others reveal a "Set primary" affordance. */
+[data-workspace] .swatch-primary-tag {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  transition: opacity 160ms ease-in-out, top 300ms var(--ease);
+}
+[data-workspace] .swatch.is-light .swatch-primary-tag {
+  color: rgba(0, 0, 0, 0.82);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.35);
+}
+[data-workspace] .swatch-primary-tag.is-on,
+[data-workspace] .swatch:hover .swatch-primary-tag,
+[data-workspace] .swatch:focus-visible .swatch-primary-tag,
+[data-workspace] .swatch.is-active .swatch-primary-tag,
+[data-workspace] .swatch.is-ctx-active .swatch-primary-tag {
+  opacity: 1;
+}
+[data-workspace] .swatch-primary-tag:not(.is-on) {
+  font-weight: 500;
+}
+[data-workspace] .swatch:hover .swatch-primary-tag:not(.is-on),
+[data-workspace] .swatch:focus-visible .swatch-primary-tag:not(.is-on),
+[data-workspace] .swatch.is-active .swatch-primary-tag:not(.is-on),
+[data-workspace] .swatch.is-ctx-active .swatch-primary-tag:not(.is-on) {
+  opacity: 0.72;
+}
+[data-workspace] .swatch-primary-tag:not(.is-on):hover {
+  opacity: 1;
+}
+[data-workspace] .swatch:hover .swatch-primary-tag,
+[data-workspace] .swatch:focus-visible .swatch-primary-tag,
+[data-workspace] .swatch.is-active .swatch-primary-tag,
+[data-workspace] .swatch.is-ctx-active .swatch-primary-tag {
+  top: 46px;
+}
+[data-workspace] .swatch-primary-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+[data-workspace] .swatch-primary-tag:not(.is-on) .swatch-primary-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
 }
 
 [data-workspace] .swatch::after {
@@ -1270,6 +1389,15 @@
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
+}
+[data-workspace] .cp-hex-wrap.is-invalid {
+  border-color: var(--critical, #d4552e);
+}
+[data-workspace] .cp-hex-error {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--critical, #d4552e);
+  white-space: nowrap;
 }
 [data-workspace] .cp-hex-input {
   font: inherit;
@@ -2299,21 +2427,31 @@
 [data-workspace] .about-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  grid-auto-rows: 128px;
+  gap: 14px;
+  /* Show ~4 cards (2 rows); anything beyond scrolls INSIDE the grid so
+     a brand with many About sections doesn't stretch the page. */
+  max-height: 270px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 2px;
 }
 [data-workspace] .about-card {
   position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 22px 24px;
+  border-radius: 14px;
+  padding: 14px 18px;
   text-align: left;
   cursor: pointer;
   font-family: inherit;
-  min-height: 140px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   transition: border-color 180ms var(--ease), background 180ms var(--ease), transform 220ms var(--ease);
 }
 [data-workspace] .about-card:hover,
@@ -2335,21 +2473,24 @@
 }
 [data-workspace] .about-card-title {
   font-family: "Instrument Serif", "Playfair Display", serif;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1.15;
   font-weight: 400;
   letter-spacing: -0.01em;
   margin: 0;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 [data-workspace] .about-card-body {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--text-secondary);
   margin: 0;
   white-space: pre-wrap;
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -2539,6 +2680,31 @@
  * LOGO TILE — hover overlay actions (delete / replace)
  * ============================================================ */
 [data-workspace] .logo-tile { position: relative; }
+
+/* Role label on filled logo tiles — "Primary" / "Wordmark" / "On dark" …
+ * (same treatment as the onboarding review's slot labels). */
+[data-workspace] .logo-tile-name {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  font-size: 8.5px;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-secondary, #55534b);
+  border: 1px solid var(--border, #e6e4dd);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+[data-workspace] .logo-tile.is-dark .logo-tile-name {
+  background: rgba(20, 20, 22, 0.85);
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+[data-workspace] .logo-tile.is-empty .logo-tile-name { display: none; }
+
 [data-workspace] .logo-tile-actions {
   position: absolute;
   top: 8px;
@@ -2924,6 +3090,28 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.98); }
   to   { opacity: 1; transform: none; }
 }
+
+/* Submenu morph: the box's width/height are animated via WAAPI on page
+ * swap — keep content clipped meanwhile, and slide the incoming page in. */
+.ctx-menu { overflow: hidden; }
+.ctx-menu-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: ctx-page-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes ctx-page-in {
+  from { opacity: 0; transform: translateX(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.ctx-menu-chevron {
+  margin-left: auto;
+  display: inline-flex;
+  opacity: 0.5;
+}
+.ctx-menu-back .ctx-menu-label { opacity: 0.7; }
+.ctx-menu[data-theme="light"] .ctx-menu-back { color: #55534b; }
+.ctx-menu[data-theme="dark"] .ctx-menu-back { color: #aeabab; }
 
 /* Light theme — white pill, dark text, thin border, no drop shadow. */
 .ctx-menu[data-theme="light"] {

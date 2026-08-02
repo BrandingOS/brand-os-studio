@@ -35,6 +35,11 @@ const mapSupabaseUser = (supabaseUser: SupabaseUser): User => ({
 export const DEV_AUTH_BYPASS =
   import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true';
 
+// Set when the user clicks the dev-bypass button so the session survives
+// full page reloads (sessionStore is in-memory only). Only ever honored
+// while DEV_AUTH_BYPASS is true; cleared on logout.
+export const DEV_BYPASS_STORAGE_KEY = 'brandos:dev-bypass';
+
 export const DEV_BYPASS_USER: User = {
   id: 'dev-bypass-user',
   email: 'dev@local.test',
@@ -148,6 +153,18 @@ export const useAuth = () => {
     // mounts the auth listener. Everyone else is just reading state.
     if (listenerMounted) return;
     listenerMounted = true;
+
+    // Dev-bypass restore: if the user explicitly bypassed on a previous
+    // load, re-seed the local session and skip the Supabase listener
+    // entirely — otherwise getInitialSession() finds no Supabase session
+    // and signs the user right back out on every reload.
+    if (DEV_AUTH_BYPASS && localStorage.getItem(DEV_BYPASS_STORAGE_KEY) === '1') {
+      signIn(DEV_BYPASS_USER);
+      setPlatformRole('super_admin');
+      return () => {
+        listenerMounted = false;
+      };
+    }
 
     let isMounted = true;
 
@@ -357,6 +374,15 @@ export const useAuth = () => {
   };
 
   const logout = async () => {
+    // Bypass sessions have no Supabase session and no mounted auth
+    // listener — sign out locally and clear the persisted flag.
+    if (DEV_AUTH_BYPASS && useSessionStore.getState().user?.id === DEV_BYPASS_USER.id) {
+      localStorage.removeItem(DEV_BYPASS_STORAGE_KEY);
+      signOut();
+      navigate('/');
+      toast.success('Successfully signed out');
+      return;
+    }
     setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();

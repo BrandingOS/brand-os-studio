@@ -63,29 +63,63 @@ export async function compressImage(
       canvas.height = height;
       const ctx = canvas.getContext('2d')!;
 
-      // Draw with white background (for transparency handling in JPEG)
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, width, height);
+      // Formats that can carry an alpha channel keep their transparency —
+      // baking a white background into a transparent PNG logo is exactly
+      // the artifact users notice on every tile afterwards. Only formats
+      // with no alpha (JPEG) get the white matte + JPEG export.
+      const keepsAlpha = ['image/png', 'image/webp', 'image/gif', 'image/avif'].includes(
+        file.type,
+      );
+      const sizeCap = maxSizeKB * 1024 * 1.37;
+
+      if (!keepsAlpha) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+      }
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Try progressively lower quality until under maxSizeKB
-      let currentQuality = quality;
-      let dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
-
-      while (dataUrl.length > maxSizeKB * 1024 * 1.37 && currentQuality > 0.2) {
-        currentQuality -= 0.1;
+      let dataUrl: string;
+      if (keepsAlpha) {
+        // WebP keeps alpha AND has a quality knob. Safari can't export
+        // webp from canvas (returns a png data URL instead) — detect and
+        // fall back to plain PNG there.
+        let currentQuality = quality;
+        dataUrl = canvas.toDataURL('image/webp', currentQuality);
+        if (dataUrl.startsWith('data:image/webp')) {
+          while (dataUrl.length > sizeCap && currentQuality > 0.2) {
+            currentQuality -= 0.1;
+            dataUrl = canvas.toDataURL('image/webp', currentQuality);
+          }
+        } else {
+          dataUrl = canvas.toDataURL('image/png');
+          if (dataUrl.length > sizeCap * 2) {
+            // PNG has no quality knob — halve the dimensions instead.
+            canvas.width = Math.max(1, Math.round(width * 0.5));
+            canvas.height = Math.max(1, Math.round(height * 0.5));
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            dataUrl = canvas.toDataURL('image/png');
+          }
+        }
+      } else {
+        // Try progressively lower quality until under maxSizeKB
+        let currentQuality = quality;
         dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
-      }
 
-      // If still too large, try PNG with smaller dimensions
-      if (dataUrl.length > maxSizeKB * 1024 * 1.37 * 2) {
-        const smallerDim = Math.round(maxDimension * 0.5);
-        canvas.width = Math.round(width * 0.5);
-        canvas.height = Math.round(height * 0.5);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        while (dataUrl.length > sizeCap && currentQuality > 0.2) {
+          currentQuality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', currentQuality);
+        }
+
+        // If still too large, smaller dimensions
+        if (dataUrl.length > sizeCap * 2) {
+          canvas.width = Math.round(width * 0.5);
+          canvas.height = Math.round(height * 0.5);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+        }
       }
 
       resolve(dataUrl);
@@ -104,7 +138,13 @@ export async function compressImage(
  * Compress an image specifically for logo usage.
  * Higher quality, smaller max dimension (logos are displayed small).
  */
-export async function compressLogo(file: File): Promise<string> {
+export async function compressLogo(
+  file: File,
+  /** Override the defaults where a smaller footprint matters more than
+   *  resolution — e.g. onboarding, which stores 5-6 slots per brand in
+   *  localStorage and used to eat ~1 MB of a 5 MB budget per brand. */
+  options: { maxDimension?: number; quality?: number; maxSizeKB?: number } = {},
+): Promise<string> {
   // SVGs stay as-is
   if (file.type === 'image/svg+xml') {
     return compressImage(file);
@@ -114,6 +154,7 @@ export async function compressLogo(file: File): Promise<string> {
     maxDimension: 500,
     quality: 0.8,
     maxSizeKB: 150,
+    ...options,
   });
 }
 

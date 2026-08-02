@@ -165,8 +165,57 @@ export const useEditorHistoryStore = create<HistoryState>()(
     }),
     {
       name: 'editor-history',
-      // Cap localStorage size — only keep the last 30 days
-      partialize: (state) => state,
+      // Undo history is full HTML per snapshot, so it grows fast: unbounded,
+      // it reached 1.5 MB of a ~5 MB localStorage budget and starved the rest
+      // of the app (brands then failed to save at all). Persist a recent
+      // working set only — deep history is a nice-to-have, saving is not.
+      // In-memory state keeps the full MAX_SNAPSHOTS for the live session.
+      partialize: (state) => ({
+        data: capPersistedHistory(state.data),
+      }),
     },
   ),
 );
+
+/** How much history survives a reload (the live session keeps more). */
+const PERSISTED_SNAPSHOTS_PER_SLIDE = 8;
+const PERSISTED_SLIDES_PER_EDITOR = 12;
+const PERSISTED_EDITORS = 4;
+
+/** Trim the history tree to a recent working set before it hits storage. */
+export function capPersistedHistory(
+  data: Record<string, Record<string, SlideHistory>>,
+): Record<string, Record<string, SlideHistory>> {
+  const lastTouched = (slides: Record<string, SlideHistory>) =>
+    Math.max(
+      0,
+      ...Object.values(slides).flatMap((h) => h.snapshots.map((s) => s.timestamp || 0)),
+    );
+
+  const editors = Object.entries(data)
+    .sort((a, b) => lastTouched(b[1]) - lastTouched(a[1]))
+    .slice(0, PERSISTED_EDITORS);
+
+  const out: Record<string, Record<string, SlideHistory>> = {};
+  for (const [editorKey, slides] of editors) {
+    const kept = Object.entries(slides)
+      .sort(
+        (a, b) =>
+          (b[1].snapshots.at(-1)?.timestamp ?? 0) - (a[1].snapshots.at(-1)?.timestamp ?? 0),
+      )
+      .slice(0, PERSISTED_SLIDES_PER_EDITOR);
+
+    const slideOut: Record<string, SlideHistory> = {};
+    for (const [slideId, history] of kept) {
+      // Keep the tail — the newest snapshots, with the current one included.
+      const start = Math.max(0, history.snapshots.length - PERSISTED_SNAPSHOTS_PER_SLIDE);
+      const snapshots = history.snapshots.slice(start);
+      slideOut[slideId] = {
+        snapshots,
+        currentIndex: Math.max(0, Math.min(history.currentIndex - start, snapshots.length - 1)),
+      };
+    }
+    out[editorKey] = slideOut;
+  }
+  return out;
+}

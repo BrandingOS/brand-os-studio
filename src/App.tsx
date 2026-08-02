@@ -1,4 +1,4 @@
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider, useTheme } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
+import { repairStorageOnBoot } from "@/shared/utils/storageCompaction";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { PageSpinner } from "@/components/PageSpinner";
@@ -64,6 +65,7 @@ const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
+const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
 const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
@@ -261,6 +263,25 @@ const queryClient = new QueryClient();
 // command palette / non-React callsites) into next-themes' setTheme so the
 // provider's internal state stays in sync. Mutating documentElement
 // directly causes the next render to flip the theme back.
+/**
+ * Reclaims localStorage once per boot. Brands saved before logos were stored
+ * at tile size can fill the ~5 MB budget on their own, and a full quota makes
+ * every later save fail — including creating a brand at all. Re-encoding the
+ * stored artwork fixes that without the user losing anything.
+ */
+function StorageRepair() {
+  useEffect(() => {
+    void repairStorageOnBoot().then((result) => {
+      if (result?.ranCompaction && result.freedKB > 200) {
+        toast.success(`Freed ${result.freedKB} KB of browser storage`, {
+          description: `${result.imagesShrunk} stored logos were re-saved at display size. Nothing was deleted.`,
+        });
+      }
+    });
+  }, []);
+  return null;
+}
+
 function ThemeToggleBridge() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   useEffect(() => {
@@ -290,6 +311,7 @@ const App = () => (
     enableSystem={false}
     disableTransitionOnChange
   >
+  <StorageRepair />
   <ThemeToggleBridge />
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -688,6 +710,8 @@ const App = () => (
           <Route path="/_dev/features" element={<DevFeaturesPage />} />
           {/* Phase 1 unified editor demo — fixture social-post + localStorage save. */}
           <Route path="/_dev/editor" element={<DevEditorPage />} />
+          {/* Chronicle-style editor chrome preview (guideline + design redesign). */}
+          <Route path="/_dev/chronicle" element={<ChroniclePreviewPage />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />

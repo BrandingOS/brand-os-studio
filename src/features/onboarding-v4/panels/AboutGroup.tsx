@@ -124,7 +124,7 @@ export function AboutGroup() {
           Add anything you want to say about your brand — voice, mission, audience, vibe…
         </p>
       ) : (
-        <div className="about-list">
+        <div className="about-list" data-dense={sections.length > 6 ? 'true' : undefined}>
           {sections.map((section) => (
             <button
               key={section.id}
@@ -150,7 +150,11 @@ export function AboutGroup() {
 
       {typeof document !== 'undefined' &&
         createPortal(
-          <div data-workspace data-theme={theme}>
+          // `about-modal-portal` resets the [data-workspace] root defaults
+          // (min-height: 100vh + page background). Without it this always-
+          // mounted wrapper adds a viewport-tall empty block to <body> —
+          // a phantom screenful of scroll under the panel.
+          <div data-workspace data-theme={theme} className="about-modal-portal">
             <AboutEditorModal
               open={!!editing}
               initial={editing}

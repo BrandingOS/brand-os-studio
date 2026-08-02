@@ -7,6 +7,7 @@ import { surfacePalette } from '@/shared/brand/brandPalette';
 import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import { useUiPreference } from '@/shared/hooks/useUiPreference';
 import type { Brand } from '@/shared/types/brand';
+import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
 /**
  * Workspace Home — the brands grid.
@@ -54,6 +55,7 @@ function BrandCard({ brand }: { brand: Brand }) {
   const entryUrl = uiPreference === 'classic' ? `/a/${brand.slug}/setup` : `/b/${brand.slug}/setup`;
 
   return (
+    <BrandCardMenu brand={brand} editUrl={`/a/${brand.slug}/identity`}>
     <Link
       to={entryUrl}
       className="ws-brand-card"
@@ -96,6 +98,7 @@ function BrandCard({ brand }: { brand: Brand }) {
         </div>
       </div>
     </Link>
+    </BrandCardMenu>
   );
 }
 
