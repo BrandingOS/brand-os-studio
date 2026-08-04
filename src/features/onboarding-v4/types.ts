@@ -44,6 +44,10 @@ export interface OnboardingAsset {
   aiLogoSlot?: LogoSlot;
   /** Whether this logo was generated from another asset (auto B&W from SVG). */
   generated?: boolean;
+  /** Where the Brand Vision classifier placed this upload. `'colors'` marks a
+   *  recognized palette image — its swatches went to the Colors section, so
+   *  the image itself must NOT also land in Brand Assets. */
+  aiPlacement?: 'logos' | 'images' | 'colors' | 'fonts' | 'files';
   /** Hex value for color-kind assets (e.g. "#3F3F88"). */
   value?: string;
   /** Where a font asset came from. */
@@ -52,6 +56,9 @@ export interface OnboardingAsset {
   socialPlatform?: SocialPlatformId;
   /** User-facing handle for link-kind assets (e.g. "@yourhandle"). */
   handle?: string;
+  /** SHA-256 of the uploaded file's bytes — used to reject duplicate uploads
+   *  even when the file was renamed. */
+  contentHash?: string;
   _file?: File;
 }
 
@@ -64,6 +71,9 @@ export interface AboutSection {
 export interface DefineAnswers {
   name: string;
   description: string;
+  /** Slogan the user typed inline on the review page. Overrides whatever was
+   *  parsed out of the description; empty/undefined falls back to the parse. */
+  slogan?: string;
 }
 
 export interface FeelPalette {

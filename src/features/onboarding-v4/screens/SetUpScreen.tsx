@@ -23,9 +23,9 @@ import {
   storageAdvice,
 } from '@/shared/utils/storageCleanup';
 
-const PANEL_META: Record<1 | 2, { caption: string; label: string }> = {
-  1: { caption: 'Uploaded everything?', label: 'Continue' },
-  2: { caption: 'Ready to roll?', label: 'Set up' },
+const PANEL_META: Record<1 | 2, { caption?: string; label: string }> = {
+  1: { label: 'Continue' },
+  2: { label: 'Set up' },
 };
 
 export function SetUpScreen() {

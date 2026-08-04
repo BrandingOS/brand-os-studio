@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import type { OnboardingAsset } from '../types';
 import { formatSize, iconForMime } from './assetIcons';
 
@@ -94,13 +95,136 @@ export interface QueueDeps {
   max: number;
   /** Read current asset count from store at time of call. */
   getCount: () => number;
+  /** Read current assets from store — enables same-content duplicate rejection. */
+  getAssets?: () => OnboardingAsset[];
   addAsset: (a: OnboardingAsset) => void;
   updateAssetProgress: (id: string, pct: number) => void;
   markAssetDone: (id: string, previewUrl?: string | null) => void;
 }
 
+/* ------------------------------------------------------------------ *
+ * Duplicate rejection — same file content never enters twice
+ * ------------------------------------------------------------------ */
+
+/** Fingerprint a file by its bytes (SHA-256). Renamed copies of the same
+ *  image produce the same hash. Falls back to a name+size+mtime key when
+ *  WebCrypto is unavailable (non-secure contexts). */
+export async function hashFile(file: File): Promise<string> {
+  try {
+    if (crypto?.subtle?.digest) {
+      const buf = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+  } catch {
+    /* fall through to metadata key */
+  }
+  return `meta:${file.name}:${file.size}:${file.lastModified ?? 0}`;
+}
+
+// Re-dropping a whole folder can reject many files at once — collapse the
+// rejections into one toast instead of a toast per file.
+let dupNames: string[] = [];
+let dupFlush: ReturnType<typeof setTimeout> | null = null;
+function notifyDuplicate(name: string) {
+  dupNames.push(name);
+  if (dupFlush) clearTimeout(dupFlush);
+  dupFlush = setTimeout(() => {
+    const names = dupNames;
+    dupNames = [];
+    dupFlush = null;
+    if (names.length === 1) {
+      toast.info(`"${names[0]}" is already uploaded — skipped the duplicate.`);
+    } else {
+      toast.info(`Skipped ${names.length} duplicate files — they're already uploaded.`);
+    }
+  }, 600);
+}
+
 /** Queue a single file with smart routing. ZIPs are extracted and each entry is queued.
  *  Returns the parent asset id (or null if hit the limit). */
+/* ------------------------------------------------------------------ *
+ * Folder drops — walk dropped directories and take everything inside
+ * ------------------------------------------------------------------ */
+
+/** Extensions the dropzone accepts (mirrors its file-picker `accept`). */
+const SUPPORTED_UPLOAD = /\.(png|jpe?g|gif|webp|avif|bmp|svg|pdf|ai|sketch|fig|psd|zip|otf|ttf|woff2?|eot)$/i;
+
+const isJunkName = (name: string) => name.startsWith('.') || name === '__MACOSX';
+
+/**
+ * Resolve a drop's DataTransfer into a flat list of Files — folders are
+ * walked recursively so dropping a whole brand folder "just works".
+ *
+ * NOTE: the DataTransferItem entries MUST be captured synchronously (the
+ * list is neutered once the drop handler yields), which is why the entry
+ * extraction happens before any `await`.
+ */
+export async function collectDroppedFiles(dt: DataTransfer): Promise<File[]> {
+  const entries: FileSystemEntry[] = [];
+  const plainFiles: File[] = [];
+  if (dt.items) {
+    for (const item of Array.from(dt.items)) {
+      if (item.kind !== 'file') continue;
+      const entry = item.webkitGetAsEntry?.();
+      if (entry) {
+        entries.push(entry);
+      } else {
+        const f = item.getAsFile();
+        if (f) plainFiles.push(f);
+      }
+    }
+  }
+  // No entry API (old browser / synthetic drop) — fall back to the flat list.
+  if (entries.length === 0 && plainFiles.length === 0) {
+    return Array.from(dt.files ?? []);
+  }
+
+  const collected: Array<{ path: string; file: File }> = [];
+  const walk = async (entry: FileSystemEntry, prefix: string): Promise<void> => {
+    if (isJunkName(entry.name)) return;
+    if (entry.isFile) {
+      const file = await new Promise<File | null>((resolve) =>
+        (entry as FileSystemFileEntry).file(resolve, () => resolve(null)),
+      );
+      if (file && !isJunkName(file.name) && SUPPORTED_UPLOAD.test(file.name)) {
+        collected.push({ path: `${prefix}${file.name}`, file });
+      }
+      return;
+    }
+    if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+      // readEntries returns results in batches — keep calling until empty.
+      for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve) =>
+          reader.readEntries(resolve, () => resolve([])),
+        );
+        if (batch.length === 0) break;
+        for (const child of batch) {
+          await walk(child, `${prefix}${entry.name}/`);
+        }
+      }
+    }
+  };
+  for (const entry of entries) {
+    await walk(entry, '');
+  }
+  collected.sort((a, b) => a.path.localeCompare(b.path));
+  return [...plainFiles, ...collected.map((c) => c.file)];
+}
+
+/** Filter a folder-picker FileList (webkitdirectory) the same way a folder
+ *  drop is filtered — junk segments out, supported extensions only. */
+export function filterFolderPick(list: FileList): File[] {
+  return Array.from(list).filter((f) => {
+    const rel = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    if (rel.split('/').some(isJunkName)) return false;
+    return SUPPORTED_UPLOAD.test(f.name);
+  });
+}
+
 // Multi-file batches (drop 5 files at once) used to classify in parallel,
 // so whichever image DECODED first entered the asset list first — the
 // palette image could beat the logo and the slot auto-router keyed off
@@ -112,15 +236,35 @@ export function enqueueFile(file: File, deps: QueueDeps): Promise<string | null>
   return run;
 }
 
+/** Per-image upload cap (brand-asset images). */
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
 async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | null> {
   if (deps.getCount() >= deps.max) return null;
 
+  const isImageFile =
+    file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i.test(file.name);
+  if (isImageFile && file.size > MAX_IMAGE_BYTES) {
+    toast.error(`"${file.name}" is larger than 10 MB — images are capped at 10 MB each.`);
+    return null;
+  }
+
+  // Same content already in the list (even under a different name) → reject.
+  // The enqueue chain serializes calls, so a multi-file drop that contains
+  // the same image twice dedupes against itself too.
+  const contentHash = await hashFile(file);
+  if (deps.getAssets?.().some((a) => a.contentHash === contentHash)) {
+    notifyDuplicate(file.name);
+    return null;
+  }
+
   const isZip = /zip/.test(file.type) || /\.zip$/i.test(file.name);
   if (isZip) {
-    return enqueueZip(file, deps);
+    return enqueueZip(file, deps, contentHash);
   }
 
   const asset = buildAsset(file);
+  asset.contentHash = contentHash;
   // Filename-based detection misses logos named "Frame 1.png" etc. — a
   // transparent background is a much stronger signal, so check it too.
   if (asset.kind === 'image' && !asset.isLogo) {
@@ -155,8 +299,9 @@ async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | n
   return asset.id;
 }
 
-async function enqueueZip(zipFile: File, deps: QueueDeps): Promise<string | null> {
+async function enqueueZip(zipFile: File, deps: QueueDeps, contentHash?: string): Promise<string | null> {
   const parent = buildAsset(zipFile);
+  parent.contentHash = contentHash;
   deps.addAsset(parent);
   // Mark parent as done quickly — the heavy work is per-entry below.
   simulateUpload(

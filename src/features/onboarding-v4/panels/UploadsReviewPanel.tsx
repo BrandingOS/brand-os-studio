@@ -13,11 +13,14 @@ import { AboutGroup } from './AboutGroup';
 import { useCosmosTheme } from '../components/useCosmosTheme';
 import { SOCIAL_PLATFORMS, detectPlatform, getPlatform } from '../data/socialPlatforms';
 import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '../utils/fontFamily';
+import { extractSlogan } from '../services/parseDescription';
+import { type SuggestedPalette, suggestPalettesFor } from '../data/suggestedPalettes';
+import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
 
 const MAX_ASSETS = 20;
 
 interface Group {
-  id: 'fonts' | 'links';
+  id: 'fonts' | 'links' | 'assets';
   label: string;
   /** Singular noun for the header count — "1 link", "2 links". */
   noun: string;
@@ -41,6 +44,31 @@ const GROUPS: Group[] = [
     match: (a) => a.kind === 'link',
   },
 ];
+
+/** Catch-all at the very bottom: ONLY what the system could not place in any
+ *  other section. Recognized uploads go to their own sections instead — a
+ *  logo to Logos, a font file to Fonts, and a palette image's swatches to
+ *  Colors (so the palette image itself stays out of here too). */
+const BRAND_ASSETS_GROUP: Group = {
+  id: 'assets',
+  label: 'Brand Assets',
+  noun: 'asset',
+  empty: "Nothing here yet — uploads we can't place anywhere else land in your brand assets.",
+  match: (a) =>
+    (a.kind === 'image' &&
+      !a.isLogo &&
+      !a.logoSlot &&
+      !a.generated &&
+      a.aiPlacement !== 'colors') ||
+    a.kind === 'pdf' ||
+    a.kind === 'design' ||
+    a.kind === 'zip' ||
+    a.kind === 'file' ||
+    a.kind === 'video' ||
+    a.kind === 'audio',
+};
+
+const FONT_PREVIEW_TEXT = 'Build a brand people remember';
 
 interface AssetRowProps {
   asset: OnboardingAsset;
@@ -129,6 +157,238 @@ function AssetRow({ asset, displayName, displaySub, onRename, onRemove, onMove, 
       <div className="asset-actions">
         <MoveMenu asset={asset} onMove={onMove} />
         <button type="button" className="asset-icon-btn" onClick={() => setEditing(true)} title="Rename" aria-label="Rename">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+        <button type="button" className="asset-icon-btn is-danger" onClick={onRemove} title="Remove" aria-label="Remove">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18" />
+            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* Uploaded font files → one live FontFace family per uploaded family, with
+ * every weight file registered under its parsed CSS weight — so the mini
+ * type-specimen card renders real Light/Regular/Bold examples. */
+const loadedFontAssetIds = new Set<string>();
+async function ensureUploadedFontFamily(group: FontFamilyGroup): Promise<string | null> {
+  if (typeof FontFace === 'undefined') return null;
+  const cssName = `bos-upload-${group.key}`;
+  let anyLoaded = false;
+  await Promise.all(
+    group.assets.map(async (asset, i) => {
+      if (!asset._file) return;
+      if (loadedFontAssetIds.has(asset.id)) {
+        anyLoaded = true;
+        return;
+      }
+      try {
+        const buf = await asset._file.arrayBuffer();
+        const parsed = group.weights[i];
+        const face = new FontFace(cssName, buf, {
+          weight: String(parsed?.rank ?? 400),
+          style: /italic/i.test(parsed?.weight ?? '') ? 'italic' : 'normal',
+        });
+        await face.load();
+        document.fonts.add(face);
+        loadedFontAssetIds.add(asset.id);
+        anyLoaded = true;
+      } catch {
+        /* corrupt file — skip this weight */
+      }
+    }),
+  );
+  return anyLoaded ? cssName : null;
+}
+
+const WEIGHT_EXAMPLE_TEXT = 'Professional standard';
+const GOOGLE_WEIGHT_ROWS = [
+  { label: 'Regular', rank: 400, italic: false },
+  { label: 'Medium', rank: 500, italic: false },
+  { label: 'Bold', rank: 700, italic: false },
+];
+
+/** One card per font family — a compact version of the Setup page's
+ *  Typography specimen: family name set in the typeface + alphabet lines on
+ *  the left, weight examples on the right. Google families load via the
+ *  injected stylesheet; uploaded files become a real FontFace per weight. */
+function FontFamilyRow({
+  family,
+  onRename,
+  onMove,
+  onRemove,
+  onContextMenu,
+}: {
+  family: FontFamilyGroup;
+  onRename(name: string): void;
+  onMove(target: MoveTarget): void;
+  onRemove(): void;
+  onContextMenu?(e: React.MouseEvent<HTMLDivElement>): void;
+}) {
+  const isGoogle = family.lead.fontSource === 'google';
+  const [uploadedCss, setUploadedCss] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(family.family);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isGoogle) {
+      injectGoogleFont(family.family);
+      return;
+    }
+    let alive = true;
+    void ensureUploadedFontFamily(family).then((css) => {
+      if (alive) setUploadedCss(css);
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [family.key, family.assets.length, isGoogle]);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  const fontFamilyCss = isGoogle
+    ? `'${family.family}', sans-serif`
+    : uploadedCss
+    ? `'${uploadedCss}', sans-serif`
+    : null;
+
+  // Plain row fallback while the FontFace loads (or if the file is corrupt).
+  if (!fontFamilyCss) {
+    return (
+      <AssetRow
+        asset={family.lead}
+        displayName={family.family}
+        displaySub={
+          family.assets.length > 1
+            ? `${family.assets.length} weights · ${weightsSummary(family)}`
+            : family.lead.sub
+        }
+        onRename={onRename}
+        onMove={onMove}
+        onRemove={onRemove}
+        onContextMenu={onContextMenu}
+      />
+    );
+  }
+
+  // Weight rows: uploaded files use their parsed weights; Google families
+  // preview the three weights the injected stylesheet ships (400/500/700).
+  const weightRows = isGoogle
+    ? GOOGLE_WEIGHT_ROWS
+    : (() => {
+        // Dedupe by label (not rank alone) — Regular and Italic share rank
+        // 400 but are different rows. Italic rows sort after their weight.
+        const seen = new Set<string>();
+        const rows: Array<{ label: string; rank: number; italic: boolean }> = [];
+        family.weights.forEach((w) => {
+          const label = w.weight || 'Regular';
+          if (seen.has(label)) return;
+          seen.add(label);
+          rows.push({ label, rank: w.rank, italic: /italic/i.test(label) });
+        });
+        return rows
+          .sort((a, b) => a.rank - b.rank || Number(a.italic) - Number(b.italic))
+          .slice(0, 6);
+      })();
+
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() && draft.trim() !== family.family) onRename(draft.trim());
+    else setDraft(family.family);
+  };
+
+  return (
+    <div className="asset-row font-card" onContextMenu={onContextMenu}>
+      <div className="font-card-main">
+        <div className="font-card-left">
+          {editing ? (
+            <input
+              ref={inputRef}
+              className="font-card-name-input"
+              style={{ fontFamily: fontFamilyCss }}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commit();
+                if (e.key === 'Escape') {
+                  setDraft(family.family);
+                  setEditing(false);
+                }
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              className="font-card-name"
+              style={{ fontFamily: fontFamilyCss }}
+              title="Rename"
+              onClick={() => {
+                setDraft(family.family);
+                setEditing(true);
+              }}
+            >
+              {family.family}
+            </button>
+          )}
+          <span className="font-card-alpha" style={{ fontFamily: fontFamilyCss }}>
+            abcdefghijklmnopqrstuvwxyz
+          </span>
+          <span className="font-card-alpha" style={{ fontFamily: fontFamilyCss }}>
+            ABCDEFGHIJKLMNOPQRSTUVWXYZ
+          </span>
+          <span className="font-card-alpha" style={{ fontFamily: fontFamilyCss }}>
+            0123456789
+          </span>
+          {/* No weight info here — the weights column already tells that
+              story. Only the source (or file info) remains. */}
+          {(isGoogle || family.assets.length === 1) && (
+            <span className="font-card-sub">{isGoogle ? 'Google Fonts' : family.lead.sub}</span>
+          )}
+        </div>
+        <div className="font-card-weights">
+          {weightRows.map((w) => (
+            <div key={w.label} className="font-card-weight-row">
+              <span className="font-card-weight-label">{w.label}</span>
+              <span
+                className="font-card-weight-example"
+                style={{
+                  fontFamily: fontFamilyCss,
+                  fontWeight: w.rank,
+                  fontStyle: w.italic ? 'italic' : 'normal',
+                }}
+              >
+                {WEIGHT_EXAMPLE_TEXT}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="asset-actions">
+        <button
+          type="button"
+          className="asset-icon-btn"
+          onClick={() => {
+            setDraft(family.family);
+            setEditing(true);
+          }}
+          title="Rename"
+          aria-label="Rename"
+        >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
@@ -268,6 +528,9 @@ function kindGlyph(kind: AssetKind): string {
 
 export function UploadsReviewPanel() {
   const assets = useV4Store((s) => s.assets);
+  const define = useV4Store((s) => s.define);
+  const updateDefine = useV4Store((s) => s.updateDefine);
+  const aboutSections = useV4Store((s) => s.aboutSections);
   const addAsset = useV4Store((s) => s.addAsset);
   const updateAssetProgress = useV4Store((s) => s.updateAssetProgress);
   const markAssetDone = useV4Store((s) => s.markAssetDone);
@@ -279,6 +542,7 @@ export function UploadsReviewPanel() {
     () => ({
       max: MAX_ASSETS,
       getCount: () => useV4Store.getState().assets.length,
+      getAssets: () => useV4Store.getState().assets,
       addAsset,
       updateAssetProgress,
       markAssetDone,
@@ -425,6 +689,41 @@ export function UploadsReviewPanel() {
     [addAsset]
   );
 
+  // "Name — Slogan" bar at the very top. The slogan comes from the parsed
+  // description (a custom "Slogan/Tagline" About section, or an explicit
+  // label in the raw text). No slogan → the bar shows the name alone.
+  const brandName = define.name.trim();
+  const parsedSlogan = useMemo(() => {
+    const sec = aboutSections.find((s) => /^(?:brand\s+)?(?:slogan|tagline|motto)s?$/i.test(s.name.trim()));
+    const fromSection = sec?.content.trim().split(/\r?\n/)[0]?.replace(/^["'“”‘’*_\s]+|["'“”‘’*_\s]+$/g, '').trim();
+    if (fromSection && fromSection.length <= 80) return fromSection;
+    return extractSlogan(define.description);
+  }, [aboutSections, define.description]);
+  // A slogan the user typed inline wins; clearing it falls back to the parse.
+  const slogan = define.slogan?.trim() ? define.slogan.trim() : parsedSlogan;
+  const [editingSlogan, setEditingSlogan] = useState(false);
+  const [sloganDraft, setSloganDraft] = useState('');
+  const sloganInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editingSlogan) {
+      sloganInputRef.current?.focus();
+      sloganInputRef.current?.select();
+    }
+  }, [editingSlogan]);
+  const commitSlogan = () => {
+    setEditingSlogan(false);
+    updateDefine({ slogan: sloganDraft.trim() });
+  };
+
+  // Palettes / font pairings to offer when the user uploaded none — ranked
+  // by the industry/style keywords found in what they told us about the brand.
+  const brandText = useMemo(
+    () => [define.name, define.description, ...aboutSections.map((s) => `${s.name} ${s.content}`)].join('\n'),
+    [define.name, define.description, aboutSections],
+  );
+  const paletteSuggestions = useMemo(() => suggestPalettesFor(brandText), [brandText]);
+  const fontSuggestions = useMemo(() => suggestFontsFor(brandText), [brandText]);
+
   // Auto-extract colors once when the panel opens (only if there are no color assets yet).
   const extractedRef = useRef(false);
   useEffect(() => {
@@ -454,6 +753,41 @@ export function UploadsReviewPanel() {
       </header>
 
       <div className="review-groups">
+        {brandName && (
+          <div className="review-brandbar">
+            <span className="review-brandbar-name">{brandName}</span>
+            <span className="review-brandbar-sep" aria-hidden="true">–</span>
+            {editingSlogan ? (
+              <input
+                ref={sloganInputRef}
+                type="text"
+                className="review-brandbar-slogan-input"
+                placeholder="your brand slogan"
+                value={sloganDraft}
+                maxLength={80}
+                onChange={(e) => setSloganDraft(e.target.value)}
+                onBlur={commitSlogan}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitSlogan();
+                  if (e.key === 'Escape') setEditingSlogan(false);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className={`review-brandbar-slogan${slogan ? '' : ' is-placeholder'}`}
+                title="Edit slogan"
+                onClick={() => {
+                  setSloganDraft(slogan ?? '');
+                  setEditingSlogan(true);
+                }}
+              >
+                {slogan ?? 'your brand slogan'}
+              </button>
+            )}
+          </div>
+        )}
+
         <article className="review-group review-group-logos">
           <header className="review-group-head">
             <h3>Logos</h3>
@@ -469,6 +803,7 @@ export function UploadsReviewPanel() {
 
         <ColorsBoard
           colors={assets.filter((a) => a.kind === 'color')}
+          suggestions={paletteSuggestions}
           onAdd={(hex) => addColor(hex, 'manual')}
           onUpdate={(id, hex) => {
             const exists = useV4Store
@@ -508,6 +843,7 @@ export function UploadsReviewPanel() {
               key={group.id}
               group={group}
               items={items}
+              fontSuggestions={group.id === 'fonts' ? fontSuggestions : undefined}
               onUploadFile={queueFile}
               onAddColor={(hex) => addColor(hex, 'manual')}
               onAddGoogleFont={addGoogleFont}
@@ -529,6 +865,19 @@ export function UploadsReviewPanel() {
         })}
 
         <AboutGroup />
+
+        <GroupCard
+          group={BRAND_ASSETS_GROUP}
+          items={assets.filter(BRAND_ASSETS_GROUP.match)}
+          onUploadFile={queueFile}
+          onAddColor={(hex) => addColor(hex, 'manual')}
+          onAddGoogleFont={addGoogleFont}
+          onAddLink={addLink}
+          onExtractColors={() => {}}
+          onRename={renameAsset}
+          onMove={handleMove}
+          onRemove={removeAsset}
+        />
       </div>
     </section>
   );
@@ -537,6 +886,8 @@ export function UploadsReviewPanel() {
 interface GroupCardProps {
   group: Group;
   items: OnboardingAsset[];
+  /** Font pairings to offer while the fonts group is empty. */
+  fontSuggestions?: SuggestedFontPairing[];
   onUploadFile(file: File): void;
   onAddColor(hex: string): boolean;
   onAddGoogleFont(family: string): boolean;
@@ -547,7 +898,7 @@ interface GroupCardProps {
   onRemove(id: string): void;
 }
 
-function GroupCard({ group, items, onUploadFile, onAddColor, onAddGoogleFont, onAddLink, onExtractColors, onRename, onMove, onRemove }: GroupCardProps) {
+function GroupCard({ group, items, fontSuggestions, onUploadFile, onAddColor, onAddGoogleFont, onAddLink, onExtractColors, onRename, onMove, onRemove }: GroupCardProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const ctxAnchorRef = useRef<HTMLElement | null>(null);
   // Eight uploaded files are usually two fonts — collapse weights into families.
@@ -702,26 +1053,30 @@ function GroupCard({ group, items, onUploadFile, onAddColor, onAddGoogleFont, on
     <article className="review-group">
       <header className="review-group-head">
         <h3>{group.label}</h3>
-        <span className="review-group-count">
-          {group.id === 'fonts'
-            ? `${fontFamilies.length} ${fontFamilies.length === 1 ? 'font' : 'fonts'}`
-            : `${items.length} ${items.length === 1 ? group.noun : `${group.noun}s`}`}
-        </span>
+        {group.id === 'fonts' && items.length === 0 && fontSuggestions?.length ? (
+          <SuggestedFontsButton
+            suggestions={fontSuggestions}
+            onPickPairing={(pairing) => {
+              onAddGoogleFont(pairing.heading);
+              if (pairing.body !== pairing.heading) onAddGoogleFont(pairing.body);
+            }}
+          />
+        ) : (
+          <span className="review-group-count">
+            {group.id === 'fonts'
+              ? `${fontFamilies.length} ${fontFamilies.length === 1 ? 'font' : 'fonts'}`
+              : `${items.length} ${items.length === 1 ? group.noun : `${group.noun}s`}`}
+          </span>
+        )}
       </header>
       {items.length === 0 ? (
         <p className="review-group-empty">{group.empty}</p>
       ) : group.id === 'fonts' ? (
         <div className="review-group-list">
           {fontFamilies.map((family) => (
-            <AssetRow
+            <FontFamilyRow
               key={family.key}
-              asset={family.lead}
-              displayName={family.family}
-              displaySub={
-                family.assets.length > 1
-                  ? `${family.assets.length} weights · ${weightsSummary(family)}`
-                  : family.lead.sub
-              }
+              family={family}
               onRename={(name) => onRename(family.lead.id, name)}
               onMove={(target) => family.assets.forEach((a) => onMove(a.id, target))}
               onRemove={() => family.assets.forEach((a) => onRemove(a.id))}
@@ -783,6 +1138,7 @@ const ACCEPT: Record<string, string> = {
   logos: 'image/*,.svg',
   images: 'image/*',
   documents: '.pdf,.zip,.ai,.sketch,.fig,.psd',
+  assets: 'image/*,.svg,.pdf,.zip,.ai,.sketch,.fig,.psd',
 };
 
 function FileUploadFooter({ accept, label, onPick }: { accept: string; label: string; onPick(f: File): void }) {
@@ -855,8 +1211,11 @@ interface SwatchProps {
   isPrimary: boolean;
   zIndex: number;
   onPickerToggle(): void;
-  onCopyHex(anchor: HTMLElement): void;
+  /** Copy `text` to the clipboard and flash near `anchor` — the name copies
+   *  the color's name, the hex copies the code. */
+  onCopy(text: string, anchor: HTMLElement): void;
   onSetPrimary(): void;
+  onDelete(): void;
   onContextMenu?(e: React.MouseEvent<HTMLButtonElement>): void;
   buttonRef?: (el: HTMLButtonElement | null) => void;
 }
@@ -864,20 +1223,23 @@ interface SwatchProps {
 /** Onboarding-v4 colors swatch — mirrors the Setup page's Swatch markup so the
  *  shared `[data-workspace] .swatch` styles apply identically (same
  *  hover wave, same name/hex copy affordance, same active picker state). */
-function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle, onCopyHex, onSetPrimary, onContextMenu, buttonRef }: SwatchProps) {
-  const iconRef = useRef<OrganicIconHandle>(null);
+function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle, onCopy, onSetPrimary, onDelete, onContextMenu, buttonRef }: SwatchProps) {
+  const nameIconRef = useRef<OrganicIconHandle>(null);
+  const hexIconRef = useRef<OrganicIconHandle>(null);
   const resetTimerRef = useRef<number | null>(null);
   const light = isLightHex(renderedHex);
-  const handleCopyClick = (e: React.MouseEvent<HTMLElement>) => {
-    e.stopPropagation();
-    onCopyHex(e.currentTarget);
-    iconRef.current?.startAnimation();
-    if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current);
-    resetTimerRef.current = window.setTimeout(() => {
-      iconRef.current?.stopAnimation();
-      resetTimerRef.current = null;
-    }, 520);
-  };
+  const makeCopyHandler =
+    (text: () => string, iconRef: React.RefObject<OrganicIconHandle>) =>
+    (e: React.MouseEvent<HTMLElement>) => {
+      e.stopPropagation();
+      onCopy(text(), e.currentTarget);
+      iconRef.current?.startAnimation();
+      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = window.setTimeout(() => {
+        iconRef.current?.stopAnimation();
+        resetTimerRef.current = null;
+      }, 520);
+    };
   useEffect(
     () => () => {
       if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current);
@@ -886,6 +1248,8 @@ function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle,
   );
   // Live-follows the previewed color while the picker is being dragged.
   const displayName = hexToName(renderedHex);
+  const handleCopyName = makeCopyHandler(() => displayName, nameIconRef);
+  const handleCopyHex = makeCopyHandler(() => renderedHex.toUpperCase(), hexIconRef);
   return (
     <button
       ref={buttonRef}
@@ -920,20 +1284,39 @@ function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle,
         className="swatch-name"
         role="button"
         tabIndex={-1}
-        onClick={handleCopyClick}
+        title="Copy color name"
+        onClick={handleCopyName}
       >
         {displayName}
-        <span className="swatch-copy-icon" aria-hidden onClick={handleCopyClick}>
-          <CopyIcon ref={iconRef} size={13} />
+        <span className="swatch-copy-icon" aria-hidden onClick={handleCopyName}>
+          <CopyIcon ref={nameIconRef} size={13} />
         </span>
       </span>
       <span
         className="swatch-hex"
         role="button"
         tabIndex={-1}
-        onClick={handleCopyClick}
+        title="Click to copy hex code"
+        onClick={handleCopyHex}
       >
         {renderedHex.toUpperCase()}
+      </span>
+      <span
+        className="swatch-del"
+        role="button"
+        tabIndex={-1}
+        title="Remove color"
+        aria-label={`Remove ${displayName}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 6h18" />
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path d="M5 6v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6" />
+        </svg>
       </span>
     </button>
   );
@@ -941,6 +1324,8 @@ function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle,
 
 interface ColorsBoardProps {
   colors: OnboardingAsset[];
+  /** Palettes matched from the brand description — offered when no colors exist. */
+  suggestions: SuggestedPalette[];
   onAdd(hex: string): boolean;
   onUpdate(id: string, hex: string): void;
   onRemove(id: string): void;
@@ -953,7 +1338,7 @@ interface ColorsBoardProps {
  *  workspace.css styles cover hover wave, copy affordance, picker
  *  expansion, etc. without redefinition. The wrapping `data-workspace`
  *  div is what brings those styles into scope inside the onboarding shell. */
-function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
+function ColorsBoard({ colors, suggestions, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
   const [theme] = useCosmosTheme();
   // Untagged palettes fall back to "first swatch is primary" — the same rule
   // brand creation uses — so the badge never shows an empty state.
@@ -1150,9 +1535,18 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
     <article className="review-group">
       <header className="review-group-head">
         <h3>Colors</h3>
-        <span className="review-group-count">
-          {colors.length} {colors.length === 1 ? 'color' : 'colors'}
-        </span>
+        {colors.length === 0 && suggestions.length > 0 ? (
+          <SuggestedPalettesButton
+            suggestions={suggestions}
+            onPickPalette={(palette) => {
+              for (const hex of palette.colors) onAdd(hex);
+            }}
+          />
+        ) : (
+          <span className="review-group-count">
+            {colors.length} {colors.length === 1 ? 'color' : 'colors'}
+          </span>
+        )}
       </header>
 
       <div data-workspace data-theme={theme} className="onboarding-colors-scope" ref={groupRef}>
@@ -1173,8 +1567,15 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
                     isPrimary={primaryColorId ? primaryColorId === c.id : i === 0}
                     zIndex={i + 1}
                     onPickerToggle={() => handleSwatchClick(i)}
-                    onCopyHex={(anchor) => handleCopy(renderedHex.toUpperCase(), anchor)}
+                    onCopy={(text, anchor) => handleCopy(text, anchor)}
                     onSetPrimary={() => setPrimaryColor(c.id)}
+                    onDelete={() => {
+                      onRemove(c.id);
+                      if (activeIndex != null && orderedColors[activeIndex]?.id === c.id) {
+                        setActiveIndex(null);
+                        setPreviewHex(null);
+                      }
+                    }}
                     onContextMenu={(e) => openColorMenu(e, c, i)}
                     buttonRef={(el) => {
                       if (el) swatchRefs.current.set(c.id, el);
@@ -1324,6 +1725,112 @@ function ColorsBoard({ colors, onAdd, onUpdate, onRemove, onExtract, onExtractFr
   );
 }
 
+/** "✨ Add suggested palette" — sits where the color count normally lives,
+ *  only while the palette is empty. Palettes are matched from the brand
+ *  description (industry/style keywords); picking one adds all its colors. */
+function SuggestedPalettesButton({
+  suggestions,
+  onPickPalette,
+}: {
+  suggestions: SuggestedPalette[];
+  onPickPalette(palette: SuggestedPalette): void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="suggest-palettes-btn" aria-expanded={open}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2l1.9 5.8L20 9.6l-5 4 1.5 6.2L12 16.4l-4.5 3.4L9 13.6l-5-4 6.1-1.8L12 2z" />
+          </svg>
+          Add suggested palettes
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="palette-suggest-pop" style={{ width: 264, padding: 6 }}>
+        <p className="palette-suggest-hint">Based on what you told us about your brand</p>
+        {suggestions.map((palette) => (
+          <button
+            key={palette.id}
+            type="button"
+            className="palette-suggest-row"
+            onClick={() => {
+              onPickPalette(palette);
+              setOpen(false);
+            }}
+          >
+            <span className="palette-suggest-name">{palette.name}</span>
+            <span className="palette-suggest-chips" aria-hidden="true">
+              {palette.colors.map((hex) => (
+                <span key={hex} className="palette-suggest-chip" style={{ background: hex }} />
+              ))}
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** "✨ Add suggested fonts" — same pattern as the palettes button, on the
+ *  Fonts group while it's empty. Picking a pairing adds both Google Font
+ *  families (heading + body). */
+function SuggestedFontsButton({
+  suggestions,
+  onPickPairing,
+}: {
+  suggestions: SuggestedFontPairing[];
+  onPickPairing(pairing: SuggestedFontPairing): void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        // Load the pairing fonts so the popover previews render true.
+        if (v) for (const p of suggestions) {
+          injectGoogleFont(p.heading);
+          injectGoogleFont(p.body);
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button type="button" className="suggest-palettes-btn" aria-expanded={open}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2l1.9 5.8L20 9.6l-5 4 1.5 6.2L12 16.4l-4.5 3.4L9 13.6l-5-4 6.1-1.8L12 2z" />
+          </svg>
+          Add suggested fonts
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="palette-suggest-pop" style={{ width: 276, padding: 6 }}>
+        <p className="palette-suggest-hint">Based on what you told us about your brand</p>
+        {suggestions.map((pairing) => (
+          <button
+            key={pairing.id}
+            type="button"
+            className="palette-suggest-row font-suggest-row"
+            onClick={() => {
+              onPickPairing(pairing);
+              setOpen(false);
+            }}
+          >
+            <span className="gfp-item-preview" style={{ fontFamily: `'${pairing.heading}', sans-serif` }}>
+              {FONT_PREVIEW_TEXT}
+            </span>
+            <span className="font-suggest-meta-line">
+              <span className="palette-suggest-name">{pairing.name}</span>
+              <span className="font-suggest-families">
+                {pairing.heading}
+                {pairing.body !== pairing.heading ? ` + ${pairing.body}` : ''}
+              </span>
+            </span>
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function LinksFooter({ onAdd }: { onAdd(rawInput: string, preferredPlatformId?: string): boolean }) {
   const [value, setValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1406,12 +1913,36 @@ function FontsFooter({ onUpload, onPick }: { onUpload(f: File): void; onPick(fam
 function GoogleFontPicker({ onPick }: { onPick(family: string): boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Callback-ref as state: the Popover content mounts in a portal AFTER the
+  // open-effect would have run, so a plain useRef misses it and the observer
+  // never gets created. State-ref re-fires the effect once the list exists.
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return GOOGLE_FONTS.slice(0, 80);
     return GOOGLE_FONTS.filter((name) => name.toLowerCase().includes(q)).slice(0, 80);
   }, [query]);
+
+  // Load each family's stylesheet as its row scrolls into view, so the
+  // preview line renders in the real typeface without fetching all 80
+  // fonts up front. injectGoogleFont dedupes, unobserve after first hit.
+  useEffect(() => {
+    if (!listEl) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const fam = (entry.target as HTMLElement).dataset.family;
+          if (fam) injectGoogleFont(fam);
+          obs.unobserve(entry.target);
+        }
+      },
+      { root: listEl, rootMargin: '160px' },
+    );
+    listEl.querySelectorAll<HTMLElement>('[data-family]').forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [listEl, filtered]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -1423,7 +1954,7 @@ function GoogleFontPicker({ onPick }: { onPick(family: string): boolean }) {
           Pick from Google Fonts
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="google-fonts-popover" style={{ width: 280, padding: 0 }}>
+      <PopoverContent align="start" className="google-fonts-popover" style={{ width: 316, padding: 0 }}>
         <div className="gfp-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -1438,7 +1969,7 @@ function GoogleFontPicker({ onPick }: { onPick(family: string): boolean }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <div className="gfp-list">
+        <div className="gfp-list" ref={setListEl}>
           {filtered.length === 0 ? (
             <p className="gfp-empty">No matches.</p>
           ) : (
@@ -1447,16 +1978,18 @@ function GoogleFontPicker({ onPick }: { onPick(family: string): boolean }) {
                 key={name}
                 type="button"
                 className="gfp-item"
-                onMouseEnter={() => injectGoogleFont(name)}
+                data-family={name}
                 onClick={() => {
                   if (onPick(name)) {
                     setOpen(false);
                     setQuery('');
                   }
                 }}
-                style={{ fontFamily: `'${name}', sans-serif` }}
               >
-                {name}
+                <span className="gfp-item-preview" style={{ fontFamily: `'${name}', sans-serif` }}>
+                  {FONT_PREVIEW_TEXT}
+                </span>
+                <span className="gfp-item-name">{name}</span>
               </button>
             ))
           )}

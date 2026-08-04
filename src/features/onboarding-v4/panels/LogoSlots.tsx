@@ -386,9 +386,15 @@ export function LogoSlots({ assets }: Props) {
   ) => {
     e.preventDefault();
     e.stopPropagation();
+    // The menu can be opened from the slot itself (right-click) OR from the
+    // role chip (left-click) — anchor the active state to the slot card
+    // either way.
+    const anchorEl =
+      ((e.currentTarget as HTMLElement).closest('.logo-slot') as HTMLElement | null) ??
+      (e.currentTarget as HTMLElement);
     ctxAnchorRef.current?.classList.remove('is-ctx-active');
-    ctxAnchorRef.current = e.currentTarget;
-    e.currentTarget.classList.add('is-ctx-active');
+    ctxAnchorRef.current = anchorEl;
+    anchorEl.classList.add('is-ctx-active');
 
     const items: ContextMenuState['items'] = [];
     if (asset) {
@@ -457,7 +463,10 @@ export function LogoSlots({ assets }: Props) {
         ),
       });
     }
-    setCtxMenu({ x: e.clientX, y: e.clientY, items });
+    // Keyboard-opened (Enter on the chip) has no pointer coords — anchor to
+    // the chip's corner instead.
+    const rect = anchorEl.getBoundingClientRect();
+    setCtxMenu({ x: e.clientX || rect.left + 16, y: e.clientY || rect.bottom - 10, items });
   };
 
   const startUploadFor = (slot: LogoSlot) => {
@@ -601,7 +610,34 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConte
           <span>Add {def.label.toLowerCase()}</span>
         </button>
       )}
-      {asset && <span className="logo-slot-name">{def.label}</span>}
+      {asset && (
+        <span
+          className="logo-slot-name"
+          role="button"
+          tabIndex={0}
+          title="Logo options"
+          onClick={
+            onContextMenu
+              ? (e) => {
+                  e.stopPropagation();
+                  onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
+                }
+              : undefined
+          }
+          onKeyDown={
+            onContextMenu
+              ? (e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
+                }
+              : undefined
+          }
+        >
+          {def.label}
+        </span>
+      )}
       {asset?.generated && <span className="logo-slot-badge">Auto</span>}
       {isExtra && onRemoveSlot && !asset && (
         <button

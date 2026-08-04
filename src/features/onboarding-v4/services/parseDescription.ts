@@ -155,6 +155,47 @@ function parseHeadingLine(line: string): { title: string; inline: string } | nul
   return null;
 }
 
+/**
+ * Pull a slogan/tagline out of a free-form brand description. Only explicit
+ * labels count ("Slogan: …", "**Tagline** …", "# Motto" + next line) — we
+ * never guess, so a missing slogan simply returns null and the UI hides it.
+ */
+export function extractSlogan(description: string): string | null {
+  const text = (description ?? '').trim();
+  if (!text) return null;
+  const strip = (s: string) =>
+    s.trim().replace(/^["'“”‘’*_\s]+/, '').replace(/["'“”‘’*_\s]+$/, '').trim();
+  const LABEL = /(?:brand\s+)?(?:slogan|tagline|motto)/i;
+  const lines = text.split(/\r?\n/);
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    // "Slogan: X" / "**Tagline:** X" / "# 3. Motto — X"
+    const inline = new RegExp(
+      `^(?:#{1,6}\\s*)?(?:\\*\\*)?\\s*(?:\\d+[.)]\\s*)?${LABEL.source}\\s*(?:\\*\\*)?\\s*[:\\-–—]\\s*(.+)$`,
+      'i',
+    ).exec(line);
+    if (inline) {
+      const v = strip(inline[1]);
+      if (v && v.length <= 80) return v;
+      continue;
+    }
+    // Label on its own line ("# Slogan") — value is the next non-empty line.
+    const bare = new RegExp(
+      `^(?:#{1,6}\\s*)?(?:\\*\\*)?\\s*(?:\\d+[.)]\\s*)?${LABEL.source}\\s*:?\\s*(?:\\*\\*)?\\s*$`,
+      'i',
+    ).test(line);
+    if (bare) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const v = strip(lines[j]);
+        if (v) return v.length <= 80 ? v : null;
+      }
+    }
+  }
+  return null;
+}
+
 export function heuristicParse(description: string): ParsedSection[] {
   const text = description.trim();
   if (!text) return [];

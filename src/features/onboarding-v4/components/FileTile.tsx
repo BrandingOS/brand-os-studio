@@ -62,6 +62,22 @@ interface Props {
   onRemove(id: string): void;
 }
 
+/** Sub line with a type word, mirroring the ✨ classifier tags: fonts say
+ *  "font", logos keep their (specific) logo tag, recognized palettes keep
+ *  "✨ palette", and everything else normalizes to "asset" — even when the
+ *  classifier called it something vague like "other". */
+function displaySub(asset: OnboardingAsset): string {
+  const base = asset.sub.replace(/ · ✨ .*$/, '');
+  const hadAiTag = base !== asset.sub;
+  if (asset.kind === 'font') return `${base} · font`;
+  if (asset.kind === 'image') {
+    if (asset.isLogo || asset.logoSlot) return hadAiTag ? asset.sub : `${base} · logo`;
+    if (asset.aiPlacement === 'colors') return asset.sub;
+    return `${base} · ${hadAiTag ? '✨ asset' : 'asset'}`;
+  }
+  return asset.sub;
+}
+
 export function FileTile({ asset, onRemove }: Props) {
   if (asset.uploadStatus === 'uploading') {
     const pct = Math.round((asset.uploadProgress ?? 0) * 100);
@@ -80,6 +96,7 @@ export function FileTile({ asset, onRemove }: Props) {
   }
 
   const hasPreview = !!asset.previewUrl;
+  const subLine = displaySub(asset);
   return (
     <div className={`tile${hasPreview ? ' is-image' : ''}`} onClick={(e) => e.stopPropagation()}>
       {hasPreview ? (
@@ -87,7 +104,7 @@ export function FileTile({ asset, onRemove }: Props) {
           <div className="tile-preview" style={{ backgroundImage: `url(${asset.previewUrl})` }} />
           <div className="tile-meta">
             <div className="tile-name">{asset.name}</div>
-            <div className="tile-sub">{asset.sub}</div>
+            <div className="tile-sub">{subLine}</div>
           </div>
         </>
       ) : (
@@ -95,7 +112,7 @@ export function FileTile({ asset, onRemove }: Props) {
           <div className="tile-icon">{TILE_ICONS[asset.kind] ?? TILE_ICONS.file}</div>
           <div className="tile-meta">
             <div className="tile-name">{asset.name}</div>
-            <div className="tile-sub">{asset.sub}</div>
+            <div className="tile-sub">{subLine}</div>
           </div>
         </>
       )}

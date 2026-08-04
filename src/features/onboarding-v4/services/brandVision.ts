@@ -74,10 +74,11 @@ export function verdictToPatch(
 ): Partial<OnboardingAsset> {
   const aiTag = ` · ✨ ${verdict.category.replace(/_/g, ' ')}`;
   const sub = current.sub.includes(' · ✨') ? current.sub : `${current.sub}${aiTag}`;
+  const aiPlacement = verdict.placement;
 
   // Already known to be a logo and the model disagrees → label only.
   if (current.isLogo && verdict.placement !== 'logos') {
-    return { sub };
+    return { sub, aiPlacement };
   }
 
   switch (verdict.placement) {
@@ -89,19 +90,20 @@ export function verdictToPatch(
         isLogo: true,
         aiLogoSlot: verdict.logo_slot ?? undefined,
         sub,
+        aiPlacement,
       };
     case 'colors':
       // A palette IMAGE stays an image card; its colors are added separately.
-      return { kind: 'image', isLogo: false, sub };
+      return { kind: 'image', isLogo: false, sub, aiPlacement };
     case 'images':
-      return { kind: 'image', isLogo: false, sub };
+      return { kind: 'image', isLogo: false, sub, aiPlacement };
     case 'fonts':
       // A type-specimen IMAGE can't become a font file — keep it an image.
-      return current.kind === 'font' ? { sub } : { kind: 'image', isLogo: false, sub };
+      return current.kind === 'font' ? { sub, aiPlacement } : { kind: 'image', isLogo: false, sub, aiPlacement };
     case 'files':
       return current.kind === 'image'
-        ? { kind: 'file', isLogo: false, sub }
-        : { isLogo: false, sub };
+        ? { kind: 'file', isLogo: false, sub, aiPlacement }
+        : { isLogo: false, sub, aiPlacement };
     default:
       return { sub };
   }

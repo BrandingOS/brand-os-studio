@@ -718,6 +718,20 @@
   letter-spacing: -0.005em;
 }
 [data-onboarding="cosmos"] .footer-back { margin-top: 4px; }
+/* Review footer — Back pinned left, caption + Set up pinned right. */
+[data-onboarding="cosmos"] .footer-cta.has-back {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+[data-onboarding="cosmos"] .footer-cta-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  /* Pins the CTA cluster right even when there's no Back button. */
+  margin-left: auto;
+}
 
 [data-onboarding="cosmos"] .cta,
 [data-onboarding="cosmos"] .btn-primary {
@@ -1907,6 +1921,167 @@
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* "Name — Slogan" line at the very top of the review, above the Logos
+   group. Plain left-aligned text — no card box around it. */
+[data-onboarding="cosmos"] .review-brandbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 4px;
+}
+[data-onboarding="cosmos"] .review-brandbar-name {
+  font-size: 20px;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+[data-onboarding="cosmos"] .review-brandbar-sep {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  letter-spacing: -0.005em;
+  cursor: text;
+  border-radius: 6px;
+  transition: color 140ms var(--ease);
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan:hover {
+  color: var(--text-primary);
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan.is-placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan.is-placeholder:hover {
+  opacity: 1;
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan-input {
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong, var(--border));
+  outline: none;
+  padding: 0 2px 1px;
+  min-width: 180px;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 400;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+/* Suggested-palettes trigger — replaces the "0 colors" count while empty. */
+[data-onboarding="cosmos"] .suggest-palettes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease), border-color 140ms var(--ease);
+}
+[data-onboarding="cosmos"] .suggest-palettes-btn:hover,
+[data-onboarding="cosmos"] .suggest-palettes-btn[aria-expanded="true"] {
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.04));
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+[data-onboarding="cosmos"] .suggest-palettes-btn svg {
+  flex: none;
+  opacity: 0.75;
+}
+
+/* Palette popover — Radix portals under <body>, so keep these selectors
+   unscoped and give every token a fallback (same pattern as .ai-prompt-menu). */
+.palette-suggest-pop,
+[data-onboarding="cosmos"] .palette-suggest-pop {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e6e4dd);
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(16, 16, 20, 0.12);
+  overflow: hidden;
+}
+.palette-suggest-hint {
+  margin: 4px 6px 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: var(--text-muted, #8a877e);
+}
+.palette-suggest-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 8px 8px;
+  border-radius: 9px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+.palette-suggest-row:hover { background: var(--surface-sunken, #efede6); }
+.palette-suggest-name {
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--text-primary, #232320);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.palette-suggest-chips {
+  display: inline-flex;
+  flex: none;
+}
+.palette-suggest-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface, #fff);
+  margin-left: -6px;
+}
+.palette-suggest-chip:first-child { margin-left: 0; }
+/* Suggested-fonts rows share the picker's preview treatment: pangram in the
+   heading typeface on top, pairing name + families below. */
+.font-suggest-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.font-suggest-meta-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.font-suggest-families {
+  font-size: 10.5px;
+  color: var(--text-muted, #8a877e);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 [data-onboarding="cosmos"] .review-group-empty {
   margin: 0;
   font-size: 13px;
@@ -2003,6 +2178,99 @@
   flex-direction: column;
   min-width: 0;
   flex: 1;
+}
+/* Font family card — a compact type specimen (mirrors the Setup page's
+   Typography layout): family name in the typeface + alphabet lines on the
+   left, per-weight examples on the right. */
+[data-onboarding="cosmos"] .asset-row.font-card {
+  align-items: flex-start;
+  padding: 12px 12px 11px;
+}
+[data-onboarding="cosmos"] .font-card-main {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  min-width: 0;
+}
+[data-onboarding="cosmos"] .font-card-left {
+  flex: 1 1 38%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+[data-onboarding="cosmos"] .font-card-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: text;
+  font-size: 19px;
+  line-height: 1.25;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-bottom: 2px;
+}
+[data-onboarding="cosmos"] .font-card-name-input {
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong, var(--border));
+  outline: none;
+  padding: 0 0 1px;
+  font-size: 21px;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  min-width: 0;
+}
+[data-onboarding="cosmos"] .font-card-alpha {
+  font-size: 10.5px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-onboarding="cosmos"] .font-card-sub {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+[data-onboarding="cosmos"] .font-card-weights {
+  /* Hug the right side (the move arrow's old space) instead of packing
+     against the left column — keeps the card visually balanced. */
+  flex: 0 1 auto;
+  margin-left: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 3px;
+  padding-right: 10px;
+}
+[data-onboarding="cosmos"] .font-card-weight-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+[data-onboarding="cosmos"] .font-card-weight-label {
+  flex: none;
+  width: 52px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+[data-onboarding="cosmos"] .font-card-weight-example {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 [data-onboarding="cosmos"] .asset-name {
   font-size: 13px;
@@ -2574,7 +2842,13 @@
   border: 1px solid var(--border, #e6e4dd);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  pointer-events: none;
+  /* Clickable: opens the same menu as right-click. */
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+[data-onboarding="cosmos"] .logo-slot-name:hover {
+  background: #fff;
+  border-color: var(--text-muted, #9a988f);
 }
 [data-onboarding="cosmos"] .logo-slot.tone-dark .logo-slot-name {
   background: rgba(20, 20, 22, 0.85);
@@ -2876,20 +3150,37 @@
   color: var(--text-muted, #9a988f);
 }
 .gfp-item {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 0;
   padding: 8px 10px;
   border-radius: 8px;
-  font-size: 14px;
   color: var(--text-primary, #0e0e0e);
   cursor: pointer;
   transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
   font-family: inherit;
 }
 .gfp-item:hover { background: var(--surface-sunken, #efede6); }
+.gfp-item-preview {
+  display: block;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--text-primary, #0e0e0e);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.gfp-item-name {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-muted, #8a877e);
+}
 
 /* Onboarding colors panel — opts the colors row into the workspace cosmos
  * scope so the existing `.swatch` / `.colors-row` styles apply. We only need

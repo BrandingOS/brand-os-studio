@@ -1252,8 +1252,73 @@
   opacity: 0.7;
 }
 [data-workspace] .swatch-name:hover .swatch-copy-icon,
+[data-workspace] .swatch-hex:hover .swatch-copy-icon,
 [data-workspace] .swatch-copy-icon:hover {
   opacity: 1;
+}
+
+/* The hex has no copy icon — the text itself is the affordance: a dashed
+   underline whenever the swatch texts are revealed, turning solid with a
+   subtle pill background under the cursor. */
+[data-workspace] .swatch:hover .swatch-hex,
+[data-workspace] .swatch:focus-visible .swatch-hex,
+[data-workspace] .swatch.is-active .swatch-hex,
+[data-workspace] .swatch.is-ctx-active .swatch-hex {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+[data-workspace] .swatch-hex {
+  padding: 1px 6px;
+  margin: -1px -6px;
+  border-radius: 6px;
+  transition: opacity 180ms var(--ease), background 140ms var(--ease),
+    text-decoration-color 180ms var(--ease);
+}
+[data-workspace] .swatch-hex:hover {
+  text-decoration-style: solid;
+  background: rgba(255, 255, 255, 0.2);
+}
+[data-workspace] .swatch.is-light .swatch-hex:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Small delete affordance — lives directly UNDER the "Primary / Set
+   primary" tag on the left, so it reveals only while the user hovers that
+   swatch, one row below the tag (tag slides to 46px; this lands at 72px). */
+[data-workspace] .swatch-del {
+  position: absolute;
+  top: 38px;
+  /* Centers the 13px glyph on the tag's 7px dot (tag left 16px → dot
+     center ~19.5px; wrapper is 18px wide). */
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 0;
+  transition: opacity 160ms ease-in-out, top 300ms var(--ease), transform 140ms var(--ease);
+}
+[data-workspace] .swatch.is-light .swatch-del { color: rgba(0, 0, 0, 0.72); }
+[data-workspace] .swatch:hover .swatch-del,
+[data-workspace] .swatch:focus-visible .swatch-del,
+[data-workspace] .swatch.is-active .swatch-del,
+[data-workspace] .swatch.is-ctx-active .swatch-del {
+  opacity: 0.68;
+  top: 72px;
+}
+[data-workspace] .swatch-del:hover {
+  opacity: 1;
+  transform: scale(1.12);
 }
 
 @media (prefers-reduced-motion: reduce) {

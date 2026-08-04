@@ -1,8 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { useV4Store } from '../store/onboardingV4Store';
 import { FileTile } from './FileTile';
 import type { OnboardingAsset } from '../types';
-import { enqueueFile, genId, simulateUpload } from '../utils/assetUpload';
+import {
+  collectDroppedFiles,
+  enqueueFile,
+  genId,
+  simulateUpload,
+} from '../utils/assetUpload';
 
 const MAX_ASSETS = 20;
 
@@ -22,6 +28,7 @@ export function BrandDropzone() {
   const deps = {
     max: MAX_ASSETS,
     getCount: () => useV4Store.getState().assets.length,
+    getAssets: () => useV4Store.getState().assets,
     addAsset,
     updateAssetProgress,
     markAssetDone,
@@ -46,6 +53,15 @@ export function BrandDropzone() {
         host = new URL(url).hostname.replace(/^www\./, '');
       } catch {
         /* ignore */
+      }
+      // Same link twice → skip.
+      const normalize = (u: string) => u.trim().toLowerCase().replace(/\/+$/, '');
+      const dupe = useV4Store
+        .getState()
+        .assets.some((a) => a.kind === 'link' && normalize(a.sourceUrl ?? '') === normalize(url));
+      if (dupe) {
+        toast.info('That link is already added.');
+        return false;
       }
       const asset: OnboardingAsset = {
         id: genId(),
@@ -109,8 +125,13 @@ export function BrandDropzone() {
     e.stopPropagation();
     setIsDrag(false);
     const dt = e.dataTransfer;
-    if (dt.files && dt.files.length) {
-      handleFiles(dt.files);
+    // Folders welcome: collectDroppedFiles walks any dropped directory and
+    // returns everything inside it (entries are captured synchronously —
+    // see the helper).
+    if (dt.types?.includes('Files') || (dt.files && dt.files.length)) {
+      void collectDroppedFiles(dt).then((files) => {
+        for (const f of files) addFile(f);
+      });
       return;
     }
     const url = dt.getData('text/uri-list') || dt.getData('text/plain');
@@ -181,7 +202,7 @@ export function BrandDropzone() {
           </div>
 
           <p className="drop-text">
-            Drag &amp; drop image here,
+            Drag &amp; drop image or folder here,
             <button
               type="button"
               className="drop-inline"
