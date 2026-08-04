@@ -64,6 +64,7 @@ class Signals(BaseModel):
     ocr_script: Optional[str] = None        # arabic | latin | mixed
     ocr_text_area: float = 0.0              # text-box union / image area
     ocr_icon_mass: float = 0.0              # ink outside text boxes / image
+    ocr_icon_extent: float = 0.0            # bbox of that ink / image
 
 
 class StyleTag(BaseModel):

@@ -3,6 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useV4Store } from '../store/onboardingV4Store';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import { buildAsset, imageAspectRatio, rasterFileToVariants, simulateUpload, svgFileToVariants } from '../utils/assetUpload';
+import { planPrimarySwap } from '../utils/logoFamily';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 
 interface SlotDef {
@@ -180,6 +181,9 @@ export function LogoSlots({ assets }: Props) {
 
   // Auto-route any unassigned logo image into the next free visible slot.
   const claimedRef = useRef(new Set<string>());
+  // Slot each asset was AUTO-assigned — the family resolver may only move
+  // assets whose current slot still matches this (i.e. the user hasn't).
+  const autoRef = useRef(new Map<string, LogoSlot>());
   useEffect(() => {
     const taken = new Set<LogoSlot>();
     for (const a of assets) if (a.logoSlot) taken.add(a.logoSlot);
@@ -239,12 +243,22 @@ export function LogoSlots({ assets }: Props) {
           if (ratio != null && ratio < 1.35 && !taken.has('mark')) target = 'mark';
         }
         if (!target) target = nextEmpty(taken, visibleSlots);
+        if (!target) {
+          // Every visible slot is full but the user genuinely uploaded another
+          // logo — reveal the next variant slot for it instead of silently
+          // dropping it (the group header counts it, so it must show).
+          // Neutral-tone slots first; dark/light last since a generic upload
+          // probably isn't tone-specific.
+          const FALLBACK_ORDER: LogoSlot[] = ['mark', 'horizontal', 'vertical', 'dark', 'light'];
+          target = FALLBACK_ORDER.find((s) => !taken.has(s)) ?? null;
+        }
         if (!target) continue;
         // Reveal a variant slot the router picked but the user hasn't added.
         if (!visibleSlots.includes(target) && ADDABLE_SLOTS.includes(target)) {
           addLogoSlot(target);
         }
         taken.add(target);
+        autoRef.current.set(a.id, target);
         updateAsset(a.id, { logoSlot: target });
 
         if (target === 'primary' && a._file) {
@@ -263,6 +277,50 @@ export function LogoSlots({ assets }: Props) {
           }
           if (currentVisible.includes('dark') && (!darkAsset || darkAsset.generated)) {
             uploadToSlot('dark', variants.dark, { generated: true, allowAutoGenerate: false });
+          }
+        }
+      }
+
+      // Family resolver: classifications land one by one, so the icon can
+      // beat the full lockup to the Primary slot. When a better auto-placed
+      // candidate exists, swap it in. User-moved logos are never touched.
+      const plan = planPrimarySwap(useV4Store.getState().assets, autoRef.current);
+      if (plan) {
+        const state = useV4Store.getState();
+        if (
+          !DEFAULT_SLOTS.includes(plan.demoteTo) &&
+          !state.extraLogoSlots.includes(plan.demoteTo)
+        ) {
+          addLogoSlot(plan.demoteTo);
+        }
+        autoRef.current.set(plan.promoteId, 'primary');
+        autoRef.current.set(plan.demoteId, plan.demoteTo);
+        updateAsset(plan.promoteId, { logoSlot: 'primary' });
+        updateAsset(plan.demoteId, { logoSlot: plan.demoteTo });
+
+        // Regenerate light/dark tonal variants from the TRUE primary —
+        // the ones on screen were derived from the demoted logo.
+        const promoted = state.assets.find((x) => x.id === plan.promoteId);
+        if (promoted?._file) {
+          const isSvg =
+            /\.svg$/i.test(promoted.name) || promoted._file.type === 'image/svg+xml';
+          const variants = isSvg
+            ? await svgFileToVariants(promoted._file)
+            : await rasterFileToVariants(promoted._file);
+          if (variants) {
+            const next = useV4Store.getState();
+            const currentVisible = [
+              ...DEFAULT_SLOTS,
+              ...next.extraLogoSlots.filter((s) => !DEFAULT_SLOTS.includes(s)),
+            ];
+            const lightAsset = next.assets.find((x) => x.logoSlot === 'light');
+            const darkAsset = next.assets.find((x) => x.logoSlot === 'dark');
+            if (currentVisible.includes('light') && (!lightAsset || lightAsset.generated)) {
+              uploadToSlot('light', variants.light, { generated: true, allowAutoGenerate: false });
+            }
+            if (currentVisible.includes('dark') && (!darkAsset || darkAsset.generated)) {
+              uploadToSlot('dark', variants.dark, { generated: true, allowAutoGenerate: false });
+            }
           }
         }
       }

@@ -75,6 +75,7 @@ class CustomEngine:
                 img.signals.ocr_script = layout.script
                 img.signals.ocr_text_area = round(layout.text_area_ratio, 3)
                 img.signals.ocr_icon_mass = round(layout.icon_mass_ratio, 3)
+                img.signals.ocr_icon_extent = round(layout.icon_extent_ratio, 3)
                 if layout.has_text and layout.mean_conf >= 0.45:
                     detected_text = layout.text
 

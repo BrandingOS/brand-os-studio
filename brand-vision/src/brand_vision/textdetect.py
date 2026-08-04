@@ -47,7 +47,8 @@ class TextLayout:
     mean_conf: float = 0.0
     text_area_ratio: float = 0.0              # union of text boxes / image
     icon_mass_ratio: float = 0.0              # ink outside text boxes / image
-    script: Optional[str] = None              # arabic | latin | mixed
+    icon_extent_ratio: float = 0.0            # bbox of that ink / image — catches
+    script: Optional[str] = None              # arabic | latin | mixed   sparse dot/line icons
 
     @property
     def has_text(self) -> bool:
@@ -161,5 +162,19 @@ def analyze(img: Image.Image) -> Optional[TextLayout]:
         y1 = int(min(1.0, r.box[3] + BOX_PAD_FRAC) * mh)
         text_mask[y0:y1, x0:x1] = True
     layout.text_area_ratio = float(text_mask.mean())
-    layout.icon_mass_ratio = float((ink & ~text_mask).mean())
+    outside = ink & ~text_mask
+    layout.icon_mass_ratio = float(outside.mean())
+    # Spatial extent: a dotted or thin-line icon has little INK but clear
+    # AREA. Bbox over rows/cols with non-trivial ink, noise-gated.
+    rows = outside.sum(axis=1)
+    cols = outside.sum(axis=0)
+    min_run = max(2, int(0.008 * outside.size ** 0.5))
+    ys = np.flatnonzero(rows >= min_run)
+    xs = np.flatnonzero(cols >= min_run)
+    if len(ys) and len(xs):
+        h_ext = ys[-1] - ys[0] + 1
+        w_ext = xs[-1] - xs[0] + 1
+        # A missed text remnant is a wide thin band; an icon is chunky.
+        if w_ext / max(1, h_ext) <= 4.0:
+            layout.icon_extent_ratio = float(h_ext * w_ext / outside.size)
     return layout

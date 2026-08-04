@@ -29,7 +29,9 @@ LOGOISH = {
 }
 
 ICON_MASS_LOCKUP = 0.10     # separate artwork this big ⇒ icon next to name
+ICON_EXTENT_LOCKUP = 0.05   # …or spatially this big (sparse dot/line icons)
 ICON_MASS_NONE = 0.06       # below this there is no meaningful icon
+ICON_EXTENT_NONE = 0.04
 LOCKUP_MIN_CHARS = 3
 WORDMARK_MIN_CHARS = 4
 NO_TEXT_MAX_CONF = 0.75     # only flip a weakly-held text verdict
@@ -85,18 +87,27 @@ def refine(
 
     if layout.has_text and layout.mean_conf >= 0.45:
         chars = layout.word_chars
+        has_icon = (
+            layout.icon_mass_ratio >= ICON_MASS_LOCKUP
+            or layout.icon_extent_ratio >= ICON_EXTENT_LOCKUP
+        )
+        no_icon = (
+            layout.icon_mass_ratio < ICON_MASS_NONE
+            and layout.icon_extent_ratio < ICON_EXTENT_NONE
+        )
         # L1 — name + separate artwork = lockup.
-        if chars >= LOCKUP_MIN_CHARS and layout.icon_mass_ratio >= ICON_MASS_LOCKUP:
+        if chars >= LOCKUP_MIN_CHARS and has_icon:
             if category != Category.logo_lockup:
                 return (
                     Category.logo_lockup,
                     max(confidence, 0.82),
-                    f"layout: text “{layout.text}” + {layout.icon_mass_ratio:.0%} "
-                    f"artwork outside it → lockup",
+                    f"layout: text “{layout.text}” + separate artwork "
+                    f"(mass {layout.icon_mass_ratio:.0%}, extent "
+                    f"{layout.icon_extent_ratio:.0%}) → lockup",
                 )
             return category, max(confidence, 0.85), None  # confirmed
         # L2 — name with no separate artwork = wordmark.
-        if chars >= WORDMARK_MIN_CHARS and layout.icon_mass_ratio < ICON_MASS_NONE:
+        if chars >= WORDMARK_MIN_CHARS and no_icon:
             if category != Category.logo_wordmark:
                 return (
                     Category.logo_wordmark,
