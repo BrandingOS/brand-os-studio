@@ -184,6 +184,10 @@ export function LogoSlots({ assets }: Props) {
   // Slot each asset was AUTO-assigned — the family resolver may only move
   // assets whose current slot still matches this (i.e. the user hasn't).
   const autoRef = useRef(new Map<string, LogoSlot>());
+  // Variant slots the ROUTER revealed (vs. user's "Add variation"). If one
+  // ends up empty after the family shuffle, it must close itself — an empty
+  // placeholder the user never asked for is clutter, not an invitation.
+  const autoAddedSlotsRef = useRef(new Set<LogoSlot>());
   useEffect(() => {
     const taken = new Set<LogoSlot>();
     for (const a of assets) if (a.logoSlot) taken.add(a.logoSlot);
@@ -256,6 +260,7 @@ export function LogoSlots({ assets }: Props) {
         // Reveal a variant slot the router picked but the user hasn't added.
         if (!visibleSlots.includes(target) && ADDABLE_SLOTS.includes(target)) {
           addLogoSlot(target);
+          autoAddedSlotsRef.current.add(target);
         }
         taken.add(target);
         autoRef.current.set(a.id, target);
@@ -292,6 +297,7 @@ export function LogoSlots({ assets }: Props) {
           !state.extraLogoSlots.includes(plan.demoteTo)
         ) {
           addLogoSlot(plan.demoteTo);
+          autoAddedSlotsRef.current.add(plan.demoteTo);
         }
         autoRef.current.set(plan.promoteId, 'primary');
         autoRef.current.set(plan.demoteId, plan.demoteTo);
@@ -324,8 +330,19 @@ export function LogoSlots({ assets }: Props) {
           }
         }
       }
+
+      // Close auto-revealed slots that ended up empty after the shuffle —
+      // only uploads should show; the user never asked for that placeholder.
+      const finals = useV4Store.getState();
+      for (const slot of [...autoAddedSlotsRef.current]) {
+        const occupied = finals.assets.some((x) => x.logoSlot === slot);
+        if (!occupied && finals.extraLogoSlots.includes(slot)) {
+          removeLogoSlot(slot);
+          autoAddedSlotsRef.current.delete(slot);
+        }
+      }
     })();
-  }, [assets, updateAsset, uploadToSlot, visibleSlots, addLogoSlot]);
+  }, [assets, updateAsset, uploadToSlot, visibleSlots, addLogoSlot, removeLogoSlot]);
 
   /** Move a logo to a different slot. If the target slot is occupied the two
    *  logos swap places; a hidden variant slot gets revealed first. */
