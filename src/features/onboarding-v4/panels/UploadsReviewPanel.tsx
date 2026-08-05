@@ -16,6 +16,22 @@ import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '../utils/
 import { extractSlogan } from '../services/parseDescription';
 import { type SuggestedPalette, suggestPalettesFor } from '../data/suggestedPalettes';
 import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
+import { POPULAR_PALETTES } from '../data/popularPalettes';
+import { COLOR_HUNT_PALETTES } from '../data/colorHuntPalettes';
+
+/** The shuffle deck: hand-curated classics + the full Color Hunt all-time
+ *  popular library (~4k palettes), deduped once at module load. */
+const ALL_SHUFFLE_PALETTES: string[][] = (() => {
+  const seen = new Set<string>();
+  const out: string[][] = [];
+  for (const palette of [...POPULAR_PALETTES, ...COLOR_HUNT_PALETTES]) {
+    const key = palette.join('').toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(palette);
+  }
+  return out;
+})();
 
 const MAX_ASSETS = 20;
 
@@ -804,6 +820,10 @@ export function UploadsReviewPanel() {
         <ColorsBoard
           colors={assets.filter((a) => a.kind === 'color')}
           suggestions={paletteSuggestions}
+          onToggleLock={(id) => {
+            const target = useV4Store.getState().assets.find((a) => a.id === id);
+            if (target) updateAsset(id, { locked: !target.locked });
+          }}
           onAdd={(hex) => addColor(hex, 'manual')}
           onUpdate={(id, hex) => {
             const exists = useV4Store
@@ -1209,12 +1229,14 @@ interface SwatchProps {
   renderedHex: string;
   isActive: boolean;
   isPrimary: boolean;
+  isLocked: boolean;
   zIndex: number;
   onPickerToggle(): void;
   /** Copy `text` to the clipboard and flash near `anchor` — the name copies
    *  the color's name, the hex copies the code. */
   onCopy(text: string, anchor: HTMLElement): void;
   onSetPrimary(): void;
+  onToggleLock(): void;
   onDelete(): void;
   onContextMenu?(e: React.MouseEvent<HTMLButtonElement>): void;
   buttonRef?: (el: HTMLButtonElement | null) => void;
@@ -1223,7 +1245,7 @@ interface SwatchProps {
 /** Onboarding-v4 colors swatch — mirrors the Setup page's Swatch markup so the
  *  shared `[data-workspace] .swatch` styles apply identically (same
  *  hover wave, same name/hex copy affordance, same active picker state). */
-function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle, onCopy, onSetPrimary, onDelete, onContextMenu, buttonRef }: SwatchProps) {
+function Swatch({ hex, renderedHex, isActive, isPrimary, isLocked, zIndex, onPickerToggle, onCopy, onSetPrimary, onToggleLock, onDelete, onContextMenu, buttonRef }: SwatchProps) {
   const nameIconRef = useRef<OrganicIconHandle>(null);
   const hexIconRef = useRef<OrganicIconHandle>(null);
   const resetTimerRef = useRef<number | null>(null);
@@ -1302,6 +1324,30 @@ function Swatch({ hex, renderedHex, isActive, isPrimary, zIndex, onPickerToggle,
         {renderedHex.toUpperCase()}
       </span>
       <span
+        className={`swatch-lock${isLocked ? ' is-on' : ''}`}
+        role="button"
+        tabIndex={-1}
+        title={isLocked ? 'Unlocked colors change on shuffle — click to unlock' : 'Lock this color so shuffle keeps it'}
+        aria-label={isLocked ? `Unlock ${displayName}` : `Lock ${displayName}`}
+        aria-pressed={isLocked}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleLock();
+        }}
+      >
+        {isLocked ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="11" width="16" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="11" width="16" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 7.7-1.5" />
+          </svg>
+        )}
+      </span>
+      <span
         className="swatch-del"
         role="button"
         tabIndex={-1}
@@ -1326,6 +1372,7 @@ interface ColorsBoardProps {
   colors: OnboardingAsset[];
   /** Palettes matched from the brand description — offered when no colors exist. */
   suggestions: SuggestedPalette[];
+  onToggleLock(id: string): void;
   onAdd(hex: string): boolean;
   onUpdate(id: string, hex: string): void;
   onRemove(id: string): void;
@@ -1333,12 +1380,13 @@ interface ColorsBoardProps {
   onExtractFromFile(file: File): Promise<void>;
 }
 
+
 /** Drop-in colors panel for the onboarding review step — same markup the
  *  Setup page renders (`.colors-row`, `.swatch`, `.cp-expand`) so the shared
  *  workspace.css styles cover hover wave, copy affordance, picker
  *  expansion, etc. without redefinition. The wrapping `data-workspace`
  *  div is what brings those styles into scope inside the onboarding shell. */
-function ColorsBoard({ colors, suggestions, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
+function ColorsBoard({ colors, suggestions, onToggleLock, onAdd, onUpdate, onRemove, onExtract, onExtractFromFile }: ColorsBoardProps) {
   const [theme] = useCosmosTheme();
   // Untagged palettes fall back to "first swatch is primary" — the same rule
   // brand creation uses — so the badge never shows an empty state.
@@ -1528,6 +1576,63 @@ function ColorsBoard({ colors, suggestions, onAdd, onUpdate, onRemove, onExtract
     setAddMode((v) => !v);
   };
 
+  /** Deal a real, popular palette onto the UNLOCKED swatches; locked ones
+   *  keep their hex. Draws work like a shuffled deck of cards: every palette
+   *  in the library comes up exactly once (random order) before any repeats
+   *  — with ~4.2k palettes, repetition is effectively never. */
+  const deckRef = useRef<number[]>([]);
+  const drawPaletteIndex = () => {
+    if (deckRef.current.length === 0) {
+      const deck = ALL_SHUFFLE_PALETTES.map((_, i) => i);
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      deckRef.current = deck;
+    }
+    return deckRef.current.pop()!;
+  };
+  /** Apply a palette's colors onto the unlocked swatches, in order. */
+  const applyPalette = (paletteColors: string[]) => {
+    const unlocked = orderedColors.filter((c) => !c.locked);
+    if (unlocked.length === 0) return;
+    setActiveIndex(null);
+    setPreviewHex(null);
+    const taken = new Set(
+      orderedColors.filter((c) => c.locked).map((c) => (c.value ?? '').toUpperCase()),
+    );
+    const pool = paletteColors
+      .map((h) => h.toUpperCase())
+      .filter((h, i, arr) => arr.indexOf(h) === i && !taken.has(h));
+    if (pool.length === 0) return;
+    unlocked.forEach((c, i) => {
+      const hex = pool[i % pool.length];
+      if (!hex) return;
+      onUpdate(c.id, hex);
+    });
+  };
+
+  const handleShuffle = () => {
+    const idx = drawPaletteIndex();
+    // Extend with a second palette when the user has more unlocked swatches
+    // than the drawn palette has colors.
+    applyPalette([
+      ...ALL_SHUFFLE_PALETTES[idx],
+      ...ALL_SHUFFLE_PALETTES[(idx + 7) % ALL_SHUFFLE_PALETTES.length],
+    ]);
+  };
+
+  // "All palettes" browser — burger menu next to the shuffle. Renders in
+  // slices that grow as the list scrolls so ~4k palettes stay smooth.
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [browseCount, setBrowseCount] = useState(80);
+  const onBrowseScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight > el.scrollHeight - 240) {
+      setBrowseCount((c) => Math.min(c + 120, ALL_SHUFFLE_PALETTES.length));
+    }
+  };
+
   const activeColor = activeIndex != null ? orderedColors[activeIndex] : null;
   const pickerHex = activeColor?.value ?? '#5B6BFF';
 
@@ -1543,8 +1648,71 @@ function ColorsBoard({ colors, suggestions, onAdd, onUpdate, onRemove, onExtract
             }}
           />
         ) : (
-          <span className="review-group-count">
-            {colors.length} {colors.length === 1 ? 'color' : 'colors'}
+          <span className="review-group-head-right">
+            <Popover
+              open={browseOpen}
+              onOpenChange={(v) => {
+                setBrowseOpen(v);
+                if (v) setBrowseCount(80);
+              }}
+            >
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="colors-shuffle-btn"
+                  title="Browse all palettes"
+                  aria-label="Browse all palettes"
+                  aria-expanded={browseOpen}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <path d="M4 6h16" />
+                    <path d="M4 12h16" />
+                    <path d="M4 18h16" />
+                  </svg>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="palette-browse-pop" style={{ width: 248, padding: 0 }}>
+                <p className="palette-browse-hint">
+                  All palettes · {ALL_SHUFFLE_PALETTES.length.toLocaleString()}
+                </p>
+                <div className="palette-browse-list" onScroll={onBrowseScroll}>
+                  {ALL_SHUFFLE_PALETTES.slice(0, browseCount).map((palette, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="palette-browse-row"
+                      title={palette.join(' · ')}
+                      onClick={() => {
+                        applyPalette(palette);
+                        setBrowseOpen(false);
+                      }}
+                    >
+                      {palette.map((hex, j) => (
+                        <span key={`${hex}-${j}`} className="palette-browse-chip" style={{ background: hex }} />
+                      ))}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <button
+              type="button"
+              className="colors-shuffle-btn"
+              title="Shuffle colors (locked ones stay)"
+              aria-label="Shuffle unlocked colors"
+              onClick={handleShuffle}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.8-1.1 2-1.7 3.3-1.7H22" />
+                <path d="m18 2 4 4-4 4" />
+                <path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2" />
+                <path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8" />
+                <path d="m18 14 4 4-4 4" />
+              </svg>
+            </button>
+            <span className="review-group-count">
+              {colors.length} {colors.length === 1 ? 'color' : 'colors'}
+            </span>
           </span>
         )}
       </header>
@@ -1565,10 +1733,12 @@ function ColorsBoard({ colors, suggestions, onAdd, onUpdate, onRemove, onExtract
                     renderedHex={renderedHex}
                     isActive={activeIndex === i}
                     isPrimary={primaryColorId ? primaryColorId === c.id : i === 0}
+                    isLocked={!!c.locked}
                     zIndex={i + 1}
                     onPickerToggle={() => handleSwatchClick(i)}
                     onCopy={(text, anchor) => handleCopy(text, anchor)}
                     onSetPrimary={() => setPrimaryColor(c.id)}
+                    onToggleLock={() => onToggleLock(c.id)}
                     onDelete={() => {
                       onRemove(c.id);
                       if (activeIndex != null && orderedColors[activeIndex]?.id === c.id) {
@@ -1802,7 +1972,7 @@ function SuggestedFontsButton({
           Add suggested fonts
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="palette-suggest-pop" style={{ width: 276, padding: 6 }}>
+      <PopoverContent align="end" className="palette-suggest-pop" style={{ width: 260, padding: 6 }}>
         <p className="palette-suggest-hint">Based on what you told us about your brand</p>
         {suggestions.map((pairing) => (
           <button
@@ -1954,7 +2124,7 @@ function GoogleFontPicker({ onPick }: { onPick(family: string): boolean }) {
           Pick from Google Fonts
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="google-fonts-popover" style={{ width: 316, padding: 0 }}>
+      <PopoverContent align="start" className="google-fonts-popover" style={{ width: 272, padding: 0 }}>
         <div className="gfp-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />

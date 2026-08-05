@@ -1321,6 +1321,47 @@
   transform: scale(1.12);
 }
 
+/* Lock affordance — sits just right of the delete icon, same choreography.
+   A LOCKED color keeps its padlock visible at rest so the state reads at a
+   glance. */
+[data-workspace] .swatch-lock {
+  position: absolute;
+  top: 38px;
+  left: 34px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 0;
+  transition: opacity 160ms ease-in-out, top 300ms var(--ease), transform 140ms var(--ease);
+}
+[data-workspace] .swatch.is-light .swatch-lock { color: rgba(0, 0, 0, 0.72); }
+[data-workspace] .swatch-lock.is-on { opacity: 1; }
+[data-workspace] .swatch:hover .swatch-lock,
+[data-workspace] .swatch:focus-visible .swatch-lock,
+[data-workspace] .swatch.is-active .swatch-lock,
+[data-workspace] .swatch.is-ctx-active .swatch-lock {
+  opacity: 0.68;
+  top: 72px;
+}
+[data-workspace] .swatch:hover .swatch-lock.is-on,
+[data-workspace] .swatch:focus-visible .swatch-lock.is-on,
+[data-workspace] .swatch.is-active .swatch-lock.is-on,
+[data-workspace] .swatch.is-ctx-active .swatch-lock.is-on {
+  opacity: 1;
+}
+[data-workspace] .swatch-lock:hover {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-workspace] .swatch,
   [data-workspace] .swatch:hover,

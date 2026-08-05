@@ -1983,6 +1983,35 @@
   opacity: 0.75;
 }
 
+/* Header-right cluster on the Colors group: shuffle icon + count. */
+[data-onboarding="cosmos"] .review-group-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+[data-onboarding="cosmos"] .colors-shuffle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px dashed var(--border-strong, var(--border));
+  border-radius: 999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 140ms var(--ease), color 140ms var(--ease), border-color 140ms var(--ease),
+    transform 140ms var(--ease);
+}
+[data-onboarding="cosmos"] .colors-shuffle-btn:hover {
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.04));
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+  transform: rotate(12deg);
+}
+[data-onboarding="cosmos"] .colors-shuffle-btn:active { transform: rotate(180deg); }
+
 /* Suggested-palettes trigger — replaces the "0 colors" count while empty. */
 [data-onboarding="cosmos"] .suggest-palettes-btn {
   display: inline-flex;
@@ -2015,11 +2044,58 @@
 .palette-suggest-pop,
 [data-onboarding="cosmos"] .palette-suggest-pop {
   background: var(--surface, #fff);
-  border: 1px solid var(--border, #e6e4dd);
+  border: 1px solid #e6e4dd;
+  border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(16, 16, 20, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* "All palettes" browser — portaled like the other popovers, so unscoped
+   selectors + literal warm colors. Rows are Color-Hunt-style strips. */
+.palette-browse-pop {
+  background: var(--surface, #fff);
+  border: 1px solid #e6e4dd;
   border-radius: 14px;
   box-shadow: 0 14px 36px rgba(16, 16, 20, 0.12);
   overflow: hidden;
 }
+.palette-browse-hint {
+  margin: 10px 12px 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.01em;
+  color: var(--text-muted, #8a877e);
+}
+.palette-browse-list {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.palette-browse-row {
+  display: flex;
+  width: 100%;
+  height: 32px;
+  flex: none;
+  padding: 0;
+  border: 1px solid #eeece5;
+  border-radius: 9px;
+  overflow: hidden;
+  cursor: pointer;
+  background: none;
+  transition: transform 120ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    box-shadow 120ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+.palette-browse-row:hover {
+  transform: scale(1.03);
+  box-shadow: 0 3px 10px rgba(16, 16, 20, 0.12);
+}
+.palette-browse-chip { flex: 1; }
+
 .palette-suggest-hint {
   margin: 4px 6px 6px;
   font-size: 10.5px;
@@ -2062,12 +2138,27 @@
   margin-left: -6px;
 }
 .palette-suggest-chip:first-child { margin-left: 0; }
-/* Suggested-fonts rows share the picker's preview treatment: pangram in the
-   heading typeface on top, pairing name + families below. */
+/* Suggested-fonts rows share the picker's card treatment: each pairing in
+   its own bordered rectangle — pangram in the heading typeface on top,
+   pairing name + families below. */
 .font-suggest-row {
   flex-direction: column;
   align-items: stretch;
-  gap: 2px;
+  gap: 4px;
+  background: var(--surface, #fff);
+  border: 1px solid #e6e4dd;
+  border-radius: 10px;
+  padding: 9px 11px;
+  transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    border-color 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+}
+/* Slightly smaller preview than the full picker's cards. */
+.font-suggest-row .gfp-item-preview {
+  font-size: 15px;
+}
+.font-suggest-row:hover {
+  background: var(--surface-sunken, #f4f2ec);
+  border-color: #d8d5cb;
 }
 .font-suggest-meta-line {
   display: flex;
@@ -3114,7 +3205,10 @@
 [data-onboarding="cosmos"] .google-fonts-popover,
 .google-fonts-popover {
   background: var(--surface, #fff);
-  border: 1px solid var(--border, #e6e4dd);
+  /* Portal gotcha: --border at :root is a raw HSL triple, so plain
+     var(--border, fallback) invalidates the border. Use the cosmos warm
+     border color directly. */
+  border: 1px solid #e6e4dd;
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(16, 16, 20, 0.14);
   overflow: hidden;
@@ -3124,7 +3218,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border, #e6e4dd);
+  border-bottom: 1px solid #e6e4dd;
   color: var(--text-muted, #9a988f);
 }
 .gfp-input {
@@ -3138,9 +3232,12 @@
 }
 .gfp-input::placeholder { color: var(--text-muted, #9a988f); }
 .gfp-list {
-  max-height: 280px;
+  max-height: 300px;
   overflow-y: auto;
   padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .gfp-empty {
   margin: 0;
@@ -3149,35 +3246,41 @@
   font-size: 12px;
   color: var(--text-muted, #9a988f);
 }
+/* Each font is its own card: bordered rectangle, wrapping preview sentence,
+   family name at the bottom. */
 .gfp-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   width: 100%;
   text-align: left;
-  background: transparent;
-  border: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
+  background: var(--surface, #fff);
+  border: 1px solid #e6e4dd;
+  padding: 12px 13px;
+  border-radius: 10px;
   color: var(--text-primary, #0e0e0e);
   cursor: pointer;
-  transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
+  transition: background 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    border-color 140ms var(--ease, cubic-bezier(0.22, 0.61, 0.36, 1));
   font-family: inherit;
 }
-.gfp-item:hover { background: var(--surface-sunken, #efede6); }
+.gfp-item:hover {
+  background: var(--surface-sunken, #f4f2ec);
+  border-color: #d8d5cb;
+}
 .gfp-item-preview {
-  display: block;
-  font-size: 17px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 18px;
   line-height: 1.3;
   color: var(--text-primary, #0e0e0e);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
 }
 .gfp-item-name {
   font-size: 10.5px;
-  font-weight: 500;
+  font-weight: 550;
   letter-spacing: 0.01em;
   color: var(--text-muted, #8a877e);
 }

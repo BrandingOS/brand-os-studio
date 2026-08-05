@@ -50,6 +50,8 @@ export interface OnboardingAsset {
   aiPlacement?: 'logos' | 'images' | 'colors' | 'fonts' | 'files';
   /** Hex value for color-kind assets (e.g. "#3F3F88"). */
   value?: string;
+  /** Color-kind only: locked colors are skipped by the palette shuffle. */
+  locked?: boolean;
   /** Where a font asset came from. */
   fontSource?: FontSource;
   /** Detected platform for link-kind assets. */
