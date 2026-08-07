@@ -83,9 +83,10 @@ export function brandToBrandKit(brand: Brand): BrandKit {
     brand.typography?.primary?.family ??
     brand.fonts.primary;
 
-  const headingWeights =
+  const headingWeights = sanitizeWeights(
     brand.typescale?.fonts?.heading?.weights ??
-    brand.typography?.primary?.weights;
+      brand.typography?.primary?.weights,
+  );
 
   const bodyExplicitFamily =
     brand.typescale?.fonts?.body?.family ??
@@ -103,10 +104,11 @@ export function brandToBrandKit(brand: Brand): BrandKit {
   }
 
   const bodyWeights =
-    brand.typescale?.fonts?.body?.weights ??
-    brand.typography?.secondary?.weights ??
-    brand.typography?.primary?.weights ??
-    headingWeights;
+    sanitizeWeights(
+      brand.typescale?.fonts?.body?.weights ??
+        brand.typography?.secondary?.weights ??
+        brand.typography?.primary?.weights,
+    ) ?? headingWeights;
 
   // ─── Logos (v3 logoSystem → brandAssets[] → format priority) ───────────
 
@@ -161,6 +163,20 @@ function pickHex(...candidates: (string | undefined)[]): string | undefined {
     if (c && HEX_RE.test(c)) return c;
   }
   return undefined;
+}
+
+/**
+ * Legacy/external sources (guidelines migration, imported font metadata)
+ * aren't guaranteed to hand back numeric weights — coerce and drop
+ * anything that isn't a positive integer before it reaches the strict
+ * BrandKitSchema, rather than letting `.parse()` throw mid-render.
+ */
+function sanitizeWeights(weights: unknown): number[] | undefined {
+  if (!Array.isArray(weights)) return undefined;
+  const cleaned = weights
+    .map((w) => (typeof w === 'number' ? w : Number(w)))
+    .filter((w) => Number.isInteger(w) && w > 0);
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 type LogoSlotName =

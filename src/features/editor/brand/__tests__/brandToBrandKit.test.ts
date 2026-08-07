@@ -226,6 +226,38 @@ describe('brandToBrandKit — typography', () => {
     expect(kit.typography.heading.weights).toEqual([400, 700]);
     expect(kit.typography.body.weights).toEqual([300, 400]);
   });
+
+  it('regression: stringified weights (legacy/migrated guidelines data) are coerced, not thrown', () => {
+    // Reproduces a prod crash: migrateSchema.ts's buildTypographySystem
+    // copies guidelines.typography.*.weights through with no runtime
+    // coercion, so a brand with string weights (e.g. '"400"' from an
+    // older write path or external font payload) reached
+    // BrandKitSchema.parse() — which requires z.number() — and threw
+    // synchronously during Editor render.
+    const kit = brandToBrandKit(
+      makeBrand({
+        typography: {
+          primary: { family: 'Georgia', weights: ['400', '500', 'bogus', 700] as any },
+          secondary: { family: 'Helvetica', weights: ['300'] as any },
+        },
+      }),
+    );
+    expect(() => BrandKitSchema.parse(kit)).not.toThrow();
+    expect(kit.typography.heading.weights).toEqual([400, 500, 700]);
+    expect(kit.typography.body.weights).toEqual([300]);
+  });
+
+  it('body: falls back to sanitized headingWeights when its own weights are entirely invalid', () => {
+    const kit = brandToBrandKit(
+      makeBrand({
+        typography: {
+          primary: { family: 'Georgia', weights: [400, 700] },
+          secondary: { family: 'Helvetica', weights: ['not-a-number'] as any },
+        },
+      }),
+    );
+    expect(kit.typography.body.weights).toEqual([400, 700]);
+  });
 });
 
 // ─── Logo resolution ────────────────────────────────────────────────────
