@@ -62,21 +62,37 @@ export function changeBrandPrimaryColor(
   return changeBrandColor(repo, brandId, 'primary', { hex });
 }
 
+export interface BrandColorChanges {
+  primary?: ColorToken;
+  secondary?: ColorToken;
+  accent?: ColorToken;
+  neutrals?: ColorToken[];
+}
+
 /**
- * Change several color roles atomically (one load, one save) — used by the
- * dedicated Color editor so a multi-role edit is a single canonical operation.
+ * Change several color roles (and/or neutrals) atomically (one load, one save) —
+ * the single canonical color mutation used by every migrated color surface.
  */
 export async function changeBrandColors(
   repo: BrandRepository,
   brandId: string,
-  roles: Partial<Record<ColorRole, ColorToken>>,
+  changes: BrandColorChanges,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandColors: brand not found: ${brandId}`);
 
   let next = brand;
-  for (const [role, token] of Object.entries(roles) as [ColorRole, ColorToken][]) {
-    if (token) next = withColor(next, role, token);
+  if (changes.primary) next = withColor(next, 'primary', changes.primary);
+  if (changes.secondary) next = withColor(next, 'secondary', changes.secondary);
+  if (changes.accent) next = withColor(next, 'accent', changes.accent);
+  if (changes.neutrals) {
+    next = {
+      ...next,
+      identity: {
+        ...next.identity,
+        colors: { ...next.identity.colors, neutrals: changes.neutrals },
+      },
+    };
   }
   assertCanonicalBrand(next);
   return repo.save(next);

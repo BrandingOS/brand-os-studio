@@ -18,16 +18,12 @@ _Quick status page. Updated after every stage. Detailed docs live in
 - [x] Stage 2A — Canonical Brand identity — **FOUNDATION COMPLETE** (no live consumer)
 - [x] Stage 2B — Canonical Brand persistence/repository — **FOUNDATION COMPLETE** (not wired into DI/app; schema 013 deploy-pending)
 - [x] Stage 2C — Asset / Logo / Font — **FOUNDATION COMPLETE** (no live consumer)
-- [x] Stage 2D — Color System migration — **CODE CUTOVER COMPLETE / PRODUCTION CUTOVER: partial.**
-      The real dedicated color editor (Settings dialog **ColorsTab**, reachable via Identity →
-      Colors → Edit) now reads canonical `colorSystem` and writes through `changeBrandColors` →
-      `BrandRepository` (wired into the real DI). The root stale-mirror bug is fixed at source
-      (`buildColorSystem` prefers the fresh scalar). **Guest = production-complete today** (no DB
-      change needed — color rides existing columns). **Authed = server-backed + verified**, works
-      today via existing `primary_color`/`secondary_color` columns; full-fidelity identity-column
-      persistence lands with migration 013 (deploy-gated). Setup + Brand Kit card editor are
-      separate color surfaces (Setup writes a consistent representation; card editor is toast-only)
-      — next to migrate, tracked in the backlog.
+- [x] Stage 2D — Color System migration — **CODE CUTOVER COMPLETE; PRODUCTION DEPLOYMENT: BLOCKED
+      ON PRODUCTION ACCESS.** The real color editor (Settings **ColorsTab**, via Identity → Colors →
+      Edit) reads canonical `colorSystem` and writes through `changeBrandColors` → `BrandRepository`
+      (real DI). Root stale-mirror bug fixed at source (`buildColorSystem` prefers the fresh
+      scalar). Verified locally against real Postgres; **not deployed/verified in production** (no
+      prod access). Full-fidelity authed accent/neutrals need migration 013 (also blocked).
 
 ## Current Architecture (as-is)
 
