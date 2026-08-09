@@ -214,14 +214,69 @@ function resolveVoice(b: Brand): Voice {
   };
 }
 
-function resolveIdentity(b: Brand): BrandIdentity {
+/**
+ * BACKFILL (never override) the legacy-derived base from the stored canonical
+ * `identity` blob (migration 013). The blob only FILLS a field the legacy shape
+ * genuinely lost — the authed accent/neutrals case, where those have no scalar
+ * column and get dropped on save, so on reload the legacy base is empty and the
+ * blob restores them. It is strictly legacy-FIRST: whenever the legacy shape
+ * still carries a value (guest localStorage, or ANY live legacy writer — Brand
+ * Board's accent/neutrals scalars, Classic's guidelines voice, onboarding's
+ * guidelines typography), that value wins and the blob is ignored. This makes a
+ * lagging blob incapable of reverting any writer; it can only recover data the
+ * transport dropped. Primary/secondary color, logos, font families, tone, and
+ * strategy are never touched here — they keep their own legacy precedence.
+ */
+function overlayStoredIdentity(base: BrandIdentity, stored: BrandIdentity): BrandIdentity {
+  const st = stored ?? ({} as BrandIdentity);
+  const sc = st.colors ?? ({} as BrandIdentity['colors']);
+  const stypo = st.typography ?? ({} as BrandIdentity['typography']);
+  const sv = st.voice ?? ({} as BrandIdentity['voice']);
+
+  const backfillFont = (baseFont: FontToken | undefined, storedFont: FontToken | undefined) => {
+    if (!baseFont || !storedFont) return baseFont;
+    return {
+      ...baseFont,
+      weights: baseFont.weights ?? storedFont.weights,
+      fallbacks: baseFont.fallbacks ?? storedFont.fallbacks,
+      url: baseFont.url ?? storedFont.url,
+    };
+  };
+
   return {
+    ...base,
+    colors: {
+      ...base.colors,
+      // Legacy-first: the blob only fills accent/neutrals the transport dropped.
+      accent: base.colors.accent ?? sc.accent,
+      neutrals: base.colors.neutrals ?? sc.neutrals,
+    },
+    typography: {
+      primary: backfillFont(base.typography.primary, stypo.primary) ?? base.typography.primary,
+      secondary: backfillFont(base.typography.secondary, stypo.secondary) ?? base.typography.secondary,
+    },
+    voice: {
+      ...base.voice,
+      personality: base.voice.personality?.length ? base.voice.personality : sv.personality ?? [],
+      doList: base.voice.doList?.length ? base.voice.doList : sv.doList ?? [],
+      dontList: base.voice.dontList?.length ? base.voice.dontList : sv.dontList ?? [],
+      examples: base.voice.examples?.length ? base.voice.examples : sv.examples ?? [],
+    },
+  };
+}
+
+function resolveIdentity(b: Brand): BrandIdentity {
+  const base: BrandIdentity = {
     colors: resolveColors(b),
     logos: resolveLogos(b),
     typography: resolveTypography(b),
     strategy: resolveStrategy(b),
     voice: resolveVoice(b),
   };
+  // Recover blob-only fields (accent/neutrals, weights, rich voice) from the
+  // stored canonical identity when present. Cloned so the canonical aggregate
+  // never aliases the mutable legacy input.
+  return b.identity ? overlayStoredIdentity(base, cloneJson(b.identity)) : base;
 }
 
 /** Legacy Brand → CanonicalBrand. Pure, deterministic, lossless for identity. */

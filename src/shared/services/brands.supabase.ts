@@ -134,6 +134,11 @@ export class SupabaseBrandsService implements IBrandsService {
     if (patch.tone !== undefined) updateData.tone = patch.tone;
     if (patch.audience !== undefined) updateData.audience = patch.audience;
     if (patch.strategy !== undefined) updateData.strategy = patch.strategy;
+    // Canonical identity blob (migration 013). Home for accent/neutrals, numeric
+    // font weights, and rich voice — fields with no legacy scalar column.
+    if (patch.identity !== undefined) updateData.identity = patch.identity;
+    if (patch.identitySchemaVersion !== undefined)
+      updateData.identity_schema_version = patch.identitySchemaVersion;
     if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
     if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
     if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
@@ -177,6 +182,8 @@ export class SupabaseBrandsService implements IBrandsService {
       audience: data.audience || '',
       strategy: data.strategy || undefined,
       guidelines: data.guidelines || undefined,
+      identity: data.identity || undefined,
+      identitySchemaVersion: data.identity_schema_version || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,

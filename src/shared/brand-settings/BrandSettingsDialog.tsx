@@ -30,7 +30,8 @@ import type { BrandRepository } from '@/domain/brand/repository';
 import { changeBrandColors } from '@/application/brand/changeBrandColor';
 import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
 import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
-import { toLegacyBrandPatch } from '@/domain/brand';
+import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
+import { fromLegacyBrand, toLegacyBrandPatch } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
@@ -525,8 +526,14 @@ function VoiceTab({ brand }: { brand: Brand }) {
 // STRATEGY TAB
 // ═════════════════════════════════════════════════════════════════════════
 function StrategyTab({ brand }: { brand: Brand }) {
+  // Brand System finalization — read the canonical strategy (unifies the legacy
+  // `strategy` scalar + `guidelines.strategy`); write through the canonical
+  // `changeBrandStrategy` use-case (validation + identity-blob forward store)
+  // AND the shared `guidelines.strategy` home that `fromLegacyBrand` + the
+  // still-legacy Setup surface read, so the two surfaces never diverge.
+  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
   const updateBrand = useBrandStore((s) => s.update);
-  const strategy = brand.guidelines?.strategy;
+  const strategy = fromLegacyBrand(brand).identity.strategy;
 
   const [mission, setMission] = useState(strategy?.mission ?? '');
   const [vision, setVision] = useState(strategy?.vision ?? '');
@@ -541,28 +548,41 @@ function StrategyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      const change = {
+        mission,
+        vision,
+        values: values
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean),
+        positioning,
+      };
+      // AUTHORITATIVE write first: `guidelines.strategy` is the home
+      // `fromLegacyBrand` (and the still-legacy Setup surface) actually read
+      // from. Merged at the call site so sibling guidelines keys
+      // (aboutSections/colorPalette/voiceAndTone) survive; also syncs the store.
       await updateBrand(brand.id, {
         guidelines: {
           ...brand.guidelines,
-          strategy: {
-            ...brand.guidelines?.strategy,
-            mission,
-            vision,
-            values: values
-              .split(',')
-              .map((v) => v.trim())
-              .filter(Boolean),
-            positioning,
-          },
+          strategy: { ...brand.guidelines?.strategy, ...change },
         },
       });
+      // Canonical model + identity-blob forward store, best-effort: the strategy
+      // is already durably persisted above, so a blob-write failure must not lose
+      // the edit or block the success toast. The blob becomes the read authority
+      // only once Setup is migrated too (backlog B16).
+      try {
+        await changeBrandStrategy(repo, brand.id, change);
+      } catch {
+        /* forward-store only — the guidelines home above is authoritative */
+      }
       toast.success('Strategy updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand, mission, vision, values, positioning, updateBrand]);
+  }, [brand, mission, vision, values, positioning, repo, updateBrand]);
 
   return (
     <Section>

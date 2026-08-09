@@ -4,6 +4,7 @@ import type {
   LogoSystemRefs,
   TypographySystem,
 } from './brandAssets';
+import type { BrandIdentity } from '@/domain/brand/identity';
 import type { Typescale } from './typescale';
 import type { DeckKind, PresentationTheme } from '@/shared/presentation/theme/types';
 import type { Deck as DeckV2 } from '@/shared/presentation/v2/types';
@@ -26,6 +27,16 @@ export interface Brand {
   typescale?: Typescale;
   /** Canonical brand asset library. Includes logos, images, fonts, docs. */
   brandAssets?: BrandAsset[];
+  /**
+   * Canonical identity blob (migration 013 `brands.identity` column, or the
+   * localStorage snapshot for guests). Written one-way by the canonical write
+   * path (`toLegacyBrandPatch`) and read by `fromLegacyBrand` to recover the
+   * fields that have NO legacy column home — accent/neutrals, numeric font
+   * weights, and rich voice. Absent on brands never touched by a canonical
+   * write; those fall back to the legacy-derived identity. */
+  identity?: BrandIdentity;
+  /** Schema version of the stored `identity` blob. */
+  identitySchemaVersion?: number;
 
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target

@@ -18,6 +18,14 @@ export function toLegacyBrandPatch(c: CanonicalBrand): Partial<Brand> {
   const patch: Partial<Brand> = {
     name: c.name,
 
+    // Canonical identity blob — the durable home (migration 013 `identity`
+    // column for authed users; the localStorage snapshot for guests) for the
+    // fields with NO legacy column: accent/neutrals, numeric font weights, rich
+    // voice. `fromLegacyBrand` overlays exactly those from here on read. Written
+    // one-way (canonical → legacy); nothing reads it as a competing authority.
+    identity: c.identity,
+    identitySchemaVersion: c.identitySchemaVersion,
+
     // Colors — write BOTH the scalar and the v3 token so every consumer agrees.
     primaryColor: colors.primary.hex,
     secondaryColor: colors.secondary?.hex,
