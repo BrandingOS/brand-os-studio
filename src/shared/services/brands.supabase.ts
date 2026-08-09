@@ -30,15 +30,13 @@ export class SupabaseBrandsService implements IBrandsService {
     const { data, error } = await query;
     if (error) throw error;
 
+    // Authenticated users' list is their REAL brands only. Seed/demo brands
+    // (raqm/skam/vector/uniex/demo) are NOT injected here — they must not appear
+    // as user-owned records (Batch C / C5). They remain reachable by direct URL
+    // via getById/getBySlug (the explicit demo boundary), and guest mode
+    // (LocalBrandsService) still surfaces them as examples.
     const dbBrands = (data ?? []).map(this.mapFromDatabase);
-    const dbBrandIds = new Set(dbBrands.map((b) => b.id));
-
-    // Merge: DB brands first, then seed brands (with any user overrides
-    // applied via the seed-override layer) that aren't already represented.
-    const seeds = SEED_BRANDS
-      .filter((b) => !dbBrandIds.has(b.id))
-      .map(applySeedOverride);
-    return migrateBrands([...dbBrands, ...seeds]);
+    return migrateBrands(dbBrands);
   }
 
   async getById(id: string): Promise<Brand | null> {

@@ -167,6 +167,64 @@ don't stop the cleanup per-migration; keep code backward-compatible with the dep
 
 _No other pending migrations. 011/012/013/014 remote; 009/010 deferred (absent)._
 
+## Batch C — Product / Legacy Cleanup (2026-08-09) — reduction
+
+Evidence-backed deletion pass (2 read-only audits → verify-before-delete, 0-importer confirmed).
+
+### Metrics BEFORE → AFTER (lines removed = the point; lines added are not success)
+| Metric | Before | After |
+|---|---|---|
+| `src` tracked files | 1447 | **1406 (−41)** |
+| Net LOC | — | **−6,135** |
+| App.tsx `<Route>` defs | 128 | **118 (−10)** |
+| App.tsx lines | 769 | **740** |
+| Onboarding route generations | 5 (`onboarding`,`onboarding-brand`,`onboarding-v3`,`onboarding-v4`,`onboard-brand`) | **3** (v3+v4 dead gens removed) |
+| Dead component files | — | **31 deleted (~5,600 LOC)** |
+| Ungated dev routes shipping in prod | 2 (`/_dev/editor`,`/_dev/chronicle`) | **0** (now `import.meta.env.DEV`-gated) |
+| Seed/demo in authed brand lists | yes (injected as user-owned) | **no** (real brands only; demo via URL) |
+
+### What was deleted
+- **~5,600 LOC dead components** (31 files): `domain/asset` stub, `case-study-deck/editor`,
+  `brand-board/preview` DeviceFrame+templates, orphaned guidelines editors
+  (Interactive/GuidelineWithEditor/TemplateDocument/CoverTemplate/EditSlideForm), brand/components
+  (BrandKitTemplates/FontSelector/IconGallery/BrandBoard), BrandKitInnerNav, BrandKitVariantsModal,
+  StockPhotoSearch, SocialFormatPicker, AssetDropzone, EditableBlock, DragHandle, FirstBrandRedirect,
+  BrandSetupSidebar.example.
+- **Dead route generations** (10 routes + 10 shim pages): `/onboarding-v3`(+create,preview),
+  `/onboarding-v4`(+create) → superseded by `/onboard-brand` (which reuses onboarding-v4 SCREENS,
+  kept); ns-less workspace tabs `/setup /brand-kit /guideline /design-workspace /tools-workspace` +
+  `pages/setup/*` → superseded by brand-scoped `/b/:slug/*`. Unused `DashboardRoute` import.
+- **Fixes:** stale `index.css` import of a non-existent `onboarding-v3/styles/cosmos.css` (redundant —
+  `CosmosShell` imports it locally) removed; stray root `MOCKUP_STUDIO_ADAPTATION_PLAN.md` deleted.
+- **C5:** authed `SupabaseBrandsService.list()` no longer injects seed/demo brands as user-owned.
+
+### KEPT (agent duplicate/dead calls corrected on verification)
+- `domains/landing` (ALIVE — route `/`), `editor/components` (routed, frozen), `brand-kit-alt` (Classic),
+  **`WorkspaceShellAlt`** (a DISTINCT workspace-level shell, not a dup), **Classic `/a/:slug`** (live via
+  the UI-preference toggle — NOT deletable; C4 is trim-aliases-only, not namespace collapse).
+- Redirect helpers with a stated bookmark-compat purpose kept.
+
+### Product route map BEFORE → AFTER
+```
+BEFORE                                          AFTER
+onboarding: /onboarding /onboarding-brand       onboarding: /onboarding /onboarding-brand
+            /onboarding-v3 /onboarding-v4                    /onboard-brand (canonical)
+            /onboard-brand (canonical)          workspace tabs: (removed — brand-scoped only)
+workspace tabs (ns-less): /setup /brand-kit     brand:  /b/:slug/* (Studio, canonical)
+            /guideline /design-workspace                 /a/:slug/* (Classic, preference-toggle)
+            /tools-workspace                             /dashboard/brand/:slug → 302 (compat)
+brand:  /b /a /dashboard/brand (3 gens)         dev:    /_dev/features (gated); editor/chronicle DEV-only
+dev:    /_dev/{features,editor,chronicle} (editor/chronicle ungated in prod)
+```
+
+### Remaining Batch-C candidates (not blockers)
+- `useBrandBySlug` vs `useBrandFromSlug` convergence — distinct seed-fallback logic; a hook-strategy
+  decision, not a mechanical delete. Deferred.
+- Classic `/a` intra-rename redirects (`kit`,`guidelines`,`brandkit`) — kept (bookmark-compat); removable
+  when Classic is retired.
+- Sibling repo dirs (`new-version/`, `product-os/`, `brand-vision/`, `remotion/`, root QA PNGs) — untracked
+  or separate-project scope; not a `src` deletion concern.
+
 ## Batch B — Data / Assets / Persistence (2026-08-09) — PARTIAL
 
 ### Persistence truth map (B1)
