@@ -157,12 +157,55 @@ export function SetUpScreen() {
         usage,
       });
 
+      // ── Slogan (ONB-01) ───────────────────────────────────────────
+      // A slogan typed inline on the review bar wins; otherwise fall back
+      // to a parsed Slogan/Tagline/Motto section. Persisted BOTH as
+      // `guidelines.slogan` (programmatic home) and as an About section
+      // (visible on Setup / Brand Kit / Guideline) — before this fix the
+      // review-bar input displayed a value that was thrown away on submit.
+      const sloganSectionRe = /^(?:brand\s+)?(?:slogan|tagline|motto)s?$/i;
+      const typedSlogan = useV4Store.getState().define.slogan?.trim() ?? '';
+      const parsedSlogan =
+        sections.find((s) => sloganSectionRe.test(s.name.trim()))?.content.trim() ?? '';
+      const slogan = typedSlogan || parsedSlogan;
+
+      const aboutSectionsOut = sections
+        .filter((s) => s.content.trim())
+        .map((s) => ({ id: s.id, title: s.name, content: s.content.trim() }));
+      if (slogan && !sections.some((s) => sloganSectionRe.test(s.name.trim()))) {
+        aboutSectionsOut.unshift({
+          id: `s-slogan-${Date.now()}`,
+          title: 'Slogan',
+          content: slogan,
+        });
+      }
+
+      // Values arrive as one comma/·-separated sentence — split into
+      // real list entries (ONB-04) so downstream list renderers get
+      // ["One", "Two", "Three"], not one run-on string. A sentence
+      // with no separators stays a single value.
+      const rawValues = findSection('values');
+      const values = rawValues
+        ? rawValues
+            .split(/[,;·•|]+/)
+            .map((v) => v.trim().replace(/\.$/, ''))
+            .filter(Boolean)
+        : [];
+
       const guidelines: Record<string, unknown> = {
+        ...(slogan ? { slogan } : {}),
         strategy: {
           mission: findSection('mission'),
           vision: findSection('vision'),
-          values: findSection('values') ? [findSection('values')] : [],
-          personality: findSection('voice') ? [findSection('voice')] : [],
+          values,
+          // Personality holds PERSONALITY traits, not the voice
+          // sentence (ONB-05). Copying the voice here made "How we
+          // sound" content bleed into strategy and print twice on the
+          // guideline. A dedicated Personality section maps when the
+          // user writes one; otherwise the field stays empty.
+          personality: findSection('personality')
+            ? [findSection('personality')]
+            : [],
           positioning: findSection('positioning'),
           targetAudience: audience,
         },
@@ -173,9 +216,7 @@ export function SetUpScreen() {
         // Preserve EVERYTHING the user wrote/parsed — including custom
         // headings the canonical strategy fields can't hold. Setup's
         // About group renders from this list.
-        aboutSections: sections
-          .filter((s) => s.content.trim())
-          .map((s) => ({ id: s.id, title: s.name, content: s.content.trim() })),
+        aboutSections: aboutSectionsOut,
       };
 
       // ── Colors ────────────────────────────────────────────────────
@@ -215,7 +256,12 @@ export function SetUpScreen() {
       const fontAssets = assets.filter((a) => a.kind === 'font' && a.name.trim());
       const fontFamilies = groupFontAssets(fontAssets);
       const primaryFont = fontFamilies[0]?.family.trim() || 'Inter';
-      const secondaryFont = fontFamilies[1]?.family.trim() || primaryFont;
+      // One picked family stays ONE family (DSN-06) — duplicating it
+      // into `secondary` made every downstream surface list the same
+      // font twice ("PRIMARY · X / SECONDARY · X", duplicate React
+      // keys in the editor's font select). Consumers already fall
+      // back to primary when secondary is absent.
+      const secondaryFont = fontFamilies[1]?.family.trim() || undefined;
 
       // ── Logos ─────────────────────────────────────────────────────
       // Compress to data URLs so the brand survives a localStorage refresh

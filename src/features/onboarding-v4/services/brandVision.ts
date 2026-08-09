@@ -12,12 +12,28 @@ import { useV4Store } from '../store/onboardingV4Store';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import { genId } from '../utils/assetUpload';
 
-// Opt-in only: use the configured URL, and fall back to the local dev service
-// ONLY in dev builds. In production with no `VITE_BRAND_VISION_URL` set, BASE_URL
-// is empty and the classifier is skipped (no doomed request to localhost:8300).
-const BASE_URL: string =
-  (import.meta as any).env?.VITE_BRAND_VISION_URL ||
-  ((import.meta as any).env?.DEV ? 'http://localhost:8300' : '');
+// Opt-in only: the classifier runs ONLY when an env override is configured —
+// `VITE_CLASSIFIER_URL` (or the legacy `VITE_BRAND_VISION_URL`). When neither
+// is set (the default, dev included) the fetch is skipped entirely and the
+// filename/alpha heuristics are the answer — no doomed request to a
+// hard-coded localhost:8300. Deliberately not in .env.example: it's a
+// local-tooling override, not app configuration. Read lazily so tests can
+// stub the env per-case.
+function classifierBaseUrl(): string {
+  const env = (import.meta as any).env ?? {};
+  // process.env fallback: import.meta.env is per-module under Vitest, so
+  // vi.stubEnv can only reach this module through process.env. Guarded —
+  // `process` doesn't exist in the browser.
+  const nodeEnv: Record<string, string | undefined> =
+    typeof process !== 'undefined' ? process.env ?? {} : {};
+  return (
+    env.VITE_CLASSIFIER_URL ||
+    nodeEnv.VITE_CLASSIFIER_URL ||
+    env.VITE_BRAND_VISION_URL ||
+    nodeEnv.VITE_BRAND_VISION_URL ||
+    ''
+  );
+}
 const ENGINE: string = (import.meta as any).env?.VITE_BRAND_VISION_ENGINE || 'custom';
 const TIMEOUT_MS = 25_000;
 const MIN_CONFIDENCE = 0.5;
@@ -42,7 +58,8 @@ export async function classifyImage(
   file: File,
   fetchImpl: typeof fetch = fetch
 ): Promise<BrandVisionVerdict | null> {
-  if (!BASE_URL) return null; // brand-vision not configured (e.g. prod) → skip
+  const baseUrl = classifierBaseUrl();
+  if (!baseUrl) return null; // no env override configured → heuristics only
   if (Date.now() < disabledUntil) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -50,7 +67,7 @@ export async function classifyImage(
     const fd = new FormData();
     fd.append('file', file);
     fd.append('engine', ENGINE);
-    const res = await fetchImpl(`${BASE_URL}/classify`, {
+    const res = await fetchImpl(`${baseUrl}/classify`, {
       method: 'POST',
       body: fd,
       signal: controller.signal,

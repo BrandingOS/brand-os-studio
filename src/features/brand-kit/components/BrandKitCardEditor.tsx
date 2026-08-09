@@ -37,6 +37,7 @@ import {
 } from '../data/iconWeights';
 import type { KitSectionKey } from './BrandKitSidebar';
 import type { BusinessCardContent, TemplateOverrides } from '../types';
+import type { SavedCardCustomization } from '../data/cardCustomizations';
 
 const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
 
@@ -451,8 +452,12 @@ type Props = {
    *  preview reflects the recolor live. */
   sourceBrand?: Brand;
   target: EditorTarget | null;
+  /** Previously saved customization for this card (KIT-01). When
+   *  present, seeds the editor state so a saved edit is what the
+   *  user sees on reopen — not the brand defaults. */
+  initialCustomization?: SavedCardCustomization | null;
   onClose: () => void;
-  onSave: (target: EditorTarget) => void;
+  onSave: (target: EditorTarget, customization: SavedCardCustomization) => void;
   onDownload: (target: EditorTarget) => void;
   /** Persistence hook for the brand-asset-icon editor — when the
    *  user picks a different weight, the page rewrites brand.icons
@@ -476,6 +481,7 @@ export function BrandKitCardEditor({
   brand,
   sourceBrand,
   target,
+  initialCustomization,
   onClose,
   onSave,
   onDownload,
@@ -550,7 +556,24 @@ export function BrandKitCardEditor({
     }
     setHoveredFontWeight(null);
     setOverrides(getDefaultOverrides(templateType, brand));
-  }, [target, brand, templateType]);
+    // Re-apply the saved customization for this card, when one exists
+    // (KIT-01). Saved ids are validated against the current brand so a
+    // deleted logo/font falls back to the defaults seeded above.
+    const saved = initialCustomization;
+    if (saved) {
+      setOverrides({ ...getDefaultOverrides(templateType, brand), ...saved.overrides });
+      if (saved.cover && target.covers.includes(saved.cover)) setSelectedCover(saved.cover);
+      if (saved.color) setSelectedColor(saved.color);
+      if (saved.secondaryColor) setSelectedSecondaryColor(saved.secondaryColor);
+      if (saved.logoId && brand.logos.some((l) => l.id === saved.logoId)) {
+        setSelectedLogoId(saved.logoId);
+      }
+      if (saved.logoColor) setSelectedLogoColor(saved.logoColor);
+      if (saved.fontId && brand.fonts.some((f) => f.id === saved.fontId)) {
+        setSelectedFontId(saved.fontId);
+      }
+    }
+  }, [target, brand, templateType, initialCustomization]);
 
   useEffect(() => {
     if (!target) return;
@@ -1535,7 +1558,16 @@ export function BrandKitCardEditor({
                 ) {
                   onUpdateIconAt(iconIndex, iconPreviewClass);
                 }
-                onSave(target);
+                onSave(target, {
+                  overrides,
+                  cover: selectedCover,
+                  color: selectedColor,
+                  secondaryColor: selectedSecondaryColor,
+                  logoId: selectedLogoId,
+                  logoColor: selectedLogoColor,
+                  fontId: selectedFontId,
+                  savedAt: new Date().toISOString(),
+                });
               }}
             >
               Save

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
@@ -53,7 +54,29 @@ export function WorkspaceShell({
   children: ReactNode;
 }) {
   const user = useSessionStore((s) => s.user);
+  const { logout } = useAuth();
   const [theme, setTheme] = useState<'light' | 'dark'>(readInitialTheme);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close the profile menu on outside click / Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   useEffect(() => {
     try {
@@ -121,19 +144,43 @@ export function WorkspaceShell({
             </svg>
           </button>
 
-          <button
-            type="button"
-            className="ws-profile-pill"
-            aria-label={`Profile menu for ${displayName}`}
-            title={displayName}
-            // Hook up to a real profile menu in Phase 6. For now the
-            // pill is a visual placeholder — clicking it is a no-op.
-          >
-            <span className="ws-profile-avatar" aria-hidden="true">
-              {initials}
-            </span>
-            <span>{displayName.split(' ')[0]}</span>
-          </button>
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="ws-profile-pill"
+              aria-label={`Profile menu for ${displayName}`}
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              title={displayName}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span className="ws-profile-avatar" aria-hidden="true">
+                {initials}
+              </span>
+              <span>{displayName.split(' ')[0]}</span>
+            </button>
+            {menuOpen && (
+              <div className="ws-profile-menu" role="menu">
+                <div className="ws-profile-menu-id">
+                  <span className="ws-profile-menu-name">{displayName}</span>
+                  {user?.email ? (
+                    <span className="ws-profile-menu-email">{user.email}</span>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="ws-profile-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    void logout();
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

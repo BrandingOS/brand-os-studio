@@ -86,6 +86,17 @@ export function cssUrl(value: string): string {
   return `url("${value.replace(/"/g, '\\"')}")`;
 }
 
+/** First explicit fill / stroke color painted by an inline-vector
+ *  logo, after stripping the baked-in background rect. Used to pick
+ *  which neutral surface the ORIGINAL (unrecolored) artwork reads
+ *  best on. Returns null for wrapped `<image href>` logos — their
+ *  pixels aren't inspectable from the SVG string. */
+export function firstLogoColor(svg: string): string | null {
+  const body = svg.replace(/<rect\b[^>]*\bwidth="[^"]+"[^>]*\bheight="[^"]+"[^>]*\/>/, '');
+  const match = body.match(/\b(?:fill|stroke)="((?!none|transparent)[^"]+)"/i);
+  return match ? match[1] : null;
+}
+
 /** Whether two color strings are visually identical. */
 export function colorsMatch(a: string, b: string): boolean {
   return a.trim().toLowerCase() === b.trim().toLowerCase();

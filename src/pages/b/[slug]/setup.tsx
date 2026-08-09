@@ -16,6 +16,7 @@ import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
 import { changeBrandStrategy, type StrategyChange } from '@/application/brand/changeBrandStrategy';
 import { toLegacyBrandPatch, type CanonicalBrand } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
+import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
 
 /**
  * Brand-scoped Setup tab at /b/:slug/setup.
@@ -39,7 +40,7 @@ import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapte
  */
 export default function BrandSetupPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { brand } = useBrandFromSlug(slug);
+  const { brand, isLoading } = useBrandFromSlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
   const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
 
@@ -153,7 +154,7 @@ export default function BrandSetupPage() {
     [brand, updateBrand, repo],
   );
 
-  if (!brand) return null;
+  if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;
 
   return (
     <SetupPage

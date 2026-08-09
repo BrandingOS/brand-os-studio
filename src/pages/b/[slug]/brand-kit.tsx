@@ -3,6 +3,7 @@ import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { BrandKitCosmosPage } from '@/features/brand-kit/BrandKitCosmosPage';
 import { BrandSetupChecklist } from '@/features/brand-setup/BrandSetupChecklist';
+import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
 
 /**
  * Brand-scoped Brand Kit tab at /b/:slug/brand-kit.
@@ -19,9 +20,9 @@ import { BrandSetupChecklist } from '@/features/brand-setup/BrandSetupChecklist'
  */
 export default function BrandBrandKitPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { brand } = useBrandFromSlug(slug);
+  const { brand, isLoading } = useBrandFromSlug(slug);
 
-  if (!brand) return null;
+  if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;
 
   // `empty:hidden` collapses the checklist wrapper to display:none
   // whenever BrandSetupChecklist returns null for a fully-configured

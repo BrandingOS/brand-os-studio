@@ -71,6 +71,57 @@
   border-color: var(--border-strong);
 }
 [data-workspace] .ws-profile-pill:active { transform: scale(0.97); }
+
+/* Profile dropdown (DSH-01) — identity block + actions under the pill. */
+[data-workspace] .ws-profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-md, 0 12px 32px rgba(0, 0, 0, 0.18));
+  z-index: 200;
+}
+[data-workspace] .ws-profile-menu-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+[data-workspace] .ws-profile-menu-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+[data-workspace] .ws-profile-menu-email {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .ws-profile-menu-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+[data-workspace] .ws-profile-menu-item:hover {
+  background: var(--surface-hover);
+}
 [data-workspace] .ws-profile-avatar {
   width: 30px;
   height: 30px;
@@ -179,8 +230,14 @@
   overflow: hidden;
 }
 [data-workspace] .ws-brand-card-logo {
-  max-width: 58%;
-  max-height: 58%;
+  /* Definite box (DSH-02/03): the color band's height comes from
+     flex, so percentage max-height resolved to nothing — tall logos
+     (SKAM) rendered at ~94% of the band and got clipped while wide
+     wordmarks sat at ~40%, so scale varied wildly card-to-card.
+     A fixed optical height + width cap normalizes every brand. */
+  height: 72px;
+  width: auto;
+  max-width: 68%;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.12));
 }

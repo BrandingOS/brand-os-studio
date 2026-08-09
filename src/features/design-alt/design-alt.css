@@ -448,6 +448,29 @@
   pointer-events: none;
   opacity: 0.5;
 }
+/* Loaded-but-empty state (DSN-05) — one labelled card instead of four
+   grey tiles that read as stuck loading skeletons. */
+[data-workspace] .dh-recent-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 300px;
+  padding: 18px 22px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 16px;
+}
+[data-workspace] .dh-recent-empty-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+[data-workspace] .dh-recent-empty-sub {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 300px;
+}
 [data-workspace] .dh-recent-tile-thumb--skeleton,
 [data-workspace] .dh-recent-tile-thumb--empty {
   background: linear-gradient(

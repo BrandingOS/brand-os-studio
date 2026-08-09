@@ -23,7 +23,7 @@ import {
   type KitSectionKey,
 } from './components/BrandKitSidebar';
 import { KitSection } from './components/KitSection';
-import { SectionGrid } from './components/sections';
+import { SectionGrid, sectionCardLabels } from './components/sections';
 import {
   BrandKitCardEditor,
   type EditorTarget,
@@ -46,6 +46,23 @@ import {
 } from './data/colorPaletteExport';
 import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
 import { downloadFontsBundle } from './data/fontExport';
+import {
+  cardCustomizationKey,
+  loadCardCustomization,
+  saveCardCustomization,
+} from './data/cardCustomizations';
+import {
+  snapshotElementPng,
+  snapshotTemplatePng,
+  withOffscreenMounts,
+} from './data/templateSnapshot';
+import {
+  downloadAboutDoc,
+  downloadKitZip,
+  downloadLogosZip,
+  paletteOf,
+  slugifyName,
+} from './data/kitExport';
 
 /** Curated 3-tile defaults for cards that have a designed picker
  *  pattern. Anything not listed here falls back to the first 3
@@ -218,6 +235,18 @@ export function BrandKitCosmosPage({
   // stage, which flips the opacity rules for both layers.
   const [view, setView] = useState<ViewState>('sections');
   const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
+  // Card-editor persistence key: the canonical brand id when available,
+  // falling back to the mock's name (standalone /setup preview).
+  const customizationBrandId = sourceBrand?.id ?? brand.name;
+  // Saved customization for the card being edited — re-read on every
+  // open so a Save → reopen round-trip reflects the stored state.
+  const editorCustomization = useMemo(
+    () =>
+      editorTarget
+        ? loadCardCustomization(customizationBrandId, cardCustomizationKey(editorTarget))
+        : null,
+    [editorTarget, customizationBrandId],
+  );
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   // Which template-picker is open (by card label), or null when none.
   // A single state replaces the per-label `*PickerOpen` flags.
@@ -351,6 +380,188 @@ export function BrandKitCosmosPage({
     },
     [brand.icons, suggestedIcons],
   );
+
+  // Real card downloads (KIT-03). Brand-asset cards route to their
+  // dedicated bundle builders; template cards rasterize their first
+  // featured variant offscreen and download the PNG.
+  const handleDownloadCard = useCallback(
+    async (t: EditorTarget) => {
+      const b = effectiveBrand;
+      const slug = slugifyName(b.name);
+      try {
+        switch (t.label) {
+          case 'Logos': {
+            const count = await downloadLogosZip(b);
+            if (count === 0) toast('No logos yet', { description: 'Add a logo in Setup first.' });
+            return;
+          }
+          case 'Colors': {
+            const blob = await buildAllColorsZip(paletteOf(b), b.name);
+            triggerBlobDownload(blob, `${slug}-colors.zip`);
+            return;
+          }
+          case 'Fonts': {
+            const result = await downloadFontsBundle(
+              b.fonts.map((f) => ({ name: f.family, files: f.files })),
+              `${slug}-fonts`,
+            );
+            if (result.missing.length > 0) {
+              toast(`Couldn't bundle ${result.missing.join(', ')}`, {
+                description: 'Upload the font in Setup → Typography to include it next time.',
+              });
+            }
+            return;
+          }
+          case 'Icons': {
+            const templates = (t.templates ?? []).slice(0, b.icons.length);
+            if (templates.length === 0) {
+              toast('No icons yet', { description: 'Add icons from the Icons drilldown first.' });
+              return;
+            }
+            await withOffscreenMounts(
+              templates.map((tpl) => (
+                <span key={tpl.id} className="brand-asset-render--icon-host">
+                  {renderTemplateDesign(tpl, sourceBrand ?? ({} as Brand), b)}
+                </span>
+              )),
+              96,
+              96,
+              async (hosts) => {
+                const entries: IconExportEntry[] = hosts.map((el, i) => ({
+                  name: templates[i]?.name ?? `Icon ${i + 1}`,
+                  source: b.icons[i] ?? '',
+                  element: el,
+                }));
+                await downloadIconsBundle(entries, `${slug}-icons`);
+              },
+            );
+            return;
+          }
+          case 'Photos': {
+            const photos = b.photos.filter((p) => p.src);
+            if (photos.length === 0) {
+              toast('No photos yet', { description: 'Add photos in Setup first.' });
+              return;
+            }
+            const { default: JSZip } = await import('jszip');
+            const zip = new JSZip();
+            for (let i = 0; i < photos.length; i += 1) {
+              const res = await fetch(photos[i].src).catch(() => null);
+              const blob = res ? await res.blob() : null;
+              if (blob) zip.file(`photo-${i + 1}.${blob.type.split('/')[1] || 'png'}`, blob);
+            }
+            triggerBlobDownload(await zip.generateAsync({ type: 'blob' }), `${slug}-photos.zip`);
+            return;
+          }
+          case 'About': {
+            downloadAboutDoc(b);
+            return;
+          }
+          default: {
+            // Template deliverable — rasterize the first variant.
+            const tpl = t.template ?? t.templates?.[0];
+            if (!tpl || !sourceBrand) {
+              toast(`Nothing to export for ${t.label} yet`);
+              return;
+            }
+            const aspect = PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6;
+            const blob = await snapshotTemplatePng(
+              renderTemplateDesign(tpl, sourceBrand, b),
+              260,
+              aspect,
+            );
+            if (!blob) throw new Error('Rasterization produced no image');
+            triggerBlobDownload(
+              blob,
+              `${slug}-${slugifyName(t.label)}-${slugifyName(tpl.name)}.png`,
+            );
+            return;
+          }
+        }
+      } catch (err) {
+        toast.error(`Download failed`, {
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    },
+    [effectiveBrand, sourceBrand],
+  );
+
+  // Section-level download (the small icon in each section header).
+  // Brand Assets → the full kit bundle; template sections → a zip with
+  // one rasterized PNG per card (its first variant).
+  const handleDownloadSection = useCallback(
+    async (sectionKey: KitSectionKey, sectionName: string) => {
+      const b = effectiveBrand;
+      const slug = slugifyName(b.name);
+      const id = toast.loading(`Preparing ${sectionName} download…`);
+      try {
+        if (sectionKey === 'brand-assets') {
+          await downloadKitZip(b);
+          toast.success('Brand assets exported', { id });
+          return;
+        }
+        if (!sourceBrand) {
+          toast.error('Export needs a saved brand', { id });
+          return;
+        }
+        const { default: JSZip } = await import('jszip');
+        const zip = new JSZip();
+        let added = 0;
+        for (const label of sectionCardLabels(sectionKey)) {
+          const tpl = variantsForCard(sectionKey, label, b)[0];
+          if (!tpl) continue;
+          const aspect = PICKER_ASPECT_BY_LABEL[label] ?? 1.6;
+          const blob = await snapshotTemplatePng(
+            renderTemplateDesign(tpl, sourceBrand, b),
+            260,
+            aspect,
+          );
+          if (blob) {
+            zip.file(`${slugifyName(label)}.png`, blob);
+            added += 1;
+          }
+        }
+        if (added === 0) {
+          toast.error(`Nothing to export for ${sectionName} yet`, { id });
+          return;
+        }
+        triggerBlobDownload(
+          await zip.generateAsync({ type: 'blob' }),
+          `${slug}-${slugifyName(sectionName)}.zip`,
+        );
+        toast.success(`${sectionName} exported`, { id });
+      } catch (err) {
+        toast.error('Download failed', {
+          id,
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    },
+    [effectiveBrand, sourceBrand],
+  );
+
+  // Top-right "Export kit" (KIT-02) — previously a dead button.
+  const [exportingKit, setExportingKit] = useState(false);
+  const handleExportKit = useCallback(async () => {
+    if (exportingKit) return;
+    setExportingKit(true);
+    const id = toast.loading('Bundling your brand kit…');
+    try {
+      await downloadKitZip(effectiveBrand);
+      toast.success('Brand kit exported', {
+        id,
+        description: 'Colors, fonts, logos, about and brand.json in one zip.',
+      });
+    } catch (err) {
+      toast.error('Export failed', {
+        id,
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      setExportingKit(false);
+    }
+  }, [effectiveBrand, exportingKit]);
 
   // Apply a single rounded weight to every icon in the kit. Re-prefixes
   // each class name (camera → fi-{weight}-camera) and writes back into
@@ -616,8 +827,13 @@ export function BrandKitCosmosPage({
   return (
     <WorkspaceShell
       rightActions={
-        <button type="button" className="pill-btn pill-btn--primary">
-          <span>Export kit</span>
+        <button
+          type="button"
+          className="pill-btn pill-btn--primary"
+          onClick={handleExportKit}
+          disabled={exportingKit}
+        >
+          <span>{exportingKit ? 'Exporting…' : 'Export kit'}</span>
           <ArrowRight size={14} className="pill-btn-arrow" />
         </button>
       }
@@ -641,22 +857,14 @@ export function BrandKitCosmosPage({
                   dataKey={s.key}
                   title={s.name}
                   sectionRef={setRef(s.key)}
-                  onDownload={() =>
-                    toast(`Download ${s.name}`, {
-                      description: 'Export flow lands here.',
-                    })
-                  }
+                  onDownload={() => handleDownloadSection(s.key, s.name)}
                 >
                   <SectionGrid
                     sectionKey={s.key}
                     brand={effectiveBrand}
                     onPickCard={handlePickCard}
                     onEditCard={(t) => setEditorTarget(t)}
-                    onDownloadCard={(t) =>
-                      toast(`Download ${t.label}`, {
-                        description: 'Export lands here.',
-                      })
-                    }
+                    onDownloadCard={handleDownloadCard}
                   />
                 </KitSection>
               ))}
@@ -806,9 +1014,44 @@ export function BrandKitCosmosPage({
                       }
                       return;
                     }
-                    toast(`Download ${drilldownTarget.label}`, {
-                      description: 'Export flow lands here.',
-                    });
+                    // Template drilldowns (stationery / social / web /
+                    // guides / presentations / animations): bundle a
+                    // rasterized PNG of every visible variant.
+                    {
+                      const templates = drilldownTarget.templates ?? [];
+                      if (templates.length === 0 || !sourceBrand) {
+                        toast(`Nothing to export for ${drilldownTarget.label} yet`);
+                        return;
+                      }
+                      const id = toast.loading(
+                        `Preparing ${drilldownTarget.label} download…`,
+                      );
+                      try {
+                        const aspect =
+                          PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
+                        const { default: JSZip } = await import('jszip');
+                        const zip = new JSZip();
+                        for (const tpl of templates) {
+                          const blob = await snapshotTemplatePng(
+                            renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
+                            260,
+                            aspect,
+                          );
+                          if (blob) zip.file(`${slugifyName(tpl.name)}.png`, blob);
+                        }
+                        triggerBlobDownload(
+                          await zip.generateAsync({ type: 'blob' }),
+                          `${slugifyName(effectiveBrand.name)}-${slugifyName(drilldownTarget.label)}.zip`,
+                        );
+                        toast.success(`${drilldownTarget.label} exported`, { id });
+                      } catch (err) {
+                        toast.error('Download failed', {
+                          id,
+                          description:
+                            err instanceof Error ? err.message : 'Unknown error',
+                        });
+                      }
+                    }
                   }}
                 />
               </div>
@@ -820,18 +1063,51 @@ export function BrandKitCosmosPage({
         brand={effectiveBrand}
         sourceBrand={sourceBrand}
         target={editorTarget}
+        initialCustomization={editorCustomization}
         onClose={() => setEditorTarget(null)}
-        onSave={(t) => {
-          toast(`Saved ${t.label}`, {
-            description: 'Persistence lands here.',
-          });
+        onSave={(t, customization) => {
+          const ok = saveCardCustomization(
+            customizationBrandId,
+            cardCustomizationKey(t),
+            customization,
+          );
+          if (ok) {
+            toast.success(`Saved ${t.label}`, {
+              description: 'Your customization is stored with this brand.',
+            });
+          } else {
+            toast.error(`Couldn't save ${t.label}`, {
+              description: 'Storage write failed — try again.',
+            });
+          }
           setEditorTarget(null);
         }}
-        onDownload={(t) =>
-          toast(`Download ${t.label}`, {
-            description: 'Export lands here.',
-          })
-        }
+        onDownload={async (t) => {
+          // The editor preview already renders the user's live overrides
+          // — snapshot that DOM so the download matches what they see.
+          const host = document.querySelector<HTMLElement>('.bk-preview-host');
+          if (host) {
+            const id = toast.loading(`Exporting ${t.label}…`);
+            try {
+              const blob = await snapshotElementPng(host, 4);
+              if (!blob) throw new Error('Rasterization produced no image');
+              triggerBlobDownload(
+                blob,
+                `${slugifyName(effectiveBrand.name)}-${slugifyName(t.label)}.png`,
+              );
+              toast.success(`${t.label} exported`, { id });
+            } catch (err) {
+              toast.error('Download failed', {
+                id,
+                description: err instanceof Error ? err.message : 'Unknown error',
+              });
+            }
+            return;
+          }
+          // No live preview (cover-image cards) — fall back to the
+          // same offscreen path the card download uses.
+          await handleDownloadCard(t);
+        }}
         onUpdateIconAt={handleUpdateIconAt}
       />
       <IconPickerModal

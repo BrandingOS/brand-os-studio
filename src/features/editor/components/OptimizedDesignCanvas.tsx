@@ -68,6 +68,11 @@ export function OptimizedDesignCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<FabricCanvas | null>(null);
   const [zoom, setZoom] = useState(1);
+  // Shortcuts hint dismissal persists so it never re-covers the
+  // bottom-left chrome once the user closes it (DSN-07).
+  const [shortcutsDismissed, setShortcutsDismissed] = useState(
+    () => localStorage.getItem('brandos:editor-shortcuts-dismissed') === '1'
+  );
 
   // Store callbacks in refs so canvas init effect doesn't re-run
   const onSelectionChangeRef = useRef(onSelectionChange);
@@ -581,20 +586,6 @@ export function OptimizedDesignCanvas({
     return () => window.removeEventListener('loadTemplate', handler);
   }, [saveState]);
 
-  // Optimized zoom with smooth transitions
-  const handleZoom = useCallback((newZoom: number) => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    
-    setZoom(newZoom);
-    
-    // Use requestAnimationFrame for smooth zoom
-    requestAnimationFrame(() => {
-      canvas.setZoom(newZoom);
-      canvas.renderAll();
-    });
-  }, []);
-
   // Memoized canvas container style
   const canvasContainerStyle = useMemo(() => ({
     transform: `scale(${zoom})`,
@@ -604,10 +595,17 @@ export function OptimizedDesignCanvas({
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
-      {/* Canvas Container */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-        <div 
-          className="relative bg-white shadow-lg"
+      {/* Canvas Container.
+          NOTE: the artboard centers via `m-auto` on the child, NOT
+          `items-center justify-center` on this scroller — flexbox
+          centering of overflowing content pushes the top/left overflow
+          outside the scrollable region, which made the artboard's left
+          edge unreachable whenever a tool panel narrowed the viewport
+          (DSN-04). Auto margins center when smaller and pin to the
+          scroll origin when larger, so every pixel stays reachable. */}
+      <div className="flex-1 flex p-8 overflow-auto">
+        <div
+          className="relative bg-white shadow-lg m-auto shrink-0"
           style={canvasContainerStyle}
         >
           {/* Canvas dimensions guide */}
@@ -635,36 +633,26 @@ export function OptimizedDesignCanvas({
         </div>
       </div>
 
-      {/* Optimized Zoom Controls */}
-      <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white rounded-lg shadow-md p-2">
-        <button
-          onClick={() => handleZoom(Math.max(0.1, zoom - 0.1))}
-          className="px-3 py-1 text-sm hover:bg-gray-100 rounded transition-colors"
-        >
-          −
-        </button>
-        <span className="text-sm px-2 min-w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <button
-          onClick={() => handleZoom(Math.min(3, zoom + 0.1))}
-          className="px-3 py-1 text-sm hover:bg-gray-100 rounded transition-colors"
-        >
-          +
-        </button>
-        <button
-          onClick={() => handleZoom(1)}
-          className="px-3 py-1 text-sm hover:bg-gray-100 rounded border-l ml-1 pl-2 transition-colors"
-        >
-          Fit
-        </button>
-      </div>
-
-      {/* Keyboard Shortcuts Hint */}
-      <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-3 text-xs text-gray-600 max-w-48">
-        <div className="font-medium mb-1">⌨️ Shortcuts:</div>
-        <div>Ctrl+Z: Undo • Ctrl+Y: Redo</div>
-        <div>Ctrl+C: Copy • Ctrl+V: Paste</div>
-        <div>Delete: Remove • Ctrl+A: Select All</div>
-      </div>
+      {/* Keyboard Shortcuts Hint — dismissible; the zoom controls live
+          in EditorBottomBar (the floating duplicate was removed, DSN-07) */}
+      {!shortcutsDismissed && (
+        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-md p-3 pr-6 text-xs text-gray-600 max-w-48">
+          <button
+            onClick={() => {
+              localStorage.setItem('brandos:editor-shortcuts-dismissed', '1');
+              setShortcutsDismissed(true);
+            }}
+            className="absolute top-1 right-1 px-1 text-gray-400 hover:text-gray-600 rounded transition-colors"
+            aria-label="Dismiss shortcuts hint"
+          >
+            ×
+          </button>
+          <div className="font-medium mb-1">⌨️ Shortcuts:</div>
+          <div>Ctrl+Z: Undo • Ctrl+Y: Redo</div>
+          <div>Ctrl+C: Copy • Ctrl+V: Paste</div>
+          <div>Delete: Remove • Ctrl+A: Select All</div>
+        </div>
+      )}
     </div>
   );
 }

@@ -155,7 +155,24 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
-  background: transparent;
+  /* Opaque-ish band (SHL-01): a transparent sticky header let page
+     content scroll straight through the chrome — typography specimens
+     collided with the nav pill, and the full-width header kept
+     intercepting clicks on content near the top. The gradient +
+     blur keeps the floating look while staying readable. */
+  background: linear-gradient(
+    to bottom,
+    var(--page-bg, var(--background, #101012)) 0%,
+    var(--page-bg, var(--background, #101012)) 62%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+/* Re-enable interaction on the header's actual controls — the wrapper
+   itself stays click-through so content peeking under the fade edge
+   is still reachable. */
+[data-workspace] .top-nav-wrap > * {
+  pointer-events: auto;
 }
 
 [data-workspace] .top-nav-left,
@@ -1049,6 +1066,12 @@
 [data-workspace] .swatch.is-ctx-active {
   transform: translateY(-30%) rotate(-1.4deg);
   outline: none;
+  /* Lifted swatch wins the overlap (CLR-02): swatches overlap
+     left-under-right, which buried the lifted swatch's name/hex —
+     including the click-to-copy hex target — under its right
+     neighbour. !important because each swatch carries an inline
+     per-index z-index for the resting wave stacking. */
+  z-index: 30 !important;
 }
 
 /* Wave — ±1 neighbor rises partially */
@@ -2119,13 +2142,22 @@
 
 [data-workspace] .icons-marquee {
   position: relative;
-  overflow: hidden;
+  /* Scrollable (wheel/trackpad reach the row) but with the scrollbar
+     hidden — the marquee's own drag/throw handles pointer input. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Soft edge fades instead of hard-slicing tiles at the container edges. */
+  -webkit-mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 32px, black calc(100% - 32px), transparent);
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
   touch-action: pan-y;
   padding: 10px 0;
 }
+[data-workspace] .icons-marquee::-webkit-scrollbar { display: none; }
 [data-workspace] .icons-marquee.is-dragging { cursor: grabbing; }
 [data-workspace] .icons-marquee.is-dragging .icon-tile { transition: none; }
 [data-workspace] .icons-track {
@@ -2535,12 +2567,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-auto-rows: 128px;
   gap: 14px;
-  /* Show ~4 cards (2 rows); anything beyond scrolls INSIDE the grid so
-     a brand with many About sections doesn't stretch the page. */
-  max-height: 270px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+  /* No height cap (SET-02): the old 270px + hidden inner scrollbar
+     silently clipped every section past the 4th — users saw "5 / 5
+     sections" in the sidebar but only four cards. The grid now grows
+     with its content and the page scrolls naturally. */
   padding-right: 2px;
 }
 [data-workspace] .about-card {

@@ -162,14 +162,29 @@ function brandAssetTemplates(
   ];
 
   if (moduleId === '__brand-asset-logo__') {
-    return logoCombosFor(brand).map((combo, idx) => ({
+    // Original artwork tiles come first — one per uploaded logo,
+    // unrecolored, so the drilldown always leads with the user's
+    // actual asset before the generated mark × bg treatments. The
+    // renderer maps templateIndex < logos.length to these.
+    const originals = brand.logos.map((logo, idx) => ({
       id: `brand-asset-logo-ext-${idx + 1}`,
-      name: `${combo.logoLabel} · ${combo.mark.name} on ${combo.bg.name}`,
-      category: combo.bg.name,
+      name: brand.logos.length > 1 ? `${logo.label} · Original` : 'Original',
+      category: 'Original',
       type: 'brand-asset-logo' as BrandKitTemplate['type'],
       orientation: 'landscape' as const,
-      tags: ['brand-asset', 'logo', combo.logoLabel],
+      tags: ['brand-asset', 'logo', logo.label],
     }));
+    return [
+      ...originals,
+      ...logoCombosFor(brand).map((combo, idx) => ({
+        id: `brand-asset-logo-ext-${originals.length + idx + 1}`,
+        name: `${combo.mark.name} on ${combo.bg.name}`,
+        category: combo.bg.name,
+        type: 'brand-asset-logo' as BrandKitTemplate['type'],
+        orientation: 'landscape' as const,
+        tags: ['brand-asset', 'logo', combo.logoLabel],
+      })),
+    ];
   }
   if (moduleId === '__brand-asset-color__') {
     return allColors.map((c, idx) => ({

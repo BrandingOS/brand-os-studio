@@ -1,8 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useV4Store } from '../store/onboardingV4Store';
 import type { BrandVisionVerdict } from './brandVision';
 import { classifyImage, verdictToPatch } from './brandVision';
+
+// The classifier is opt-in (env-gated) — configure it for these tests so the
+// fetch path actually runs. stubEnv patches process.env, which brandVision's
+// lazy env read falls back to (import.meta.env is per-module under Vitest).
+beforeEach(() => {
+  vi.stubEnv('VITE_CLASSIFIER_URL', 'http://localhost:8300');
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function verdict(patch: Partial<BrandVisionVerdict> = {}): BrandVisionVerdict {
   return {

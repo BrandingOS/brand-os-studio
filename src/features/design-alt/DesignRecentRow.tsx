@@ -126,18 +126,19 @@ export function DesignRecentRow({ brand, designStorage }: Props) {
                 ) : null}
               </Link>
             ))
-          : // Loaded but empty — show muted placeholders so the row still
-            // communicates "this is where your work will live".
-            Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => (
-              <div
-                key={`empty-${i}`}
-                className="dh-recent-tile dh-recent-tile--empty"
-                aria-hidden
-              >
-                <span className="dh-recent-tile-thumb dh-recent-tile-thumb--empty" />
-                <span className="dh-recent-tile-name dh-recent-tile-name--empty" />
+          : // Loaded but empty — one labelled empty state (DSN-05).
+            // The old four grey placeholder tiles were indistinguishable
+            // from loading skeletons, so the row read as permanently
+            // stuck. Say what the space is for instead.
+            (
+              <div className="dh-recent-empty" role="listitem">
+                <span className="dh-recent-empty-title">No designs yet</span>
+                <span className="dh-recent-empty-sub">
+                  Start a blank canvas or open a template below — your recent
+                  work lands here.
+                </span>
               </div>
-            ))}
+            )}
       </div>
     </section>
   );

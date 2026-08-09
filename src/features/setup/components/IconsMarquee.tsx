@@ -169,6 +169,18 @@ export function IconsMarquee({
     };
     const onPointerUp = (e: PointerEvent) => endDrag(e);
     const onPointerCancel = (e: PointerEvent) => endDrag(e);
+    const onWheel = (e: WheelEvent) => {
+      // Wheel / trackpad horizontal scroll feeds the wrapped track
+      // position — native scrollLeft would drift past the loop's window
+      // and show blank track. Vertical deltas stay with the page.
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : 0;
+      if (!delta) return;
+      e.preventDefault();
+      pos = wrap(pos - delta);
+      throwing = false;
+      throwVel = 0;
+      resumeAt = performance.now() + RESUME_DELAY;
+    };
     const onLostCapture = () => {
       dragging = false;
       marquee.classList.remove('is-dragging');
@@ -181,6 +193,7 @@ export function IconsMarquee({
     marquee.addEventListener('pointerup', onPointerUp);
     marquee.addEventListener('pointercancel', onPointerCancel);
     marquee.addEventListener('lostpointercapture', onLostCapture);
+    marquee.addEventListener('wheel', onWheel, { passive: false });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -192,6 +205,7 @@ export function IconsMarquee({
       marquee.removeEventListener('pointerup', onPointerUp);
       marquee.removeEventListener('pointercancel', onPointerCancel);
       marquee.removeEventListener('lostpointercapture', onLostCapture);
+      marquee.removeEventListener('wheel', onWheel);
     };
   }, [sequence.length]);
 

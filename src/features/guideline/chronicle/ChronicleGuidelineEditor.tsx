@@ -47,10 +47,31 @@ import { GuidelineDocument } from "./GuidelineDocument";
 
 const DESIGN_SLUG = "brand-guideline";
 
+/** Block kinds the Insert menu can add to the document for real. */
+export type GuidelineInsertKind =
+  | "paragraph"
+  | "heading"
+  | "quote"
+  | "card"
+  | "stickyNote"
+  | "blankChapter";
+
+export interface GuidelineEditorApi {
+  /** Append a content block to the last chapter (or a new chapter). */
+  insertBlock: (kind: GuidelineInsertKind) => boolean;
+  /** Append an image block (data URL) to the last chapter. */
+  insertImage: (src: string) => boolean;
+}
+
 interface Props {
   brand: Brand;
   /** Optional accent override forwarded to the document renderer. */
   accent?: string;
+  /** Extra CSS custom properties applied to the document container —
+   *  the Theme popover flips --ch-* tokens through this. */
+  themeVars?: Record<string, string>;
+  /** Receives the imperative insert API once the surface is live. */
+  apiRef?: { current: GuidelineEditorApi | null };
 }
 
 interface SavedGuideline {
@@ -59,7 +80,7 @@ interface SavedGuideline {
   updatedAt: string;
 }
 
-export function ChronicleGuidelineEditor({ brand, accent }: Props) {
+export function ChronicleGuidelineEditor({ brand, accent, themeVars, apiRef }: Props) {
   const storage = useService<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
 
   // Render the React document once into static HTML — this is the seed
@@ -152,6 +173,78 @@ export function ChronicleGuidelineEditor({ brand, accent }: Props) {
     enabled: !!dirtyHtml,
   });
 
+  // Imperative Insert API (GDL-04). The frozen-HTML DOM is
+  // authoritative and observed by the MutationObserver above, so
+  // appending real nodes both renders immediately AND autosaves.
+  useEffect(() => {
+    if (!apiRef) return;
+    const blockHtml = (kind: GuidelineInsertKind): string => {
+      const P_STYLE =
+        'font-size:15px;line-height:1.7;color:var(--ch-text-muted);max-width:560px;';
+      switch (kind) {
+        case "paragraph":
+          return `<p style="${P_STYLE}">New paragraph — double-click to edit.</p>`;
+        case "heading":
+          return `<h2 style="font-size:28px;font-weight:600;letter-spacing:-0.02em;color:var(--ch-text);margin:24px 0 8px;">New heading</h2>`;
+        case "quote":
+          return `<blockquote style="margin:24px 0;padding:16px 22px;border-left:3px solid var(--brand-primary, var(--ch-border-strong));font-size:18px;font-style:italic;color:var(--ch-text);">“A quote worth remembering — double-click to edit.”</blockquote>`;
+        case "card":
+          return `<div style="margin:20px 0;padding:20px 22px;border:1px solid var(--ch-border-strong);border-radius:14px;background:var(--ch-surface, rgba(127,127,127,0.06));"><h3 style="font-size:16px;font-weight:600;color:var(--ch-text);margin:0 0 6px;">Card title</h3><p style="${P_STYLE}margin:0;">Card body — double-click to edit.</p></div>`;
+        case "stickyNote":
+          return `<div style="margin:20px 0;padding:18px 20px;max-width:320px;background:#f7e07f;color:#3a3005;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,0.18);font-size:14px;line-height:1.55;transform:rotate(-1deg);">Sticky note — double-click to edit.</div>`;
+        case "blankChapter":
+          return "";
+      }
+    };
+    const api: GuidelineEditorApi = {
+      insertBlock: (kind) => {
+        const node = containerRef.current;
+        if (!node) return false;
+        if (kind === "blankChapter") {
+          const article = document.createElement("article");
+          article.className = "ch-canvas-page";
+          article.innerHTML =
+            `<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ch-text-faint);margin-bottom:16px;">New chapter</div>` +
+            `<h2 style="font-size:34px;font-weight:600;letter-spacing:-0.02em;color:var(--ch-text);margin:0 0 12px;">Untitled chapter</h2>` +
+            `<p style="font-size:15px;line-height:1.7;color:var(--ch-text-muted);max-width:560px;">Double-click any text to edit it.</p>`;
+          const lastArticle = node.querySelector("article:last-of-type");
+          if (lastArticle?.parentElement) {
+            lastArticle.parentElement.appendChild(article);
+          } else {
+            node.appendChild(article);
+          }
+          article.scrollIntoView({ behavior: "smooth", block: "start" });
+          return true;
+        }
+        const target = node.querySelector("article:last-of-type") ?? node;
+        const wrap = document.createElement("div");
+        wrap.innerHTML = blockHtml(kind);
+        const el = wrap.firstElementChild;
+        if (!el) return false;
+        target.appendChild(el);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      },
+      insertImage: (src) => {
+        const node = containerRef.current;
+        if (!node) return false;
+        const target = node.querySelector("article:last-of-type") ?? node;
+        const img = document.createElement("img");
+        img.src = src;
+        img.alt = "";
+        img.style.cssText =
+          "display:block;max-width:100%;border-radius:12px;margin:20px 0;";
+        target.appendChild(img);
+        img.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
+      },
+    };
+    apiRef.current = api;
+    return () => {
+      if (apiRef.current === api) apiRef.current = null;
+    };
+  }, [apiRef, loaded]);
+
   if (!loaded || !savedHtml) {
     return (
       <div
@@ -180,6 +273,7 @@ export function ChronicleGuidelineEditor({ brand, accent }: Props) {
              var(--bp-*) references resolve. The Theme popover can flip
              these to retheme the entire document in one swap. */
           ["--brand-primary" as never]: brand.primaryColor ?? accent ?? "#d4a83c",
+          ...(themeVars as Record<string, string> | undefined),
         }}
       >
         <EditableSlide frozenHtml={savedHtml} />

@@ -121,6 +121,14 @@ const SECTION_CARDS: Record<KitSectionKey, CardSpec[]> = {
 /** Cap any section at 5 cards regardless of source data. */
 const MAX_PER_SECTION = 5;
 
+/** Labels of the cards a section shows (post-cap) — used by the
+ *  section-level download to bundle one export per card. */
+export function sectionCardLabels(sectionKey: KitSectionKey): string[] {
+  const raw = SECTION_CARDS[sectionKey] ?? [];
+  const cards = sectionKey === 'brand-assets' ? raw : raw.slice(0, MAX_PER_SECTION);
+  return cards.map((c) => c.label);
+}
+
 export function getSectionCount(sectionKey: KitSectionKey): number {
   const raw = SECTION_CARDS[sectionKey]?.length ?? 0;
   // brand-assets is a flat panel of asset categories — return the
@@ -245,7 +253,14 @@ type Origin = { x: number; y: number };
 type CardProps = {
   sectionKey: KitSectionKey;
   card: CardSpec;
+  /** Brand primary hex — feeds the `--bk-cover-veil` custom property
+   *  so the CSS gradient veil over the stock cover art tints it into
+   *  the brand's color (see .bk-card-cover-image::after). */
+  veil?: string;
   onEdit: (sectionKey: KitSectionKey, label: string, origin?: Origin) => void;
+  /** Hover pencil — opens the card editor directly (KIT-06). When
+   *  absent the pencil falls back to the card-open behaviour. */
+  onEditAction?: (sectionKey: KitSectionKey, label: string) => void;
   onDownload?: (sectionKey: KitSectionKey, label: string) => void;
   onOpenMenu: (e: React.MouseEvent, sectionKey: KitSectionKey, label: string) => void;
 };
@@ -255,10 +270,11 @@ function rectCenter(el: HTMLElement): Origin {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: CardProps) {
+function BrandKitCard({ sectionKey, card, veil, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
   return (
     <figure
       className="bk-card"
+      style={veil ? ({ '--bk-cover-veil': veil } as React.CSSProperties) : undefined}
       onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
       onClick={(e) => onEdit(sectionKey, card.label, rectCenter(e.currentTarget as HTMLElement))}
     >
@@ -275,7 +291,11 @@ function BrandKitCard({ sectionKey, card, onEdit, onDownload, onOpenMenu }: Card
             title={`Edit ${card.label}`}
             onClick={(e) => {
               e.stopPropagation();
-              onEdit(sectionKey, card.label);
+              // KIT-06: the pencil opens the EDITOR — before this it
+              // re-fired the card-open handler, so "Edit" and "open"
+              // were indistinguishable (both landed on the drilldown).
+              if (onEditAction) onEditAction(sectionKey, card.label);
+              else onEdit(sectionKey, card.label);
             }}
           >
             <EditIcon />
@@ -394,7 +414,18 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
             key={card.label}
             sectionKey={sectionKey}
             card={card}
+            veil={brand?.colors.core[0]?.hex}
             onEdit={handleCardClick}
+            onEditAction={
+              onEditCard
+                ? (k, l) => {
+                    // Preselect the first variant so the editor opens
+                    // with a live preview instead of the cover image.
+                    const target = targetFor(k, l);
+                    onEditCard({ ...target, template: target.templates?.[0] });
+                  }
+                : undefined
+            }
             onDownload={
               onDownloadCard
                 ? (k, l) => onDownloadCard(targetFor(k, l))

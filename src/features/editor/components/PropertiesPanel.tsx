@@ -268,7 +268,9 @@ export function PropertiesPanel({
                 onChange={(e) => updateProperty('fontFamily', e.target.value)}
                 className="w-full p-2 mt-1 border border-gray-200 rounded text-sm bg-white"
               >
-                {[brand.fonts.primary, brand.fonts.secondary, 'Arial', 'Helvetica', 'Times New Roman', 'Georgia'].filter(Boolean).map((font) => (
+                {[...new Set(
+                  [brand.fonts.primary, brand.fonts.secondary, 'Arial', 'Helvetica', 'Times New Roman', 'Georgia'].filter(Boolean),
+                )].map((font) => (
                   <option key={font} value={font}>
                     {font}
                   </option>

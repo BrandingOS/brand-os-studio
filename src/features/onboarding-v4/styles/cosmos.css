@@ -1883,8 +1883,13 @@
 [data-onboarding="cosmos"] .review-head .subtitle {
   font-size: 14px;
   color: var(--text-muted);
-  margin: 0;
-  max-width: 460px;
+  margin: 0 auto;
+  max-width: 560px;
+  /* Undo the base .subtitle single-line ellipsis — this copy is longer than
+     any sane max-width, so let it wrap to two centered lines instead. */
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 /* Uploads review */
@@ -3161,12 +3166,20 @@
   opacity: 0.55;
 }
 
-/* Link rows show the site's actual favicon in the thumb */
-[data-onboarding="cosmos"] .asset-thumb-favicon {
+/* Link rows show a local letter-mark badge in the thumb (never a remote
+   favicon — that leaked brand URLs to a third-party service) */
+[data-onboarding="cosmos"] .asset-thumb-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  object-fit: contain;
+  background: var(--surface-hover, #f1efe9);
+  border: 1px solid var(--border, #e6e4dd);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #6f6d64);
 }
 
 /* Asset Move-to menu */
@@ -3204,7 +3217,12 @@
 /* Google Fonts picker popover */
 [data-onboarding="cosmos"] .google-fonts-popover,
 .google-fonts-popover {
-  background: var(--surface, #fff);
+  /* Same portal gotcha as the border below (ONB-09): --surface at
+     :root is a raw HSL triple, so var(--surface, #fff) resolved to an
+     INVALID value → transparent panel → the search field and font
+     cards floated as detached white boxes over the page. Paint the
+     cosmos surface color directly. */
+  background: #fffdf9;
   /* Portal gotcha: --border at :root is a raw HSL triple, so plain
      var(--border, fallback) invalidates the border. Use the cosmos warm
      border color directly. */

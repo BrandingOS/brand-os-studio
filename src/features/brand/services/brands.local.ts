@@ -111,7 +111,10 @@ export class LocalBrandsService implements BrandsService {
   }
 
   private generateSlug(name: string): string {
-    return name.toLowerCase().trim().replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_');
+    // Hyphenated slugs (ONB-06) — "QA Brand" → "qa-brand", the URL
+    // convention the rest of the product uses. Existing stored brands
+    // keep whatever slug they were created with, so old links survive.
+    return name.toLowerCase().trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/[\s_]+/g, '-');
   }
 
   async delete(id: string): Promise<void> {

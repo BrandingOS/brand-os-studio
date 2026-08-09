@@ -1,5 +1,6 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import { contrastRatio } from '../data/recolorLogo';
 import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
 
 /**
@@ -51,6 +52,16 @@ export function BusinessCardExtended2Renderer({ brand, templateIndex, content }:
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase())
     .join('');
+  // Fixed near-black panels swallow a dark brand primary — the dot
+  // grid and accent text vanish entirely. Pick the first brand color
+  // that clears WCAG AA (4.5:1) on the panel, falling back to white.
+  const DARK_PANEL = '#0F1216';
+  const pOnDark =
+    contrastRatio(p, DARK_PANEL) >= 4.5
+      ? p
+      : contrastRatio(s, DARK_PANEL) >= 4.5
+        ? s
+        : '#FFFFFF';
 
   // 100 designs — ordered by movement so the drilldown reads as
   // a curated tour rather than a random pile.
@@ -164,7 +175,7 @@ export function BusinessCardExtended2Renderer({ brand, templateIndex, content }:
     (<div className="w-full h-full bg-[#FBF8EE] relative p-[6%]"><div className="text-[5px] uppercase tracking-[0.32em] text-gray-500">— hello there —</div><div className="text-[36px] italic font-bold mt-1" style={{ color:p, fontFamily:'Caveat, cursive' }}>{c.firstName},</div><div className="absolute right-[6%] bottom-[6%] text-right text-[5px] uppercase tracking-[0.32em]">VP · {brand.name}</div></div>),
     (<div className="w-full h-full bg-white relative"><div className="absolute inset-x-[10%] top-[10%] bottom-[10%] rounded-full flex items-center justify-center" style={{backgroundColor:p}}><div className="text-center text-white"><div className="text-[14px] font-bold">{c.firstName}</div><div className="text-[14px] font-bold leading-none">{c.lastName || ''}</div><div className="text-[4px] uppercase tracking-[0.32em] mt-2 opacity-90">VP</div></div></div></div>),
     (<div className="w-full h-full bg-white p-[6%] relative"><div className="grid grid-cols-2 gap-2 h-full"><div className="rounded-md overflow-hidden flex items-center justify-center" style={{backgroundColor:p}}><div className="text-white text-[24px] font-serif font-black">{init}</div></div><div className="rounded-md bg-[#FBF8EE] flex flex-col justify-between p-2"><div className="text-[3.5px] uppercase tracking-[0.32em]" style={{color:p}}>jane@</div><div><div className="text-[10px] font-bold">{c.fullName}</div><div className="text-[3.5px] uppercase tracking-[0.32em] mt-0.5">VP</div></div></div></div></div>),
-    (<div className="w-full h-full bg-[#0F1216] relative p-[6%]"><div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(${p} 1px, transparent 1.5px)`, backgroundSize: '8px 8px', opacity: 0.4 }} /><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-white text-[14px] font-light">{c.fullName}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),
+    (<div className="w-full h-full bg-[#0F1216] relative p-[6%]"><div className="absolute inset-0" style={{ backgroundImage: `radial-gradient(${pOnDark} 1px, transparent 1.5px)`, backgroundSize: '8px 8px', opacity: 0.4 }} /><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-white text-[14px] font-light">{c.fullName}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-1" style={{color:pOnDark}}>VP · {brand.name}</div></div></div>),
     (<div className="w-full h-full bg-white relative p-[6%]"><div className="absolute inset-0 flex items-center justify-center" style={{ backgroundImage: `linear-gradient(0deg, transparent 0%, transparent 49.5%, ${p}33 49.5%, ${p}33 50.5%, transparent 50.5%, transparent 100%)` }}><div className="bg-white px-3 py-2"><div className="text-[12px] font-bold text-gray-900">{c.fullName}</div><div className="text-[4.5px] uppercase tracking-[0.32em] mt-0.5" style={{color:p}}>VP · {brand.name}</div></div></div></div>),
     (<div className="w-full h-full bg-white relative" style={{ background: `linear-gradient(180deg, white 0%, white 50%, ${p} 50%, ${p} 100%)` }}><div className="absolute inset-x-[6%] top-[20%] text-[14px] font-bold leading-none">{c.firstName}</div><div className="absolute inset-x-[6%] bottom-[20%] text-right text-white text-[14px] font-bold leading-none">{c.lastName || ''}</div></div>),
     (<div className="w-full h-full bg-[#FAF6EE] relative p-[6%]"><div className="absolute inset-x-[6%] top-[10%] grid grid-cols-3 gap-1">{Array.from({length:9}).map((_,i)=><div key={i} className="h-[3px] rounded-full" style={{backgroundColor:i%4===0?p:'#E5E0D2'}} />)}</div><div className="absolute inset-x-[6%] top-1/2 -translate-y-1/2"><div className="text-[14px] font-bold">{c.fullName}</div><div className="text-[5px] uppercase tracking-[0.32em] mt-1" style={{color:p}}>VP · {brand.name}</div></div></div>),

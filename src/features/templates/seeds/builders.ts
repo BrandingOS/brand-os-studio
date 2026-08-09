@@ -275,7 +275,7 @@ export function moodChoices(m: TemplateMood): MoodChoices {
 // brand kit on open). Output is still small enough to embed inline
 // (~1–3 KB per thumbnail) but now actually represents the design.
 
-interface ThumbPalette {
+export interface ThumbPalette {
   primary: string;
   secondary: string;
   accent: string;
@@ -289,6 +289,9 @@ interface ThumbPalette {
   /** Solid color used for the LOGO placeholder badge. */
   logoBg: string;
   logoFg: string;
+  /** When set, the logo layer renders this image (a brand logo data
+   *  URL) instead of the "LOGO" placeholder badge. */
+  logoHref?: string;
 }
 
 const STAND_IN_PALETTES: Record<TemplateMood, ThumbPalette> = {
@@ -370,9 +373,16 @@ const STAND_IN_PALETTES: Record<TemplateMood, ThumbPalette> = {
  * `kind`. SlotRefs and font slots resolve through the mood's
  * stand-in palette.
  */
-export function thumbnail(args: { page: Page; mood: TemplateMood }): string {
+export function thumbnail(args: {
+  page: Page;
+  mood: TemplateMood;
+  /** Brand palette override (DSN-03) — when present, SlotRefs resolve
+   *  to the actual brand instead of the mood's stand-in palette, so
+   *  the template grid previews in the user's colors and type. */
+  palette?: ThumbPalette;
+}): string {
   const { page: pg, mood } = args;
-  const pal = STAND_IN_PALETTES[mood];
+  const pal = args.palette ?? STAND_IN_PALETTES[mood];
   const { width: w, height: h } = pg;
   const bg = resolveColor(pg.background, pal, pal.neutralLightest);
 
@@ -441,9 +451,14 @@ function renderLayer(layer: Layer, pal: ThumbPalette): string {
       );
     }
     case 'logo': {
-      // Brand-agnostic placeholder: rounded square in the mood's
-      // logoBg with "LOGO" wordmark in logoFg. Real editor swaps
-      // in the actual logo on open.
+      // Real brand logo when the palette carries one (DSN-03) —
+      // otherwise the brand-agnostic "LOGO" placeholder badge.
+      if (pal.logoHref) {
+        return (
+          `<image href='${escapeAttr(pal.logoHref)}' x='${t.x}' y='${t.y}' ` +
+          `width='${t.width}' height='${t.height}' preserveAspectRatio='xMidYMid meet'${op}${rot}/>`
+        );
+      }
       const bg = pal.logoBg;
       const fg = pal.logoFg;
       const r = Math.min(t.width, t.height) * 0.12;

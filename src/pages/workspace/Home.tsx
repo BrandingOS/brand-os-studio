@@ -38,6 +38,13 @@ function formatRelative(date: Date | string | undefined): string {
   return `Updated ${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 }
 
+/** Lowercase only the leading word ("Updated Apr 28" → "updated Apr 28")
+ *  so the hero sub keeps its lowercase sentence style without mangling
+ *  the month abbreviation (DSH-04). */
+function sentenceLower(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
 function BrandCard({ brand }: { brand: Brand }) {
   // Both halves of the card go through the canonical palette so colors
   // come out right by construction — no per-card luminance branching,
@@ -154,7 +161,7 @@ export default function WorkspaceHome() {
           <p className="ws-hero-sub">
             {count === 0
               ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
-              : `${count} brand${count === 1 ? '' : 's'} · ${formatRelative(lastEdit).toLowerCase()}`}
+              : `${count} brand${count === 1 ? '' : 's'} · ${sentenceLower(formatRelative(lastEdit))}`}
           </p>
         </section>
 

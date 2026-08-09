@@ -7,6 +7,7 @@ import {
   collectDroppedFiles,
   enqueueFile,
   genId,
+  isSupportedUploadFile,
   simulateUpload,
 } from '../utils/assetUpload';
 
@@ -36,6 +37,16 @@ export function BrandDropzone() {
 
   const addFile = useCallback(
     (file: File) => {
+      // The <input accept> list only filters the OS picker — drops (and any
+      // programmatic add) land here unfiltered, so reject unsupported types
+      // before they enter state. Keep returning true so a mixed batch still
+      // queues its supported files.
+      if (!isSupportedUploadFile(file)) {
+        toast.error(`"${file.name}" isn't a supported file type`, {
+          description: 'Images, PDFs, design files (.ai/.sketch/.fig/.psd), zips and fonts only.',
+        });
+        return true;
+      }
       void enqueueFile(file, deps);
       return true;
     },
@@ -159,11 +170,12 @@ export function BrandDropzone() {
 
   // Hide things that only exist as a result of the review step so the user
   // doesn't see them double-counted when they step back here:
-  //   - logos already placed in a slot
   //   - auto-generated B&W variants
   //   - colors (added or extracted inside the review)
+  // Logos placed in a slot stay VISIBLE (with their "· logo" tag) — hiding
+  // them made Continue → Back look like the upload was lost.
   const visibleAssets = assets.filter((a) => {
-    if (a.kind === 'image' && (a.logoSlot || a.generated)) return false;
+    if (a.kind === 'image' && a.generated) return false;
     if (a.kind === 'color') return false;
     return true;
   });

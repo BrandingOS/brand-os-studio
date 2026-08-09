@@ -279,6 +279,22 @@ function resolveIdentity(b: Brand): BrandIdentity {
   return b.identity ? overlayStoredIdentity(base, cloneJson(b.identity)) : base;
 }
 
+/**
+ * Timestamps on brands hydrated from JSON (localStorage, Supabase rows) arrive
+ * as ISO strings even though the legacy Brand type declares Date. Coerce at
+ * this boundary so `assertCanonicalBrand` (z.date()) never rejects a brand
+ * that merely round-tripped through storage. Invalid/absent values fall back
+ * to "now" rather than producing an Invalid Date that zod also rejects.
+ */
+function toDate(v: Date | string | undefined): Date {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
 /** Legacy Brand → CanonicalBrand. Pure, deterministic, lossless for identity. */
 export function fromLegacyBrand(b: Brand): CanonicalBrand {
   return {
@@ -289,7 +305,7 @@ export function fromLegacyBrand(b: Brand): CanonicalBrand {
     isPublic: b.isPublic ?? false,
     publicUrl: b.publicUrl,
     identitySchemaVersion: CANONICAL_BRAND_SCHEMA_VERSION,
-    createdAt: b.createdAt,
-    updatedAt: b.updatedAt,
+    createdAt: toDate(b.createdAt),
+    updatedAt: toDate(b.updatedAt),
   };
 }

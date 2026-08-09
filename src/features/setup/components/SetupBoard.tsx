@@ -1521,7 +1521,9 @@ function Swatch({
       type="button"
       className={`swatch${light ? ' is-light' : ''}${isActive ? ' is-active' : ''}${isPrimary ? ' is-primary' : ''}`}
       style={{ background: renderedHex, zIndex }}
-      aria-label={`Edit ${color.name} ${renderedHex}`}
+      // Accessible name mirrors the VISIBLE label (hexToName of the live
+      // hex), not the stored color.name — WCAG 2.5.3 Label in Name.
+      aria-label={`Edit ${hexToName(renderedHex)} ${renderedHex}`}
       aria-expanded={isActive}
       onClick={(e) => {
         e.stopPropagation();

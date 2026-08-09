@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { OptimizedDesignEditor } from './OptimizedDesignEditor';
 import { WelcomeTutorial } from './WelcomeTutorial';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -12,8 +13,28 @@ interface EditorShellProps {
 export function EditorShell({ moduleId, brandId, brandSlug }: EditorShellProps) {
   const { current: brand, loadBySlug, loadAll, list, isLoading } = useBrandStore();
   const [showTutorial, setShowTutorial] = useState(false);
+  const { setTheme } = useTheme();
 
   const identifier = brandSlug || brandId;
+
+  // Theme continuity (SHL-02): the Studio workspace theme lives in
+  // `brandos-theme` and is scoped to [data-workspace] — this editor
+  // route has no workspace wrapper, so it rendered the app default
+  // (light) even inside a dark session, flashing full-brightness on
+  // entry. Mirror the workspace preference into next-themes while the
+  // editor is mounted; restore the app default on exit.
+  useEffect(() => {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem('brandos-theme');
+    } catch {
+      // Storage unavailable — keep the default.
+    }
+    if (stored === 'dark') setTheme('dark');
+    return () => {
+      if (stored === 'dark') setTheme('light');
+    };
+  }, [setTheme]);
 
   useEffect(() => {
     if (!identifier) return;

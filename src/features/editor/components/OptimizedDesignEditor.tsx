@@ -106,6 +106,38 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
     markDirty();
   }, [markDirty]);
 
+  // The canvas event listeners below are registered exactly once (in
+  // handleCanvasReady) — route them through a ref so they always call
+  // the LATEST triggerAutoSave. Binding the callback directly captured
+  // a markDirty closure from before `enabled` flipped true (fabricCanvas
+  // state hadn't committed yet), which made every markDirty() a no-op
+  // and silently disabled auto-save (QA bug DSN-01).
+  const triggerAutoSaveRef = useRef(triggerAutoSave);
+  useEffect(() => {
+    triggerAutoSaveRef.current = triggerAutoSave;
+  }, [triggerAutoSave]);
+
+  // Last-chance flush: localStorage is synchronous, so a direct write on
+  // pagehide/beforeunload guarantees a reload right after an edit never
+  // loses work, even inside the 2s debounce window.
+  useEffect(() => {
+    const flushNow = () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      try {
+        localStorage.setItem(`design_${brandId}`, JSON.stringify(canvas.toJSON()));
+      } catch {
+        // Best-effort — the debounced path owns error reporting.
+      }
+    };
+    window.addEventListener('pagehide', flushNow);
+    window.addEventListener('beforeunload', flushNow);
+    return () => {
+      window.removeEventListener('pagehide', flushNow);
+      window.removeEventListener('beforeunload', flushNow);
+    };
+  }, [brandId]);
+
   // Canvas ready handler — load saved design if any
   const handleCanvasReady = useCallback(async (canvas: FabricCanvas) => {
     setFabricCanvas(canvas);
@@ -124,12 +156,14 @@ export function OptimizedDesignEditor({ brand, brandId }: DesignEditorProps) {
       localStorage.removeItem(`design_${brandId}`);
     }
 
-    // Set up auto-save via unified hook
-    canvas.on('path:created', triggerAutoSave);
-    canvas.on('object:modified', triggerAutoSave);
-    canvas.on('object:added', triggerAutoSave);
-    canvas.on('object:removed', triggerAutoSave);
-  }, [brandId, triggerAutoSave]);
+    // Set up auto-save via unified hook. Stable wrapper → ref so the
+    // once-registered listeners always reach the current markDirty.
+    const onCanvasChange = () => triggerAutoSaveRef.current();
+    canvas.on('path:created', onCanvasChange);
+    canvas.on('object:modified', onCanvasChange);
+    canvas.on('object:added', onCanvasChange);
+    canvas.on('object:removed', onCanvasChange);
+  }, [brandId]);
 
   // Throttled selection change handler
   const handleSelectionChange = useThrottledCallback((object: any) => {

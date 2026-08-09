@@ -422,30 +422,28 @@ function FontFamilyRow({
   );
 }
 
-/** The site's real favicon for a link row (via Google's favicon service);
- *  falls back to the platform glyph while loading fails or for bad URLs. */
+/** Letter-mark badge for a link row — the site's first letter, rendered
+ *  locally. No third-party favicon service: fetching the real favicon
+ *  leaked every brand URL to Google. Falls back to the platform glyph
+ *  for bad URLs. */
 function LinkFavicon({ url, fallback }: { url?: string; fallback: React.ReactNode }) {
-  const [failed, setFailed] = useState(false);
-  const host = useMemo(() => {
+  const letter = useMemo(() => {
     if (!url) return null;
     try {
-      return new URL(url).hostname;
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      return host.charAt(0).toUpperCase() || null;
     } catch {
       return null;
     }
   }, [url]);
 
-  if (!host || failed) {
+  if (!letter) {
     return <span className="asset-thumb-platform">{fallback}</span>;
   }
   return (
-    <img
-      className="asset-thumb-favicon"
-      src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`}
-      alt=""
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+    <span className="asset-thumb-letter" aria-hidden="true">
+      {letter}
+    </span>
   );
 }
 

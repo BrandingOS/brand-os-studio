@@ -25,6 +25,7 @@ import type { ITemplatesService } from '@/core/services/ITemplatesService';
 import type { Template, TemplateCategory } from '@/features/templates/types';
 import { applyBrandToDocument } from '@/features/editor/brand/applyBrandToDocument';
 import { useBrandKit } from '@/features/editor/brand/useBrandKit';
+import { thumbnail, type ThumbPalette } from '@/features/templates/seeds/builders';
 
 interface Props {
   brand: Brand;
@@ -82,6 +83,45 @@ export function DesignTemplateGallery({ brand, templates, designStorage }: Props
       cancelled = true;
     };
   }, [templates, activeCat]);
+
+  // Brand-bound thumbnails (DSN-03). The stored thumbnailUrl was
+  // rendered with a mood stand-in palette — generic blues/yellows and
+  // a "LOGO" badge — which broke the section's "with your colors and
+  // type baked in" promise. Re-render each template's first page
+  // through the brand's actual palette (and logo, when present).
+  const brandThumbs = useMemo<Record<string, string>>(() => {
+    if (!brandKit || !items) return {};
+    const n = brandKit.colors.neutrals;
+    const palette: ThumbPalette = {
+      primary: brandKit.colors.primary.hex,
+      secondary: brandKit.colors.secondary?.hex ?? brandKit.colors.primary.hex,
+      accent:
+        brandKit.colors.accent?.hex ??
+        brandKit.colors.secondary?.hex ??
+        brandKit.colors.primary.hex,
+      neutralLightest: n[0],
+      neutralLight: n[1],
+      neutralMid: n[2],
+      neutralDark: n[4],
+      neutralDarkest: n[5],
+      headingFont: `"${brandKit.typography.heading.family}", serif`,
+      bodyFont: `"${brandKit.typography.body.family}", sans-serif`,
+      logoBg: brandKit.colors.primary.hex,
+      logoFg: '#ffffff',
+      logoHref: brandKit.logos.primary?.url,
+    };
+    const out: Record<string, string> = {};
+    for (const tpl of items) {
+      const page = tpl.document?.pages?.[0];
+      if (!page) continue;
+      try {
+        out[tpl.id] = thumbnail({ page, mood: tpl.mood ?? 'professional', palette });
+      } catch {
+        // Fall back to the stored generic thumbnail for this template.
+      }
+    }
+    return out;
+  }, [brandKit, items]);
 
   const onOpenTemplate = useCallback(
     async (template: Template) => {
@@ -195,9 +235,9 @@ export function DesignTemplateGallery({ brand, templates, designStorage }: Props
                   className="dh-tpl-thumb"
                   style={{ aspectRatio: `${aspect}` }}
                 >
-                  {tpl.thumbnailUrl ? (
+                  {brandThumbs[tpl.id] || tpl.thumbnailUrl ? (
                     <img
-                      src={tpl.thumbnailUrl}
+                      src={brandThumbs[tpl.id] ?? tpl.thumbnailUrl}
                       alt=""
                       className="dh-tpl-img"
                       loading="lazy"

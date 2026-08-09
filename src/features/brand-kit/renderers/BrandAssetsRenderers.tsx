@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import {
+  contrastRatio,
   cssUrl,
   extractWrappedImageUrl,
+  firstLogoColor,
   logoCombosFor,
   logoToMaskSvg,
   svgToCssUrl,
@@ -27,9 +29,48 @@ type Props = { brand: MockBrand; templateIndex: number };
 
 /* ─── Logo combo (mark color × bg color) ───────────────────── */
 
+// Neutral surfaces for the "Original" tiles — light and dark chips
+// the unrecolored artwork sits on. Which one wins is decided per
+// logo via `contrastRatio`, never by fresh luminance math.
+const ORIGINAL_BG_LIGHT = '#F4F4F5';
+const ORIGINAL_BG_DARK = '#18181B';
+
 export function BrandAssetLogoRenderer({ brand, templateIndex }: Props) {
+  // The first `logos.length` tiles show the ORIGINAL uploaded artwork
+  // unrecolored — mirrors the template list in `brandAssetTemplates`,
+  // which emits one Original entry per logo ahead of the combos.
+  const originalCount = brand.logos.length;
+  if (templateIndex < originalCount) {
+    const original = brand.logos[templateIndex];
+    if (!original) return null;
+    // Pick the neutral the artwork reads on: sample the logo's first
+    // painted color and keep whichever chip contrasts harder against
+    // it. Wrapped `<image>` uploads expose no color — default to the
+    // light chip (uploads are overwhelmingly dark-on-transparent).
+    const sample = firstLogoColor(original.svg);
+    const bg =
+      sample && contrastRatio(sample, ORIGINAL_BG_DARK) > contrastRatio(sample, ORIGINAL_BG_LIGHT)
+        ? ORIGINAL_BG_DARK
+        : ORIGINAL_BG_LIGHT;
+    const originalUrl = extractWrappedImageUrl(original.svg);
+    return (
+      <div
+        className="brand-asset-render brand-asset-render--logo"
+        style={{ backgroundColor: bg }}
+      >
+        {originalUrl ? (
+          <img src={originalUrl} alt="" className="brand-asset-render-logo-img" />
+        ) : (
+          <span
+            className="brand-asset-render-logo-svg"
+            dangerouslySetInnerHTML={{ __html: original.svg }}
+          />
+        )}
+      </div>
+    );
+  }
   const combos = logoCombosFor(brand);
-  const combo = combos[templateIndex];
+  const combo = combos[templateIndex - originalCount];
   if (!combo) return null;
   const logo = brand.logos[combo.logoIndex];
   if (!logo) return null;

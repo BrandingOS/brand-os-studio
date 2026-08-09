@@ -152,6 +152,13 @@ function notifyDuplicate(name: string) {
 /** Extensions the dropzone accepts (mirrors its file-picker `accept`). */
 const SUPPORTED_UPLOAD = /\.(png|jpe?g|gif|webp|avif|bmp|svg|pdf|ai|sketch|fig|psd|zip|otf|ttf|woff2?|eot)$/i;
 
+/** True when a file's MIME or extension matches the picker's `accept` list.
+ *  The `accept` attribute only filters the OS picker — drops and programmatic
+ *  adds bypass it, so callers must check explicitly before queueing. */
+export function isSupportedUploadFile(file: File): boolean {
+  return file.type.startsWith('image/') || SUPPORTED_UPLOAD.test(file.name);
+}
+
 const isJunkName = (name: string) => name.startsWith('.') || name === '__MACOSX';
 
 /**
