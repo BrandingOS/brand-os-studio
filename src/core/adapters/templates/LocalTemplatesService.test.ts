@@ -96,3 +96,33 @@ describe('LocalTemplatesService — bootstrap version bump', () => {
     expect(localStorage.getItem(KEY_BOOTSTRAPPED)).toBe('2');
   });
 });
+
+describe('LocalTemplatesService — seed/system isolation (BB5)', () => {
+  it('lets the user update + delete their own (user_uploaded) template', async () => {
+    const svc = new LocalTemplatesService();
+    const { id, ...input } = fakeUserTemplate('mine');
+    const created = await svc.createTemplate(input as never);
+
+    const renamed = await svc.updateTemplate(created.id, { name: 'Renamed' });
+    expect(renamed.name).toBe('Renamed');
+    expect(renamed.source).toBe('user_uploaded');
+
+    await svc.deleteTemplate(created.id);
+    const after = await svc.listTemplates({ limit: 1000 });
+    expect(after.find((t) => t.id === created.id)).toBeFalsy();
+  });
+
+  it('refuses to update or delete a seed/system (curated) template', async () => {
+    const svc = new LocalTemplatesService();
+    const list = await svc.listTemplates({ limit: 1000 });
+    const seed = list.find((t) => t.source === 'curated');
+    expect(seed).toBeTruthy();
+
+    await expect(svc.updateTemplate(seed!.id, { name: 'hijack' })).rejects.toThrow(/system template/i);
+    await expect(svc.deleteTemplate(seed!.id)).rejects.toThrow(/system template/i);
+
+    // The seed is untouched + still present.
+    const after = await svc.listTemplates({ limit: 1000 });
+    expect(after.find((t) => t.id === seed!.id)?.name).toBe(seed!.name);
+  });
+});

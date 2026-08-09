@@ -203,10 +203,17 @@ export class LocalTemplatesService implements ITemplatesService {
     const all = this.readTemplates();
     const idx = all.findIndex((t) => t.id === id);
     if (idx < 0) throw new Error(`No template with id ${id}`);
+    // Seed/system templates (curated, ai_prompt_preset) are READ-ONLY — only
+    // user-owned records may be mutated. Prevents demo fixtures being treated as
+    // editable user data (and, post-migration-009, cross-user DB corruption).
+    if (!isUserOwned(all[idx])) {
+      throw new Error(`Cannot modify a system template (source="${all[idx].source}")`);
+    }
     const next: Template = {
       ...all[idx],
       ...patch,
       id: all[idx].id, // never overwrite id
+      source: all[idx].source, // never reclassify a user template as system
       updatedAt: new Date().toISOString(),
     };
     const replaced = [...all];
@@ -216,8 +223,20 @@ export class LocalTemplatesService implements ITemplatesService {
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    this.persistTemplates(this.readTemplates().filter((t) => t.id !== id));
+    const all = this.readTemplates();
+    const target = all.find((t) => t.id === id);
+    // No-op for unknown ids; refuse to delete seed/system fixtures.
+    if (target && !isUserOwned(target)) {
+      throw new Error(`Cannot delete a system template (source="${target.source}")`);
+    }
+    this.persistTemplates(all.filter((t) => t.id !== id));
   }
+}
+
+/** A template the user owns (their "save as template" output) vs a bundled
+ *  seed/system/example fixture. Only user-owned records are mutable. */
+function isUserOwned(t: Template): boolean {
+  return t.source === 'user_uploaded';
 }
 
 // ─── Pure helpers (testable in isolation) ───────────────────────────────
