@@ -32,7 +32,6 @@ src/features/approvals/ApprovalsPage.tsx | TS2339 | Property 'user_metadata' doe
 src/features/auth/hooks/useAuth.ts | TS2339 | Property 'abortSignal' does not exist on type 'PostgrestBuilder<{ PostgrestVersion: "14.5"; }, { role: "admin" | "super_admin" | "moderator" | "user"; }, false>'.
 src/features/brand-board/store/useBrandBoardStore.ts | TS2322 | Type 'string' is not assignable to type 'string & string[]'.
 src/features/brand-kit/components/BrandKitCardEditor.tsx | TS2694 | Namespace 'JSZip' has no exported member 'default'.
-src/features/brand-kit/components/BrandKitVariantsModal.tsx | TS2353 | Object literal may only specify known properties, and 'mockups' does not exist in type 'Record<KitSectionKey, string>'.
 src/features/brand-kit/components/brand-kit-organic-icons.tsx | TS2724 | '"framer-motion"' has no exported member named 'AnimationControls'. Did you mean 'animationControls'?
 src/features/brand-portal/v2/BrandPortalV2Page.tsx | TS2345 | Argument of type 'Brand' is not assignable to parameter of type '{ logoAssets?: Record<string, string>; logo?: string; }'.
 src/features/brand-setup/computeBrandSetupSteps.ts | TS2339 | Property 'category' does not exist on type 'BrandAsset'.

@@ -25,22 +25,10 @@ import { AdminLayout } from "./features/admin/components/AdminLayout";
 const OnboardingPage = lazy(() => import("./pages/onboarding"));
 const OnboardingBrandPage = lazy(() => import("./pages/onboarding-brand"));
 const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
-const OnboardingV3Page = lazy(() => import("./pages/onboarding-v3"));
-const OnboardingV3CreatePage = lazy(() => import("./pages/onboarding-v3/create"));
-const OnboardingV3PreviewPage = lazy(() => import("./pages/onboarding-v3/preview"));
-const OnboardingV4Page = lazy(() => import("./pages/onboarding-v4"));
-const OnboardingV4CreatePage = lazy(() => import("./pages/onboarding-v4/create"));
-// New canonical Cosmos onboarding + workspace routes. The onboarding screens
-// are shared with /onboarding-v4 (the prior preview alias); the workspace
-// pages (Setup / Brand Kit / Guideline / Design / Tools) live under a new
-// top-center-nav shell, see src/shared/layouts/WorkspaceShell.tsx.
+// Canonical pre-brand onboarding. The onboarding screens live in
+// src/features/onboarding-v4/screens/ and are consumed here.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
 const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
-const WorkspaceSetupPage = lazy(() => import("./pages/setup"));
-const WorkspaceBrandKitPage = lazy(() => import("./pages/setup/brand-kit"));
-const WorkspaceGuidelinePage = lazy(() => import("./pages/setup/guideline"));
-const WorkspaceDesignPage = lazy(() => import("./pages/setup/design"));
-const WorkspaceToolsPage = lazy(() => import("./pages/setup/tools"));
 // v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
@@ -67,7 +55,6 @@ const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
-const DashboardRoute = lazy(() => import("./pages/dashboard"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
 const TemplatesPage = lazy(() => import("./pages/dashboard/templates"));
@@ -330,33 +317,13 @@ const App = () => (
           <Route path="/onboarding-brand" element={<OnboardingBrandPage />} />
           {logoMakerFlowRoutes}
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
-          <Route path="/onboarding-v3" element={<OnboardingV3Page />} />
-          <Route path="/onboarding-v3/create" element={<OnboardingV3CreatePage />} />
-          <Route path="/onboarding-v3/preview" element={<OnboardingV3PreviewPage />} />
-          <Route path="/onboarding-v4" element={<OnboardingV4Page />} />
-          <Route path="/onboarding-v4/create" element={<OnboardingV4CreatePage />} />
-          {/*
-            ─── New Cosmos UI direction ───────────────────────────────
-            Onboarding:  /onboard-brand (+ /onboard-brand/create)
-            Workspace:   /setup · /brand-kit · /guideline
-                         /design-workspace · /tools-workspace
-            The workspace tabs share the WorkspaceShell — a top-
-            center segmented nav with Setup · Brand Kit · Guideline ·
-            Design · Tools. Setup replaces the legacy "Sitemap" concept
-            as the first and primary tab.
-            `/design-workspace` + `/tools-workspace` are name-spaced so
-            they don't collide with the existing public `/tools` tools
-            directory or brand-scoped `/b/:slug/design`.
-            ─────────────────────────────────────────────────────────── */}
+          {/* Canonical pre-brand onboarding. Older /onboarding-v3, /onboarding-v4,
+              and the ns-less workspace tabs (/setup, /brand-kit, /guideline,
+              /design-workspace, /tools-workspace) were dead generations superseded
+              by /onboard-brand + the brand-scoped /b/:slug/* tabs — removed. */}
           <Route path="/onboard-brand" element={<OnboardBrandPage />} />
           <Route path="/onboard-brand/create" element={<OnboardBrandCreatePage />} />
-          <Route path="/setup" element={<WorkspaceSetupPage />} />
-          <Route path="/brand-kit" element={<WorkspaceBrandKitPage />} />
-          <Route path="/guideline" element={<WorkspaceGuidelinePage />} />
-          <Route path="/design-workspace" element={<WorkspaceDesignPage />} />
-          <Route path="/tools-workspace" element={<WorkspaceToolsPage />} />
-          {/* v2 workspace home — new WorkspaceShell (no tabs). Old DashboardRoute
-              stays lazy-imported but unused; Phase 6 removes it. */}
+          {/* v2 workspace home — new WorkspaceShell (no tabs). */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <WorkspaceHomePage />
@@ -708,10 +675,14 @@ const App = () => (
           {/* Dev-only all-features inventory. Self-gated on import.meta.env.DEV
               or ?dev=1. Not linked from any user nav. */}
           <Route path="/_dev/features" element={<DevFeaturesPage />} />
-          {/* Phase 1 unified editor demo — fixture social-post + localStorage save. */}
-          <Route path="/_dev/editor" element={<DevEditorPage />} />
-          {/* Chronicle-style editor chrome preview (guideline + design redesign). */}
-          <Route path="/_dev/chronicle" element={<ChroniclePreviewPage />} />
+          {/* Dev-only editor/chronicle previews — registered ONLY in dev builds so
+              they never resolve in production (were previously ungated). */}
+          {import.meta.env.DEV && (
+            <Route path="/_dev/editor" element={<DevEditorPage />} />
+          )}
+          {import.meta.env.DEV && (
+            <Route path="/_dev/chronicle" element={<ChroniclePreviewPage />} />
+          )}
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />
