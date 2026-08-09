@@ -74,16 +74,6 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
   // Setup tab
   // ────────────────────────────────────────────────────────────────
   {
-    id: 'setup-reference',
-    name: 'Setup (new-direction reference)',
-    tab: 'setup',
-    route: '/setup',
-    entry: 'src/features/setup/SetupPage.tsx',
-    status: 'active',
-    description:
-      'Presentational Setup surface — logo, colors, fonts, icons, photos, websites, voice. Seeded from mockBrand today; wires to useBrand() in Phase 1.',
-  },
-  {
     id: 'setup-brand-scoped',
     name: 'Setup (brand-scoped)',
     tab: 'setup',
@@ -599,24 +589,6 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     entry: 'src/pages/onboarding',
     status: 'dead',
     description: 'Legacy onboarding. Redirect to /onboard-brand; delete in Phase 6.',
-  },
-  {
-    id: 'onboarding-v3',
-    name: 'Onboarding v3',
-    tab: 'dev',
-    route: '/onboarding-v3',
-    entry: 'src/pages/onboarding-v3',
-    status: 'dead',
-    description: 'Experimental onboarding. Redirect to /onboard-brand; delete in Phase 6.',
-  },
-  {
-    id: 'onboarding-v4',
-    name: 'Onboarding v4',
-    tab: 'dev',
-    route: '/onboarding-v4',
-    entry: 'src/pages/onboarding-v4',
-    status: 'dead',
-    description: 'Experimental onboarding. Redirect to /onboard-brand; delete in Phase 6.',
   },
   {
     id: 'dashboard-shell-dead',

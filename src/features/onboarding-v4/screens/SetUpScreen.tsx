@@ -688,7 +688,7 @@ export function SetUpScreen() {
     }
   };
 
-  const createHref = then ? `/onboarding-v4/create?then=${encodeURIComponent(then)}` : '/onboarding-v4/create';
+  const createHref = then ? `/onboard-brand/create?then=${encodeURIComponent(then)}` : '/onboard-brand/create';
   const meta = PANEL_META[setupPanel];
 
   return (

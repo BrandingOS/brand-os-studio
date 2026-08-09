@@ -117,7 +117,7 @@ export function CreateScreen() {
     if (step === 2) setStep(1);
   };
 
-  const setupHref = then ? `/onboarding-v4?then=${encodeURIComponent(then)}` : '/onboarding-v4';
+  const setupHref = then ? `/onboard-brand?then=${encodeURIComponent(then)}` : '/onboard-brand';
 
   return (
     <CosmosShell variant="create">
