@@ -54,7 +54,7 @@ export interface GenerateDeckResult {
 /** Bumped any time the prompt or schema changes. Used as a cache-key salt. */
 export const PROMPT_VERSION = 'v1';
 
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'sonnet' as const; // tier — server proxy resolves the concrete model id
 const MAX_TOKENS = 4096;
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

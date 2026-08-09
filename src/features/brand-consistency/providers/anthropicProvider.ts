@@ -10,7 +10,7 @@ import { composePrompt } from '../engine/promptComposer';
 import { generateMockCopy } from './mockProvider';
 import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'sonnet' as const; // tier — server proxy resolves the concrete model id
 
 function extractJson(text: string): unknown {
   // Models occasionally wrap JSON in code fences despite instructions.

@@ -11,7 +11,7 @@ import type { Brand } from '@/shared/types/brand';
 import { mockProvider } from './mockProvider';
 import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
-const MODEL = 'claude-opus-4-6';
+const MODEL = 'opus' as const; // tier — server proxy resolves the concrete model id
 const MAX_TOKENS = 1024;
 
 function buildSystemPrompt(brand?: Brand): string {

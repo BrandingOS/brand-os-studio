@@ -46,7 +46,7 @@ async function generateAISuggestions(description: string, brandName: string): Pr
     const iconSample = allIcons.slice(0, 60).join(', ');
 
     const data = await callAnthropic({
-      model: 'claude-sonnet-4-20250514',
+      model: 'sonnet', // tier — server proxy resolves the concrete model id
       max_tokens: 1024,
       system: `You are a brand design expert. Given a brand description, suggest 6 logo design variations. Each variation should have different visual parameters.
 

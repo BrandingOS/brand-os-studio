@@ -9,7 +9,7 @@
  */
 import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
-const MODEL = 'claude-opus-5';
+const MODEL = 'opus' as const; // tier — server proxy resolves the concrete model id
 
 const SECTION_KEYS = [
   'mission',

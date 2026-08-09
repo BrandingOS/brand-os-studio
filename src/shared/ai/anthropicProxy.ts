@@ -10,8 +10,13 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 
+/** The server proxy whitelists models by TIER (`resolveModel` in
+ *  supabase/functions/_shared/ai.ts) — raw model-id strings are rejected 400. */
+export type AnthropicModelTier = 'haiku' | 'sonnet' | 'opus';
+
 export interface AnthropicRequest {
-  model?: string;
+  /** Model TIER, not a raw model id. Defaults to 'sonnet'. */
+  model?: AnthropicModelTier;
   max_tokens?: number;
   system?: string | Array<Record<string, unknown>>;
   messages: Array<{ role: 'user' | 'assistant'; content: unknown }>;
@@ -53,7 +58,7 @@ export async function resolveAiSessionId(): Promise<string> {
 export async function callAnthropic(req: AnthropicRequest): Promise<AnthropicResponse> {
   const sessionId = await resolveAiSessionId();
   const { data, error } = await supabase.functions.invoke('anthropic-proxy', {
-    body: { sessionId, ...req },
+    body: { sessionId, model: 'sonnet', ...req },
   });
   if (error) throw new Error(`anthropic-proxy failed: ${error.message}`);
   if (!data) throw new Error('anthropic-proxy: empty response');
