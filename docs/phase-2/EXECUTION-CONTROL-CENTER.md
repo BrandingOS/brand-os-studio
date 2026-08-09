@@ -152,9 +152,85 @@ flowchart TD
 - [✓] Security (011/012/013/014 deployed; 009/010 absent)
 - [✓] **Brand System — COMPLETE** (color · typography · voice · strategy · logo all canonical, server-backed)
 - [✓] **Data / Assets / Persistence — COMPLETE** (Designs + DAM server-backed; lifecycle simplified; UPLOAD deleted)
-- [~] Product / Legacy Cleanup  ← **current batch (Batch C)**
-- [ ] Editors + remaining Asset/Upload consolidation
-- [ ] Final Hardening
+- [✓] **Product / Legacy Cleanup — COMPLETE** (Batch C: −6,092 LOC, 41 dead files, 10 dead routes)
+- [~] **Editors + Asset/Upload — PARTIAL** (asset pickers consolidated; editor-platform extraction intentionally NOT done — it's a redesign)
+- [~] **Final Hardening — PARTIAL** (canonical layers strict-clean, RLS confirmed; browser AI-key P0 prepared, needs coordinated deploy)
+
+## FINAL PROJECT STATUS (2026-08-09)
+
+### Phase D — Editor + Asset/Upload (PARTIAL, by design)
+- **DONE (D3):** the shared `AssetPicker` now reads/writes the canonical **ASSETS service**
+  (public.assets / localStorage) — same store as DamPage + AssetSourcePopover. All three
+  pickers share ONE asset-library authority. Uploads go to the storage bucket, not
+  dataURL-in-JSONB. Deleted `StandaloneEditorPage` + 2 dead AI files.
+- **NOT done, on purpose:** a "shared editor platform" extraction (D1/D2) — that is a
+  multi-week REDESIGN, explicitly out of scope for a cleanup ("don't start another redesign
+  cycle"). Editor engines are appropriately artifact-specific (Fabric design, DOM guideline/
+  presentation slides via the off-limits `EditorWorkspace`, Pixi mockup) — not four engines
+  doing one job.
+- **Deferred (product decision):** `deck-v2` (Deck OS, ~8.6k) + `pitch-deck` (~9.7k) are
+  **orphan routes** (defined, unlinked). Which is the canonical Presentation architecture is
+  a product call — flagged, not deleted (may be deferred scope, not dead).
+- **Residual (off-limits):** `EditorWorkspace` (`stable/editable-export-v1`) + `ImageInspector`
+  still write legacy `brand.assets`. Not touched per the tag. Migrates with a future editor pass.
+
+### Phase E — Final Hardening (PARTIAL)
+- **E1 DONE:** canonical layers (`domain`/`application`/`platform`) are **strict-clean (0 errors)**.
+  Legacy feature debt (320) intentionally left — instruction says not to chase it. Debt 322→321.
+- **E4 DONE:** brand-vision localhost no longer a prod default (dev-only, skipped when unset).
+- **E5 CONFIRMED:** RLS on every app-written table (`brands`,`assets`,`designs`,`guideline_presentations`);
+  migrations 011/012 in place.
+- **E6 PREPARED (P0, owner-coordinated):** `VITE_ANTHROPIC_API_KEY` still ships in 5 browser AI paths.
+  Server proxy `supabase/functions/anthropic-proxy` written; activation = deploy + client rewire +
+  unset the build var (atomic, or live AI breaks). See `docs/phase-2/SECURITY-E6-runbook.md`.
+- **Tracked:** `finalize-onboarding-assets` needs an ownership check (untestable Deno + onboarding
+  critical path → owner applies); `AdminPanel` direct `brands.delete()` boundary (admin+RLS-gated).
+
+### CURRENT ARCHITECTURE
+```mermaid
+flowchart TD
+  UI[Feature UIs / Pages] --> APP[application use-cases\nchangeBrand* ]
+  UI --> STORE[brandStore]
+  APP --> DOM[canonical domain\nsrc/domain/brand — strict-clean]
+  APP --> REPO[BrandRepository port]
+  STORE --> SVC[DI services / adapters]
+  REPO --> SVC
+  SVC --> SUPA[(Supabase: brands·assets·designs·guidelines)]
+  SVC -. guest .-> LS[(localStorage)]
+  UI -. AI .-> EF[Edge Functions\nai-apply-command · anthropic-proxy*]
+  EF --> ANTHROPIC[Anthropic — server key]
+  DOM -. fromLegacy/toLegacy .- LEG[legacy Brand shape — one-way projection]
+```
+`*` anthropic-proxy prepared, not yet deployed.
+
+### CURRENT PERSISTENCE
+```mermaid
+flowchart LR
+  Brand[Brand identity] --> C1[(brands.identity 013 · authoritative)]
+  Logo[Logo refs+records] --> C2[(brands.logo_system + brand_assets 014)]
+  Design[Designs] --> C3[(public.designs 015 · PENDING deploy)]
+  Lib[DAM library] --> C4[(public.assets · via ASSETS service)]
+  Guide[Guideline docs] --> C5[(guideline_presentations/_slides)]
+  Files[Uploaded binaries] --> C6[(Storage bucket brand-assets)]
+  Legacy[scalars/guidelines mirror] -. one-way projection .-> Brand
+```
+
+### REMAINING LEGACY (intentional / deferred)
+- **Classic `/a/:slug`** — live via the UI-preference toggle (retiring it = product decision).
+- **`EditorWorkspace` + Gen-1 `OptimizedDesignEditor`** — off-limits `stable/editable-export-v1`.
+- **`deck-v2` / `pitch-deck`** — orphan-route deck engines pending a Presentation-architecture decision.
+- **Comments/approvals/notifications** — deferred collaboration (tables+services exist, UI is v1 local).
+- **Templates → server** — needs deferred migration 009.
+- Compatibility projections: legacy Brand scalars/guidelines (one-way, hydrated from canonical).
+
+### PENDING OWNER ACTIONS (only what the owner must do)
+1. **Deploy migration 015** (`designs`) — `supabase db push --linked`. (Reported deployed but the
+   migration list shows it local-only — re-run to confirm.)
+2. **Activate the AI-key fix (P0):** deploy `anthropic-proxy` + set server `ANTHROPIC_API_KEY` +
+   rewire the 5 browser AI files + unset `VITE_ANTHROPIC_API_KEY` (runbook: SECURITY-E6-runbook.md).
+3. **Add the ownership check to `finalize-onboarding-assets`** and confirm per-function `verify_jwt`.
+4. **Rotate the GitHub `gho_` token** (long-standing; treat as compromised).
+5. (Product) Decide Classic `/a` retirement + the canonical Presentation engine.
 
 ## PENDING-MIGRATIONS LEDGER
 
