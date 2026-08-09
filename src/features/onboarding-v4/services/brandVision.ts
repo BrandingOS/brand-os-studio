@@ -12,8 +12,12 @@ import { useV4Store } from '../store/onboardingV4Store';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import { genId } from '../utils/assetUpload';
 
+// Opt-in only: use the configured URL, and fall back to the local dev service
+// ONLY in dev builds. In production with no `VITE_BRAND_VISION_URL` set, BASE_URL
+// is empty and the classifier is skipped (no doomed request to localhost:8300).
 const BASE_URL: string =
-  (import.meta as any).env?.VITE_BRAND_VISION_URL || 'http://localhost:8300';
+  (import.meta as any).env?.VITE_BRAND_VISION_URL ||
+  ((import.meta as any).env?.DEV ? 'http://localhost:8300' : '');
 const ENGINE: string = (import.meta as any).env?.VITE_BRAND_VISION_ENGINE || 'custom';
 const TIMEOUT_MS = 25_000;
 const MIN_CONFIDENCE = 0.5;
@@ -38,6 +42,7 @@ export async function classifyImage(
   file: File,
   fetchImpl: typeof fetch = fetch
 ): Promise<BrandVisionVerdict | null> {
+  if (!BASE_URL) return null; // brand-vision not configured (e.g. prod) → skip
   if (Date.now() < disabledUntil) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

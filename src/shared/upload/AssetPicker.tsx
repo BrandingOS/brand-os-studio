@@ -1,23 +1,32 @@
 /**
  * AssetPicker — reusable asset library modal.
  *
- * Reads `currentBrand.assets` and renders a searchable, filterable grid.
- * Used by:
- *   - ImageInspector ("replace image" → opens picker)
- *   - InsertMenu ("Insert from brand assets")
- *   - AssetManagerModule (manage mode wraps this with full CRUD)
+ * Reads/writes the brand library through the canonical ASSETS service
+ * (SupabaseAssetsService → public.assets when authed; LocalAssetsService for
+ * guests) — the SAME store the DAM (`DamPage`) and `AssetSourcePopover` use — so
+ * every editor picker shares one asset-library authority (previously this read
+ * the legacy `brand.assets` array, which is dropped for authenticated users).
  *
- * Modes:
- *   - 'select' (default): single click → onSelect(asset) → close
- *   - 'manage': adds delete buttons, no auto-close on click
+ * Used by: ImageInspector ("replace image"), InsertMenu ("Insert from brand
+ * assets"), AssetManagerModule (manage mode). Uploads go to the storage bucket
+ * (not dataURL-in-JSONB).
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Search, X, Upload as UploadIcon, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { UploadButton } from './UploadButton';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { IAssetsService } from '@/core/types/services';
+import { storageService } from '@/shared/services/storage.supabase';
 import type { Asset } from '@/shared/types/brand';
+
+function detectType(file: File): Asset['type'] {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type === 'application/pdf') return 'document';
+  return 'image';
+}
 
 export interface AssetPickerProps {
   open: boolean;
@@ -41,11 +50,26 @@ export function AssetPicker({
   title = 'Brand Assets',
 }: AssetPickerProps) {
   const currentBrand = useBrandStore((s) => s.current);
-  const updateBrand = useBrandStore((s) => s.update);
+  const assetsService = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
+  const brandId = currentBrand?.id;
+  const [allAssets, setAllAssets] = useState<Asset[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allAssets = currentBrand?.assets ?? [];
+  const refresh = useCallback(async () => {
+    if (!brandId) return;
+    try {
+      setAllAssets(await assetsService.listForBrand(brandId));
+    } catch {
+      setAllAssets([]);
+    }
+  }, [brandId, assetsService]);
+
+  useEffect(() => {
+    if (open) void refresh();
+  }, [open, refresh]);
 
   const filteredAssets = useMemo(() => {
     return allAssets.filter((a) => {
@@ -64,9 +88,49 @@ export function AssetPicker({
   }, [allAssets]);
 
   const handleDelete = async (assetId: string) => {
-    if (!currentBrand) return;
-    const next = (currentBrand.assets ?? []).filter((a) => a.id !== assetId);
-    await updateBrand(currentBrand.id, { assets: next });
+    await assetsService.delete(assetId);
+    setAllAssets((prev) => prev.filter((a) => a.id !== assetId));
+  };
+
+  const handleUpload = async (files: File[]) => {
+    if (!brandId || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        let url: string;
+        let storagePath: string | undefined;
+        try {
+          const path = `${crypto.randomUUID()}-${file.name}`;
+          url = (await storageService.uploadAsset(brandId, file, path)).url;
+          storagePath = path;
+        } catch {
+          url = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+        }
+        await assetsService.create({
+          brandId,
+          name: file.name,
+          type: detectType(file),
+          category: (categories && categories[0]) || 'reference',
+          source: 'upload',
+          url,
+          storagePath,
+          size: file.size,
+          tags: [],
+          metadata: { originalName: file.name, format: file.type },
+        });
+      }
+      await refresh();
+      toast.success(`Uploaded ${files.length} asset${files.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      toast.error('Upload failed', { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleClick = (asset: Asset) => {
@@ -95,15 +159,26 @@ export function AssetPicker({
               className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
             />
           </div>
-          <UploadButton
-            kind="asset"
-            persistAsAsset
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
             multiple
-            label="Upload"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90"
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = '';
+              void handleUpload(files);
+            }}
+          />
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-50"
           >
-            <UploadIcon className="h-4 w-4" /> Upload
-          </UploadButton>
+            <UploadIcon className="h-4 w-4" /> {uploading ? 'Uploading…' : 'Upload'}
+          </button>
         </div>
 
         {/* Category tabs */}
