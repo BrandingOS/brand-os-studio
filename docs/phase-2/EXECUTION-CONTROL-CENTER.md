@@ -25,6 +25,30 @@ _Quick status page. Updated after every stage. Detailed docs live in
       scalar). Verified locally against real Postgres; **not deployed/verified in production** (no
       prod access). Full-fidelity authed accent/neutrals need migration 013 (also blocked).
 
+## Brand System Migration (Batch A)
+
+| Subsystem | Status |
+|---|---|
+| **Color** (primary/secondary/accent/neutrals) | **CODE MIGRATION COMPLETE** — one canonical write (`changeBrandColors`) for both live surfaces (ColorsTab + Setup); reads canonical; stale mirror can't resurrect. Accent/neutrals full-fidelity authed persistence needs 013. |
+| **Typography** (families) | **CODE MIGRATION COMPLETE** — TypographyTab + Setup write canonical `typography`; paint-path reader repointed. Weights/uploaded-fonts/type-scale = not persisted today (foundation/net-new). |
+| **Voice** (tone) | **CODE MIGRATION COMPLETE** for the editable field (tone). Rich voice (do/don't/examples) has **no editor** → FOUNDATION only. |
+| **Strategy** | **FOUNDATION + READY** — real surfaces exist (Setup, StrategyTab) but full fidelity (vision/values/positioning) needs the identity column (013); mission is column-backed and migratable. Not migrated this pass. |
+| **Logo** | **FOUNDATION + PARTIAL** — a canonical write path already exists (`logoSystem`+`brandAssets` via `stageLogoAssignment`); no active bug; `classifyAsset` **unwired**; onboarding writes legacy (minted at read). Full through-repository migration needs Asset persistence. Not migrated this pass. |
+| **Canonical persistence** | Facade repository (`BRAND_REPOSITORY`) over existing columns — server-backed for authed; identity-column full fidelity blocked on **013 (BLOCKED ON PRODUCTION ACCESS)**. |
+| **Legacy authority removal** | Color: ColorsTab scalar-only write removed; `buildColorSystem` mirror-preference removed; `mergeColorSystem` + `ColorPaletteEditor` deleted (type debt 324→322). Ongoing. |
+
+### Authority metrics — BEFORE → AFTER (this batch)
+
+| Metric | Before | After |
+|---|---|---|
+| Authoritative COLOR write paths | 2 (ColorsTab scalar-only + Setup) diverging | **1** (`changeBrandColors`) |
+| Authoritative TYPOGRAPHY-family write paths | 2 (TypographyTab `fonts` + Setup `typography`) | **1** canonical (`typography`; `fonts` = one-way projection) |
+| Paint-path readers on legacy-only fields | `brandTokenStyle` (fonts/primaryColor) | **canonical-first** |
+| Stale-mirror override on color reload | yes (`buildColorSystem` preferred guidelines) | **eliminated** |
+| Legacy Brand files/functions removed | — | `ColorPaletteEditor`, `mergeColorSystem`; type debt −2 |
+| Remaining compatibility projections | — | 3 (see COMPATIBILITY-LEDGER: C1 scalar mirror, C2 `buildColorSystem` derive, C3 facade) |
+| Exact blockers | — | migration 013 (accent/neutrals/typography-files/strategy-full full-fidelity authed persistence); prod access |
+
 ## Current Architecture (as-is)
 
 ```mermaid
