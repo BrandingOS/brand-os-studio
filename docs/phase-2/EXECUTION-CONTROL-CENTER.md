@@ -151,10 +151,21 @@ flowchart TD
 - [✓] Target Architecture
 - [✓] Security (011/012/013/014 deployed; 009/010 absent)
 - [✓] **Brand System — COMPLETE** (color · typography · voice · strategy · logo all canonical, server-backed)
-- [~] Data / Assets / Persistence  ← **current batch (Batch B) — PARTIAL**
-- [ ] Product / Legacy Cleanup
-- [ ] Editors
+- [✓] **Data / Assets / Persistence — COMPLETE** (Designs + DAM server-backed; lifecycle simplified; UPLOAD deleted)
+- [~] Product / Legacy Cleanup  ← **current batch (Batch C)**
+- [ ] Editors + remaining Asset/Upload consolidation
 - [ ] Final Hardening
+
+## PENDING-MIGRATIONS LEDGER
+
+Additive migrations prepared but batched for ONE owner deploy near the end (policy 2026-08-09:
+don't stop the cleanup per-migration; keep code backward-compatible with the deployed schema).
+
+| Migration | Purpose | Status | Code tolerant of pre-deploy? |
+|---|---|---|---|
+| 015 `designs` | Authed design server persistence | **UNCONFIRMED** — deploy reported by owner, but `supabase migration list --linked` shows it LOCAL-only (Remote column empty). Not called "live". | YES (`SupabaseDesignStorage` falls back to local) |
+
+_No other pending migrations. 011/012/013/014 remote; 009/010 deferred (absent)._
 
 ## Batch B — Data / Assets / Persistence (2026-08-09) — PARTIAL
 
