@@ -85,17 +85,37 @@ describe('migrateBrandToCurrent', () => {
     expect(out.typography?.secondary?.family).toBe('DM Sans');
   });
 
-  it('prefers guidelines.colorPalette over top-level when both present', () => {
+  // Stage 2D color-slice fix: the FRESH scalar wins over a divergent (stale)
+  // guidelines mirror — previously the mirror won, which reverted color edits on
+  // reload (05/11). Onboarding writes scalar + mirror consistently, so this only
+  // changes behavior once an edit has diverged them. (Was: "prefers
+  // guidelines.colorPalette over top-level" — that asserted the bug.)
+  it('prefers a fresh divergent scalar over a stale guidelines mirror', () => {
     const b = makeLegacyBrand({
+      // scalar = #7231FF (fresh edit); mirror still says #FF0000 (stale)
       guidelines: {
         colorPalette: {
-          primary: {
-            hex: '#FF0000',
-            rgb: 'rgb(255,0,0)',
-            cmyk: '',
-            name: 'Red',
-            usage: '',
+          primary: { hex: '#FF0000', rgb: 'rgb(255,0,0)', cmyk: '', name: 'Red', usage: '' },
+          neutral: [],
+          semantic: {
+            success: { hex: '#0f0', rgb: '', cmyk: '', name: 'S', usage: '' },
+            warning: { hex: '#ff0', rgb: '', cmyk: '', name: 'W', usage: '' },
+            error: { hex: '#f00', rgb: '', cmyk: '', name: 'E', usage: '' },
+            info: { hex: '#00f', rgb: '', cmyk: '', name: 'I', usage: '' },
           },
+        },
+      },
+    });
+    const out = migrateBrandToCurrent(b);
+    expect(out.colorSystem?.primary?.hex).toBe('#7231FF'); // fresh scalar, NOT the stale mirror
+  });
+
+  it('enriches the scalar with mirror metadata when the hexes agree', () => {
+    const b = makeLegacyBrand({
+      primaryColor: '#FF0000', // scalar and mirror agree → keep the rich name
+      guidelines: {
+        colorPalette: {
+          primary: { hex: '#FF0000', rgb: 'rgb(255,0,0)', cmyk: '', name: 'Red', usage: '' },
           neutral: [],
           semantic: {
             success: { hex: '#0f0', rgb: '', cmyk: '', name: 'S', usage: '' },
@@ -108,7 +128,7 @@ describe('migrateBrandToCurrent', () => {
     });
     const out = migrateBrandToCurrent(b);
     expect(out.colorSystem?.primary?.hex).toBe('#FF0000');
-    expect(out.colorSystem?.primary?.name).toBe('Red');
+    expect(out.colorSystem?.primary?.name).toBe('Red'); // metadata salvaged on hex match
   });
 
   it('is idempotent — running twice gives the same result', () => {

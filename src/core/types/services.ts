@@ -347,6 +347,9 @@ export interface IActivityService {
 
 export const SERVICE_KEYS = {
   BRANDS: 'brands',
+  /** Stage 2B/2D — canonical Brand repository (BrandServiceRepository facade over
+   *  BRANDS today; identity-column SupabaseBrandRepository once migration 013 ships). */
+  BRAND_REPOSITORY: 'brandRepository',
   WORKSPACES: 'workspaces',
   ASSETS: 'assets',
   COMMENTS: 'comments',

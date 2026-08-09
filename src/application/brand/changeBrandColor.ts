@@ -61,3 +61,23 @@ export function changeBrandPrimaryColor(
 ): Promise<CanonicalBrand> {
   return changeBrandColor(repo, brandId, 'primary', { hex });
 }
+
+/**
+ * Change several color roles atomically (one load, one save) — used by the
+ * dedicated Color editor so a multi-role edit is a single canonical operation.
+ */
+export async function changeBrandColors(
+  repo: BrandRepository,
+  brandId: string,
+  roles: Partial<Record<ColorRole, ColorToken>>,
+): Promise<CanonicalBrand> {
+  const brand = await repo.getById(brandId);
+  if (!brand) throw new Error(`changeBrandColors: brand not found: ${brandId}`);
+
+  let next = brand;
+  for (const [role, token] of Object.entries(roles) as [ColorRole, ColorToken][]) {
+    if (token) next = withColor(next, role, token);
+  }
+  assertCanonicalBrand(next);
+  return repo.save(next);
+}

@@ -14,6 +14,8 @@
 
 import { container } from './container/ServiceContainer';
 import { SERVICE_KEYS } from './types/services';
+import type { IBrandsService } from './types/services';
+import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository';
 import type { IDesignStorage } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
@@ -35,6 +37,15 @@ export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
   // Start with local storage; reconfigureForAuth swaps to Supabase on login.
   container.register(SERVICE_KEYS.BRANDS, () => new LocalBrandsService());
+
+  // ─── Canonical Brand Repository (Stage 2B/2D) ──────────────
+  // A canonical facade over whichever BRANDS service is active. Used by the
+  // migrated Color slice (changeBrandColor) so color edits go through the
+  // canonical model + one authoritative write path.
+  container.register(
+    SERVICE_KEYS.BRAND_REPOSITORY,
+    () => new BrandServiceRepository(container.get<IBrandsService>(SERVICE_KEYS.BRANDS)),
+  );
 
   // ─── Design Storage ────────────────────────────────────────
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
@@ -89,6 +100,10 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
 
   if (isAuthenticated) {
     container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
+    container.register(
+      SERVICE_KEYS.BRAND_REPOSITORY,
+      () => new BrandServiceRepository(container.get<IBrandsService>(SERVICE_KEYS.BRANDS)),
+    );
     container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
     container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
     container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());

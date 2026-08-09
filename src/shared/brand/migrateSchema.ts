@@ -109,34 +109,55 @@ function hexToRgb(hex: string): string | undefined {
   return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
 }
 
+/** Same-hex compare ignoring '#'/case — used to decide when the mirror's rich
+ *  metadata may enrich a fresh scalar (Stage 2D color-slice stale-mirror fix). */
+function sameHex(a?: string, b?: string): boolean {
+  return !!a && !!b && a.replace('#', '').toLowerCase() === b.replace('#', '').toLowerCase();
+}
+
 function buildColorSystem(brand: Brand): ColorSystem | undefined {
   const gp = brand.guidelines?.colorPalette;
-  const primary: ColorToken | undefined = gp?.primary
+  // Stage 2D root fix: prefer the FRESH scalar over a possibly-stale guidelines
+  // mirror (matches src/domain/brand fromLegacyBrand). The old code preferred
+  // guidelines.colorPalette, so a Setup/ColorsTab edit that updated the scalar but
+  // not the mirror reverted on reload (05/11). Metadata is salvaged from the mirror
+  // only when its hex still agrees with the fresh scalar.
+  const primary: ColorToken | undefined = brand.primaryColor
     ? {
-        hex: gp.primary.hex,
-        name: gp.primary.name,
-        rgb: gp.primary.rgb,
-        cmyk: gp.primary.cmyk,
-        pantone: gp.primary.pantone,
-        usage: gp.primary.usage,
+        hex: brand.primaryColor,
+        rgb: hexToRgb(brand.primaryColor),
+        ...(sameHex(gp?.primary?.hex, brand.primaryColor)
+          ? {
+              name: gp!.primary.name,
+              rgb: gp!.primary.rgb,
+              cmyk: gp!.primary.cmyk,
+              pantone: gp!.primary.pantone,
+              usage: gp!.primary.usage,
+            }
+          : {}),
       }
-    : brand.primaryColor
-    ? { hex: brand.primaryColor, rgb: hexToRgb(brand.primaryColor) }
+    : gp?.primary
+    ? { hex: gp.primary.hex, name: gp.primary.name, rgb: gp.primary.rgb, cmyk: gp.primary.cmyk, pantone: gp.primary.pantone, usage: gp.primary.usage }
     : undefined;
 
   if (!primary) return undefined;
 
-  const secondary: ColorToken | undefined = gp?.secondary
+  const secondary: ColorToken | undefined = brand.secondaryColor
     ? {
-        hex: gp.secondary.hex,
-        name: gp.secondary.name,
-        rgb: gp.secondary.rgb,
-        cmyk: gp.secondary.cmyk,
-        pantone: gp.secondary.pantone,
-        usage: gp.secondary.usage,
+        hex: brand.secondaryColor,
+        rgb: hexToRgb(brand.secondaryColor),
+        ...(sameHex(gp?.secondary?.hex, brand.secondaryColor)
+          ? {
+              name: gp!.secondary!.name,
+              rgb: gp!.secondary!.rgb,
+              cmyk: gp!.secondary!.cmyk,
+              pantone: gp!.secondary!.pantone,
+              usage: gp!.secondary!.usage,
+            }
+          : {}),
       }
-    : brand.secondaryColor
-    ? { hex: brand.secondaryColor, rgb: hexToRgb(brand.secondaryColor) }
+    : gp?.secondary
+    ? { hex: gp.secondary.hex, name: gp.secondary.name, rgb: gp.secondary.rgb, cmyk: gp.secondary.cmyk, pantone: gp.secondary.pantone, usage: gp.secondary.usage }
     : undefined;
 
   const accent: ColorToken | undefined = gp?.accent

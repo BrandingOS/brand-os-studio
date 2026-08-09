@@ -1,59 +1,73 @@
-# Stage 2D — First Feature Migration (Color System)
+# Stage 2D — Color System Migration (real cutover)
 
-Goal: prove the canonical architecture end-to-end on one narrow, high-value slice — changing a
-brand color — so the whole 2A→2B→2C stack is demonstrated working together, not just in isolation.
+> Correction: an earlier version of this doc claimed 2D "complete" after only building the
+> use-case + unit-test proof. That was **foundation**, not a migration — no live surface consumed
+> it. This is the real cutover of an actual reachable color-editing surface.
 
-## Slice chosen (verified)
+## The migrated surface
 
-**Color System** (primary/secondary/accent), not all of Brand Kit. It is the smallest bounded
-identity subsystem, is the exact surface where the stale-mirror bug lived (05/11), and exercises
-every layer: application command → canonical domain → repository → persistence → reload → consumer.
+**Settings dialog `ColorsTab`** (`src/shared/brand-settings/BrandSettingsDialog.tsx`), reached via
+**Identity → Colors → "Edit"**. It is the dedicated, color-only, reachable editing surface that
+*persists* — chosen over Setup (batches all identity fields) and the Brand Kit card editor
+(toast-only, no persistence). It was also **buggy**: it wrote scalar-only, leaving `colorSystem`
+stale for schema-v3 brands (every `colorSystem`-preferring consumer showed the old color).
 
-## What shipped
+## Before → after
 
-- `src/application/brand/changeBrandColor.ts` — the **one canonical command** a UI calls:
-  `changeBrandColor(repo, brandId, role, token)` / `changeBrandPrimaryColor(repo, brandId, hex)`.
-  Loads the canonical brand via the `BrandRepository` port, updates the color **immutably**,
-  validates via `assertCanonicalBrand` (bad hex rejected before any write), and saves through the
-  repository — no component touches persistence directly.
-- `src/application/brand/__tests__/changeBrandColor.test.ts` — 6 integration tests.
-
-## The end-to-end proof (all green)
-
+**Before (legacy):**
 ```
-UI intent (change primary color)
-  → changeBrandColor use-case          (application/brand/changeBrandColor.ts)
-  → canonical Brand identity mutated   (domain/brand — immutable, validated)
-  → BrandRepository.save               (domain/brand/repository.ts port)
-  → row mappers → identity JSONB       (platform/brand/brandRow.ts — 2B)
-  → reload (fresh read)                → SAME value
-  → second consumer (Guidelines) read  → SAME canonical value
-  → stale legacy scalar CANNOT resurrect the old value
+ColorsTab → useBrandStore.update({ primaryColor })   // scalar-only
+          → getBrandsService().update                // colorSystem NOT written → stale
+reload    → migrateBrandToCurrent → buildColorSystem  // PREFERRED stale guidelines mirror (05/11)
 ```
 
-Tests prove: reload returns the new value; a second independent read (Guidelines simulation) gets
-the canonical value; a hand-seeded **stale legacy scalar (`#999999`) loses to the stored identity**
-and cannot resurrect after a change; secondary/accent roles work; invalid hex is rejected with the
-store left unchanged; unknown brand throws. The `InMemoryBrandRepository` is a real
-serialize→deserialize round-trip (not a hold-the-object fake), and the identity-JSONB persistence
-underneath was proven against real PostgreSQL in Stage 2B.
+**After (canonical):**
+```
+ColorsTab (reads canonical brand.colorSystem)
+  → changeBrandColors(repo, id, {primary, secondary})   // one canonical operation
+  → CanonicalBrand (validated)
+  → BrandRepository (SERVICE_KEYS.BRAND_REPOSITORY, wired in real DI boot)
+  → BrandServiceRepository → toLegacyBrandPatch → IBrandsService (Supabase authed / Local guest)
+  → store sync: setCurrent(merged) + applyBrandTokens(merged)
+reload → migrateBrandToCurrent → buildColorSystem       // now PREFERS the fresh scalar
+```
 
-## Scope held / what is deliberately deferred
+## What was replaced / removed (not "zero deletions")
 
-- **No live Brand Kit DOM cutover, by design.** The canonical Supabase write path needs migration
-  013, which is **deploy-blocked (no prod access)** — wiring the live UI to it would be
-  non-functional in production and would risk the live app. The slice is therefore proven at every
-  layer that can be exercised without the blocked deploy; the thin UI cutover is the single
-  remaining step, gated on 013 deployment (= gated on S1 / prod access).
-- **No legacy compat removed yet.** The legacy color path (`mockBrandToPatch` → `brandStore.update`
-  in `features/brand-kit`/`features/setup`) stays live and untouched. It is removed only at the UI
-  cutover, when its replacement is live — recorded for that step, not done now.
-- Existing consumers untouched → zero regression (full suite: 1196 pass / 1 pre-existing fail).
+- **Deleted:** ColorsTab's scalar-only `updateBrand({primaryColor, secondaryColor})` write — replaced
+  by the canonical `changeBrandColors` path.
+- **Removed legacy authority:** `buildColorSystem`'s guidelines-mirror preference (the 05/11 root
+  cause) — flipped to prefer the fresh scalar (matching the canonical `fromLegacyBrand`). A stale
+  `guidelines.colorPalette` can no longer resurrect an edited color on reload.
+- **One-way compatibility:** the write projects canonical → legacy scalar/`colorSystem` for
+  un-migrated readers (Brand Board, PresentationStyleAdapter read the scalar). The `guidelines`
+  mirror is never written, so it cannot become authoritative again. Legacy → canonical never happens.
 
-## Remaining step to fully "flip" this slice (deploy-gated)
+## Proof (real chain, all green)
 
-1. Deploy migration 013 (with the security release — `docs/phase-2/security-deploy`).
-2. Register a `BrandRepository` in the app (DI/store) — `SupabaseBrandRepository` when authed,
-   `InMemoryBrandRepository`/local otherwise.
-3. Point the Brand Kit color editor's save at `changeBrandColor` instead of `mockBrandToPatch`.
-4. Remove the now-dead legacy color write path for this slice; verify other consumers.
+`src/application/brand/__tests__/colorSlice.integration.test.ts` drives the ACTUAL machinery
+(BrandServiceRepository over a real `IBrandsService` + real `migrateBrandToCurrent` +
+`buildBrandPalette`):
+- **Guest-like:** edit → persist → reload keeps the new color; stale mirror cannot resurrect it.
+- **Authed-like (Supabase whitelist drops `colorSystem`):** reload **re-derives** the NEW color from
+  the fresh scalar — the exact 05/11 case, now fixed.
+- **Downstream consumer:** `buildBrandPalette` receives the canonical value after reload.
+
+Full suite: 1201 pass / 1 pre-existing fail (`recolorLogo`). Ratchet 324/324. Build green. No new cycles.
+
+## Database reality (Step 8)
+
+- **Guest:** production-complete today (localStorage stores the full brand incl. `colorSystem`).
+- **Authed:** server-backed and working **today** — primary/secondary color round-trips via the
+  existing `primary_color`/`secondary_color` columns + the `buildColorSystem` scalar-preference; the
+  deployed frontend does **not** require the undeployed migration 013 column. Full-fidelity identity
+  persistence (accent/neutrals via `brands.identity`) lands when 013 deploys — switch the authed
+  `BRAND_REPOSITORY` to `SupabaseBrandRepository` then (backlog B14). **No state where deployed
+  frontend needs an undeployed column.**
+
+## Status
+- **CODE CUTOVER: PASS** (ColorsTab reads+writes canonical through the DI repository; verified).
+- **PRODUCTION CUTOVER: PASS for guest + primary/secondary authed color; PARTIAL** (accent/neutrals
+  full fidelity blocked on 013 deploy).
+- Remaining color surfaces (Setup, card editor) tracked in backlog B13 — they do not undermine
+  ColorsTab's canonical authority (Setup writes a consistent representation; card editor is a no-op).

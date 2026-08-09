@@ -25,6 +25,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { BrandRepository } from '@/domain/brand/repository';
+import { changeBrandColors } from '@/application/brand/changeBrandColor';
+import { toLegacyBrandPatch } from '@/domain/brand';
+import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import type { BrandSettingsTab } from './BrandSettingsProvider';
@@ -295,25 +300,42 @@ function GeneralTab({ brand }: { brand: Brand }) {
 // COLORS TAB
 // ═════════════════════════════════════════════════════════════════════════
 function ColorsTab({ brand }: { brand: Brand }) {
-  const updateBrand = useBrandStore((s) => s.update);
-  const [primary, setPrimary] = useState(brand.primaryColor ?? '#000000');
-  const [secondary, setSecondary] = useState(brand.secondaryColor ?? '');
+  // Stage 2D — this dedicated Color editor is migrated onto the canonical stack:
+  // read prefers the canonical colorSystem; write goes through changeBrandColors →
+  // BrandRepository (one authoritative color write). It replaces the previous
+  // scalar-only write, which left colorSystem stale for schema-v3 brands.
+  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const [primary, setPrimary] = useState(
+    brand.colorSystem?.primary?.hex ?? brand.primaryColor ?? '#000000',
+  );
+  const [secondary, setSecondary] = useState(
+    brand.colorSystem?.secondary?.hex ?? brand.secondaryColor ?? '',
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateBrand(brand.id, {
-        primaryColor: primary,
-        ...(secondary ? { secondaryColor: secondary } : { secondaryColor: undefined }),
+      const updated = await changeBrandColors(repo, brand.id, {
+        primary: { hex: primary },
+        ...(secondary ? { secondary: { hex: secondary } } : {}),
       });
+      // Reflect the canonical result in the store (both `current` AND `list`,
+      // matching brandStore.update) + live theme tokens — without re-persisting.
+      const patch = toLegacyBrandPatch(updated);
+      useBrandStore.setState((s) => ({
+        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
+        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
+      }));
+      const cur = useBrandStore.getState().current;
+      if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Colors updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand.id, primary, secondary, updateBrand]);
+  }, [brand.id, primary, secondary, repo]);
 
   return (
     <Section>
