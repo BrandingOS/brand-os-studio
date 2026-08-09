@@ -19,6 +19,7 @@
  * prompt picks it up automatically.
  */
 
+import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 import { LAYOUT_CATALOG, getLayoutMeta, type LayoutMeta, type SlotDef } from '../layouts/catalog';
 import { EMPTY_THEME } from '@/shared/presentation/theme/types';
 import type { Brand } from '@/shared/types/brand';
@@ -53,7 +54,6 @@ export interface GenerateDeckResult {
 /** Bumped any time the prompt or schema changes. Used as a cache-key salt. */
 export const PROMPT_VERSION = 'v1';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-4-20250514';
 const MAX_TOKENS = 4096;
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -79,16 +79,11 @@ export async function generateDeckFromScript(input: GenerateDeckInput): Promise<
     };
   }
 
-  // 2. Live API call.
-  const apiKey = readApiKey();
-  if (!apiKey) {
-    throw new Error('Anthropic API key not configured. Add VITE_ANTHROPIC_API_KEY to .env.');
-  }
-
+  // 2. Live API call (via the server-side anthropic-proxy — no browser key).
   const systemPrompt = buildSystemPrompt();
   const userPrompt = buildUserPrompt(input);
 
-  const rawText = await callClaude({ systemPrompt, userPrompt, apiKey });
+  const rawText = await callClaude({ systemPrompt, userPrompt });
 
   // 3. Parse + validate.
   const parsed = parseAndValidate(rawText, warnings);
@@ -244,34 +239,17 @@ function describeHint(hint: ScriptTemplateHint): string {
 interface CallArgs {
   systemPrompt: string;
   userPrompt: string;
-  apiKey: string;
 }
 
-async function callClaude({ systemPrompt, userPrompt, apiKey }: CallArgs): Promise<string> {
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
+async function callClaude({ systemPrompt, userPrompt }: CallArgs): Promise<string> {
+  const data = await callAnthropic({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
   });
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '');
-    throw new Error(`Claude API request failed: ${response.status} ${errorBody.slice(0, 300)}`);
-  }
-
-  const data = await response.json();
-  const text = data?.content?.[0]?.text;
-  if (typeof text !== 'string' || text.length === 0) {
+  const text = firstText(data);
+  if (!text) {
     throw new Error('Claude returned an empty response');
   }
   return text;
@@ -452,14 +430,6 @@ function deriveTitle(script: string): string {
   // First sentence, capped at ~50 chars.
   const first = script.trim().split(/[.!?\n]/)[0] ?? '';
   return first.length > 60 ? `${first.slice(0, 57)}…` : (first || 'Untitled deck');
-}
-
-function readApiKey(): string | undefined {
-  try {
-    return import.meta.env?.VITE_ANTHROPIC_API_KEY;
-  } catch {
-    return undefined;
-  }
 }
 
 /* ─── Cache ───────────────────────────────────────────────────────── */

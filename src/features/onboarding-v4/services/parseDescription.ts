@@ -3,13 +3,12 @@
  * structured About sections (Mission, Vision, Audience, Voice, Values,
  * Positioning, Story).
  *
- * Calls Claude when `VITE_ANTHROPIC_API_KEY` is present (same env key the
- * brand-consistency provider uses) and falls back to a deterministic
- * heuristic parser when it isn't, so the feature degrades to a sensible
- * keyword-split instead of breaking the flow.
+ * Calls Claude through the server-side `anthropic-proxy` Edge Function (no browser
+ * key) and falls back to a deterministic heuristic parser on any failure, so the
+ * feature degrades to a sensible keyword-split instead of breaking the flow.
  */
+import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-5';
 
 const SECTION_KEYS = [
@@ -41,16 +40,7 @@ export interface ParsedSection {
   content: string;
 }
 
-function getApiKey(): string | undefined {
-  const key = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined;
-  // A truncated copy-paste ("sk-ant-…") contains non-ASCII characters and
-  // makes fetch throw before the request is even sent — treat it as missing
-  // so we go straight to the heuristic parser instead of erroring.
-  if (!key || !/^[\x20-\x7E]+$/.test(key)) return undefined;
-  return key;
-}
-
-const SYSTEM_PROMPT = `You are a senior brand strategist. The user pastes a free-form description of their brand. Distribute the content into structured sections so each one stands on its own.
+const SYSTEM_PROMPT =`You are a senior brand strategist. The user pastes a free-form description of their brand. Distribute the content into structured sections so each one stands on its own.
 
 Return ONLY a JSON object with these optional string fields:
 - mission (what the brand does and why)
@@ -294,32 +284,19 @@ export async function parseDescriptionToSections(
   const text = description.trim();
   if (!text) return [];
 
-  const apiKey = getApiKey();
-  if (!apiKey) return heuristicParse(text);
+  if (signal?.aborted) return [];
 
   try {
-    const res = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 800,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: text }],
-      }),
+    // Server-side anthropic-proxy — no browser key. Falls back to the local
+    // heuristic parser on any failure (incl. proxy/server key unavailable).
+    const data = await callAnthropic({
+      model: MODEL,
+      max_tokens: 800,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: text }],
     });
-    if (!res.ok) {
-      console.warn('[onboarding-v4] description parse non-OK:', res.status);
-      return heuristicParse(text);
-    }
-    const data = await res.json();
-    const reply: string | undefined = data?.content?.[0]?.text;
+    if (signal?.aborted) return [];
+    const reply = firstText(data);
     if (!reply) return heuristicParse(text);
     const sections = normalizeParsed(extractJson(reply));
     return sections.length > 0 ? sections : heuristicParse(text);

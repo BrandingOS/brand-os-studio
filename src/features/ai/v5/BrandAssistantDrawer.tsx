@@ -150,9 +150,7 @@ export function BrandAssistantDrawer() {
             </button>
           </div>
           <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">
-            {(import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ANTHROPIC_API_KEY
-              ? 'Claude provider · live · ⌘J to toggle'
-              : 'Mock provider · stubbed responses · set VITE_ANTHROPIC_API_KEY to enable Claude · ⌘J to toggle'}
+            Claude · via secure server proxy · ⌘J to toggle
           </p>
         </form>
       </aside>

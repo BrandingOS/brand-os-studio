@@ -1,68 +1,80 @@
-# Security hardening — E6 AI boundary + Edge-Function findings (owner-coordinated)
+# FINAL OWNER DEPLOY / SECURITY CLOSURE — consolidated sequence
 
-Status of the final-hardening security items. The code-side, non-breaking parts are
-DONE (this run); the items below need a coordinated Edge-Function deploy + env change
-that would break live AI if shipped incrementally on the auto-deploying branch, so
-they are prepared + tracked here, not force-activated.
+All CODE-side prerequisites are done, tested (typecheck/build/unit green), and pushed to
+`dev`. What remains are owner-only deploy actions, in the order below. Nothing here breaks
+production before it's ready — the frontend degrades gracefully (mock/heuristic) until the
+proxy is live, and production frontend only changes on your manual `main` release.
 
-## E6 — `VITE_ANTHROPIC_API_KEY` still in the browser bundle (P0)
+Status legend: **READY TO DEPLOY** (code done, owner runs the command) · **OWNER ACTION** ·
+**ALREADY LIVE**.
 
-**Reality (verified):** the editor moved to Edge Functions (`ai-apply-command`,
-`ai-generate-image`), but 5 CURRENT features still call Anthropic **directly from the
-browser** with the key in the bundle (each sets `anthropic-dangerous-direct-browser-access`
-/ `dangerouslyAllowBrowser`):
+---
 
-1. `src/features/brand-consistency/providers/anthropicProvider.ts`
-2. `src/features/logo-maker/components/AILogoSuggestions.tsx`
-3. `src/shared/presentation/v2/ai/generateDeckFromScript.ts`
-4. `src/features/ai/v5/providers/claudeProvider.ts` (Brand Assistant, app-wide)
-5. `src/features/onboarding-v4/services/parseDescription.ts` (a secure server twin,
-   `generate-description`, already exists — switch to it)
+## Item status
 
-**Prepared:** a generic server proxy `supabase/functions/anthropic-proxy/index.ts`
-(session-auth + rate-limit + server-only `ANTHROPIC_API_KEY`, mirrors ai-apply-command).
-Callers build messages client-side and POST them; no key in the browser.
+| # | Item | Status |
+|---|---|---|
+| 1 | Migration 015 (`designs`) | **READY TO DEPLOY** — verified NOT remote (migration list shows local-only). |
+| 2 | Browser AI key P0 | **READY TO DEPLOY** — proxy written; all 5 browser clients rewired; `VITE_ANTHROPIC_API_KEY` removed from `src/` (no longer inlined). |
+| 3 | `finalize-onboarding-assets` tenant auth | **READY TO DEPLOY** — JWT + brand-ownership check added in the function. |
+| 4 | GitHub `gho_` token | **OWNER ACTION** — rotate/revoke (see #4). |
 
-**Activation (atomic — do together so live AI never breaks):**
-1. `supabase functions deploy anthropic-proxy` and set the function secret
-   `ANTHROPIC_API_KEY` (server-side).
-2. Rewire the 5 files above: replace the direct `fetch('https://api.anthropic.com/...')`
-   / `@anthropic-ai/sdk` call with `supabase.functions.invoke('anthropic-proxy', { body:
-   { sessionId, model, max_tokens, system, messages } })` and parse the returned Anthropic
-   response identically. (For #5, just call `generate-description` instead of parseDescription.)
-3. Remove every `VITE_ANTHROPIC_API_KEY` reference from `src/` and unset it from the
-   build env so it is no longer inlined.
-4. Verify each AI feature end-to-end, then delete the now-dead browser provider files.
+---
 
-Deleted already this run (dead browser-key references): `shared/services/aiService.ts`,
-`guidelines/components/AIContentGenerator.tsx`.
+## Deploy order (do in sequence)
 
-## Edge-Function auth gaps (tracked)
+### Step 1 — Database
+```bash
+supabase db push --linked          # applies migration 015 (designs)
+supabase migration list --linked   # confirm 20260812000000 now shows in BOTH columns
+```
+Verify: an authenticated user saves a design → reload/other device loads it from the server.
+Rollback if needed: `supabase/migrations/down/015_designs.down.sql` (drops the table; designs
+fall back to localStorage — no data-critical loss).
 
-- **`finalize-onboarding-assets`** — service-role storage `move()` from
-  `onboarding-scratch/<sessionId>` → `brand-assets/<brandId>` with **no verified caller
-  identity and no ownership check** on `brandId`. Exploit: a user could move their scratch
-  assets into another brand's folder (write-only pollution; needs the target brand UUID).
-  **Fix:** require the JWT (`getUser`) and verify `brands.user_id = auth.uid()` (or
-  workspace membership) for `brandId` before the move. Not modified in-session (untestable
-  Deno + onboarding critical path) — owner to apply + deploy.
-- **`cleanup-onboarding-scratch`** — service-role storage delete, cron/idempotent, no
-  in-code auth. Lower risk; confirm it's cron-only (not publicly invokable) or add a guard.
-- **AI functions authenticate by `sessionId` (rate-limit bucket), not a verified JWT** —
-  acceptable for pre-signup onboarding; consider JWT for post-signup editor AI.
-- **`supabase/config.toml`** has no `[functions] verify_jwt` entries — confirm per-function
-  JWT gating in the dashboard (can't be verified from the repo).
+### Step 2 — Edge Functions + server secret (BEFORE the frontend release)
+```bash
+# server-side Anthropic key (never in the browser again)
+supabase secrets set ANTHROPIC_API_KEY=<your-key>
+# deploy the new + updated functions
+supabase functions deploy anthropic-proxy
+supabase functions deploy finalize-onboarding-assets
+```
+Also confirm per-function JWT gating in the dashboard (`supabase/config.toml` has none):
+`anthropic-proxy` = verify_jwt OFF (uses in-code `requireSession`, needed pre-signup);
+`finalize-onboarding-assets` = it now verifies the JWT in code, keep default.
 
-## Boundary / fixtures (code-side)
+Verify: `curl` the proxy with a session body → 200 with an Anthropic response; call
+finalize with someone else's `brandId` → **403** (cross-tenant blocked).
 
-- **DONE:** `brandVision.ts` no longer defaults to `http://localhost:8300` in production
-  (dev-only; skipped when unconfigured).
-- **Tracked (low severity, RLS-backed):** `AdminPanel.tsx` does a direct
-  `supabase.from('brands').delete()` (UI-layer DB write) — should move into an admin
-  service. Admin-gated + RLS-enforced, so not exploitable; a boundary-cleanliness item.
-- **Tracked:** client-side admin-email gating (`BrandNavbar.tsx`, `AdminSettings.tsx`) is
-  defense-in-depth only — real authz is `is_super_admin` server-side/RLS.
+### Step 3 — Frontend release (AFTER Step 2)
+Promote `dev` → `main` (your manual release) so the rewired frontend goes to production, and
+**unset `VITE_ANTHROPIC_API_KEY`** from the production build env (it is no longer referenced
+in code, so the bundle no longer needs it).
+Verify each AI feature end-to-end against the deployed proxy: Brand Assistant, Brand
+Consistency Studio, AI logo suggestions, onboarding description parse, (deck generation).
 
-## Confirmed IN PLACE (no action)
-Migrations 011 (workspace escalation) + 012 (profiles visibility) present; RLS enabled on
-every app-written table (`brands`, `assets`, `designs`, `guideline_presentations`).
+Failure note: if the proxy isn't reachable, Brand Assistant / Brand Consistency / logo
+suggestions / onboarding-parse degrade to mock/heuristic (no crash); only deck generation
+(an unlinked route) surfaces an error. So a mis-ordered deploy degrades, it does not break.
+
+### Step 4 — GitHub token (independent)
+Revoke the exposed GitHub `gho_` personal-access token in **GitHub → Settings → Developer
+settings → Personal access tokens**, delete it from any local git remote/credential store,
+and issue a fresh scoped token. (Value intentionally not reproduced here.)
+
+---
+
+## After all steps → COMPLETE
+- Migration 015 remote → authed designs server-backed.
+- No AI secret in the browser bundle; all AI runs through the server proxy.
+- No cross-tenant onboarding-asset finalization (JWT + ownership enforced).
+- GitHub token rotated.
+
+## Confirmed already in place (no action)
+Migrations 011/012 (workspace escalation, profiles visibility); RLS on every app-written
+table (`brands`, `assets`, `designs`, `guideline_presentations`).
+
+## Non-blocking follow-ons (tracked, not deploy-gated)
+- `cleanup-onboarding-scratch` service-role delete — confirm cron-only.
+- `AdminPanel.tsx` direct `brands.delete()` — move into an admin service (admin+RLS-gated).

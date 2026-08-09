@@ -223,23 +223,13 @@ export function GeneratePanel({ brand, open, onClose, onAccept }: Props) {
                     {isKeyMissing ? (
                       <>
                         <strong className="font-semibold block mb-1">
-                          AI is not configured for this workspace.
+                          AI is not configured on the server.
                         </strong>
                         <span className="block break-words">
-                          Add an Anthropic API key to{' '}
-                          <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">.env</code>{' '}
-                          as{' '}
-                          <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">VITE_ANTHROPIC_API_KEY</code>{' '}
-                          and restart the dev server. Get a key at{' '}
-                          <a
-                            href="https://console.anthropic.com/"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline font-medium"
-                          >
-                            console.anthropic.com
-                          </a>
-                          .
+                          Deck generation runs through the server-side AI proxy. Set the
+                          server <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">ANTHROPIC_API_KEY</code>{' '}
+                          secret and deploy the <code className="px-1 py-[1px] rounded bg-red-100/70 font-mono text-[11px]">anthropic-proxy</code>{' '}
+                          Edge Function to enable it.
                         </span>
                       </>
                     ) : (

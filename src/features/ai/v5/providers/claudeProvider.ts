@@ -1,20 +1,15 @@
 /**
- * Claude provider — real Anthropic API integration.
- *
- * Activated when `VITE_ANTHROPIC_API_KEY` is set in the environment. Falls
- * back to the mock provider otherwise. The factory in `getProvider()` does
- * the selection so callers don't need to know which one is active.
- *
- * IMPORTANT: shipping API keys to the browser is only acceptable for local
- * development. In production, route through a server-side proxy. This
- * implementation honors `dangerouslyAllowBrowser: true` for dev convenience
- * but the README will document the proxy pattern.
+ * Claude provider — real Anthropic integration via the server-side
+ * `anthropic-proxy` Edge Function. The API key lives ONLY server-side; the
+ * browser never holds it. If the proxy/server key is unavailable the call
+ * throws and we fall back to the mock provider.
  *
  * v5 PRD Phase 13.
  */
 import type { AssistantProvider, AssistantReply, AssistantSendInput } from '../types';
 import type { Brand } from '@/shared/types/brand';
 import { mockProvider } from './mockProvider';
+import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
 const MODEL = 'claude-opus-4-6';
 const MAX_TOKENS = 1024;
@@ -42,12 +37,7 @@ function buildSystemPrompt(brand?: Brand): string {
     .join('\n');
 }
 
-async function callClaude(input: AssistantSendInput, apiKey: string): Promise<AssistantReply> {
-  // Dynamically import the SDK so the bundle stays small when the provider
-  // isn't used.
-  const { default: Anthropic } = await import('@anthropic-ai/sdk');
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-
+async function callClaude(input: AssistantSendInput): Promise<AssistantReply> {
   const messages = [
     ...input.history.map((m) => ({
       role: m.role as 'user' | 'assistant',
@@ -56,32 +46,22 @@ async function callClaude(input: AssistantSendInput, apiKey: string): Promise<As
     { role: 'user' as const, content: input.message },
   ];
 
-  const response = await client.messages.create({
+  const response = await callAnthropic({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: buildSystemPrompt(input.brand),
     messages,
   });
 
-  const text = response.content
-    .filter((c) => c.type === 'text')
-    .map((c) => (c as { type: 'text'; text: string }).text)
-    .join('\n');
-
+  const text = firstText(response);
   return { content: text || 'I had nothing to say. Try rephrasing?' };
 }
 
 export const claudeProvider: AssistantProvider = {
   name: 'claude',
   send: async (input) => {
-    const key = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ANTHROPIC_API_KEY;
-    if (!key) {
-      // Defensive — should not happen if getProvider() chose us, but be
-      // resilient.
-      return mockProvider.send(input);
-    }
     try {
-      return await callClaude(input, key);
+      return await callClaude(input);
     } catch (err) {
       console.warn('[BrandOS] Claude provider failed, falling back to mock', err);
       return mockProvider.send(input);
@@ -90,10 +70,9 @@ export const claudeProvider: AssistantProvider = {
 };
 
 /**
- * Returns the active provider based on environment configuration.
- * Use this from `BrandAssistantProvider` instead of importing a specific one.
+ * Returns the active provider. The proxy is the boundary — always return the
+ * Claude provider; it degrades to mock internally if the server key is unset.
  */
 export function getProvider(): AssistantProvider {
-  const key = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ANTHROPIC_API_KEY;
-  return key ? claudeProvider : mockProvider;
+  return claudeProvider;
 }

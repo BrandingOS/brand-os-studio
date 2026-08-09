@@ -10,18 +10,14 @@ import type { LogoConfig, LogoLayout, LogoSuggestion } from '../types';
 import { LogoCanvas } from './LogoCanvas';
 import { DEFAULT_LOGO_CONFIG } from '../types';
 import { Sparkles, Wand2, Loader2 } from 'lucide-react';
+import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
 
 interface AILogoSuggestionsProps {
   currentConfig: LogoConfig;
   onApply: (updates: Partial<LogoConfig>) => void;
 }
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const LAYOUTS: LogoLayout[] = ['stacked', 'horizontal', 'wordmark', 'badge', 'embedded', 'symbol'];
-
-function getApiKey(): string | undefined {
-  return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_ANTHROPIC_API_KEY;
-}
 
 /** Keyword-to-category mapping for fallback suggestions */
 const INDUSTRY_MAP: Record<string, string[]> = {
@@ -45,25 +41,14 @@ function getAllIcons(): string[] {
 
 /** Generate suggestions using Claude for smarter design parameters */
 async function generateAISuggestions(description: string, brandName: string): Promise<LogoSuggestion[] | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
   try {
     const allIcons = getAllIcons();
     const iconSample = allIcons.slice(0, 60).join(', ');
 
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        system: `You are a brand design expert. Given a brand description, suggest 6 logo design variations. Each variation should have different visual parameters.
+    const data = await callAnthropic({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      system: `You are a brand design expert. Given a brand description, suggest 6 logo design variations. Each variation should have different visual parameters.
 
 Available icon names (Lucide icons): ${iconSample}
 Available layouts: ${LAYOUTS.join(', ')}
@@ -81,13 +66,10 @@ Return ONLY a JSON array of 6 objects, each with:
 - label: string (short 2-3 word style description)
 
 Make each suggestion visually distinct. Match colors and style to the brand description. Return valid JSON array, nothing else.`,
-        messages: [{ role: 'user', content: `Brand: "${brandName}". Description: ${description}` }],
-      }),
+      messages: [{ role: 'user', content: `Brand: "${brandName}". Description: ${description}` }],
     });
 
-    if (!response.ok) return null;
-    const data = await response.json();
-    const text = data.content?.[0]?.text;
+    const text = firstText(data);
     if (!text) return null;
 
     const jsonMatch = text.match(/\[[\s\S]*\]/);
@@ -212,7 +194,7 @@ export function AILogoSuggestions({ currentConfig, onApply }: AILogoSuggestionsP
           ) : (
             <Wand2 className="w-4 h-4" />
           )}
-          {getApiKey() ? 'Generate with AI' : 'Generate Suggestions'}
+          Generate with AI
         </Button>
       </div>
 

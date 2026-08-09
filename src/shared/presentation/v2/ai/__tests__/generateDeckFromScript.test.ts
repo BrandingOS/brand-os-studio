@@ -11,7 +11,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateDeckFromScript } from '../generateDeckFromScript';
+import { callAnthropic } from '@/shared/ai/anthropicProxy';
 import type { Brand } from '@/shared/types/brand';
+
+// The pipeline now calls Anthropic through the server proxy helper, not fetch.
+vi.mock('@/shared/ai/anthropicProxy', () => ({
+  callAnthropic: vi.fn(),
+  firstText: (r: { content?: Array<{ type: string; text?: string }> }) =>
+    r.content?.find((b) => b.type === 'text')?.text ?? '',
+}));
 
 const FIXTURE_RESPONSE = {
   title: 'Uniex',
@@ -86,34 +94,30 @@ const FAKE_BRAND: Brand = {
 const SCRIPT =
   'Uniex is a platform that helps high school students choose the right university major. We have reached 8,000+ users and 60+ schools.';
 
-function buildFetchMock(payload: unknown) {
-  return vi.fn().mockResolvedValue({
-    ok: true,
-    json: async () => ({
-      content: [{ type: 'text', text: JSON.stringify(payload) }],
-    }),
-    text: async () => '',
-  } as Response);
+/** Build the Anthropic-shaped response the proxy helper resolves to. */
+function proxyResponse(payload: unknown) {
+  return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
+}
+/** Point the mocked proxy call at a canned payload. Returns the mock for asserts. */
+function mockProxy(payload: unknown) {
+  const m = vi.mocked(callAnthropic);
+  m.mockResolvedValue(proxyResponse(payload));
+  return m;
 }
 
 describe('generateDeckFromScript', () => {
-  const originalFetch = globalThis.fetch;
-
   beforeEach(() => {
     // Reset localStorage so tests don't leak cache between cases.
     localStorage.clear();
-    // Stub the api key for the live-call paths.
-    vi.stubEnv('VITE_ANTHROPIC_API_KEY', 'test-key');
+    vi.mocked(callAnthropic).mockReset();
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
   it('builds a Deck from a canned Claude response', async () => {
-    globalThis.fetch = buildFetchMock(FIXTURE_RESPONSE) as typeof fetch;
+    mockProxy(FIXTURE_RESPONSE);
 
     const { deck, diagnostics } = await generateDeckFromScript({
       brand: FAKE_BRAND,
@@ -132,7 +136,7 @@ describe('generateDeckFromScript', () => {
   });
 
   it('only registers known v2 layouts in the result', async () => {
-    globalThis.fetch = buildFetchMock(FIXTURE_RESPONSE) as typeof fetch;
+    mockProxy(FIXTURE_RESPONSE);
 
     const { deck } = await generateDeckFromScript({
       brand: FAKE_BRAND,
@@ -157,7 +161,7 @@ describe('generateDeckFromScript', () => {
         ...FIXTURE_RESPONSE.slides.slice(1),
       ],
     };
-    globalThis.fetch = buildFetchMock(polluted) as typeof fetch;
+    mockProxy(polluted);
 
     const { deck, diagnostics } = await generateDeckFromScript({
       brand: FAKE_BRAND,
@@ -168,8 +172,7 @@ describe('generateDeckFromScript', () => {
   });
 
   it('caches the result so repeat calls with same input do not refetch', async () => {
-    const fetchMock = buildFetchMock(FIXTURE_RESPONSE);
-    globalThis.fetch = fetchMock as typeof fetch;
+    const fetchMock = mockProxy(FIXTURE_RESPONSE);
 
     const first = await generateDeckFromScript({ brand: FAKE_BRAND, script: SCRIPT });
     expect(first.diagnostics.cached).toBe(false);
@@ -185,30 +188,23 @@ describe('generateDeckFromScript', () => {
   });
 
   it('different templateHint busts the cache', async () => {
-    const fetchMock = buildFetchMock(FIXTURE_RESPONSE);
-    globalThis.fetch = fetchMock as typeof fetch;
+    const fetchMock = mockProxy(FIXTURE_RESPONSE);
 
     await generateDeckFromScript({ brand: FAKE_BRAND, script: SCRIPT, templateHint: 'pitch' });
     await generateDeckFromScript({ brand: FAKE_BRAND, script: SCRIPT, templateHint: 'launch' });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('throws a clear error when the API key is missing', async () => {
-    vi.unstubAllEnvs();
-    vi.stubEnv('VITE_ANTHROPIC_API_KEY', '');
-    globalThis.fetch = vi.fn() as typeof fetch;
+  it('throws when the proxy returns an empty response (server key unset)', async () => {
+    vi.mocked(callAnthropic).mockResolvedValue({ content: [{ type: 'text', text: '' }] });
 
     await expect(
       generateDeckFromScript({ brand: FAKE_BRAND, script: SCRIPT }),
-    ).rejects.toThrow(/VITE_ANTHROPIC_API_KEY/);
+    ).rejects.toThrow(/empty response/);
   });
 
   it('throws with a truncated raw response when JSON is malformed', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ content: [{ type: 'text', text: 'this is not JSON{{{' }] }),
-      text: async () => '',
-    } as Response) as typeof fetch;
+    vi.mocked(callAnthropic).mockResolvedValue({ content: [{ type: 'text', text: 'this is not JSON{{{' }] });
 
     await expect(
       generateDeckFromScript({ brand: FAKE_BRAND, script: SCRIPT }),
