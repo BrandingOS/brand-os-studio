@@ -19,7 +19,7 @@ import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository'
 import type { IDesignStorage } from './types/services';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
-import { LocalUploadService } from './adapters/upload/LocalUploadService';
+import { SupabaseDesignStorage } from './adapters/storage/SupabaseDesignStorage';
 import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
 import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
@@ -48,10 +48,8 @@ export function bootServices(): void {
   );
 
   // ─── Design Storage ────────────────────────────────────────
+  // Guest/dev → localStorage. reconfigureForAuth swaps to SupabaseDesignStorage.
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
-
-  // ─── Upload Service ────────────────────────────────────────
-  container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
 
   // ─── Brand Consistency Service ─────────────────────────────
   // LocalStorage-backed for now; a Supabase impl can be slotted in
@@ -110,8 +108,10 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
     container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
     container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
-    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
-    container.register(SERVICE_KEYS.UPLOAD, () => new LocalUploadService());
+    // Designs are now SERVER-BACKED for authenticated users (migration 015).
+    // SupabaseDesignStorage is tolerant of a pre-015 environment (falls back to
+    // localStorage until the table exists), so this is safe to ship before deploy.
+    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new SupabaseDesignStorage());
     container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
     container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
     container.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
