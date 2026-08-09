@@ -31,6 +31,7 @@ import type {
   AssetFormat,
 } from '@/shared/types/brandAssets';
 import { BRAND_SCHEMA_VERSION } from '@/shared/types/brandAssets';
+import { CANONICAL_BRAND_SCHEMA_VERSION, type BrandIdentity } from '@/domain/brand/identity';
 
 /** Guess an asset format from its URL / data URL prefix. */
 function detectFormat(url: string): AssetFormat {
@@ -364,8 +365,76 @@ function buildLogoSystemAndAssets(brand: Brand): {
  * Migrate a Brand to the current schema version. Idempotent — safe to
  * run on already-migrated brands. Does NOT mutate the input.
  */
-export function migrateBrandToCurrent(brand: Brand): Brand {
-  if (!brand) return brand;
+/**
+ * Brand System authority flip (finalization B4). Once a brand carries a canonical
+ * identity blob (`brand.identity` at the current schema version), that blob is the
+ * AUTHORITY for every MIGRATED subsystem — colors, typography, voice tone, and
+ * strategy. On read we hydrate the brand's legacy/v3 fields FROM the blob so every
+ * consumer (canonical-first readers AND direct `brand.primaryColor`/`colorSystem`/
+ * `guidelines.strategy` readers) sees the canonical value, and a stale legacy
+ * scalar can never override it.
+ *
+ * This is deliberately one-directional: legacy → canonical happens only to
+ * BOOTSTRAP a brand that has never been migrated (no blob). After a blob exists,
+ * canonical → legacy is the only projection direction.
+ *
+ * Logos are intentionally NOT hydrated: the logo subsystem is not yet canonical
+ * (durable Asset records need their own persistence), so logos keep reading from
+ * their always-current legacy home.
+ */
+function hydrateFromCanonicalIdentity(brand: Brand): Brand {
+  const id: BrandIdentity | undefined = brand.identity;
+  if (!id || (brand.identitySchemaVersion ?? 0) < CANONICAL_BRAND_SCHEMA_VERSION) {
+    return brand; // never-migrated brand → bootstrap from legacy downstream
+  }
+  const c = id.colors ?? ({} as BrandIdentity['colors']);
+  const t = id.typography ?? ({} as BrandIdentity['typography']);
+  const v = id.voice ?? ({} as BrandIdentity['voice']);
+  const s = id.strategy ?? ({} as BrandIdentity['strategy']);
+
+  return {
+    ...brand,
+    // ── Colors (canonical) ──
+    colorSystem: c.primary ? c : brand.colorSystem,
+    primaryColor: c.primary?.hex ?? brand.primaryColor,
+    secondaryColor: c.secondary?.hex ?? brand.secondaryColor,
+    accentColor: c.accent?.hex ?? brand.accentColor,
+    neutrals: c.neutrals?.length ? c.neutrals.map((n) => n.hex) : brand.neutrals,
+    // ── Typography (canonical) ──
+    typography: t.primary ? t : brand.typography,
+    fonts: {
+      primary: t.primary?.family ?? brand.fonts?.primary ?? 'Inter',
+      secondary: t.secondary?.family ?? brand.fonts?.secondary,
+    },
+    // ── Voice tone (canonical) ──
+    tone: v.tone ?? brand.tone,
+    // ── Strategy (canonical) → hydrate the guidelines.strategy read-home + scalar ──
+    strategy: s.mission ?? brand.strategy,
+    guidelines: {
+      ...brand.guidelines,
+      strategy: {
+        mission: s.mission ?? brand.guidelines?.strategy?.mission ?? '',
+        vision: s.vision ?? brand.guidelines?.strategy?.vision ?? '',
+        values: s.values?.length ? s.values : brand.guidelines?.strategy?.values ?? [],
+        positioning: s.positioning ?? brand.guidelines?.strategy?.positioning ?? '',
+        personality: s.personality?.length
+          ? s.personality
+          : brand.guidelines?.strategy?.personality ?? [],
+        targetAudience:
+          s.targetAudience ?? brand.guidelines?.strategy?.targetAudience ?? brand.audience ?? '',
+      },
+      ...(s.aboutSections?.length
+        ? { aboutSections: s.aboutSections }
+        : {}),
+    },
+    // logos NOT hydrated — the logo subsystem is not yet canonical.
+  };
+}
+
+export function migrateBrandToCurrent(brandInput: Brand): Brand {
+  if (!brandInput) return brandInput;
+  // Flip: canonical identity wins over legacy for migrated subsystems (B4).
+  const brand = hydrateFromCanonicalIdentity(brandInput);
 
   // Always normalize the legacy `guidelines.logoSystem` AND the v3
   // `brand.logoSystem` refs so seed brands and stored data with

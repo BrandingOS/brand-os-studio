@@ -32,6 +32,7 @@ import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTy
 import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
 import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
 import { fromLegacyBrand, toLegacyBrandPatch } from '@/domain/brand';
+import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
@@ -526,13 +527,12 @@ function VoiceTab({ brand }: { brand: Brand }) {
 // STRATEGY TAB
 // ═════════════════════════════════════════════════════════════════════════
 function StrategyTab({ brand }: { brand: Brand }) {
-  // Brand System finalization — read the canonical strategy (unifies the legacy
-  // `strategy` scalar + `guidelines.strategy`); write through the canonical
-  // `changeBrandStrategy` use-case (validation + identity-blob forward store)
-  // AND the shared `guidelines.strategy` home that `fromLegacyBrand` + the
-  // still-legacy Setup surface read, so the two surfaces never diverge.
+  // Brand System finalization (authority flip) — read AND write the canonical
+  // strategy through `changeBrandStrategy`. The identity blob is the authority;
+  // `guidelines.strategy` is a projection re-hydrated from the blob on every read
+  // (`migrateBrandToCurrent`), so this tab no longer writes it directly (doing so
+  // would be silently reverted by hydration if the canonical write failed).
   const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
-  const updateBrand = useBrandStore((s) => s.update);
   const strategy = fromLegacyBrand(brand).identity.strategy;
 
   const [mission, setMission] = useState(strategy?.mission ?? '');
@@ -548,7 +548,7 @@ function StrategyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const change = {
+      const updated = await changeBrandStrategy(repo, brand.id, {
         mission,
         vision,
         values: values
@@ -556,33 +556,26 @@ function StrategyTab({ brand }: { brand: Brand }) {
           .map((v) => v.trim())
           .filter(Boolean),
         positioning,
-      };
-      // AUTHORITATIVE write first: `guidelines.strategy` is the home
-      // `fromLegacyBrand` (and the still-legacy Setup surface) actually read
-      // from. Merged at the call site so sibling guidelines keys
-      // (aboutSections/colorPalette/voiceAndTone) survive; also syncs the store.
-      await updateBrand(brand.id, {
-        guidelines: {
-          ...brand.guidelines,
-          strategy: { ...brand.guidelines?.strategy, ...change },
-        },
       });
-      // Canonical model + identity-blob forward store, best-effort: the strategy
-      // is already durably persisted above, so a blob-write failure must not lose
-      // the edit or block the success toast. The blob becomes the read authority
-      // only once Setup is migrated too (backlog B16).
-      try {
-        await changeBrandStrategy(repo, brand.id, change);
-      } catch {
-        /* forward-store only — the guidelines home above is authoritative */
-      }
+      // Sync the store — hydrate so the projected `guidelines.strategy` read-home
+      // reflects the blob immediately (the patch itself carries only the blob).
+      const patch = toLegacyBrandPatch(updated);
+      useBrandStore.setState((s) => ({
+        current:
+          s.current?.id === brand.id
+            ? migrateBrandToCurrent({ ...s.current, ...patch })
+            : s.current,
+        list: s.list.map((b) =>
+          b.id === brand.id ? migrateBrandToCurrent({ ...b, ...patch }) : b,
+        ),
+      }));
       toast.success('Strategy updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand, mission, vision, values, positioning, repo, updateBrand]);
+  }, [brand, mission, vision, values, positioning, repo]);
 
   return (
     <Section>

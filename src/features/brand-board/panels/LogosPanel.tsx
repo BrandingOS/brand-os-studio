@@ -14,6 +14,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import { storageService } from '@/shared/services/storage.supabase';
 import { AssetSourcePopover, type AssetSource } from '@/shared/upload/AssetSourcePopover';
+import { stageLogoAssignment } from '@/shared/assets/assetOperations';
 import type { LogoRole } from '@/shared/types/brandAssets';
 
 interface LogoSlot {
@@ -179,30 +180,21 @@ export function LogosPanel() {
   const initial = currentBrand?.name?.charAt(0).toUpperCase() ?? 'B';
   const primaryColor = currentBrand?.primaryColor;
 
-  /** Write a resolved URL into the matching logoSystem slot. */
+  /** Assign a resolved URL to a logo slot through the ONE canonical logo staging
+   *  path — mints a durable `BrandAsset` + a proper `LogoRef {assetId}` (not the
+   *  URL-shaped object this used to write) + the legacy mirror for un-migrated
+   *  readers. Shares the exact authority the uploaders and Logo Maker use. */
   const applyLogo = async (role: LogoRole, url: string) => {
     if (!currentBrand) return;
-    const patch: Record<string, any> = {
-      logoSystem: { ...(currentBrand.logoSystem ?? {}) },
-    };
-    if (role === 'primary') {
-      patch.logo = url;
-      patch.logoSystem.primary = { url, format: 'png', width: 1024, height: 1024 };
-    } else if (role === 'iconmark') {
-      patch.logoSystem.iconmark = { url, format: 'png', width: 512, height: 512 };
-    } else if (role === 'horizontal') {
-      patch.logoSystem.orientations = {
-        ...(currentBrand.logoSystem?.orientations ?? {}),
-        horizontal: { url, format: 'png', width: 1600, height: 400 },
-      };
-    } else if (role === 'mono.white') {
-      patch.logoSystem.mono = {
-        ...(currentBrand.logoSystem?.mono ?? {}),
-        white: { url, format: 'png', width: 1024, height: 1024 },
-      };
-    }
+    const label = SLOTS.find((s) => s.role === role)?.label ?? 'Logo';
+    const { patch } = stageLogoAssignment(currentBrand, {
+      role,
+      url,
+      kind: 'logo',
+      name: `${currentBrand.name} ${label}`,
+    });
     await updateBrand(currentBrand.id, patch);
-    toast.success(`${SLOTS.find((s) => s.role === role)?.label ?? 'Logo'} updated`);
+    toast.success(`${label} updated`);
   };
 
   const handlePick = async (role: LogoRole, source: AssetSource) => {

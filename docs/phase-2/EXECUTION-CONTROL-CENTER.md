@@ -40,29 +40,72 @@ Production migrations **011, 012, 013 confirmed remote** (via `supabase migratio
   still-legacy Setup surface stays consistent (no divergence, no revert). vision/values/positioning
   now survive reload with full fidelity.
 
-## Brand System Migration (Batch A)
+### Finalization Batch 2 — THE AUTHORITY FLIP (2026-08-09)
+
+The migration bridge (`base ?? blob` legacy-first backfill) is replaced by a hard flip: once a
+brand carries a canonical identity blob, **the blob is the authority** and legacy fields are
+one-way projections.
+
+- **Flip mechanism.** `migrateBrandToCurrent` → new `hydrateFromCanonicalIdentity(brand)` runs on
+  EVERY brand read. When `brand.identity` exists at the current schema version, it **hydrates**
+  (overwrites) the brand's legacy/v3 fields — colorSystem, primaryColor/secondary/accent, neutrals,
+  typography, fonts, tone, and `guidelines.strategy` — FROM the blob. So every reader (canonical-first
+  AND direct `brand.primaryColor`/`guidelines.strategy` readers) sees canonical, and a stale legacy
+  scalar can NEVER override it. A brand with no blob still bootstraps from legacy (unchanged).
+  Logos are intentionally NOT hydrated (logo subsystem not yet canonical).
+- **All CURRENT writers migrated to canonical ops** (so the blob is always current):
+  - **Setup** (`setup.tsx`) — color → `changeBrandColors`, fonts (incl. uploaded files) →
+    `changeBrandTypography`, tone → `changeBrandVoiceTone`, strategy(+about) → `changeBrandStrategy`.
+    Only name/logos/publicUrl fall through to legacy `updateBrand`.
+  - **Brand Board** (`BrandBoardPage.tsx`) — color + fonts → canonical ops; only `uiStyle` legacy.
+  - **Typescale tool** (`brandStore.setTypescale`) — families → `changeBrandTypographyFamilies`.
+  - **Brand Board LogosPanel** — now stages logos through `stageLogoAssignment` (proper `LogoRef
+    {assetId}` + `brandAssets`), replacing the divergent URL-shaped `logoSystem` write.
+- **`changeBrandStrategy`** extended with `aboutSections`; **`changeBrandTypography`** added (families
+  + uploaded font files, so files reach the blob and survive hydration).
+- **Guidelines is no longer identity persistence.** `guidelines.strategy` is hydrated from the blob
+  on read (a projection). Onboarding-v4 create still writes legacy scalars/guidelines — that is the
+  BOOTSTRAP path for brands that have no blob yet (safe: no blob ⇒ no flip).
+
+## Brand System Migration — final subsystem status
 
 | Subsystem | Status |
 |---|---|
-| **Color** (primary/secondary/accent/neutrals) | **CODE MIGRATION COMPLETE** — one canonical write (`changeBrandColors`) for both live surfaces (ColorsTab + Setup); reads canonical; stale mirror can't resurrect. Accent/neutrals full-fidelity authed persistence needs 013. |
-| **Typography** (families) | **CODE MIGRATION COMPLETE** — TypographyTab + Setup write canonical `typography`; paint-path reader repointed. Weights/uploaded-fonts/type-scale = not persisted today (foundation/net-new). |
-| **Voice** (tone) | **CODE MIGRATION COMPLETE** for the editable field (tone). Rich voice (do/don't/examples) has **no editor** → FOUNDATION only. |
-| **Strategy** | **CODE MIGRATION COMPLETE** — `changeBrandStrategy` use-case; StrategyTab reads canonical + writes through it. vision/values/positioning persist with full fidelity (013 blob + shared `guidelines.strategy` home). Setup still writes the same `guidelines.strategy` home (consistent; full canonical-authority for Setup deferred with its own migration). |
-| **Logo** | **FOUNDATION + PARTIAL** — a canonical write path already exists (`logoSystem`+`brandAssets` via `stageLogoAssignment`); no active bug; `classifyAsset` **unwired**; onboarding writes legacy (minted at read). Full through-repository migration needs Asset persistence. **NOT migrated — the remaining Brand-System vertical.** Logos deliberately kept on their always-current legacy home (the blob does not read logos), so nothing is at risk. |
-| **Canonical persistence** | Facade repository (`BRAND_REPOSITORY`) over the service layer, **now identity-column-backed**: canonical writes persist the full `identity` blob to `brands.identity` (013, DEPLOYED); reads backfill blob-only fields legacy-first. Guest round-trips the blob via localStorage. |
-| **Legacy authority removal** | Color: ColorsTab scalar-only write removed; `buildColorSystem` mirror-preference removed; `mergeColorSystem` + `ColorPaletteEditor` deleted (type debt 324→322). Ongoing. |
+| **Color** (primary/secondary/accent/neutrals) | **CANONICAL — authority flipped.** One write (`changeBrandColors`); all CURRENT writers (ColorsTab, ui-color-system, Setup, Brand Board) route through it; blob wins on read. |
+| **Typography** (families + uploaded files) | **CANONICAL — authority flipped.** `changeBrandTypography` (families + files); writers TypographyTab/Setup/Brand Board/Typescale canonical. (Numeric weights still have no editor — net-new.) |
+| **Voice** (tone) | **CANONICAL — authority flipped** for the editable field (tone). Rich voice (do/don't/examples) persists in the blob but has **no editor** (net-new). |
+| **Strategy** (mission/vision/values/positioning/about) | **CANONICAL — authority flipped.** `changeBrandStrategy`; StrategyTab + Setup both canonical; `guidelines.strategy` is a hydrated projection. |
+| **Logo** | **PARTIAL — the one remaining vertical.** Refs (`logoSystem`) persist via the blob; the ONE staging authority (`stageLogoAssignment`) now used by Brand Board too. **BLOCKER:** durable **Asset RECORDS** (`brandAssets[]`) have no DB column — ids are re-derived from URL hashes on read, so "assetId is the durable ref" is not yet true. Closing it needs a `brand_assets` column (new migration, owner-deploy) or an AssetRepository over the existing `assets` table. Logos are NOT flipped, so they read from their always-current legacy home — safe. |
+| **Canonical persistence** | Facade repository (`BRAND_REPOSITORY`) over the service layer, identity-column-backed (`brands.identity`, 013 DEPLOYED). Guest round-trips via localStorage. |
 
-### Authority metrics — BEFORE → AFTER (this batch)
+### Authority metrics — BEFORE → AFTER (the flip)
 
-| Metric | Before | After |
+| Subsystem | CURRENT write authorities BEFORE | AFTER |
 |---|---|---|
-| Authoritative COLOR write paths | 2 (ColorsTab scalar-only + Setup) diverging | **1** (`changeBrandColors`) |
-| Authoritative TYPOGRAPHY-family write paths | 2 (TypographyTab `fonts` + Setup `typography`) | **1** canonical (`typography`; `fonts` = one-way projection) |
-| Paint-path readers on legacy-only fields | `brandTokenStyle` (fonts/primaryColor) | **canonical-first** |
-| Stale-mirror override on color reload | yes (`buildColorSystem` preferred guidelines) | **eliminated** |
-| Legacy Brand files/functions removed | — | `ColorPaletteEditor`, `mergeColorSystem`; type debt −2 |
-| Remaining compatibility projections | — | 3 (see COMPATIBILITY-LEDGER: C1 scalar mirror, C2 `buildColorSystem` derive, C3 facade) |
-| Exact blockers | — | migration 013 (accent/neutrals/typography-files/strategy-full full-fidelity authed persistence); prod access |
+| Color | 5 (ColorsTab, ui-color-system, Setup, **Brand Board**, onboarding) — diverging | **1 canonical** (`changeBrandColors`) + onboarding-bootstrap |
+| Typography | 5 (TypographyTab, Setup, **Brand Board**, **Typescale**, onboarding) | **1 canonical** (`changeBrandTypography`) + onboarding-bootstrap |
+| Voice (tone) | 3 (VoiceTab, **Setup**, onboarding) | **1 canonical** (`changeBrandVoiceTone`) + onboarding-bootstrap |
+| Strategy | 3 (StrategyTab, **Setup**, onboarding) | **1 canonical** (`changeBrandStrategy`) + onboarding-bootstrap |
+| Logo | 4+ (LogosPanel divergent, LogoExportPanel, useAssetUpload, onboarding) | 1 staging authority (`stageLogoAssignment`); **records not yet durable — PARTIAL** |
+| Read authority | legacy-first / v3-first mix | **identity blob wins on read** (`hydrateFromCanonicalIdentity`) |
+
+**Legacy fields are now one-way projections** (written by `toLegacyBrandPatch`, hydrated from the blob
+on read). No CURRENT surface writes a migrated identity field as an authority; onboarding-v4 create is
+the only remaining legacy identity writer and it is the BOOTSTRAP path (fires only when no blob exists).
+
+### B5 — remaining compatibility projections (kept, each with a deletion condition)
+
+Nothing from this batch was DELETED (the writers were re-routed, not removed); the reduction is in
+**authorities**, not files. These one-way projections remain and are intentional:
+
+| Projection | Consumer | Reason kept | Deletion condition |
+|---|---|---|---|
+| Legacy scalars (`primaryColor`/`secondaryColor`/`fonts`/`tone`/`strategy`) | Frozen editors (`features/editor`, Classic `/a`), brand-consistency engine, render surfaces reading `brand.tone`/`primaryColor` | Many un-migrated + frozen readers | All readers read canonical `identity`/`colorSystem`/`typography` |
+| `guidelines.strategy` (hydrated) | Setup `brandToMockBrand`, case-study-deck, social-media, brand-kit-cosmos, Classic guidelines (frozen) | Shared read-home + frozen consumers | Those readers read canonical `strategy` directly |
+| `guidelines.colorPalette`/`voiceAndTone`/`logoSystem` | onboarding-v4 create (bootstrap), `ColorSystemModule` names, variant-studio, Classic (frozen) | Onboarding bootstrap + frozen | Onboarding create migrates to canonical + Classic retired |
+| `logo`/`logoAssets`/`logoSystem` legacy mirror | All logo readers via `useBrandLogo` fallback | Logo subsystem not yet canonical | Logo durable Asset records land (Logo PARTIAL closes) |
+| `BrandServiceRepository` facade (vs direct `SupabaseBrandRepository`) | `BRAND_REPOSITORY` DI | Inherits seed-brand handling + rich logo mapping the direct adapter lacks | Direct adapter gains seed handling + durable asset records |
+| onboarding-v4 create legacy writes | Brand creation | Bootstrap for brands with no blob | Onboarding writes through canonical ops (net-new; safe as-is because no blob ⇒ no flip) |
 
 ## Current Architecture (as-is)
 
@@ -102,16 +145,43 @@ flowchart TD
 > Stage 2A builds the canonical column; it is **not yet wired** into read/write paths
 > (that's 2B/2D). Legacy remains the live source of truth until then.
 
-## Current Blockers
+## BRAND SYSTEM: PARTIAL — one blocker (Logo durable Asset records)
+
+Completion standard (2026-08-09, post-flip):
+
+| ✔ | Criterion |
+|---|---|
+| ✅ | Color canonical (authority flipped) |
+| ✅ | Typography canonical (families + uploaded files) |
+| ✅ | Strategy canonical (flipped) |
+| ✅ | Voice canonical for all editable fields (tone; rich voice = net-new, no editor) |
+| ❌ | **Logo canonical** — refs persist via the blob, but durable Asset RECORDS don't |
+| ✅ | Setup current identity writes canonical |
+| ✅ | Brand Kit current identity writes canonical (N/A — Brand Kit is read-only/toast-only, no identity writes) |
+| ✅ | Authenticated identity server-backed (`brands.identity`, 013 deployed) |
+| ✅ | Canonical persisted identity wins after migration (the flip) |
+| ✅ | Legacy fields cannot overwrite canonical data (hydration on read) |
+| ✅ | Guidelines is not identity persistence (hydrated projection) |
+| ❌ | **Asset refs for Logo are durable** — ids re-derived from URL hashes on read |
+| ✅ | No competing current-product Brand write authority (color/typo/voice/strategy = 1 each; logo = 1 staging authority) |
+| ✅ | Adversarial review clean (one StrategyTab revert risk found + fixed + re-verified) |
+| ✅ | Tests / build / type gates green |
+
+**Verdict: PARTIAL.** 13/15 met. The two open items are BOTH the Logo subsystem, blocked on the same
+thing: **durable Asset records have no persistence home**. `brands` has no `brand_assets` column, so
+`brandAssets[]` is re-derived from URL hashes on every read — meaning "assetId is the durable ref" is
+not yet true. Closing it needs EITHER a new additive `brands.brand_assets` JSONB column (a migration
+014, owner-deployed like 013) OR an `AssetRepository` over the existing `public.assets` table. Both are
+a focused vertical of their own; not startable safely in-session without the migration deploy. Logos
+are deliberately NOT flipped, so they read from their always-current legacy home — nothing is at risk
+today.
+
+## Other open items
 
 - **Security migrations 011/012/013 — DEPLOYED to production 2026-08-09** (confirmed remote;
   009/010 absent). S1 CLOSED.
 - **Real RBAC review** beyond the single `is_admin` boolean — still open (debt #1).
 - **GitHub token** — removed from local config; **owner must revoke/rotate** it (still open).
-- **Logo vertical** — the last un-migrated Brand-System subsystem (needs Asset persistence +
-  onboarding write migration). Safe today (logos read from their legacy home, not the blob).
-- **Setup full canonical-authority** — Setup still writes `guidelines.strategy` directly (shared,
-  consistent home). Flipping strategy to blob-authority is gated on migrating Setup's read+write.
 
 ## Current Technical Debt Baseline (frozen, ratcheted)
 

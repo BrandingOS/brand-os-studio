@@ -6,11 +6,15 @@ import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
+import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { BrandRepository } from '@/domain/brand/repository';
-import { changeBrandColors } from '@/application/brand/changeBrandColor';
-import { toLegacyBrandPatch } from '@/domain/brand';
+import { changeBrandColors, type BrandColorChanges } from '@/application/brand/changeBrandColor';
+import { changeBrandTypography, type TypographyChanges } from '@/application/brand/changeBrandTypography';
+import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
+import { changeBrandStrategy, type StrategyChange } from '@/application/brand/changeBrandStrategy';
+import { toLegacyBrandPatch, type CanonicalBrand } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 
 /**
@@ -45,35 +49,98 @@ export default function BrandSetupPage() {
       const patch = mockBrandToPatch(next, brand);
       if (Object.keys(patch).length === 0) return;
 
-      // A0 — route color through the ONE canonical color operation and strip it
-      // from the legacy patch, so Setup and the ColorsTab share a single color
-      // write authority. Non-color fields (name, logos, fonts) still flow through
-      // the legacy update until their own slices migrate.
-      const changes: Parameters<typeof changeBrandColors>[2] = {};
-      if (patch.primaryColor) changes.primary = { hex: patch.primaryColor };
-      if (patch.secondaryColor) changes.secondary = { hex: patch.secondaryColor };
-      if (patch.accentColor) changes.accent = { hex: patch.accentColor };
-      if (patch.neutrals) changes.neutrals = patch.neutrals.map((hex) => ({ hex }));
+      // Brand System finalization — EVERY identity subsystem Setup edits is routed
+      // through its ONE canonical operation (colors, typography, voice tone,
+      // strategy), so Setup and the Settings tabs share a single write authority
+      // and the canonical identity blob is always the source of truth. Only
+      // genuinely non-identity fields (name, logos, publicUrl) fall through to the
+      // legacy `updateBrand`. Logos stay legacy until the logo subsystem is
+      // canonical (durable Asset persistence).
       const {
         primaryColor: _p,
         secondaryColor: _s,
         accentColor: _a,
         neutrals: _n,
         colorSystem: _cs,
+        fonts: _f,
+        typography: _t,
+        tone: _to,
+        guidelines: _g,
         ...rest
       } = patch;
 
       try {
-        if (Object.keys(changes).length > 0) {
-          const updated = await changeBrandColors(repo, brand.id, changes);
-          const cpatch = toLegacyBrandPatch(updated);
+        let latest: CanonicalBrand | null = null;
+
+        // Colors
+        const colorChanges: BrandColorChanges = {};
+        if (patch.primaryColor) colorChanges.primary = { hex: patch.primaryColor };
+        if (patch.secondaryColor) colorChanges.secondary = { hex: patch.secondaryColor };
+        if (patch.accentColor) colorChanges.accent = { hex: patch.accentColor };
+        if (patch.neutrals) colorChanges.neutrals = patch.neutrals.map((hex) => ({ hex }));
+        if (Object.keys(colorChanges).length > 0) {
+          latest = await changeBrandColors(repo, brand.id, colorChanges);
+        }
+
+        // Typography — families AND uploaded font files (both must reach the blob).
+        if (patch.fonts || patch.typography) {
+          const typo: TypographyChanges = {};
+          const pf = patch.typography?.primary;
+          const primaryFam = patch.fonts?.primary ?? pf?.family;
+          if (primaryFam || pf?.files) {
+            typo.primary = {
+              ...(primaryFam ? { family: primaryFam } : {}),
+              ...(pf?.files ? { files: pf.files } : {}),
+            };
+          }
+          const sf = patch.typography?.secondary;
+          const secFam = patch.fonts?.secondary ?? sf?.family;
+          if (secFam) typo.secondary = { family: secFam, ...(sf?.files ? { files: sf.files } : {}) };
+          else if (patch.fonts && 'secondary' in patch.fonts && !patch.fonts.secondary) typo.secondary = null;
+          if (typo.primary || typo.secondary !== undefined) {
+            latest = await changeBrandTypography(repo, brand.id, typo);
+          }
+        }
+
+        // Voice tone
+        if (typeof patch.tone === 'string') {
+          latest = await changeBrandVoiceTone(repo, brand.id, patch.tone);
+        }
+
+        // Strategy (+ free-form About sections)
+        const gStrategy = patch.guidelines?.strategy;
+        const about = patch.guidelines?.aboutSections;
+        if (gStrategy || about) {
+          const change: StrategyChange = {};
+          if (gStrategy?.mission !== undefined) change.mission = gStrategy.mission;
+          if (gStrategy?.vision !== undefined) change.vision = gStrategy.vision;
+          if (gStrategy?.positioning !== undefined) change.positioning = gStrategy.positioning;
+          if (about) change.aboutSections = about;
+          if (Object.keys(change).length > 0) {
+            latest = await changeBrandStrategy(repo, brand.id, change);
+          }
+        }
+
+        // One store sync with the final canonical result. Re-run
+        // `migrateBrandToCurrent` so the identity blob in the patch re-hydrates
+        // ALL legacy read-homes (incl. guidelines.strategy, which the patch does
+        // not carry) — otherwise store readers would see stale strategy until reload.
+        if (latest) {
+          const cpatch = toLegacyBrandPatch(latest);
           useBrandStore.setState((st) => ({
-            current: st.current?.id === brand.id ? { ...st.current, ...cpatch } : st.current,
-            list: st.list.map((b) => (b.id === brand.id ? { ...b, ...cpatch } : b)),
+            current:
+              st.current?.id === brand.id
+                ? migrateBrandToCurrent({ ...st.current, ...cpatch })
+                : st.current,
+            list: st.list.map((b) =>
+              b.id === brand.id ? migrateBrandToCurrent({ ...b, ...cpatch }) : b,
+            ),
           }));
           const cur = useBrandStore.getState().current;
           if (cur?.id === brand.id) applyBrandTokens(cur);
         }
+
+        // Non-identity remainder (name, logos, publicUrl).
         if (Object.keys(rest).length > 0) {
           await updateBrand(brand.id, rest);
         }

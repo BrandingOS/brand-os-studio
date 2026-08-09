@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { container } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
+import type { BrandRepository } from '@/domain/brand/repository';
+import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
+import { toLegacyBrandPatch } from '@/domain/brand';
 import type { Brand, CreateBrandInput } from '../types/brand';
 import { loadBrandFonts } from '@/shared/design-system/fonts';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
@@ -175,9 +178,19 @@ export const useBrandStore = create<BrandStore>()(
           nextSecondary === current.fonts?.secondary
         ) return;
 
-        await useBrandStore.getState().update(brandId, {
-          fonts: { primary: nextPrimary, secondary: nextSecondary },
+        // Route the family change through the ONE canonical typography op so the
+        // identity blob (authoritative after the flip) stays in sync — a direct
+        // `update({fonts})` would be overridden by the blob on the next read.
+        const repo = container.get<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+        const updated = await changeBrandTypographyFamilies(repo, brandId, {
+          primary: nextPrimary,
+          secondary: nextSecondary,
         });
+        const patch = toLegacyBrandPatch(updated);
+        set((state) => ({
+          current: state.current?.id === brandId ? { ...state.current, ...patch } : state.current,
+          list: state.list.map((b) => (b.id === brandId ? { ...b, ...patch } : b)),
+        }), false, 'setTypescale');
       },
 
       delete: async (id: string) => {

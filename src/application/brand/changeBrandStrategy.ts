@@ -16,7 +16,10 @@ import type { BrandRepository } from '@/domain/brand/repository';
 import { assertCanonicalBrand, type CanonicalBrand, type Strategy } from '@/domain/brand';
 
 export type StrategyChange = Partial<
-  Pick<Strategy, 'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience'>
+  Pick<
+    Strategy,
+    'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience' | 'aboutSections'
+  >
 >;
 
 export async function changeBrandStrategy(

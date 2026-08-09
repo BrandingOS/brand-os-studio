@@ -48,11 +48,9 @@ it('strategy vision/values survive reload (canonical read + guidelines home)', a
     values: ['clarity', 'speed'],
     positioning: 'premium',
   });
-  // Mirror what the StrategyTab does for the shared legacy home.
-  await service.update('b1', {
-    guidelines: { strategy: { mission: 'Empower makers', vision: 'A brand OS for everyone', values: ['clarity', 'speed'], positioning: 'premium', personality: [], targetAudience: '' } },
-  });
-
+  // No manual guidelines write — post-flip the blob is the authority and
+  // `migrateBrandToCurrent` (inside the svc mock's getById) hydrates
+  // `guidelines.strategy` from the blob, which `fromLegacyBrand` reads back.
   const canonical = await repo.getById('b1');
   expect(canonical!.identity.strategy.vision).toBe('A brand OS for everyone');
   expect(canonical!.identity.strategy.values).toEqual(['clarity', 'speed']);

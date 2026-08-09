@@ -5,6 +5,12 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { BrandRepository } from '@/domain/brand/repository';
+import { changeBrandColors } from '@/application/brand/changeBrandColor';
+import { changeBrandTypography } from '@/application/brand/changeBrandTypography';
+import { toLegacyBrandPatch } from '@/domain/brand';
+import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { AppRail } from '@/shared/layouts/AppRail';
 import { useBrandBoardStore } from './store/useBrandBoardStore';
 import { LogosPanel } from './panels/LogosPanel';
@@ -21,6 +27,7 @@ export default function BrandBoardPage() {
   const brand = useBrandStore((s) => s.current);
   const loadBySlug = useBrandStore((s) => s.loadBySlug);
   const updateBrand = useBrandStore((s) => s.update);
+  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
 
   const draft = useBrandBoardStore((s) => s.draft);
   const initFromBrand = useBrandBoardStore((s) => s.initFromBrand);
@@ -69,23 +76,41 @@ export default function BrandBoardPage() {
   // weight, borderRadius, shadow, and spacing.
   const handleSave = async () => {
     if (!brand) return;
-    await updateBrand(brand.id, {
-      primaryColor: draft.colors.primary,
-      secondaryColor: draft.colors.secondary,
-      accentColor: draft.colors.accent,
-      neutrals: draft.colors.neutrals,
-      fonts: {
-        primary: draft.typography.heading,
-        secondary: draft.typography.body,
-      },
-      uiStyle: {
-        borderRadius: draft.uiStyle.borderRadius,
-        shadowIntensity: draft.uiStyle.shadowIntensity,
-        spacing: draft.uiStyle.spacing,
-        weight: draft.typography.weight,
-      },
-    });
-    toast.success('Brand board saved');
+    try {
+      // Colors + typography are routed through the canonical write ops so Brand
+      // Board shares the ONE identity authority (its old direct scalar writes were
+      // silently overridden once the identity blob became authoritative).
+      await changeBrandColors(repo, brand.id, {
+        primary: { hex: draft.colors.primary },
+        ...(draft.colors.secondary ? { secondary: { hex: draft.colors.secondary } } : {}),
+        ...(draft.colors.accent ? { accent: { hex: draft.colors.accent } } : {}),
+        ...(draft.colors.neutrals?.length
+          ? { neutrals: draft.colors.neutrals.map((hex) => ({ hex })) }
+          : {}),
+      });
+      const latest = await changeBrandTypography(repo, brand.id, {
+        primary: { family: draft.typography.heading },
+        secondary: draft.typography.body ? { family: draft.typography.body } : null,
+      });
+      // Reflect the canonical result + persist the non-identity uiStyle snapshot.
+      const cpatch = toLegacyBrandPatch(latest);
+      await updateBrand(brand.id, {
+        ...cpatch,
+        uiStyle: {
+          borderRadius: draft.uiStyle.borderRadius,
+          shadowIntensity: draft.uiStyle.shadowIntensity,
+          spacing: draft.uiStyle.spacing,
+          weight: draft.typography.weight,
+        },
+      });
+      const cur = useBrandStore.getState().current;
+      if (cur?.id === brand.id) applyBrandTokens(cur);
+      toast.success('Brand board saved');
+    } catch (err) {
+      toast.error('Could not save brand board', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
   };
 
   return (
