@@ -52,6 +52,8 @@ const WorkspaceSettingsPageV2 = lazy(() => import("./pages/workspace/Settings"))
 const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"));
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
+// Product Surface Explorer — owner inventory/review of every surface (self-gated).
+const DevProductMapPage = lazy(() => import("./pages/_dev/product-map"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
@@ -674,6 +676,8 @@ const App = () => (
           {/* Dev-only all-features inventory. Self-gated on import.meta.env.DEV
               or ?dev=1. Not linked from any user nav. */}
           <Route path="/_dev/features" element={<DevFeaturesPage />} />
+          {/* Product Surface Explorer — self-gated (DEV or ?dev=1), never in nav. */}
+          <Route path="/_dev/product-map" element={<DevProductMapPage />} />
           {/* Dev-only editor/chronicle previews — registered ONLY in dev builds so
               they never resolve in production (were previously ungated). */}
           {import.meta.env.DEV && (
