@@ -164,13 +164,13 @@ describe('strategy & voice preservation (collapses legacy splits)', () => {
     expect(c.identity.strategy.aboutSections[0].title).toBe('Promise');
   });
 
-  it('unifies voice from the legacy voiceAndTone triple-split', () => {
+  it('unifies voice: fresh tone scalar wins; rich fields come from voiceAndTone', () => {
     const c = fromLegacyBrand(
       makeLegacy({
-        tone: 'ignored-scalar',
+        tone: 'edited-tone', // a fresh edit — must win over the stale mirror
         guidelines: {
           voiceAndTone: {
-            brandVoice: 'confident',
+            brandVoice: 'stale-mirror-voice',
             toneAttributes: ['warm', 'direct'],
             communicationStyle: 'clear',
             doAndDonts: { do: ['be clear'], dont: ['be vague'] },
@@ -179,11 +179,23 @@ describe('strategy & voice preservation (collapses legacy splits)', () => {
         },
       }),
     );
-    expect(c.identity.voice.tone).toBe('confident');
+    // A7 fix: scalar-first — the fresh tone edit is not reverted by the mirror.
+    expect(c.identity.voice.tone).toBe('edited-tone');
+    // Rich fields (no scalar equivalent) still come from voiceAndTone.
     expect(c.identity.voice.personality).toEqual(['warm', 'direct']);
     expect(c.identity.voice.doList).toEqual(['be clear']);
     expect(c.identity.voice.dontList).toEqual(['be vague']);
     expect(c.identity.voice.examples[0]).toEqual({ context: 'email', text: 'Hi there' });
+  });
+
+  it('falls back to the mirror brandVoice when the tone scalar is empty', () => {
+    const c = fromLegacyBrand(
+      makeLegacy({
+        tone: '',
+        guidelines: { voiceAndTone: { brandVoice: 'confident', toneAttributes: [], communicationStyle: '', doAndDonts: { do: [], dont: [] }, examples: [] } },
+      }),
+    );
+    expect(c.identity.voice.tone).toBe('confident');
   });
 });
 

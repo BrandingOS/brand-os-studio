@@ -45,5 +45,13 @@ export function toLegacyBrandPatch(c: CanonicalBrand): Partial<Brand> {
     publicUrl: c.publicUrl,
   };
 
+  // Omit undefined values so projecting a change to one subsystem (e.g. a color
+  // save) never wipes an unrelated legacy field (tone / neutrals / secondaryColor)
+  // when the canonical brand simply doesn't carry it. Callers that merge this patch
+  // into store state must not receive `key: undefined`.
+  for (const k of Object.keys(patch) as (keyof Partial<Brand>)[]) {
+    if (patch[k] === undefined) delete patch[k];
+  }
+
   return patch;
 }

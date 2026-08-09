@@ -203,7 +203,10 @@ function resolveStrategy(b: Brand): Strategy {
 function resolveVoice(b: Brand): Voice {
   const v: VoiceAndTone | undefined = b.guidelines?.voiceAndTone;
   return {
-    tone: v?.brandVoice ?? (b.tone || undefined),
+    // Fresh scalar `tone` wins over a stale `guidelines.voiceAndTone.brandVoice`
+    // mirror (matches resolveColors); falls back to the mirror only when tone is
+    // empty (never-edited onboarding brands). Prevents the voice edit reverting.
+    tone: (b.tone || undefined) ?? v?.brandVoice,
     personality: v?.toneAttributes ?? [],
     doList: v?.doAndDonts?.do ?? [],
     dontList: v?.doAndDonts?.dont ?? [],

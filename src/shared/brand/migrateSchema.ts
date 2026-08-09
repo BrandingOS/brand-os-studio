@@ -193,30 +193,31 @@ function buildColorSystem(brand: Brand): ColorSystem | undefined {
 
 function buildTypographySystem(brand: Brand): TypographySystem | undefined {
   const gt = brand.guidelines?.typography;
-  const primary: FontToken | undefined = gt?.primary
+  // Prefer the FRESH `fonts` scalar over a stale `guidelines.typography` mirror
+  // (matches buildColorSystem); enrich weights/fallbacks/url from the mirror only
+  // when the family agrees. Prevents a font edit reverting on an authed reload.
+  const primary: FontToken | undefined = brand.fonts?.primary
     ? {
-        family: gt.primary.family,
-        weights: gt.primary.weights,
-        fallbacks: gt.primary.fallbacks,
-        url: gt.primary.url,
-        usage: gt.primary.usage,
+        family: brand.fonts.primary,
+        ...(gt?.primary && gt.primary.family === brand.fonts.primary
+          ? { weights: gt.primary.weights, fallbacks: gt.primary.fallbacks, url: gt.primary.url, usage: gt.primary.usage }
+          : {}),
       }
-    : brand.fonts?.primary
-    ? { family: brand.fonts.primary }
+    : gt?.primary
+    ? { family: gt.primary.family, weights: gt.primary.weights, fallbacks: gt.primary.fallbacks, url: gt.primary.url, usage: gt.primary.usage }
     : undefined;
 
   if (!primary) return undefined;
 
-  const secondary: FontToken | undefined = gt?.secondary
+  const secondary: FontToken | undefined = brand.fonts?.secondary
     ? {
-        family: gt.secondary.family,
-        weights: gt.secondary.weights,
-        fallbacks: gt.secondary.fallbacks,
-        url: gt.secondary.url,
-        usage: gt.secondary.usage,
+        family: brand.fonts.secondary,
+        ...(gt?.secondary && gt.secondary.family === brand.fonts.secondary
+          ? { weights: gt.secondary.weights, fallbacks: gt.secondary.fallbacks, url: gt.secondary.url, usage: gt.secondary.usage }
+          : {}),
       }
-    : brand.fonts?.secondary
-    ? { family: brand.fonts.secondary }
+    : gt?.secondary
+    ? { family: gt.secondary.family, weights: gt.secondary.weights, fallbacks: gt.secondary.fallbacks, url: gt.secondary.url, usage: gt.secondary.usage }
     : undefined;
 
   return {
