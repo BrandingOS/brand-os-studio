@@ -10,7 +10,7 @@ _Quick status page. Updated after every stage. Detailed docs live in
 - [x] Phase 1 — Target Architecture + Owner Decisions
 - [~] Stage 1 — Safety (7/8 gates PASS; **S1 = deploy 011/012 to prod BLOCKED on owner access**)
 - [x] Stage 2A — Canonical Brand foundation
-- [ ] Stage 2B — Canonical Brand persistence / repository
+- [x] Stage 2B — Canonical Brand persistence / repository (schema 013 deploy-pending)
 - [ ] Stage 2C — Asset / Logo / Font foundation
 - [ ] Stage 2D — First feature migration (candidate: Color System in Brand Kit)
 
@@ -70,14 +70,18 @@ flowchart TD
 ## What Changed This Run
 
 - Committed the accepted Phase-0/1 + Stage-1 baseline (docs + security migrations + CI gate).
-- **Stage 2A:** new `src/domain/brand/` canonical model — `CanonicalBrand`/`BrandIdentity`
-  aggregate reusing the correct v3 value objects; zod boundary validation; `fromLegacyBrand`
-  (fixes the stale-mirror precedence) + `toLegacyBrandPatch`; 13 passing tests. Zero
-  regressions; type baseline unchanged.
+- **Stage 2A:** `src/domain/brand/` canonical model — `CanonicalBrand`/`BrandIdentity` aggregate
+  reusing the v3 value objects; zod boundary validation; `fromLegacyBrand` (fixes stale-mirror) +
+  `toLegacyBrandPatch`; 16 tests. Adversarially reviewed.
+- **Stage 2B:** `BrandRepository` port + pure row mappers + In-memory & Supabase adapters +
+  additive migration 013 (`brands.identity` JSONB). Reads prefer stored identity (no
+  re-derivation); writes are validated + server-backed; guidelines mirror untouched. Round-trip
+  proven by unit tests + a real-PostgreSQL (PGlite) integration harness. Zero regressions; type
+  baseline unchanged.
 
 ## Next Stage
 
-**2B — Canonical Brand persistence.** Introduce a `BrandRepository` port + Supabase/local
-adapters that round-trip the canonical identity (write→persist→read→same meaning), with the
-canonical model as the write source and no stale-mirror overwrite. Additive migrations only;
-no destructive column removal. Prod deploy stays gated on S1.
+**2C — Asset / Logo / Font foundation.** One canonical `Asset` contract (identity, workspace,
+kind, storage ref, metadata, lifecycle); explicit `LogoSystem→Asset` and `Font→Asset`
+relationships; consolidate the "is this a logo?" classification to one boundary; resolve the
+transitional `legacy-url:` logo refs from 2A. Foundation + tests only — no DAM UI migration.

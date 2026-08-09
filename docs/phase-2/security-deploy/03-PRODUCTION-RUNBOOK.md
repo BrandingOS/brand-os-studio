@@ -13,14 +13,20 @@
      `config.toml`). This is **production** (no staging exists).
    - `supabase projects list` (if authenticated) to double-confirm the ref before any write.
 
-2. **Confirm the remote migration state + that only 011/012 are pending.**
+2. **Confirm the remote migration state + which migrations are pending.**
    ```
    supabase migration list --linked
    ```
-   Expected: Local **and** Remote match through `20260427000000` (008); **only** `20260809000000`
-   (011) and `20260809010000` (012) are Local-without-Remote. **009/010 must NOT appear** as pending
-   (they were relocated to `supabase/deferred-migrations/`). If 009/010 appear, STOP — the
-   relocation was reverted; re-apply `01-MIGRATION-HISTORY-PLAN.md`.
+   Expected: Local **and** Remote match through `20260427000000` (008); the pending
+   (Local-without-Remote) set is `20260809000000` (011, security), `20260809010000` (012,
+   security), and `20260810000000` (**013, Stage-2B additive `brands.identity` column — safe**;
+   adds two nullable columns, no data/behavior change). **009/010 must NOT appear** (they were
+   relocated to `supabase/deferred-migrations/`). If 009/010 appear, STOP and re-apply
+   `01-MIGRATION-HISTORY-PLAN.md`.
+   > 013 is additive and independent of the security fix — deploy it together with 011/012 (one
+   > `db push`) or defer it; either is safe. It is verified against real PostgreSQL (PGlite) in
+   > `docs/phase-2/stage-2b/` and is required before the canonical repository's Supabase path is
+   > activated in production.
 
 3. **Backup (pre-change capture).**
    ```

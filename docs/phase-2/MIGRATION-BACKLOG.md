@@ -12,6 +12,9 @@ now — they are logged so nothing is lost. Each notes the phase that should own
 | B3 | `guidelines.colorPalette.semantic` not populated on the scalar color path (only passes through when a v3 `colorSystem` is present). Semantic tokens are arguably derived, not identity. | `fromLegacy.ts` resolveColors | color/derivation phase |
 | B4 | Canonical logo validation is loose (`z.object({}).passthrough()`) — no structural logo invariant yet. Mapping is tested; schema isn't strict. | `invariants.ts:~77` | 2C (asset/logo foundation) |
 | B5 | Legacy url→Asset resolution: `resolveLogos` emits transitional `legacy-url:<url>` refs. Real Asset records (id/hash/formats) are created in 2C. | `fromLegacy.ts` legacyLogoRef | 2C |
+| B6 | `canonicalToRow` does not sync the legacy `logo_url` scalar column (canonical logos are asset refs, not URLs — needs the asset store to resolve a URL). Un-migrated readers of `logo_url` go stale after a canonical save. | `brandRow.ts` canonicalToRow | 2C (asset URL resolution) |
+| B7 | `rowToCanonical` does not validate the stored `identity` JSONB on read (writes validate via `assertCanonicalBrand`; reads trust the DB). Harden with read-time validation once external/SQL writers exist. | `brandRow.ts` rowToCanonical | persistence hardening |
+| B8 | `SupabaseBrandRepository` is update-only (no create/upsert). New-brand creation still flows through the legacy path until a later slice migrates it. | `SupabaseBrandRepository.ts` save | later feature migration |
 
 ## Unrelated / pre-existing (leave alone)
 
