@@ -566,9 +566,7 @@ Project ID: `ciojgoozobzbeglwdxcz`. Client configured in `src/integrations/supab
 
 The landing page's `early_access` table uses RLS: anon INSERT-only, no SELECT — submissions go in but can't be read from the client.
 
-**Security constraint**: `VITE_ANTHROPIC_API_KEY` is currently inlined into the client bundle at build time. This MUST be moved behind a server proxy (Supabase Edge Function) before deploying the main app publicly. The landing page does not use this key and is safe to deploy as-is.
-
-> **AI proxy migration paused at Step 1 — see issue #2. MUST complete before public launch.**
+**Security (resolved code-side 2026-08):** the browser AI key is gone. All AI calls route through the `anthropic-proxy` Supabase Edge Function using the SERVER-side `ANTHROPIC_API_KEY` secret; `VITE_ANTHROPIC_API_KEY` is no longer referenced in `src/` (verified) so it is not inlined into the bundle. Do NOT reintroduce it. The remaining steps are owner deploy actions only (deploy `anthropic-proxy` + set the server secret + unset the build-env var in the Cloudflare Pages dashboard) — see `docs/phase-2/SECURITY-E6-runbook.md`.
 
 ## Test coverage requirements
 
