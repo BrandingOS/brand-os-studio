@@ -29,6 +29,7 @@ import { useService, SERVICE_KEYS } from '@/core';
 import type { BrandRepository } from '@/domain/brand/repository';
 import { changeBrandColors } from '@/application/brand/changeBrandColor';
 import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
+import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
 import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
@@ -468,6 +469,9 @@ function TypographyTab({ brand }: { brand: Brand }) {
 // VOICE TAB
 // ═════════════════════════════════════════════════════════════════════════
 function VoiceTab({ brand }: { brand: Brand }) {
+  // A3 — tone writes through the canonical voice operation. `audience` is really
+  // strategy.targetAudience and stays on the legacy path until Strategy migrates.
+  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
   const updateBrand = useBrandStore((s) => s.update);
   const [tone, setTone] = useState(brand.tone ?? '');
   const [audience, setAudience] = useState(brand.audience ?? '');
@@ -476,14 +480,20 @@ function VoiceTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateBrand(brand.id, { tone, audience });
+      const updated = await changeBrandVoiceTone(repo, brand.id, tone);
+      const patch = toLegacyBrandPatch(updated);
+      useBrandStore.setState((s) => ({
+        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
+        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
+      }));
+      if (audience !== (brand.audience ?? '')) await updateBrand(brand.id, { audience });
       toast.success('Voice settings updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand.id, tone, audience, updateBrand]);
+  }, [brand.id, brand.audience, tone, audience, repo, updateBrand]);
 
   return (
     <Section>
