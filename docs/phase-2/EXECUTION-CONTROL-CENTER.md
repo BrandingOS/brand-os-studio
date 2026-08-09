@@ -223,13 +223,14 @@ flowchart LR
 - **Templates → server** — needs deferred migration 009.
 - Compatibility projections: legacy Brand scalars/guidelines (one-way, hydrated from canonical).
 
-### PENDING OWNER ACTIONS (only what the owner must do)
-1. **Deploy migration 015** (`designs`) — `supabase db push --linked`. (Reported deployed but the
-   migration list shows it local-only — re-run to confirm.)
-2. **Activate the AI-key fix (P0):** deploy `anthropic-proxy` + set server `ANTHROPIC_API_KEY` +
-   rewire the 5 browser AI files + unset `VITE_ANTHROPIC_API_KEY` (runbook: SECURITY-E6-runbook.md).
-3. **Add the ownership check to `finalize-onboarding-assets`** and confirm per-function `verify_jwt`.
-4. **Rotate the GitHub `gho_` token** (long-standing; treat as compromised).
+### PENDING OWNER ACTIONS — all code-side prerequisites DONE; see SECURITY-E6-runbook.md
+_The AI-key P0 client rewire + key removal AND the finalize-onboarding-assets tenant-auth are now
+code-complete and pushed; the items below are owner deploy/config steps, in order._
+1. **Deploy migration 015** (`supabase db push --linked`) — verified NOT remote (local-only).
+2. **Deploy Edge Functions + secret:** `supabase secrets set ANTHROPIC_API_KEY=…`;
+   `supabase functions deploy anthropic-proxy finalize-onboarding-assets`.
+3. **Release frontend** (promote dev→main) + **unset `VITE_ANTHROPIC_API_KEY`** from the build env.
+4. **Rotate the GitHub `gho_` token.**
 5. (Product) Decide Classic `/a` retirement + the canonical Presentation engine.
 
 ## PENDING-MIGRATIONS LEDGER
