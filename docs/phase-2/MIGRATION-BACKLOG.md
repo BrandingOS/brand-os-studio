@@ -31,3 +31,12 @@ now — they are logged so nothing is lost. Each notes the phase that should own
 | U2 | Browser E2E can't run — Playwright headless-shell version mismatch (1217 vs 1228). Env fix: `npx playwright install chromium-headless-shell`. | vitest browser project |
 | U3 | 324 TypeScript errors (frozen baseline debt) + 10 circular deps (frozen). Ratcheted; burn-down is a later dedicated phase. | `.typecheck-baseline.txt`, `.madge-cycles-baseline.txt` |
 | U4 | `supabase/.temp/*` local CLI state is tracked in git (pre-existing). Hygiene cleanup later. | `git ls-files supabase/.temp` |
+
+## Batch-A audit (A7) — later-phase competing authorities (recorded, not fixed)
+
+| # | Item | Why deferred | Owner phase |
+|---|---|---|---|
+| A7-1 | `FontTool` (`features/editor/tools/FontTool.tsx`) writes legacy `fonts` only — a competing typography writer | **Editor tool** (registered-not-rendered; editors are explicitly out of this batch) | editor migration |
+| A7-2 | Classic guidelines editors (`GuidelineWithEditor.tsx`, `InteractiveGuidelinesEditor.tsx`) write scalars + the whole `guidelines` mirror (incl. a bare `voice` key) | Un-migrated Classic surfaces | guidelines migration |
+| A7-3 | `classifyAsset` boundary still unwired (zero production callers) | Logo/asset migration not done this batch | asset-feature migration |
+| A7-4 | Rich voice (do/don't/examples/personality) + full Strategy (vision/values/positioning) have no editor and/or need migration 013 for authed persistence | No real editor / 013 blocked | later + after 013 |
