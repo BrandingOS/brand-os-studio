@@ -145,9 +145,24 @@ flowchart TD
 > Stage 2A builds the canonical column; it is **not yet wired** into read/write paths
 > (that's 2B/2D). Legacy remains the live source of truth until then.
 
-## BRAND SYSTEM: CODE-COMPLETE — one runtime gate left (deploy migration 014)
+## Roadmap
 
-Completion standard (2026-08-09, post-flip + logo vertical):
+- [✓] Audit
+- [✓] Target Architecture
+- [✓] Security (011/012/013/014 deployed; 009/010 absent)
+- [✓] **Brand System — COMPLETE** (color · typography · voice · strategy · logo all canonical, server-backed)
+- [~] Data / Assets / Persistence  ← **current batch (Batch B)**
+- [ ] Product / Legacy Cleanup
+- [ ] Editors
+- [ ] Final Hardening
+
+## BRAND SYSTEM: COMPLETE ✅ (migration 014 deployed 2026-08-09)
+
+All 15 criteria met. Every subsystem — color, typography, voice, strategy, logo — is canonical and
+server-backed; the authority flip makes the persisted canonical identity win on read; durable logo
+Asset ids persist (014 columns live). Closed unless a real regression surfaces.
+
+Completion standard (2026-08-09, post-flip + logo vertical, 014 DEPLOYED):
 
 | ✔ | Criterion |
 |---|---|
@@ -155,29 +170,21 @@ Completion standard (2026-08-09, post-flip + logo vertical):
 | ✅ | Typography canonical (families + uploaded files) |
 | ✅ | Strategy canonical (flipped) |
 | ✅ | Voice canonical for all editable fields (tone; rich voice = net-new, no editor) |
-| ✅* | **Logo canonical** — all current writers stage via `stageLogoAssignment` (proper `LogoRef{assetId}` + `brandAssets`); durable via 014 columns (*authed activates on 014 deploy; guest live now*) |
+| ✅ | **Logo canonical** — all current writers stage via `stageLogoAssignment` (proper `LogoRef{assetId}` + `brandAssets`); durable via 014 columns (DEPLOYED — authed + guest live) |
 | ✅ | Setup current identity writes canonical (incl. logos now) |
 | ✅ | Brand Kit current identity writes canonical (N/A — read-only/toast-only) |
 | ✅ | Authenticated identity server-backed (`brands.identity`, 013 deployed) |
 | ✅ | Canonical persisted identity wins after migration (the flip) |
 | ✅ | Legacy fields cannot overwrite canonical data (hydration on read) |
 | ✅ | Guidelines is not identity persistence (hydrated projection) |
-| ✅* | **Asset refs for Logo are durable** — `logoSystem`+`brandAssets` persist (014 columns / localStorage); ids minted once, preferred over URL-hash re-derivation (*authed on 014 deploy*) |
+| ✅ | **Asset refs for Logo are durable** — `logoSystem`+`brandAssets` persist (014 columns DEPLOYED / localStorage); ids minted once, preferred over URL-hash re-derivation |
 | ✅ | No competing current-product Brand write authority (color/typo/voice/strategy = 1 each; logo = 1 staging authority, incl. Setup) |
 | ✅ | Adversarial review clean (one StrategyTab revert risk found + fixed + re-verified) |
 | ✅ | Tests / build / type gates green |
 
-**Verdict: CODE-COMPLETE; production-PARTIAL pending one owner deploy.** Every subsystem — color,
-typography, voice, strategy, AND logo — is canonical in code and tested. The two logo rows are `✅*`:
-the code is complete, tested, and **guest is fully live**; **authed** durable logo records activate the
-moment **migration 014** (`brands.brand_assets` + `brands.logo_system`, additive) is deployed — the same
-1-command owner step as 013 (`supabase db push --linked`). The app is **tolerant of the pre-014 state**
-(`SupabaseBrandsService.update` retries without the columns on `42703`, falling back to legacy URL
-derivation — no breakage, no regression), so the code is safe to ship before the deploy.
-
-The old blocker ("durable Asset records need a whole vertical built") is CLOSED — durable Asset
-persistence for logos is built via migration 014 + service wiring; the only remaining step is deploying
-014. Runbook: `docs/phase-2/DEPLOY-014-runbook.md`.
+**Verdict: COMPLETE.** 15/15. Every subsystem — color, typography, voice, strategy, AND logo — is
+canonical, server-backed, and durable in production (014 deployed). The authority flip guarantees the
+persisted canonical identity wins on read; legacy fields are one-way projections. Closed.
 
 ## Other open items
 
