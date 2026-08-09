@@ -260,8 +260,6 @@ src/features/setup/data/brandToMockBrand.ts | TS2339 | Property 'url' does not e
 src/features/setup/data/brandToMockBrand.ts | TS2339 | Property 'url' does not exist on type 'LogoRef'.
 src/features/setup/data/brandToMockBrand.ts | TS2339 | Property 'url' does not exist on type 'LogoRef'.
 src/features/setup/data/brandToMockBrand.ts | TS2339 | Property 'voice' does not exist on type 'BrandGuidelines'.
-src/features/setup/data/mockBrandToPatch.ts | TS2352 | Conversion of type 'ColorSystem' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
-src/features/setup/data/mockBrandToPatch.ts | TS2352 | Conversion of type 'ColorSystem' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
 src/features/social-media/buildSocialSlides.tsx | TS2339 | Property 'tagline' does not exist on type 'Brand'.
 src/features/social-media/buildSocialSlides.tsx | TS2339 | Property 'tagline' does not exist on type 'Brand'.
 src/features/social-media/buildSocialSlides.tsx | TS2339 | Property 'tagline' does not exist on type 'Brand'.

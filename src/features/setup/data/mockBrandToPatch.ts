@@ -1,5 +1,5 @@
 import type { Brand, BrandLogoAssets } from '@/shared/types/brand';
-import type { ColorSystem, ColorToken, TypographySystem } from '@/shared/types/brandAssets';
+import type { TypographySystem } from '@/shared/types/brandAssets';
 import type { BrandLogo, MockBrand } from './mockBrand';
 
 /**
@@ -48,14 +48,14 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
   const accentChanged = accent !== existing.accentColor;
   const neutralsChanged = !arraysEqual(neutrals, existing.neutrals ?? []);
 
+  // A5 — color is now owned by the canonical `changeBrandColors` operation; Setup
+  // reads these scalar color fields to build the canonical change and strips them
+  // from the legacy patch. The legacy `colorSystem` builder (mergeColorSystem) is
+  // removed — the canonical model + toLegacyBrandPatch now produce colorSystem.
   if (primaryChanged && primary) patch.primaryColor = primary;
   if (secondaryChanged) patch.secondaryColor = secondary;
   if (accentChanged) patch.accentColor = accent;
   if (neutralsChanged) patch.neutrals = neutrals;
-
-  if (primaryChanged || secondaryChanged || accentChanged || neutralsChanged) {
-    patch.colorSystem = mergeColorSystem(existing.colorSystem, mock);
-  }
 
   /* ─────────────────────────  fonts  ───────────────────────── */
 
@@ -153,55 +153,6 @@ export function mockBrandToPatch(mock: MockBrand, existing: Brand): Partial<Bran
 }
 
 /* ─────────────────────────  helpers  ───────────────────────── */
-
-function mergeColorSystem(existing: ColorSystem | undefined, mock: MockBrand): ColorSystem {
-  const primary = mock.colors.core[0];
-  const secondary = mock.colors.core[1];
-  const accent = mock.colors.accent[0];
-  const neutrals = mock.colors.grey;
-
-  // Preserve existing token metadata (rgb / cmyk / pantone / usage / name)
-  // when the hex hasn't changed; rebuild fresh when it has.
-  const updateToken = (
-    next: { hex: string; name?: string } | undefined,
-    prev: ColorToken | undefined,
-    fallbackName: string,
-  ): ColorToken | undefined => {
-    if (!next?.hex) return undefined;
-    if (prev && prev.hex === next.hex) return prev;
-    return {
-      hex: next.hex,
-      name: next.name ?? prev?.name ?? fallbackName,
-    };
-  };
-
-  const merged: ColorSystem = {
-    ...(existing ?? { primary: { hex: '#000000' } }),
-    primary:
-      updateToken(primary, existing?.primary, 'Primary') ??
-      existing?.primary ??
-      { hex: primary?.hex ?? '#000000' },
-    secondary: updateToken(secondary, existing?.secondary, 'Secondary'),
-    accent: updateToken(accent, existing?.accent, 'Accent'),
-    neutrals:
-      neutrals.length > 0
-        ? neutrals.map((n, i) => {
-            const prev = existing?.neutrals?.[i];
-            if (prev && prev.hex === n.hex) return prev;
-            return { hex: n.hex, name: n.name ?? prev?.name ?? `Neutral ${i + 1}` };
-          })
-        : existing?.neutrals,
-  };
-
-  // Strip undefined keys so an empty secondary doesn't write `secondary: undefined`.
-  Object.keys(merged).forEach((k) => {
-    if ((merged as Record<string, unknown>)[k] === undefined) {
-      delete (merged as Record<string, unknown>)[k];
-    }
-  });
-
-  return merged;
-}
 
 function mergeTypography(
   existing: TypographySystem | undefined,

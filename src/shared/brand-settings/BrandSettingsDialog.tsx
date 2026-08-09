@@ -28,6 +28,7 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { BrandRepository } from '@/domain/brand/repository';
 import { changeBrandColors } from '@/application/brand/changeBrandColor';
+import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
 import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
@@ -394,27 +395,39 @@ function ColorsTab({ brand }: { brand: Brand }) {
 // TYPOGRAPHY TAB
 // ═════════════════════════════════════════════════════════════════════════
 function TypographyTab({ brand }: { brand: Brand }) {
-  const updateBrand = useBrandStore((s) => s.update);
-  const [primaryFont, setPrimaryFont] = useState(brand.fonts?.primary ?? 'Inter');
-  const [secondaryFont, setSecondaryFont] = useState(brand.fonts?.secondary ?? '');
+  // A2 — write font families through the canonical typography operation, and read
+  // canonical-first so this tab is consistent with Setup (which already writes
+  // canonical typography). Replaces the legacy `fonts`-only write.
+  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const [primaryFont, setPrimaryFont] = useState(
+    brand.typography?.primary?.family ?? brand.fonts?.primary ?? 'Inter',
+  );
+  const [secondaryFont, setSecondaryFont] = useState(
+    brand.typography?.secondary?.family ?? brand.fonts?.secondary ?? '',
+  );
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateBrand(brand.id, {
-        fonts: {
-          primary: primaryFont,
-          ...(secondaryFont ? { secondary: secondaryFont } : {}),
-        },
+      const updated = await changeBrandTypographyFamilies(repo, brand.id, {
+        primary: primaryFont,
+        secondary: secondaryFont || undefined,
       });
+      const patch = toLegacyBrandPatch(updated);
+      useBrandStore.setState((s) => ({
+        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
+        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
+      }));
+      const cur = useBrandStore.getState().current;
+      if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Typography updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand.id, primaryFont, secondaryFont, updateBrand]);
+  }, [brand.id, primaryFont, secondaryFont, repo]);
 
   const datalistId = 'font-presets';
 

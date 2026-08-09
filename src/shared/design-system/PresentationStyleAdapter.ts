@@ -22,14 +22,23 @@ import { loadBrandFonts } from './fonts';
 
 type CSSVarRecord = Record<string, string>;
 
-/** Build a CSS-variable record from a Brand. */
-export function brandTokenStyle(brand: Pick<Brand, 'primaryColor' | 'secondaryColor' | 'fonts'> | undefined | null): CSSVarRecord {
+/** Build a CSS-variable record from a Brand. Reads the CANONICAL colorSystem /
+ *  typography first, falling back to the legacy scalar fields — so this paint-path
+ *  reader reflects a canonical Color/Typography edit (A2 closes the split where it
+ *  previously read only `fonts.*`/`primaryColor`). */
+export function brandTokenStyle(
+  brand: Pick<Brand, 'primaryColor' | 'secondaryColor' | 'fonts' | 'colorSystem' | 'typography'> | undefined | null,
+): CSSVarRecord {
   if (!brand) return {};
   const vars: CSSVarRecord = {};
-  if (brand.primaryColor) vars['--brand-primary'] = brand.primaryColor;
-  if (brand.secondaryColor) vars['--brand-secondary'] = brand.secondaryColor;
-  if (brand.fonts?.primary) vars['--brand-font-heading'] = `'${brand.fonts.primary}', system-ui, sans-serif`;
-  if (brand.fonts?.secondary) vars['--brand-font-body'] = `'${brand.fonts.secondary}', system-ui, sans-serif`;
+  const primary = brand.colorSystem?.primary?.hex ?? brand.primaryColor;
+  const secondary = brand.colorSystem?.secondary?.hex ?? brand.secondaryColor;
+  const heading = brand.typography?.primary?.family ?? brand.fonts?.primary;
+  const body = brand.typography?.secondary?.family ?? brand.fonts?.secondary;
+  if (primary) vars['--brand-primary'] = primary;
+  if (secondary) vars['--brand-secondary'] = secondary;
+  if (heading) vars['--brand-font-heading'] = `'${heading}', system-ui, sans-serif`;
+  if (body) vars['--brand-font-body'] = `'${body}', system-ui, sans-serif`;
   return vars;
 }
 
