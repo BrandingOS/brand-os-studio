@@ -11,7 +11,7 @@ _Quick status page. Updated after every stage. Detailed docs live in
 - [~] Stage 1 — Safety (7/8 gates PASS; **S1 = deploy 011/012 to prod BLOCKED on owner access**)
 - [x] Stage 2A — Canonical Brand foundation
 - [x] Stage 2B — Canonical Brand persistence / repository (schema 013 deploy-pending)
-- [ ] Stage 2C — Asset / Logo / Font foundation
+- [x] Stage 2C — Asset / Logo / Font foundation
 - [ ] Stage 2D — First feature migration (candidate: Color System in Brand Kit)
 
 ## Current Architecture (as-is)
@@ -79,9 +79,15 @@ flowchart TD
   proven by unit tests + a real-PostgreSQL (PGlite) integration harness. Zero regressions; type
   baseline unchanged.
 
+- **Stage 2C:** `src/domain/asset/` — canonical `Asset` (adds owner + lifecycle to the v3
+  BrandAsset shape); ONE `classifyAsset` boundary (manual > file-type > AI/context hint >
+  default) so "is this a logo?" is decided in one place; `LogoRef→Asset` / `FontToken→Asset`
+  resolvers; `legacy-url:` ref minting. 13 tests. Existing classification sites recorded for
+  later migration (backlog B9–B11). Zero regressions.
+
 ## Next Stage
 
-**2C — Asset / Logo / Font foundation.** One canonical `Asset` contract (identity, workspace,
-kind, storage ref, metadata, lifecycle); explicit `LogoSystem→Asset` and `Font→Asset`
-relationships; consolidate the "is this a logo?" classification to one boundary; resolve the
-transitional `legacy-url:` logo refs from 2A. Foundation + tests only — no DAM UI migration.
+**2D — First feature migration (Color System).** Wire ONE narrow, high-value slice end-to-end
+through the canonical stack: Brand Kit color edit → application op → canonical Brand → repository
+→ (reload) → same value, no legacy mirror resurrection. Verify other consumers don't regress;
+remove only the compat logic this exact slice makes unnecessary; add integration coverage.

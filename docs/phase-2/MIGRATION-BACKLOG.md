@@ -15,6 +15,9 @@ now — they are logged so nothing is lost. Each notes the phase that should own
 | B6 | `canonicalToRow` does not sync the legacy `logo_url` scalar column (canonical logos are asset refs, not URLs — needs the asset store to resolve a URL). Un-migrated readers of `logo_url` go stale after a canonical save. | `brandRow.ts` canonicalToRow | 2C (asset URL resolution) |
 | B7 | `rowToCanonical` does not validate the stored `identity` JSONB on read (writes validate via `assertCanonicalBrand`; reads trust the DB). Harden with read-time validation once external/SQL writers exist. | `brandRow.ts` rowToCanonical | persistence hardening |
 | B8 | `SupabaseBrandRepository` is update-only (no create/upsert). New-brand creation still flows through the legacy path until a later slice migrates it. | `SupabaseBrandRepository.ts` save | later feature migration |
+| B9 | Migrate the scattered existing asset/logo classification call sites onto the single `classifyAsset` boundary. Known sites: `core/adapters/upload/LocalUploadService.ts`, `features/brandkit/components/AssetManagerModule.tsx`, `features/editor/adapter/*`, `features/onboarding-v4/utils/logoFamily.ts` (+ brand-vision AI suggestions feed `suggestedKind`). New paths already use `classifyAsset`. | (multiple) | asset-feature migration |
+| B10 | Resolve the `legacy-url:` logo refs into real Asset records for existing brands (a data migration using `mintAssetFromLegacyLogoRef`), and populate `LogoRef.assetId`/`FontToken.fontAssetId` accordingly. | brand data migration | asset-feature migration |
+| B11 | `mintAssetFromUrl` defaults `metadata.createdAt` to `''` when not supplied; callers should pass a real ISO timestamp (kept pure/deterministic for the domain). | `assetRelations.ts` | asset-feature migration |
 
 ## Unrelated / pre-existing (leave alone)
 
