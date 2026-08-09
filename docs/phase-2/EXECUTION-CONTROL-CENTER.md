@@ -6,13 +6,21 @@ _Quick status page. Updated after every stage. Detailed docs live in
 
 ## Current Position
 
+> **Status vocabulary (corrected 2026-08-10):**
+> **FOUNDATION COMPLETE** = contracts/impl/tests exist but **no production path consumes them**.
+> **MIGRATION COMPLETE** = a real product path uses the new architecture AND its legacy path is
+> no longer authoritative. "Complete" is never used loosely. A prior report over-claimed Stage 2D
+> as complete — corrected below.
+
 - [x] Phase 0 — Audit
 - [x] Phase 1 — Target Architecture + Owner Decisions
 - [~] Stage 1 — Safety (7/8 gates PASS; **S1 = deploy 011/012 to prod BLOCKED on owner access**)
-- [x] Stage 2A — Canonical Brand foundation
-- [x] Stage 2B — Canonical Brand persistence / repository (schema 013 deploy-pending)
-- [x] Stage 2C — Asset / Logo / Font foundation
-- [x] Stage 2D — First feature migration (Color System — proven end-to-end; live-UI cutover deploy-gated)
+- [x] Stage 2A — Canonical Brand identity — **FOUNDATION COMPLETE** (no live consumer)
+- [x] Stage 2B — Canonical Brand persistence/repository — **FOUNDATION COMPLETE** (not wired into DI/app; schema 013 deploy-pending)
+- [x] Stage 2C — Asset / Logo / Font — **FOUNDATION COMPLETE** (no live consumer)
+- [~] Stage 2D — Color System migration — **IN PROGRESS (real cutover).** The earlier "complete"
+      was wrong: it was foundation + an isolated unit-test proof; the live app still ran entirely
+      on the legacy path. Real cutover of the actual Color UI is now underway.
 
 ## Current Architecture (as-is)
 
