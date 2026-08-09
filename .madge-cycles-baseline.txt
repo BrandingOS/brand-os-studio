@@ -1,0 +1,10 @@
+1) features/ai/v5/BrandAssistantProvider.tsx > features/ai/v5/BrandAssistantDrawer.tsx
+2) features/brand-kit/components/BrandKitCardEditor.tsx > features/brand-kit/components/BrandKitSidebar.tsx > features/brand-kit/components/sections.tsx
+3) features/brand-kit/components/BrandKitSidebar.tsx > features/brand-kit/components/sections.tsx
+4) features/brand-kit/components/BrandKitSidebar.tsx > features/brand-kit/components/sections.tsx > features/brand-kit/data/legacy-mapping.ts
+5) features/onboarding-v4/utils/assetUpload.ts > features/onboarding-v4/services/brandVision.ts
+6) shared/brand-settings/BrandSettingsDialog.tsx > shared/brand-settings/BrandSettingsProvider.tsx
+7) shared/editor/EditorWorkspace.tsx > shared/editor/ExportModal.tsx
+8) shared/editor/EditorWorkspace.tsx > shared/editor/SlideNav.tsx
+9) shared/presentation/templates.tsx > shared/presentation/slides/BrandUiUxSlides.tsx
+10) shared/services/export/types.ts

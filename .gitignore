@@ -52,3 +52,4 @@ remotion/out
 
 # Vitest browser test failure screenshots
 **/__screenshots__/
+supabase/.temp/

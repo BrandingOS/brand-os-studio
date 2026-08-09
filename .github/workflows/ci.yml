@@ -30,8 +30,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Type check
-        run: npx tsc --noEmit
+      # Real application type-check via the ratchet: checks all of src/ (tsconfig.app.json)
+      # and fails only on NEW type errors, tolerating the frozen baseline debt
+      # (.typecheck-baseline.txt). Replaces the previous no-op `npx tsc --noEmit`
+      # (solution tsconfig with files:[] checked zero files). See docs/phase-2/stage-1.
+      - name: Type check (ratchet — no new errors)
+        run: npm run typecheck:ci
 
       - name: Build
         run: npm run build
