@@ -12,7 +12,7 @@ _Quick status page. Updated after every stage. Detailed docs live in
 - [x] Stage 2A — Canonical Brand foundation
 - [x] Stage 2B — Canonical Brand persistence / repository (schema 013 deploy-pending)
 - [x] Stage 2C — Asset / Logo / Font foundation
-- [ ] Stage 2D — First feature migration (candidate: Color System in Brand Kit)
+- [x] Stage 2D — First feature migration (Color System — proven end-to-end; live-UI cutover deploy-gated)
 
 ## Current Architecture (as-is)
 
@@ -80,14 +80,16 @@ flowchart TD
   baseline unchanged.
 
 - **Stage 2C:** `src/domain/asset/` — canonical `Asset` (adds owner + lifecycle to the v3
-  BrandAsset shape); ONE `classifyAsset` boundary (manual > file-type > AI/context hint >
-  default) so "is this a logo?" is decided in one place; `LogoRef→Asset` / `FontToken→Asset`
-  resolvers; `legacy-url:` ref minting. 13 tests. Existing classification sites recorded for
-  later migration (backlog B9–B11). Zero regressions.
+  BrandAsset shape); ONE `classifyAsset` boundary; `LogoRef→Asset` / `FontToken→Asset` resolvers;
+  `legacy-url:` ref minting. 13 tests. Existing classification sites → backlog B9–B11.
+- **Stage 2D:** `src/application/brand/changeBrandColor.ts` — the canonical Color-System command,
+  proven end-to-end (intent → use-case → canonical → repository → reload → same value; second
+  consumer reads canonical; stale mirror cannot resurrect). 6 tests. Live-UI cutover + legacy
+  removal deferred (deploy-gated on migration 013). Zero regressions.
 
-## Next Stage
+## Next Stage (NOT started this run)
 
-**2D — First feature migration (Color System).** Wire ONE narrow, high-value slice end-to-end
-through the canonical stack: Brand Kit color edit → application op → canonical Brand → repository
-→ (reload) → same value, no legacy mirror resurrection. Verify other consumers don't regress;
-remove only the compat logic this exact slice makes unnecessary; add integration coverage.
+Autonomous window ends at 2D. Next is the **live cutover of the Color slice** once migration 013 is
+deployed (register a `BrandRepository` in DI; point Brand Kit color save at `changeBrandColor`;
+remove the legacy color write path), then subsequent identity subsystems (logo, typography) and the
+asset-feature migration (backlog B9–B11). None of these are begun here.
