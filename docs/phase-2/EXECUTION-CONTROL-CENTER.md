@@ -75,7 +75,7 @@ one-way projections.
 | **Typography** (families + uploaded files) | **CANONICAL — authority flipped.** `changeBrandTypography` (families + files); writers TypographyTab/Setup/Brand Board/Typescale canonical. (Numeric weights still have no editor — net-new.) |
 | **Voice** (tone) | **CANONICAL — authority flipped** for the editable field (tone). Rich voice (do/don't/examples) persists in the blob but has **no editor** (net-new). |
 | **Strategy** (mission/vision/values/positioning/about) | **CANONICAL — authority flipped.** `changeBrandStrategy`; StrategyTab + Setup both canonical; `guidelines.strategy` is a hydrated projection. |
-| **Logo** | **PARTIAL — the one remaining vertical.** Refs (`logoSystem`) persist via the blob; the ONE staging authority (`stageLogoAssignment`) now used by Brand Board too. **BLOCKER:** durable **Asset RECORDS** (`brandAssets[]`) have no DB column — ids are re-derived from URL hashes on read, so "assetId is the durable ref" is not yet true. Closing it needs a `brand_assets` column (new migration, owner-deploy) or an AssetRepository over the existing `assets` table. Logos are NOT flipped, so they read from their always-current legacy home — safe. |
+| **Logo** | **CANONICAL — durable (code-complete; authed on 014 deploy).** All current writers (Brand Board LogosPanel, Logo Maker, asset uploads, **Setup**) stage through the ONE authority `stageLogoAssignment` → proper `LogoRef{assetId}` + `brandAssets` records. Durable persistence via **migration 014** (`brand_assets`+`logo_system` columns); `migrateBrandToCurrent` prefers persisted refs/records over URL-hash re-derivation, so ids are minted once and survive reload. Guest live now; authed activates on 014 deploy (code is pre-014-tolerant). |
 | **Canonical persistence** | Facade repository (`BRAND_REPOSITORY`) over the service layer, identity-column-backed (`brands.identity`, 013 DEPLOYED). Guest round-trips via localStorage. |
 
 ### Authority metrics — BEFORE → AFTER (the flip)
@@ -145,9 +145,9 @@ flowchart TD
 > Stage 2A builds the canonical column; it is **not yet wired** into read/write paths
 > (that's 2B/2D). Legacy remains the live source of truth until then.
 
-## BRAND SYSTEM: PARTIAL — one blocker (Logo durable Asset records)
+## BRAND SYSTEM: CODE-COMPLETE — one runtime gate left (deploy migration 014)
 
-Completion standard (2026-08-09, post-flip):
+Completion standard (2026-08-09, post-flip + logo vertical):
 
 | ✔ | Criterion |
 |---|---|
@@ -155,26 +155,29 @@ Completion standard (2026-08-09, post-flip):
 | ✅ | Typography canonical (families + uploaded files) |
 | ✅ | Strategy canonical (flipped) |
 | ✅ | Voice canonical for all editable fields (tone; rich voice = net-new, no editor) |
-| ❌ | **Logo canonical** — refs persist via the blob, but durable Asset RECORDS don't |
-| ✅ | Setup current identity writes canonical |
-| ✅ | Brand Kit current identity writes canonical (N/A — Brand Kit is read-only/toast-only, no identity writes) |
+| ✅* | **Logo canonical** — all current writers stage via `stageLogoAssignment` (proper `LogoRef{assetId}` + `brandAssets`); durable via 014 columns (*authed activates on 014 deploy; guest live now*) |
+| ✅ | Setup current identity writes canonical (incl. logos now) |
+| ✅ | Brand Kit current identity writes canonical (N/A — read-only/toast-only) |
 | ✅ | Authenticated identity server-backed (`brands.identity`, 013 deployed) |
 | ✅ | Canonical persisted identity wins after migration (the flip) |
 | ✅ | Legacy fields cannot overwrite canonical data (hydration on read) |
 | ✅ | Guidelines is not identity persistence (hydrated projection) |
-| ❌ | **Asset refs for Logo are durable** — ids re-derived from URL hashes on read |
-| ✅ | No competing current-product Brand write authority (color/typo/voice/strategy = 1 each; logo = 1 staging authority) |
+| ✅* | **Asset refs for Logo are durable** — `logoSystem`+`brandAssets` persist (014 columns / localStorage); ids minted once, preferred over URL-hash re-derivation (*authed on 014 deploy*) |
+| ✅ | No competing current-product Brand write authority (color/typo/voice/strategy = 1 each; logo = 1 staging authority, incl. Setup) |
 | ✅ | Adversarial review clean (one StrategyTab revert risk found + fixed + re-verified) |
 | ✅ | Tests / build / type gates green |
 
-**Verdict: PARTIAL.** 13/15 met. The two open items are BOTH the Logo subsystem, blocked on the same
-thing: **durable Asset records have no persistence home**. `brands` has no `brand_assets` column, so
-`brandAssets[]` is re-derived from URL hashes on every read — meaning "assetId is the durable ref" is
-not yet true. Closing it needs EITHER a new additive `brands.brand_assets` JSONB column (a migration
-014, owner-deployed like 013) OR an `AssetRepository` over the existing `public.assets` table. Both are
-a focused vertical of their own; not startable safely in-session without the migration deploy. Logos
-are deliberately NOT flipped, so they read from their always-current legacy home — nothing is at risk
-today.
+**Verdict: CODE-COMPLETE; production-PARTIAL pending one owner deploy.** Every subsystem — color,
+typography, voice, strategy, AND logo — is canonical in code and tested. The two logo rows are `✅*`:
+the code is complete, tested, and **guest is fully live**; **authed** durable logo records activate the
+moment **migration 014** (`brands.brand_assets` + `brands.logo_system`, additive) is deployed — the same
+1-command owner step as 013 (`supabase db push --linked`). The app is **tolerant of the pre-014 state**
+(`SupabaseBrandsService.update` retries without the columns on `42703`, falling back to legacy URL
+derivation — no breakage, no regression), so the code is safe to ship before the deploy.
+
+The old blocker ("durable Asset records need a whole vertical built") is CLOSED — durable Asset
+persistence for logos is built via migration 014 + service wiring; the only remaining step is deploying
+014. Runbook: `docs/phase-2/DEPLOY-014-runbook.md`.
 
 ## Other open items
 

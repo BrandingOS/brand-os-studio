@@ -1,5 +1,6 @@
 import type { Brand, BrandLogoAssets } from '@/shared/types/brand';
-import type { TypographySystem } from '@/shared/types/brandAssets';
+import type { TypographySystem, LogoRole } from '@/shared/types/brandAssets';
+import { stageLogoAssignment } from '@/shared/assets/assetOperations';
 import type { BrandLogo, MockBrand } from './mockBrand';
 
 /**
@@ -374,5 +375,43 @@ function buildLogoPatch(
 
   const out: Partial<Brand> = { logoAssets: merged };
   if (merged.full) out.logo = merged.full;
+  // Also stage canonical refs + durable Asset records so Setup shares the ONE
+  // logo authority. Without this, Setup's URL-only write would be reverted by the
+  // persisted logoSystem/brandAssets (migration 014) that stageLogoAssignment
+  // consumers wrote. stageAsset dedups by URL hash, so unchanged slots are no-ops.
+  const staged = stageLogosFromDict(existing, merged);
+  if (staged.logoSystem) out.logoSystem = staged.logoSystem;
+  if (staged.brandAssets) out.brandAssets = staged.brandAssets;
   return out;
+}
+
+/** Map a legacy logo-URL dict to canonical LogoSystem refs + BrandAsset records
+ *  via the shared `stageLogoAssignment` boundary, accumulating across slots. */
+function stageLogosFromDict(
+  brand: Brand,
+  dict: BrandLogoAssets,
+): { logoSystem?: Brand['logoSystem']; brandAssets?: Brand['brandAssets'] } {
+  const slotRoles: Array<[keyof BrandLogoAssets, LogoRole]> = [
+    ['full', 'primary'],
+    ['icon', 'iconmark'],
+    ['wordmark', 'wordmark'],
+    ['alternate', 'secondary'],
+    ['dark', 'mono.black'],
+    ['light', 'mono.white'],
+  ];
+  let working = brand;
+  let staged = false;
+  for (const [slot, role] of slotRoles) {
+    const url = dict[slot];
+    if (!url) continue;
+    const { patch } = stageLogoAssignment(working, {
+      role,
+      url,
+      kind: 'logo',
+      name: `${brand.name} ${role}`,
+    });
+    working = { ...working, ...patch };
+    staged = true;
+  }
+  return staged ? { logoSystem: working.logoSystem, brandAssets: working.brandAssets } : {};
 }

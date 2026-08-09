@@ -128,6 +128,11 @@ export class SupabaseBrandsService implements IBrandsService {
     if (patch.name !== undefined) updateData.name = patch.name;
     if (patch.logo !== undefined) updateData.logo_url = patch.logo;
     if (patch.logoAssets !== undefined) updateData.logo_assets = patch.logoAssets;
+    // Durable logo Asset records + refs (migration 014). Persist the assetId-based
+    // logoSystem + brandAssets so ids are minted once (by stageLogoAssignment) and
+    // never re-derived from URL hashes on read.
+    if (patch.logoSystem !== undefined) updateData.logo_system = patch.logoSystem;
+    if (patch.brandAssets !== undefined) updateData.brand_assets = patch.brandAssets;
     if (patch.primaryColor !== undefined) updateData.primary_color = patch.primaryColor;
     if (patch.secondaryColor !== undefined) updateData.secondary_color = patch.secondaryColor;
     if (patch.fonts !== undefined) updateData.fonts = patch.fonts;
@@ -151,7 +156,21 @@ export class SupabaseBrandsService implements IBrandsService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Pre-014 tolerance: the durable logo columns (`logo_system`/`brand_assets`)
+      // may not exist yet in this environment. Rather than fail the whole save,
+      // retry without them — logos fall back to the legacy URL derivation (no
+      // regression). Once migration 014 is deployed the first branch persists them.
+      const missingCol =
+        error.code === '42703' || /column .* does not exist/i.test(error.message ?? '');
+      if (missingCol && ('logo_system' in updateData || 'brand_assets' in updateData)) {
+        const { logo_system, brand_assets, ...safe } = updateData;
+        const retry = await supabase.from('brands').update(safe).eq('id', id).select().single();
+        if (retry.error) throw retry.error;
+        return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
+      }
+      throw error;
+    }
     // Migrated like getBySlug — the store caches this as `current`.
     return migrateBrandToCurrent(this.mapFromDatabase(data));
   }
@@ -175,6 +194,10 @@ export class SupabaseBrandsService implements IBrandsService {
       name: data.name,
       logo: data.logo_url,
       logoAssets: data.logo_assets || undefined,
+      // Durable logo refs + records (migration 014). Preferred over URL-hash
+      // re-derivation by migrateBrandToCurrent (`cleanBrand.logoSystem ?? …`).
+      logoSystem: data.logo_system || undefined,
+      brandAssets: data.brand_assets || undefined,
       primaryColor: data.primary_color,
       secondaryColor: data.secondary_color,
       fonts: data.fonts || { primary: 'Inter' },
