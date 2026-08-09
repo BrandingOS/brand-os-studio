@@ -86,37 +86,38 @@ export function bootServices(): void {
 }
 
 /**
- * Reconfigure services when auth state changes.
- * Called from useAuth when user logs in/out.
+ * Reconfigure services when auth state changes (called from useAuth on login/out).
  *
- * - Authenticated: swap to Supabase-backed services
- * - Unauthenticated: revert to localStorage services
+ * The model is deliberately simple + explicit: ALWAYS re-establish the full set of
+ * local defaults (`bootServices()`), then — only when authenticated — OVERRIDE the
+ * subset of services that have a server-backed implementation. This removes the old
+ * duplicated registration list, guarantees every service (incl. FORMAT_PRESETS /
+ * BRAND_MEMORY) is registered in both modes, and makes the guest→authed delta a
+ * single readable block. Everything NOT in that block (brand consistency, mockup +
+ * content templates, format presets, brand memory) is intentionally local in both
+ * modes until it gets its own server backing.
  */
 export function reconfigureForAuth(isAuthenticated: boolean): void {
-  // Clear singleton caches so next get() creates a fresh instance
+  // reset() clears cached singleton instances (not registrations); re-running
+  // bootServices() re-registers every local default fresh.
   container.reset();
+  bootServices();
 
-  if (isAuthenticated) {
-    container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
-    container.register(
-      SERVICE_KEYS.BRAND_REPOSITORY,
-      () => new BrandServiceRepository(container.get<IBrandsService>(SERVICE_KEYS.BRANDS)),
-    );
-    container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
-    container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
-    container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
-    container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
-    container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
-    container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
-    // Designs are now SERVER-BACKED for authenticated users (migration 015).
-    // SupabaseDesignStorage is tolerant of a pre-015 environment (falls back to
-    // localStorage until the table exists), so this is safe to ship before deploy.
-    container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new SupabaseDesignStorage());
-    container.register(SERVICE_KEYS.BRAND_CONSISTENCY, () => new LocalBrandConsistencyService());
-    container.register(SERVICE_KEYS.MOCKUP_TEMPLATES, () => new LocalMockupTemplatesService());
-    container.register(SERVICE_KEYS.TEMPLATES, () => new LocalTemplatesService());
-  } else {
-    // Revert to local implementations for guest mode
-    bootServices();
-  }
+  if (!isAuthenticated) return; // guest mode uses the local defaults as-is.
+
+  // ── Services that become SERVER-BACKED when authenticated ──
+  container.register(SERVICE_KEYS.BRANDS, () => new SupabaseBrandsService());
+  container.register(
+    SERVICE_KEYS.BRAND_REPOSITORY,
+    () => new BrandServiceRepository(container.get<IBrandsService>(SERVICE_KEYS.BRANDS)),
+  );
+  // Designs → server (migration 015; tolerant of a pre-015 env, falls back to local).
+  container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new SupabaseDesignStorage());
+  // Authed-only server services (no local guest equivalent — guest never gets these).
+  container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
+  container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
+  container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
+  container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
+  container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
+  container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
 }

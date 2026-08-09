@@ -188,6 +188,12 @@ flowchart TD
 - **Deleted the orphaned UPLOAD abstraction (B8):** `LocalUploadService` + `IUploadService` +
   `UploadServiceResult` + `SERVICE_KEYS.UPLOAD` (zero consumers — `useUpload` bypasses it, using
   `imageUpload` directly). Pure reduction.
+- **Simplified the auth/service lifecycle (B6):** `reconfigureForAuth` now `bootServices()` (full
+  local defaults) + overrides ONLY the server-backed subset — removing the duplicated registration
+  list and the redundant Local re-registrations, and guaranteeing every service (incl. FORMAT_PRESETS
+  / BRAND_MEMORY) is registered in both modes. Locked by `src/core/__tests__/boot.test.ts`. (Verified
+  the audit's "FORMAT_PRESETS/BRAND_MEMORY dropped after auth" was a false alarm — `container.reset()`
+  clears cached instances, not registrations — but the refactor makes it robust regardless.)
 
 ### Metrics — BEFORE → AFTER
 | Metric | Before | After |
