@@ -169,7 +169,7 @@ flowchart TD
 | **Designs / Documents** | `IDESIGN_STORAGE` → **now `SupabaseDesignStorage` → `designs` (015)** | **YES (was localStorage-only)** | **SERVER-CANONICAL (fixed this batch)** |
 | Logo binaries | `StorageService` → Storage bucket `brand-assets` | YES | SERVER-CANONICAL (binary) |
 | Brand-scoped Asset records | `brand.brandAssets` → `brands.brand_assets` (014) | YES | SERVER-CANONICAL |
-| DAM library asset metadata (`brand.assets[]`) | written but DROPPED by whitelist (`assets:[]`) | **NO** | **LOCAL-ONLY / LOST — deferred fix** |
+| DAM library asset metadata | **now `ASSETS` service → `public.assets` (authed) / localStorage (guest)** | **YES (was DROPPED)** | **SERVER-CANONICAL (fixed this batch)** |
 | Uploaded images (useAssetUpload) | compressed **dataURL in `brands.brand_assets` JSONB** | YES (but bloats row) | SERVER but dataURL-in-JSONB — debt |
 | Fonts (uploaded files) | base64 dataURL in `brands.identity` JSONB | YES (bloats row) | SERVER but dataURL-in-JSONB — debt |
 | Templates (user "save as template") | `LocalTemplatesService` + persist stores | **NO** | LOCAL-ONLY / DEFERRED (009 table deferred) |
@@ -194,32 +194,40 @@ flowchart TD
   / BRAND_MEMORY) is registered in both modes. Locked by `src/core/__tests__/boot.test.ts`. (Verified
   the audit's "FORMAT_PRESETS/BRAND_MEMORY dropped after auth" was a false alarm — `container.reset()`
   clears cached instances, not registrations — but the refactor makes it robust regardless.)
+- **DAM library → SERVER-CANONICAL (B2/B4), consuming the orphaned `public.assets` (B8):** the DAM
+  wrote `brand.assets`, which `SupabaseBrandsService` silently dropped — an authed user's uploaded
+  library was lost on reload. Now `DamPage` + the shared `AssetSourcePopover` picker read/write the
+  `ASSETS` service (`SupabaseAssetsService` → `public.assets` authed; new `LocalAssetsService` →
+  localStorage guest), registered in both modes. A one-time guest continuity migration seeds legacy
+  `brand.assets` into the service so nothing disappears. This wires the previously-DEAD
+  `SupabaseAssetsService`/`public.assets` and gives the clean boundary: **`brand_assets` = brand
+  IDENTITY (logos referenced by logoSystem); `public.assets` = brand LIBRARY (DAM uploads)** — one
+  authoritative store per scope. Editor-internal `AssetPicker` (frozen) still reads legacy
+  `brand.assets` (degrades gracefully; migrates with the editor batch).
 
 ### Metrics — BEFORE → AFTER
 | Metric | Before | After |
 |---|---|---|
-| Authed-durable data types persisting local-only | Designs, Templates, DAM metadata, decks, comments/approvals/notifications, brand-consistency (~7) | **6** (Designs fixed → server) |
-| Asset-record models | 4 (`BrandAsset`, DAM `Asset`, orphaned `public.assets`, unwired domain `Asset`) | 4 (unchanged; unification deferred — see below) |
-| Upload pipelines (app-level) | 4 + 2 primitives, incl. orphaned `LocalUploadService` | orphaned UPLOAD deleted; 4 app paths remain (consolidation deferred) |
-| localStorage/Supabase ambiguity for Designs | ambiguous (local even when authed) | **explicit** (guest local, authed server) |
+| Authed-durable data types persisting local-only | Designs, DAM metadata, Templates, decks, comments/approvals/notifications, brand-consistency (~7) | **5** (Designs + DAM library fixed → server) |
+| Asset stores authoritative | ambiguous: `BrandAsset` live, DAM `Asset` dropped-when-authed, `public.assets` orphaned, domain `Asset` unwired | **1 per scope**: `brand_assets`=identity, `public.assets`=library (both live + consumed); domain `Asset` still an unwired stub |
+| Upload pipelines (app-level) | 4 + 2 primitives, incl. orphaned `LocalUploadService` | orphaned UPLOAD deleted; DAM path now goes UI→storage→`ASSETS` record; `useAssetUpload` (logos) unchanged |
+| localStorage/Supabase ambiguity | Designs + DAM ambiguous (local even when authed) | **explicit** for both (guest local, authed server) |
 | Legacy services/files deleted | — | `LocalUploadService` + `IUploadService`/`UploadServiceResult`/`UPLOAD` key |
+| Orphaned infra now CONSUMED | `public.assets` + `SupabaseAssetsService` (dead-wired) | **live** (DAM library) |
 | DB migrations | — | **015 (`designs`)** prepared (deploy-pending, tolerant) |
 
 ### Deferred (with reason + condition) — the honest remainder
-- **DAM library → `public.assets`:** the normalized `public.assets` table + `SupabaseAssetsService`
-  exist (orphaned) and are the correct home for a growing library. Fixing the `brand.assets` data-loss
-  means migrating the READERS (`DamPage`, `AssetSourcePopover`, and the **frozen editor** `AssetPicker`/
-  `BrandPanel`) to the assets service — which crosses the frozen-editor boundary. **Lands with the
-  editor batch.** (KEPT, not deleted: `SupabaseAssetsService` is the target, not abandoned.)
-- **Upload consolidation:** two hooks (`useAssetUpload` vs `useUpload`) + dataURL-in-JSONB for authed
-  images/fonts. Consolidating to one server-backed path touches the same DAM/asset-model readers →
-  same frozen-editor boundary. Deferred with the DAM unification.
+- **`useAssetUpload` dataURL-in-JSONB (logos/images) + fonts:** `useAssetUpload` still writes compressed
+  dataURLs into `brands.brand_assets`, and font files land base64 in `brands.identity` — both bloat the
+  row. Moving them to the storage bucket touches the logo/identity upload path used by editor-adjacent
+  surfaces. **Editor batch** (with the `AssetPicker` migration off `brand.assets`).
+- **Editor-internal `AssetPicker`** still reads legacy `brand.assets` (degrades gracefully — empty for
+  authed as before). Migrate it to the `ASSETS` service with the editor batch.
 - **Templates → server:** migration 009 (templates) is deferred; user "save as template" is local-only.
   Deploy 009 + `SupabaseTemplatesService` when the templates feature is prioritized.
 - **Comments / approvals / notifications:** Supabase tables + services exist but the UI is v1
-  localStorage — these are DEFERRED features (per scope: "comments/approvals only if current"). Wire the
-  existing services when the collaboration feature is prioritized.
-- **Fonts:** base64 font files in `brands.identity` JSONB → should move to a storage bucket (row bloat).
+  localStorage — DEFERRED features (per scope: "comments/approvals only if current"). Wire the
+  existing services when collaboration is prioritized.
 
 ## BRAND SYSTEM: COMPLETE ✅ (migration 014 deployed 2026-08-09)
 

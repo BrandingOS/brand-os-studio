@@ -21,7 +21,7 @@
  *     }}
  *   />
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FolderOpen, Upload as UploadIcon } from 'lucide-react';
 import {
   Popover,
@@ -29,6 +29,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useBrandStore } from '@/shared/store/brandStore';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { IAssetsService } from '@/core/types/services';
 import type { Asset } from '@/shared/types/brand';
 
 export type AssetSource =
@@ -67,15 +69,36 @@ export function AssetSourcePopover({
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const currentBrand = useBrandStore((s) => s.current);
+  // Read the brand's library from the canonical ASSETS service (same store the
+  // DAM writes to: public.assets when authed, localStorage for guests) instead
+  // of `brand.assets`, which is dropped for authenticated users.
+  const assetsService = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
+  const [allAssets, setAllAssets] = useState<Asset[]>([]);
+  const brandId = currentBrand?.id;
+
+  useEffect(() => {
+    if (!open || !brandId) return; // fetch lazily, only when the picker opens
+    let cancelled = false;
+    assetsService
+      .listForBrand(brandId)
+      .then((a) => {
+        if (!cancelled) setAllAssets(a);
+      })
+      .catch(() => {
+        if (!cancelled) setAllAssets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, brandId, assetsService]);
 
   const assets = useMemo<Asset[]>(() => {
-    const all = currentBrand?.assets ?? [];
-    return all.filter((a) => {
+    return allAssets.filter((a) => {
       if (categories && !categories.includes(a.category)) return false;
       if (types && !types.includes(a.type)) return false;
       return true;
     });
-  }, [currentBrand, categories, types]);
+  }, [allAssets, categories, types]);
 
   const handleUpload = (files: FileList | null) => {
     if (!files || files.length === 0) return;

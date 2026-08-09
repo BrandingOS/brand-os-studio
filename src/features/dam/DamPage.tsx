@@ -19,6 +19,8 @@ import { AssetGrid } from './components/AssetGrid';
 import { AssetLightbox } from './components/AssetLightbox';
 import { storageService } from '@/shared/services/storage.supabase';
 import { activityService } from '@/shared/services/activityService';
+import { useService, SERVICE_KEYS } from '@/core';
+import type { IAssetsService } from '@/core/types/services';
 import { detectAssetType, detectCategory } from './utils';
 import type { Asset } from '@/shared/types/brand';
 import { toast } from 'sonner';
@@ -70,10 +72,6 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-function isSupabaseUrl(url: string): boolean {
-  return url.includes('supabase') && !url.startsWith('data:');
-}
-
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
@@ -88,7 +86,13 @@ function isFolderTab(v: string | null): v is FolderTab {
 export default function DamPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { current, loadBySlug, update } = useBrandStore();
+  const { current, loadBySlug } = useBrandStore();
+  // DAM library assets now persist through the ASSETS service (SupabaseAssetsService
+  // → public.assets when authed; LocalAssetsService → localStorage for guests).
+  // Previously written to brand.assets, which SupabaseBrandsService silently dropped
+  // — so an authenticated user's uploaded library was lost on reload.
+  const assetsService = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
+  const [assets, setAssets] = React.useState<Asset[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category');
   const category: AssetCategory = isAssetCategory(categoryParam) ? categoryParam : 'all';
@@ -158,7 +162,52 @@ export default function DamPage() {
 
   useBrandPageConfig({ brandName: current?.name, maxWidth: '7xl', innerNav });
 
-  const assets = current?.assets ?? [];
+  const brandId = current?.id;
+  const legacyAssets = current?.assets;
+  const refresh = React.useCallback(async () => {
+    if (!brandId) return;
+    try {
+      setAssets(await assetsService.listForBrand(brandId));
+    } catch {
+      setAssets([]);
+    }
+  }, [brandId, assetsService]);
+
+  // Load + one-time continuity migration: pre-Batch-B guest libraries lived in
+  // `brand.assets` (localStorage). If the ASSETS service is empty but the brand
+  // still carries legacy assets, seed them once so nothing disappears. (Authed
+  // brands carry `assets: []` — the migration is a no-op for them.)
+  useEffect(() => {
+    if (!brandId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        let list = await assetsService.listForBrand(brandId);
+        if (list.length === 0 && (legacyAssets?.length ?? 0) > 0) {
+          for (const a of legacyAssets!) {
+            await assetsService.create({
+              brandId,
+              name: a.name,
+              type: a.type,
+              category: a.category,
+              source: a.source,
+              url: a.url,
+              size: a.size,
+              tags: a.tags,
+              metadata: a.metadata,
+            });
+          }
+          list = await assetsService.listForBrand(brandId);
+        }
+        if (!cancelled) setAssets(list);
+      } catch {
+        if (!cancelled) setAssets([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [brandId, legacyAssets, assetsService]);
 
   const filtered = React.useMemo(() => {
     let arr = assets;
@@ -180,65 +229,62 @@ export default function DamPage() {
     });
   }, [assets, category, search]);
 
-  // Upload with Supabase storage (fallback to data URL)
+  // Upload → Supabase storage (fallback to data URL) → ASSETS service record.
   const handleUpload = async (files: File[]) => {
     if (!current) return;
     setUploading(true);
-    const newAssets: Asset[] = [];
+    const created: Asset[] = [];
 
     for (const file of files) {
       let url: string;
+      let storagePath: string | undefined;
       try {
-        const result = await storageService.uploadAsset(
-          current.id, file, `${crypto.randomUUID()}-${file.name}`,
-        );
+        const path = `${crypto.randomUUID()}-${file.name}`;
+        const result = await storageService.uploadAsset(current.id, file, path);
         url = result.url;
+        storagePath = path;
       } catch {
         url = await fileToDataUrl(file);
       }
 
       const dimensions = file.type.startsWith('image/') ? await getImageDimensions(url) : undefined;
 
-      newAssets.push({
-        id: crypto.randomUUID(),
-        name: file.name,
-        type: detectAssetType(file),
-        category: detectCategory(file.name, file.type),
-        source: 'upload',
-        url,
-        size: file.size,
-        tags: [],
-        metadata: { originalName: file.name, format: file.type, dimensions },
-        createdAt: new Date(),
-      });
+      created.push(
+        await assetsService.create({
+          brandId: current.id,
+          name: file.name,
+          type: detectAssetType(file),
+          category: detectCategory(file.name, file.type),
+          source: 'upload',
+          url,
+          storagePath,
+          size: file.size,
+          tags: [],
+          metadata: { originalName: file.name, format: file.type, dimensions },
+        }),
+      );
     }
 
-    await update(current.id, { assets: [...assets, ...newAssets] });
+    await refresh();
     setUploading(false);
-    toast.success(`Uploaded ${newAssets.length} asset${newAssets.length === 1 ? '' : 's'}`);
+    toast.success(`Uploaded ${created.length} asset${created.length === 1 ? '' : 's'}`);
 
     activityService.log({
       brandId: current.id,
       brandName: current.name,
       eventType: 'asset_uploaded',
-      title: `Uploaded ${newAssets.length} asset${newAssets.length === 1 ? '' : 's'}`,
-      description: newAssets.map((a) => a.name).join(', '),
+      title: `Uploaded ${created.length} asset${created.length === 1 ? '' : 's'}`,
+      description: created.map((a) => a.name).join(', '),
     });
   };
 
   const handleDelete = async (assetId: string) => {
     if (!current) return;
     const asset = assets.find((a) => a.id === assetId);
-    const next = assets.filter((a) => a.id !== assetId);
-    await update(current.id, { assets: next });
-
-    // Clean up Supabase storage if applicable
-    if (asset?.url && isSupabaseUrl(asset.url)) {
-      try {
-        const pathMatch = asset.url.match(/brand-assets\/(.+)$/);
-        if (pathMatch) await storageService.deleteFile(pathMatch[1]);
-      } catch { /* best effort */ }
-    }
+    // The service cleans up its own Supabase storage (via stored storage_path);
+    // still best-effort-clean the legacy dataless case for local uploads.
+    await assetsService.delete(assetId);
+    setAssets((prev) => prev.filter((a) => a.id !== assetId));
 
     toast.success('Asset deleted');
     setActiveAsset(null);
@@ -252,36 +298,31 @@ export default function DamPage() {
   };
 
   const handleRename = async (assetId: string, name: string) => {
-    if (!current) return;
-    const next = assets.map((a) => (a.id === assetId ? { ...a, name } : a));
-    await update(current.id, { assets: next });
+    await assetsService.update(assetId, { name });
+    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, name } : a)));
   };
 
   const handleAddTag = async (assetId: string, tag: string) => {
-    if (!current || !tag.trim()) return;
-    const next = assets.map((a) =>
-      a.id === assetId ? { ...a, tags: Array.from(new Set([...(a.tags ?? []), tag.trim()])) } : a,
-    );
-    await update(current.id, { assets: next });
+    if (!tag.trim()) return;
+    const asset = assets.find((a) => a.id === assetId);
+    const tags = Array.from(new Set([...(asset?.tags ?? []), tag.trim()]));
+    await assetsService.update(assetId, { tags });
+    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
   };
 
   const handleRemoveTag = async (assetId: string, tag: string) => {
-    if (!current) return;
-    const next = assets.map((a) =>
-      a.id === assetId ? { ...a, tags: (a.tags ?? []).filter((t) => t !== tag) } : a,
-    );
-    await update(current.id, { assets: next });
+    const asset = assets.find((a) => a.id === assetId);
+    const tags = (asset?.tags ?? []).filter((t) => t !== tag);
+    await assetsService.update(assetId, { tags });
+    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
   };
 
   const handleCategoryChange = async (assetId: string, newCategory: string) => {
-    if (!current) return;
-    const next = assets.map((a) =>
-      a.id === assetId ? { ...a, category: newCategory as Asset['category'] } : a,
-    );
-    await update(current.id, { assets: next });
-    // Update the active asset if it's the one being changed
+    const category = newCategory as Asset['category'];
+    await assetsService.update(assetId, { category });
+    setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, category } : a)));
     if (activeAsset?.id === assetId) {
-      setActiveAsset({ ...activeAsset, category: newCategory as Asset['category'] });
+      setActiveAsset({ ...activeAsset, category });
     }
   };
 
@@ -306,8 +347,9 @@ export default function DamPage() {
   const handleBulkDelete = async () => {
     if (!current || selectedIds.size === 0) return;
     const count = selectedIds.size;
-    const next = assets.filter((a) => !selectedIds.has(a.id));
-    await update(current.id, { assets: next });
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map((id) => assetsService.delete(id)));
+    setAssets((prev) => prev.filter((a) => !selectedIds.has(a.id)));
     setSelectedIds(new Set());
     setSelectionMode(false);
     toast.success(`Deleted ${count} asset${count === 1 ? '' : 's'}`);

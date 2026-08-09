@@ -22,6 +22,7 @@ import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { SupabaseDesignStorage } from './adapters/storage/SupabaseDesignStorage';
 import { LocalBrandConsistencyService } from '@/features/brand-consistency/services/consistency.local';
 import { LocalMockupTemplatesService } from './adapters/database/LocalMockupTemplatesService';
+import { LocalAssetsService } from './adapters/database/LocalAssetsService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
 import { LocalFormatPresetsService } from './adapters/format-presets/LocalFormatPresetsService';
 import { LocalBrandMemoryService } from './adapters/brand-memory/LocalBrandMemoryService';
@@ -50,6 +51,12 @@ export function bootServices(): void {
   // ─── Design Storage ────────────────────────────────────────
   // Guest/dev → localStorage. reconfigureForAuth swaps to SupabaseDesignStorage.
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new LocalDesignStorage());
+
+  // ─── DAM Assets (library) ──────────────────────────────────
+  // Guest/dev → localStorage. reconfigureForAuth swaps to SupabaseAssetsService
+  // (→ public.assets). The DAM library is the ONE home for uploaded brand files;
+  // brand IDENTITY assets (logos referenced by logoSystem) stay in brand.brandAssets.
+  container.register(SERVICE_KEYS.ASSETS, () => new LocalAssetsService());
 
   // ─── Brand Consistency Service ─────────────────────────────
   // LocalStorage-backed for now; a Supabase impl can be slotted in
