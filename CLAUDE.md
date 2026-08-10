@@ -378,35 +378,36 @@ NOT the alternate (`features/brand-kit-alt/`).
 - **Presentations** — Pitch Deck · Business Plan · Proposal · Case Studies
 - **Animations** — Logo Reveal · Slide In · Fade · Rotate
 
-**Two card patterns (redesigned 2026-08-10 — generate/approve model):**
+**Two card patterns (canonical page — original showcase):**
 - Brand-asset cards (Logos/Colors/Fonts/Icons) render the full variant
   grid inline AND support an inline `+` add for colors/icons (session-
-  only, see below). Photos + About are placeholder grids. These are
-  CORE assets — always visible.
-- The 25 deliverables in the other six sections (stationery / social /
-  web / brand-guides / presentations / animations) are **lifecycle-
-  driven**: `not-created → generating → review → approved` (+ error /
-  archived). They start as quiet empty tiles ("Not created yet" +
-  Generate); nothing pretends to exist until the user approves it.
-  Domain layer: `features/brand-kit/kit/` — `registry.ts` (one
-  `DeliverableDef` per deliverable: templateType, aspect, content
-  fields, control groups, candidate rules; **adding a deliverable =
-  renderer + registry entry**), `generation.ts` (swappable
-  `KitGenerator`; deterministic featured-first + brand-seeded ranking
-  today, AI can replace it without UX change), `kitStore.ts` (zustand;
-  status DERIVED from items so persisted state can't go inconsistent),
-  `repository.ts` (`KitStateRepository` boundary — localStorage now,
-  backend later). UI: `DeliverableCard` (state-driven card),
-  `ReviewOverlay` (queue: approve / regenerate / browse-all / skip /
-  bulk-approve), `GenerateBar` (multi-select), `OwnedCollection`
-  (approved drilldown: primary star, set-primary / duplicate / export /
-  remove via right-click). Each deliverable holds an owned collection
-  of approved items; one is primary. Old "3 featured tiles + picker"
-  pattern is gone.
+  only, see below). Photos + About are placeholder grids.
+- Every other section uses **3 featured tiles + "More" picker modal**.
 - Right-click any card → "Edit" opens `BrandKitCardEditor.tsx` as a
-  full-page overlay with live preview + template overrides. The editor
-  is registry-driven (content fields / aspect / control groups come
-  from `kit/registry.ts`); kit items route Save to the kit store.
+  full-page overlay with live preview + template overrides. The
+  editor's per-type helpers (content fields / aspect / defaults) now
+  live in `kit/registry.ts` — behavior on this page is unchanged.
+
+**Redesigned kit — SEPARATE page `/b/:slug/brand-kit-next`
+(`BrandKitNextPage.tsx`, owner decision 2026-08-10):** a full
+generate/review/approve lifecycle experience was built, the owner
+disliked it on the canonical page but wants to keep iterating on it,
+so it lives on its own route (not in the top nav; direct URL only).
+The canonical `/b/:slug/brand-kit` was restored to the original
+showcase above. Do NOT re-merge the lifecycle UX into the canonical
+page without explicit owner direction. On brand-kit-next, the 25
+deliverables are lifecycle-driven (`not-created → generating → review
+→ approved` + error/archived): domain layer `features/brand-kit/kit/`
+— `registry.ts` (one `DeliverableDef` per deliverable; **adding a
+deliverable = renderer + registry entry**), `generation.ts` (swappable
+`KitGenerator`; deterministic featured-first + brand-seeded ranking,
+AI can replace it without UX change), `kitStore.ts` (zustand; status
+DERIVED from items), `repository.ts` (`KitStateRepository` —
+localStorage now, backend later). UI: `DeliverableCard`,
+`ReviewOverlay`, `GenerateBar`, `OwnedCollection`. Shared files
+(sections/sidebar/editor) are backward-compatible: kit behavior only
+activates via the optional `kit` prop / `target.kit` context, so the
+canonical page renders exactly as pre-redesign.
 
 **Data flow + persistence:**
 `effectiveBrand` = base brand + session overlays (`iconsOverride`,
@@ -458,7 +459,8 @@ edit-first hub with bulk export + PDF guides (Classic, legacy). New
 brand-kit feature work lands in the canonical fork; the alternate is
 bug-fix only.
 
-**Open active debt (revised 2026-08-10, post-redesign):**
+**Open active debt (revised 2026-08-10; items 5–7 apply to
+brand-kit-next only):**
 1. Session-only color/icon adds → store persistence (still open)
 2. ~~Card-editor `onSave`~~ — closed (cardCustomizations.ts)
 3. ~~Export placeholders~~ — closed (offscreen rasterization, see above)

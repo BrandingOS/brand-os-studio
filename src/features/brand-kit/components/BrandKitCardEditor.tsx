@@ -470,10 +470,12 @@ export function BrandKitCardEditor({
   // would corrupt them). Hide the rails that don't reach the
   // renderer, and skip the img swap.
   const isBrandAsset = templateType.startsWith('brand-asset-');
-  // Deliverables declare which control groups apply (a favicon has no
-  // typography rail; an animation has no content fields). Cards not in
-  // the registry keep every group — the pre-registry behavior.
-  const deliverableDef = getDeliverable(target.sectionKey, target.label);
+  // KIT ITEMS declare which control groups apply via the registry (a
+  // favicon has no typography rail). Non-kit edits — the original
+  // brand-kit page — keep every group, the pre-registry behavior.
+  const deliverableDef = target.kit
+    ? getDeliverable(target.sectionKey, target.label)
+    : undefined;
   const hasGroup = (g: ControlGroupId) =>
     !deliverableDef || deliverableDef.controlGroups.includes(g);
   const isIconAsset = templateType === 'brand-asset-icon';

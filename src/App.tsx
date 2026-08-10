@@ -33,6 +33,7 @@ const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create")
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
 const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
+const BrandBrandKitNextPage = lazy(() => import("./pages/b/[slug]/brand-kit-next"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
@@ -410,6 +411,11 @@ const App = () => (
           } />
           <Route path="/b/:slug/brand-kit" element={
             <ProtectedRoute><BrandBrandKitPageV2 /></ProtectedRoute>
+          } />
+          {/* Redesigned generate/review/approve kit — separate page
+              while it's iterated on (owner decision 2026-08-10). */}
+          <Route path="/b/:slug/brand-kit-next" element={
+            <ProtectedRoute><BrandBrandKitNextPage /></ProtectedRoute>
           } />
           <Route path="/b/:slug/guideline" element={
             <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>

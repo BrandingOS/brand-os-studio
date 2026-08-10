@@ -23,7 +23,7 @@ import {
   type KitSectionKey,
 } from './components/BrandKitSidebar';
 import { KitSection } from './components/KitSection';
-import { SectionGrid, sectionCardLabels } from './components/sections';
+import { SectionGrid, sectionCardLabels, coversFor } from './components/sections';
 import {
   BrandKitCardEditor,
   type EditorTarget,
@@ -63,105 +63,26 @@ import {
   paletteOf,
   slugifyName,
 } from './data/kitExport';
+import { useKitStore, statusOf, kitCounts } from './kit/kitStore';
+import { approvedItems, deriveStatus, primaryItem, type DeliverableKey } from './kit/types';
+import {
+  DELIVERABLES,
+  getDeliverable,
+  getDeliverableByKey,
+  isDeliverableCard,
+  type DeliverableDef,
+} from './kit/registry';
+import type { GenerationContext } from './kit/generation';
+import { renderKitPreview, templateForVariant } from './kit/preview';
+import { GenerateBar } from './components/GenerateBar';
+import { ReviewOverlay } from './components/ReviewOverlay';
+import { OwnedCollection } from './components/OwnedCollection';
 
-/** Curated 3-tile defaults for cards that have a designed picker
- *  pattern. Anything not listed here falls back to the first 3
- *  templates returned by `variantsForCard` (in template order). The
- *  user-facing UX: each drilldown shows three featured tiles, plus a
- *  "+" button that opens the picker modal to browse the full library
- *  and append more tiles for the session. */
-const DEFAULT_FEATURED_IDS_BY_LABEL: Record<string, string[]> = {
-  'Business Card': [
-    'business-cards-ext-3',   // Brute Force
-    'business-cards-ext-4',   // Frosted Layer
-    'business-cards-ext-113', // Wave 2 · 95
-  ],
-  Letterhead: [
-    'letterhead-ext-6',  // Bottom Block
-    'letterhead-ext-69', // Wave 2 · 39
-    'letterhead-ext-73', // Wave 2 · 43
-  ],
-  Envelope: [
-    'envelope-ext-30',  // Subtle Lux
-    'envelope-ext-3',   // Top Flap
-    'envelope-ext-127', // Wave 2 · 97
-  ],
-  Invoice: [
-    'invoices-ext-4', // Brute Force
-    'invoices-ext-3', // Editorial Header
-    'invoices-ext-8', // Receipt Roll
-  ],
-};
-
-/** Set of card labels that get the "3 featured + picker" pattern.
- *  Brand-asset cards (Logos / Colors / Fonts / Icons / Photos / About)
- *  are intentionally excluded — they're driven by real Setup data,
- *  not template variants. */
-const PICKER_LABELS: ReadonlySet<string> = new Set<string>([
-  // Stationery
-  'Business Card',
-  'Letterhead',
-  'Envelope',
-  'Invoice',
-  // Social
-  'Profile',
-  'Cover',
-  'Post',
-  'Story',
-  // Web
-  'Favicon',
-  'Website',
-  'Email Signature',
-  'Landing Page',
-  // Brand Guides
-  'Logo Guide',
-  'Color Guide',
-  'Typography Guide',
-  'Voice Guide',
-  'Imagery Guide',
-  // Presentations
-  'Pitch Deck',
-  'Business Plan',
-  'Proposal',
-  'Case Studies',
-  // Animations
-  'Logo Reveal',
-  'Slide In',
-  'Fade',
-  'Rotate',
-]);
-
-/** Per-label width-over-height ratio for the picker modal tiles.
- *  Falls back to 1.6 (the common business-card / landscape default).
- *  Keep this aligned with each card's natural orientation so the
- *  picker grid reads at a glance. */
-const PICKER_ASPECT_BY_LABEL: Record<string, number> = {
-  'Business Card': 1.6,
-  Letterhead: 1 / 1.414,
-  Envelope: 1.6,
-  Invoice: 1 / 1.414,
-  Profile: 1,
-  Cover: 1.6,
-  Post: 1,
-  Story: 9 / 16,
-  Favicon: 1,
-  Website: 1.6,
-  'Email Signature': 1.6,
-  'Landing Page': 1.6,
-  'Logo Guide': 1 / 1.414,
-  'Color Guide': 1 / 1.414,
-  'Typography Guide': 1 / 1.414,
-  'Voice Guide': 1 / 1.414,
-  'Imagery Guide': 1 / 1.414,
-  'Pitch Deck': 1.6,
-  'Business Plan': 1.6,
-  Proposal: 1.6,
-  'Case Studies': 1.6,
-  'Logo Reveal': 1,
-  'Slide In': 1,
-  Fade: 1,
-  Rotate: 1,
-};
+/** Export/tile aspect for a card — deliverables read the registry;
+ *  brand-asset cards fall back to the landscape default. */
+function aspectForCard(sectionKey: KitSectionKey, label: string): number {
+  return getDeliverable(sectionKey, label)?.aspect ?? 1.6;
+}
 // Rounded weight family from Flaticon UICONS — Regular drives the
 // picker grid + default class names; Thin/Bold/Solid let the editor
 // retint a single icon's weight without changing the underlying name.
@@ -182,7 +103,10 @@ const SECTION_LABELS: Record<KitSectionKey, string> = {
 };
 
 /**
- * BrandKitCosmosPage — single-scroll Brand Kit at /b/:slug/brand-kit.
+ * BrandKitNextPage — the redesigned generate/review/approve Brand Kit
+ * at /b/:slug/brand-kit-next. Forked from BrandKitCosmosPage on
+ * 2026-08-10: the owner wants the lifecycle experience iterated on a
+ * separate page while /b/:slug/brand-kit keeps the original showcase.
  *
  * Two views, same route:
  *   • Sections list (default) — every section with a small grid of cards.
@@ -211,7 +135,7 @@ const MAX_DELAY_MS = 500;
 /** ms-per-pixel speed for the radial wipe. */
 const WIPE_SPEED = 0.4;
 
-export function BrandKitCosmosPage({
+export function BrandKitNextPage({
   brand,
   sourceBrand,
 }: {
@@ -240,24 +164,38 @@ export function BrandKitCosmosPage({
   const customizationBrandId = sourceBrand?.id ?? brand.name;
   // Saved customization for the card being edited — re-read on every
   // open so a Save → reopen round-trip reflects the stored state.
-  const editorCustomization = useMemo(
-    () =>
-      editorTarget
-        ? loadCardCustomization(customizationBrandId, cardCustomizationKey(editorTarget))
-        : null,
-    [editorTarget, customizationBrandId],
-  );
+  // Kit items carry their customization on the item itself; everything
+  // else still round-trips through the legacy cardCustomizations store.
+  const editorCustomization = useMemo(() => {
+    if (!editorTarget) return null;
+    if (editorTarget.kit) {
+      const record = useKitStore.getState().deliverables[editorTarget.kit.key];
+      return (
+        record?.items.find((i) => i.id === editorTarget.kit!.itemId)?.customization ?? null
+      );
+    }
+    return loadCardCustomization(customizationBrandId, cardCustomizationKey(editorTarget));
+  }, [editorTarget, customizationBrandId]);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  // Which template-picker is open (by card label), or null when none.
-  // A single state replaces the per-label `*PickerOpen` flags.
-  const [pickerLabel, setPickerLabel] = useState<string | null>(null);
-  // Featured variant IDs per card label. Initialized from the curated
-  // defaults (Stationery only); other labels resolve at render time
-  // by taking the first 3 templates from the live drilldown target.
-  // Picker appends per-label; persists for the session only.
-  const [featuredIdsByLabel, setFeaturedIdsByLabel] = useState<
-    Record<string, string[]>
-  >({ ...DEFAULT_FEATURED_IDS_BY_LABEL });
+  // "+ Add design" picker for an APPROVED deliverable's owned
+  // collection — set to the deliverable key while open.
+  const [addDesignKey, setAddDesignKey] = useState<DeliverableKey | null>(null);
+
+  // ── Kit lifecycle (generate / review / approve) ──────────────────
+  const kitHydrate = useKitStore((s) => s.hydrate);
+  const kitGenerate = useKitStore((s) => s.generate);
+  const kitClearError = useKitStore((s) => s.clearError);
+  const kitAddApprovedItem = useKitStore((s) => s.addApprovedItem);
+  const kitUpdateItemCustomization = useKitStore((s) => s.updateItemCustomization);
+  const kitDeliverables = useKitStore((s) => s.deliverables);
+  const kitGeneratingKeys = useKitStore((s) => s.generatingKeys);
+
+  // Deliverables checked for bulk generation (not-created cards only).
+  const [selectedKeys, setSelectedKeys] = useState<ReadonlySet<DeliverableKey>>(
+    () => new Set(),
+  );
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewFocusKey, setReviewFocusKey] = useState<DeliverableKey | null>(null);
   // User-added icons override `brand.icons` for this session. Starts
   // null so we render the brand's seed set unchanged; the first add
   // (or removal) clones into a mutable list. Persistence back to the
@@ -317,6 +255,130 @@ export function BrandKitCosmosPage({
     }
     return next;
   }, [brand, iconsOverride, suggestedIcons, colorAddsOverride]);
+
+  // Hydrate the kit store for this brand (loads persisted state, or
+  // migrates pre-redesign card customizations into approved items).
+  useEffect(() => {
+    kitHydrate(customizationBrandId, effectiveBrand);
+  }, [kitHydrate, customizationBrandId, effectiveBrand]);
+
+  const generationCtx = useMemo<GenerationContext>(
+    () => ({ seed: customizationBrandId, brand: effectiveBrand }),
+    [customizationBrandId, effectiveBrand],
+  );
+
+  const notCreatedKeys = useMemo(
+    () =>
+      DELIVERABLES.filter(
+        (d) =>
+          deriveStatus(kitDeliverables[d.key], kitGeneratingKeys.includes(d.key)) ===
+          'not-created',
+      ).map((d) => d.key),
+    [kitDeliverables, kitGeneratingKeys],
+  );
+
+  const kitProgress = useMemo(
+    () => kitCounts({ deliverables: kitDeliverables, generatingKeys: kitGeneratingKeys }),
+    [kitDeliverables, kitGeneratingKeys],
+  );
+
+  const sectionProgress = useMemo(() => {
+    const out: Partial<Record<KitSectionKey, { approved: number; total: number }>> = {};
+    for (const def of DELIVERABLES) {
+      const entry = (out[def.sectionKey] ??= { approved: 0, total: 0 });
+      entry.total += 1;
+      if (
+        deriveStatus(kitDeliverables[def.key], kitGeneratingKeys.includes(def.key)) ===
+        'approved'
+      ) {
+        entry.approved += 1;
+      }
+    }
+    return out;
+  }, [kitDeliverables, kitGeneratingKeys]);
+
+  /** Kick off generation and surface the review overlay — the overlay
+   *  shows the per-deliverable generating state until candidates land. */
+  const handleGenerate = useCallback(
+    (keys: DeliverableKey[]) => {
+      const valid = keys.filter((k) => getDeliverableByKey(k));
+      if (valid.length === 0) return;
+      for (const key of valid) kitClearError(key);
+      void kitGenerate(valid, generationCtx);
+      setSelectedKeys(new Set());
+      setReviewFocusKey(valid[0]);
+      setReviewOpen(true);
+    },
+    [kitGenerate, kitClearError, generationCtx],
+  );
+
+  const handleToggleSelect = useCallback((key: DeliverableKey) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleOpenReview = useCallback((key: DeliverableKey) => {
+    setReviewFocusKey(key);
+    setReviewOpen(true);
+  }, []);
+
+  /** Open the card editor for one owned kit item. */
+  const openKitItemEditor = useCallback(
+    (def: DeliverableDef, itemId: string) => {
+      const record = useKitStore.getState().deliverables[def.key];
+      const item = record?.items.find((i) => i.id === itemId);
+      if (!item) return;
+      const opts = coversFor(def.sectionKey, def.label);
+      setEditorTarget({
+        sectionKey: def.sectionKey,
+        label: def.label,
+        cover: opts[0],
+        covers: opts,
+        templates: variantsForCard(def.sectionKey, def.label, effectiveBrand),
+        template: templateForVariant(def, effectiveBrand, item.variantId),
+        kit: { key: def.key, itemId },
+      });
+    },
+    [effectiveBrand],
+  );
+
+  /** Export one kit item as PNG — rendered offscreen with the item's
+   *  saved color/content customization applied. */
+  const handleDownloadKitItem = useCallback(
+    async (def: DeliverableDef, itemId: string) => {
+      const record = useKitStore.getState().deliverables[def.key];
+      const item = record?.items.find((i) => i.id === itemId);
+      const template = item
+        ? templateForVariant(def, effectiveBrand, item.variantId)
+        : undefined;
+      const preview =
+        item && renderKitPreview(def, template, item.customization, sourceBrand, effectiveBrand);
+      if (!item || !preview) {
+        toast(`Nothing to export for ${def.label} yet`);
+        return;
+      }
+      const id = toast.loading(`Exporting ${def.label}…`);
+      try {
+        const blob = await snapshotTemplatePng(preview, 260, def.aspect);
+        if (!blob) throw new Error('Rasterization produced no image');
+        triggerBlobDownload(
+          blob,
+          `${slugifyName(effectiveBrand.name)}-${slugifyName(def.label)}-${slugifyName(template?.name ?? item.variantId)}.png`,
+        );
+        toast.success(`${def.label} exported`, { id });
+      } catch (err) {
+        toast.error('Download failed', {
+          id,
+          description: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    },
+    [effectiveBrand, sourceBrand],
+  );
 
   const handleAddColor = useCallback(
     (group: 'core' | 'accent', hex: string) => {
@@ -458,17 +520,32 @@ export function BrandKitCosmosPage({
             return;
           }
           default: {
-            // Template deliverable — rasterize the first variant.
+            // Generatable deliverable — export the user's PRIMARY
+            // approved item (with its customization); nothing exists
+            // to export before the user has approved a design.
+            const def = getDeliverable(t.sectionKey, t.label);
+            if (def) {
+              const record = useKitStore.getState().deliverables[def.key];
+              const item = primaryItem(record);
+              if (!item) {
+                toast(`${t.label} isn't created yet`, {
+                  description: 'Generate and approve a design first.',
+                });
+                return;
+              }
+              await handleDownloadKitItem(def, item.id);
+              return;
+            }
+            // Non-deliverable template card (legacy path).
             const tpl = t.template ?? t.templates?.[0];
             if (!tpl || !sourceBrand) {
               toast(`Nothing to export for ${t.label} yet`);
               return;
             }
-            const aspect = PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6;
             const blob = await snapshotTemplatePng(
               renderTemplateDesign(tpl, sourceBrand, b),
               260,
-              aspect,
+              aspectForCard(t.sectionKey, t.label),
             );
             if (!blob) throw new Error('Rasterization produced no image');
             triggerBlobDownload(
@@ -484,12 +561,14 @@ export function BrandKitCosmosPage({
         });
       }
     },
-    [effectiveBrand, sourceBrand],
+    [effectiveBrand, sourceBrand, handleDownloadKitItem],
   );
 
   // Section-level download (the small icon in each section header).
-  // Brand Assets → the full kit bundle; template sections → a zip with
-  // one rasterized PNG per card (its first variant).
+  // Brand Assets → the full kit bundle; deliverable sections → a zip
+  // with one rasterized PNG per APPROVED deliverable (its primary
+  // item, customization applied). Un-created deliverables have
+  // nothing to export — by design.
   const handleDownloadSection = useCallback(
     async (sectionKey: KitSectionKey, sectionName: string) => {
       const b = effectiveBrand;
@@ -508,22 +587,26 @@ export function BrandKitCosmosPage({
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         let added = 0;
+        const deliverableState = useKitStore.getState().deliverables;
         for (const label of sectionCardLabels(sectionKey)) {
-          const tpl = variantsForCard(sectionKey, label, b)[0];
-          if (!tpl) continue;
-          const aspect = PICKER_ASPECT_BY_LABEL[label] ?? 1.6;
-          const blob = await snapshotTemplatePng(
-            renderTemplateDesign(tpl, sourceBrand, b),
-            260,
-            aspect,
-          );
+          const def = getDeliverable(sectionKey, label);
+          if (!def) continue;
+          const item = primaryItem(deliverableState[def.key]);
+          if (!item) continue;
+          const template = templateForVariant(def, b, item.variantId);
+          const preview = renderKitPreview(def, template, item.customization, sourceBrand, b);
+          if (!preview) continue;
+          const blob = await snapshotTemplatePng(preview, 260, def.aspect);
           if (blob) {
             zip.file(`${slugifyName(label)}.png`, blob);
             added += 1;
           }
         }
         if (added === 0) {
-          toast.error(`Nothing to export for ${sectionName} yet`, { id });
+          toast.error(`Nothing approved in ${sectionName} yet`, {
+            id,
+            description: 'Generate and approve designs first — the kit exports what you created.',
+          });
           return;
         }
         triggerBlobDownload(
@@ -541,17 +624,47 @@ export function BrandKitCosmosPage({
     [effectiveBrand, sourceBrand],
   );
 
-  // Top-right "Export kit" (KIT-02) — previously a dead button.
+  // Top-right "Export kit" (KIT-02) — previously a dead button. Now
+  // also bundles a `deliverables/` folder with a PNG of every APPROVED
+  // deliverable's primary item, so the zip is the user's kit — not a
+  // dump of never-reviewed templates.
   const [exportingKit, setExportingKit] = useState(false);
   const handleExportKit = useCallback(async () => {
     if (exportingKit) return;
     setExportingKit(true);
     const id = toast.loading('Bundling your brand kit…');
     try {
-      await downloadKitZip(effectiveBrand);
+      const extraFiles: Array<{ path: string; blob: Blob }> = [];
+      if (sourceBrand) {
+        const deliverableState = useKitStore.getState().deliverables;
+        for (const def of DELIVERABLES) {
+          const item = primaryItem(deliverableState[def.key]);
+          if (!item) continue;
+          const template = templateForVariant(def, effectiveBrand, item.variantId);
+          const preview = renderKitPreview(
+            def,
+            template,
+            item.customization,
+            sourceBrand,
+            effectiveBrand,
+          );
+          if (!preview) continue;
+          const blob = await snapshotTemplatePng(preview, 260, def.aspect);
+          if (blob) {
+            extraFiles.push({
+              path: `deliverables/${slugifyName(def.label)}.png`,
+              blob,
+            });
+          }
+        }
+      }
+      await downloadKitZip(effectiveBrand, { extraFiles });
       toast.success('Brand kit exported', {
         id,
-        description: 'Colors, fonts, logos, about and brand.json in one zip.',
+        description:
+          extraFiles.length > 0
+            ? `Colors, fonts, logos, about and ${extraFiles.length} approved deliverable${extraFiles.length === 1 ? '' : 's'} in one zip.`
+            : 'Colors, fonts, logos, about and brand.json in one zip.',
       });
     } catch (err) {
       toast.error('Export failed', {
@@ -561,7 +674,7 @@ export function BrandKitCosmosPage({
     } finally {
       setExportingKit(false);
     }
-  }, [effectiveBrand, exportingKit]);
+  }, [effectiveBrand, sourceBrand, exportingKit]);
 
   // Apply a single rounded weight to every icon in the kit. Re-prefixes
   // each class name (camera → fi-{weight}-camera) and writes back into
@@ -743,11 +856,12 @@ export function BrandKitCosmosPage({
     return () => window.removeEventListener('popstate', onPop);
   }, [view, editorTarget, exitDrilldown]);
 
-  const completion = useMemo(() => {
-    const identity = brand.logos.length > 0 && brand.colors.core.length > 0;
-    const completed = identity ? KIT_SECTIONS.length : 0;
-    return { completed, total: KIT_SECTIONS.length };
-  }, [brand]);
+  // Real completion: how many deliverables the user has actually
+  // created (approved), out of every generatable deliverable.
+  const completion = useMemo(
+    () => ({ completed: kitProgress.approved, total: kitProgress.total }),
+    [kitProgress],
+  );
 
   // Scroll-spy: only meaningful in the sections-list view, since
   // drilldown is a single section. Re-attach when leaving drilldown.
@@ -827,15 +941,39 @@ export function BrandKitCosmosPage({
   return (
     <WorkspaceShell
       rightActions={
-        <button
-          type="button"
-          className="pill-btn pill-btn--primary"
-          onClick={handleExportKit}
-          disabled={exportingKit}
-        >
-          <span>{exportingKit ? 'Exporting…' : 'Export kit'}</span>
-          <ArrowRight size={14} className="pill-btn-arrow" />
-        </button>
+        <>
+          {kitProgress.review > 0 && (
+            <button
+              type="button"
+              className="pill-btn"
+              onClick={() => {
+                setReviewFocusKey(null);
+                setReviewOpen(true);
+              }}
+            >
+              <span>Review ({kitProgress.review})</span>
+            </button>
+          )}
+          {notCreatedKeys.length > 0 && (
+            <button
+              type="button"
+              className="pill-btn"
+              onClick={() => handleGenerate(notCreatedKeys)}
+              title="Generate every deliverable that isn't created yet"
+            >
+              <span>Generate kit</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="pill-btn pill-btn--primary"
+            onClick={handleExportKit}
+            disabled={exportingKit}
+          >
+            <span>{exportingKit ? 'Exporting…' : 'Export kit'}</span>
+            <ArrowRight size={14} className="pill-btn-arrow" />
+          </button>
+        </>
       }
     >
       <div className="shell">
@@ -844,6 +982,7 @@ export function BrandKitCosmosPage({
           activeKey={activeKey}
           completed={completion.completed}
           total={completion.total}
+          sectionProgress={sectionProgress}
           onJump={handleJump}
         />
         <div className="board-wrap bk-cosmos-board">
@@ -865,6 +1004,26 @@ export function BrandKitCosmosPage({
                     onPickCard={handlePickCard}
                     onEditCard={(t) => setEditorTarget(t)}
                     onDownloadCard={handleDownloadCard}
+                    kit={{
+                      sourceBrand,
+                      selectedKeys,
+                      onToggleSelect: handleToggleSelect,
+                      onGenerate: (key) => handleGenerate([key]),
+                      onOpenReview: handleOpenReview,
+                      onOpenOwned: (def, origin) =>
+                        handlePickCard(
+                          {
+                            sectionKey: def.sectionKey,
+                            label: def.label,
+                            cover: coversFor(def.sectionKey, def.label)[0],
+                            covers: coversFor(def.sectionKey, def.label),
+                            templates: variantsForCard(def.sectionKey, def.label, effectiveBrand),
+                          },
+                          origin,
+                        ),
+                      onEditItem: openKitItemEditor,
+                      onDownloadItem: handleDownloadKitItem,
+                    }}
                   />
                 </KitSection>
               ))}
@@ -887,17 +1046,39 @@ export function BrandKitCosmosPage({
                   onSetGlobalIconWeight={handleSetGlobalIconWeight}
                   iconTintOverride={iconTintOverride}
                   onSetGlobalIconTint={setIconTintOverride}
-                  featuredIds={
-                    PICKER_LABELS.has(drilldownTarget.label)
-                      ? featuredIdsByLabel[drilldownTarget.label] ??
-                        (drilldownTarget.templates ?? [])
-                          .slice(0, 3)
-                          .map((t) => t.id)
-                      : undefined
-                  }
+                  // Approved deliverables drill into the user's OWNED
+                  // collection (primary first), not the template
+                  // library — the library is reachable via "+".
+                  ownedContent={(() => {
+                    const def = getDeliverable(
+                      drilldownTarget.sectionKey,
+                      drilldownTarget.label,
+                    );
+                    if (!def) return undefined;
+                    const status = statusOf(
+                      { deliverables: kitDeliverables, generatingKeys: kitGeneratingKeys },
+                      def.key,
+                    );
+                    if (status !== 'approved') return undefined;
+                    return (
+                      <OwnedCollection
+                        def={def}
+                        brand={effectiveBrand}
+                        sourceBrand={sourceBrand}
+                        onCustomize={(itemId) => openKitItemEditor(def, itemId)}
+                        onExport={(itemId) => handleDownloadKitItem(def, itemId)}
+                      />
+                    );
+                  })()}
                   onAddVariants={
-                    PICKER_LABELS.has(drilldownTarget.label)
-                      ? () => setPickerLabel(drilldownTarget.label)
+                    isDeliverableCard(drilldownTarget.sectionKey, drilldownTarget.label)
+                      ? () =>
+                          setAddDesignKey(
+                            getDeliverable(
+                              drilldownTarget.sectionKey,
+                              drilldownTarget.label,
+                            )!.key,
+                          )
                       : undefined
                   }
                   onAddColor={handleAddColor}
@@ -1014,12 +1195,23 @@ export function BrandKitCosmosPage({
                       }
                       return;
                     }
-                    // Template drilldowns (stationery / social / web /
-                    // guides / presentations / animations): bundle a
-                    // rasterized PNG of every visible variant.
+                    // Deliverable drilldowns: bundle a rasterized PNG
+                    // of every OWNED item (customization applied) —
+                    // the drilldown only opens once the deliverable is
+                    // approved, so this is the user's collection.
                     {
-                      const templates = drilldownTarget.templates ?? [];
-                      if (templates.length === 0 || !sourceBrand) {
+                      const def = getDeliverable(
+                        drilldownTarget.sectionKey,
+                        drilldownTarget.label,
+                      );
+                      if (!def || !sourceBrand) {
+                        toast(`Nothing to export for ${drilldownTarget.label} yet`);
+                        return;
+                      }
+                      const owned = approvedItems(
+                        useKitStore.getState().deliverables[def.key],
+                      );
+                      if (owned.length === 0) {
                         toast(`Nothing to export for ${drilldownTarget.label} yet`);
                         return;
                       }
@@ -1027,17 +1219,29 @@ export function BrandKitCosmosPage({
                         `Preparing ${drilldownTarget.label} download…`,
                       );
                       try {
-                        const aspect =
-                          PICKER_ASPECT_BY_LABEL[drilldownTarget.label] ?? 1.6;
                         const { default: JSZip } = await import('jszip');
                         const zip = new JSZip();
-                        for (const tpl of templates) {
-                          const blob = await snapshotTemplatePng(
-                            renderTemplateDesign(tpl, sourceBrand, effectiveBrand),
-                            260,
-                            aspect,
+                        for (const item of owned) {
+                          const template = templateForVariant(
+                            def,
+                            effectiveBrand,
+                            item.variantId,
                           );
-                          if (blob) zip.file(`${slugifyName(tpl.name)}.png`, blob);
+                          const preview = renderKitPreview(
+                            def,
+                            template,
+                            item.customization,
+                            sourceBrand,
+                            effectiveBrand,
+                          );
+                          if (!preview) continue;
+                          const blob = await snapshotTemplatePng(preview, 260, def.aspect);
+                          if (blob) {
+                            zip.file(
+                              `${slugifyName(template?.name ?? item.variantId)}.png`,
+                              blob,
+                            );
+                          }
                         }
                         triggerBlobDownload(
                           await zip.generateAsync({ type: 'blob' }),
@@ -1066,6 +1270,17 @@ export function BrandKitCosmosPage({
         initialCustomization={editorCustomization}
         onClose={() => setEditorTarget(null)}
         onSave={(t, customization) => {
+          // Kit items own their customization — save onto the item so
+          // the card, drilldown, and exports all reflect it. Everything
+          // else keeps the legacy per-card store.
+          if (t.kit) {
+            kitUpdateItemCustomization(t.kit.key, t.kit.itemId, customization);
+            toast.success(`Saved ${t.label}`, {
+              description: 'Your design is stored in this brand’s kit.',
+            });
+            setEditorTarget(null);
+            return;
+          }
           const ok = saveCardCustomization(
             customizationBrandId,
             cardCustomizationKey(t),
@@ -1116,34 +1331,60 @@ export function BrandKitCosmosPage({
         onPick={handleAddIcon}
         onClose={() => setIconPickerOpen(false)}
       />
+      {/* "+ Add design" picker for an approved deliverable's owned
+          collection — picking a template adds it as an approved item. */}
       <TemplatePickerModal
-        open={pickerLabel !== null}
-        title={pickerLabel ? `Add ${pickerLabel.toLowerCase()} variant` : ''}
-        tileAspect={pickerLabel ? PICKER_ASPECT_BY_LABEL[pickerLabel] ?? 1.6 : 1.6}
+        open={addDesignKey !== null}
+        title={
+          addDesignKey
+            ? `Add a ${getDeliverableByKey(addDesignKey)?.label.toLowerCase() ?? 'design'}`
+            : ''
+        }
+        tileAspect={addDesignKey ? getDeliverableByKey(addDesignKey)?.aspect ?? 1.6 : 1.6}
         templates={
-          pickerLabel && drilldownTarget?.label === pickerLabel
-            ? drilldownTarget.templates ?? []
+          addDesignKey
+            ? (() => {
+                const def = getDeliverableByKey(addDesignKey)!;
+                return variantsForCard(def.sectionKey, def.label, effectiveBrand);
+              })()
             : []
         }
         excludedIds={
-          pickerLabel
-            ? featuredIdsByLabel[pickerLabel] ??
-              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id)
+          addDesignKey
+            ? approvedItems(useKitStore.getState().deliverables[addDesignKey]).map(
+                (i) => i.variantId,
+              )
             : []
         }
         sourceBrand={sourceBrand}
         mockBrand={effectiveBrand}
         onPick={(tpl) => {
-          if (!pickerLabel) return;
-          setFeaturedIdsByLabel((prev) => {
-            const current =
-              prev[pickerLabel] ??
-              (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id);
-            if (current.includes(tpl.id)) return prev;
-            return { ...prev, [pickerLabel]: [...current, tpl.id] };
-          });
+          if (!addDesignKey) return;
+          kitAddApprovedItem(addDesignKey, tpl.id);
+          setAddDesignKey(null);
+          toast.success('Design added to your kit');
         }}
-        onClose={() => setPickerLabel(null)}
+        onClose={() => setAddDesignKey(null)}
+      />
+      <ReviewOverlay
+        open={reviewOpen}
+        focusKey={reviewFocusKey}
+        brand={effectiveBrand}
+        sourceBrand={sourceBrand}
+        ctx={generationCtx}
+        onClose={() => setReviewOpen(false)}
+        onCustomize={(key, itemId) => {
+          const def = getDeliverableByKey(key);
+          setReviewOpen(false);
+          if (def) openKitItemEditor(def, itemId);
+        }}
+      />
+      <GenerateBar
+        selectedCount={selectedKeys.size}
+        availableCount={notCreatedKeys.length}
+        onGenerate={() => handleGenerate([...selectedKeys])}
+        onSelectAll={() => setSelectedKeys(new Set(notCreatedKeys))}
+        onClear={() => setSelectedKeys(new Set())}
       />
     </WorkspaceShell>
   );
@@ -1171,15 +1412,12 @@ type DrilldownProps = {
   /** Pass a hex to set the global tint, or null to clear it and
    *  fall back to the per-tile default. */
   onSetGlobalIconTint?: (hex: string | null) => void;
-  /** Curated variant IDs for the current drilldown's card. When
-   *  defined, the grid renders only these tiles in this order — the
-   *  rest of the library is reachable via the "+" picker. Undefined
-   *  means render all of `target.templates` (used for cards with no
-   *  designed picker pattern, e.g. Brand Assets). */
-  featuredIds?: string[];
-  /** Opens the per-card variants picker (more variants from the
-   *  library). When defined alongside `featuredIds`, the drilldown
-   *  shows a "+" in its header. */
+  /** When present, the drilldown body renders this INSTEAD of the
+   *  template grid — used for approved deliverables, whose drilldown
+   *  shows the user's owned collection rather than the library. */
+  ownedContent?: React.ReactNode;
+  /** Opens the "add design from library" picker. When defined the
+   *  drilldown shows a "+" in its header. */
   onAddVariants?: () => void;
   /** Optional — when provided, the Colors drilldown shows a "+"
    *  button that pops the inline HSV color picker (Setup parity). */
@@ -1213,7 +1451,7 @@ function BrandKitDrilldown({
   onSetGlobalIconWeight,
   iconTintOverride,
   onSetGlobalIconTint,
-  featuredIds,
+  ownedContent,
   onAddVariants,
   onAddColor,
   onDownload,
@@ -1237,21 +1475,10 @@ function BrandKitDrilldown({
       // Icons drilldown uses.
       return variantsForCard(target.sectionKey, target.label, mockBrand);
     }
-    if (featuredIds) {
-      // Filter the full library down to the curated/picked IDs in
-      // their stored order. Drives the "3 featured + picker" pattern
-      // for Stationery, Social, Web, Brand Guides, Presentations,
-      // Animations.
-      const all = target.templates ?? [];
-      return featuredIds
-        .map((id) => all.find((t) => t.id === id))
-        .filter((t): t is typeof all[number] => Boolean(t));
-    }
     return target.templates ?? [];
   }, [
     isIcons,
     isColors,
-    featuredIds,
     mockBrand,
     target.sectionKey,
     target.label,
@@ -1581,6 +1808,9 @@ function BrandKitDrilldown({
           </button>
         </div>
       </div>
+      {ownedContent ? (
+        ownedContent
+      ) : (
       <div
         className="bk-drilldown-grid"
         style={
@@ -1657,6 +1887,7 @@ function BrandKitDrilldown({
           })
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -1680,4 +1911,4 @@ function BackArrow() {
   );
 }
 
-export default BrandKitCosmosPage;
+export default BrandKitNextPage;

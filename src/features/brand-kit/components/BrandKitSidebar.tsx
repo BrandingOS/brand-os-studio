@@ -77,11 +77,23 @@ function buildEntries(brand: MockBrand, progress?: SectionProgress): Entry[] {
   const photoCount = brand.photos.length;
   const aboutCount = brand.about.length;
   const assetCount = logoCount + colorCount + fontCount + iconCount + photoCount + aboutCount;
+  const hasIdentity = logoCount > 0 && colorCount > 0;
 
-  /** A deliverable section reads as "added" once the user has
-   *  approved at least one deliverable in it. Without progress data
-   *  (standalone mock preview) it stays unchecked. */
-  const created = (key: KitSectionKey) => (progress?.[key]?.approved ?? 0) > 0;
+  /** With kit progress (the brand-kit-next page): a section reads as
+   *  "added" once ≥1 deliverable in it is approved. Without progress
+   *  (the original brand-kit page): the pre-redesign identity-based
+   *  heuristics apply, so that page looks exactly as it always did. */
+  const legacyAdded: Record<KitSectionKey, boolean> = {
+    'brand-assets': assetCount > 0,
+    stationery: hasIdentity,
+    social: hasIdentity,
+    web: logoCount > 0,
+    'brand-guides': true,
+    presentations: true,
+    animations: true,
+  };
+  const created = (key: KitSectionKey) =>
+    progress ? (progress[key]?.approved ?? 0) > 0 : legacyAdded[key];
 
   return [
     {
