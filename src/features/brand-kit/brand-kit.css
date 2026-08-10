@@ -56,25 +56,6 @@
   background-position: center;
   background-repeat: no-repeat;
 }
-/* Brand-colored veil over the stock cover art. The covers are
-   generic renders (several carry a foreign "brandingOS" wordmark),
-   so a gradient of the brand primary — 55% up top, 70% at the
-   bottom — tints them into on-brand decorative texture and
-   de-emphasises the wordmark. `--bk-cover-veil` is set inline on
-   each card figure from the brand's primary hex (sections.tsx);
-   it sits over an image so it needs no light/dark variants. */
-[data-workspace] .bk-card-cover-image::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bk-cover-veil, #0a0a0a) 55%, transparent) 0%,
-    color-mix(in srgb, var(--bk-cover-veil, #0a0a0a) 70%, transparent) 100%
-  );
-  pointer-events: none;
-}
-
 /* Hover-reveal action buttons (edit · download). Mirrors the
    photo-tile-actions pattern from Setup so the UI reads the same. */
 [data-workspace] .bk-card-actions {

@@ -253,10 +253,6 @@ type Origin = { x: number; y: number };
 type CardProps = {
   sectionKey: KitSectionKey;
   card: CardSpec;
-  /** Brand primary hex — feeds the `--bk-cover-veil` custom property
-   *  so the CSS gradient veil over the stock cover art tints it into
-   *  the brand's color (see .bk-card-cover-image::after). */
-  veil?: string;
   onEdit: (sectionKey: KitSectionKey, label: string, origin?: Origin) => void;
   /** Hover pencil — opens the card editor directly (KIT-06). When
    *  absent the pencil falls back to the card-open behaviour. */
@@ -270,11 +266,10 @@ function rectCenter(el: HTMLElement): Origin {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-function BrandKitCard({ sectionKey, card, veil, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
+function BrandKitCard({ sectionKey, card, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
   return (
     <figure
       className="bk-card"
-      style={veil ? ({ '--bk-cover-veil': veil } as React.CSSProperties) : undefined}
       onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
       onClick={(e) => onEdit(sectionKey, card.label, rectCenter(e.currentTarget as HTMLElement))}
     >
@@ -414,7 +409,6 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
             key={card.label}
             sectionKey={sectionKey}
             card={card}
-            veil={brand?.colors.core[0]?.hex}
             onEdit={handleCardClick}
             onEditAction={
               onEditCard
