@@ -101,7 +101,12 @@ export function downloadAboutDoc(brand: MockBrand): void {
  */
 export async function downloadKitZip(
   brand: MockBrand,
-  opts?: { onProgress?: (step: string) => void },
+  opts?: {
+    onProgress?: (step: string) => void;
+    /** Pre-built files appended verbatim (e.g. `deliverables/…png`
+     *  snapshots of the user's approved kit items). */
+    extraFiles?: Array<{ path: string; blob: Blob }>;
+  },
 ): Promise<void> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
@@ -202,6 +207,10 @@ export async function downloadKitZip(
       2,
     ),
   );
+
+  for (const extra of opts?.extraFiles ?? []) {
+    zip.file(extra.path, extra.blob);
+  }
 
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerBlobDownload(blob, `${slugifyName(brand.name)}-brand-kit.zip`);

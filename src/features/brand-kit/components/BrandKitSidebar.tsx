@@ -54,12 +54,21 @@ export const KIT_SECTIONS: { key: KitSectionKey; name: string }[] = [
   { key: 'animations', name: 'Animations' },
 ];
 
-function countLabel(key: KitSectionKey): string {
+/** Per-section deliverable progress (approved / total) — drives the
+ *  "2 of 4 created" sub labels + the section check state so the
+ *  sidebar reflects what the user actually created. */
+export type SectionProgress = Partial<
+  Record<KitSectionKey, { approved: number; total: number }>
+>;
+
+function countLabel(key: KitSectionKey, progress?: SectionProgress): string {
+  const p = progress?.[key];
+  if (p) return `${p.approved} of ${p.total} created`;
   const n = getSectionCount(key);
   return `${n} element${n === 1 ? '' : 's'}`;
 }
 
-function buildEntries(brand: MockBrand): Entry[] {
+function buildEntries(brand: MockBrand, progress?: SectionProgress): Entry[] {
   const logoCount = brand.logos.length;
   const colorCount =
     brand.colors.core.length + brand.colors.accent.length + brand.colors.grey.length;
@@ -68,7 +77,11 @@ function buildEntries(brand: MockBrand): Entry[] {
   const photoCount = brand.photos.length;
   const aboutCount = brand.about.length;
   const assetCount = logoCount + colorCount + fontCount + iconCount + photoCount + aboutCount;
-  const hasIdentity = logoCount > 0 && colorCount > 0;
+
+  /** A deliverable section reads as "added" once the user has
+   *  approved at least one deliverable in it. Without progress data
+   *  (standalone mock preview) it stays unchecked. */
+  const created = (key: KitSectionKey) => (progress?.[key]?.approved ?? 0) > 0;
 
   return [
     {
@@ -81,27 +94,27 @@ function buildEntries(brand: MockBrand): Entry[] {
     {
       key: 'stationery',
       name: 'Stationery',
-      sub: countLabel('stationery'),
-      added: hasIdentity,
+      sub: countLabel('stationery', progress),
+      added: created('stationery'),
       Icon: PaperStackOrganicIcon,
     },
     {
       key: 'social',
       name: 'Social Media',
-      sub: countLabel('social'),
-      added: hasIdentity,
+      sub: countLabel('social', progress),
+      added: created('social'),
       Icon: ChatBubblesOrganicIcon,
     },
     {
       key: 'web',
       name: 'Web',
-      sub: countLabel('web'),
-      added: logoCount > 0,
+      sub: countLabel('web', progress),
+      added: created('web'),
       Icon: LinkOrganicIconV2,
     },
-    { key: 'brand-guides', name: 'Brand Guides', sub: countLabel('brand-guides'), added: true, Icon: CompassOrganicIcon },
-    { key: 'presentations', name: 'Presentations', sub: countLabel('presentations'), added: true, Icon: ChartOrganicIcon },
-    { key: 'animations', name: 'Animations', sub: countLabel('animations'), added: true, Icon: PlayOrganicIcon },
+    { key: 'brand-guides', name: 'Brand Guides', sub: countLabel('brand-guides', progress), added: created('brand-guides'), Icon: CompassOrganicIcon },
+    { key: 'presentations', name: 'Presentations', sub: countLabel('presentations', progress), added: created('presentations'), Icon: ChartOrganicIcon },
+    { key: 'animations', name: 'Animations', sub: countLabel('animations', progress), added: created('animations'), Icon: PlayOrganicIcon },
   ];
 }
 
@@ -110,11 +123,12 @@ type Props = {
   activeKey: KitSectionKey | null;
   completed: number;
   total: number;
+  sectionProgress?: SectionProgress;
   onJump: (key: KitSectionKey) => void;
 };
 
-export function BrandKitSidebar({ brand, activeKey, completed, total, onJump }: Props) {
-  const entries = buildEntries(brand);
+export function BrandKitSidebar({ brand, activeKey, completed, total, sectionProgress, onJump }: Props) {
+  const entries = buildEntries(brand, sectionProgress);
   const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
 
   return (

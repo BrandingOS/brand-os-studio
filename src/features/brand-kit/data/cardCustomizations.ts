@@ -56,6 +56,16 @@ export function cardCustomizationKey(target: {
   return target.template?.id ?? `label:${target.label}`;
 }
 
+/** All saved customizations for a brand, keyed by card key. Used by
+ *  the kit-state migration to seed approved items from pre-redesign
+ *  card edits. */
+export function loadBrandCustomizations(
+  brandId: string | undefined,
+): Record<string, SavedCardCustomization> {
+  if (!brandId) return {};
+  return readStore()[brandId] ?? {};
+}
+
 export function loadCardCustomization(
   brandId: string | undefined,
   cardKey: string,

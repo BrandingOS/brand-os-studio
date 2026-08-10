@@ -7,19 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Type,
-  AtSign,
-  Mail,
-  Phone,
-  Globe,
-  Megaphone,
-  MessageSquare,
-  Hash,
-  FileText,
-  Image as ImageIcon,
-  RotateCcw,
-} from 'lucide-react';
+import { Image as ImageIcon, RotateCcw } from 'lucide-react';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
@@ -38,6 +26,13 @@ import {
 import type { KitSectionKey } from './BrandKitSidebar';
 import type { BusinessCardContent, TemplateOverrides } from '../types';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
+import {
+  aspectForType,
+  contentFieldsForType,
+  defaultOverridesForType,
+  getDeliverable,
+  type ControlGroupId,
+} from '../kit/registry';
 
 const FLATICON_RR_LOOKUP = new Set(FLATICON_RR_NAMES);
 
@@ -204,14 +199,6 @@ function parseFontWeights(weights: string): number[] {
   return out.size > 0 ? [...out].sort((a, b) => a - b) : [400];
 }
 
-type EditorField = {
-  key: keyof TemplateOverrides;
-  label: string;
-  icon: React.ElementType;
-  type?: string;
-  placeholder?: string;
-};
-
 /** Stable empty array — passed to LivePreviewFrame when the renderer
  *  is prop-driven (business-cards) and the DOM-walker text substitution
  *  path needs to stay dormant. Defined at module scope so its identity
@@ -219,205 +206,14 @@ type EditorField = {
  *  observed deps stable. */
 const EMPTY_REPLACEMENTS: Array<[string, string]> = [];
 
-/** Fields shown in the rail's Content group, by template type.
- *  Same set as the legacy modal's getEditorFields. brand-asset-*
- *  types have no content fields — they're previews of real assets. */
-function getEditorFields(templateType: string): EditorField[] {
-  switch (templateType) {
-    case 'business-cards':
-      return [
-        { key: 'title', label: 'Full Name', icon: Type, placeholder: 'Jane Smith' },
-        { key: 'subtitle', label: 'Job Title', icon: AtSign, placeholder: 'Brand Manager' },
-        { key: 'email', label: 'Email', icon: Mail, type: 'email', placeholder: 'jane@company.com' },
-        { key: 'phone', label: 'Phone', icon: Phone, type: 'tel', placeholder: '+1 234 56789' },
-        { key: 'website', label: 'Website', icon: Globe, placeholder: 'company.com' },
-      ];
-    case 'facebook-covers':
-      return [
-        { key: 'headline', label: 'Headline', icon: Megaphone, placeholder: 'Your tagline here' },
-        { key: 'body', label: 'Description', icon: MessageSquare, placeholder: 'Supporting text...' },
-      ];
-    case 'instagram-posts':
-      return [
-        { key: 'headline', label: 'Post Headline', icon: Megaphone, placeholder: 'Bold statement' },
-        { key: 'body', label: 'Post Body', icon: MessageSquare, placeholder: 'Supporting copy...' },
-        { key: 'cta', label: 'CTA Text', icon: Hash, placeholder: 'Learn More' },
-      ];
-    case 'instagram-stories':
-      return [
-        { key: 'headline', label: 'Story Headline', icon: Megaphone, placeholder: 'Your headline' },
-        { key: 'cta', label: 'CTA Text', icon: Hash, placeholder: 'Swipe Up' },
-      ];
-    case 'presentations':
-    case 'pres-pitch':
-    case 'pres-plan':
-    case 'pres-portfolio':
-    case 'pres-proposal':
-    case 'pres-case':
-      return [
-        { key: 'slideTitle', label: 'Slide Title', icon: FileText, placeholder: 'Presentation Title' },
-        { key: 'slideSubtitle', label: 'Subtitle', icon: MessageSquare, placeholder: 'Subtitle or date' },
-      ];
-    case 'invoices':
-      return [
-        { key: 'title', label: 'Company Name', icon: Type, placeholder: 'Client Corp' },
-        { key: 'subtitle', label: 'Invoice #', icon: Hash, placeholder: 'INV-0042' },
-      ];
-    case 'brand-guides':
-    case 'guide-logo':
-    case 'guide-color':
-    case 'guide-typography':
-    case 'guide-voice':
-    case 'guide-imagery':
-      return [
-        { key: 'slideTitle', label: 'Guide Title', icon: FileText, placeholder: 'Brand Guidelines' },
-        { key: 'slideSubtitle', label: 'Version', icon: Hash, placeholder: 'v2.0 — 2025' },
-      ];
-    case 'profile-icons':
-      return [];
-    case 'mockups':
-    case 'mockup-mug':
-    case 'mockup-tshirt':
-    case 'mockup-billboard':
-    case 'mockup-tote':
-    case 'mockup-sticker':
-      return [
-        { key: 'headline', label: 'Product Label', icon: Type, placeholder: 'Your product' },
-      ];
-    case 'letterhead':
-    case 'envelope':
-    case 'notecard':
-      return [
-        { key: 'title', label: 'Recipient', icon: Type, placeholder: 'Dear ...' },
-        { key: 'body', label: 'Body', icon: MessageSquare, placeholder: 'Letter body…' },
-      ];
-    // brand-asset-* and unknown types — no content fields.
-    default:
-      if (templateType.startsWith('brand-asset-')) return [];
-      return [
-        { key: 'headline', label: 'Headline', icon: Type, placeholder: 'Your text here' },
-      ];
-  }
-}
-
-function getDefaultOverrides(templateType: string, brand: MockBrand): TemplateOverrides {
-  const slug = brand.name.toLowerCase().replace(/\s+/g, '-');
-  const base: TemplateOverrides = {
-    name: brand.name,
-    primaryColor: brand.colors.core[0]?.hex,
-    secondaryColor: brand.colors.core[1]?.hex ?? brand.colors.accent[0]?.hex,
-    showLogo: true,
-  };
-  switch (templateType) {
-    case 'business-cards':
-      return {
-        ...base,
-        title: 'Jane Smith',
-        subtitle: 'Brand Manager',
-        email: `jane@${slug}.com`,
-        phone: '+1 234 56789',
-        website: `${slug}.com`,
-      };
-    case 'invoices':
-      return { ...base, title: 'Acme Corp', subtitle: 'INV-0042' };
-    case 'instagram-posts':
-      return { ...base, headline: 'Bold statement here', body: 'Supporting copy', cta: 'Learn More' };
-    case 'instagram-stories':
-      return { ...base, headline: 'Your story headline', cta: 'Swipe Up' };
-    case 'facebook-covers':
-      return { ...base, headline: `${brand.name}`, body: brand.voice?.essay ?? '' };
-    default:
-      return { ...base, headline: brand.name };
-  }
-}
-
 /** Resolve the template type for a target. Prefers `target.template.type`
  *  (set when the editor opens from a drilldown variant) and falls back
- *  to a label-based map for direct-card edits. */
+ *  to the deliverable registry for direct-card edits. */
 function templateTypeFor(target: EditorTarget): string {
   if (target.template?.type) return target.template.type;
-  const labelToType: Record<string, string> = {
-    'Business Card': 'business-cards',
-    Letterhead: 'letterhead',
-    Envelope: 'envelope',
-    Invoice: 'invoices',
-    Profile: 'profile-icons',
-    Cover: 'facebook-covers',
-    Post: 'instagram-posts',
-    Story: 'instagram-stories',
-    'Pitch Deck': 'pres-pitch',
-    'Business Plan': 'pres-plan',
-    Proposal: 'pres-proposal',
-    'Case Studies': 'pres-case',
-  };
-  return labelToType[target.label] ?? target.sectionKey;
-}
-
-/** Native aspect ratio (width / height) the renderer was designed
- *  for. Used by the ScalingStage to size the canonical 360px-wide
- *  inner stage and pick the correct preview-host shape. */
-function aspectFor(templateType: string): number {
-  switch (templateType) {
-    // Square — single-asset previews + IG post + favicon + profile.
-    case 'instagram-posts':
-    case 'profile-icons':
-    case 'favicon':
-    case 'web-favicon':
-    case 'mockup-mug':
-    case 'mockup-tote':
-    case 'mockup-sticker':
-    case 'qr-branded':
-    case 'qr-minimal':
-    case 'qr-rounded':
-    case 'qr-square':
-    case 'anim-reveal':
-    case 'anim-rotate':
-      return 1;
-    // Brand-asset cards render a single asset on a colored panel —
-    // 4/3 reads better than 1/1 when there's a meta line under the
-    // sample (color name, font role, etc).
-    case 'brand-asset-logo':
-    case 'brand-asset-color':
-    case 'brand-asset-font':
-    case 'brand-asset-icon':
-    case 'brand-asset-photo':
-    case 'brand-asset-about':
-      return 4 / 3;
-    case 'instagram-stories':
-      return 9 / 16;
-    case 'mockup-tshirt':
-      return 4 / 5;
-    case 'facebook-covers':
-      return 820 / 312;
-    case 'mockup-billboard':
-    case 'website':
-    case 'web-website':
-    case 'pres-pitch':
-    case 'pres-plan':
-    case 'pres-portfolio':
-    case 'pres-proposal':
-    case 'pres-case':
-    case 'guide-logo':
-    case 'guide-color':
-    case 'guide-typography':
-    case 'guide-voice':
-    case 'guide-imagery':
-    case 'landing':
-    case 'web-landing-page':
-    case 'anim-slide':
-    case 'anim-fade':
-      return 16 / 9;
-    case 'email-sig':
-    case 'web-email-signature':
-      return 3 / 1;
-    case 'letterhead':
-    case 'notecard':
-      return 1 / 1.414;
-    case 'envelope':
-      return 2.3;
-    default:
-      return 1.6;
-  }
+  return (
+    getDeliverable(target.sectionKey, target.label)?.templateType ?? target.sectionKey
+  );
 }
 
 export type EditorTarget = {
@@ -440,6 +236,10 @@ export type EditorTarget = {
    *  (right-click Edit) — the editor falls back to the cover
    *  image preview in that case. */
   template?: BrandKitTemplate;
+  /** Set when editing an OWNED kit item — the page routes Save to
+   *  the kit store (item customization) instead of the legacy
+   *  per-card store. */
+  kit?: { key: string; itemId: string };
 };
 
 type Props = {
@@ -524,7 +324,7 @@ export function BrandKitCardEditor({
     () => (target ? templateTypeFor(target) : ''),
     [target],
   );
-  const editorFields = useMemo(() => getEditorFields(templateType), [templateType]);
+  const editorFields = useMemo(() => contentFieldsForType(templateType), [templateType]);
 
   // Reset selection + content overrides whenever a new card opens so
   // state from the previous card doesn't bleed into this one.
@@ -555,13 +355,13 @@ export function BrandKitCardEditor({
       setSelectedIconWeight('rr');
     }
     setHoveredFontWeight(null);
-    setOverrides(getDefaultOverrides(templateType, brand));
+    setOverrides(defaultOverridesForType(templateType, brand));
     // Re-apply the saved customization for this card, when one exists
     // (KIT-01). Saved ids are validated against the current brand so a
     // deleted logo/font falls back to the defaults seeded above.
     const saved = initialCustomization;
     if (saved) {
-      setOverrides({ ...getDefaultOverrides(templateType, brand), ...saved.overrides });
+      setOverrides({ ...defaultOverridesForType(templateType, brand), ...saved.overrides });
       if (saved.cover && target.covers.includes(saved.cover)) setSelectedCover(saved.cover);
       if (saved.color) setSelectedColor(saved.color);
       if (saved.secondaryColor) setSelectedSecondaryColor(saved.secondaryColor);
@@ -670,6 +470,12 @@ export function BrandKitCardEditor({
   // would corrupt them). Hide the rails that don't reach the
   // renderer, and skip the img swap.
   const isBrandAsset = templateType.startsWith('brand-asset-');
+  // Deliverables declare which control groups apply (a favicon has no
+  // typography rail; an animation has no content fields). Cards not in
+  // the registry keep every group — the pre-registry behavior.
+  const deliverableDef = getDeliverable(target.sectionKey, target.label);
+  const hasGroup = (g: ControlGroupId) =>
+    !deliverableDef || deliverableDef.controlGroups.includes(g);
   const isIconAsset = templateType === 'brand-asset-icon';
   const isFontAsset = templateType === 'brand-asset-font';
   const isColorAsset = templateType === 'brand-asset-color';
@@ -1012,7 +818,7 @@ export function BrandKitCardEditor({
   const livePreview = previewBrand && target.template
     ? renderTemplateDesign(target.template, previewBrand, brand, renderContent)
     : null;
-  const previewAspect = aspectFor(templateType);
+  const previewAspect = aspectForType(templateType);
 
   // Only show Content fields whose marker text actually appears in
   // the rendered design. When the preview hasn't been scanned yet
@@ -1207,7 +1013,7 @@ export function BrandKitCardEditor({
                   <button
                     type="button"
                     className="bk-editor-group-reset"
-                    onClick={() => setOverrides(getDefaultOverrides(templateType, brand))}
+                    onClick={() => setOverrides(defaultOverridesForType(templateType, brand))}
                     aria-label="Reset content"
                     title="Reset"
                   >
@@ -1388,7 +1194,7 @@ export function BrandKitCardEditor({
               </RailGroup>
             )}
 
-            {!isBrandAsset && (
+            {!isBrandAsset && hasGroup('colors') && (
             <RailGroup title="Colors" hint="Tap a swatch to recolor primary or secondary.">
               <div className="bk-editor-color-row">
                 <span className="bk-editor-color-row-label">Primary</span>
@@ -1427,7 +1233,7 @@ export function BrandKitCardEditor({
             </RailGroup>
             )}
 
-            {!isBrandAsset && (
+            {!isBrandAsset && hasGroup('logo') && (
             <RailGroup
               title="Logos"
               hint="Choose a mark to drop on the artwork."
@@ -1488,7 +1294,7 @@ export function BrandKitCardEditor({
             </RailGroup>
             )}
 
-            {!isBrandAsset && (
+            {!isBrandAsset && hasGroup('typography') && (
             <RailGroup title="Typography" hint="Pick a face for the body copy.">
               <div className="bk-editor-fonts">
                 {brand.fonts.map((font) => (
@@ -1514,6 +1320,30 @@ export function BrandKitCardEditor({
             )}
           </div>
           <footer className="bk-editor-rail-footer">
+            {!isBrandAsset && (
+              <button
+                type="button"
+                className="bk-editor-btn bk-editor-btn--ghost bk-editor-btn--reset"
+                onClick={() => {
+                  // Reset EVERYTHING to the brand's defaults — content,
+                  // colors, logo, font, cover. Saving afterwards stores
+                  // the clean slate.
+                  setSelectedCover(target.cover);
+                  setSelectedColor(brand.colors.core[0]?.hex ?? null);
+                  setSelectedSecondaryColor(
+                    brand.colors.core[1]?.hex ?? brand.colors.accent[0]?.hex ?? null,
+                  );
+                  setSelectedLogoId(brand.logos[0]?.id ?? null);
+                  setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
+                  setSelectedFontId(brand.fonts[0]?.id ?? null);
+                  setOverrides(defaultOverridesForType(templateType, brand));
+                }}
+                title="Reset to brand defaults"
+              >
+                <RotateCcw size={13} aria-hidden />
+                <span>Reset</span>
+              </button>
+            )}
             <button
               type="button"
               className="bk-editor-btn bk-editor-btn--ghost"

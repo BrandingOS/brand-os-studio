@@ -4,9 +4,12 @@ import {
   type ContextMenuState,
 } from '@/features/setup/components/ContextMenu';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
+import type { Brand } from '@/shared/types/brand';
 import type { KitSectionKey } from './BrandKitSidebar';
 import type { EditorTarget } from './BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
+import { getDeliverable, type DeliverableDef } from '../kit/registry';
+import { DeliverableCard } from './DeliverableCard';
 
 /**
  * Every Brand Kit section renders the same shape — a grid of
@@ -316,6 +319,21 @@ function BrandKitCard({ sectionKey, card, onEdit, onEditAction, onDownload, onOp
   );
 }
 
+/** Kit-lifecycle wiring for the six deliverable sections. When
+ *  provided, deliverable cards render as state-driven
+ *  `DeliverableCard`s (not-created / generating / review / approved)
+ *  instead of stock-cover cards. Brand Assets cards are unaffected. */
+export type KitGridProps = {
+  sourceBrand?: Brand;
+  selectedKeys: ReadonlySet<string>;
+  onToggleSelect: (key: string) => void;
+  onGenerate: (key: string) => void;
+  onOpenReview: (key: string) => void;
+  onOpenOwned: (def: DeliverableDef, origin?: Origin) => void;
+  onEditItem: (def: DeliverableDef, itemId: string) => void;
+  onDownloadItem: (def: DeliverableDef, itemId: string) => void;
+};
+
 type GridProps = {
   sectionKey: KitSectionKey;
   /** Bubble the click up to the page so it can swap to the in-page
@@ -331,9 +349,10 @@ type GridProps = {
   /** MockBrand from the page — required for brand-assets cards so
    *  variantsForCard can emit one template per real asset. */
   brand?: MockBrand;
+  kit?: KitGridProps;
 };
 
-export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard, brand }: GridProps) {
+export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard, brand, kit }: GridProps) {
   // brand-assets has up to 6 cards (one per asset category) and we
   // want each rendered, so don't apply the per-section cap.
   const raw = SECTION_CARDS[sectionKey] ?? [];
@@ -404,7 +423,27 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
   return (
     <>
       <div className="bk-grid">
-        {cards.map((card) => (
+        {cards.map((card) => {
+          const def = kit && brand ? getDeliverable(sectionKey, card.label) : undefined;
+          if (def && kit && brand) {
+            return (
+              <DeliverableCard
+                key={card.label}
+                def={def}
+                brand={brand}
+                sourceBrand={kit.sourceBrand}
+                selected={kit.selectedKeys.has(def.key)}
+                selectionActive={kit.selectedKeys.size > 0}
+                onToggleSelect={kit.onToggleSelect}
+                onGenerate={kit.onGenerate}
+                onOpenReview={kit.onOpenReview}
+                onOpen={kit.onOpenOwned}
+                onEdit={kit.onEditItem}
+                onDownload={kit.onDownloadItem}
+              />
+            );
+          }
+          return (
           <BrandKitCard
             key={card.label}
             sectionKey={sectionKey}
@@ -427,7 +466,8 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
             }
             onOpenMenu={openMenu}
           />
-        ))}
+          );
+        })}
       </div>
       {ctxMenu && (
         <ContextMenu

@@ -378,25 +378,49 @@ NOT the alternate (`features/brand-kit-alt/`).
 - **Presentations** — Pitch Deck · Business Plan · Proposal · Case Studies
 - **Animations** — Logo Reveal · Slide In · Fade · Rotate
 
-**Two card patterns:**
+**Two card patterns (redesigned 2026-08-10 — generate/approve model):**
 - Brand-asset cards (Logos/Colors/Fonts/Icons) render the full variant
   grid inline AND support an inline `+` add for colors/icons (session-
-  only, see below). Photos + About are placeholder grids.
-- Every other section uses **3 featured tiles + "More" picker modal**.
-- Right-click any card → "Edit" opens `BrandKitCardEditor.tsx` (~1.8k
-  LOC) as a full-page overlay with live preview + template overrides.
+  only, see below). Photos + About are placeholder grids. These are
+  CORE assets — always visible.
+- The 25 deliverables in the other six sections (stationery / social /
+  web / brand-guides / presentations / animations) are **lifecycle-
+  driven**: `not-created → generating → review → approved` (+ error /
+  archived). They start as quiet empty tiles ("Not created yet" +
+  Generate); nothing pretends to exist until the user approves it.
+  Domain layer: `features/brand-kit/kit/` — `registry.ts` (one
+  `DeliverableDef` per deliverable: templateType, aspect, content
+  fields, control groups, candidate rules; **adding a deliverable =
+  renderer + registry entry**), `generation.ts` (swappable
+  `KitGenerator`; deterministic featured-first + brand-seeded ranking
+  today, AI can replace it without UX change), `kitStore.ts` (zustand;
+  status DERIVED from items so persisted state can't go inconsistent),
+  `repository.ts` (`KitStateRepository` boundary — localStorage now,
+  backend later). UI: `DeliverableCard` (state-driven card),
+  `ReviewOverlay` (queue: approve / regenerate / browse-all / skip /
+  bulk-approve), `GenerateBar` (multi-select), `OwnedCollection`
+  (approved drilldown: primary star, set-primary / duplicate / export /
+  remove via right-click). Each deliverable holds an owned collection
+  of approved items; one is primary. Old "3 featured tiles + picker"
+  pattern is gone.
+- Right-click any card → "Edit" opens `BrandKitCardEditor.tsx` as a
+  full-page overlay with live preview + template overrides. The editor
+  is registry-driven (content fields / aspect / control groups come
+  from `kit/registry.ts`); kit items route Save to the kit store.
 
 **Data flow + persistence:**
 `effectiveBrand` = base brand + session overlays (`iconsOverride`,
 `colorAddsOverride`, `suggestedIcons`). Color/icon adds are still
 **session-only** — they don't write back to the store; when that
 persistence lands it must mirror the `iconsOverride` overlay pattern.
-The card editor's `onSave` DOES persist (2026-08-10): customizations
-(content overrides, cover, color/logo/font picks) are stored per
-brand + variant in localStorage key `brandos:brand-kit:customizations`
-via `features/brand-kit/data/cardCustomizations.ts` and rehydrated when
-the editor reopens (key = `template.id`, falling back to `label:<label>`
-for direct card edits).
+Deliverable lifecycle state persists in localStorage key
+`brandos:brand-kit:state` through `kit/repository.ts` (kit items embed
+their own customization; the store migrates pre-redesign
+`cardCustomizations` saves into approved items on first hydrate).
+Non-kit card edits still persist per brand + variant in
+`brandos:brand-kit:customizations` via
+`features/brand-kit/data/cardCustomizations.ts` (key = `template.id`,
+falling back to `label:<label>` for direct card edits).
 
 **Brand-kit-specific helpers:**
 - `features/brand-kit/data/recolorLogo.ts` — `logoCombosFor(logos, bgs)`
@@ -434,15 +458,21 @@ edit-first hub with bulk export + PDF guides (Classic, legacy). New
 brand-kit feature work lands in the canonical fork; the alternate is
 bug-fix only.
 
-**Open active debt (revised 2026-08-10):**
+**Open active debt (revised 2026-08-10, post-redesign):**
 1. Session-only color/icon adds → store persistence (still open)
 2. ~~Card-editor `onSave`~~ — closed (cardCustomizations.ts)
 3. ~~Export placeholders~~ — closed (offscreen rasterization, see above)
 4. Photos + About cards are placeholder grids (still open)
-5. Web section cards are cosmos-only stubs (no renderer yet)
-6. Saved card customizations rehydrate in the EDITOR but the drilldown
-   variant tiles still render brand defaults — reflecting saved
-   overrides in tiles is a follow-up.
+5. ~~Web section cards are stubs~~ — Web deliverables use the synthetic
+   extended renderers (favicon/website/email-sig/landing) via the
+   generate flow.
+6. ~~Drilldown tiles render brand defaults~~ — closed for kit items:
+   cards/drilldown/exports all render the item's saved customization
+   (`kit/preview.tsx`). Limitation: DOM-walker-only content fields
+   (everything except business-card content + primary/secondary color)
+   apply in the live editor preview but not offscreen exports.
+7. Kit state is local-only until a backend `KitStateRepository`
+   implementation lands (interface ready in `kit/repository.ts`).
 
 ## Guideline page — scheduled for from-scratch rebuild
 
@@ -535,7 +565,8 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 ## localStorage key inventory (debugging aid)
 
 - `brandos:brands` — LocalBrandsService store (user brands; seeds merge at read)
-- `brandos:brand-kit:customizations` — per brand+variant card-editor saves
+- `brandos:brand-kit:state` — per-brand deliverable lifecycle (kit items + customizations)
+- `brandos:brand-kit:customizations` — per brand+variant card-editor saves (non-kit edits; migration source)
 - `design_<brandId>` — legacy design editor autosave (Fabric JSON)
 - `brandos:guideline-theme:<brandId>` — Guideline theme preset pick
 - `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal

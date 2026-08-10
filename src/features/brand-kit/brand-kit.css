@@ -2085,3 +2085,452 @@
   color: #111113;
 }
 
+
+/* ──────────────────────────────────────────────────────────────────
+   Kit lifecycle (generate / review / approve) — deliverable cards,
+   the floating generate bar, and the review overlay. The kit page's
+   in-flow pieces are [data-workspace]-scoped; the review overlay is
+   PORTALED to document.body and reuses the editor's --bke-* token
+   pattern (mirrored data-theme) instead.
+   ────────────────────────────────────────────────────────────────── */
+
+/* Live render inside a section card — same contract as
+   .bk-variant-tile-render, just hosted in .bk-card-cover. */
+[data-workspace] .bk-card-render {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background-color: var(--surface-sunken);
+  overflow: hidden;
+}
+[data-workspace] .bk-card-render > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* State tiles (not-created / generating / error) — quiet surfaces,
+   no stock art. */
+[data-workspace] .bk-card-cover--state {
+  display: grid;
+  place-items: center;
+  background-color: var(--surface-sunken);
+}
+[data-workspace] .bk-card-cover--empty {
+  border-style: dashed;
+  box-shadow: none;
+  background-color: transparent;
+}
+[data-workspace] .bk-deliverable[data-status="not-created"] .bk-card-cover--empty:hover {
+  border-color: var(--border-strong);
+  background-color: var(--surface-sunken);
+}
+[data-workspace] .bk-deliverable-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  text-align: center;
+  z-index: 1;
+}
+[data-workspace] .bk-deliverable-empty-hint {
+  font-size: 12px;
+  color: var(--text-tertiary, var(--text-secondary));
+  letter-spacing: -0.005em;
+}
+[data-workspace] .bk-deliverable-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+[data-workspace] .bk-card-cover--empty:hover .bk-deliverable-cta {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
+}
+[data-workspace] .bk-deliverable-error-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  max-width: 22ch;
+  line-height: 1.45;
+}
+[data-workspace] .bk-deliverable-generating-text {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+/* Selection checkbox — reveals on hover, stays while select mode is
+   active or the box is checked. */
+[data-workspace] .bk-deliverable-check {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+  cursor: pointer;
+}
+[data-workspace] .bk-card-cover--empty:hover .bk-deliverable-check,
+[data-workspace] .bk-deliverable-check.is-visible,
+[data-workspace] .bk-deliverable-check.is-checked {
+  opacity: 1;
+}
+[data-workspace] .bk-deliverable-check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+[data-workspace] .bk-deliverable-check-box {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: #fff;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+[data-workspace] .bk-deliverable-check.is-checked .bk-deliverable-check-box {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+/* Shimmer while generating. */
+[data-workspace] .bk-deliverable-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(127, 127, 135, 0.14) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: bk-shimmer 1.3s ease-in-out infinite;
+}
+@keyframes bk-shimmer {
+  from { background-position: 160% 0; }
+  to   { background-position: -60% 0; }
+}
+
+/* Status badge on review/approved cards. */
+[data-workspace] .bk-deliverable-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  z-index: 2;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+[data-workspace] .bk-deliverable-badge--review {
+  background: var(--accent, #4f46e5);
+}
+[data-workspace] .bk-deliverable[data-status="review"] .bk-card-cover,
+[data-workspace] .bk-deliverable[data-status="approved"] .bk-card-cover {
+  cursor: pointer;
+}
+
+/* Primary chip on owned-collection tiles. */
+.bk-owned-primary-chip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+/* Floating generate bar. */
+[data-workspace] .bk-generate-bar {
+  position: fixed;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg, 0 18px 40px -18px rgba(15, 17, 22, 0.4));
+  animation: bk-bar-rise 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes bk-bar-rise {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+[data-workspace] .bk-generate-bar-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+[data-workspace] .bk-generate-bar-ghost {
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+[data-workspace] .bk-generate-bar-ghost:hover {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+[data-workspace] .bk-generate-bar-primary {
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+[data-workspace] .bk-generate-bar-primary:hover {
+  filter: brightness(0.92);
+}
+
+/* ── Review overlay (portaled — bke tokens, mirrored data-theme) ── */
+.bk-review-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 990;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 17, 22, 0.55);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+  animation: bk-editor-fade 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bk-review-backdrop[data-theme="light"] {
+  --bke-surface: #ffffff;
+  --bke-surface-2: #f7f7f5;
+  --bke-text: #111113;
+  --bke-text-secondary: #6b6b6f;
+  --bke-border: rgba(17, 17, 20, 0.08);
+  --bke-border-strong: rgba(17, 17, 20, 0.18);
+  --bke-shadow: 0 30px 60px -20px rgba(15, 17, 22, 0.45);
+}
+.bk-review-backdrop[data-theme="dark"] {
+  --bke-surface: #131418;
+  --bke-surface-2: #1b1c21;
+  --bke-text: #f1f0ec;
+  --bke-text-secondary: #a8a8ad;
+  --bke-border: rgba(255, 255, 255, 0.08);
+  --bke-border-strong: rgba(255, 255, 255, 0.18);
+  --bke-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+}
+.bk-review {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, 94vw);
+  max-height: 90vh;
+  border-radius: 18px;
+  border: 1px solid var(--bke-border);
+  background: var(--bke-surface);
+  box-shadow: var(--bke-shadow);
+  color: var(--bke-text);
+  animation: bk-editor-rise 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+.bk-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 14px;
+}
+.bk-review-eyebrow {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bke-text-secondary);
+}
+.bk-review-title {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.bk-review-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.bk-review-progress-text {
+  font-size: 12.5px;
+  color: var(--bke-text-secondary);
+}
+.bk-review-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--bke-border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--bke-text-secondary);
+  cursor: pointer;
+}
+.bk-review-close:hover {
+  background: var(--bke-surface-2);
+  color: var(--bke-text);
+}
+.bk-review-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 24px 12px;
+}
+.bk-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.bk-review-grid[data-aspect="portrait"] {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 220px));
+  justify-content: center;
+}
+.bk-review-candidate {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--bke-border);
+  border-radius: 14px;
+  background: var(--bke-surface-2);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.bk-review-candidate:hover {
+  border-color: var(--bke-border-strong);
+}
+.bk-review-candidate.is-selected {
+  border-color: var(--bke-text);
+  box-shadow: 0 0 0 2px var(--bke-text);
+}
+.bk-review-candidate-render {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+}
+.bk-review-candidate-render > * {
+  width: 100%;
+  height: 100%;
+}
+.bk-review-candidate-name {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+.bk-review-generating {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+  border-radius: 14px;
+  border: 1px dashed var(--bke-border-strong);
+  color: var(--bke-text-secondary);
+  font-size: 13px;
+  overflow: hidden;
+}
+.bk-review-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--bke-border);
+}
+.bk-review-foot-secondary,
+.bk-review-foot-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bk-review-btn {
+  height: 36px;
+  padding: 0 15px;
+  border-radius: 10px;
+  border: 1px solid var(--bke-border);
+  background: transparent;
+  color: var(--bke-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+.bk-review-btn:hover:not(:disabled) {
+  background: var(--bke-surface-2);
+  border-color: var(--bke-border-strong);
+  color: var(--bke-text);
+}
+.bk-review-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.bk-review-btn--primary {
+  background: var(--bke-text);
+  border-color: var(--bke-text);
+  color: var(--bke-surface);
+}
+.bk-review-btn--primary:hover:not(:disabled) {
+  filter: brightness(0.92);
+  background: var(--bke-text);
+  color: var(--bke-surface);
+}
+
+/* Footer reset button sits apart from Cancel/Save. */
+.bk-editor-btn--reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+}
