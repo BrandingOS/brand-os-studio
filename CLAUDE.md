@@ -10,12 +10,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 npm run dev          # Dev server on port 8080
 npm run build        # Production build
-npm run lint         # ESLint
+npm run lint         # ESLint (0 errors expected; ~226 pre-existing warnings)
 npm run typecheck    # tsc --noEmit
+npm run typecheck:ci # Ratchet — fails only on NEW type errors (baseline: 321 pre-existing)
 npm run test         # Vitest (single run)
 npm run test:watch   # Vitest in watch mode
 npm run test:coverage # Vitest with V8 coverage
 ```
+
+Type-error policy: `strictNullChecks`/`noImplicitAny` are off and the repo
+carries 321 baselined type errors. The gate is `typecheck:ci` — never add a
+NEW error; don't try to fix the baseline as a side quest.
+
+Known test-environment facts (verified 2026-08-10):
+- The browser (Playwright) Vitest project needs `npx playwright install`
+  once per machine — otherwise the whole `npm run test` run reports an
+  unhandled "Executable doesn't exist" error. Use
+  `npx vitest run --project unit` to run just the jsdom projects.
+- One unit test fails on a clean checkout:
+  `src/features/brand-kit/data/recolorLogo.test.ts` ("keeps a curated brand
+  palette intact") — pre-existing, not caused by your change unless you
+  touched `logoCombosFor`.
 
 ### Landing page (`landingpage/`)
 ```bash
@@ -371,13 +386,17 @@ NOT the alternate (`features/brand-kit-alt/`).
 - Right-click any card → "Edit" opens `BrandKitCardEditor.tsx` (~1.8k
   LOC) as a full-page overlay with live preview + template overrides.
 
-**Data flow + the persistence gap:**
+**Data flow + persistence:**
 `effectiveBrand` = base brand + session overlays (`iconsOverride`,
-`colorAddsOverride`, `suggestedIcons`). Color/icon adds are
-**session-only** — they don't write back to the store. Same for the
-card editor's `onSave` — it currently toasts only. Explicit follow-up
-markers at `BrandKitCosmosPage.tsx` ~232–249 and ~824. When persistence
-lands, it must mirror the existing `iconsOverride` overlay pattern.
+`colorAddsOverride`, `suggestedIcons`). Color/icon adds are still
+**session-only** — they don't write back to the store; when that
+persistence lands it must mirror the `iconsOverride` overlay pattern.
+The card editor's `onSave` DOES persist (2026-08-10): customizations
+(content overrides, cover, color/logo/font picks) are stored per
+brand + variant in localStorage key `brandos:brand-kit:customizations`
+via `features/brand-kit/data/cardCustomizations.ts` and rehydrated when
+the editor reopens (key = `template.id`, falling back to `label:<label>`
+for direct card edits).
 
 **Brand-kit-specific helpers:**
 - `features/brand-kit/data/recolorLogo.ts` — `logoCombosFor(logos, bgs)`
@@ -390,11 +409,24 @@ lands, it must mirror the existing `iconsOverride` overlay pattern.
   ~1094 to flip icon-tile surfaces to inverse when WCAG contrast < 2.
   Don't roll your own contrast check — go through the helper.
 
-**Export status:** Colors / Fonts / Icons downloads work end-to-end via
-`features/brand-kit/data/iconExport.ts` and siblings. Every other card's
-Download button toasts a placeholder (line ~657). Bulk export + brand-
-guides PDF live ONLY in the alternate fork; the canonical fork doesn't
-have them yet.
+**Export status (2026-08-10 — all real now):**
+- Colors / Fonts / Icons: dedicated bundles via
+  `features/brand-kit/data/{colorPaletteExport,fontExport,iconExport}.ts`.
+- Logos: `kitExport.ts` → zip of every variant as SVG + PNG.
+- Template cards (stationery/social/web/guides/decks/animations):
+  `templateSnapshot.tsx` renders the variant OFFSCREEN and rasterizes it
+  with html2canvas. Renderers are designed for a ~260px canonical width
+  (see `ScalingStage`), so snapshots mount at 260px and use html2canvas
+  `scale: 4` — mounting wide produces starved text.
+- Card editor Download: snapshots the LIVE `.bk-preview-host` DOM so the
+  export includes the user's unsaved overrides.
+- Top-right "Export kit": one zip (colors/ fonts/ logos/ about.md
+  brand.json) via `kitExport.downloadKitZip`. Kit colors are deliberately
+  slim (core+accent, svg+png only) — the full-fidelity palette (all
+  neutrals, jpg + ai) is the dedicated Colors download; the per-color
+  `.ai` files are ~10MB each and once ballooned the kit zip to 590MB.
+- Do NOT add a tint/veil overlay over the stock card cover art — tried
+  2026-08-10, explicitly rejected by the user, reverted.
 
 **Canonical vs alternate (recap):** `features/brand-kit/` is the
 read-only visual showcase (Studio). `features/brand-kit-alt/` is the
@@ -402,13 +434,74 @@ edit-first hub with bulk export + PDF guides (Classic, legacy). New
 brand-kit feature work lands in the canonical fork; the alternate is
 bug-fix only.
 
-**Open active debt (as of 2026-05-11):**
-1. Session-only color/icon adds → store persistence
-2. Card-editor `onSave` → write back to brand
-3. Export placeholders for stationery / social / web / guides / decks /
-   animations (~7 of 11 surfaces)
-4. Photos + About cards are placeholder grids
+**Open active debt (revised 2026-08-10):**
+1. Session-only color/icon adds → store persistence (still open)
+2. ~~Card-editor `onSave`~~ — closed (cardCustomizations.ts)
+3. ~~Export placeholders~~ — closed (offscreen rasterization, see above)
+4. Photos + About cards are placeholder grids (still open)
 5. Web section cards are cosmos-only stubs (no renderer yet)
+6. Saved card customizations rehydrate in the EDITOR but the drilldown
+   variant tiles still render brand defaults — reflecting saved
+   overrides in tiles is a follow-up.
+
+## Guideline page — scheduled for from-scratch rebuild
+
+The Studio Guideline tab (`/b/:slug/guideline`, Chronicle shell +
+`ChronicleGuidelineEditor`) was reviewed 2026-08-10 and the owner's
+decision is: **it will be rebuilt from scratch**. Do not invest new
+feature work, UX polish, or refactors in the current Chronicle guideline
+surface — bug fixes only if something blocks another flow. The legacy
+slide editor at `/b/:slug/guidelines/canvas` ("Present") is equally
+frozen; it has a local-brand fallback (see the uuid gotcha below) so it
+at least loads everywhere.
+
+## Canonical brand model — storage round-trip gotcha
+
+`assertCanonicalBrand` (zod, `z.date()`) requires real `Date` objects,
+but any brand hydrated from JSON (localStorage `brandos:brands`,
+Supabase rows) carries ISO STRINGS in `createdAt`/`updatedAt`. The
+coercion lives in ONE place — `fromLegacyBrand`'s `toDate()`
+(`src/domain/brand/fromLegacy.ts`). Don't bypass that boundary: before
+the coercion existed, every canonical write op (colors, typography,
+voice, strategy — i.e. ALL Setup edits) failed validation for every
+user-created brand and Setup silently lost all edits (QA bug SET-01,
+fixed 2026-08-09).
+
+## Dev auth bypass + local brand ids vs Supabase uuid columns
+
+The login screen's "Dev bypass (skip Supabase)" button sets
+`brandos:dev-bypass=1`, seeds a local session (`super_admin`), and —
+critically — keeps ALL services LOCAL (`reconfigureForAuth` is never
+called with `true`). Local brands get ids like `brand_1786308941230`,
+which can NEVER satisfy a Supabase `uuid` column: any code path that
+sends a local brand id to a Supabase table fails with Postgres `22P02`
+("invalid input syntax for type uuid"). Guard such paths with a uuid
+check and degrade to a local fallback (see
+`CanvasGuidelinesEditor.tsx`), and never leave the failure as a spinner
+— surface an error state.
+
+## Centering overflow content (gotcha)
+
+Never center a potentially-overflowing child with
+`items-center justify-center` on an `overflow: auto` flex parent —
+flexbox pushes the top/left overflow OUTSIDE the scrollable region, so
+it becomes unreachable (this hid the design editor's artboard left edge
+whenever a tool panel was open, QA bug DSN-04). The correct pattern:
+plain flex parent + `m-auto` (+ `shrink-0`) on the child — centers when
+smaller, pins to the scroll origin when larger. Same family of bug:
+percentage `max-height` on a child of an auto-height flex item silently
+resolves to nothing (dashboard card logos rendered unconstrained until
+switched to fixed px, QA bug DSH-02/03).
+
+## Fabric canvas listeners — stale closure gotcha
+
+Canvas event listeners registered once (e.g. in a `handleCanvasReady`)
+must reach their React callbacks through a REF, not directly —
+`canvas.on('object:added', someCallback)` freezes the closure from the
+registration render. This silently disabled the design editor's
+auto-save for months (`markDirty` was captured while `enabled` was still
+false — QA bug DSN-01). Pattern: keep `const cbRef = useRef(cb)` updated
+in an effect and register `() => cbRef.current()`.
 
 ## Radix Portal + scoped CSS (gotcha)
 
@@ -426,12 +519,47 @@ never apply to portaled content.
 - If a portaled surface NEEDS workspace tokens (e.g. a brand-picker dropdown),
   set `data-workspace` on the Radix Content element itself + use `var(--name, fallback)`
   so the fallback paints if the var doesn't resolve. See `BrandPicker.tsx`.
+- `var(--x, fallback)` does NOT save you when `--x` resolves to a raw
+  HSL triple (the shadcn `:root` tokens like `--surface`/`--border` are
+  `H S% L%` fragments): the var RESOLVES, the property value is invalid,
+  and the declaration is dropped — fallback never paints. In portaled
+  content use a concrete color. This made the onboarding Google-fonts
+  popover render with a transparent panel (ONB-09, fixed 2026-08-10).
 
 This caught us on the Typescale `FontPicker` (2026-04-24) where the Aa-swatch
 items rendered as unstyled run-on text until the scope prefix was removed.
 
 (Phase B Group 2 renamed `cosmos-workspace.css` → `workspace.css` and
 `[data-cosmos="workspace"]` → `[data-workspace]`. The semantics are unchanged.)
+
+## localStorage key inventory (debugging aid)
+
+- `brandos:brands` — LocalBrandsService store (user brands; seeds merge at read)
+- `brandos:brand-kit:customizations` — per brand+variant card-editor saves
+- `design_<brandId>` — legacy design editor autosave (Fabric JSON)
+- `brandos:guideline-theme:<brandId>` — Guideline theme preset pick
+- `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal
+- `brandos-theme` — workspace light/dark (scoped to `[data-workspace]`;
+  the app-level next-themes provider is separate and defaults light —
+  the legacy editor mirrors `brandos-theme` into it on mount)
+- `brandos:dev-bypass` — dev auth bypass flag
+- `editor-tutorial-<slug>` — editor welcome tutorial seen
+
+## Onboarding v4 — submit mapping notes (post-QA, 2026-08-10)
+
+`SetUpScreen.submit()` is the single place free-text sections become the
+brand record. Current invariants (each fixed a QA mismapping — keep them):
+- Values split on `,;·•|` into real array entries, not one string.
+- The voice sentence goes ONLY to `voiceAndTone`; `strategy.personality`
+  maps from a dedicated "Personality" section or stays empty.
+- Slogan (typed on the review bar or parsed from a Slogan/Tagline/Motto
+  section) persists to `guidelines.slogan` AND as a "Slogan" About section.
+- One picked font family stays one family — `secondary` is undefined
+  unless a second family exists (consumers all fall back to primary).
+- Local slugs are hyphenated (`qa-brand` not `qa_brand`); the Supabase
+  slug trigger is a separate path.
+- The image classifier only runs when `VITE_CLASSIFIER_URL` is set;
+  default is the filename heuristic (no network).
 
 ## Auth flow gotchas
 
