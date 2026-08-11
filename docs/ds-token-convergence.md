@@ -1,8 +1,10 @@
 # Studio token convergence — workspace.css → `--ds-*`
 
-Status: **approved plan, not yet executed** (authored 2026-08-11, revised
-same day: bridge is mechanical-only; semantic collapses migrate
-per-component). Goal: `--ds-*` (tokens.json) becomes the only Studio
+Status: **Phases 1–2 executed 2026-08-11** (gap tokens added as exact
+workspace copies; Category-A bridge live; measured token-resolution diff
+confirmed changes on Category-A names only). Phases 3+ await explicit go.
+(Authored 2026-08-11, revised same day: bridge is mechanical-only;
+semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted
 at a measurable point — never a second permanent mapping layer.
 
@@ -25,7 +27,7 @@ the value) changes. Usage counts are css+tsx combined.
 | workspace token | uses | `--ds-*` equivalent | expected delta at flip |
 |---|---|---|---|
 | `--background` | 21 | `--ds-bg` | #f7f5f3 → #f5f4ef (tiny warm shift) |
-| `--surface` | 70 | `--ds-surface` | identical (#ffffff) |
+| `--surface` | 70 | `--ds-surface` | light identical (#ffffff); dark #141414 → #1d1c1a — cards become distinguishable from the page (DS separates surface from bg in dark) |
 | `--surface-hover` | 31 | `--ds-surface-hover` | #f8f8f7 → #efeee8 (quiet fills warmer) |
 | `--border` | 216 | `--ds-border` | rgba(13,13,13,.12) → solid #e6e4dd (same role + weight) |
 | `--border-strong` | 17 | `--ds-border-strong` *(new, §2)* | ≈ same weight |
@@ -41,7 +43,7 @@ the value) changes. Usage counts are css+tsx combined.
 | `--critical` / `--critical-soft` | 7 | `--ds-danger` / `--ds-danger-bg` | warm red family |
 | `--ok` / `--ok-bg` | 6 | `--ds-success` / `--ds-success-bg` | ≈ |
 | `--shadow-xs/sm/md` | 21 | same-name `--ds-shadow-*` | warmer shadow tint |
-| `--shadow-lg` | 8 | `--ds-shadow-float` | ≈ (same "biggest float" role) |
+| `--shadow-lg` | 8 | `--ds-shadow-float` | same "biggest float" role; geometry changes (single 24/56px layer → DS dual-layer float) |
 | `--ease` | 177 | `--ds-ease` | **byte-identical already** |
 
 That expected-delta column is the complete list of intended visual change

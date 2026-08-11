@@ -1,4 +1,8 @@
 @import './shared/design-system/tokens.css';
+/* DS v1 foundations (--ds-*) — global: the workspace.css TEMPORARY BRIDGE
+   aliases old workspace tokens to these, so they must exist on every page,
+   not only where a @/shared/ds component happens to be imported. */
+@import './shared/ds/tokens.css';
 
 @tailwind base;
 @tailwind components;

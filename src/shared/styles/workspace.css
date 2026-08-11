@@ -19,42 +19,53 @@
  * uses gray-975 (#141414) with warm-gray-dark text steps.
  */
 [data-workspace] {
-  --background: #f7f5f3;              /* color-paper */
-  --surface: #ffffff;                 /* background-primary / card */
+  /* ============================== TEMPORARY BRIDGE ==============================
+   * Mechanical aliases ONLY — docs/ds-token-convergence.md §1/§5. Old workspace
+   * token names resolve to the canonical --ds-* tokens (tokens.json). The
+   * --ds-* values re-resolve per data-theme on this same element, so this one
+   * block is mode-correct for light AND dark; the old dark-mode duplicates of
+   * these names were deleted when this bridge landed.
+   * Do NOT add names here. Category-B tokens (--surface-elevated,
+   * --surface-sunken, --accent-muted, --accent-hover, --accent-active, --link)
+   * migrate per-component, never via this block. Do not reference these old
+   * names in new code — use --ds-* directly.
+   * DELETE this whole block when the §7 category-A grep returns zero.
+   * ============================================================================ */
+  --background: var(--ds-bg);
+  --surface: var(--ds-surface);
+  --surface-hover: var(--ds-surface-hover);
+  --border: var(--ds-border);
+  --border-strong: var(--ds-border-strong);
+  --dash: var(--ds-dash);
+  --dash-strong: var(--ds-dash-strong);
+  --text-primary: var(--ds-text);
+  --text-secondary: var(--ds-text-secondary);
+  --text-muted: var(--ds-text-muted);
+  --accent: var(--ds-accent);
+  --accent-ring: var(--ds-focus-ring);
+  --accent-contrast: var(--ds-accent-fg);
+  --critical: var(--ds-danger);
+  --critical-soft: var(--ds-danger-bg);
+  --ok: var(--ds-success);
+  --ok-bg: var(--ds-success-bg);
+  --shadow-xs: var(--ds-shadow-xs);
+  --shadow-sm: var(--ds-shadow-sm);
+  --shadow-md: var(--ds-shadow-md);
+  --shadow-lg: var(--ds-shadow-float);
+  --ease: var(--ds-ease);
+  /* ============================ END TEMPORARY BRIDGE ============================ */
+
+  /* Category B — semantic collapses (docs/ds-token-convergence.md §3). These
+   * roles change under the DS interaction model; each consumer migrates token
+   * + replacement behavior together. Keep literal until then. */
   --surface-elevated: #fcfbfa;        /* background-light-elevation */
-  --surface-hover: #f8f8f7;           /* hover-tertiary */
   --surface-sunken: #f2f1f0;          /* background-elevation */
-
-  --border: rgba(13, 13, 13, 0.12);   /* border-primary */
-  --border-strong: rgba(13, 13, 13, 0.22);
-  --dash: rgba(92, 87, 84, 0.30);     /* hover-border @ stronger alpha */
-  --dash-strong: rgba(13, 13, 13, 0.55);
-
-  --text-primary: #0d0d0d;            /* gray-1000 */
-  --text-secondary: #6e6a69;          /* warm-gray-light-600 */
-  --text-muted: #9a9796;              /* warm-gray-light-400 */
-
-  --accent: #0d0d0d;                  /* button-primary light */
   --accent-hover: #232323;            /* hover-primary light */
   --accent-active: #000000;
   --accent-muted: rgba(13, 13, 13, 0.07);
-  --accent-ring: rgba(13, 13, 13, 0.18);
-  --accent-contrast: #ffffff;
-
-  --critical: #bd3c1f;                /* red-600 / critical */
-  --critical-soft: rgba(189, 60, 31, 0.08);
-
-  --ok: #007a3b;                      /* green-600 */
-  --ok-bg: rgba(0, 122, 59, 0.08);
-
   --link: #2965f6;                    /* blue-300 */
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.025);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.14);
-
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Local derived variable — re-bases through the bridge automatically. */
   --rule: color-mix(in srgb, var(--border) 60%, transparent);
 
   background: var(--background);
@@ -103,40 +114,14 @@
 }
 
 [data-workspace][data-theme="dark"] {
-  --background: #141414;              /* gray-975 / dark paper */
-  --surface: #141414;                 /* background-primary dark */
+  /* Category-A dark values now come from the --ds-* dark map through the
+   * bridge above — only Category-B (§3) dark literals remain here. */
   --surface-elevated: #212020;        /* gray-950 / card dark */
-  --surface-hover: #181818;           /* hover-tertiary dark */
   --surface-sunken: #323131;          /* gray-900 / elevation dark */
-
-  --border: rgba(247, 245, 243, 0.12); /* border-primary dark */
-  --border-strong: rgba(247, 245, 243, 0.22);
-  --dash: rgba(247, 245, 243, 0.18);
-  --dash-strong: rgba(247, 245, 243, 0.55);
-
-  --text-primary: #ffffff;
-  --text-secondary: #aeabab;          /* warm-gray-dark-400 */
-  --text-muted: #918f8f;              /* warm-gray-dark-600 */
-
-  --accent: #ffffff;                  /* button-primary dark (inverted) */
   --accent-hover: #e8e6e4;            /* hover-primary dark */
   --accent-active: #dad8d4;
   --accent-muted: rgba(255, 255, 255, 0.10);
-  --accent-ring: rgba(255, 255, 255, 0.24);
-  --accent-contrast: #0d0d0d;
-
-  --critical: #ef7759;                /* orange-400 / critical dark */
-  --critical-soft: rgba(239, 119, 89, 0.10);
-
-  --ok: #00af5d;                      /* green-400 dark */
-  --ok-bg: rgba(0, 175, 93, 0.12);
-
   --link: #316af4;                    /* blue-400 dark */
-
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.10);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.30);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50);
-  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.65);
 }
 
 [data-workspace] * { box-sizing: border-box; }
