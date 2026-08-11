@@ -15,6 +15,7 @@ import { compressAsset, compressLogo } from '@/shared/utils/imageUpload';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import type { Asset, BrandLogoAssets } from '@/shared/types/brand';
 import { parseDescriptionToSections } from '../services/parseDescription';
+import { createBrandResilient } from '../services/createBrand';
 import { type FontFamilyGroup, groupFontAssets } from '../utils/fontFamily';
 import {
   describeStorageUsage,
@@ -37,6 +38,10 @@ export function SetUpScreen() {
   const setupPanel = useV4Store((s) => s.setupPanel);
   const setSetupPanel = useV4Store((s) => s.setSetupPanel);
   const [busy, setBusy] = useState(false);
+  // `busy` disables the CTA only after the next render — a second click in
+  // the same tick still reaches submit() and created a DUPLICATE brand.
+  // The ref is the synchronous re-entrancy gate; `busy` is just the UI.
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (setupPanel !== 1) setSetupPanel(1);
@@ -96,6 +101,10 @@ export function SetUpScreen() {
   const goNext = () => {
     if (setupPanel < 2) {
       const next = (setupPanel + 1) as 2;
+      // A same-tick double click runs this twice before React re-renders —
+      // pushing two identical history entries that cost the user an extra
+      // Back press. If history already points at the target panel, skip.
+      if ((window.history.state as { setupPanel?: number } | null)?.setupPanel === next) return;
       // Kick off the parse before navigating — runs in the background while
       // the user lands on the review, so sections appear shortly after.
       // Keep the promise so submit() can await it — a fast "Set up" click
@@ -118,6 +127,8 @@ export function SetUpScreen() {
   };
 
   const submit = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       // The description parse runs in the background from the moment the
@@ -465,51 +476,9 @@ export function SetUpScreen() {
       // The brand is written in layers (core create → per-slice updates)
       // just below; every layer records its own error so a failure can be
       // reported precisely instead of as "Failed to create brand".
-      const isDuplicateSlugError = (e: unknown): boolean => {
-        if (!e || typeof e !== 'object') return false;
-        const o = e as Record<string, unknown>;
-        if (String(o.code) === '23505') return true;
-        const msg = String((o as { message?: unknown }).message ?? '');
-        if (/duplicate key|unique constraint|brands_slug/i.test(msg)) return true;
-        return false;
-      };
-      // The Supabase brands table has a `BEFORE INSERT` trigger
-      // (`set_brand_slug`) that always regenerates `slug` from `name` on
-      // insert, ignoring whatever slug we send. The slug-generator runs
-      // under the caller's RLS so it can't see brands owned by other
-      // users — it returns a "unique" slug that actually collides at the
-      // global unique constraint (`brands_slug_unique`). The only way to
-      // get a different slug out of the trigger is to send a different
-      // name. We retry with " 2", " 3"… appended until INSERT succeeds.
-      let freedOnce = false;
-      const tryCreate = async (input: Record<string, unknown>) => {
-        const baseName = String(input.name ?? '').trim() || 'Brand';
-        let attemptInput = input;
-        for (let attempt = 0; attempt < 6; attempt++) {
-          try {
-            return await useBrandStore.getState().create(attemptInput as never);
-          } catch (err) {
-            // Browser storage full: reclaim the disposable half (caches,
-            // drafts, tutorial flags) and try once more before giving up.
-            if (isStorageFullError(err) && !freedOnce) {
-              freedOnce = true;
-              const freedKB = freeDisposableStorage();
-              console.warn(`[onboarding-v4] storage full — freed ${freedKB} KB of caches, retrying`);
-              continue;
-            }
-            if (!isDuplicateSlugError(err) || attempt === 5) throw err;
-            // Increment a numeric suffix on the NAME so the trigger
-            // produces a fresh slug (e.g., "Kaafex" → "Kaafex 2" →
-            // slug "kaafex_2"). This is the only knob the user-facing
-            // record exposes that the DB-side trigger respects.
-            const nextName = `${baseName} ${attempt + 2}`;
-            attemptInput = { ...input, name: nextName };
-          }
-        }
-        // Loop exit without return only happens if attempt 5 also fails,
-        // and we already re-threw above. TS just doesn't see that.
-        throw new Error('Slug retry exhausted');
-      };
+      // Duplicate-slug + storage-full recovery lives in
+      // services/createBrand.ts, shared with the /create path.
+      const tryCreate = createBrandResilient;
       const sizeOf = (input: Record<string, unknown>) => {
         try {
           return `${(JSON.stringify(input).length / 1024).toFixed(1)} KB`;
@@ -673,6 +642,7 @@ export function SetUpScreen() {
         isStorageFullError(err) ||
         (tiered ?? []).some((f) => isStorageFullError(f.err));
       if (storageFull) {
+        busyRef.current = false;
         setBusy(false);
         const advice = storageAdvice();
         toast.error('Your browser storage is full', {
@@ -730,6 +700,7 @@ export function SetUpScreen() {
         duration: 30000,
         closeButton: true,
       });
+      busyRef.current = false;
       setBusy(false);
     }
   };

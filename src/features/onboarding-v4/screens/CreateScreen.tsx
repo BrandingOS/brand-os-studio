@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CosmosShell } from '../components/CosmosShell';
@@ -9,7 +9,7 @@ import { DefineStep } from '../steps/DefineStep';
 import { FeelStep } from '../steps/FeelStep';
 import { useV4Store } from '../store/onboardingV4Store';
 import { STYLE_CARDS, poolForCard } from '../data/styleCards';
-import { useBrandStore } from '@/shared/store/brandStore';
+import { createBrandResilient } from '../services/createBrand';
 
 const STEP_META: Record<1 | 2, { title: string; subtitle: string; caption: string; label: string }> = {
   1: {
@@ -34,6 +34,9 @@ export function CreateScreen() {
   const setStep = useV4Store((s) => s.setStep);
   const define = useV4Store((s) => s.define);
   const [busy, setBusy] = useState(false);
+  // Synchronous re-entrancy gate — `busy` only disables the CTA on the
+  // NEXT render, so a same-tick double click would create two brands.
+  const busyRef = useRef(false);
 
   const meta = STEP_META[step];
   const canAdvance = step === 1 ? define.name.trim().length > 0 && define.description.trim().length >= 10 : true;
@@ -45,6 +48,8 @@ export function CreateScreen() {
       return;
     }
 
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const state = useV4Store.getState();
@@ -101,7 +106,7 @@ export function CreateScreen() {
         guidelines,
       };
 
-      const brand = await useBrandStore.getState().create(input as any);
+      const brand = await createBrandResilient(input);
 
       toast.success('Brand created!');
       useV4Store.getState().reset();
@@ -109,6 +114,7 @@ export function CreateScreen() {
     } catch (err) {
       console.error('Failed to create brand:', err);
       toast.error(err instanceof Error ? err.message : 'Failed to create brand');
+      busyRef.current = false;
       setBusy(false);
     }
   };

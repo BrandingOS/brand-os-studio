@@ -69,7 +69,7 @@ export class LocalBrandsService implements BrandsService {
     const brand: Brand = {
       ...input,
       id: `brand_${Date.now()}`,
-      slug: input.slug || this.generateSlug(input.name),
+      slug: this.uniqueSlug(input.slug || this.generateSlug(input.name)),
       assets: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -115,6 +115,19 @@ export class LocalBrandsService implements BrandsService {
     // convention the rest of the product uses. Existing stored brands
     // keep whatever slug they were created with, so old links survive.
     return name.toLowerCase().trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/[\s_]+/g, '-');
+  }
+
+  /** Slugs are the URL identity — two brands sharing one makes
+   *  `getBySlug` (and every /b/:slug route) resolve to whichever comes
+   *  first. Supabase enforces this with a unique constraint; locally we
+   *  suffix -2/-3… until the slug is free. */
+  private uniqueSlug(base: string): string {
+    const taken = new Set(this.getAllBrands().map(b => b.slug));
+    if (!taken.has(base)) return base;
+    for (let n = 2; ; n++) {
+      const candidate = `${base}-${n}`;
+      if (!taken.has(candidate)) return candidate;
+    }
   }
 
   async delete(id: string): Promise<void> {
