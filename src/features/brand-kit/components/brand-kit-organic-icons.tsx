@@ -126,14 +126,14 @@ export const PaperStackOrganicIcon = forwardRef<OrganicIconHandle, OrganicIconPr
         <rect x="7" y="7" width="12" height="14" rx="1.4" />
         {/* Mid sheet */}
         <motion.g variants={mid}>
-          <rect x="5.5" y="5.5" width="12" height="14" rx="1.4" fill="var(--surface-elevated, #ffffff)" />
+          <rect x="5.5" y="5.5" width="12" height="14" rx="1.4" fill="var(--ds-surface)" />
           <rect x="5.5" y="5.5" width="12" height="14" rx="1.4" />
         </motion.g>
         {/* Top sheet with lines + dog-ear corner */}
         <motion.g variants={top} style={{ transformOrigin: '10px 18px' }}>
           <path
             d="M4 3.5 H14 L16.5 6 V18 A1.4 1.4 0 0 1 15.1 19.4 H4 A1.4 1.4 0 0 1 2.6 18 V4.9 A1.4 1.4 0 0 1 4 3.5 Z"
-            fill="var(--surface-elevated, #ffffff)"
+            fill="var(--ds-surface)"
           />
           <path d="M4 3.5 H14 L16.5 6 V18 A1.4 1.4 0 0 1 15.1 19.4 H4 A1.4 1.4 0 0 1 2.6 18 V4.9 A1.4 1.4 0 0 1 4 3.5 Z" />
           {/* Dog-ear fold */}
@@ -197,9 +197,9 @@ export const ChatBubblesOrganicIcon = forwardRef<OrganicIconHandle, OrganicIconP
             stroke="none"
           />
           {/* Typing dots (punched-out via cosmos token so they read in both themes) */}
-          <motion.circle cx="12" cy="16.5" r="0.9" fill="var(--surface-elevated, #ffffff)" variants={dot(0)} style={{ transformOrigin: '12px 16.5px' }} />
-          <motion.circle cx="15" cy="16.5" r="0.9" fill="var(--surface-elevated, #ffffff)" variants={dot(1)} style={{ transformOrigin: '15px 16.5px' }} />
-          <motion.circle cx="18" cy="16.5" r="0.9" fill="var(--surface-elevated, #ffffff)" variants={dot(2)} style={{ transformOrigin: '18px 16.5px' }} />
+          <motion.circle cx="12" cy="16.5" r="0.9" fill="var(--ds-surface)" variants={dot(0)} style={{ transformOrigin: '12px 16.5px' }} />
+          <motion.circle cx="15" cy="16.5" r="0.9" fill="var(--ds-surface)" variants={dot(1)} style={{ transformOrigin: '15px 16.5px' }} />
+          <motion.circle cx="18" cy="16.5" r="0.9" fill="var(--ds-surface)" variants={dot(2)} style={{ transformOrigin: '18px 16.5px' }} />
         </motion.g>
       </Shell>
     );
