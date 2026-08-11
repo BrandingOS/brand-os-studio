@@ -56,6 +56,15 @@ const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 // Product Surface Explorer — owner inventory/review of every surface (self-gated).
 const DevProductMapPage = lazy(() => import("./pages/_dev/product-map"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
+// Code Navigator — engineering-facing route/component/file explorer.
+//
+// The `import.meta.env.DEV` ternary is load-bearing, not decorative: Vite
+// substitutes `false` here for production builds, so the dynamic import sits in
+// a dead branch and Rollup emits NO chunk for it at all. Guarding only the
+// <Route> below would still leave this `import()` reachable and ship the page.
+const DevArchitecturePage = import.meta.env.DEV
+  ? lazy(() => import("./pages/__architecture"))
+  : null;
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
 // DS v1 component showcase (self-gated on import.meta.env.DEV or ?dev=1).
 const DevDesignSystemPage = lazy(() => import("./pages/_dev/design-system"));
@@ -693,6 +702,12 @@ const App = () => (
           )}
           {import.meta.env.DEV && (
             <Route path="/_dev/chronicle" element={<ChroniclePreviewPage />} />
+          )}
+          {/* Code Navigator / Architecture Explorer. DEV-only on purpose: it
+              reads a dev-server endpoint and must add nothing to the production
+              bundle. Engineering-facing counterpart to /_dev/product-map. */}
+          {import.meta.env.DEV && (
+            <Route path="/__architecture" element={<DevArchitecturePage />} />
           )}
           {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
           <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />

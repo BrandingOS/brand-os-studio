@@ -343,6 +343,50 @@ claude.ai/design project) is implemented as a self-contained module:
   3px charcoal ring, never blue. New chrome work should consume `--ds-*`
   tokens/components rather than inventing values.
 
+## Code Navigator — `/__architecture` (dev only, 2026-08-11)
+
+**Lost in the codebase? Start here.** `/__architecture` answers "what file
+renders this URL?" and its inverse. Type a page name, URL, component name, file
+path, or even a component a page *imports*, and get all four back:
+
+```
+Setup → /b/:slug/setup → BrandSetupPageV2 → src/pages/b/[slug]/setup.tsx
+                                            (route: src/App.tsx:415)
+```
+
+- **100% generated** from the router's TypeScript AST on every request — there is
+  no list to maintain. Add/rename/move/delete a route and the explorer updates on
+  reload. `src/features/dev-architecture/generator/*.node.ts` does the parsing;
+  the `architecture-map` Vite plugin serves it at `/__architecture-map.json`.
+- Handles every routing pattern in `App.tsx`: nested routes, index routes,
+  `ProtectedRoute`/provider wrappers, `<Navigate>` and `*Redirect` components
+  (including reconstructing template targets → `/a/:slug/setup`), splats,
+  `import.meta.env.DEV` guards, and **imported route fragments**
+  (`{logoMakerFlowRoutes}`) which it follows through barrel re-exports.
+- **Dev only, structurally.** The route AND its `lazy()` import are behind
+  `import.meta.env.DEV` (the ternary is load-bearing — guarding only the `<Route>`
+  still emits the chunk), and the endpoint plugin is `apply: 'serve'`. Verified
+  against a real build: no chunk, no explorer code in `dist/`.
+- **Anti-staleness:** `__tests__/realRouter.test.ts` cross-checks the AST
+  generator against `dev-product-map/discovery.ts` — an independent text scanner
+  — and asserts both find the same route set, every `sourceFile` exists on disk,
+  and there are zero generator warnings.
+- Extending it (hooks/stores/services/Supabase tables/reverse deps/impact
+  analysis): add a scanner beside `scanImports.node.ts` and one optional field on
+  `NodeAnalysis`. **Read `docs/dev-architecture/README.md` first** — it also
+  records why `dependency-cruiser` was evaluated and not adopted.
+
+**Not the same tool as `/_dev/product-map`.** Product-map is the product-owner's
+curated surface inventory (descriptions, keep/remove/merge decisions, duplicate
+groups, and non-routed surfaces like tabs and modals). Code Navigator is
+engineering orientation, fully derived. They share no code — only a test that
+cross-checks their parsers. Don't merge them, and don't use product-map's registry
+as a source of truth for route data.
+
+> Known pre-existing issue (not from this tool): product-map reads router source
+> via `import.meta.glob(…, '?raw')`, which is compile-time, so the full text of
+> `App.tsx` ships in the production bundle. Worth fixing separately.
+
 ## UI reuse policy — where components come from (audited 2026-08-11)
 
 **Reuse the CANONICAL component first — not merely any component that

@@ -69,6 +69,65 @@ function dsTokensApplyPlugin(): Plugin {
   };
 }
 
+/**
+ * Dev-only data source for the Code Navigator (/__architecture):
+ * GET /__architecture-map.json returns the route→component→file map, generated
+ * by walking the real router's TypeScript AST on every request.
+ *
+ * Generating per-request (rather than emitting a committed JSON artifact) is the
+ * anti-staleness design: there is no second copy of the truth to drift. Adding,
+ * moving, renaming or deleting a route changes the response immediately.
+ *
+ * `apply: 'serve'` drops this plugin for builds, so neither the endpoint nor the
+ * generator (nor any source text it reads) can reach production output. The
+ * /__architecture route itself is separately gated behind `import.meta.env.DEV`
+ * in App.tsx, so the page and its chunk are tree-shaken out of the build.
+ */
+function architectureMapPlugin(): Plugin {
+  return {
+    name: "architecture-map",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/__architecture-map.json", async (req, res) => {
+        res.setHeader("content-type", "application/json");
+        // Always fresh — a cached map is a stale map.
+        res.setHeader("cache-control", "no-store");
+        try {
+          // Imported lazily so a generator error can't break dev-server startup.
+          const { buildArchitectureMap } = await server.ssrLoadModule(
+            "/src/features/dev-architecture/generator/buildMap.node.ts",
+          );
+          const map = buildArchitectureMap(process.cwd());
+          res.statusCode = 200;
+          res.end(JSON.stringify(map));
+        } catch (error) {
+          server.config.logger.error(
+            `[architecture-map] generation failed: ${
+              error instanceof Error ? error.stack ?? error.message : String(error)
+            }`,
+          );
+          res.statusCode = 500;
+          res.end(
+            JSON.stringify({
+              schemaVersion: 1,
+              generatedAt: new Date().toISOString(),
+              routes: [],
+              sources: [],
+              warnings: [
+                {
+                  message: `Generator threw: ${
+                    error instanceof Error ? error.message : String(error)
+                  }`,
+                },
+              ],
+            }),
+          );
+        }
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -78,6 +137,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' && componentTagger(),
     dsTokensApplyPlugin(),
+    architectureMapPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
