@@ -43,3 +43,4 @@ new-ui/
 # Vitest browser test failure screenshots
 **/__screenshots__/
 supabase/.temp/
+.ds-token-versions.json

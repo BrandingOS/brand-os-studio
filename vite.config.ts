@@ -19,6 +19,107 @@ function dsTokensApplyPlugin(): Plugin {
     name: "ds-tokens-apply",
     apply: "serve",
     configureServer(server) {
+      const json = (res: import("http").ServerResponse, status: number, body: object) => {
+        res.statusCode = status;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(body));
+      };
+
+      // Current canonical tokens.json (raw source values) — the Controller
+      // uses this for history snapshots and "modified from version" diffs,
+      // so it never has to reverse-engineer values from computed styles.
+      server.middlewares.use("/__ds-tokens/state", async (req, res) => {
+        if (req.method !== "GET") return json(res, 405, { ok: false, error: "GET only" });
+        try {
+          const gen = await import("./scripts/gen-ds-tokens.mjs");
+          const tokens = gen.readTokens();
+          return json(res, 200, {
+            ok: true,
+            state: { light: tokens.modes.light, dark: tokens.modes.dark, global: tokens.global },
+          });
+        } catch (e) {
+          return json(res, 500, { ok: false, error: e instanceof Error ? e.message : String(e) });
+        }
+      });
+
+      // Named versions — durable checkpoints of complete token states.
+      // Stored in .ds-token-versions.json at the repo root (gitignored):
+      // survives browser restarts/data clears without polluting Git.
+      // Restore is deliberately NOT an op here — the client restores by
+      // POSTing a full diff to /apply, the one canonical write path.
+      const versionsPath = path.resolve(__dirname, ".ds-token-versions.json");
+      const readVersions = async (): Promise<unknown[]> => {
+        const fs = await import("fs");
+        try {
+          const parsed = JSON.parse(fs.readFileSync(versionsPath, "utf8"));
+          return Array.isArray(parsed?.versions) ? parsed.versions : [];
+        } catch {
+          return [];
+        }
+      };
+      const writeVersions = async (versions: unknown[]) => {
+        const fs = await import("fs");
+        fs.writeFileSync(versionsPath, JSON.stringify({ v: 1, versions }, null, 2));
+      };
+      server.middlewares.use("/__ds-tokens/versions", (req, res) => {
+        if (req.method === "GET") {
+          readVersions()
+            .then((versions) => json(res, 200, { ok: true, versions }))
+            .catch((e) => json(res, 500, { ok: false, error: String(e) }));
+          return;
+        }
+        if (req.method !== "POST") return json(res, 405, { ok: false, error: "GET or POST" });
+        const chunks: Buffer[] = [];
+        let size = 0;
+        req.on("data", (c: Buffer) => {
+          size += c.length;
+          if (size > 64 * 1024) {
+            json(res, 413, { ok: false, error: "payload too large" });
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
+        req.on("end", async () => {
+          if (res.writableEnded) return;
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            const versions = (await readVersions()) as Array<{
+              id: string; name: string; note?: string; createdAt: number; tokens: object;
+            }>;
+            if (body.op === "save") {
+              const name = String(body.name ?? "").trim().slice(0, 80);
+              if (!name) return json(res, 400, { ok: false, error: "name required" });
+              const gen = await import("./scripts/gen-ds-tokens.mjs");
+              const tokens = gen.readTokens();
+              versions.unshift({
+                id: `v-${Date.now()}`,
+                name,
+                note: String(body.note ?? "").slice(0, 200) || undefined,
+                createdAt: Date.now(),
+                tokens: { light: tokens.modes.light, dark: tokens.modes.dark, global: tokens.global },
+              });
+            } else if (body.op === "rename") {
+              const v = versions.find((x) => x.id === body.id);
+              if (!v) return json(res, 404, { ok: false, error: "version not found" });
+              const name = String(body.name ?? "").trim().slice(0, 80);
+              if (name) v.name = name;
+              if (body.note !== undefined) v.note = String(body.note).slice(0, 200) || undefined;
+            } else if (body.op === "delete") {
+              const i = versions.findIndex((x) => x.id === body.id);
+              if (i === -1) return json(res, 404, { ok: false, error: "version not found" });
+              versions.splice(i, 1);
+            } else {
+              return json(res, 400, { ok: false, error: `unknown op: ${body.op}` });
+            }
+            await writeVersions(versions);
+            return json(res, 200, { ok: true, versions });
+          } catch (e) {
+            return json(res, 500, { ok: false, error: e instanceof Error ? e.message : String(e) });
+          }
+        });
+      });
+
       server.middlewares.use("/__ds-tokens/apply", (req, res) => {
         const json = (status: number, body: object) => {
           res.statusCode = status;
