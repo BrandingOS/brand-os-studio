@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { DsButton, DsInput, DsTextArea } from '@/shared/ds';
+import { DsButton, DsInput, DsModal, DsTextArea } from '@/shared/ds';
 
 type Props = {
   open: boolean;
@@ -45,15 +45,6 @@ export function VoiceEditorModal({
     return () => window.cancelAnimationFrame(id);
   }, [open, essay, pillars]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
   const handleSave = () => {
     onSave({
       essay: essayVal.trim(),
@@ -82,103 +73,82 @@ export function VoiceEditorModal({
   };
 
   return (
-    <div
-      className={`editor-modal-backdrop${open ? ' is-open' : ''}`}
-      role="dialog"
-      aria-modal="true"
-      aria-hidden={!open}
-      aria-labelledby="voice-editor-title"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="editor-modal-shell">
-        <header className="modal-head">
-          <div className="modal-head-meta">
-            <h3 id="voice-editor-title">Voice &amp; Tone</h3>
-            <p>Describe how your brand speaks — or upload a reference doc.</p>
-          </div>
-          <button
-            type="button"
-            className="modal-close"
-            aria-label="Close"
-            onClick={onClose}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </header>
-
-        <div className="modal-body">
-          <DsTextArea
-            ref={textareaRef}
-            label="How your brand speaks"
-            placeholder="We speak plainly. We make complex things feel simple. We respect our readers — and their intelligence."
-            value={essayVal}
-            onChange={(e) => setEssayVal(e.target.value)}
-          />
-          <div style={{ marginTop: 16 }}>
-            <DsInput
-              type="text"
-              label="Pillars (comma-separated)"
-              placeholder="Clear, Warm, Precise, Confident"
-              value={pillarsVal}
-              onChange={(e) => setPillarsVal(e.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-
-          <div className="modal-or">Or upload a guide</div>
-
-          <div
-            className="mini-drop"
-            role="button"
-            tabIndex={0}
-            onClick={() => fileInputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-          >
-            <svg className="mini-drop-border" aria-hidden>
-              <rect />
-            </svg>
-            <div className="mini-drop-inset">
-              <div className="mini-drop-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <path d="M14 2v6h6" />
-                </svg>
-              </div>
-              <p className="mini-drop-title">Drop a brand guide</p>
-              <p className="mini-drop-sub">
-                PDF, DOC, or TXT — we’ll extract the voice
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.doc,.docx,.txt"
-              hidden
-              onChange={handleFileChange}
-            />
-          </div>
-        </div>
-
-        <footer className="modal-foot">
+    <DsModal
+      open={open}
+      onClose={onClose}
+      title="Voice & Tone"
+      actions={
+        <>
           <DsButton tone="secondary" onClick={onClose}>
             Cancel
           </DsButton>
           <DsButton tone="primary" onClick={handleSave}>
             Save
           </DsButton>
-        </footer>
+        </>
+      }
+    >
+      <p style={{ margin: '-8px 0 0', fontSize: 13, color: 'var(--ds-text-muted)' }}>
+        Describe how your brand speaks — or upload a reference doc.
+      </p>
+      <div>
+        <DsTextArea
+          ref={textareaRef}
+          label="How your brand speaks"
+          placeholder="We speak plainly. We make complex things feel simple. We respect our readers — and their intelligence."
+          value={essayVal}
+          onChange={(e) => setEssayVal(e.target.value)}
+        />
+        <div style={{ marginTop: 16 }}>
+          <DsInput
+            type="text"
+            label="Pillars (comma-separated)"
+            placeholder="Clear, Warm, Precise, Confident"
+            value={pillarsVal}
+            onChange={(e) => setPillarsVal(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+          />
+        </div>
+
+        <div className="modal-or">Or upload a guide</div>
+
+        <div
+          className="mini-drop"
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+        >
+          <svg className="mini-drop-border" aria-hidden>
+            <rect />
+          </svg>
+          <div className="mini-drop-inset">
+            <div className="mini-drop-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+            </div>
+            <p className="mini-drop-title">Drop a brand guide</p>
+            <p className="mini-drop-sub">
+              PDF, DOC, or TXT — we’ll extract the voice
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.txt"
+            hidden
+            onChange={handleFileChange}
+          />
+        </div>
       </div>
-    </div>
+    </DsModal>
   );
 }

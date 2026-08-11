@@ -553,7 +553,10 @@
 .ds-modal-scrim {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  /* Must clear app chrome: the workspace sticky nav sits at z-110, and
+     the app's modal layer is 200. A scrim below chrome renders modals
+     under the nav. */
+  z-index: 200;
   background: var(--ds-scrim);
   backdrop-filter: blur(8px);
   display: flex;
