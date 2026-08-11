@@ -28,11 +28,11 @@ dist-ssr
 *.sln
 *.sw?
 .playwright-mcp/
-qa-screenshots/
 audit-*.png
-test-screenshots/
 # Root-level screenshots (drop zone for ad-hoc captures)
 /*.png
+# Local scratch archive (old screenshots, QA captures, backups)
+/archive/
 
 # Local research / reference assets — not part of the product
 new-version/
