@@ -343,6 +343,68 @@ claude.ai/design project) is implemented as a self-contained module:
   3px charcoal ring, never blue. New chrome work should consume `--ds-*`
   tokens/components rather than inventing values.
 
+## UI reuse policy — where components come from (audited 2026-08-11)
+
+**Reuse the CANONICAL component first — not merely any component that
+happens to exist.** For NEW Studio (`/b/:slug`) UI, resolve in this order;
+stop at the first tier that fits:
+
+1. Generic visual primitive → `@/shared/ds` (DsButton, DsInput, DsModal,
+   DsTabBar, BrandMark, …).
+2. Canonical product-level component → `@/shared/ui/PageHeader`,
+   `@/shared/upload/AssetSourcePopover`, `BrandChooserDialog`,
+   `@/shared/brand/*` (logoOnBackground, brandPalette, brandPathRewrite),
+   `@/shared/layouts/*` shells, `@/shared/components/ExportDialog`,
+   `@/shared/ui/{AssetCard,SegmentedNav}`.
+3. Feature-family primitive → `@/features/editor/core` for anything editor
+   (EditorChrome, useAutoSave); `features/brandkit/` for brand domain logic.
+4. Compose the above.
+5. Extend a canonical component ONLY if the capability is genuinely
+   reusable and belongs to that abstraction.
+6. Otherwise build a clean feature-local component (feature-local is fine
+   even at one call site when it encapsulates meaningfully).
+7. Promote feature → shared only on REAL reuse (≥2 consumers) with a
+   stable API; promote shared → ds only if it is a generic visual
+   primitive. Never promote on hypothetical reuse.
+
+**Never:** bespoke replacements for canonical components; feature-named
+variants inside ds primitives (no `DsBrandKitCard`); moving product
+patterns into the DS (it stays curated: generic visual primitives +
+foundations only); new component layers/folders before proving the
+existing structure can't express it.
+
+**Frozen/legacy layers (no NEW imports; existing call sites stay until
+their surface is touched for other reasons):**
+- `src/components/ui/` (shadcn, 155 importers) — canonical for Classic
+  (`/a/:slug`) + legacy surfaces ONLY. Zero usage in Studio pages today;
+  keep it that way.
+- `src/shared/ui/{Button,Card,Input,Badge,Section,Container}` — thin
+  shadcn wrappers; frozen. (PageHeader/AssetCard/AssetPicker/SegmentedNav
+  in the same folder stay canonical.)
+- `src/shared/components/{Button,Card,Input,Badge,Section}` — duplicate
+  wrapper set; frozen. (ExportDialog, BrandNotFoundPanel, NotificationBell
+  in the same folder stay canonical-in-place.)
+- `src/shared/design-system/` UI kit (Typography/Layout/Card/FormField/
+  Feedback) — frozen. NOT the design system despite the name; the real DS
+  is `src/shared/ds/`. The folder's NON-UI machinery stays canonical:
+  `fonts.ts`, `googleFonts.ts`, `PresentationStyleAdapter` + its runtime
+  `--brand-*`/`--pres-*` tokens (customer-brand content tokens — a
+  different job than chrome tokens; do not merge into `--ds-*`).
+
+**Token rules:** new Studio chrome reads `--ds-*` only. `workspace.css`
+`[data-workspace]` tokens style the CURRENT live Studio shell — don't add
+new workspace tokens for anything `--ds-*` already defines, and don't
+migrate existing surfaces without an explicit ask (the two palettes differ
+slightly — convergence is a deliberate owner decision, not a drive-by).
+Shadcn HSL tokens in index.css belong to Classic/legacy. The tailwind
+`cosmos.*` color mapping has zero usages (dead config — safe to delete
+when touched).
+
+**Dependency direction:** `shared/ds` imports nothing app-level except
+`@/shared/brand` contrast helpers — never shadcn, stores, or features.
+`shared/*` never imports `features/*`. Features import downward only
+(ds, shared, own feature, other features' public domain layers).
+
 ## Canonical pickers & primitives
 
 - **Image uploads inside a brand**: use `@/shared/upload/AssetSourcePopover`.
