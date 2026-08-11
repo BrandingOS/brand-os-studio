@@ -5,7 +5,7 @@ import {
   type HistoryEntry,
   type TokenStateSnapshot,
 } from './historyStore';
-import type { TokenVersion } from './versionsClient';
+import { diffCountFromCurrent, type TokenVersion } from './versionsClient';
 
 /** Sidebar panels: automatic apply History and durable named Versions. */
 
@@ -134,25 +134,6 @@ export function HistoryPanel({
 }
 
 /* ─── Versions ─────────────────────────────────────────────────── */
-
-/** Count of tokens whose current value differs from the version. */
-export function diffCountFromCurrent(
-  version: TokenVersion,
-  current: TokenStateSnapshot | null,
-): number {
-  if (!current) return 0;
-  let n = 0;
-  for (const scope of ['light', 'dark', 'global'] as const) {
-    const keys = new Set([
-      ...Object.keys(version.tokens[scope] ?? {}),
-      ...Object.keys(current[scope] ?? {}),
-    ]);
-    for (const k of keys) {
-      if ((version.tokens[scope]?.[k] ?? '').trim() !== (current[scope]?.[k] ?? '').trim()) n += 1;
-    }
-  }
-  return n;
-}
 
 export function VersionsPanel({
   versions,

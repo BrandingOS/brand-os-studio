@@ -17,12 +17,8 @@ import {
 } from './registry';
 import { useTokenDrafts, draftToCssPatch, type DraftState } from './useTokenDrafts';
 import { TokenPanel } from './TokenPanel';
-import {
-  FixedPropertiesSection,
-  HighlightProvider,
-  SECTION_PREVIEWS,
-  useHighlight,
-} from './previews';
+import { FixedPropertiesSection, SectionPreview } from './previews';
+import { HighlightProvider } from './highlightContext';
 import { validateValue } from './validate';
 import {
   diffSnapshots,
@@ -39,7 +35,8 @@ import {
   saveVersion,
   type TokenVersion,
 } from './versionsClient';
-import { HistoryPanel, VersionsPanel, diffCountFromCurrent } from './SidePanels';
+import { HistoryPanel, VersionsPanel } from './SidePanels';
+import { diffCountFromCurrent } from './versionsClient';
 
 /**
  * DS Controller — the live design-token control center at /_dev/design-system.
@@ -575,7 +572,6 @@ function ControllerInner() {
             style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 36 }}
           >
             {SECTIONS.map((section) => {
-              const Preview = SECTION_PREVIEWS[section.id];
               return (
                 <section
                   key={section.id}
@@ -596,7 +592,7 @@ function ControllerInner() {
                     </h2>
                     <span style={{ fontSize: 12.5, color: 'var(--ds-text-muted)' }}>{section.blurb}</span>
                   </div>
-                  <Preview />
+                  <SectionPreview id={section.id} />
                 </section>
               );
             })}

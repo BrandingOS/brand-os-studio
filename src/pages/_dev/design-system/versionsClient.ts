@@ -56,3 +56,22 @@ export const saveVersion = (name: string, note?: string) => post({ op: 'save', n
 export const renameVersion = (id: string, name: string, note?: string) =>
   post({ op: 'rename', id, name, note });
 export const deleteVersion = (id: string) => post({ op: 'delete', id });
+
+/** Count of tokens whose current value differs from the version. */
+export function diffCountFromCurrent(
+  version: TokenVersion,
+  current: TokenStateSnapshot | null,
+): number {
+  if (!current) return 0;
+  let n = 0;
+  for (const scope of ['light', 'dark', 'global'] as const) {
+    const keys = new Set([
+      ...Object.keys(version.tokens[scope] ?? {}),
+      ...Object.keys(current[scope] ?? {}),
+    ]);
+    for (const k of keys) {
+      if ((version.tokens[scope]?.[k] ?? '').trim() !== (current[scope]?.[k] ?? '').trim()) n += 1;
+    }
+  }
+  return n;
+}

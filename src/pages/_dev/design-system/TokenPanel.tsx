@@ -8,7 +8,7 @@ import {
 } from './registry';
 import type { TokenDrafts } from './useTokenDrafts';
 import { validateValue } from './validate';
-import { useHighlight } from './previews';
+import { useHighlight } from './highlightContext';
 
 /**
  * The editor sidebar: one compact row per token, grouped by the SAME
