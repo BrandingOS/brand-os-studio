@@ -19,8 +19,10 @@
   --ds-surface-hover: #efeee8;
   --ds-surface-subtle: #faf9f5;
   --ds-border: #e6e4dd;
+  --ds-border-strong: rgba(13, 13, 13, 0.22);
   --ds-hairline: #efeee8;
   --ds-dash: #d4d1c7;
+  --ds-dash-strong: rgba(13, 13, 13, 0.55);
   --ds-text: #0e0e0e;
   --ds-text-secondary: #55534c;
   --ds-text-muted: #8a877e;
@@ -88,8 +90,10 @@
   --ds-surface-hover: #252420;
   --ds-surface-subtle: #191816;
   --ds-border: #2c2b27;
+  --ds-border-strong: rgba(247, 245, 243, 0.22);
   --ds-hairline: #2c2b27;
   --ds-dash: #3a3833;
+  --ds-dash-strong: rgba(247, 245, 243, 0.55);
   --ds-text: #f5f4f0;
   --ds-text-secondary: #b3b0a8;
   --ds-text-muted: #7d7a72;
@@ -121,8 +125,10 @@
   --ds-surface-hover: #efeee8;
   --ds-surface-subtle: #faf9f5;
   --ds-border: #e6e4dd;
+  --ds-border-strong: rgba(13, 13, 13, 0.22);
   --ds-hairline: #efeee8;
   --ds-dash: #d4d1c7;
+  --ds-dash-strong: rgba(13, 13, 13, 0.55);
   --ds-text: #0e0e0e;
   --ds-text-secondary: #55534c;
   --ds-text-muted: #8a877e;

@@ -50,14 +50,18 @@ regression.
 
 ## 2 · Genuinely missing tokens — add exactly two
 
-| new token | replaces | uses | proposed values (tune on the DS neutral ramp at execution) |
+| new token | replaces | uses | value (EXACT copy of current workspace value — owner decision) |
 |---|---|---|---|
-| `--ds-border-strong` | `--border-strong` | 17 | light ≈ #c9c6bc · dark ≈ #3f3d38 |
-| `--ds-dash-strong` | `--dash-strong` | 12 | light ≈ #6f6c64 · dark ≈ #6b6860 |
+| `--ds-border-strong` | `--border-strong` | 17 | light `rgba(13, 13, 13, 0.22)` · dark `rgba(247, 245, 243, 0.22)` |
+| `--ds-dash-strong` | `--dash-strong` | 12 | light `rgba(13, 13, 13, 0.55)` · dark `rgba(247, 245, 243, 0.55)` |
 
 Real, widespread state ramps with no DS counterpart; mapping them onto
-`--ds-focus-border` would overload focus semantics. Add to tokens.json
-(both modes) + Controller registry in the same commit.
+`--ds-focus-border` would overload focus semantics. **Values are
+initialized verbatim from workspace.css — Phase 1 is architectural
+convergence, not visual tuning.** Any retuning onto the DS neutral ramp
+happens later through the Design System Controller as an explicit design
+decision. Added to tokens.json (both modes) + Controller registry
+(status: done, Phase 1).
 
 ## 3 · Category B — semantic collapses (NOT bridged; per-component migration)
 

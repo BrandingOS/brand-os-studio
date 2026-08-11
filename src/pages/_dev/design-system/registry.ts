@@ -82,8 +82,10 @@ export const DS_TOKENS: TokenDef[] = [
 
   // Borders — per mode
   { cssVar: '--ds-border', label: 'Border', group: 'Borders', perMode: true, kind: 'color', hint: '1px, on every card and field' },
+  { cssVar: '--ds-border-strong', label: 'Border strong', group: 'Borders', perMode: true, kind: 'text', hint: 'Emphasis ramp of border (from workspace --border-strong, exact copy)' },
   { cssVar: '--ds-hairline', label: 'Hairline', group: 'Borders', perMode: true, kind: 'color', hint: 'Internal dividers' },
   { cssVar: '--ds-dash', label: 'Dash', group: 'Borders', perMode: true, kind: 'color', hint: 'Empty slots and drop zones' },
+  { cssVar: '--ds-dash-strong', label: 'Dash strong', group: 'Borders', perMode: true, kind: 'text', hint: 'Hover ramp of dash (from workspace --dash-strong, exact copy)' },
 
   // Typography — global (one product face; the type scale is per-role in
   // components, deliberately not tokenized)
