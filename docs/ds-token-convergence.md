@@ -1,6 +1,6 @@
 # Studio token convergence — workspace.css → `--ds-*`
 
-Status: **Phases 1–3 executed 2026-08-11.** Phase 3 (shell + navigation):
+Status: **Phases 1–3 + 4A executed 2026-08-11.** Phase 3 (shell + navigation):
 60 Category-A usages renamed to `--ds-*` (workspace.css shell/nav sections
 top-nav · segmented-nav · theme-toggle · pill-btn · .shell, plus
 workspace-home.css nav/profile blocks, plus the `--rule` re-base onto
@@ -9,7 +9,37 @@ modes incl. nav hover; repo-wide Category-A grep 1945 → 1885. Shell's
 three Category-B usages stay literal and are on record for later phases:
 `.segmented-nav-pill` background (`--accent-muted`, active-tab tint) and
 `.pill-btn--primary:hover` bg+border (`--accent-hover`, hover-color
-affordance). Phases 4+ (Setup pilot onward) await explicit go.
+affordance).
+
+**Phase 4A (Setup token-ownership pilot, 2026-08-11):** 364 Category-A
+usages renamed to `--ds-*` in workspace.css's Setup-owned ranges — the
+`.panel*` sidebar block plus the board scaffolding and every Setup
+content section (logos · colors + HSV picker · typography · icons ·
+photos · website · about · voice) and the Setup overlays (upload modal +
+Google-fonts picks, editor modal, preview modal; all render inline inside
+`[data-workspace]`, verified no portal). Local vars `--dz-bg`/`--dz-bg-hover`
+re-based onto `--ds-surface(-hover)` in place (§4); `--pill-bg:
+var(--surface-sunken)` untouched (Category-B value). Repo-wide §7 grep
+1885 → 1572. Migrated ranges are Category-A-clean; the diff was verified
+pure-rename (322 lines, normalized-equal) and computed-style probes on
+`/b/raqm/setup` are byte-identical before/after in light + dark incl.
+sidebar hover and real `:focus-visible` (only the animated
+`.board-live-dot` pulse differs between any two probes — keyframe phase,
+not the rename). Deliberately EXCLUDED as not-Setup-owned (remaining
+legacy consumers, next owner in parens): `.workspace-empty` block, 3
+usages (generic sibling-tab placeholder — sweep); brand-switcher block
+`.brand-switcher*`, 16 usages (shell chrome rendered by
+`features/brand/BrandSwitcher.tsx` — shell follow-up); `[data-workspace]`
+root paint + top-nav scrim fallback chain (workspace.css lines ~71-72 +
+~150-151), 4 usages (shell — outside Phase 3's line ranges);
+`organic-icons.tsx` 2× inline `fill="var(--surface)"` (shared component
+also rendered by onboarding-v4, whose own `--surface` [#161616 dark]
+differs from `--ds-surface` — renaming would not be behavior-preserving
+there). Setup surface's 42 Category-B usages inventoried and left
+literal per §3 (panel elevation `--surface-elevated`; progress-track /
+wells / website chrome `--surface-sunken`; active-item / hover tints
+`--accent-muted`; `.cp-add-btn:hover` `--accent-hover`). Phases 4B+
+(Category-B behavior migration, sweeps, deletion) await explicit go.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted
