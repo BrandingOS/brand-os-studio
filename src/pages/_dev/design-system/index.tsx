@@ -3,6 +3,7 @@ import {
   DsBadge,
   DsBanner,
   DsButton,
+  DsConfirmDialog,
   DsEyebrow,
   DsModal,
   DsSegmented,
@@ -311,6 +312,7 @@ function ControllerInner() {
   };
 
   const [busyOp, setBusyOp] = useState(false);
+  const [deletingVersion, setDeletingVersion] = useState<TokenVersion | null>(null);
 
   const revertTo = async (entry: HistoryEntry) => {
     const payload = draftTowards(entry.before);
@@ -562,7 +564,7 @@ function ControllerInner() {
                 onSave={handleSaveVersion}
                 onRestore={restoreVersion}
                 onRename={handleRenameVersion}
-                onDelete={handleDeleteVersion}
+                onDelete={setDeletingVersion}
               />
             )}
           </aside>
@@ -677,6 +679,21 @@ function ControllerInner() {
           live.
         </div>
       </DsModal>
+
+      {/* Version-delete confirm — mounted at the page root (NOT inside the
+          sticky sidebar, whose stacking context would trap the scrim under
+          the preview's z-indexed elements). */}
+      <DsConfirmDialog
+        open={deletingVersion !== null}
+        title={`Delete "${deletingVersion?.name}"?`}
+        description="The saved snapshot is removed. Active tokens are not affected."
+        confirmLabel="Delete version"
+        onConfirm={() => {
+          if (deletingVersion) handleDeleteVersion(deletingVersion);
+          setDeletingVersion(null);
+        }}
+        onCancel={() => setDeletingVersion(null)}
+      />
 
       {toast && (
         <div style={{ position: 'fixed', right: 24, bottom: 24, zIndex: 300 }}>

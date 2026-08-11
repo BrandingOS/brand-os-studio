@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DsBadge, DsButton, DsConfirmDialog, DsEmptyState, DsInput } from '@/shared/ds';
+import { DsBadge, DsButton, DsEmptyState, DsInput } from '@/shared/ds';
 import {
   entryScopes,
   type HistoryEntry,
@@ -150,13 +150,15 @@ export function VersionsPanel({
   onSave: (name: string, note?: string) => void;
   onRestore: (v: TokenVersion) => void;
   onRename: (v: TokenVersion, name: string) => void;
+  /** Requests deletion — the page-level owner shows the confirm dialog
+   *  OUTSIDE this sticky sidebar (sticky creates a stacking context that
+   *  would trap a fixed scrim under the preview's z-indexed elements). */
   onDelete: (v: TokenVersion) => void;
 }) {
   const [name, setName] = useState('');
   const [note, setNote] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const [deleting, setDeleting] = useState<TokenVersion | null>(null);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -273,7 +275,7 @@ export function VersionsPanel({
                   >
                     Rename
                   </DsButton>
-                  <DsButton tone="tertiary" size="sm" disabled={busy} onClick={() => setDeleting(v)}>
+                  <DsButton tone="tertiary" size="sm" disabled={busy} onClick={() => onDelete(v)}>
                     Delete
                   </DsButton>
                 </div>
@@ -283,17 +285,6 @@ export function VersionsPanel({
         </div>
       )}
 
-      <DsConfirmDialog
-        open={deleting !== null}
-        title={`Delete "${deleting?.name}"?`}
-        description="The saved snapshot is removed. Active tokens are not affected."
-        confirmLabel="Delete version"
-        onConfirm={() => {
-          if (deleting) onDelete(deleting);
-          setDeleting(null);
-        }}
-        onCancel={() => setDeleting(null)}
-      />
     </div>
   );
 }
