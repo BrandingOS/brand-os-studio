@@ -313,9 +313,18 @@ claude.ai/design project) is implemented as a self-contained module:
 - Overlay components (Select/Menu/Modal) render **in place, no portal**, so
   `--ds-*` tokens resolve in the local theme scope (avoids the Radix Portal
   gotcha below).
-- **Showcase**: `/_dev/design-system` (DEV or `?dev=1`) renders everything
-  in both modes. Tests: `src/shared/ds/ds.test.tsx` (render behavior + WCAG
-  contrast floor over both token maps).
+- **DS Controller**: `/_dev/design-system` (DEV or `?dev=1`) is a live
+  token control center (`src/pages/_dev/design-system/`): edit any `--ds-*`
+  token per mode and the component showcase restyles instantly. Defaults
+  are READ from tokens.css at runtime via theme-scoped probe elements
+  (`registry.ts` holds metadata only — never values); drafts persist in
+  localStorage `brandos:ds-controller:draft` and apply as inline custom
+  props on the preview wrapper ONLY (editor chrome stays canonical);
+  Undo / Reset token / Reset all / Copy CSS (paste-ready tokens.css patch).
+  A unit test asserts every registry var exists in tokens.css — add new
+  tokens to tokens.css first, then the registry. Tests:
+  `src/shared/ds/ds.test.tsx` + `src/pages/_dev/design-system/
+  controller.test.tsx`.
 - Rules that bind: chrome never wears the customer's brand; grey is never an
   enabled button state (disabled = primary at 40%); eyebrows are the only
   uppercase; icons are 1.8px-stroke lines, never filled/emoji; focus is a

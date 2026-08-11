@@ -1,0 +1,137 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { act, renderHook } from '@testing-library/react';
+
+const tokensCss = readFileSync(
+  resolve(__dirname, '../../../shared/ds/tokens.css'),
+  'utf8',
+);
+import { DS_TOKENS, tokenScope } from './registry';
+import {
+  DS_DRAFT_STORAGE_KEY,
+  draftToCssPatch,
+  loadDraft,
+  useTokenDrafts,
+} from './useTokenDrafts';
+
+const bg = DS_TOKENS.find((d) => d.cssVar === '--ds-bg')!;
+const radiusCard = DS_TOKENS.find((d) => d.cssVar === '--ds-radius-card')!;
+
+describe('registry ↔ tokens.css sync', () => {
+  it('every registry token exists in the canonical stylesheet', () => {
+    for (const def of DS_TOKENS) {
+      const occurrences = tokensCss.split(`${def.cssVar}:`).length - 1;
+      if (def.perMode) {
+        // per-mode tokens must be declared in the light map, the dark map,
+        // and the light re-assert island
+        expect(occurrences, `${def.cssVar} should have light+dark+island declarations`).toBeGreaterThanOrEqual(3);
+      } else {
+        expect(occurrences, `${def.cssVar} missing from tokens.css`).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it('registry has no duplicate vars', () => {
+    const names = DS_TOKENS.map((d) => d.cssVar);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('tokenScope routes per-mode vs global correctly', () => {
+    expect(tokenScope(bg, 'dark')).toBe('dark');
+    expect(tokenScope(bg, 'light')).toBe('light');
+    expect(tokenScope(radiusCard, 'dark')).toBe('global');
+  });
+});
+
+describe('useTokenDrafts', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('sets, reads, and counts overrides per scope', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    act(() => result.current.setToken(bg, 'light', '#ff0000'));
+    act(() => result.current.setToken(bg, 'dark', '#00ff00'));
+    act(() => result.current.setToken(radiusCard, 'dark', '20px'));
+    expect(result.current.getOverride(bg, 'light')).toBe('#ff0000');
+    expect(result.current.getOverride(bg, 'dark')).toBe('#00ff00');
+    // global token edited from dark mode still lands in the global scope
+    expect(result.current.draft.global['--ds-radius-card']).toBe('20px');
+    expect(result.current.overrideCount).toBe(3);
+    expect(result.current.isOverridden(bg, 'light')).toBe(true);
+  });
+
+  it('resetToken removes only that override; resetAll clears everything', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    act(() => result.current.setToken(bg, 'light', '#ff0000'));
+    act(() => result.current.setToken(radiusCard, 'light', '9px'));
+    act(() => result.current.resetToken(bg, 'light'));
+    expect(result.current.isOverridden(bg, 'light')).toBe(false);
+    expect(result.current.overrideCount).toBe(1);
+    act(() => result.current.resetAll());
+    expect(result.current.overrideCount).toBe(0);
+  });
+
+  it('undo steps back through edits, including resets', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    expect(result.current.canUndo).toBe(false);
+    act(() => result.current.setToken(bg, 'light', '#111111'));
+    act(() => result.current.setToken(bg, 'light', '#222222'));
+    act(() => result.current.resetAll());
+    expect(result.current.overrideCount).toBe(0);
+    act(() => result.current.undo());
+    expect(result.current.getOverride(bg, 'light')).toBe('#222222');
+    act(() => result.current.undo());
+    expect(result.current.getOverride(bg, 'light')).toBe('#111111');
+    act(() => result.current.undo());
+    expect(result.current.overrideCount).toBe(0);
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('no-op edits (same value, resetting a non-override) do not pollute history', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    act(() => result.current.setToken(bg, 'light', '#333333'));
+    act(() => result.current.setToken(bg, 'light', '#333333'));
+    act(() => result.current.resetToken(radiusCard, 'light'));
+    act(() => result.current.undo());
+    expect(result.current.overrideCount).toBe(0);
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('persists drafts to localStorage and rehydrates in a fresh hook', () => {
+    const first = renderHook(() => useTokenDrafts());
+    act(() => first.result.current.setToken(bg, 'dark', '#0a0a0a'));
+    first.unmount();
+    const second = renderHook(() => useTokenDrafts());
+    expect(second.result.current.getOverride(bg, 'dark')).toBe('#0a0a0a');
+  });
+
+  it('ignores corrupt or wrong-version storage', () => {
+    localStorage.setItem(DS_DRAFT_STORAGE_KEY, 'not json');
+    expect(loadDraft().light).toEqual({});
+    localStorage.setItem(DS_DRAFT_STORAGE_KEY, JSON.stringify({ v: 99, light: { a: 'b' } }));
+    expect(loadDraft().light).toEqual({});
+  });
+});
+
+describe('draftToCssPatch', () => {
+  it('shapes light+global into :root and dark into the dark map', () => {
+    const patch = draftToCssPatch({
+      light: { '--ds-bg': '#fffff0' },
+      dark: { '--ds-bg': '#101010' },
+      global: { '--ds-radius-card': '16px' },
+    });
+    expect(patch).toContain(':root {');
+    expect(patch).toContain('--ds-bg: #fffff0;');
+    expect(patch).toContain('--ds-radius-card: 16px;');
+    expect(patch).toContain(".dark, [data-theme='dark'] {");
+    expect(patch).toContain('--ds-bg: #101010;');
+  });
+
+  it('omits empty blocks', () => {
+    const patch = draftToCssPatch({ light: {}, dark: {}, global: { '--ds-space-4': '18px' } });
+    expect(patch).toContain(':root {');
+    expect(patch).not.toContain(".dark, [data-theme='dark'] {");
+  });
+});
