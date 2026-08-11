@@ -1,0 +1,172 @@
+/**
+ * BrandingOS Design System v1 — token layer.
+ *
+ * Source of truth: "BrandingOS Design System.dc.html" (claude.ai/design, Aug 2026).
+ * One token set, two value maps. Light lives on :root; dark overrides under
+ * `.dark` (next-themes on <html>) and `[data-theme="dark"]` (WorkspaceShell div),
+ * so the same tokens resolve correctly in both theming systems. Components read
+ * tokens only — no hard-coded hex in component styles.
+ */
+
+:root {
+  /* Color — light ("printed paper, not screen white") */
+  --ds-bg: #f5f4ef;
+  --ds-surface: #ffffff;
+  --ds-surface-hover: #efeee8;
+  --ds-surface-subtle: #faf9f5;
+  --ds-border: #e6e4dd;
+  --ds-hairline: #efeee8;
+  --ds-dash: #d4d1c7;
+  --ds-text: #0e0e0e;
+  --ds-text-secondary: #55534c;
+  --ds-text-muted: #8a877e;
+  --ds-text-placeholder: #a3a099;
+  --ds-accent: #111113;
+  --ds-accent-fg: #f5f4ef;
+  --ds-success: #2f9e5f;
+  --ds-warning: #b98324;
+  --ds-danger: #b4453a;
+  --ds-success-bg: #eaf3ec;
+  --ds-success-fg: #2f7a4d;
+  --ds-warning-bg: #faf6ec;
+  --ds-warning-border: #e8d9b8;
+  --ds-warning-fg: #96691c;
+  --ds-danger-bg: #faf0ee;
+  --ds-danger-border: #e8c5c0;
+  --ds-danger-fg: #a03c31;
+  --ds-focus-ring: rgba(17, 17, 19, 0.16);
+  --ds-focus-border: #b3b0a6;
+  --ds-error-border: #d98a80;
+  --ds-error-ring: rgba(180, 69, 58, 0.1);
+  --ds-scrim: rgba(10, 10, 10, 0.35);
+
+  /* Shape — three radii with fixed jobs (+ pill). Nothing is ever square. */
+  --ds-radius-pill: 999px;
+  --ds-radius-control: 8px;   /* controls inside the nav bar */
+  --ds-radius-tile: 10px;     /* small tiles, rail items (9px rounds here) */
+  --ds-radius-menu: 12px;     /* menus, toasts, banners, editor panels */
+  --ds-radius-card: 14px;     /* cards, tiles, fields, modal children */
+  --ds-radius-panel: 18px;    /* page-level floating panels, drop zones */
+
+  /* Spacing — 4px base */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-8: 32px;
+  --ds-space-12: 48px;
+  --ds-space-16: 64px;
+
+  /* Elevation — warm-neutral shadows, never tinted */
+  --ds-shadow-xs: 0 1px 2px rgba(20, 18, 14, 0.05);
+  --ds-shadow-sm: 0 2px 8px rgba(20, 18, 14, 0.08);
+  --ds-shadow-md: 0 6px 20px rgba(20, 18, 14, 0.12);
+  --ds-shadow-float: 0 4px 10px rgba(20, 18, 14, 0.08), 0 16px 40px rgba(20, 18, 14, 0.16);
+
+  /* Motion — one easing, three durations, applied by class */
+  --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ds-duration-state: 150ms;
+  --ds-duration-panel: 220ms;
+  --ds-duration-modal: 360ms;
+
+  /* Type — one product face, weight and size carry the hierarchy */
+  --ds-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --ds-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.dark,
+[data-theme='dark'] {
+  /* Color — dark (warm charcoal, never pure black; accent inverts) */
+  --ds-bg: #141414;
+  --ds-surface: #1d1c1a;
+  --ds-surface-hover: #252420;
+  --ds-surface-subtle: #191816;
+  --ds-border: #2c2b27;
+  --ds-hairline: #2c2b27;
+  --ds-dash: #3a3833;
+  --ds-text: #f5f4f0;
+  --ds-text-secondary: #b3b0a8;
+  --ds-text-muted: #7d7a72;
+  --ds-text-placeholder: #7d7a72;
+  --ds-accent: #f5f4f0;
+  --ds-accent-fg: #141414;
+  --ds-success: #3fae6d;
+  --ds-warning: #d9a544;
+  --ds-danger: #d4685c;
+  --ds-success-bg: #1e2b22;
+  --ds-success-fg: #7bc698;
+  --ds-warning-bg: #2a241a;
+  --ds-warning-border: #4a3d22;
+  --ds-warning-fg: #e0b25e;
+  --ds-danger-bg: #2a1d1b;
+  --ds-danger-border: #4a2c28;
+  --ds-danger-fg: #e08b80;
+  --ds-focus-ring: rgba(245, 244, 240, 0.14);
+  --ds-focus-border: #55534c;
+  --ds-error-border: #a05248;
+  --ds-error-ring: rgba(212, 104, 92, 0.14);
+  --ds-scrim: rgba(0, 0, 0, 0.5);
+}
+
+/* A nested light island inside a dark scope re-asserts the light map. */
+[data-theme='light'] {
+  --ds-bg: #f5f4ef;
+  --ds-surface: #ffffff;
+  --ds-surface-hover: #efeee8;
+  --ds-surface-subtle: #faf9f5;
+  --ds-border: #e6e4dd;
+  --ds-hairline: #efeee8;
+  --ds-dash: #d4d1c7;
+  --ds-text: #0e0e0e;
+  --ds-text-secondary: #55534c;
+  --ds-text-muted: #8a877e;
+  --ds-text-placeholder: #a3a099;
+  --ds-accent: #111113;
+  --ds-accent-fg: #f5f4ef;
+  --ds-success: #2f9e5f;
+  --ds-warning: #b98324;
+  --ds-danger: #b4453a;
+  --ds-success-bg: #eaf3ec;
+  --ds-success-fg: #2f7a4d;
+  --ds-warning-bg: #faf6ec;
+  --ds-warning-border: #e8d9b8;
+  --ds-warning-fg: #96691c;
+  --ds-danger-bg: #faf0ee;
+  --ds-danger-border: #e8c5c0;
+  --ds-danger-fg: #a03c31;
+  --ds-focus-ring: rgba(17, 17, 19, 0.16);
+  --ds-focus-border: #b3b0a6;
+  --ds-error-border: #d98a80;
+  --ds-error-ring: rgba(180, 69, 58, 0.1);
+  --ds-scrim: rgba(10, 10, 10, 0.35);
+}
+
+@keyframes ds-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes ds-mark-dot {
+  0%, 70%, 100% { opacity: 0.18; transform: scale(0.82); }
+  25% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ds-modal-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ds-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-duration-state: 1ms;
+    --ds-duration-panel: 1ms;
+    --ds-duration-modal: 1ms;
+  }
+}

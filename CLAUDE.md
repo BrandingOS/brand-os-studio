@@ -289,6 +289,39 @@ The vision doc's "Phase 3 — Shipped" (§8.5) and "Phase 3.5 —
 Shipped" (§8.6) sections carry the same debt items; if you update
 one, update the other.
 
+## Design System v1 — `src/shared/ds/` (2026-08-11)
+
+The owner's canonical visual spec ("BrandingOS Design System.dc.html",
+claude.ai/design project) is implemented as a self-contained module:
+
+- **Tokens**: `ds/tokens.css` — all `--ds-*` custom properties (warm cream
+  light / warm charcoal dark, radii, 4px spacing, warm-neutral shadows, one
+  easing `cubic-bezier(0.22,1,0.36,1)` at 150/220/360ms). One token set, two
+  value maps: light on `:root`, dark under `.dark` AND `[data-theme="dark"]`
+  so both theming systems (next-themes class + WorkspaceShell data-theme)
+  resolve. `ds/tokens.ts` is the TS mirror (used by contrast tests).
+- **Components** (import from `@/shared/ds`): `DsButton` (tone=
+  primary/secondary/tertiary/danger — danger solid is the ONLY non-charcoal
+  filled button), `DsInput/DsTextArea/DsDropZone`, `DsSelect`, `DsSwitch/
+  DsCheckbox/DsRadio/DsSegmented`, `DsToast/DsBanner/DsBadge/DsStatusDot`,
+  `DsMenu`, `DsModal/DsConfirmDialog`, `DsSkeleton/DsProgress`, `DsTabBar`
+  (sliding indicator, measured via offsetLeft — transform-safe), `DsRail`
+  (separate 43px cards; tab bars are one container — never mix the models),
+  `DsAssetRow`, `DsSwatchRow` (label flip via `pickFgOnBackground`),
+  `DsLogoTile`, `BrandMark/LoadingPill` (the 9-dot mark loader — never a
+  generic ring spinner), `DsEyebrow/DsKbd/DsChip/DsEmptyState`.
+- Overlay components (Select/Menu/Modal) render **in place, no portal**, so
+  `--ds-*` tokens resolve in the local theme scope (avoids the Radix Portal
+  gotcha below).
+- **Showcase**: `/_dev/design-system` (DEV or `?dev=1`) renders everything
+  in both modes. Tests: `src/shared/ds/ds.test.tsx` (render behavior + WCAG
+  contrast floor over both token maps).
+- Rules that bind: chrome never wears the customer's brand; grey is never an
+  enabled button state (disabled = primary at 40%); eyebrows are the only
+  uppercase; icons are 1.8px-stroke lines, never filled/emoji; focus is a
+  3px charcoal ring, never blue. New chrome work should consume `--ds-*`
+  tokens/components rather than inventing values.
+
 ## Canonical pickers & primitives
 
 - **Image uploads inside a brand**: use `@/shared/upload/AssetSourcePopover`.

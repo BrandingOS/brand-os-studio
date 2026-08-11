@@ -57,6 +57,8 @@ const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
 const DevProductMapPage = lazy(() => import("./pages/_dev/product-map"));
 const DevEditorPage = lazy(() => import("./pages/dev-editor"));
 const ChroniclePreviewPage = lazy(() => import("./pages/_dev/chronicle"));
+// DS v1 component showcase (self-gated on import.meta.env.DEV or ?dev=1).
+const DevDesignSystemPage = lazy(() => import("./pages/_dev/design-system"));
 const EditorLauncherPage = lazy(() => import("./pages/editor-launcher"));
 const BrandsPage = lazy(() => import("./pages/dashboard/brands"));
 const ActivityPage = lazy(() => import("./pages/dashboard/activity"));
@@ -692,6 +694,8 @@ const App = () => (
           {import.meta.env.DEV && (
             <Route path="/_dev/chronicle" element={<ChroniclePreviewPage />} />
           )}
+          {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
+          <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsLayout />
