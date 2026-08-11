@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DsEyebrow, DsSkeleton } from '@/shared/ds';
 import type { BrandColor, MockBrand } from '../data/mockBrand';
 import { ICON_MAP } from './SetupIcons';
 import { ColorPickerHSV } from './ColorPickerHSV';
@@ -2141,7 +2142,7 @@ function WebsiteFrame({
       <div className="website-body">
         {active?.loading ? (
           <div className="website-loading" aria-live="polite">
-            <div className="website-loading-shimmer" aria-hidden />
+            <DsSkeleton radius={0} style={{ position: 'absolute', inset: 0, height: 'auto' }} />
             <div className="website-loading-label">Fetching preview…</div>
           </div>
         ) : active?.preview ? (
@@ -2243,7 +2244,7 @@ function TypeRow({
         />
       )}
       <div className="type-col type-col--identity">
-        <p className="type-col-label">{font.role}</p>
+        <DsEyebrow style={{ margin: '0 0 10px' }}>{font.role}</DsEyebrow>
         <h3 className="type-name">{font.family}</h3>
         <div className="type-glyphs">
           <p className="type-glyph type-glyph--lower">abcdefghijklmnopqrstuvwxyz</p>
@@ -2252,7 +2253,7 @@ function TypeRow({
         </div>
       </div>
       <div className="type-col type-col--weights">
-        <p className="type-col-label">Weight</p>
+        <DsEyebrow style={{ margin: '0 0 10px' }}>Weight</DsEyebrow>
         <ul className="type-list type-weights">
           {weightList.map((w, i) => (
             <li
@@ -2266,7 +2267,7 @@ function TypeRow({
         </ul>
       </div>
       <div className="type-col type-col--examples">
-        <p className="type-col-label">Example</p>
+        <DsEyebrow style={{ margin: '0 0 10px' }}>Example</DsEyebrow>
         <ul className="type-list type-examples">
           {weightList.map((w, i) => (
             <li

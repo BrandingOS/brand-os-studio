@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { DsButton, DsInput, DsTextArea } from '@/shared/ds';
 
 export type AboutEditorInitial = {
   id?: string;
@@ -106,11 +107,10 @@ export function AboutEditorModal({
         </header>
 
         <div className="modal-body">
-          <p className="modal-label">Section name</p>
-          <input
+          <DsInput
             ref={titleRef}
             type="text"
-            className="modal-input"
+            label="Section name"
             placeholder="Audience, Messaging, Vision…"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -137,43 +137,33 @@ export function AboutEditorModal({
             </div>
           )}
 
-          <p className="modal-label" style={{ marginTop: 16 }}>
-            Content
-          </p>
-          <textarea
-            ref={contentRef}
-            className="modal-textarea"
-            placeholder="Who you're speaking to, what you're saying, where you're going…"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-          />
+          <div style={{ marginTop: 16 }}>
+            <DsTextArea
+              ref={contentRef}
+              label="Content"
+              placeholder="Who you're speaking to, what you're saying, where you're going…"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
         </div>
 
         <footer className="modal-foot">
           {initial?.id && onDelete ? (
-            <button
-              type="button"
-              className="pill-btn pill-btn--ghost"
+            <DsButton
+              tone="secondary"
               onClick={() => onDelete(initial.id!)}
               style={{ marginRight: 'auto' }}
             >
               Delete
-            </button>
+            </DsButton>
           ) : null}
-          <button
-            type="button"
-            className="pill-btn pill-btn--ghost"
-            onClick={onClose}
-          >
+          <DsButton tone="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="pill-btn pill-btn--primary"
-            onClick={handleSave}
-          >
+          </DsButton>
+          <DsButton tone="primary" onClick={handleSave}>
             Save
-          </button>
+          </DsButton>
         </footer>
       </div>
     </div>

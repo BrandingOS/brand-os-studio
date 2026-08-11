@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { DsButton, DsInput, DsTextArea } from '@/shared/ds';
 
 type Props = {
   open: boolean;
@@ -111,26 +112,24 @@ export function VoiceEditorModal({
         </header>
 
         <div className="modal-body">
-          <p className="modal-label">How your brand speaks</p>
-          <textarea
+          <DsTextArea
             ref={textareaRef}
-            className="modal-textarea"
+            label="How your brand speaks"
             placeholder="We speak plainly. We make complex things feel simple. We respect our readers — and their intelligence."
             value={essayVal}
             onChange={(e) => setEssayVal(e.target.value)}
           />
-          <p className="modal-label" style={{ marginTop: 16 }}>
-            Pillars (comma-separated)
-          </p>
-          <input
-            type="text"
-            className="modal-input"
-            placeholder="Clear, Warm, Precise, Confident"
-            value={pillarsVal}
-            onChange={(e) => setPillarsVal(e.target.value)}
-            autoComplete="off"
-            spellCheck={false}
-          />
+          <div style={{ marginTop: 16 }}>
+            <DsInput
+              type="text"
+              label="Pillars (comma-separated)"
+              placeholder="Clear, Warm, Precise, Confident"
+              value={pillarsVal}
+              onChange={(e) => setPillarsVal(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
 
           <div className="modal-or">Or upload a guide</div>
 
@@ -172,20 +171,12 @@ export function VoiceEditorModal({
         </div>
 
         <footer className="modal-foot">
-          <button
-            type="button"
-            className="pill-btn pill-btn--ghost"
-            onClick={onClose}
-          >
+          <DsButton tone="secondary" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="pill-btn pill-btn--primary"
-            onClick={handleSave}
-          >
+          </DsButton>
+          <DsButton tone="primary" onClick={handleSave}>
             Save
-          </button>
+          </DsButton>
         </footer>
       </div>
     </div>

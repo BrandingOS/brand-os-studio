@@ -1,4 +1,5 @@
 import { useRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
+import { DsEyebrow, DsProgress } from '@/shared/ds';
 import type { MockBrand } from '../data/mockBrand';
 import { Check, Plus } from './SetupIcons';
 import {
@@ -79,26 +80,18 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd
 
   const ordered = [...entries.filter((e) => e.added), ...entries.filter((e) => !e.added)];
 
-  const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
-
   return (
     <aside className="panel" aria-label="Brand setup progress">
       <div className="panel-top">
         <div className="panel-heading">
-          <span className="panel-heading-eyebrow">Brand Setup</span>
+          <DsEyebrow>Brand Setup</DsEyebrow>
           <h1 className="panel-heading-title">{brand.name}</h1>
         </div>
-        <div className="panel-progress">
-          <div className="panel-progress-head">
-            <span className="panel-progress-label">Completion</span>
-            <span className="panel-progress-count">
-              {completed} / {total}
-            </span>
-          </div>
-          <div className="panel-progress-bar">
-            <div className="panel-progress-fill" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
+        <DsProgress
+          value={total === 0 ? 0 : completed / total}
+          label="Completion"
+          meta={`${completed} / ${total}`}
+        />
       </div>
 
       <nav className="panel-list">

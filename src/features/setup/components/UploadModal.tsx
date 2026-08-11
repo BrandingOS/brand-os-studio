@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { DsButton } from '@/shared/ds';
 import { GOOGLE_FONTS } from '@/shared/design-system/googleFonts';
 
 const FONT_EXTENSIONS = ['.woff', '.woff2', '.ttf', '.otf', '.eot'];
@@ -634,7 +635,7 @@ export function UploadModal({
             if (urlOnly) return;
             if (
               (e.target as HTMLElement).closest(
-                '.drop-pill, .drop-close, .items-clear, .upload-tile-remove, .upload-modal-foot, .pill-btn',
+                '.drop-pill, .drop-close, .items-clear, .upload-tile-remove, .upload-modal-foot, .pill-btn, .ds-btn',
               )
             )
               return;
@@ -921,26 +922,24 @@ export function UploadModal({
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              className="pill-btn pill-btn--ghost"
+            <DsButton
+              tone="secondary"
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className="pill-btn pill-btn--primary"
+            </DsButton>
+            <DsButton
+              tone="primary"
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
             >
               Done
-            </button>
+            </DsButton>
           </footer>
         </div>
       </div>

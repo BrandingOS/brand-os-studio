@@ -2033,14 +2033,7 @@
   transform: none;
   pointer-events: auto;
 }
-[data-workspace] .type-col-label {
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: var(--ds-text-muted);
-  margin: 0 0 10px;
-  font-weight: 500;
-}
+/* .type-col-label replaced by DsEyebrow (Setup DS adoption, Batch A). */
 [data-workspace] .type-name {
   font-size: 52px;
   line-height: 1.02;
@@ -2521,27 +2514,14 @@
   flex-direction: column;
   gap: 10px;
 }
-[data-workspace] .website-loading-shimmer {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    var(--surface-sunken) 0%,
-    color-mix(in srgb, var(--surface-sunken) 40%, var(--ds-surface)) 45%,
-    var(--surface-sunken) 90%
-  );
-  background-size: 220% 100%;
-  animation: website-shimmer 1.6s linear infinite;
-}
+/* .website-loading-shimmer replaced by DsSkeleton (Setup DS adoption,
+   Batch A) — retired 3 `--surface-sunken` usages with the loading
+   treatment they styled. */
 [data-workspace] .website-loading-label {
   position: relative;
   font-size: 12px;
   letter-spacing: 0.01em;
   color: var(--ds-text-muted);
-}
-@keyframes website-shimmer {
-  from { background-position: 120% 0; }
-  to   { background-position: -20% 0; }
 }
 
 /* ============================================================
@@ -3558,37 +3538,8 @@
   background: var(--ds-surface);
 }
 
-[data-workspace] .modal-input,
-[data-workspace] .modal-textarea {
-  width: 100%;
-  font-family: inherit;
-  font-size: 14px;
-  color: var(--ds-text);
-  background: var(--ds-surface);
-  border: 1px solid var(--ds-border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  outline: none;
-  transition: border-color 200ms var(--ds-ease), box-shadow 200ms var(--ds-ease);
-  letter-spacing: -0.005em;
-}
-[data-workspace] .modal-input { height: 44px; }
-[data-workspace] .modal-textarea {
-  min-height: 140px;
-  resize: vertical;
-  line-height: 1.55;
-}
-[data-workspace] .modal-input:focus,
-[data-workspace] .modal-textarea:focus {
-  border-color: var(--ds-accent);
-  box-shadow: none;
-}
-[data-workspace] .modal-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--ds-text-muted);
-  margin: 0 0 5px 2px;
-}
+/* .modal-input / .modal-textarea / .modal-label replaced by
+   DsInput / DsTextArea (Setup DS adoption, Batch A). */
 
 [data-workspace] .modal-or {
   display: flex;
