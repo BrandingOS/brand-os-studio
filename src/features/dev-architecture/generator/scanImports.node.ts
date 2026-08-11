@@ -63,26 +63,35 @@ function bindingNames(clause: ts.ImportClause | undefined): string[] {
 }
 
 /**
- * Direct imports of one file. Returns [] when the file can't be read, so a
- * moved or deleted page degrades to "no dependency info" rather than throwing
- * and taking down the whole map.
+ * Parses one page file. Returns null when it can't be read, so a moved or
+ * deleted page degrades to "no analysis" rather than taking down the whole map.
+ *
+ * Shared by every scanner so a file is parsed ONCE per generation regardless of
+ * how many analyses run over it.
  */
-export function scanImports(file: string, rootDir: string): ImportRef[] {
+export function parsePageSource(file: string, rootDir: string): ts.SourceFile | null {
   let text: string;
   try {
     text = readFileSync(resolve(rootDir, file), 'utf8');
   } catch {
-    return [];
+    return null;
   }
 
-  const sourceFile = ts.createSourceFile(
+  return ts.createSourceFile(
     file,
     text,
     ts.ScriptTarget.Latest,
     /* setParentNodes */ true,
     ts.ScriptKind.TSX,
   );
+}
 
+/** Direct imports of one already-parsed file. */
+export function scanImports(
+  sourceFile: ts.SourceFile,
+  file: string,
+  rootDir: string,
+): ImportRef[] {
   const refs: ImportRef[] = [];
 
   for (const statement of sourceFile.statements) {

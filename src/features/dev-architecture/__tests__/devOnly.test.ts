@@ -126,6 +126,46 @@ describe('the Node-only generator is unreachable from the browser', () => {
     ).toEqual([]);
   });
 
+  it('keeps the diagram libraries in devDependencies only', () => {
+    // React Flow and elkjs exist solely for /__architecture. Declaring them as dev
+    // dependencies is a structural guarantee, not a hint: a production install
+    // (`npm ci --omit=dev`) would fail loudly if product code ever imported them,
+    // instead of quietly shipping ~600KB of graph layout engine.
+    const pkg = JSON.parse(read('package.json')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    for (const name of ['@xyflow/react', 'elkjs']) {
+      expect(pkg.devDependencies?.[name], `${name} must be a devDependency`).toBeDefined();
+      expect(pkg.dependencies?.[name], `${name} must NOT be a runtime dependency`).toBeUndefined();
+    }
+  });
+
+  it('imports the diagram libraries only from inside this feature', () => {
+    const offenders: string[] = [];
+
+    for (const file of sourceFiles(resolve(ROOT, 'src'))) {
+      const relative = file.replace(`${ROOT}/`, '');
+      if (relative.startsWith('src/features/dev-architecture/')) continue;
+      const text = readFileSync(file, 'utf8');
+      if (/@xyflow\/react|elkjs/.test(text)) offenders.push(relative);
+    }
+
+    expect(
+      offenders,
+      `these files outside the dev-only tool import a diagram library, which would bundle it into production:\n${offenders.join('\n')}`,
+    ).toEqual([]);
+  });
+
+  it('loads elkjs dynamically so it is never in the initial graph', () => {
+    // A static import would pull the layout engine into whatever chunk imports the
+    // diagram; a dynamic import keeps it on its own, loaded when the view mounts.
+    const layout = read('src/features/dev-architecture/ui/elkLayout.ts');
+    expect(layout).toMatch(/await import\(|import\(\s*['"]elkjs/);
+    expect(layout).not.toMatch(/^import .*from ['"]elkjs/m);
+  });
+
   it('never reads source text through import.meta.glob raw in browser code', () => {
     const offenders = files
       .filter((file) => file.includes('dev-architecture'))

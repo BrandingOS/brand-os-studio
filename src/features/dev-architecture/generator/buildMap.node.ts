@@ -27,7 +27,8 @@ import type {
 } from '../types';
 import { parseRouterSource, type RawRoute } from './parseRouter.node';
 import { resolveSpecifier } from './resolveModule.node';
-import { scanImports } from './scanImports.node';
+import { parsePageSource, scanImports } from './scanImports.node';
+import { resolveNavigations, scanNavigation, type RawNavigation } from './scanNavigation.node';
 
 /** The one entry point the generator needs to be told about. */
 export const ROUTER_ENTRY = 'src/App.tsx';
@@ -170,8 +171,24 @@ export function buildArchitectureMap(rootDir: string): ArchitectureMap {
   }
 
   // ── Resolve components → source files, derive names, attach analysis ──────
+  //
+  // Each unique page file is parsed ONCE and every scanner runs over that one
+  // AST. `/login` and `/signup` share a file and therefore share the work.
   const importCache = new Map<string, ImportRef[]>();
+  const navigationCache = new Map<string, RawNavigation[]>();
   const nodes: RouteNode[] = [];
+
+  const analyseSource = (file: string) => {
+    if (importCache.has(file)) return;
+    const sourceFile = parsePageSource(file, rootDir);
+    if (!sourceFile) {
+      importCache.set(file, []);
+      navigationCache.set(file, []);
+      return;
+    }
+    importCache.set(file, scanImports(sourceFile, file, rootDir));
+    navigationCache.set(file, scanNavigation(sourceFile));
+  };
 
   for (const { raw, file } of collected) {
     const bindings = bindingsByFile.get(file);
@@ -197,9 +214,7 @@ export function buildArchitectureMap(rootDir: string): ArchitectureMap {
       sourceFile = file;
     }
 
-    if (sourceFile && !importCache.has(sourceFile)) {
-      importCache.set(sourceFile, scanImports(sourceFile, rootDir));
-    }
+    if (sourceFile) analyseSource(sourceFile);
 
     const kind = kindOf(raw, Boolean(raw.redirectTo));
 
@@ -218,8 +233,33 @@ export function buildArchitectureMap(rootDir: string): ArchitectureMap {
       redirectTo: raw.redirectTo,
       devOnly: raw.devOnly,
       parentPath: raw.parentPath,
+      // Navigation targets are resolved in a second pass below, once every route
+      // path is known — a target can only be matched against the full route set.
       analysis: sourceFile ? { imports: importCache.get(sourceFile) } : undefined,
     });
+  }
+
+  // ── Resolve navigation targets against the real route set ─────────────────
+  const routePaths = [...new Set(nodes.map((node) => node.path))];
+  for (const node of nodes) {
+    if (!node.sourceFile) continue;
+
+    // A route whose component is declared INSIDE the router file (the redirect
+    // helpers) must not inherit the whole router's navigation. Scanning App.tsx
+    // as "this page's source" would attribute every <Navigate> in the file to
+    // every such route — which is precisely the invented relationship this model
+    // must not contain. Their real target is already captured exactly, per
+    // component, in `redirectTo`.
+    if (node.sourceFile === node.routeFile) continue;
+
+    const raw = navigationCache.get(node.sourceFile);
+    if (!raw || raw.length === 0) continue;
+    const navigations = resolveNavigations(raw, routePaths).filter(
+      // A page linking to itself is noise, not a flow.
+      (ref) => ref.toPath !== node.path,
+    );
+    if (navigations.length === 0) continue;
+    node.analysis = { ...(node.analysis ?? {}), navigations };
   }
 
   // ── Disambiguate names that collide inside a group ────────────────────────

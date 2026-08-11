@@ -1,14 +1,32 @@
 # Code Navigator (`/__architecture`)
 
-A developer-only orientation tool with two peer views over one generated data
+A developer-only orientation tool with three peer views over one generated data
 source.
 
-| View | URL | Use it when |
+| View | URL | Answers |
 |---|---|---|
-| **Tree** (default) | `/__architecture/tree` | You don't know the codebase and don't know what to search for |
-| **Search** | `/__architecture/search` | You know one fact — a page name, URL, component, or file path |
+| **Diagram** (default) | `/__architecture/diagram` | How does the system connect and flow? |
+| **Tree** | `/__architecture/tree` | What exists? |
+| **Search** | `/__architecture/search` | Where is X? |
 
-`/__architecture` is the entry point and opens the Tree.
+`/__architecture` is the entry point and opens the Diagram.
+
+**Diagram** — a real node-and-edge architecture map, laid out automatically by
+ELK. It starts at Level 1 (the application and its product areas) and drills
+down on demand:
+
+```
+L1  BrandingOS → Public · Authentication · Onboarding · Dashboard ·
+                 Brand Workspace (Studio) · … · Development
+L2  expand an area   → the pages inside it
+L3  expand a page    → Route · Component · Source
+L4  "Technical detail" → Components · State · Services (opt-in)
+```
+
+Edges are typed, not uniform, and independently filterable: **route hierarchy**,
+**navigation**, **redirect**, **imports**. Focus mode reduces the graph to one
+node's neighbourhood — its ancestors, what points at it, and what it points at —
+which is how you answer "where does this come from and where does it go?"
 
 **Tree** — browse the product top-down. Real route nesting is preserved, so the
 35 Studio pages hang off one `/b/:slug` branch instead of appearing as unrelated
@@ -37,22 +55,31 @@ Setup
 Open it with the dev server running: <http://localhost:8080/__architecture>.
 It is not linked from any product navigation — reach it by URL.
 
-## The two views cannot diverge
+## The three views cannot diverge
 
-The Tree is not a second scanner and not a registry: `tree.ts` is a **pure
-function over the same `RouteNode[]`** the Search view renders. Areas come from
-`groups.ts` (the one small explicit layer, and only for top-level product areas);
-every label, badge, count and nesting level below that is derived from route
-paths, component names and metadata the generator already produced.
+Neither the Tree nor the Diagram is a second scanner or a registry. `tree.ts` and
+`graph.ts` are **pure functions over the same `RouteNode[]`** the Search view
+renders, and the graph takes its hierarchy from the tree, so nesting cannot
+disagree between views. Areas come from `groups.ts` (the one small explicit
+layer, and only for top-level product areas); every label, badge, count, nesting
+level and edge below that is derived from route paths, component names and
+metadata the generator already produced.
 
-`__tests__/tree.test.ts` asserts the tree and Search cover an identical route
-set, that every route appears exactly once, and that every subtree count equals
-the routes it actually contains. Introduce a filter, a second data source, or a
-hand-written node and those tests fail.
+`graph.ts` contains **no route path at all**, and a test enforces that. Another
+test asserts no module in the feature names any individual page, which is the
+precise thing a per-route registry would require.
+
+The divergence guards, in `__tests__/tree.test.ts` and `__tests__/graph.test.ts`:
+
+- Diagram, Tree and Search reach an identical route set;
+- every route appears exactly once, and every subtree count equals the routes it
+  contains;
+- every hierarchy edge the Diagram draws mirrors real path nesting.
 
 Consequence: adding `<Route path="/b/:slug/campaigns" …>` makes "Campaigns"
-appear under Brand Workspace with its component and source file on the next
-reload, with nothing else to update. A test simulates exactly that.
+appear under Brand Workspace in all three views, with its component and source
+file, on the next reload. Removing it makes it vanish, along with every edge that
+touched it. Tests simulate both.
 
 ### Tree derivation rules
 
@@ -209,6 +236,59 @@ Optional fields mean no existing consumer changes shape. Don't grow
 — a full dependency graph is a different tool with different performance and UI
 needs.
 
+### Relationship types, and what counts as evidence
+
+| Kind | Derived from | Notes |
+|---|---|---|
+| `hierarchy` | Path nesting, via the tree | Always provable |
+| `redirect` | The redirect component's own `<Navigate to=…>` | Template targets are reconstructed (`` `/a/${slug}/setup` `` → `/a/:slug/setup`); a computed target yields **no edge** |
+| `navigation` | `<Link>` / `<NavLink>` / `<Navigate>` / `navigate()` in a page's own source | Resolved against the real route set; **exactly one** match required |
+| `import` | Level-1 imports of the page file | Off by default |
+
+**Route availability and user navigation are different things**, and the model
+keeps them apart:
+
+- Only literal strings and template literals are read. `navigate(next)` produces
+  nothing rather than a guess.
+- A target becomes an edge only when it resolves to **exactly one** route. Zero or
+  ambiguous matches stay unresolved and are reported as such.
+- Two routes existing is never evidence of a flow between them.
+- A route whose component is declared *inside* `App.tsx` (the redirect helpers)
+  does not inherit the router file's navigation. Scanning App.tsx as "its source"
+  once attributed every `<Navigate>` in the file to every such route — an invented
+  relationship, and the reason for the explicit guard in `buildMap.node.ts`.
+
+Every navigation edge carries `evidence: 'static-source'`. That field is the seam
+for adding **runtime-observed flows** (Playwright traces, analytics) later as a
+second evidence source: the model, the graph and the UI already carry it through,
+so a future source only has to populate `NavigationRef` and can be styled by
+confidence.
+
+### Evaluation: React Flow + elkjs — adopted, dev-only
+
+Assessed as the requirement asked, and adopted.
+
+- **React Flow (`@xyflow/react`)** gives pan/zoom, a minimap, custom node
+  rendering and edge markers for free, and its custom-node API means our nodes are
+  plain React with `--ds-*` tokens rather than canvas drawing.
+- **elkjs** (`elk.layered`, a Sugiyama-style layered algorithm) assigns nodes to
+  layers by edge direction and then minimizes crossings. That is exactly the
+  hierarchy-plus-cross-links shape here, and it is the reason **no node position is
+  ever written by hand** — add a route and the diagram reorganizes itself.
+- **Cost is the usual objection, and it doesn't apply.** elkjs is a large
+  GWT-compiled bundle. Both libraries are **devDependencies**, the route and its
+  chunk are behind `import.meta.env.DEV`, and elkjs is imported dynamically inside
+  the view. A production install without dev dependencies would fail loudly if
+  product code ever imported them, rather than quietly shipping a layout engine.
+  Verified against a real build: no React Flow, no elkjs, no diagram code and no
+  React Flow CSS anywhere in `dist/`.
+
+Layout is tuned for readability over compactness: `LAYER_SWEEP` crossing
+minimization, `NETWORK_SIMPLEX` placement, orthogonal edge routing, generous layer
+spacing. Left→Right is the default direction because a hierarchy fans out wide and
+a landscape viewport has height to spare — eleven areas side by side force a ~0.35
+zoom, the same eleven stacked read at full size.
+
 ### Evaluation: `dependency-cruiser` — not adopted (for now)
 
 Assessed as the requirement asked. **Recommendation: don't add it yet.**
@@ -239,13 +319,18 @@ it later changes no consumer.
 | `naming.ts` | URL/component → human name |
 | `search.ts` | Search + ranking |
 | `tree.ts` | Pure tree derivation + badge rules |
-| `views.ts` | The two views and their URLs |
+| `graph.ts` | Pure graph projection: nodes, typed edges, disclosure levels, focus |
+| `views.ts` | The three views and their URLs |
 | `useArchitectureMap.ts` | Fetches the generated map |
 | `generator/parseRouter.node.ts` | TypeScript-AST route extraction |
 | `generator/resolveModule.node.ts` | Import specifier → file path |
-| `generator/scanImports.node.ts` | Level-1 dependency scan |
+| `generator/scanImports.node.ts` | Level-1 dependency scan (shared page parse) |
+| `generator/scanNavigation.node.ts` | Navigation targets + route resolution |
 | `generator/buildMap.node.ts` | Orchestrator |
 | `ui/ArchitectureExplorer.tsx` | Shell: view switch, selection, detail panel |
+| `ui/ArchitectureDiagram.tsx` | Diagram view (React Flow) |
+| `ui/elkLayout.ts` | ELK auto-layout (dynamic import) |
+| `ui/relationStyle.ts` | Edge styling shared with the legend |
 | `ui/ArchitectureTree.tsx` | Tree view |
 | `ui/SearchView.tsx` | Search view |
 | `ui/RouteDetail.tsx` | Detail panel (shared by both views) |

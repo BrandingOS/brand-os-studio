@@ -64,18 +64,50 @@ export interface ImportRef {
   names: string[];
 }
 
+/** How a navigation was expressed in source. */
+export type NavigationVia = 'Link' | 'NavLink' | 'Navigate' | 'navigate';
+
+/**
+ * Where the belief that "this page navigates there" comes from.
+ *
+ * Only static source analysis exists today. This field is the seam for adding
+ * runtime-observed flows (Playwright traces, analytics) later as a second
+ * evidence source without changing the model — the Diagram already renders
+ * whatever it is told, and can style low-confidence edges differently.
+ */
+export type NavigationEvidence = 'static-source';
+
+export interface NavigationRef {
+  /** Target as written in source, normalized to route shape. */
+  target: string;
+  /**
+   * The route this resolves to, or null when it could not be pinned to exactly
+   * one known route. Null means "unknown", never "no navigation" — route
+   * availability and user navigation are different things and we don't guess.
+   */
+  toPath: string | null;
+  via: NavigationVia;
+  /** 1-indexed line in the page's source file. */
+  line: number;
+  evidence: NavigationEvidence;
+}
+
+/** The semantic kinds of relationship the Diagram can draw. */
+export type RelationKind = 'hierarchy' | 'navigation' | 'redirect' | 'import';
+
 /**
  * Extension slot for the deeper analysis layers (hooks, stores, services, API
  * calls, Supabase tables, reverse dependencies, impact analysis).
  *
- * Deliberately NOT populated beyond `imports` today — each future scanner adds
- * its own optional field here and its own module under `generator/scanners/`,
- * so no consumer has to change shape when one lands. Read
+ * Each scanner adds its own optional field here plus its own module under
+ * `generator/`, so no consumer has to change shape when one lands. Read
  * `docs/dev-architecture/README.md` before adding one.
  */
 export interface NodeAnalysis {
   /** Level-1 (direct) imports of `sourceFile`. Not transitive. */
   imports?: ImportRef[];
+  /** Statically provable navigation out of this page. */
+  navigations?: NavigationRef[];
 }
 
 /** One routable URL in the application. */

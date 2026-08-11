@@ -346,12 +346,16 @@ claude.ai/design project) is implemented as a self-contained module:
 ## Code Navigator — `/__architecture` (dev only, 2026-08-11)
 
 **Lost in the codebase? Start here.** `/__architecture` answers "what file
-renders this URL?" and its inverse, through two peer views over one generated
+renders this URL?" and its inverse, through three peer views over one generated
 data source:
 
-- **Tree** (`/__architecture/tree`, the default) — browse top-down when you
-  don't know what to search for. Real route nesting is preserved, so the 35
-  Studio pages sit under one `/b/:slug` branch rather than as flat records.
+- **Diagram** (`/__architecture/diagram`, the default) — a node-and-edge
+  architecture map, auto-laid-out by ELK. Starts at product level (app → 11
+  areas) and drills down: area → pages → route/component/source → optional
+  technical detail. Typed, filterable edges: route hierarchy, navigation,
+  redirect, imports. Focus mode reduces the graph to one node's neighbourhood.
+- **Tree** (`/__architecture/tree`) — browse top-down. Real route nesting is
+  preserved, so the 35 Studio pages sit under one `/b/:slug` branch.
 - **Search** (`/__architecture/search`) — type a page name, URL, component name,
   file path, or even a component a page *imports*, and get all four back.
 
@@ -361,13 +365,25 @@ Brand Workspace (Studio) → /b/:slug → Setup
                                         (route: src/App.tsx:420)
 ```
 
-The Tree is a **pure function over the same `RouteNode[]` Search renders**
-(`tree.ts`) — not a second scanner, not a registry. Areas come from `groups.ts`
-(the only explicit layer, top-level areas only); labels, badges, counts and
-nesting are all derived. A test asserts both views cover an identical route set,
-so they cannot diverge. Tree interaction follows VS Code: a branch row toggles,
-a leaf row selects, a leaf's chevron opens its drill-down — so "expand all" only
-ever opens structure, never metadata.
+Tree and Diagram are **pure functions over the same `RouteNode[]` Search
+renders** (`tree.ts`, `graph.ts`) — not second scanners, not registries. The
+graph takes its hierarchy from the tree, so nesting can't disagree. Areas come
+from `groups.ts` (the only explicit layer, top-level areas only); labels, badges,
+counts, nesting and edges are all derived. `graph.ts` contains no route path at
+all, and tests enforce that plus "no module names an individual page". Tests also
+assert all three views reach an identical route set.
+
+Navigation edges are statically proven only: `<Link>`/`<NavLink>`/`<Navigate>`/
+`navigate()` targets resolved against the real route set, requiring exactly one
+match. A computed target yields no edge — route availability and user navigation
+are different things. Every edge carries `evidence: 'static-source'`, the seam for
+adding runtime-observed flows later. React Flow + elkjs are **devDependencies**,
+the route and chunk are DEV-gated, and elkjs loads dynamically; verified against a
+real build that none of it reaches `dist/`.
+
+Tree interaction follows VS Code: a branch row toggles, a leaf row selects, a
+leaf's chevron opens its drill-down — so "expand all" only ever opens structure,
+never metadata.
 
 - **100% generated** from the router's TypeScript AST on every request — there is
   no list to maintain. Add/rename/move/delete a route and the explorer updates on

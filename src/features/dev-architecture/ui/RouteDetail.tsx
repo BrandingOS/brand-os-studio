@@ -9,7 +9,7 @@ import { useState } from 'react';
 
 import { DsBadge, DsButton, DsChip, DsEyebrow } from '@/shared/ds';
 
-import type { ImportKind, RouteNode } from '../types';
+import type { ImportKind, RelationKind, RouteNode } from '../types';
 import { copyToClipboard, openInEditor } from './openInEditor';
 
 const KIND_TONE: Record<RouteNode['kind'], 'neutral' | 'success' | 'warning' | 'danger'> = {
@@ -121,15 +121,74 @@ function CodeValue({
   );
 }
 
-export interface RouteDetailProps {
-  route: RouteNode;
-  /** Offered from the Search view — jumps to this route inside the Tree. */
-  onShowInTree?: () => void;
-  /** Offered from the Tree view — seeds a search from this route's name. */
-  onSearchRelated?: () => void;
+export interface RelationSummary {
+  kind: RelationKind;
+  label: string;
 }
 
-export function RouteDetail({ route, onShowInTree, onSearchRelated }: RouteDetailProps) {
+export interface RouteDetailProps {
+  route: RouteNode;
+  /** Incoming / outgoing relationships, computed by the shell. */
+  relations?: { incoming: RelationSummary[]; outgoing: RelationSummary[] };
+  /** Jumps to this route inside the Tree. */
+  onShowInTree?: () => void;
+  /** Centres the Diagram on this route's neighbourhood. */
+  onFocusInDiagram?: () => void;
+  /** Seeds a search from this route's name. */
+  onSearchRelated?: () => void;
+  /** Toggles L4 technical dependency nodes for this route in the Diagram. */
+  onShowTechnical?: () => void;
+}
+
+const RELATION_LABEL: Record<RelationKind, string> = {
+  hierarchy: 'hierarchy',
+  navigation: 'navigation',
+  redirect: 'redirect',
+  import: 'import',
+};
+
+function RelationList({ items }: { items: RelationSummary[] }) {
+  if (items.length === 0) {
+    return <span style={{ color: 'var(--ds-text-muted)', fontSize: 12 }}>none detected</span>;
+  }
+  return (
+    <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 3 }}>
+      {items.map((item) => (
+        <li
+          key={`${item.kind}:${item.label}`}
+          style={{ display: 'flex', gap: 6, alignItems: 'baseline', fontSize: 12 }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--ds-text-placeholder)',
+              border: '1px solid var(--ds-border)',
+              borderRadius: 3,
+              padding: '0 4px',
+              flexShrink: 0,
+            }}
+          >
+            {RELATION_LABEL[item.kind]}
+          </span>
+          <span style={{ color: 'var(--ds-text-secondary)', wordBreak: 'break-word' }}>
+            {item.label}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function RouteDetail({
+  route,
+  relations,
+  onShowInTree,
+  onFocusInDiagram,
+  onSearchRelated,
+  onShowTechnical,
+}: RouteDetailProps) {
   const imports = route.analysis?.imports ?? [];
   const firstParty = imports.filter((ref) => ref.kind !== 'external');
   const packages = imports.filter((ref) => ref.kind === 'external');
@@ -150,11 +209,28 @@ export function RouteDetail({ route, onShowInTree, onSearchRelated }: RouteDetai
           <DsBadge tone="neutral">{route.group}</DsBadge>
           {route.devOnly && <DsBadge tone="warning">dev only</DsBadge>}
         </div>
-        {(onShowInTree || onSearchRelated) && (
-          <div style={{ display: 'flex', gap: 'var(--ds-space-2)', marginTop: 2 }}>
+        {(onShowInTree || onSearchRelated || onFocusInDiagram || onShowTechnical) && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 'var(--ds-space-2)',
+              marginTop: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            {onFocusInDiagram && (
+              <DsButton tone="secondary" onClick={onFocusInDiagram}>
+                Focus in Diagram
+              </DsButton>
+            )}
             {onShowInTree && (
               <DsButton tone="secondary" onClick={onShowInTree}>
                 Show in Tree
+              </DsButton>
+            )}
+            {onShowTechnical && (
+              <DsButton tone="tertiary" onClick={onShowTechnical}>
+                Technical detail
               </DsButton>
             )}
             {onSearchRelated && (
@@ -226,6 +302,17 @@ export function RouteDetail({ route, onShowInTree, onSearchRelated }: RouteDetai
         <Field label="Nested under">
           <CodeValue value={route.parentPath} />
         </Field>
+      )}
+
+      {relations && (
+        <>
+          <Field label={`Incoming — ${relations.incoming.length}`}>
+            <RelationList items={relations.incoming} />
+          </Field>
+          <Field label={`Outgoing — ${relations.outgoing.length}`}>
+            <RelationList items={relations.outgoing} />
+          </Field>
+        </>
       )}
 
       {/* Collapsed by default — a page can pull in 20+ modules and dumping them

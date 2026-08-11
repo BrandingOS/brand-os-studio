@@ -208,7 +208,7 @@ function unwrapElement(expression: ts.Node): {
  * computed base (`${target}${search}` in StudioToClassicFallback); that target
  * genuinely isn't static, so we return undefined rather than print a guess.
  */
-function templateToRoutePath(node: ts.TemplateExpression): string | undefined {
+export function templateToRoutePath(node: ts.TemplateExpression): string | undefined {
   if (node.head.text === '') return undefined;
 
   let out = node.head.text;
