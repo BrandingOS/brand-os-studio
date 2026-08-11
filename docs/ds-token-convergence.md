@@ -39,8 +39,25 @@ differs from `--ds-surface` — renaming would not be behavior-preserving
 there). Setup surface's 42 Category-B usages inventoried and left
 literal per §3 (panel elevation `--surface-elevated`; progress-track /
 wells / website chrome `--surface-sunken`; active-item / hover tints
-`--accent-muted`; `.cp-add-btn:hover` `--accent-hover`). Phases 4B+
-(Category-B behavior migration, sweeps, deletion) await explicit go.
+`--accent-muted`; `.cp-add-btn:hover` `--accent-hover`).
+
+**Setup DS component adoption (2026-08-11, Batches A–B):** Setup now
+consumes DS components where semantics matched — DsProgress (sidebar
+completion; Setup's `--surface-sunken` track usage retired with it,
+though the shared `.panel-progress` CSS stays for the brand-kit /
+guideline sidebars), DsEyebrow (sidebar + type-column labels;
+`.colors-group-title` deliberately kept — sentence-case meta, not an
+eyebrow), DsButton / DsInput / DsTextArea (editor + upload modal
+footers and fields), DsSkeleton (website loading — retired the shimmer's
+3 `--surface-sunken` usages), and DsModal composed into the About/Voice
+editors (orphaned editor-modal chrome CSS deleted). Category-B in
+workspace.css: 45 → 42. DS fixes/insufficiencies recorded: `.ds-modal-scrim`
+z-index raised 60 → 200 (sat under the workspace nav); DsModal can't
+express the headerless UploadModal shell; DsDropZone can't express the
+animated drop zones — both stay product-local. Dead code found, not
+removed: `VoiceEditorModal` (migrated anyway, zero consumers) and
+`BrandSetupSidebar`. Next phases (Category-B behavior migration on
+remaining owners, per-feature sweeps, deletion) await explicit go.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted
