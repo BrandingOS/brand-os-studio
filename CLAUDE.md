@@ -365,7 +365,10 @@ stop at the first tier that fits:
    even at one call site when it encapsulates meaningfully).
 7. Promote feature → shared only on REAL reuse (≥2 consumers) with a
    stable API; promote shared → ds only if it is a generic visual
-   primitive. Never promote on hypothetical reuse.
+   primitive. Never promote on hypothetical reuse. Consumer count is
+   EVIDENCE of reuse, not sufficient proof of a shared abstraction —
+   promotion requires stable shared semantics (the consumers want the
+   same thing for the same reason, not coincidentally similar markup).
 
 **Never:** bespoke replacements for canonical components; feature-named
 variants inside ds primitives (no `DsBrandKitCard`); moving product
@@ -393,9 +396,10 @@ their surface is touched for other reasons):**
 
 **Token rules:** new Studio chrome reads `--ds-*` only. `workspace.css`
 `[data-workspace]` tokens style the CURRENT live Studio shell — don't add
-new workspace tokens for anything `--ds-*` already defines, and don't
-migrate existing surfaces without an explicit ask (the two palettes differ
-slightly — convergence is a deliberate owner decision, not a drive-by).
+new workspace tokens for anything `--ds-*` already defines. Convergence is
+an approved, staged plan: `docs/ds-token-convergence.md` (mapping table,
+temporary alias bridge, migration order, exact deletion criterion) — follow
+it, don't improvise a parallel mapping.
 Shadcn HSL tokens in index.css belong to Classic/legacy. The tailwind
 `cosmos.*` color mapping has zero usages (dead config — safe to delete
 when touched).
