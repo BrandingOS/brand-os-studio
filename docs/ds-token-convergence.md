@@ -56,8 +56,30 @@ z-index raised 60 → 200 (sat under the workspace nav); DsModal can't
 express the headerless UploadModal shell; DsDropZone can't express the
 animated drop zones — both stay product-local. Dead code found, not
 removed: `VoiceEditorModal` (migrated anyway, zero consumers) and
-`BrandSetupSidebar`. Next phases (Category-B behavior migration on
-remaining owners, per-feature sweeps, deletion) await explicit go.
+`BrandSetupSidebar`.
+
+**Setup semantic-convergence pass (2026-08-11):** all 28 Setup-owned
+Category-B usages migrated with their behavior — hover/drag/ctx
+states → `--ds-surface-hover` (+ `--ds-border-strong` where borders
+strengthened), static wells (website mock chrome, resting action pills,
+`--pill-bg`) → `--ds-surface-subtle`, elevation (upload tiles) →
+`--ds-surface` + `--ds-shadow-xs`, and `.cp-add-btn` adopted the DS
+solid-button hover/press (lift + shadow, press collapses; color never
+shifts). Six of the 28 were dead rules (`.section-edit`, `.voice-pill`,
+`.photo-tile` ×3, `.mini-drop-icon` via dead VoiceEditorModal) —
+re-based mechanically. **Setup no longer references any Category-B
+token.** workspace.css Category-B: 42 → 14, all non-Setup, delete
+per-owner later: shell ×3 (`.segmented-nav-pill`,
+`.pill-btn--primary:hover` ×2), shared sidebar scaffolding ×5
+(`.panel`, `.panel-progress-bar`, `.panel-item.is-active`,
+`.section-add`+hover — rendered by brand-kit/guideline/tools/
+mockup-studio too; migrate all 7 renderers together), BrandSwitcher ×6.
+Other files' Category-B usages (brand-kit.css, guideline styles.css,
+typescale.css, color-system.css, tools-page.css, mockup-studio.css,
+dev-features.css, editor shell v2 inline styles, case-study/pitch-deck/
+presentation-v2, workspace-home.css) belong to their features' passes.
+Next phases (shared-scaffolding migration, per-feature sweeps,
+deletion) await explicit go.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted

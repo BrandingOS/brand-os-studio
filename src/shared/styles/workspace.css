@@ -803,7 +803,7 @@
 
 [data-workspace] .section-edit {
   font-family: inherit;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   border: none;
   padding: 0 11px;
   margin: 0;
@@ -896,7 +896,7 @@
 [data-workspace] .logo-tile:hover,
 [data-workspace] .logo-tile.is-ctx-active {
   border-color: var(--ds-border-strong);
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
 }
 [data-workspace] .logo-tile .logo-svg {
   width: 100%;
@@ -920,7 +920,7 @@
 }
 [data-workspace] .logo-tile.is-empty:hover,
 [data-workspace] .logo-tile.is-empty.is-drop-target {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
 }
 [data-workspace] .logo-tile.is-empty.is-drop-target .logo-tile-dash rect,
@@ -929,7 +929,7 @@
   stroke: var(--ds-dash-strong);
 }
 [data-workspace] .photo-tile.is-slot.is-drop-target {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
 }
 [data-workspace] .logo-tile-dash {
   position: absolute;
@@ -1544,7 +1544,7 @@
 }
 [data-workspace] .cp-cancel-btn:hover {
   color: var(--ds-text);
-  background: var(--surface-sunken);
+  background: var(--ds-surface-hover);
 }
 [data-workspace] .cp-add-btn {
   font: inherit;
@@ -1558,8 +1558,13 @@
   border-radius: 999px;
   transition: background 180ms var(--ds-ease), transform 140ms var(--ds-ease);
 }
-[data-workspace] .cp-add-btn:hover { background: var(--accent-hover); }
-[data-workspace] .cp-add-btn:active { transform: scale(0.97); }
+/* DS solid-button behavior: hover never shifts color — lift + shadow;
+   press collapses the lift (mirrors .ds-btn--primary). */
+[data-workspace] .cp-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(17, 17, 19, 0.24);
+}
+[data-workspace] .cp-add-btn:active { transform: translateY(0) scale(0.99); }
 
 /* Compact variant — used for the "add a new color" flow. A more
    balanced aspect ratio (taller SV) so the picker reads as a real
@@ -1816,7 +1821,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   color: var(--ds-text);
   border: 1px solid var(--ds-border);
   border-radius: 8px;
@@ -1824,9 +1829,9 @@
   transition: background 180ms var(--ds-ease), border-color 180ms var(--ds-ease), color 180ms var(--ds-ease);
 }
 [data-workspace] .type-card-action:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-accent);
-  border-color: var(--accent-muted);
+  border-color: var(--ds-border-strong);
 }
 [data-workspace] .type-card-action:last-child:hover {
   /* Delete button — warn tone on hover. */
@@ -1978,7 +1983,7 @@
 [data-workspace] .icons-empty:hover,
 [data-workspace] .about-empty:hover {
   color: var(--ds-text);
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
 }
 
 [data-workspace] .type-row {
@@ -2174,7 +2179,7 @@
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   transition: transform 260ms var(--ds-ease);
   cursor: pointer;
   z-index: 1;
@@ -2195,7 +2200,7 @@
   overflow: visible;
 }
 [data-workspace] .photo-tile.is-slot:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
 }
 [data-workspace] .photo-tile-dash {
@@ -2316,7 +2321,7 @@
   align-items: flex-end;
   gap: 2px;
   padding: 8px 10px 0;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   border-bottom: 1px solid var(--ds-border);
 }
 [data-workspace] .website-tab {
@@ -2392,7 +2397,7 @@
   opacity: 1;
 }
 [data-workspace] .website-tab-close:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
 }
 [data-workspace] .website-tab-add {
@@ -2412,7 +2417,7 @@
   transition: background 180ms var(--ds-ease), color 180ms var(--ds-ease);
 }
 [data-workspace] .website-tab-add:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-accent);
 }
 [data-workspace] .chrome-edit {
@@ -2430,7 +2435,7 @@
   transition: background 180ms var(--ds-ease), color 180ms var(--ds-ease);
 }
 [data-workspace] .chrome-edit:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-accent);
 }
 
@@ -2440,7 +2445,7 @@
   gap: 8px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--ds-border);
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
 }
 [data-workspace] .chrome-dot {
   width: 10px;
@@ -2465,7 +2470,7 @@
 [data-workspace] .website-body {
   position: relative;
   aspect-ratio: 16 / 9;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2628,7 +2633,7 @@
   transition: background 180ms var(--ds-ease), color 180ms var(--ds-ease), border-color 180ms var(--ds-ease);
 }
 [data-workspace] .about-suggestion-chip:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
   border-color: var(--ds-border-strong);
 }
@@ -2683,7 +2688,7 @@
   font-size: 11.5px;
   padding: 5px 11px;
   border-radius: 999px;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   color: var(--ds-text-secondary);
   font-weight: 500;
   letter-spacing: -0.005em;
@@ -2857,7 +2862,7 @@
 [data-workspace] {
   --dz-bg: var(--ds-surface);
   --dz-bg-hover: var(--ds-surface-hover);
-  --pill-bg: var(--surface-sunken);
+  --pill-bg: var(--ds-surface-subtle);
   --pill-bg-focus: #e7e4db;
   --text-subtle: var(--ds-text-muted);
 }
@@ -2923,7 +2928,7 @@
   box-shadow: var(--ds-shadow-float);
 }
 .drop-zone:hover { background: var(--dz-bg-hover); }
-.drop-zone.is-drag { background: var(--accent-muted); }
+.drop-zone.is-drag { background: var(--ds-surface-hover); }
 /* URL-only variant (website add) — shrink the modal and hide file-drop
    affordances so the URL input is the focal point. */
 .drop-zone.is-url-only { cursor: default; min-height: 280px; }
@@ -3138,7 +3143,7 @@
   transition: background 140ms var(--ds-ease);
 }
 .font-pick:hover {
-  background: var(--surface-sunken);
+  background: var(--ds-surface-hover);
 }
 .font-pick:focus-visible {
   outline: none;
@@ -3355,7 +3360,7 @@
 }
 .items-clear:hover {
   color: var(--ds-text);
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
 }
 .drop-items {
   display: grid;
@@ -3365,7 +3370,8 @@
 }
 .upload-tile {
   position: relative;
-  background: var(--surface-elevated);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
   border: 1px solid var(--ds-border);
   border-radius: 10px;
   padding: 8px;
@@ -3410,7 +3416,8 @@
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  background: var(--surface-elevated);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-xs);
   border: 1px solid var(--ds-border);
   display: grid;
   place-items: center;
@@ -3422,7 +3429,7 @@
 }
 .upload-tile:hover .upload-tile-remove { opacity: 1; }
 .upload-tile-remove:hover {
-  background: var(--accent-muted);
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
   border-color: var(--ds-text);
 }
@@ -3510,7 +3517,7 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: var(--surface-sunken);
+  background: var(--ds-surface-subtle);
   display: grid;
   place-items: center;
   color: var(--ds-text-secondary);
