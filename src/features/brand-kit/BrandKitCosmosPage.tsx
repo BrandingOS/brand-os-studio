@@ -49,7 +49,9 @@ import { downloadFontsBundle } from './data/fontExport';
 import {
   cardCustomizationKey,
   loadCardCustomization,
+  loadFeaturedVariants,
   saveCardCustomization,
+  saveFeaturedVariants,
 } from './data/cardCustomizations';
 import {
   snapshotElementPng,
@@ -258,6 +260,16 @@ export function BrandKitCosmosPage({
   const [featuredIdsByLabel, setFeaturedIdsByLabel] = useState<
     Record<string, string[]>
   >({ ...DEFAULT_FEATURED_IDS_BY_LABEL });
+  // Hydrate picker-added variants (persisted per brand + card label) so
+  // a "+"-added variant survives navigation and refresh. Saved lists
+  // win over the curated defaults for their label; brands without saves
+  // render the defaults unchanged.
+  useEffect(() => {
+    const saved = loadFeaturedVariants(customizationBrandId);
+    if (Object.keys(saved).length > 0) {
+      setFeaturedIdsByLabel({ ...DEFAULT_FEATURED_IDS_BY_LABEL, ...saved });
+    }
+  }, [customizationBrandId]);
   // User-added icons override `brand.icons` for this session. Starts
   // null so we render the brand's seed set unchanged; the first add
   // (or removal) clones into a mutable list. Persistence back to the
@@ -384,6 +396,40 @@ export function BrandKitCosmosPage({
   // Real card downloads (KIT-03). Brand-asset cards route to their
   // dedicated bundle builders; template cards rasterize their first
   // featured variant offscreen and download the PNG.
+  // One colors export at a time — the bundle takes a moment even in
+  // vector form, and a second click used to silently queue a duplicate
+  // multi-minute job with zero feedback.
+  const colorsExportBusyRef = useRef(false);
+  const runColorsExport = useCallback(async (palette: PaletteColor[], brandName: string) => {
+    if (colorsExportBusyRef.current) {
+      toast('Colors export already running…', { id: 'bk-colors-export' });
+      return;
+    }
+    colorsExportBusyRef.current = true;
+    toast.loading(`Preparing colors bundle… 0/${palette.length}`, { id: 'bk-colors-export' });
+    try {
+      const blob = await buildAllColorsZip(palette, brandName, (done, total, name) => {
+        toast.loading(`Preparing colors bundle… ${done}/${total}`, {
+          id: 'bk-colors-export',
+          description: name,
+        });
+      });
+      triggerBlobDownload(blob, `${slugifyName(brandName)}-colors.zip`);
+      const mb = blob.size / (1024 * 1024);
+      toast.success('Colors bundle downloaded', {
+        id: 'bk-colors-export',
+        description: `${palette.length} colors · ${mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.max(1, Math.round(blob.size / 1024))} KB`}`,
+      });
+    } catch (err) {
+      toast.error('Colors export failed', {
+        id: 'bk-colors-export',
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
+    } finally {
+      colorsExportBusyRef.current = false;
+    }
+  }, []);
+
   const handleDownloadCard = useCallback(
     async (t: EditorTarget) => {
       const b = effectiveBrand;
@@ -396,8 +442,7 @@ export function BrandKitCosmosPage({
             return;
           }
           case 'Colors': {
-            const blob = await buildAllColorsZip(paletteOf(b), b.name);
-            triggerBlobDownload(blob, `${slug}-colors.zip`);
+            await runColorsExport(paletteOf(b), b.name);
             return;
           }
           case 'Fonts': {
@@ -484,7 +529,7 @@ export function BrandKitCosmosPage({
         });
       }
     },
-    [effectiveBrand, sourceBrand],
+    [effectiveBrand, sourceBrand, runColorsExport],
   );
 
   // Section-level download (the small icon in each section header).
@@ -997,21 +1042,7 @@ export function BrandKitCosmosPage({
                           role: 'Neutral',
                         })),
                       ];
-                      try {
-                        const blob = await buildAllColorsZip(
-                          palette,
-                          effectiveBrand.name,
-                        );
-                        triggerBlobDownload(
-                          blob,
-                          `${effectiveBrand.name.toLowerCase().replace(/\s+/g, '-')}-colors.zip`,
-                        );
-                      } catch (err) {
-                        toast.error('Download failed', {
-                          description:
-                            err instanceof Error ? err.message : 'Unknown error',
-                        });
-                      }
+                      await runColorsExport(palette, effectiveBrand.name);
                       return;
                     }
                     // Template drilldowns (stationery / social / web /
@@ -1140,7 +1171,9 @@ export function BrandKitCosmosPage({
               prev[pickerLabel] ??
               (drilldownTarget?.templates ?? []).slice(0, 3).map((t) => t.id);
             if (current.includes(tpl.id)) return prev;
-            return { ...prev, [pickerLabel]: [...current, tpl.id] };
+            const next = [...current, tpl.id];
+            saveFeaturedVariants(customizationBrandId, pickerLabel, next);
+            return { ...prev, [pickerLabel]: next };
           });
         }}
         onClose={() => setPickerLabel(null)}

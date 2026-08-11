@@ -1756,7 +1756,7 @@
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgba(15, 15, 17, 0.55);
+  background: var(--ds-scrim);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   display: flex;
@@ -1767,7 +1767,7 @@
 .bk-card-picker {
   width: min(1080px, 100%);
   max-height: min(720px, 90vh);
-  background: #fff;
+  background: var(--ds-surface);
   border-radius: 18px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
   display: flex;
@@ -1779,30 +1779,30 @@
   align-items: center;
   justify-content: space-between;
   padding: 18px 22px 14px;
-  border-bottom: 1px solid rgba(17, 17, 19, 0.06);
+  border-bottom: 1px solid var(--ds-border);
 }
 .bk-card-picker-title {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #111113;
+  color: var(--ds-text);
 }
 .bk-card-picker-close {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  border: 1px solid rgba(17, 17, 19, 0.08);
-  background: #fff;
-  color: #6b6b6b;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
 .bk-card-picker-close:hover {
-  background: #f4f4f3;
-  color: #111113;
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
 }
 .bk-card-picker-grid {
   flex: 1;
@@ -1815,7 +1815,7 @@
 .bk-card-picker-empty {
   grid-column: 1 / -1;
   text-align: center;
-  color: #888;
+  color: var(--ds-text-muted);
   font-size: 13px;
   padding: 64px 0;
 }
@@ -1828,7 +1828,7 @@
   border: 0;
   cursor: pointer;
   text-align: left;
-  color: #111113;
+  color: var(--ds-text);
 }
 .bk-card-picker-tile {
   /* `position: relative` is load-bearing — many business-card
@@ -1842,8 +1842,8 @@
      letterheads (1/1.414) can both render at their natural shape. */
   border-radius: 12px;
   overflow: hidden;
-  background: #f4f4f3;
-  border: 1px solid rgba(17, 17, 19, 0.06);
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
   transition: transform 140ms ease, border-color 140ms ease;
 }
 .bk-card-picker-tile > * {
@@ -1854,12 +1854,12 @@
 }
 .bk-card-picker-cell:hover .bk-card-picker-tile {
   transform: translateY(-2px);
-  border-color: rgba(17, 17, 19, 0.18);
+  border-color: var(--ds-border-strong);
 }
 .bk-card-picker-cell-label {
   font-size: 12px;
   font-weight: 500;
-  color: #444;
+  color: var(--ds-text-secondary);
 }
 
 /* ============================================================

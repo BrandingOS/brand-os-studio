@@ -97,3 +97,48 @@ export function clearCardCustomization(
   delete store[brandId][cardKey];
   writeStore(store);
 }
+
+/* ─── Featured drilldown variants (KIT — picker "+" adds) ─────────
+ * The drilldown's TemplatePickerModal appends variants to a card's
+ * featured set. That set was session-only state; it persists here so
+ * an added variant survives navigation and refresh, using the same
+ * one-entry-per-concern localStorage pattern as the card
+ * customizations above. Shape: brandId → card label → template ids. */
+
+const FEATURED_KEY = 'brandos:brand-kit:featured-variants';
+
+type FeaturedShape = Record<string, Record<string, string[]>>;
+
+function readFeatured(): FeaturedShape {
+  try {
+    const raw = localStorage.getItem(FEATURED_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as FeaturedShape) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** All persisted featured-variant lists for a brand, keyed by card label. */
+export function loadFeaturedVariants(
+  brandId: string | undefined,
+): Record<string, string[]> {
+  if (!brandId) return {};
+  return readFeatured()[brandId] ?? {};
+}
+
+export function saveFeaturedVariants(
+  brandId: string | undefined,
+  label: string,
+  templateIds: string[],
+): void {
+  if (!brandId) return;
+  try {
+    const store = readFeatured();
+    store[brandId] = { ...(store[brandId] ?? {}), [label]: templateIds };
+    localStorage.setItem(FEATURED_KEY, JSON.stringify(store));
+  } catch {
+    // Quota failure — the add still works for the session.
+  }
+}

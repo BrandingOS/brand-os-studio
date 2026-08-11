@@ -93,8 +93,15 @@ export async function rasterizeSvg(
 
 /** Build an .ai blob from an SVG. Real .ai files are PDF-compatible
  *  since Illustrator CS2, so we generate a single-page PDF and
- *  rename the extension. Falls back to a flat raster image if the
- *  jsPDF SVG plugin isn't available. */
+ *  rename the extension.
+ *
+ *  The export SVGs are pure rect + text compositions, so we draw them
+ *  as REAL VECTORS with jsPDF primitives — each .ai lands at a few KB.
+ *  The old path embedded a 2× PNG raster (jsPDF stores PNG pixels
+ *  near-uncompressed), which made every .ai ~10 MB and pushed the
+ *  all-colors bundle to ~607 MB / minutes of canvas work. A compressed
+ *  JPEG raster remains only as the fallback for SVGs with shapes this
+ *  renderer doesn't know. */
 export async function buildAiBlob(
   svg: string,
   width: number,
@@ -110,20 +117,18 @@ export async function buildAiBlob(
     });
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
-    const svgEl = svgDoc.documentElement as unknown as Element;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const pdfAny = pdf as any;
-    if (typeof pdfAny.svg === 'function') {
-      await pdfAny.svg(svgEl, { x: 0, y: 0, width, height });
-    } else {
-      const { png } = await rasterizeSvg(svg, width, height);
-      if (png) {
+    const svgEl = svgDoc.documentElement;
+    if (!drawSvgAsVectors(pdf, svgEl)) {
+      // Unknown shapes — fall back to ONE compressed raster (JPEG at
+      // 1×, not the old raw-PNG-at-2× that ballooned the files).
+      const { jpg } = await rasterizeSvg(svg, width, height);
+      if (jpg) {
         const dataUrl = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(png);
+          reader.readAsDataURL(jpg);
         });
-        pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
+        pdf.addImage(dataUrl, 'JPEG', 0, 0, width, height);
       }
     }
     const arrayBuffer = pdf.output('arraybuffer');
@@ -131,6 +136,42 @@ export async function buildAiBlob(
   } catch {
     return null;
   }
+}
+
+/** Draw our rect/text SVG subset natively into a jsPDF page.
+ *  @returns false when the SVG contains anything this renderer can't
+ *  draw — the caller then rasterizes instead. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function drawSvgAsVectors(pdf: any, svgEl: Element): boolean {
+  const children = Array.from(svgEl.children);
+  for (const el of children) {
+    if (el.tagName === 'rect') continue;
+    if (el.tagName === 'text') continue;
+    return false;
+  }
+  const num = (el: Element, attr: string) => parseFloat(el.getAttribute(attr) ?? '0') || 0;
+  for (const el of children) {
+    const fill = el.getAttribute('fill') ?? '#000000';
+    if (el.tagName === 'rect') {
+      pdf.setFillColor(fill);
+      pdf.rect(num(el, 'x'), num(el, 'y'), num(el, 'width'), num(el, 'height'), 'F');
+    } else {
+      const size = num(el, 'font-size') || 16;
+      const weight = num(el, 'font-weight') || 400;
+      const anchor = el.getAttribute('text-anchor');
+      const family = el.getAttribute('font-family') ?? '';
+      pdf.setFont(/mono/i.test(family) ? 'courier' : 'helvetica', weight >= 600 ? 'bold' : 'normal');
+      pdf.setFontSize(size);
+      pdf.setTextColor(fill);
+      pdf.setCharSpace(num(el, 'letter-spacing'));
+      pdf.text(el.textContent ?? '', num(el, 'x'), num(el, 'y'), {
+        align: anchor === 'middle' ? 'center' : anchor === 'end' ? 'right' : 'left',
+        baseline: el.getAttribute('dominant-baseline') === 'middle' ? 'middle' : 'alphabetic',
+      });
+      pdf.setCharSpace(0);
+    }
+  }
+  return true;
 }
 
 /** Build the 9-shade list for a base color. Lightest → darkest by
@@ -211,10 +252,12 @@ export async function buildSingleColorZip(color: PaletteColor): Promise<Blob> {
 
 /** Build a complete ZIP for every color in the palette. Each color
  *  gets its own top-level folder with the same shape as the
- *  single-color bundle. */
+ *  single-color bundle. `onProgress` fires after each color so callers
+ *  can drive a visible progress indicator. */
 export async function buildAllColorsZip(
   colors: PaletteColor[],
   brandName: string,
+  onProgress?: (done: number, total: number, name: string) => void,
 ): Promise<Blob> {
   const { default: JSZip } = await import('jszip');
   const zip = new JSZip();
@@ -242,6 +285,7 @@ export async function buildAllColorsZip(
     if (shadesDir) {
       await addColorBundleToZip(shadesDir, `${safe}-shades`, shadesSvg, SHADES_W, shadesH);
     }
+    onProgress?.(used.size, colors.length, folderName);
   }
   // Touch brandName so future iterations can use it for a top-level
   // README — kept in the API now so callers don't have to update.
