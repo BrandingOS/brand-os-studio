@@ -31,22 +31,12 @@ dist-ssr
 audit-*.png
 # Root-level screenshots (drop zone for ad-hoc captures)
 /*.png
-# Local scratch archive (old screenshots, QA captures, backups)
+# Personal archive — old screenshots, QA captures, backups, reference
+# assets (raw Brands sources, brand-vision tool, remotion project moved
+# here 2026-08-11; their already-tracked files remain tracked).
 /archive/
 
-# Local research / reference assets — not part of the product
-new-version/
 new-ui/
-# Raw brand source files (designer deliverables — fonts, .ai, PDFs).
-# Processed assets live in /public/brands/<slug>/.
-/Brands/
-
-# Local-only Product OS / internal control center — never commit
-/product-os/
-
-# Remotion
-remotion/node_modules
-remotion/out
 
 .claude/worktrees/
 
