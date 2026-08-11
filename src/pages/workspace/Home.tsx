@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { DsButton, DsEyebrow } from '@/shared/ds';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -156,7 +157,7 @@ export default function WorkspaceHome() {
     <WorkspaceShell>
       <main className="ws-outlet">
         <section className="ws-hero">
-          <span className="ws-hero-eyebrow">Workspace</span>
+          <DsEyebrow style={{ marginBottom: 4 }}>Workspace</DsEyebrow>
           <h1 className="ws-hero-title">Your brands</h1>
           <p className="ws-hero-sub">
             {count === 0
@@ -172,26 +173,9 @@ export default function WorkspaceHome() {
               Set the colors, type, and voice once. Every template and design you
               make after will inherit from it.
             </p>
-            <button
-              type="button"
-              className="pill-btn pill-btn--primary"
-              onClick={() => navigate('/onboard-brand')}
-            >
+            <DsButton tone="primary" arrow onClick={() => navigate('/onboard-brand')}>
               Create a brand
-              <svg
-                className="pill-btn-arrow"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M5 12h14" />
-                <path d="M13 5l7 7-7 7" />
-              </svg>
-            </button>
+            </DsButton>
           </div>
         ) : (
           <div className="ws-brands-grid">

@@ -257,7 +257,9 @@
   flex-direction: column;
   justify-content: space-between;
   padding: 14px 16px 14px;
-  background: var(--surface-elevated);
+  /* DS: elevation is the card's shadow, not a tinted surface — the body
+     shares the card surface; the border-top provides the separation. */
+  background: var(--ds-surface);
   border-top: 1px solid var(--ds-border);
 }
 [data-workspace] .ws-brand-card-title {
@@ -320,7 +322,9 @@
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: var(--accent-muted);
+  /* DS quiet-fill (slightly darker than the page) — surface-subtle would
+     invert the disc lighter than the page bg and lose it. */
+  background: var(--ds-surface-hover);
   color: var(--ds-text);
   font-size: 22px;
   font-weight: 300;
@@ -351,7 +355,8 @@
   text-align: center;
   border: 1.5px dashed var(--ds-dash);
   border-radius: 20px;
-  background: var(--surface-elevated);
+  /* DS dashed-invitation pairing (mirrors .ds-dropzone): dash + subtle. */
+  background: var(--ds-surface-subtle);
 }
 [data-workspace] .ws-empty-title {
   font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;

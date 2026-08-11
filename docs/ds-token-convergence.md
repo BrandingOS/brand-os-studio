@@ -78,8 +78,26 @@ Other files' Category-B usages (brand-kit.css, guideline styles.css,
 typescale.css, color-system.css, tools-page.css, mockup-studio.css,
 dev-features.css, editor shell v2 inline styles, case-study/pitch-deck/
 presentation-v2, workspace-home.css) belong to their features' passes.
-Next phases (shared-scaffolding migration, per-feature sweeps,
-deletion) await explicit go.
+**Dashboard pass (2026-08-11, revised order: /dashboard → /onboard-brand
+→ Tools later):** workspace-home.css fully converged — D1: 53 Category-A
+renames (whole file incl. hero/outlet shared with Learn/Settings/
+Templates and the shell profile-menu shadow fallback Phase 3's ranges
+missed), probes byte-identical light+dark+hover. D2: Home-owned
+Category-B migrated with semantics — `.ws-brand-card-body`
+`--surface-elevated` → `--ds-surface` (elevation = the card's shadow),
+`.ws-brand-card-plus` `--accent-muted` → `--ds-surface-hover` (quiet
+fill darker than the page; subtle would invert the disc), `.ws-empty`
+`--surface-elevated` → `--ds-surface-subtle` (dash + subtle, mirrors
+.ds-dropzone); Home adopted DsEyebrow (hero) + DsButton primary/arrow
+(empty-state CTA). Remaining Category-B in workspace-home.css: 2,
+sibling-owned (`.ws-card-thumb` — Learn/Templates; `.ws-subtab.is-active`
+— Settings/Templates), migrate with those pages. BrandCardMenu stays on
+the shared self-themed ctx-menu pattern (no DsMenu extension, per
+owner decision).
+
+Next: /onboard-brand (UI consistency + functional onboarding
+correctness) on explicit go; then Tools. Shared-scaffolding migration
+(.panel family, 7 renderers) and deletion still pending.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted
