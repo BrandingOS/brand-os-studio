@@ -1,3 +1,5 @@
+import { DsButton } from '@/shared/ds';
+
 interface Props {
   caption?: string;
   label: string;
@@ -10,27 +12,18 @@ interface Props {
 
 export function FooterCTA({ caption, label, onClick, disabled, onBack, backDisabled, variant = 'setup' }: Props) {
   const backButton = onBack ? (
-    <button type="button" className="btn-ghost" onClick={onBack} disabled={backDisabled}>
+    <DsButton tone="tertiary" onClick={onBack} disabled={backDisabled}>
       <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M19 12H5" />
         <path d="m12 19-7-7 7-7" />
       </svg>
       Back
-    </button>
+    </DsButton>
   ) : null;
   const ctaButton = (
-    <button
-      type="button"
-      className={variant === 'create' ? 'btn-primary' : 'cta'}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <span>{label}</span>
-      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M5 12h14" />
-        <path d="M12 5l7 7-7 7" />
-      </svg>
-    </button>
+    <DsButton tone="primary" arrow onClick={onClick} disabled={disabled}>
+      {label}
+    </DsButton>
   );
 
   // Setup variant lays out as one row: Back (when present) on the left,
@@ -51,7 +44,14 @@ export function FooterCTA({ caption, label, onClick, disabled, onBack, backDisab
     <div className="footer-cta footer-cta-create">
       {caption && <span className="cta-caption">{caption}</span>}
       {ctaButton}
-      {backButton && <div className="footer-back">{backButton}</div>}
+      {backButton && (
+        // Step 1 hides Back entirely (legacy .btn-ghost[disabled] was
+        // opacity:0) — visibility keeps the layout slot without showing
+        // a disabled button that can't do anything yet.
+        <div className="footer-back" style={backDisabled ? { visibility: 'hidden' } : undefined}>
+          {backButton}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { DsInput } from '@/shared/ds';
 import { useV4Store } from '../store/onboardingV4Store';
 import { BrandDropzone } from '../components/BrandDropzone';
 import { AITextarea } from '../components/AITextarea';
@@ -11,10 +12,9 @@ export function SetupPanel() {
     <section className="panel is-active setup-panel-form">
       <form className="cosmos-form" autoComplete="off" noValidate onSubmit={(e) => e.preventDefault()}>
         <div className="field">
-          <label htmlFor="brand-name">Brand name</label>
-          <input
+          <DsInput
             id="brand-name"
-            className="input"
+            label="Brand name"
             type="text"
             placeholder="Enter your brand name"
             value={define.name}
