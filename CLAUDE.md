@@ -294,12 +294,21 @@ one, update the other.
 The owner's canonical visual spec ("BrandingOS Design System.dc.html",
 claude.ai/design project) is implemented as a self-contained module:
 
-- **Tokens**: `ds/tokens.css` — all `--ds-*` custom properties (warm cream
-  light / warm charcoal dark, radii, 4px spacing, warm-neutral shadows, one
-  easing `cubic-bezier(0.22,1,0.36,1)` at 150/220/360ms). One token set, two
-  value maps: light on `:root`, dark under `.dark` AND `[data-theme="dark"]`
-  so both theming systems (next-themes class + WorkspaceShell data-theme)
-  resolve. `ds/tokens.ts` is the TS mirror (used by contrast tests).
+- **Tokens — codegen pipeline**: `ds/tokens.json` is the ONLY hand-editable
+  token source. `npm run gen:tokens` (scripts/gen-ds-tokens.mjs) generates
+  `ds/tokens.css` + `ds/tokens.ts` from it — both are GENERATED, DO NOT
+  EDIT them directly; `ds/tokensSync.test.ts` fails CI when they're stale
+  (`npm run gen:tokens:check` is the CLI equivalent). Token semantics: all
+  `--ds-*` custom properties (warm cream light / warm charcoal dark, radii,
+  4px spacing, warm-neutral shadows, one easing
+  `cubic-bezier(0.22,1,0.36,1)` at 150/220/360ms). One token set, two value
+  maps: light on `:root`, dark under `.dark` AND `[data-theme="dark"]` so
+  both theming systems (next-themes class + WorkspaceShell data-theme)
+  resolve. Dev server only: `POST /__ds-tokens/apply` (vite.config.ts
+  plugin, `apply: 'serve'` so it never exists in builds) validates a
+  Controller draft (existing tokens only, per-kind value shapes, CSS-
+  injection charset guard), merges into tokens.json atomically, and reruns
+  the codegen — the Controller's Save button uses it.
 - **Components** (import from `@/shared/ds`): `DsButton` (tone=
   primary/secondary/tertiary/danger — danger solid is the ONLY non-charcoal
   filled button), `DsInput/DsTextArea/DsDropZone`, `DsSelect`, `DsSwitch/
@@ -320,9 +329,12 @@ claude.ai/design project) is implemented as a self-contained module:
   (`registry.ts` holds metadata only — never values); drafts persist in
   localStorage `brandos:ds-controller:draft` and apply as inline custom
   props on the preview wrapper ONLY (editor chrome stays canonical);
-  Undo / Reset token / Reset all / Copy CSS (paste-ready tokens.css patch).
-  A unit test asserts every registry var exists in tokens.css — add new
-  tokens to tokens.css first, then the registry. Tests:
+  Undo / Reset token / Reset section / Discard all / Copy CSS (paste-ready
+  patch, debug fallback); Save (dev server only) shows an applied-vs-draft
+  diff modal, POSTs to `/__ds-tokens/apply`, and clears drafts only after
+  the write succeeded AND the regenerated CSS arrived via HMR. A unit test
+  asserts every registry var exists in tokens.css — add new tokens to
+  tokens.json first (then gen:tokens), then the registry. Tests:
   `src/shared/ds/ds.test.tsx` + `src/pages/_dev/design-system/
   controller.test.tsx`.
 - Rules that bind: chrome never wears the customer's brand; grey is never an

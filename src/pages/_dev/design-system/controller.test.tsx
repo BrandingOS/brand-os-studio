@@ -99,6 +99,31 @@ describe('useTokenDrafts', () => {
     expect(result.current.canUndo).toBe(false);
   });
 
+  it('resetSection clears a group of tokens as one undo step', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    const colorDefs = DS_TOKENS.filter((d) => d.group === 'Core colors');
+    act(() => result.current.setToken(bg, 'light', '#ff0000'));
+    act(() => result.current.setToken(radiusCard, 'light', '9px'));
+    act(() => result.current.resetSection(colorDefs, 'light'));
+    expect(result.current.isOverridden(bg, 'light')).toBe(false);
+    expect(result.current.overrideCount).toBe(1); // radius untouched
+    act(() => result.current.undo());
+    expect(result.current.isOverridden(bg, 'light')).toBe(true);
+    // resetting a section with no overrides is a no-op for history
+    act(() => result.current.resetSection([radiusCard], 'dark'));
+    act(() => result.current.resetSection([bg], 'dark'));
+    expect(result.current.getOverride(bg, 'light')).toBe('#ff0000');
+  });
+
+  it('clearSaved empties drafts AND history (post-save baseline)', () => {
+    const { result } = renderHook(() => useTokenDrafts());
+    act(() => result.current.setToken(bg, 'light', '#ff0000'));
+    act(() => result.current.clearSaved());
+    expect(result.current.overrideCount).toBe(0);
+    expect(result.current.canUndo).toBe(false);
+    expect(loadDraft().light).toEqual({});
+  });
+
   it('persists drafts to localStorage and rehydrates in a fresh hook', () => {
     const first = renderHook(() => useTokenDrafts());
     act(() => first.result.current.setToken(bg, 'dark', '#0a0a0a'));

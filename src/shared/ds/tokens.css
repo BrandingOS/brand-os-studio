@@ -1,12 +1,16 @@
-/**
- * BrandingOS Design System v1 — token layer.
+/*
+ * GENERATED FILE — DO NOT EDIT.
  *
- * Source of truth: "BrandingOS Design System.dc.html" (claude.ai/design, Aug 2026).
- * One token set, two value maps. Light lives on :root; dark overrides under
- * `.dark` (next-themes on <html>) and `[data-theme="dark"]` (WorkspaceShell div),
- * so the same tokens resolve correctly in both theming systems. Components read
- * tokens only — no hard-coded hex in component styles.
+ * Source of truth: src/shared/ds/tokens.json
+ * Regenerate with:  npm run gen:tokens
+ * (The /_dev/design-system Controller's Save button runs the same codegen.)
  */
+
+/* BrandingOS Design System v1 — token layer.
+ * One token set, two value maps. Light lives on :root; dark overrides under
+ * `.dark` (next-themes on <html>) and `[data-theme="dark"]` (WorkspaceShell
+ * div), so the same tokens resolve in both theming systems. Components read
+ * tokens only — no hard-coded hex in component styles. */
 
 :root {
   /* Color — light ("printed paper, not screen white") */
@@ -40,13 +44,13 @@
   --ds-error-ring: rgba(180, 69, 58, 0.1);
   --ds-scrim: rgba(10, 10, 10, 0.35);
 
-  /* Shape — three radii with fixed jobs (+ pill). Nothing is ever square. */
+  /* Shape */
   --ds-radius-pill: 999px;
-  --ds-radius-control: 8px;   /* controls inside the nav bar */
-  --ds-radius-tile: 10px;     /* small tiles, rail items (9px rounds here) */
-  --ds-radius-menu: 12px;     /* menus, toasts, banners, editor panels */
-  --ds-radius-card: 14px;     /* cards, tiles, fields, modal children */
-  --ds-radius-panel: 18px;    /* page-level floating panels, drop zones */
+  --ds-radius-control: 8px;
+  --ds-radius-tile: 10px;
+  --ds-radius-menu: 12px;
+  --ds-radius-card: 14px;
+  --ds-radius-panel: 18px;
 
   /* Spacing — 4px base */
   --ds-space-1: 4px;
@@ -65,13 +69,13 @@
   --ds-shadow-md: 0 6px 20px rgba(20, 18, 14, 0.12);
   --ds-shadow-float: 0 4px 10px rgba(20, 18, 14, 0.08), 0 16px 40px rgba(20, 18, 14, 0.16);
 
-  /* Motion — one easing, three durations, applied by class */
+  /* Motion — one easing, three durations */
   --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ds-duration-state: 150ms;
   --ds-duration-panel: 220ms;
   --ds-duration-modal: 360ms;
 
-  /* Type — one product face, weight and size carry the hierarchy */
+  /* Type — one product face */
   --ds-font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --ds-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }

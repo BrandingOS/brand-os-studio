@@ -170,7 +170,7 @@ function TokenRow({ def, mode, defaultValue, drafts }: TokenRowProps) {
               textOverflow: 'ellipsis',
             }}
           >
-            {overridden ? `default ${defaultValue}` : defaultValue}
+            {overridden ? `applied ${defaultValue}` : defaultValue}
           </div>
         </div>
       </div>
@@ -234,18 +234,40 @@ export function TokenPanel({ mode, defaults, drafts }: TokenPanelProps) {
                 {perModeGroup ? mode : 'both modes'}
               </span>
               {overriddenInGroup > 0 && (
-                <span
-                  style={{
-                    fontSize: 9.5,
-                    fontWeight: 700,
-                    color: 'var(--ds-warning-fg)',
-                    background: 'var(--ds-warning-bg)',
-                    borderRadius: 999,
-                    padding: '1px 7px',
-                  }}
-                >
-                  {overriddenInGroup}
-                </span>
+                <>
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      color: 'var(--ds-warning-fg)',
+                      background: 'var(--ds-warning-bg)',
+                      borderRadius: 999,
+                      padding: '1px 7px',
+                    }}
+                  >
+                    {overriddenInGroup}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Reset ${group} section`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      drafts.resetSection(defs, mode);
+                    }}
+                    style={{
+                      marginLeft: 'auto',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      color: 'var(--ds-text-muted)',
+                      padding: '2px 4px',
+                    }}
+                  >
+                    Reset section
+                  </button>
+                </>
               )}
             </summary>
             <div>

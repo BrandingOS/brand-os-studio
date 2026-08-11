@@ -53,10 +53,16 @@ export interface TokenDrafts {
   isOverridden: (def: TokenDef, mode: ThemeMode) => boolean;
   setToken: (def: TokenDef, mode: ThemeMode, value: string) => void;
   resetToken: (def: TokenDef, mode: ThemeMode) => void;
+  /** Reset every override among `defs` (one undo step). */
+  resetSection: (defs: TokenDef[], mode: ThemeMode) => void;
   resetAll: () => void;
   undo: () => void;
   canUndo: boolean;
   overrideCount: number;
+  /** After a successful save+codegen: drop drafts AND history — the saved
+   * values are the new canonical baseline, so "undo" back into stale drafts
+   * would be a lie. */
+  clearSaved: () => void;
 }
 
 export function useTokenDrafts(): TokenDrafts {
@@ -99,6 +105,23 @@ export function useTokenDrafts(): TokenDrafts {
     [apply],
   );
 
+  const resetSection = useCallback(
+    (defs: TokenDef[], mode: ThemeMode) => {
+      const prev = draftRef.current;
+      let changed = false;
+      const next: DraftState = { light: { ...prev.light }, dark: { ...prev.dark }, global: { ...prev.global } };
+      for (const def of defs) {
+        const scope = tokenScope(def, mode);
+        if (def.cssVar in next[scope]) {
+          delete next[scope][def.cssVar];
+          changed = true;
+        }
+      }
+      if (changed) apply(next);
+    },
+    [apply],
+  );
+
   const resetAll = useCallback(() => {
     const prev = draftRef.current;
     const count =
@@ -115,6 +138,15 @@ export function useTokenDrafts(): TokenDrafts {
       setDraft(prev);
       persist(prev);
     }
+  }, []);
+
+  const clearSaved = useCallback(() => {
+    const next = emptyDraft();
+    historyRef.current = [];
+    setHistorySize(0);
+    draftRef.current = next;
+    setDraft(next);
+    persist(next);
   }, []);
 
   const getOverride = useCallback(
@@ -136,10 +168,12 @@ export function useTokenDrafts(): TokenDrafts {
     isOverridden,
     setToken,
     resetToken,
+    resetSection,
     resetAll,
     undo,
     canUndo: historySize > 0,
     overrideCount,
+    clearSaved,
   };
 }
 

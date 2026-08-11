@@ -1,7 +1,73 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+
+/**
+ * Dev-only endpoint for the DS Controller (/_dev/design-system):
+ * POST /__ds-tokens/apply with a draft {light?, dark?, global?} of --ds-*
+ * overrides. Validates names+values against src/shared/ds/tokens.json
+ * (existing tokens only — the endpoint can change values, never mint
+ * tokens), merges, writes tokens.json atomically, regenerates tokens.css +
+ * tokens.ts via scripts/gen-ds-tokens.mjs, and lets HMR pick up the change.
+ *
+ * `apply: 'serve'` means the plugin object is dropped for builds, so the
+ * endpoint cannot exist in production output or preview servers.
+ */
+function dsTokensApplyPlugin(): Plugin {
+  return {
+    name: "ds-tokens-apply",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/__ds-tokens/apply", (req, res) => {
+        const json = (status: number, body: object) => {
+          res.statusCode = status;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify(body));
+        };
+        if (req.method !== "POST") return json(405, { ok: false, error: "POST only" });
+        const chunks: Buffer[] = [];
+        let size = 0;
+        req.on("data", (c: Buffer) => {
+          size += c.length;
+          if (size > 256 * 1024) {
+            json(413, { ok: false, error: "payload too large" });
+            req.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
+        req.on("end", async () => {
+          if (res.writableEnded) return;
+          try {
+            const draft = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+            const gen = await import("./scripts/gen-ds-tokens.mjs");
+            const tokens = gen.readTokens();
+            const tokenErrors = gen.validateTokens(tokens);
+            if (tokenErrors.length) {
+              return json(500, { ok: false, error: `tokens.json invalid: ${tokenErrors[0]}` });
+            }
+            const draftErrors = gen.validateDraft(draft, tokens);
+            if (draftErrors.length) {
+              return json(400, { ok: false, error: draftErrors.join("; ") });
+            }
+            const next = gen.applyDraft(tokens, draft);
+            gen.writeFileAtomic(gen.TOKENS_JSON_PATH, gen.serializeTokens(next));
+            gen.writeGenerated(next);
+            const applied =
+              Object.keys(draft.light ?? {}).length +
+              Object.keys(draft.dark ?? {}).length +
+              Object.keys(draft.global ?? {}).length;
+            server.config.logger.info(`[ds-tokens] applied ${applied} token(s) → tokens.json + codegen`);
+            return json(200, { ok: true, applied });
+          } catch (e) {
+            return json(500, { ok: false, error: e instanceof Error ? e.message : String(e) });
+          }
+        });
+      });
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -11,6 +77,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     mode === 'development' && componentTagger(),
+    dsTokensApplyPlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {
