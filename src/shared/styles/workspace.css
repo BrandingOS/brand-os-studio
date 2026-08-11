@@ -68,8 +68,8 @@
   /* Local derived variable — re-bases through the bridge automatically. */
   --rule: color-mix(in srgb, var(--ds-border) 60%, transparent);
 
-  background: var(--background);
-  color: var(--text-primary);
+  background: var(--ds-bg);
+  color: var(--ds-text);
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -147,8 +147,8 @@
      blur keeps the floating look while staying readable. */
   background: linear-gradient(
     to bottom,
-    var(--page-bg, var(--background, #101012)) 0%,
-    var(--page-bg, var(--background, #101012)) 62%,
+    var(--page-bg, var(--ds-bg, #101012)) 0%,
+    var(--page-bg, var(--ds-bg, #101012)) 62%,
     transparent 100%
   );
   pointer-events: none;
@@ -3795,17 +3795,17 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 999px;
-  color: var(--text-primary);
+  color: var(--ds-text);
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.005em;
   cursor: pointer;
-  transition: background 180ms var(--ease), border-color 180ms var(--ease);
+  transition: background 180ms var(--ds-ease), border-color 180ms var(--ds-ease);
 }
 [data-workspace] .brand-switcher-trigger:hover,
 [data-workspace] .brand-switcher-trigger.is-open {
-  background: var(--surface-hover);
+  background: var(--ds-surface-hover);
   border-color: var(--accent-muted);
 }
 [data-workspace] .brand-switcher-mark {
@@ -3827,8 +3827,8 @@
   white-space: nowrap;
 }
 [data-workspace] .brand-switcher-chevron {
-  color: var(--text-secondary);
-  transition: transform 200ms var(--ease);
+  color: var(--ds-text-secondary);
+  transition: transform 200ms var(--ds-ease);
   flex-shrink: 0;
 }
 [data-workspace] .brand-switcher-trigger.is-open .brand-switcher-chevron {
@@ -3844,12 +3844,12 @@
   border: 1px solid var(--accent-muted);
   border-radius: 16px;
   padding: 8px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--ds-shadow-float);
   z-index: 120;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  animation: brand-switcher-in 180ms var(--ease);
+  animation: brand-switcher-in 180ms var(--ds-ease);
 }
 @keyframes brand-switcher-in {
   from {
@@ -3871,7 +3871,7 @@
   background: transparent;
   border: none;
   border-radius: 10px;
-  color: var(--text-primary);
+  color: var(--ds-text);
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 500;
@@ -3879,13 +3879,13 @@
   cursor: pointer;
   text-decoration: none;
   text-align: left;
-  transition: background 140ms var(--ease);
+  transition: background 140ms var(--ds-ease);
 }
 [data-workspace] .brand-switcher-row:hover {
-  background: var(--surface-hover);
+  background: var(--ds-surface-hover);
 }
 [data-workspace] .brand-switcher-row.is-active {
-  background: var(--surface-hover);
+  background: var(--ds-surface-hover);
 }
 [data-workspace] .brand-switcher-row-icon {
   display: grid;
@@ -3894,12 +3894,12 @@
   height: 32px;
   border-radius: 8px;
   background: var(--surface-sunken);
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   flex-shrink: 0;
 }
 [data-workspace] .brand-switcher-row-icon--ghost {
   background: var(--surface-sunken);
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
 }
 [data-workspace] .brand-switcher-row-mark {
   display: grid;
@@ -3919,7 +3919,7 @@
   white-space: nowrap;
 }
 [data-workspace] .brand-switcher-row-check {
-  color: var(--text-primary);
+  color: var(--ds-text);
   flex-shrink: 0;
 }
 
@@ -3934,5 +3934,5 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
 }

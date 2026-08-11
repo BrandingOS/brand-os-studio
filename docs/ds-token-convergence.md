@@ -27,11 +27,12 @@ sidebar hover and real `:focus-visible` (only the animated
 `.board-live-dot` pulse differs between any two probes — keyframe phase,
 not the rename). Deliberately EXCLUDED as not-Setup-owned (remaining
 legacy consumers, next owner in parens): `.workspace-empty` block, 3
-usages (generic sibling-tab placeholder — sweep); brand-switcher block
-`.brand-switcher*`, 16 usages (shell chrome rendered by
-`features/brand/BrandSwitcher.tsx` — shell follow-up); `[data-workspace]`
-root paint + top-nav scrim fallback chain (workspace.css lines ~71-72 +
-~150-151), 4 usages (shell — outside Phase 3's line ranges);
+usages (generic sibling-tab placeholder — sweep); ~~brand-switcher +
+root paint/scrim~~ **closed same day by the shell completion pass** (20
+renames: `.brand-switcher*` 16, `[data-workspace]` root paint 2, top-nav
+scrim fallback chain 2; probes byte-identical light + dark incl. the
+open switcher menu — its Category-B `--surface-elevated` bg +
+`--accent-muted` border stay literal);
 `organic-icons.tsx` 2× inline `fill="var(--surface)"` (shared component
 also rendered by onboarding-v4, whose own `--surface` [#161616 dark]
 differs from `--ds-surface` — renaming would not be behavior-preserving
