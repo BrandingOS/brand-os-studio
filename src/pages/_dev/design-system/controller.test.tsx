@@ -227,3 +227,19 @@ describe('inline validation', () => {
     expect(validateValue(border, '').message).toContain('empty');
   });
 });
+
+describe('history store', () => {
+  it('deleteHistoryEntry removes exactly one snapshot and persists', async () => {
+    const { pushHistory, deleteHistoryEntry, loadHistory } = await import('./historyStore');
+    localStorage.removeItem('brandos:ds-controller:history');
+    const snap = { light: {}, dark: {}, global: {} };
+    pushHistory({ ts: 1, kind: 'apply', before: snap, changes: [] });
+    const two = pushHistory({ ts: 2, kind: 'apply', before: snap, changes: [] });
+    expect(two.length).toBe(2);
+    const after = deleteHistoryEntry(two[0].id);
+    expect(after.length).toBe(1);
+    expect(loadHistory().length).toBe(1);
+    expect(loadHistory()[0].ts).toBe(1);
+    localStorage.removeItem('brandos:ds-controller:history');
+  });
+});

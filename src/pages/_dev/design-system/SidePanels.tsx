@@ -54,10 +54,15 @@ export function HistoryPanel({
   entries,
   busy,
   onRevert,
+  onDelete,
 }: {
   entries: HistoryEntry[];
   busy: boolean;
   onRevert: (entry: HistoryEntry) => void;
+  /** Requests deletion of one snapshot — the page-level owner shows the
+   *  confirm dialog OUTSIDE this sticky sidebar (same stacking-context
+   *  trap as the version delete). */
+  onDelete: (entry: HistoryEntry) => void;
 }) {
   if (entries.length === 0) {
     return (
@@ -121,9 +126,12 @@ export function HistoryPanel({
                 </span>
               )}
             </div>
-            <div>
+            <div style={{ display: 'flex', gap: 6 }}>
               <DsButton tone="secondary" size="sm" disabled={busy} onClick={() => onRevert(entry)}>
                 Revert to this state
+              </DsButton>
+              <DsButton tone="tertiary" size="sm" disabled={busy} onClick={() => onDelete(entry)}>
+                Delete
               </DsButton>
             </div>
           </div>

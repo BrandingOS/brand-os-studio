@@ -22,6 +22,7 @@ import { FixedPropertiesSection, SectionPreview } from './previews';
 import { HighlightProvider } from './highlightContext';
 import { validateValue } from './validate';
 import {
+  deleteHistoryEntry,
   diffSnapshots,
   loadHistory,
   pushHistory,
@@ -313,6 +314,7 @@ function ControllerInner() {
 
   const [busyOp, setBusyOp] = useState(false);
   const [deletingVersion, setDeletingVersion] = useState<TokenVersion | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<HistoryEntry | null>(null);
 
   const revertTo = async (entry: HistoryEntry) => {
     const payload = draftTowards(entry.before);
@@ -554,7 +556,12 @@ function ControllerInner() {
                 </div>
               ))}
             {tabId === 'history' && (
-              <HistoryPanel entries={history} busy={busyOp || saving} onRevert={revertTo} />
+              <HistoryPanel
+                entries={history}
+                busy={busyOp || saving}
+                onRevert={revertTo}
+                onDelete={setDeletingEntry}
+              />
             )}
             {tabId === 'versions' && (
               <VersionsPanel
@@ -679,6 +686,27 @@ function ControllerInner() {
           live.
         </div>
       </DsModal>
+
+      {/* History-snapshot delete confirm — page root for the same
+          stacking-context reason as the version delete below. */}
+      <DsConfirmDialog
+        open={deletingEntry !== null}
+        title="Delete this history snapshot?"
+        description={
+          deletingEntry
+            ? `"${new Date(deletingEntry.ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}" · ${deletingEntry.changes.length} change${deletingEntry.changes.length === 1 ? '' : 's'} — removed from History only; active tokens are not affected.`
+            : ''
+        }
+        confirmLabel="Delete snapshot"
+        onConfirm={() => {
+          if (deletingEntry) {
+            setHistory(deleteHistoryEntry(deletingEntry.id));
+            notify('History snapshot deleted.');
+          }
+          setDeletingEntry(null);
+        }}
+        onCancel={() => setDeletingEntry(null)}
+      />
 
       {/* Version-delete confirm — mounted at the page root (NOT inside the
           sticky sidebar, whose stacking context would trap the scrim under

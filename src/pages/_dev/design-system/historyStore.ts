@@ -74,6 +74,20 @@ export function clearHistory(storage: Pick<Storage, 'setItem'> = localStorage): 
   }
 }
 
+/** Remove one snapshot (e.g. a test apply) — active tokens untouched. */
+export function deleteHistoryEntry(
+  id: string,
+  storage: Pick<Storage, 'getItem' | 'setItem'> = localStorage,
+): HistoryEntry[] {
+  const next = loadHistory(storage).filter((e) => e.id !== id);
+  try {
+    storage.setItem(KEY, JSON.stringify({ v: VERSION, entries: next }));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
 /** Scopes touched by an entry, for the "Light / Dark / Global" chips. */
 export function entryScopes(entry: HistoryEntry): Array<'light' | 'dark' | 'global'> {
   const set = new Set(entry.changes.map((c) => c.scope));
