@@ -82,7 +82,7 @@
   border-radius: 14px;
   border: 1px solid var(--ds-border);
   background: var(--ds-surface);
-  box-shadow: var(--shadow-md, 0 12px 32px rgba(0, 0, 0, 0.18));
+  box-shadow: var(--ds-shadow-md, 0 12px 32px rgba(0, 0, 0, 0.18));
   z-index: 200;
 }
 [data-workspace] .ws-profile-menu-id {
@@ -155,7 +155,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
   font-weight: 500;
   margin-bottom: 4px;
 }
@@ -165,13 +165,13 @@
   line-height: 1.02;
   letter-spacing: -0.02em;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ds-text);
   margin: 0;
 }
 [data-workspace] .ws-hero-sub {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   margin: 0;
   max-width: 620px;
 }
@@ -201,25 +201,25 @@
   height: 240px;
   border-radius: 20px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
   text-decoration: none;
   color: inherit;
   cursor: pointer;
   transition:
-    transform 220ms var(--ease),
-    box-shadow 220ms var(--ease),
-    border-color 220ms var(--ease);
+    transform 220ms var(--ds-ease),
+    box-shadow 220ms var(--ds-ease),
+    border-color 220ms var(--ds-ease);
 }
 [data-workspace] .ws-brand-card:hover {
   transform: translateY(-4px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
+  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-border-strong);
 }
 [data-workspace] .ws-brand-card:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
 
 [data-workspace] .ws-brand-card-color {
@@ -258,7 +258,7 @@
   justify-content: space-between;
   padding: 14px 16px 14px;
   background: var(--surface-elevated);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ds-border);
 }
 [data-workspace] .ws-brand-card-title {
   font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
@@ -266,13 +266,13 @@
   line-height: 1.1;
   letter-spacing: -0.015em;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ds-text);
   margin: 0;
 }
 [data-workspace] .ws-brand-card-sub {
   font-size: 12px;
   line-height: 1.4;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
   margin: 2px 0 0;
 }
 [data-workspace] .ws-brand-card-foot {
@@ -283,10 +283,10 @@
   margin-top: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--ds-text);
 }
 [data-workspace] .ws-brand-card-foot-arrow {
-  transition: transform 200ms var(--ease);
+  transition: transform 200ms var(--ds-ease);
 }
 [data-workspace] .ws-brand-card:hover .ws-brand-card-foot-arrow {
   transform: translateX(3px);
@@ -295,23 +295,23 @@
 /* "+ Create new brand" ghost card */
 [data-workspace] .ws-brand-card--new {
   background: transparent;
-  border: 1.5px dashed var(--dash);
+  border: 1.5px dashed var(--ds-dash);
   box-shadow: none;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 20px;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   transition:
-    border-color 220ms var(--ease),
-    background 220ms var(--ease),
-    color 220ms var(--ease),
-    transform 220ms var(--ease);
+    border-color 220ms var(--ds-ease),
+    background 220ms var(--ds-ease),
+    color 220ms var(--ds-ease),
+    transform 220ms var(--ds-ease);
 }
 [data-workspace] .ws-brand-card--new:hover {
-  border-color: var(--dash-strong);
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  border-color: var(--ds-dash-strong);
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
   transform: translateY(-4px);
 }
 [data-workspace] .ws-brand-card-plus {
@@ -321,7 +321,7 @@
   display: grid;
   place-items: center;
   background: var(--accent-muted);
-  color: var(--text-primary);
+  color: var(--ds-text);
   font-size: 22px;
   font-weight: 300;
   line-height: 1;
@@ -333,7 +333,7 @@
   letter-spacing: -0.005em;
 }
 [data-workspace] .ws-brand-card--new .ws-brand-card-sub {
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
   font-size: 12.5px;
   text-align: center;
 }
@@ -349,7 +349,7 @@
   gap: 16px;
   padding: 80px 24px;
   text-align: center;
-  border: 1.5px dashed var(--dash);
+  border: 1.5px dashed var(--ds-dash);
   border-radius: 20px;
   background: var(--surface-elevated);
 }
@@ -359,13 +359,13 @@
   line-height: 1.1;
   letter-spacing: -0.02em;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ds-text);
   margin: 0;
 }
 [data-workspace] .ws-empty-sub {
   font-size: 14px;
   line-height: 1.5;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   max-width: 420px;
   margin: 0;
 }
@@ -384,22 +384,22 @@
   flex-direction: column;
   gap: 10px;
   padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
   border-radius: 16px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--ds-shadow-xs);
   text-decoration: none;
   color: inherit;
   cursor: pointer;
   transition:
-    transform 200ms var(--ease),
-    box-shadow 200ms var(--ease),
-    border-color 200ms var(--ease);
+    transform 200ms var(--ds-ease),
+    box-shadow 200ms var(--ds-ease),
+    border-color 200ms var(--ds-ease);
 }
 [data-workspace] .ws-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border-strong);
+  box-shadow: var(--ds-shadow-sm);
+  border-color: var(--ds-border-strong);
 }
 [data-workspace] .ws-card-thumb {
   aspect-ratio: 16 / 10;
@@ -407,7 +407,7 @@
   background: var(--surface-sunken);
   display: grid;
   place-items: center;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
   font-size: 24px;
   overflow: hidden;
 }
@@ -417,20 +417,20 @@
   line-height: 1.1;
   letter-spacing: -0.015em;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ds-text);
   margin: 0;
 }
 [data-workspace] .ws-card-sub {
   font-size: 12.5px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   margin: 0;
 }
 [data-workspace] .ws-card-eyebrow {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
   font-weight: 500;
 }
 
@@ -448,12 +448,12 @@
   line-height: 1.1;
   letter-spacing: -0.015em;
   font-weight: 400;
-  color: var(--text-primary);
+  color: var(--ds-text);
   margin: 0;
 }
 [data-workspace] .ws-section-sub {
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--ds-text-muted);
 }
 
 /* ============================================================
@@ -467,8 +467,8 @@
   gap: 2px;
   padding: 4px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
   margin-bottom: 28px;
 }
 [data-workspace] .ws-subtab {
@@ -477,15 +477,15 @@
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  transition: color 180ms var(--ease), background 180ms var(--ease);
+  transition: color 180ms var(--ds-ease), background 180ms var(--ds-ease);
 }
-[data-workspace] .ws-subtab:hover { color: var(--text-primary); }
+[data-workspace] .ws-subtab:hover { color: var(--ds-text); }
 [data-workspace] .ws-subtab.is-active {
-  color: var(--text-primary);
+  color: var(--ds-text);
   background: var(--accent-muted);
 }
