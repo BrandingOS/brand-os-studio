@@ -95,9 +95,28 @@ sibling-owned (`.ws-card-thumb` — Learn/Templates; `.ws-subtab.is-active`
 the shared self-themed ctx-menu pattern (no DsMenu extension, per
 owner decision).
 
-Next: /onboard-brand (UI consistency + functional onboarding
-correctness) on explicit go; then Tools. Shared-scaffolding migration
-(.panel family, 7 renderers) and deletion still pending.
+**Onboarding pass (2026-08-11):** cosmos.css dropped its parallel token
+system entirely — 516 renames onto `--ds-*` (dark map converges to DS
+warm charcoal), Category-B semantics per interaction, 49 dead
+definition lines deleted, FooterCTA→DsButton, name field→DsInput.
+Functional fixes: double-submit re-entrancy gates (both screens), local
+slug uniquification, shared `createBrandResilient` for the /create path.
+
+**Brand Kit pass (2026-08-11, canonical /b/:slug/brand-kit only):**
+brand-kit.css 61 Category-A renames; canonical Category-B →
+DS semantics (`.bk-variant-tile-render` + `.bk-drilldown-back` subtle /
+hover); organic-icon fills → `--ds-surface`. The `--bke-*` editor theme
+re-based onto DS tokens (§4 pattern) with its hand-maintained dark map
+deleted — the backdrop's data-theme resolves the DS dark map; this also
+DEFINED four `--bke-*` names that were used but never defined (one
+hover silently dropped). DsEyebrow + DsProgress in BrandKitSidebar;
+DsButton (footer) + DsSwitch (Show Logo) in the card editor; orphaned
+button/toggle CSS retired. 4 Category-B usages remain in brand-kit.css,
+all brand-kit-next lifecycle selectors (out of scope). Shared `.panel`
+sidebar Category-B still awaits the coordinated 7-renderer migration.
+
+Next on explicit go: Tools. Shared-scaffolding migration and deletion
+still pending.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted

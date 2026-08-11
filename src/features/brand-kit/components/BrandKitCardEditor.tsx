@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Image as ImageIcon, RotateCcw } from 'lucide-react';
+import { DsButton, DsSwitch } from '@/shared/ds';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
@@ -1243,17 +1244,11 @@ export function BrandKitCardEditor({
                 <label className="bk-editor-toggle">
                   <ImageIcon size={12} aria-hidden />
                   <span className="bk-editor-toggle-label">Show Logo</span>
-                  <button
-                    type="button"
-                    className={`bk-editor-toggle-switch${overrides.showLogo ? ' is-on' : ''}`}
-                    role="switch"
-                    aria-checked={!!overrides.showLogo}
-                    onClick={() =>
-                      setOverrides((prev) => ({ ...prev, showLogo: !prev.showLogo }))
-                    }
-                  >
-                    <span className="bk-editor-toggle-knob" aria-hidden />
-                  </button>
+                  {/* Bare control — the wrapping <label> names it. */}
+                  <DsSwitch
+                    checked={!!overrides.showLogo}
+                    onChange={(on) => setOverrides((prev) => ({ ...prev, showLogo: on }))}
+                  />
                 </label>
               }
             >
@@ -1323,9 +1318,9 @@ export function BrandKitCardEditor({
           </div>
           <footer className="bk-editor-rail-footer">
             {!isBrandAsset && (
-              <button
-                type="button"
-                className="bk-editor-btn bk-editor-btn--ghost bk-editor-btn--reset"
+              <DsButton
+                tone="tertiary"
+                className="bk-editor-btn--reset"
                 onClick={() => {
                   // Reset EVERYTHING to the brand's defaults — content,
                   // colors, logo, font, cover. Saving afterwards stores
@@ -1344,18 +1339,14 @@ export function BrandKitCardEditor({
               >
                 <RotateCcw size={13} aria-hidden />
                 <span>Reset</span>
-              </button>
+              </DsButton>
             )}
-            <button
-              type="button"
-              className="bk-editor-btn bk-editor-btn--ghost"
-              onClick={onClose}
-            >
+            <DsButton tone="secondary" size="sm" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
-              className="bk-editor-btn bk-editor-btn--secondary"
+            </DsButton>
+            <DsButton
+              tone="secondary"
+              size="sm"
               onClick={() => {
                 // Color assets get a dedicated bundle (base + shades
                 // in svg/png/jpg/ai). Font assets emit a real
@@ -1374,10 +1365,10 @@ export function BrandKitCardEditor({
               }}
             >
               Download
-            </button>
-            <button
-              type="button"
-              className="bk-editor-btn bk-editor-btn--primary"
+            </DsButton>
+            <DsButton
+              tone="primary"
+              size="sm"
               onClick={() => {
                 // Persist the chosen weight when an icon was edited
                 // — `iconPreviewClass` already has the new prefix
@@ -1403,7 +1394,7 @@ export function BrandKitCardEditor({
               }}
             >
               Save
-            </button>
+            </DsButton>
           </footer>
         </aside>
       </div>

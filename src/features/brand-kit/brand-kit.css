@@ -127,23 +127,25 @@
   to   { opacity: 1; }
 }
 
-.bk-editor-backdrop[data-theme="light"] {
-  --bke-surface: #ffffff;
-  --bke-surface-2: #f7f7f5;
-  --bke-text: #111113;
-  --bke-text-secondary: #6b6b6f;
-  --bke-border: rgba(17, 17, 20, 0.08);
-  --bke-border-strong: rgba(17, 17, 20, 0.18);
-  --bke-shadow: 0 30px 60px -20px rgba(15, 17, 22, 0.45);
-}
-.bk-editor-backdrop[data-theme="dark"] {
-  --bke-surface: #131418;
-  --bke-surface-2: #1b1c21;
-  --bke-text: #f1f0ec;
-  --bke-text-secondary: #a8a8ad;
-  --bke-border: rgba(255, 255, 255, 0.08);
-  --bke-border-strong: rgba(255, 255, 255, 0.18);
-  --bke-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+.bk-editor-backdrop {
+  /* Editor-scoped aliases, re-based onto the canonical DS tokens
+     (convergence doc §4 local-var pattern). The backdrop carries
+     data-theme, so the DS dark map resolves these automatically —
+     the old hand-maintained dark override block is gone. --bke-muted /
+     --bke-surface-hover / --bke-ring / --bke-text-tertiary were used
+     but never DEFINED (resolving only via per-usage fallbacks; one
+     hover had none and silently dropped) — now real. */
+  --bke-surface: var(--ds-surface);
+  --bke-surface-2: var(--ds-surface-subtle);
+  --bke-surface-hover: var(--ds-surface-hover);
+  --bke-text: var(--ds-text);
+  --bke-text-secondary: var(--ds-text-secondary);
+  --bke-text-tertiary: var(--ds-text-muted);
+  --bke-muted: var(--ds-text-muted);
+  --bke-border: var(--ds-border);
+  --bke-border-strong: var(--ds-border-strong);
+  --bke-ring: var(--ds-focus-ring);
+  --bke-shadow: var(--ds-shadow-float);
 }
 
 /* Two floating cards on the dimmed backdrop, separated by a gap.
@@ -736,34 +738,6 @@
   user-select: none;
 }
 .bk-editor-toggle-label { letter-spacing: -0.005em; }
-.bk-editor-toggle-switch {
-  position: relative;
-  width: 28px;
-  height: 16px;
-  border-radius: 999px;
-  border: 1px solid var(--bke-border);
-  background: var(--bke-surface);
-  padding: 0;
-  cursor: pointer;
-  transition: background 140ms var(--ds-ease), border-color 140ms var(--ds-ease);
-}
-.bk-editor-toggle-switch.is-on {
-  background: var(--bke-text);
-  border-color: var(--bke-text);
-}
-.bk-editor-toggle-knob {
-  position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 140ms var(--ds-ease);
-}
-.bk-editor-toggle-switch.is-on .bk-editor-toggle-knob {
-  transform: translateX(12px);
-}
 
 .bk-editor-covers {
   display: grid;
@@ -919,48 +893,18 @@
 
 .bk-editor-rail-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 6px;
+  /* Tighter side padding: four DS buttons (Reset · Cancel · Download ·
+     Save) need the full 320px rail width. */
+  padding: 12px 10px;
   border-top: 1px solid var(--bke-border);
   background: var(--bke-surface);
 }
-.bk-editor-btn {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
-}
-.bk-editor-btn--ghost {
-  background: transparent;
-  border: 1px solid var(--bke-border);
-  color: var(--bke-text-secondary);
-}
-.bk-editor-btn--ghost:hover {
-  background: var(--bke-surface-2);
-  border-color: var(--bke-border-strong);
-  color: var(--bke-text);
-}
-.bk-editor-btn--secondary {
-  background: var(--bke-surface-2);
-  border: 1px solid var(--bke-border);
-  color: var(--bke-text);
-}
-.bk-editor-btn--secondary:hover {
-  border-color: var(--bke-border-strong);
-}
-.bk-editor-btn--primary {
-  background: var(--bke-text);
-  color: var(--bke-surface);
-  border: 1px solid var(--bke-text);
-}
-.bk-editor-btn--primary:hover {
-  filter: brightness(0.92);
+.bk-editor-rail-footer .ds-btn--sm {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -2527,7 +2471,8 @@
   color: var(--bke-surface);
 }
 
-/* Footer reset button sits apart from Cancel/Save. */
+/* Footer reset button sits apart from Cancel/Save (base button is DsButton;
+   the switch is DsSwitch — their bespoke styles were retired with the swap). */
 .bk-editor-btn--reset {
   display: inline-flex;
   align-items: center;
