@@ -7,7 +7,8 @@ const tokensCss = readFileSync(
   resolve(__dirname, '../../../shared/ds/tokens.css'),
   'utf8',
 );
-import { DS_TOKENS, tokenScope } from './registry';
+import { DS_TOKENS, SECTIONS, tokenScope } from './registry';
+import { validateValue } from './validate';
 import {
   DS_DRAFT_STORAGE_KEY,
   draftToCssPatch,
@@ -101,7 +102,7 @@ describe('useTokenDrafts', () => {
 
   it('resetSection clears a group of tokens as one undo step', () => {
     const { result } = renderHook(() => useTokenDrafts());
-    const colorDefs = DS_TOKENS.filter((d) => d.group === 'Core colors');
+    const colorDefs = DS_TOKENS.filter((d) => d.group === 'surfaces');
     act(() => result.current.setToken(bg, 'light', '#ff0000'));
     act(() => result.current.setToken(radiusCard, 'light', '9px'));
     act(() => result.current.resetSection(colorDefs, 'light'));
@@ -158,5 +159,71 @@ describe('draftToCssPatch', () => {
     const patch = draftToCssPatch({ light: {}, dark: {}, global: { '--ds-space-4': '18px' } });
     expect(patch).toContain(':root {');
     expect(patch).not.toContain(".dark, [data-theme='dark'] {");
+  });
+});
+
+describe('registry ↔ tokens.json coverage', () => {
+  const tokensJson = JSON.parse(
+    readFileSync(resolve(__dirname, '../../../shared/ds/tokens.json'), 'utf8'),
+  );
+  const jsonVars = [
+    ...Object.keys(tokensJson.modes.light),
+    ...Object.keys(tokensJson.global),
+  ];
+
+  it('every tokens.json token has a Controller entry (no orphan tokens)', () => {
+    const registryVars = new Set(DS_TOKENS.map((d) => d.cssVar));
+    for (const v of jsonVars) {
+      expect(registryVars.has(v), `${v} missing from Controller registry`).toBe(true);
+    }
+  });
+
+  it('every Controller entry exists in tokens.json (no invented tokens)', () => {
+    const jsonSet = new Set(jsonVars);
+    for (const d of DS_TOKENS) {
+      expect(jsonSet.has(d.cssVar), `${d.cssVar} not in tokens.json`).toBe(true);
+    }
+  });
+
+  it('perMode flags match where the token lives in tokens.json', () => {
+    for (const d of DS_TOKENS) {
+      const inModes = d.cssVar in tokensJson.modes.light;
+      expect(d.perMode, `${d.cssVar} perMode should be ${inModes}`).toBe(inModes);
+    }
+  });
+
+  it('every token has purpose and section metadata', () => {
+    for (const d of DS_TOKENS) {
+      expect(d.purpose.length, `${d.cssVar} needs a purpose`).toBeGreaterThan(0);
+      expect(SECTIONS.some((s) => s.id === d.group), `${d.cssVar} bad section`).toBe(true);
+    }
+  });
+});
+
+describe('inline validation', () => {
+  const border = DS_TOKENS.find((d) => d.cssVar === '--ds-border')!;
+  const radius = DS_TOKENS.find((d) => d.cssVar === '--ds-radius-card')!;
+  const duration = DS_TOKENS.find((d) => d.cssVar === '--ds-duration-state')!;
+
+  it('accepts valid values', () => {
+    expect(validateValue(border, '#e6e4dd').ok).toBe(true);
+    expect(validateValue(border, 'rgba(13, 13, 13, 0.22)').ok).toBe(true);
+    expect(validateValue(radius, '14px').ok).toBe(true);
+    expect(validateValue(duration, '150ms').ok).toBe(true);
+  });
+
+  it('identifies a Cyrillic lookalike character by name', () => {
+    // "#e6е4dd" — the third "е" is Cyrillic U+0435
+    const res = validateValue(border, '#e6\u04354dd');
+    expect(res.ok).toBe(false);
+    expect(res.message).toContain('Cyrillic');
+    expect(res.message).toContain('U+0435');
+  });
+
+  it('rejects wrong shapes with human messages', () => {
+    expect(validateValue(border, 'reddish').message).toContain('Not a valid color');
+    expect(validateValue(radius, '14').message).toContain('px');
+    expect(validateValue(duration, 'fast').message).toContain('ms');
+    expect(validateValue(border, '').message).toContain('empty');
   });
 });
