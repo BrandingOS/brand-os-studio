@@ -705,9 +705,14 @@ const App = () => (
           )}
           {/* Code Navigator / Architecture Explorer. DEV-only on purpose: it
               reads a dev-server endpoint and must add nothing to the production
-              bundle. Engineering-facing counterpart to /_dev/product-map. */}
+              bundle. Engineering-facing counterpart to /_dev/product-map.
+              `/__architecture` is the entry point; `/__architecture/tree` and
+              `/__architecture/search` address the two views directly. */}
           {import.meta.env.DEV && (
             <Route path="/__architecture" element={<DevArchitecturePage />} />
+          )}
+          {import.meta.env.DEV && (
+            <Route path="/__architecture/:view" element={<DevArchitecturePage />} />
           )}
           {/* DS v1 showcase — self-gated (DEV or ?dev=1), never in nav. */}
           <Route path="/_dev/design-system" element={<DevDesignSystemPage />} />

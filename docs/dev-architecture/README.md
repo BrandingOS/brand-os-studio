@@ -1,8 +1,30 @@
 # Code Navigator (`/__architecture`)
 
-A developer-only orientation tool. You know one thing about a page — its name in
-the product, its URL, its component, or a file path from a grep — and it gives
-you the other three.
+A developer-only orientation tool with two peer views over one generated data
+source.
+
+| View | URL | Use it when |
+|---|---|---|
+| **Tree** (default) | `/__architecture/tree` | You don't know the codebase and don't know what to search for |
+| **Search** | `/__architecture/search` | You know one fact — a page name, URL, component, or file path |
+
+`/__architecture` is the entry point and opens the Tree.
+
+**Tree** — browse the product top-down. Real route nesting is preserved, so the
+35 Studio pages hang off one `/b/:slug` branch instead of appearing as unrelated
+flat records:
+
+```
+BRAND WORKSPACE (STUDIO)  36
+  /b/:slug  [LAYOUT] 35
+    Setup            /b/:slug/setup
+    Brand Kit        /b/:slug/brand-kit
+    Design           /b/:slug/design
+      Brand Design Editor   /b/:slug/design/:designSlug
+    Tools  5
+```
+
+**Search** — type what you know, get the rest:
 
 ```
 Setup
@@ -14,6 +36,66 @@ Setup
 
 Open it with the dev server running: <http://localhost:8080/__architecture>.
 It is not linked from any product navigation — reach it by URL.
+
+## The two views cannot diverge
+
+The Tree is not a second scanner and not a registry: `tree.ts` is a **pure
+function over the same `RouteNode[]`** the Search view renders. Areas come from
+`groups.ts` (the one small explicit layer, and only for top-level product areas);
+every label, badge, count and nesting level below that is derived from route
+paths, component names and metadata the generator already produced.
+
+`__tests__/tree.test.ts` asserts the tree and Search cover an identical route
+set, that every route appears exactly once, and that every subtree count equals
+the routes it actually contains. Introduce a filter, a second data source, or a
+hand-written node and those tests fail.
+
+Consequence: adding `<Route path="/b/:slug/campaigns" …>` makes "Campaigns"
+appear under Brand Workspace with its component and source file on the next
+reload, with nothing else to update. A test simulates exactly that.
+
+### Tree derivation rules
+
+- **Structure** is a per-area URL trie. Prefixes that own no route and have one
+  child are collapsed, so `b` → `:slug` becomes a single `/b/:slug` level.
+- **Leaf labels** come from the route (`deriveName` already resolved dynamic
+  tails via the component, giving "Brand Design Editor" for
+  `/b/:slug/design/:designSlug`).
+- **Branch labels** come from the URL segment the branch owns — "Design",
+  "Tools", "Case Study" — falling back to the raw prefix when that segment is
+  dynamic (`/b/:slug`), because there is no meaningful word to use.
+- **Badges** are all derived: `ROUTE` / `INDEX` / `LAYOUT` / `REDIRECT` from
+  `kind`, `SPLAT` from a trailing `*`, `DEV` from the `import.meta.env.DEV`
+  guard, `DYNAMIC` only when a route's **own** last segment is a parameter (or
+  every route under `/b/:slug` would wear it and it would mean nothing), and
+  `LEGACY` from two mechanical signals — the superseded `/dashboard/brand/*` URL
+  space, and a source file under a `-alt/` folder. Classic (`/a/:slug`) is
+  deliberately not badged legacy; it is a supported alternate UI and its area
+  label already says so.
+
+### Interaction model
+
+Row click and chevron do different things, following VS Code:
+
+- **Branch row** → expands/collapses, and selects if a route is mounted on it.
+- **Leaf row** → selects only, opening the detail panel.
+- **Leaf chevron** → opens the inline drill-down (Route / Component / Source /
+  Defined in / Imports).
+
+"Expanded" therefore means *children* on a branch and *technical detail* on a
+leaf. Bulk operations only ever open structure — `branchNodeIds()` exists for
+exactly this, and default expansion never includes a leaf. Getting this wrong
+floods the tree with metadata rows and destroys the shape the view exists to
+show; there is a test for it.
+
+Imports are collapsed behind a disclosure in both the tree drill-down and the
+detail panel. A page can pull in 20+ modules and the four facts above them are
+what the tool is for.
+
+**Search → Tree hand-off:** "Show in Tree" in the detail panel expands the
+route's ancestors, switches view, scrolls to the row and tints it briefly.
+Going the other way, "Search related" seeds a query from the page's name, which
+surfaces its namespace twin and anything importing it.
 
 ## Not the same thing as `/_dev/product-map`
 
@@ -156,12 +238,16 @@ it later changes no consumer.
 | `groups.ts` | URL → product area rules |
 | `naming.ts` | URL/component → human name |
 | `search.ts` | Search + ranking |
+| `tree.ts` | Pure tree derivation + badge rules |
+| `views.ts` | The two views and their URLs |
 | `useArchitectureMap.ts` | Fetches the generated map |
 | `generator/parseRouter.node.ts` | TypeScript-AST route extraction |
 | `generator/resolveModule.node.ts` | Import specifier → file path |
 | `generator/scanImports.node.ts` | Level-1 dependency scan |
 | `generator/buildMap.node.ts` | Orchestrator |
-| `ui/ArchitectureExplorer.tsx` | Search + list |
-| `ui/RouteDetail.tsx` | Detail panel |
+| `ui/ArchitectureExplorer.tsx` | Shell: view switch, selection, detail panel |
+| `ui/ArchitectureTree.tsx` | Tree view |
+| `ui/SearchView.tsx` | Search view |
+| `ui/RouteDetail.tsx` | Detail panel (shared by both views) |
 | `ui/openInEditor.ts` | Vite `/__open-in-editor` bridge |
 | `src/pages/__architecture.tsx` | Route page (DEV-only) |

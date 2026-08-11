@@ -121,7 +121,15 @@ function CodeValue({
   );
 }
 
-export function RouteDetail({ route }: { route: RouteNode }) {
+export interface RouteDetailProps {
+  route: RouteNode;
+  /** Offered from the Search view — jumps to this route inside the Tree. */
+  onShowInTree?: () => void;
+  /** Offered from the Tree view — seeds a search from this route's name. */
+  onSearchRelated?: () => void;
+}
+
+export function RouteDetail({ route, onShowInTree, onSearchRelated }: RouteDetailProps) {
   const imports = route.analysis?.imports ?? [];
   const firstParty = imports.filter((ref) => ref.kind !== 'external');
   const packages = imports.filter((ref) => ref.kind === 'external');
@@ -142,6 +150,20 @@ export function RouteDetail({ route }: { route: RouteNode }) {
           <DsBadge tone="neutral">{route.group}</DsBadge>
           {route.devOnly && <DsBadge tone="warning">dev only</DsBadge>}
         </div>
+        {(onShowInTree || onSearchRelated) && (
+          <div style={{ display: 'flex', gap: 'var(--ds-space-2)', marginTop: 2 }}>
+            {onShowInTree && (
+              <DsButton tone="secondary" onClick={onShowInTree}>
+                Show in Tree
+              </DsButton>
+            )}
+            {onSearchRelated && (
+              <DsButton tone="tertiary" onClick={onSearchRelated}>
+                Search related
+              </DsButton>
+            )}
+          </div>
+        )}
       </header>
 
       <Field label="URL">
@@ -206,11 +228,23 @@ export function RouteDetail({ route }: { route: RouteNode }) {
         </Field>
       )}
 
+      {/* Collapsed by default — a page can pull in 20+ modules and dumping them
+          buries the four facts above, which are what the panel is really for. */}
       {imports.length > 0 && (
-        <Field
-          label={`Depends on — ${firstParty.length} internal, ${packages.length} packages`}
-        >
-          <div style={{ display: 'grid', gap: 'var(--ds-space-3)', marginTop: 4 }}>
+        <details>
+          <summary
+            style={{
+              cursor: 'pointer',
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--ds-text-muted)',
+            }}
+          >
+            {`Depends on — ${firstParty.length} internal, ${packages.length} packages`}
+          </summary>
+          <div style={{ display: 'grid', gap: 'var(--ds-space-3)', marginTop: 8 }}>
             {grouped.map(({ kind, refs }) => (
               <div key={kind} style={{ display: 'grid', gap: 'var(--ds-space-1)' }}>
                 <span
@@ -281,7 +315,7 @@ export function RouteDetail({ route }: { route: RouteNode }) {
           >
             Direct imports only — not the transitive graph.
           </p>
-        </Field>
+        </details>
       )}
     </div>
   );

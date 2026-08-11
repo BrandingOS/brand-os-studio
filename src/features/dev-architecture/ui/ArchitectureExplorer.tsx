@@ -1,194 +1,72 @@
 /**
  * Code Navigator / Architecture Explorer — the /__architecture surface.
  *
- * Orientation, not documentation: type what you know (page name, URL, component,
- * file) and immediately see the other three. Everything rendered here is derived
- * from the real router by the dev-server generator — there is no curated list to
- * maintain, and nothing here is reachable from product navigation.
+ * Orientation, not documentation. Two peer views over ONE generated data source:
+ *
+ *   Tree    browse top-down when you don't know what to search for
+ *   Search  jump straight there when you know one fact about the page
+ *
+ * Both read the same `RouteNode[]` from `useArchitectureMap`. The tree is a pure
+ * derivation (`tree.ts`) of that same array — there is no second scanner and no
+ * registry, so neither view can drift from the router or from each other. A test
+ * asserts the two cover an identical route set.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { DsBadge, DsButton, DsEmptyState, DsEyebrow, DsInput, DsKbd, LoadingPill } from '@/shared/ds';
+import { DsButton, DsEmptyState, DsEyebrow, LoadingPill } from '@/shared/ds';
 
-import { GROUP_ORDER } from '../groups';
-import { searchRoutes, type SearchHit } from '../search';
-import type { RouteGroup, RouteNode } from '../types';
+import {
+  ancestorIdsFor,
+  branchNodeIds,
+  buildTree,
+  defaultExpandedIds,
+} from '../tree';
 import { useArchitectureMap } from '../useArchitectureMap';
+import { EXPLORER_VIEWS, normalizeView, viewPath, type ExplorerView } from '../views';
+import { ArchitectureTree } from './ArchitectureTree';
 import { RouteDetail } from './RouteDetail';
+import { SearchView } from './SearchView';
 
 /** `?r=<id>` keeps a selection shareable between developers. */
 const SELECTION_PARAM = 'r';
 
-const KIND_MARK: Record<RouteNode['kind'], string> = {
-  page: '',
-  layout: 'layout',
-  redirect: '→',
-  index: 'index',
-  'catch-all': '*',
-};
-
-function groupHits(hits: SearchHit[]): Array<{ group: RouteGroup; hits: SearchHit[] }> {
-  const byGroup = new Map<RouteGroup, SearchHit[]>();
-  for (const hit of hits) {
-    byGroup.set(hit.route.group, [...(byGroup.get(hit.route.group) ?? []), hit]);
-  }
-  return GROUP_ORDER.filter((group) => byGroup.has(group)).map((group) => ({
-    group,
-    hits: byGroup.get(group) as SearchHit[],
-  }));
-}
-
-/**
- * One row: the human name over the raw URL. That pairing is the whole point —
- * you arrive knowing one of them and leave knowing both.
- */
-function RouteRow({
-  hit,
-  isSelected,
-  onSelect,
-  showGroup = false,
-  explainMatch = false,
-}: {
-  hit: SearchHit;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  /** Search mode has no group headers, so each row carries its own area. */
-  showGroup?: boolean;
-  /** Flags rows that matched via an import rather than the page itself. */
-  explainMatch?: boolean;
-}) {
-  const { route } = hit;
-  const viaDependency = explainMatch && hit.matchedOn === 'dependency';
-
-  return (
-    <button
-      type="button"
-      data-route-id={route.id}
-      onClick={() => onSelect(route.id)}
-      style={{
-        all: 'unset',
-        boxSizing: 'border-box',
-        cursor: 'pointer',
-        display: 'grid',
-        gap: 1,
-        width: '100%',
-        padding: '7px var(--ds-space-3)',
-        borderBottom: '1px solid var(--ds-hairline)',
-        background: isSelected ? 'var(--ds-surface-hover)' : 'transparent',
-        boxShadow: isSelected ? 'inset 2px 0 0 var(--ds-text)' : 'none',
-      }}
-    >
-      <span
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 6,
-          fontSize: 13,
-          fontWeight: isSelected ? 600 : 500,
-          color: 'var(--ds-text)',
-        }}
-      >
-        {route.name}
-        {KIND_MARK[route.kind] && (
-          <span style={{ fontSize: 10, color: 'var(--ds-text-muted)' }}>
-            {KIND_MARK[route.kind]}
-          </span>
-        )}
-        {route.devOnly && (
-          <span style={{ fontSize: 10, color: 'var(--ds-text-muted)' }}>dev</span>
-        )}
-        {viaDependency && (
-          <span
-            style={{
-              fontSize: 9,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--ds-text-placeholder)',
-              border: '1px solid var(--ds-border)',
-              borderRadius: 'var(--ds-radius-pill)',
-              padding: '0 5px',
-            }}
-            title="Matched something this page imports, not the page itself"
-          >
-            imports
-          </span>
-        )}
-      </span>
-      <span
-        style={{
-          display: 'flex',
-          gap: 8,
-          alignItems: 'baseline',
-          fontSize: 11,
-          color: 'var(--ds-text-muted)',
-          minWidth: 0,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--ds-font-mono)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {route.path}
-        </span>
-        {showGroup && (
-          <span
-            style={{
-              marginLeft: 'auto',
-              flexShrink: 0,
-              fontSize: 10,
-              color: 'var(--ds-text-placeholder)',
-            }}
-          >
-            {route.group}
-          </span>
-        )}
-      </span>
-    </button>
-  );
-}
-
 export function ArchitectureExplorer() {
   const { state, reload } = useArchitectureMap();
+  const navigate = useNavigate();
+  const { view: viewParam } = useParams<{ view?: string }>();
+  const view = normalizeView(viewParam);
+
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get(SELECTION_PARAM),
   );
-  const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [highlightRouteId, setHighlightRouteId] = useState<string | null>(null);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
+  const didInitExpansion = useRef(false);
 
   // Memoized so the array identity is stable across renders — otherwise every
-  // render invalidates the search memo below and re-ranks 130 routes.
+  // render invalidates the search and tree memos below.
   const routes = useMemo(
     () => (state.status === 'ready' ? state.map.routes : []),
     [state],
   );
-  const isSearching = query.trim().length > 0;
 
-  const hits = useMemo(() => searchRoutes(routes, query), [routes, query]);
+  /** The tree is derived from exactly the routes Search sees. */
+  const tree = useMemo(() => buildTree(routes), [routes]);
 
-  /**
-   * Two list modes, because grouping and ranking want opposite orders:
-   *  - browsing (empty query) → grouped by product area, so the list reads like
-   *    a map of the app;
-   *  - searching → one flat list in rank order, so the best match is row one.
-   * Grouping a ranked list would bury an exact hit under whichever group sorts
-   * first, which is the opposite of what a search box should do.
-   */
-  const grouped = useMemo(() => (isSearching ? [] : groupHits(hits)), [hits, isSearching]);
-  const flat = useMemo(
-    () => (isSearching ? hits : grouped.flatMap((section) => section.hits)),
-    [isSearching, hits, grouped],
+  const selected = useMemo(
+    () => routes.find((route) => route.id === selectedId) ?? null,
+    [routes, selectedId],
   );
 
-  const selected =
-    flat.find((hit) => hit.route.id === selectedId)?.route ??
-    routes.find((route) => route.id === selectedId) ??
-    flat[0]?.route ??
-    null;
+  // Seed expansion once the map arrives; afterwards it is the user's to control.
+  useEffect(() => {
+    if (didInitExpansion.current || routes.length === 0) return;
+    didInitExpansion.current = true;
+    setExpanded(defaultExpandedIds(tree));
+  }, [routes.length, tree]);
 
   // Keep the URL in step with the selection so a link lands on the same route.
   useEffect(() => {
@@ -199,41 +77,51 @@ export function ArchitectureExplorer() {
     window.history.replaceState(null, '', url);
   }, [selected]);
 
-  // `/` focuses search from anywhere; ↑/↓ move the selection; Esc clears.
+  const switchView = useCallback(
+    (next: ExplorerView) => {
+      navigate(viewPath(next, selectedId));
+    },
+    [navigate, selectedId],
+  );
+
+  const toggleNode = useCallback((id: string) => {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Search → Tree hand-off: expand every ancestor of the route, switch view,
+   * then scroll to it and tint it briefly so the eye lands in the right place.
+   */
+  const showInTree = useCallback(
+    (routeId: string) => {
+      const ancestors = ancestorIdsFor(tree, routeId);
+      setExpanded((current) => new Set([...current, ...ancestors]));
+      setSelectedId(routeId);
+      setHighlightRouteId(routeId);
+      switchView('tree');
+    },
+    [tree, switchView],
+  );
+
+  // Scroll to the highlighted row once the tree has rendered it, then fade the tint.
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const inSearch = event.target === searchRef.current;
-
-      if (event.key === '/' && !inSearch) {
-        event.preventDefault();
-        searchRef.current?.focus();
-        return;
-      }
-      if (event.key === 'Escape') {
-        if (query) setQuery('');
-        else searchRef.current?.blur();
-        return;
-      }
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-
-      event.preventDefault();
-      const index = flat.findIndex((hit) => hit.route.id === selected?.id);
-      const next = event.key === 'ArrowDown' ? index + 1 : index - 1;
-      const target = flat[Math.max(0, Math.min(flat.length - 1, next))];
-      if (target) setSelectedId(target.route.id);
+    if (!highlightRouteId || view !== 'tree') return;
+    const frame = window.requestAnimationFrame(() => {
+      treeContainerRef.current
+        ?.querySelector(`[data-route-id="${CSS.escape(highlightRouteId)}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    const timer = window.setTimeout(() => setHighlightRouteId(null), 2200);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
     };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [flat, selected, query]);
-
-  // Keep the highlighted row in view during keyboard navigation.
-  useEffect(() => {
-    if (!selected) return;
-    listRef.current
-      ?.querySelector(`[data-route-id="${CSS.escape(selected.id)}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [selected]);
+  }, [highlightRouteId, view]);
 
   if (state.status === 'loading') {
     return (
@@ -270,7 +158,7 @@ export function ArchitectureExplorer() {
           justifyContent: 'space-between',
           gap: 'var(--ds-space-4)',
           flexWrap: 'wrap',
-          marginBottom: 'var(--ds-space-4)',
+          marginBottom: 'var(--ds-space-3)',
         }}
       >
         <div>
@@ -290,41 +178,42 @@ export function ArchitectureExplorer() {
         </div>
       </header>
 
-      <div style={{ marginBottom: 'var(--ds-space-3)' }}>
-        <DsInput
-          ref={searchRef}
-          autoFocus
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search a page name, URL, component or file…"
-          aria-label="Search routes"
-          style={{ width: '100%', fontSize: 15 }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            gap: 'var(--ds-space-4)',
-            marginTop: 6,
-            fontSize: 11,
-            color: 'var(--ds-text-muted)',
-            alignItems: 'center',
-          }}
-        >
-          <span>
-            <DsKbd>/</DsKbd> search
-          </span>
-          <span>
-            <DsKbd>↑</DsKbd> <DsKbd>↓</DsKbd> move
-          </span>
-          <span>
-            <DsKbd>esc</DsKbd> clear
-          </span>
-          {isSearching && (
-            <span style={{ marginLeft: 'auto' }}>
-              {hits.length} {hits.length === 1 ? 'match' : 'matches'}
-            </span>
-          )}
-        </div>
+      {/* View switch — also reachable directly at /__architecture/tree|search. */}
+      <div
+        role="tablist"
+        aria-label="Explorer view"
+        style={{
+          display: 'flex',
+          gap: 2,
+          marginBottom: 'var(--ds-space-3)',
+          borderBottom: '1px solid var(--ds-border)',
+        }}
+      >
+        {EXPLORER_VIEWS.map((entry) => {
+          const isActive = entry.id === view;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              title={entry.hint}
+              onClick={() => switchView(entry.id)}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                padding: '7px 14px',
+                fontSize: 13,
+                fontWeight: isActive ? 600 : 450,
+                color: isActive ? 'var(--ds-text)' : 'var(--ds-text-muted)',
+                borderBottom: `2px solid ${isActive ? 'var(--ds-text)' : 'transparent'}`,
+                marginBottom: -1,
+              }}
+            >
+              {entry.label}
+            </button>
+          );
+        })}
       </div>
 
       {map.warnings.length > 0 && (
@@ -353,71 +242,37 @@ export function ArchitectureExplorer() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(280px, 420px) minmax(0, 1fr)',
+          gridTemplateColumns: view === 'tree'
+            ? 'minmax(420px, 1fr) minmax(300px, 400px)'
+            : 'minmax(280px, 420px) minmax(0, 1fr)',
           gap: 'var(--ds-space-5)',
           alignItems: 'start',
         }}
       >
-        <div
-          ref={listRef}
-          style={{
-            border: '1px solid var(--ds-border)',
-            borderRadius: 'var(--ds-radius-panel)',
-            background: 'var(--ds-surface)',
-            maxHeight: 'calc(100vh - 260px)',
-            overflowY: 'auto',
-          }}
-        >
-          {flat.length === 0 ? (
-            <div style={{ padding: 'var(--ds-space-6)' }}>
-              <DsEmptyState>
-                No matching routes. Search covers page names, URLs, component names, file paths and
-                the things each page imports.
-              </DsEmptyState>
-            </div>
-          ) : isSearching ? (
-            flat.map((hit) => (
-              <RouteRow
-                key={hit.route.id}
-                hit={hit}
-                isSelected={hit.route.id === selected?.id}
-                onSelect={setSelectedId}
-                showGroup
-                explainMatch
-              />
-            ))
+        <div ref={treeContainerRef} style={{ minWidth: 0 }}>
+          {view === 'tree' ? (
+            <ArchitectureTree
+              tree={tree}
+              expanded={expanded}
+              selectedRouteId={selectedId}
+              highlightRouteId={highlightRouteId}
+              onToggle={toggleNode}
+              onSelect={setSelectedId}
+              // Additive: opens all structure without closing a drill-down the
+              // user deliberately opened.
+              onExpandAll={() =>
+                setExpanded((current) => new Set([...current, ...branchNodeIds(tree)]))
+              }
+              onCollapseAll={() => setExpanded(new Set([tree.id]))}
+            />
           ) : (
-            grouped.map(({ group, hits: groupHitList }) => (
-              <section key={group}>
-                <div
-                  style={{
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 1,
-                    background: 'var(--ds-surface-subtle)',
-                    borderBottom: '1px solid var(--ds-border)',
-                    padding: '6px var(--ds-space-3)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: 10,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--ds-text-muted)',
-                  }}
-                >
-                  <span>{group}</span>
-                  <span>{groupHitList.length}</span>
-                </div>
-                {groupHitList.map((hit) => (
-                  <RouteRow
-                    key={hit.route.id}
-                    hit={hit}
-                    isSelected={hit.route.id === selected?.id}
-                    onSelect={setSelectedId}
-                  />
-                ))}
-              </section>
-            ))
+            <SearchView
+              routes={routes}
+              query={query}
+              onQueryChange={setQuery}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           )}
         </div>
 
@@ -427,14 +282,32 @@ export function ArchitectureExplorer() {
             borderRadius: 'var(--ds-radius-panel)',
             background: 'var(--ds-surface)',
             padding: 'var(--ds-space-5)',
-            maxHeight: 'calc(100vh - 260px)',
+            maxHeight: 'calc(100vh - 290px)',
             overflowY: 'auto',
+            minWidth: 0,
           }}
         >
           {selected ? (
-            <RouteDetail route={selected} />
+            <RouteDetail
+              route={selected}
+              onShowInTree={view === 'search' ? () => showInTree(selected.id) : undefined}
+              onSearchRelated={
+                view === 'tree'
+                  ? () => {
+                      // "Search related" seeds the query from the page's own name,
+                      // which surfaces its namespace twin and anything importing it.
+                      setQuery(selected.name);
+                      switchView('search');
+                    }
+                  : undefined
+              }
+            />
           ) : (
-            <DsEmptyState>Pick a route to see where it lives.</DsEmptyState>
+            <DsEmptyState>
+              {view === 'tree'
+                ? 'Pick a page in the tree to see where it lives.'
+                : 'Pick a route to see where it lives.'}
+            </DsEmptyState>
           )}
         </div>
       </div>
@@ -475,7 +348,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         padding: 'var(--ds-space-6)',
       }}
     >
-      <div style={{ maxWidth: 1280, margin: '0 auto' }}>{children}</div>
+      <div style={{ maxWidth: 1440, margin: '0 auto' }}>{children}</div>
     </div>
   );
 }

@@ -346,13 +346,28 @@ claude.ai/design project) is implemented as a self-contained module:
 ## Code Navigator — `/__architecture` (dev only, 2026-08-11)
 
 **Lost in the codebase? Start here.** `/__architecture` answers "what file
-renders this URL?" and its inverse. Type a page name, URL, component name, file
-path, or even a component a page *imports*, and get all four back:
+renders this URL?" and its inverse, through two peer views over one generated
+data source:
+
+- **Tree** (`/__architecture/tree`, the default) — browse top-down when you
+  don't know what to search for. Real route nesting is preserved, so the 35
+  Studio pages sit under one `/b/:slug` branch rather than as flat records.
+- **Search** (`/__architecture/search`) — type a page name, URL, component name,
+  file path, or even a component a page *imports*, and get all four back.
 
 ```
-Setup → /b/:slug/setup → BrandSetupPageV2 → src/pages/b/[slug]/setup.tsx
-                                            (route: src/App.tsx:415)
+Brand Workspace (Studio) → /b/:slug → Setup
+  → /b/:slug/setup → BrandSetupPageV2 → src/pages/b/[slug]/setup.tsx
+                                        (route: src/App.tsx:420)
 ```
+
+The Tree is a **pure function over the same `RouteNode[]` Search renders**
+(`tree.ts`) — not a second scanner, not a registry. Areas come from `groups.ts`
+(the only explicit layer, top-level areas only); labels, badges, counts and
+nesting are all derived. A test asserts both views cover an identical route set,
+so they cannot diverge. Tree interaction follows VS Code: a branch row toggles,
+a leaf row selects, a leaf's chevron opens its drill-down — so "expand all" only
+ever opens structure, never metadata.
 
 - **100% generated** from the router's TypeScript AST on every request — there is
   no list to maintain. Add/rename/move/delete a route and the explorer updates on
@@ -370,7 +385,9 @@ Setup → /b/:slug/setup → BrandSetupPageV2 → src/pages/b/[slug]/setup.tsx
 - **Anti-staleness:** `__tests__/realRouter.test.ts` cross-checks the AST
   generator against `dev-product-map/discovery.ts` — an independent text scanner
   — and asserts both find the same route set, every `sourceFile` exists on disk,
-  and there are zero generator warnings.
+  and there are zero generator warnings. `__tests__/tree.test.ts` adds the
+  Tree↔Search divergence guard and simulates adding a new route to prove it
+  appears with no manual step.
 - Extending it (hooks/stores/services/Supabase tables/reverse deps/impact
   analysis): add a scanner beside `scanImports.node.ts` and one optional field on
   `NodeAnalysis`. **Read `docs/dev-architecture/README.md` first** — it also
