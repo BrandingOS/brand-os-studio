@@ -342,6 +342,10 @@ claude.ai/design project) is implemented as a self-contained module:
   uppercase; icons are 1.8px-stroke lines, never filled/emoji; focus is a
   3px charcoal ring, never blue. New chrome work should consume `--ds-*`
   tokens/components rather than inventing values.
+- **Before building ANY UI, run the mandatory pre-flight** in "UI reuse
+  policy + MANDATORY pre-flight" below — inspect this DS first, search for
+  an existing component, and make the reuse/local/shared/DS decision
+  deliberately. That section is binding for every session.
 
 ## Code Navigator — `/__architecture` (dev only, 2026-08-11)
 
@@ -420,41 +424,111 @@ as a source of truth for route data.
 > via `import.meta.glob(…, '?raw')`, which is compile-time, so the full text of
 > `App.tsx` ships in the production bundle. Worth fixing separately.
 
-## UI reuse policy — where components come from (audited 2026-08-11)
+## UI reuse policy + MANDATORY pre-flight
+(component audit 2026-08-11 · pre-flight policy 2026-08-12)
 
-**Reuse the CANONICAL component first — not merely any component that
-happens to exist.** For NEW Studio (`/b/:slug`) UI, resolve in this order;
-stop at the first tier that fits:
+**This section is binding for every session, including brand-new ones.**
+It governs any work that creates or modifies a page, section, component,
+card, modal, form, navigation, editor UI, toolbar, empty state, feedback
+state, or visual interaction.
 
-1. Generic visual primitive → `@/shared/ds` (DsButton, DsInput, DsModal,
-   DsTabBar, BrandMark, …).
-2. Canonical product-level component → `@/shared/ui/PageHeader`,
-   `@/shared/upload/AssetSourcePopover`, `BrandChooserDialog`,
-   `@/shared/brand/*` (logoOnBackground, brandPalette, brandPathRewrite),
-   `@/shared/layouts/*` shells, `@/shared/components/ExportDialog`,
-   `@/shared/ui/{AssetCard,SegmentedNav}`.
-3. Feature-family primitive → `@/features/editor/core` for anything editor
-   (EditorChrome, useAutoSave); `features/brandkit/` for brand domain logic.
-4. Compose the above.
-5. Extend a canonical component ONLY if the capability is genuinely
-   reusable and belongs to that abstraction.
-6. Otherwise build a clean feature-local component (feature-local is fine
-   even at one call site when it encapsulates meaningfully).
-7. Promote feature → shared only on REAL reuse (≥2 consumers) with a
-   stable API; promote shared → ds only if it is a generic visual
-   primitive. Never promote on hypothetical reuse. Consumer count is
-   EVIDENCE of reuse, not sufficient proof of a shared abstraction —
-   promotion requires stable shared semantics (the consumers want the
-   same thing for the same reason, not coincidentally similar markup).
+### 0. Pre-flight — do this BEFORE writing any JSX or CSS
 
-**Never:** bespoke replacements for canonical components; feature-named
-variants inside ds primitives (no `DsBrandKitCard`); moving product
-patterns into the DS (it stays curated: generic visual primitives +
-foundations only); new component layers/folders before proving the
-existing structure can't express it.
+Do not start a UI task by writing markup. First:
 
-**Frozen/legacy layers (no NEW imports; existing call sites stay until
-their surface is touched for other reasons):**
+1. **Design System check.** Read `src/shared/ds/index.ts` (the full export
+   surface), the primitives relevant to the task, and
+   `src/shared/ds/tokens.json` for the available tokens. When the task
+   involves a real visual decision (buttons, inputs, states, colors,
+   surfaces, spacing, radius, shadows, forms, modal treatment, feedback),
+   also open `/_dev/design-system` to see the canonical behavior live —
+   the Controller's preview sections show every token and state in
+   context. NEVER edit the generated `tokens.css` / `tokens.ts`.
+2. **Existing-component search.** Search the repo for something that
+   already serves this purpose before creating anything:
+   `src/shared/ds`, `src/shared/ui`, `src/shared/components`,
+   `src/shared/layouts`, `src/shared/upload`, `src/shared/brand`, the
+   relevant `src/features/*`, and feature-family systems such as
+   `features/editor/core`.
+3. **Classify every candidate you find** — existing is not the same as
+   reusable:
+   - **CANONICAL** — reuse it.
+   - **FEATURE-SPECIFIC** — reuse only inside its own feature.
+   - **LEGACY / FROZEN** — do not import for new Studio work (list below).
+   - **DEAD / UNUSED** — do not revive without a reason; say you found it.
+   - **DUPLICATE** — pick the canonical twin; don't add a third.
+
+### 1. The decision ladder — classify BEFORE implementing
+
+Resolve in order; stop at the first rung that fits.
+
+- **A. Existing DS primitive** → REUSE. (`DsButton`, `DsInput`,
+  `DsTextArea`, `DsSelect`, `DsSwitch/Checkbox/Radio/Segmented`,
+  `DsModal/ConfirmDialog`, `DsMenu`, `DsProgress/Skeleton`, `DsBadge/
+  Banner/Toast/StatusDot`, `DsTabBar`, `DsRail`, `DsEyebrow/Chip/Kbd/
+  EmptyState`, `BrandMark`, …)
+- **B. Existing canonical product component** → REUSE.
+  `@/shared/ui/PageHeader`, `@/shared/ui/{AssetCard,SegmentedNav}`,
+  `@/shared/upload/AssetSourcePopover`, `BrandChooserDialog`,
+  `@/shared/components/ExportDialog`, `@/shared/brand/*`
+  (logoOnBackground, brandPalette, brandPathRewrite),
+  `@/shared/layouts/*` shells. Feature-family primitives belong on this
+  rung too: `@/features/editor/core` (EditorChrome, useAutoSave) for
+  editor work, `features/brandkit/` for brand domain logic.
+- **C. Something almost fits** → COMPOSE it first. If composition can't
+  express it, EXTEND the existing component — but only when the missing
+  capability genuinely belongs to that abstraction and helps its real
+  consumers. **Never** create `Component2`, `NewComponent`,
+  `BetterComponent`, or `ComponentV2` because the original is slightly
+  incomplete or its API is inconvenient.
+- **D. A generic visual primitive is genuinely missing** → it MAY be added
+  to `src/shared/ds`, but only if it is generic, product-agnostic,
+  reusable across unrelated surfaces, visually stable, and DS-appropriate.
+  One page needing it is NOT sufficient reason. Adding a real missing
+  primitive is allowed and expected — announce the decision, don't slip
+  it in.
+- **E. A reusable PRODUCT component is missing** → add it to the canonical
+  shared product layer (`shared/ui`, `shared/components`, `shared/upload`,
+  …), NOT the DS. Only when the semantics are product-level, reuse or
+  shared behavior is real, the API can be stable, and multiple consumers
+  want the same thing for the same reason. (Brand chooser, asset card,
+  export workflow, product page header…)
+- **F. One-time / feature-specific pattern** → build it LOCAL to the
+  feature. This is the RIGHT answer when the behavior is product-specific,
+  belongs to one feature, or reuse is speculative. Feature-local is good
+  architecture, not a fallback — it's fine even at a single call site when
+  it encapsulates something meaningful. When torn between D/E and F,
+  choose F and promote later.
+
+### 2. Promotion lifecycle
+
+`CANONICAL → COMPOSE → EXTEND → LOCAL → PROMOTE`
+
+Build local → observe REAL reuse → stabilize the API → promote
+deliberately. Never promote because "we might use it later". Consumer
+count (≥2) is EVIDENCE of reuse, not proof of a shared abstraction:
+promotion requires stable shared SEMANTICS — the consumers must want the
+same thing for the same reason, not merely render similar markup. Two
+visually similar components with different meaning stay separate.
+
+### 3. The three layers — keep the boundary strict
+
+```
+DESIGN SYSTEM      generic visual primitives + tokens + states + foundations
+       ↓           (DsButton)
+PRODUCT SYSTEM     reusable BrandingOS patterns built ON TOP of the DS
+       ↓           (ExportDialog)
+FEATURE COMPONENTS feature-specific behavior built from DS + shared
+                   (Brand Kit export workflow)
+```
+
+Never collapse these layers. Product concepts never live in
+`src/shared/ds`.
+
+### 4. Frozen / legacy layers — no NEW imports
+
+(Existing call sites stay until their surface is touched for other reasons.)
+
 - `src/components/ui/` (shadcn, 155 importers) — canonical for Classic
   (`/a/:slug`) + legacy surfaces ONLY. Zero usage in Studio pages today;
   keep it that way.
@@ -471,20 +545,77 @@ their surface is touched for other reasons):**
   `--brand-*`/`--pres-*` tokens (customer-brand content tokens — a
   different job than chrome tokens; do not merge into `--ds-*`).
 
-**Token rules:** new Studio chrome reads `--ds-*` only. `workspace.css`
-`[data-workspace]` tokens style the CURRENT live Studio shell — don't add
-new workspace tokens for anything `--ds-*` already defines. Convergence is
-an approved, staged plan: `docs/ds-token-convergence.md` (mapping table,
-temporary alias bridge, migration order, exact deletion criterion) — follow
-it, don't improvise a parallel mapping.
-Shadcn HSL tokens in index.css belong to Classic/legacy. The tailwind
-`cosmos.*` color mapping has zero usages (dead config — safe to delete
-when touched).
+### 5. Token + styling rules
 
-**Dependency direction:** `shared/ds` imports nothing app-level except
+Feature-specific CSS is allowed and often correct — but its visual
+foundations must consume the canonical DS wherever one applies:
+`--ds-*` colors, surfaces, borders, text, shadows,
+radii, motion, and spacing. Do NOT re-create the DS with page-local
+hardcoded values. (A custom Brand Kit card is valid; a custom generic
+button duplicating `DsButton` is not.) New Studio chrome reads `--ds-*`
+only. `workspace.css` `[data-workspace]` tokens style the CURRENT live
+Studio shell — don't add new workspace tokens for anything `--ds-*`
+already defines. Convergence is an approved, staged plan:
+`docs/ds-token-convergence.md` (mapping table, temporary alias bridge,
+migration order, exact deletion criterion) — follow it, don't improvise a
+parallel mapping. Shadcn HSL tokens in index.css belong to Classic/legacy.
+The tailwind `cosmos.*` color mapping has zero usages (dead config — safe
+to delete when touched).
+
+### 6. Dependency direction
+
+`shared/ds` imports nothing app-level except
 `@/shared/brand` contrast helpers — never shadcn, stores, or features.
 `shared/*` never imports `features/*`. Features import downward only
 (ds, shared, own feature, other features' public domain layers).
+
+### 7. Hard rules — never
+
+- Recreate an existing canonical component, or bespoke-replace one.
+- Build a generic control locally when the DS already provides it.
+- Add feature-named components to the DS (no `DsBrandKitCard`); the DS
+  stays curated — generic visual primitives + foundations only.
+- Promote speculative components to shared.
+- Import frozen/legacy generic UI for new Studio work.
+- Invent new visual values when a `--ds-*` token already expresses it.
+- Edit `tokens.css` / `tokens.ts` directly (they are generated —
+  `tokens.json` + `npm run gen:tokens`, or the Controller's Apply).
+- Duplicate a component because its API is slightly inconvenient.
+- Add new component layers/folders before proving the existing structure
+  can't express the need.
+
+### 8. Mandatory decision report
+
+Whenever UI work creates or significantly changes components, end with:
+
+```
+COMPONENT / DS PRE-FLIGHT
+- Existing components searched:
+- DS primitives inspected:
+- Canonical components reused:
+- Components composed:
+- Components extended:
+- New feature-local components:
+- Why each new local component stays local:
+- New shared product components:
+- Why they deserve shared status:
+- New DS primitives:
+- Why they genuinely belong in the Design System:
+- Legacy/duplicate components encountered:
+- Hardcoded visual values introduced:
+- Legacy generic UI imports introduced:
+```
+
+If nothing new was needed at the shared or DS layer, say so explicitly.
+A proposed new DS primitive or new canonical shared component is an
+architectural decision — state it, don't add it silently.
+
+### 9. Completion rule
+
+A UI task is not done until: the pre-flight ran → existing canonical
+options were checked → the reuse / local / shared / DS decision was made
+deliberately → the implementation follows that decision → the report
+explains any new component architecture.
 
 ## Canonical pickers & primitives
 
