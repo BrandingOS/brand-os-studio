@@ -1,8 +1,15 @@
 # Studio token convergence — workspace.css → `--ds-*`
 
-Status: **Phases 1–2 executed 2026-08-11** (gap tokens added as exact
-workspace copies; Category-A bridge live; measured token-resolution diff
-confirmed changes on Category-A names only). Phases 3+ await explicit go.
+Status: **Phases 1–3 executed 2026-08-11.** Phase 3 (shell + navigation):
+60 Category-A usages renamed to `--ds-*` (workspace.css shell/nav sections
+top-nav · segmented-nav · theme-toggle · pill-btn · .shell, plus
+workspace-home.css nav/profile blocks, plus the `--rule` re-base onto
+`--ds-border`); computed-style probes byte-identical before/after in both
+modes incl. nav hover; repo-wide Category-A grep 1945 → 1885. Shell's
+three Category-B usages stay literal and are on record for later phases:
+`.segmented-nav-pill` background (`--accent-muted`, active-tab tint) and
+`.pill-btn--primary:hover` bg+border (`--accent-hover`, hover-color
+affordance). Phases 4+ (Setup pilot onward) await explicit go.
 (Authored 2026-08-11, revised same day: bridge is mechanical-only;
 semantic collapses migrate per-component.) Goal: `--ds-*` (tokens.json) becomes the only Studio
 chrome token system, via a temporary compatibility bridge that is deleted

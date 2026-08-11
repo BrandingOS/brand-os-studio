@@ -66,7 +66,7 @@
   --link: #2965f6;                    /* blue-300 */
 
   /* Local derived variable — re-bases through the bridge automatically. */
-  --rule: color-mix(in srgb, var(--border) 60%, transparent);
+  --rule: color-mix(in srgb, var(--ds-border) 60%, transparent);
 
   background: var(--background);
   color: var(--text-primary);
@@ -178,21 +178,21 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
+  color: var(--ds-text);
   text-decoration: none;
 }
 [data-workspace] .top-nav-brand-mark {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
   display: grid;
   place-items: center;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.02em;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--ds-shadow-xs);
 }
 
 /* Segmented nav — dark pill at the top, patterned after brand.ai's nav.
@@ -206,15 +206,15 @@
   gap: 2px;
   padding: 4px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-primary);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text);
   overflow: hidden;
   transform-origin: top center;
   transition:
-    background 180ms var(--ease),
-    border-color 180ms var(--ease),
-    color 180ms var(--ease);
+    background 180ms var(--ds-ease),
+    border-color 180ms var(--ds-ease),
+    color 180ms var(--ds-ease);
 }
 [data-workspace] .segmented-nav.is-opening {
   animation: segmented-nav-open 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -242,7 +242,7 @@
   transition:
     transform 340ms cubic-bezier(0.22, 1, 0.36, 1),
     width 340ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 180ms var(--ease);
+    background-color 180ms var(--ds-ease);
   z-index: 0;
   pointer-events: none;
 }
@@ -266,27 +266,27 @@
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.005em;
-  color: var(--text-secondary);
+  color: var(--ds-text-secondary);
   text-decoration: none;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: inherit;
   transition:
-    color 180ms var(--ease),
-    transform 180ms var(--ease);
+    color 180ms var(--ds-ease),
+    transform 180ms var(--ds-ease);
 }
 [data-workspace] .segmented-nav-item:hover {
-  color: var(--text-primary);
+  color: var(--ds-text);
 }
 [data-workspace] .segmented-nav-item[aria-current="page"],
 [data-workspace] .segmented-nav-item.is-active {
-  color: var(--text-primary);
+  color: var(--ds-text);
   background: transparent;
 }
 [data-workspace] .segmented-nav-item:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
 }
 
 /* ============================================================
@@ -297,24 +297,24 @@
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-secondary);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--ds-shadow-xs);
   transition:
-    background 180ms var(--ease),
-    color 180ms var(--ease),
-    border-color 180ms var(--ease),
-    transform 180ms var(--ease);
+    background 180ms var(--ds-ease),
+    color 180ms var(--ds-ease),
+    border-color 180ms var(--ds-ease),
+    transform 180ms var(--ds-ease);
   flex-shrink: 0;
   padding: 0;
 }
 [data-workspace] .theme-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--ds-accent);
+  border-color: var(--ds-accent);
 }
 [data-workspace] .theme-toggle:active { transform: scale(0.96); }
 [data-workspace] .theme-toggle svg { width: 16px; height: 16px; }
@@ -332,12 +332,12 @@
   font-weight: 500;
   letter-spacing: -0.005em;
   cursor: pointer;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--ds-shadow-xs);
   transition:
-    background 180ms var(--ease),
-    border-color 180ms var(--ease),
-    color 180ms var(--ease),
-    transform 140ms var(--ease);
+    background 180ms var(--ds-ease),
+    border-color 180ms var(--ds-ease),
+    color 180ms var(--ds-ease),
+    transform 140ms var(--ds-ease);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -348,22 +348,22 @@
 [data-workspace] .pill-btn-arrow {
   width: 14px;
   height: 14px;
-  transition: transform 180ms var(--ease);
+  transition: transform 180ms var(--ds-ease);
 }
 [data-workspace] .pill-btn:hover .pill-btn-arrow { transform: translateX(2px); }
 [data-workspace] .pill-btn--ghost {
-  background: var(--surface);
-  color: var(--text-primary);
-  border-color: var(--border);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  border-color: var(--ds-border);
 }
 [data-workspace] .pill-btn--ghost:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
 }
 [data-workspace] .pill-btn--primary {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: var(--accent);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
+  border-color: var(--ds-accent);
 }
 [data-workspace] .pill-btn--primary:hover {
   background: var(--accent-hover);
