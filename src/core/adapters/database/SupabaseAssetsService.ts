@@ -9,6 +9,7 @@ import type {
   LibraryQuery,
 } from '@/core/types/services';
 import type { IKitAdoptionService } from '@/core/services/IKitAdoptionService';
+import type { IBrandContextService } from '@/core/services/IBrandContextService';
 import { reconcileFlags } from './libraryQuery';
 
 /**
@@ -27,6 +28,8 @@ import { reconcileFlags } from './libraryQuery';
  */
 export interface SupabaseAssetsServiceDeps {
   adoptions?: IKitAdoptionService;
+  /** Emits Brand Context signals for favourite/dislike/reference. */
+  context?: IBrandContextService;
 }
 
 /** 017 columns. Absent until the migration deploys — see `isMissingColumn`. */
@@ -227,11 +230,31 @@ export class SupabaseAssetsService implements IAssetsService {
     const current = await this.getById(id);
     if (!current) throw new Error(`SupabaseAssetsService.setFlags: asset not found: ${id}`);
     const next = reconcileFlags(current, flags);
-    return this.patchRow(id, {
+    const saved = await this.patchRow(id, {
       is_favorite: next.isFavorite,
       is_disliked: next.isDisliked,
       use_as_reference: next.useAsReference,
     });
+    // Only transitions — setting a flag that was already set is not a new
+    // opinion. Fire-and-forget: capture must never interrupt.
+    if (this.deps.context) {
+      const brandId = (await this.brandIdOf(id)) ?? '';
+      const emit = (kind: 'favorite' | 'dislike' | 'reference') =>
+        this.deps.context!.record({
+          brandId, kind, targetKind: 'library_item', targetRef: id, source: 'user-action',
+        });
+      try {
+        if (next.isFavorite && !current.isFavorite) await emit('favorite');
+        if (next.isDisliked && !current.isDisliked) await emit('dislike');
+        if (next.useAsReference && !current.useAsReference) await emit('reference');
+      } catch { /* silent by contract */ }
+    }
+    return saved;
+  }
+
+  private async brandIdOf(id: string): Promise<string | null> {
+    const { data } = await supabase.from('assets').select('brand_id').eq('id', id).maybeSingle();
+    return (data as { brand_id?: string } | null)?.brand_id ?? null;
   }
 
   async moveToFolder(id: string, folderId: string | null): Promise<Asset> {

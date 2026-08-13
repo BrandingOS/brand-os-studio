@@ -8,6 +8,7 @@ import type {
   LibraryQuery,
 } from '@/core/types/services';
 import type { IKitAdoptionService } from '@/core/services/IKitAdoptionService';
+import type { IBrandContextService } from '@/core/services/IBrandContextService';
 import {
   byNewestFirst,
   matchesLibraryQuery,
@@ -39,6 +40,13 @@ export interface LocalAssetsServiceDeps {
    * the tombstone still guarantees saved work never dangles.
    */
   adoptions?: IKitAdoptionService;
+  /**
+   * Emits Brand Context signals for actions the user already performs
+   * (favourite, dislike, use-as-reference). Optional and fire-and-forget:
+   * capture must never interrupt, and a missing service simply means no
+   * learning — never a broken flag.
+   */
+  context?: IBrandContextService;
 }
 
 export class LocalAssetsService implements IAssetsService {
@@ -198,7 +206,10 @@ export class LocalAssetsService implements IAssetsService {
   async setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset> {
     const hit = this.mustLocate(id, 'setFlags');
     const current = hit.assets[hit.index];
-    return this.save(hit, { ...current, ...reconcileFlags(current, flags) });
+    const next = reconcileFlags(current, flags);
+    const saved = this.save(hit, { ...current, ...next });
+    void emitFlagSignals(this.deps.context, hit.brandId, id, current, next);
+    return saved;
   }
 
   async moveToFolder(id: string, folderId: string | null): Promise<Asset> {
@@ -303,5 +314,37 @@ export class LocalAssetsService implements IAssetsService {
       }
     }
     if (touched) this.write(hit.brandId, assets);
+  }
+}
+
+
+/**
+ * Records what the user just expressed. Only TRANSITIONS are recorded — setting
+ * a flag that was already set is not a new opinion, and logging it would make
+ * the signal stream a record of clicks rather than of preferences.
+ */
+async function emitFlagSignals(
+  context: IBrandContextService | undefined,
+  brandId: string,
+  assetId: string,
+  before: Pick<Asset, 'isFavorite' | 'isDisliked' | 'useAsReference'>,
+  after: { isFavorite: boolean; isDisliked: boolean; useAsReference: boolean },
+): Promise<void> {
+  if (!context) return;
+  const emit = (kind: 'favorite' | 'dislike' | 'reference') =>
+    context.record({
+      brandId,
+      kind,
+      targetKind: 'library_item',
+      targetRef: assetId,
+      source: 'user-action',
+    });
+
+  try {
+    if (after.isFavorite && !before.isFavorite) await emit('favorite');
+    if (after.isDisliked && !before.isDisliked) await emit('dislike');
+    if (after.useAsReference && !before.useAsReference) await emit('reference');
+  } catch {
+    // Silent by contract.
   }
 }

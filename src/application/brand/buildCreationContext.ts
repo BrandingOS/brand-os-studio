@@ -102,3 +102,30 @@ export function buildCreationContext(input: BuildCreationContextInput): Creation
     provisionalPaths,
   };
 }
+
+
+/**
+ * Convenience assembly from the live services.
+ *
+ * `buildCreationContext` stays pure and injectable for tests; this is the
+ * one-call version creation surfaces use, so every generation sees the same
+ * Core + Context + references rather than whatever its screen happened to pass.
+ */
+export async function resolveCreationContext(input: {
+  brand: CanonicalBrand;
+  context?: { summarize(brandId: string): Promise<ContextSummary> };
+  library?: { listLibrary(brandId: string, q?: { references?: boolean }): Promise<Array<{ id: string; url: string; type: string }>> };
+  minAuthority?: Authority;
+}): Promise<CreationContext> {
+  const [summary, refs] = await Promise.all([
+    input.context?.summarize(input.brand.id).catch(() => undefined),
+    input.library?.listLibrary(input.brand.id, { references: true }).catch(() => []),
+  ]);
+
+  return buildCreationContext({
+    brand: input.brand,
+    context: summary,
+    references: (refs ?? []).map((a) => ({ assetId: a.id, url: a.url, kind: a.type })),
+    minAuthority: input.minAuthority,
+  });
+}

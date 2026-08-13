@@ -18,6 +18,7 @@ import type { IBrandsService } from './types/services';
 import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository';
 import type { IDesignStorage } from './types/services';
 import type { IKitAdoptionService } from './services/IKitAdoptionService';
+import type { IBrandContextService } from './services/IBrandContextService';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { SupabaseDesignStorage } from './adapters/storage/SupabaseDesignStorage';
@@ -31,7 +32,8 @@ import { LocalKitAdoptionService } from './adapters/kit-adoptions/LocalKitAdopti
 import { SupabaseKitAdoptionService } from './adapters/kit-adoptions/SupabaseKitAdoptionService';
 import { setKitStateRepository, LocalKitStateRepository } from '@/features/brand-kit/kit/repository';
 import { SupabaseKitStateRepository } from '@/features/brand-kit/kit/repository.supabase';
-import { StubBrandContextService } from './adapters/brand-context/StubBrandContextService';
+import { LocalBrandContextService } from './adapters/brand-context/LocalBrandContextService';
+import { SupabaseBrandContextService } from './adapters/brand-context/SupabaseBrandContextService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -69,6 +71,7 @@ export function bootServices(): void {
         // Lets softDelete tell the user an item is adopted instead of removing
         // material the Official Kit points at.
         adoptions: container.get<IKitAdoptionService>(SERVICE_KEYS.KIT_ADOPTIONS),
+        context: container.get<IBrandContextService>(SERVICE_KEYS.BRAND_CONTEXT),
       }),
   );
 
@@ -115,7 +118,7 @@ export function bootServices(): void {
   // here alongside the rest of the wiring and reset to local on every boot —
   // otherwise a sign-out would leave the Supabase impl in place.
   setKitStateRepository(new LocalKitStateRepository());
-  container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new StubBrandContextService());
+  container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new LocalBrandContextService());
 }
 
 /**
@@ -153,6 +156,7 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
     () =>
       new SupabaseAssetsService({
         adoptions: container.get<IKitAdoptionService>(SERVICE_KEYS.KIT_ADOPTIONS),
+        context: container.get<IBrandContextService>(SERVICE_KEYS.BRAND_CONTEXT),
       }),
   );
   container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
@@ -163,4 +167,5 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
   // Kit state → server (migration 018; tolerant of a pre-018 env, falls back
   // to localStorage so nothing breaks before the deploy).
   setKitStateRepository(new SupabaseKitStateRepository());
+  container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new SupabaseBrandContextService());
 }
