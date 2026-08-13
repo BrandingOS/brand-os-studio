@@ -27,7 +27,11 @@ import { afterEach } from 'vitest';
  */
 const realSetTimeout = globalThis.setTimeout;
 const realSetInterval = globalThis.setInterval;
-const pending = new Set<ReturnType<typeof setTimeout>>();
+// Node and DOM disagree on the handle type (`Timeout` vs `number`), and this
+// file is compiled against both. The handle is only ever passed straight back
+// to clear*, so it is opaque here.
+type TimerHandle = unknown;
+const pending = new Set<TimerHandle>();
 
 globalThis.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) => {
   const id = realSetTimeout(
@@ -50,8 +54,8 @@ globalThis.setInterval = ((handler: TimerHandler, timeout?: number, ...args: unk
 
 afterEach(() => {
   for (const id of pending) {
-    clearTimeout(id);
-    clearInterval(id);
+    clearTimeout(id as Parameters<typeof clearTimeout>[0]);
+    clearInterval(id as Parameters<typeof clearInterval>[0]);
   }
   pending.clear();
 });
