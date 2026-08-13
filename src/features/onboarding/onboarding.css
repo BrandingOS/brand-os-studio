@@ -124,6 +124,11 @@
 .onb-hint-link:hover { color: var(--ds-text); }
 
 @media (max-width: 640px) {
+  /* The sticky bar sits over the page, so the content needs room to clear it —
+     otherwise the last value is permanently half-hidden behind the CTA and no
+     amount of scrolling reveals it. */
+  .onb-body { padding-bottom: var(--ds-space-16); }
+
   .onb-foot {
     position: sticky;
     bottom: 0;

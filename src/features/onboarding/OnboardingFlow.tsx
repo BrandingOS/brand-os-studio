@@ -22,6 +22,7 @@ import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
 import {
   atStep,
   clearPlaceholders,
+  placeholderPaths,
   readOnboardingState,
   type OnboardingStep,
 } from '@/shared/onboarding/onboardingState';
@@ -36,6 +37,7 @@ import { applyProposals, sentinelsRetiredBy } from './understanding/applyProposa
 import { acceptAll, acceptProposal, editValue } from './understanding/acceptance';
 import { destinationAfterFinish, finishOnboarding } from './understanding/finish';
 import { generateDirections } from './understanding/directions';
+import { hydrateReview } from './understanding/hydrate';
 import { groupFontFamilies } from './understanding/fonts';
 import './onboarding.css';
 
@@ -199,6 +201,29 @@ export default function OnboardingFlow() {
       useOnboardingStore.getState().setUnderstanding(false);
     }
   }, [brand, updateBrand]);
+
+  // ── Resume: rebuild the review from the brand ───────────────────
+  // Proposals are Core values below `confirmed`, so nothing needs restoring —
+  // only reading. Without this, returning to review after a reload would look
+  // like the flow had lost everything the user brought.
+  const hydrated = useRef<string | null>(null);
+  useEffect(() => {
+    if (step !== 'review' || !brand) return;
+    if (store.understanding) return;              // a fresh pass is running
+    if (hydrated.current === brand.id) return;    // already read this brand
+    if (store.proposals.length > 0) return;       // this session produced them
+    hydrated.current = brand.id;
+    void (async () => {
+      const canonical = await container
+        .get<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY)
+        .getById(brand.id);
+      if (!canonical) return;
+      const { proposals, confirmed } = hydrateReview(canonical, placeholderPaths(brand));
+      const s = useOnboardingStore.getState();
+      s.setProposals(proposals);
+      if (confirmed.size) s.markConfirmed([...confirmed]);
+    })();
+  }, [step, brand, store.understanding, store.proposals.length]);
 
   // ── Review actions ──────────────────────────────────────────────
   const humanActor = useMemo(
