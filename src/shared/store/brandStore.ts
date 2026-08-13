@@ -5,6 +5,8 @@ import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 import type { BrandRepository } from '@/domain/brand/repository';
 import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
 import { toLegacyBrandPatch } from '@/domain/brand';
+import { applyCorePatch, splitCorePatch } from './routeCoreWrite';
+import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import type { Brand, CreateBrandInput } from '../types/brand';
 import { loadBrandFonts } from '@/shared/design-system/fonts';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
@@ -135,11 +137,61 @@ export const useBrandStore = create<BrandStore>()(
       update: async (id: string, patch: Partial<Brand>) => {
         set({ isLoading: true, error: undefined }, false, 'update/start');
         try {
+          // ── One canonical write path for Brand Core ──────────────────
+          // Core subsystems are rerouted through the application-layer ops
+          // that own them, so a colour saved here and a colour saved from
+          // Setup travel the same road. Non-Core fields (name, publicUrl,
+          // assets, …) keep the existing service path untouched.
+          const { core, rest, routedKeys, unroutedCoreKeys } = splitCorePatch(patch);
+
+          if (import.meta.env.DEV && unroutedCoreKeys.length) {
+            // Honest about what is still open: logos have no canonical op yet,
+            // so they legitimately travel the legacy path for now.
+            console.warn(
+              `[brandStore] Core fields with no canonical op yet: ${unroutedCoreKeys.join(', ')}. ` +
+                'These still write through IBrandsService directly.',
+            );
+          }
+
+          let canonicalPatch: Partial<Brand> = {};
+          if (routedKeys.length) {
+            const repo = container.get<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+            try {
+              const canonical = await applyCorePatch(repo, id, core);
+              if (canonical) canonicalPatch = toLegacyBrandPatch(canonical);
+            } catch (routingError) {
+              // Transitional safety valve. A canonical op validates the whole
+              // brand, so a previously-tolerated malformed record could start
+              // failing a save that used to work. In DEV that must be loud; in
+              // production the user's edit still lands via the legacy path.
+              // Remove this fallback once no brand fails validation — that is
+              // the deletion criterion for the legacy write path itself.
+              if (import.meta.env.DEV) throw routingError;
+              Object.assign(rest, core);
+            }
+          }
+
           // Use the service's return value — it's fully MIGRATED, so derived
           // fields (brandAssets, logoSystem, colorSystem) reflect the patch.
           // The old `{ ...current, ...patch }` merge left stale derivations
           // on a schemaVersion-current object nothing would ever recompute.
-          const updated = await getBrandsService().update(id, patch);
+          // A Core-only patch has already been persisted by the canonical op, so
+          // re-read rather than issuing a second write. `?? current` keeps the
+          // store consistent if the read comes back empty for any reason.
+          const needsServiceWrite = Object.keys(rest).length > 0 || !routedKeys.length;
+          const base = needsServiceWrite
+            ? await getBrandsService().update(id, rest)
+            : ((await getBrandsService().getById(id)) ??
+               useBrandStore.getState().list.find((b) => b.id === id) ??
+               useBrandStore.getState().current);
+          // Re-migrate after merging the canonical patch so the identity blob
+          // re-hydrates every legacy read-home — including `guidelines.strategy`,
+          // which the patch deliberately does not carry. Without this, store
+          // readers would show stale strategy until the next reload.
+          const updated = canonicalPatch.identity
+            ? migrateBrandToCurrent({ ...(base as Brand), ...canonicalPatch })
+            : ({ ...(base as Brand), ...canonicalPatch } as Brand);
+
           set((state) => ({
             list: state.list.map(brand => (brand.id === id ? updated : brand)),
             current: state.current?.id === id ? updated : state.current,

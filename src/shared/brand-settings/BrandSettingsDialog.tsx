@@ -27,11 +27,7 @@ import { cn } from '@/lib/utils';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { BrandRepository } from '@/domain/brand/repository';
-import { changeBrandColors } from '@/application/brand/changeBrandColor';
-import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTypography';
-import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
-import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
-import { fromLegacyBrand, toLegacyBrandPatch } from '@/domain/brand';
+import { fromLegacyBrand } from '@/domain/brand';
 import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { useAssetUpload } from '@/shared/assets/useAssetUpload';
@@ -308,7 +304,7 @@ function ColorsTab({ brand }: { brand: Brand }) {
   // read prefers the canonical colorSystem; write goes through changeBrandColors →
   // BrandRepository (one authoritative color write). It replaces the previous
   // scalar-only write, which left colorSystem stale for schema-v3 brands.
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const updateBrand = useBrandStore((s) => s.update);
   const [primary, setPrimary] = useState(
     brand.colorSystem?.primary?.hex ?? brand.primaryColor ?? '#000000',
   );
@@ -320,17 +316,16 @@ function ColorsTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const updated = await changeBrandColors(repo, brand.id, {
-        primary: { hex: primary },
-        ...(secondary ? { secondary: { hex: secondary } } : {}),
+      // The store routes colour fields to changeBrandColors and merges the
+      // canonical result. This block used to call the op and hand-merge with
+      // setState — which showed the user a value the store had not persisted if
+      // anything downstream failed.
+      await updateBrand(brand.id, {
+        colorSystem: {
+          primary: { hex: primary },
+          ...(secondary ? { secondary: { hex: secondary } } : {}),
+        },
       });
-      // Reflect the canonical result in the store (both `current` AND `list`,
-      // matching brandStore.update) + live theme tokens — without re-persisting.
-      const patch = toLegacyBrandPatch(updated);
-      useBrandStore.setState((s) => ({
-        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
-        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
-      }));
       const cur = useBrandStore.getState().current;
       if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Colors updated');
@@ -339,7 +334,7 @@ function ColorsTab({ brand }: { brand: Brand }) {
     } finally {
       setSaving(false);
     }
-  }, [brand.id, primary, secondary, repo]);
+  }, [brand.id, primary, secondary, updateBrand]);
 
   return (
     <Section>
@@ -401,7 +396,7 @@ function TypographyTab({ brand }: { brand: Brand }) {
   // A2 — write font families through the canonical typography operation, and read
   // canonical-first so this tab is consistent with Setup (which already writes
   // canonical typography). Replaces the legacy `fonts`-only write.
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const updateBrand = useBrandStore((s) => s.update);
   const [primaryFont, setPrimaryFont] = useState(
     brand.typography?.primary?.family ?? brand.fonts?.primary ?? 'Inter',
   );
@@ -413,15 +408,12 @@ function TypographyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const updated = await changeBrandTypographyFamilies(repo, brand.id, {
-        primary: primaryFont,
-        secondary: secondaryFont || undefined,
+      await updateBrand(brand.id, {
+        fonts: {
+          primary: primaryFont,
+          ...(secondaryFont ? { secondary: secondaryFont } : {}),
+        },
       });
-      const patch = toLegacyBrandPatch(updated);
-      useBrandStore.setState((s) => ({
-        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
-        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
-      }));
       const cur = useBrandStore.getState().current;
       if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Typography updated');
@@ -430,7 +422,7 @@ function TypographyTab({ brand }: { brand: Brand }) {
     } finally {
       setSaving(false);
     }
-  }, [brand.id, primaryFont, secondaryFont, repo]);
+  }, [brand.id, primaryFont, secondaryFont, updateBrand]);
 
   const datalistId = 'font-presets';
 
@@ -473,7 +465,6 @@ function TypographyTab({ brand }: { brand: Brand }) {
 function VoiceTab({ brand }: { brand: Brand }) {
   // A3 — tone writes through the canonical voice operation. `audience` is really
   // strategy.targetAudience and stays on the legacy path until Strategy migrates.
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
   const updateBrand = useBrandStore((s) => s.update);
   const [tone, setTone] = useState(brand.tone ?? '');
   const [audience, setAudience] = useState(brand.audience ?? '');
@@ -482,20 +473,18 @@ function VoiceTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const updated = await changeBrandVoiceTone(repo, brand.id, tone);
-      const patch = toLegacyBrandPatch(updated);
-      useBrandStore.setState((s) => ({
-        current: s.current?.id === brand.id ? { ...s.current, ...patch } : s.current,
-        list: s.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
-      }));
-      if (audience !== (brand.audience ?? '')) await updateBrand(brand.id, { audience });
+      // Tone is Core (routed), audience is not — one call carries both.
+      await updateBrand(brand.id, {
+        tone,
+        ...(audience !== (brand.audience ?? '') ? { audience } : {}),
+      });
       toast.success('Voice settings updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand.id, brand.audience, tone, audience, repo, updateBrand]);
+  }, [brand.id, brand.audience, tone, audience, updateBrand]);
 
   return (
     <Section>
@@ -532,7 +521,7 @@ function StrategyTab({ brand }: { brand: Brand }) {
   // `guidelines.strategy` is a projection re-hydrated from the blob on every read
   // (`migrateBrandToCurrent`), so this tab no longer writes it directly (doing so
   // would be silently reverted by hydration if the canonical write failed).
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const updateBrand = useBrandStore((s) => s.update);
   const strategy = fromLegacyBrand(brand).identity.strategy;
 
   const [mission, setMission] = useState(strategy?.mission ?? '');
@@ -548,34 +537,31 @@ function StrategyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const updated = await changeBrandStrategy(repo, brand.id, {
-        mission,
-        vision,
-        values: values
-          .split(',')
-          .map((v) => v.trim())
-          .filter(Boolean),
-        positioning,
-      });
-      // Sync the store — hydrate so the projected `guidelines.strategy` read-home
-      // reflects the blob immediately (the patch itself carries only the blob).
-      const patch = toLegacyBrandPatch(updated);
-      useBrandStore.setState((s) => ({
-        current:
-          s.current?.id === brand.id
-            ? migrateBrandToCurrent({ ...s.current, ...patch })
-            : s.current,
-        list: s.list.map((b) =>
-          b.id === brand.id ? migrateBrandToCurrent({ ...b, ...patch }) : b,
-        ),
-      }));
+      // Strategy arrives under `guidelines` — the store splits that key so the
+      // Core half (strategy + About sections) reaches changeBrandStrategy while
+      // the rest keeps the service path.
+      await updateBrand(brand.id, {
+        guidelines: {
+          ...(brand.guidelines ?? {}),
+          strategy: {
+            ...(brand.guidelines?.strategy ?? {}),
+            mission,
+            vision,
+            values: values
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean),
+            positioning,
+          },
+        },
+      } as Partial<Brand>);
       toast.success('Strategy updated');
     } catch {
       toast.error('Failed to save');
     } finally {
       setSaving(false);
     }
-  }, [brand, mission, vision, values, positioning, repo]);
+  }, [brand, mission, vision, values, positioning, updateBrand]);
 
   return (
     <Section>

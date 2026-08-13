@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { Brand, Asset } from '@/shared/types/brand';
-import { services } from '@/shared/services/registry';
+import { useBrandStore } from '@/shared/store/brandStore';
 import { useBentoStore } from './store';
 import { BentoCanvas, type BentoCanvasHandle } from './components/BentoCanvas';
 import { BentoTopBar } from './components/BentoTopBar';
@@ -154,7 +154,11 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
         createdAt: new Date(),
       };
       try {
-        await services.brands.update(brand.id, { assets: [...(brand.assets ?? []), asset] });
+        // Through the store, so every other mounted surface sees the new
+        // asset without a reload — the reason the registry singleton is going.
+        await useBrandStore.getState().update(brand.id, {
+          assets: [...(brand.assets ?? []), asset],
+        });
         updateTile(tileId, { kind: 'asset-image', content: { assetId: asset.id } });
         toast.success('Added to brand assets');
       } catch (err) {

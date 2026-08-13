@@ -5,11 +5,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { useService, SERVICE_KEYS } from '@/core';
-import type { BrandRepository } from '@/domain/brand/repository';
-import { changeBrandColors } from '@/application/brand/changeBrandColor';
-import { changeBrandTypography } from '@/application/brand/changeBrandTypography';
-import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { AppRail } from '@/shared/layouts/AppRail';
 import { useBrandBoardStore } from './store/useBrandBoardStore';
@@ -27,7 +22,6 @@ export default function BrandBoardPage() {
   const brand = useBrandStore((s) => s.current);
   const loadBySlug = useBrandStore((s) => s.loadBySlug);
   const updateBrand = useBrandStore((s) => s.update);
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
 
   const draft = useBrandBoardStore((s) => s.draft);
   const initFromBrand = useBrandBoardStore((s) => s.initFromBrand);
@@ -77,25 +71,24 @@ export default function BrandBoardPage() {
   const handleSave = async () => {
     if (!brand) return;
     try {
-      // Colors + typography are routed through the canonical write ops so Brand
-      // Board shares the ONE identity authority (its old direct scalar writes were
-      // silently overridden once the identity blob became authoritative).
-      await changeBrandColors(repo, brand.id, {
-        primary: { hex: draft.colors.primary },
-        ...(draft.colors.secondary ? { secondary: { hex: draft.colors.secondary } } : {}),
-        ...(draft.colors.accent ? { accent: { hex: draft.colors.accent } } : {}),
-        ...(draft.colors.neutrals?.length
-          ? { neutrals: draft.colors.neutrals.map((hex) => ({ hex })) }
-          : {}),
-      });
-      const latest = await changeBrandTypography(repo, brand.id, {
-        primary: { family: draft.typography.heading },
-        secondary: draft.typography.body ? { family: draft.typography.body } : null,
-      });
-      // Reflect the canonical result + persist the non-identity uiStyle snapshot.
-      const cpatch = toLegacyBrandPatch(latest);
+      // ONE call. Colours and typography are Core, so the store routes them to
+      // changeBrandColors / changeBrandTypography; uiStyle is not Core and keeps
+      // the service path. Brand Board used to call both ops itself and merge the
+      // result by hand — a second copy of the routing rules that could drift
+      // from Setup's.
       await updateBrand(brand.id, {
-        ...cpatch,
+        colorSystem: {
+          primary: { hex: draft.colors.primary },
+          ...(draft.colors.secondary ? { secondary: { hex: draft.colors.secondary } } : {}),
+          ...(draft.colors.accent ? { accent: { hex: draft.colors.accent } } : {}),
+          ...(draft.colors.neutrals?.length
+            ? { neutrals: draft.colors.neutrals.map((hex) => ({ hex })) }
+            : {}),
+        },
+        fonts: {
+          primary: draft.typography.heading,
+          ...(draft.typography.body ? { secondary: draft.typography.body } : {}),
+        },
         uiStyle: {
           borderRadius: draft.uiStyle.borderRadius,
           shadowIntensity: draft.uiStyle.shadowIntensity,
