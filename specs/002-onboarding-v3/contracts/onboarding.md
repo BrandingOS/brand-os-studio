@@ -152,11 +152,17 @@ Restated nowhere; see 001.
 
 `recordCoreWrite` (`src/domain/brand/coreMeta.ts`) — a system write to a path with
 **no existing metadata entry** records `suggested` instead of inheriting
-`DEFAULT_CORE_VALUE_META`'s `provisional`.
+`DEFAULT_CORE_VALUE_META`'s `provisional`. **Approved 2026-08-13**, scoped to that
+one branch.
+
+Explicitly preserved: `coreValueMeta()`'s READ default stays `provisional` /
+`imported`, so pre-sidecar data behaves exactly as it does today. A human write to
+a fresh path still records `provisional`. A system write over a settled value still
+demotes to `provisional`.
 
 Unchanged by this: the function's signature, INV-3 (a system actor cannot reach
 `confirmed` or `official`), promotion never rewriting provenance, and
 `promoteCoreValue` remaining the only door upward.
 
 See [research.md §R2](../research.md) for the evidence that the branch has no
-existing callers. **Pending owner approval** — see plan §9.
+existing callers.

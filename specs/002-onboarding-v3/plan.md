@@ -42,8 +42,9 @@ write, and they leave with it.
 **One Foundation touch is required**, and it is the plan's only departure from
 "consume 001 as-is": a system write to a Core path with no prior metadata
 currently opens at `provisional`, not `suggested`, so "untouched AI proposals
-remain Suggested" is not expressible today. See §9 — it is a 3-line change with
-zero existing callers, and it is flagged for your approval rather than assumed.
+remain Suggested" is not expressible today. See §9 — a minimal change with zero
+existing callers, approved by the owner on 2026-08-13 and scoped to system writes
+on paths with no metadata entry. The legacy/backfill read default is untouched.
 
 ---
 
@@ -87,7 +88,7 @@ deleted.
 | II — One canonical truth | No parallel state or second write path | **Pass.** Brand-first removes the draft entirely. Material → Library; Core → canonical ops; Business Info → brand record; Context → context service. Onboarding owns nothing but its own step marker. |
 | III — Structured Core | Values structured, not prose | **Pass.** Interpretation emits typed proposals against `CoreFieldPath`; the free-text description is preserved alongside, not instead. |
 | IV — Six concepts distinct | No blurring | **Pass.** Explicit non-goal: no Kit adoption, no deliverable, no Work/Output (FR-030). Enforced by test, not by intention (§10). |
-| V — AI proposes, human disposes | No silent promotion | **Pass, contingent on §9.** Promotion runs only through `promoteCoreValue`, which takes a `HumanActor` with no default. Per-value acceptance (FR-025). |
+| V — AI proposes, human disposes | No silent promotion | **Pass.** Promotion runs only through `promoteCoreValue`, which takes a `HumanActor` with no default. Per-value acceptance (FR-025). |
 | VI — Calm surface | Shallow navigation | **Pass.** Three steps, one screen each, DS components. |
 | VII — Never trapped | Skip / leave / resume | **Pass.** Name is the only required input; resume is cross-session and cross-device by construction; abandoned brands are visible and deletable. |
 | IX — Evolve, don't rewrite | Reuse + stated deletion criterion | **Pass.** Every proven utility is carried over (§6); the superseded flow is deleted inside this feature (FR-041). |
@@ -277,7 +278,7 @@ No other schema change. The Library, `identity_meta`, `business_info` and
 
 ---
 
-## 9. The one Foundation touch — needs your call
+## 9. The one Foundation touch — APPROVED 2026-08-13
 
 `recordCoreWrite` (`src/domain/brand/coreMeta.ts`) resolves a system write like
 this:
@@ -296,7 +297,18 @@ op in the Foundation can produce it.
 That collides with the decision you locked: *untouched AI proposals remain
 Suggested*.
 
-**Recommended:** open a fresh system write at `suggested`. The default's own
+**Approved (2026-08-13).** Open a fresh system write at `suggested`, and
+nothing else. The scope the owner set:
+
+- A **system/AI write** to a Core path with **no existing metadata entry** records
+  `suggested`.
+- The **legacy/backfill default is preserved**: `coreValueMeta()` still resolves an
+  absent entry to `provisional`/`imported` on READ, so pre-sidecar data behaves
+  exactly as before. Only the write branch changes.
+- **No broadening.** Human writes, settled values, INV-3, promotion and demotion
+  are all untouched.
+
+Rationale: The default's own
 docblock says it exists for "data that predates the sidecar" — a brand-new AI
 proposal is the opposite of that, so applying the legacy default to it is a
 mis-fit rather than a deliberate rule.
@@ -318,8 +330,10 @@ machine guessed" and "a human set this but hasn't confirmed it"); or hold
 proposals outside Core in onboarding-owned storage (a second source of truth for
 brand values, which Principle II forbids and brand-first exists to avoid).
 
-If you'd rather not touch 001 at all, say so and the plan falls back to
-`provisional` — the flow is otherwise identical.
+**Covered by focused tests**: a fresh system write lands `suggested`; a fresh
+human write still lands `provisional`; a system write over a settled value still
+demotes to `provisional`; an absent entry still READS as `provisional`/`imported`;
+INV-3 still throws for a system actor reaching `confirmed`/`official`.
 
 ---
 
@@ -401,7 +415,7 @@ loader, per the DS rule against generic ring spinners.
 
 1. **Migration 018 + onboarding state** — the column, its tolerance path, the
    read/write helper, RLS test.
-2. **Foundation touch** (§9, pending your call) — `recordCoreWrite` opens a fresh
+2. **Foundation touch** (§9, approved) — `recordCoreWrite` opens a fresh
    system write at `suggested`; test title updated; new test pinning the band.
 3. **Flow shell** — routes, step machine, resume, `?then=`, brand creation at
    Basics, unfinished state in the brand list.
@@ -442,7 +456,7 @@ Re-run after Phase 1, against the artifacts rather than the intent.
 | II | contracts §2 enforces that `understanding/` never writes and `acceptance.ts` is the sole promoter; no proposal store exists to diverge | **Pass** |
 | III | Every proposal targets a closed `CoreFieldPath`; free text is preserved beside structure, not instead of it | **Pass** |
 | IV | data-model.md §4 routes each datum to exactly one concept; contracts §2 guard 3 forbids a kit/design import path | **Pass** |
-| V | contracts §4: acceptance is per value, hard-coded to `confirmed`, never called from a render path, and `official` is unreachable by signature | **Pass**, contingent on §9 |
+| V | contracts §4: acceptance is per value, hard-coded to `confirmed`, never called from a render path, and `official` is unreachable by signature | **Pass** (§9 approved) |
 | VI | Three steps; understanding is a transient state, not a fourth stop | **Pass** |
 | VII | Name-only finish (quickstart S6), resume (S7), abandonment visible (S8) | **Pass** |
 | IX | §6 moves every tested utility with its suite; retirement verification in quickstart is executable | **Pass** |
@@ -456,5 +470,5 @@ No violations. Complexity tracking remains empty.
 ## 15. Ready for `/speckit-tasks`
 
 Phase 0 and Phase 1 artifacts are complete. One decision is open and is called
-out in §9; it changes three lines and no interface, so `/speckit-tasks` can
-proceed either way — the task list differs by one task.
+out in §9, is approved and scoped, so `/speckit-tasks` proceeds with it
+included as one narrowly-bounded task.

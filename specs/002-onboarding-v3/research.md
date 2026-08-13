@@ -81,8 +81,13 @@ below the line) but contradicts the locked decision and erases the distinction
 between "the machine guessed this" and "a human set it but hasn't confirmed";
 hold proposals outside Core — rejected under R1.
 
-**Status**: flagged for owner approval in plan §9. The rest of the plan is
-unchanged either way.
+**Scope set by the owner on approval (2026-08-13)**: the change applies ONLY to a
+system/AI write on a path with no existing metadata entry. The legacy/backfill
+default is preserved — `coreValueMeta()` still resolves an absent entry to
+`provisional`/`imported` on read, so pre-sidecar data is unaffected. No other
+Foundation work is in scope.
+
+**Status**: **APPROVED**. See plan §9.
 
 ---
 

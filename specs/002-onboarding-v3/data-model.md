@@ -147,9 +147,10 @@ records the chosen direction as tone and typography, both of which have ops toda
 types directly at the Basics step (the name is not Core; the description is not
 Core) does not enter this diagram at all.
 
-Reaching `suggested` for a fresh value depends on the Foundation touch in
-[research.md §R2](./research.md) / plan §9. Without it the top box reads
-`provisional` and every arrow is unchanged.
+Reaching `suggested` for a fresh value relies on the approved Foundation touch in
+[research.md §R2](./research.md) / plan §9: a system write to a path with no
+metadata entry opens at `suggested`. Reads of pre-sidecar data still default to
+`provisional`/`imported`, unchanged.
 
 ---
 
