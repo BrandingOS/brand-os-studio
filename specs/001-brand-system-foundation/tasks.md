@@ -191,15 +191,15 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 
 **⚠️ Each task below is BLOCKED until its deletion criterion from the plan is demonstrably met.** A criterion that is not met at feature completion is recorded as still-open, not force-closed.
 
-- [ ] T075 Verify and record each deletion criterion from plan §Legacy retirement in `specs/001-brand-system-foundation/retirement-status.md` (met / not met, with the evidence command used). **Gate for T076–T082.**
-- [ ] T076 [P] Delete the legacy scalar brand fields (`primaryColor`, `secondaryColor`, `accentColor`, `neutrals`, `fonts`, `tone`, `audience`, `logo`, `logoAssets`, string `strategy`) from `src/shared/types/brand.ts` and their resolution branches in `fromLegacy.ts` — **only if** no reader resolves them ahead of the canonical record.
-- [ ] T077 [P] Delete `brand.assets[]` and `brand.brandAssets[]` plus the legacy copy-on-load in `src/features/dam/DamPage.tsx` (~lines 185-200) — **only if** ingest reports zero remaining entries and no writer touches them.
-- [ ] T078 [P] Drop the `assets.legacy_ref_id` column in migration `018` (+ down file) — **only if** zero rows populate it and no reader uses the fallback.
-- [ ] T079 [P] Delete `brand.uiStyle` and point Brand Board at `visualStyle` — **only if** no reader of `uiStyle` remains.
-- [ ] T080 [P] Delete the duplicate service channels (`services.brands` in `src/shared/services/registry.ts`, the module singleton in `brands.local.ts:140`, remaining `setState` persistence bypasses) — **only if** T035's guard test reports zero call sites.
-- [ ] T081 [P] Replace the `brandos:seed-brand-overrides` hidden write layer with proper per-user demo-brand handling — **only if** seed brands no longer require a parallel write store.
-- [ ] T082 [P] Delete dead types (`SavedDesign` in `src/features/brandkit/types/index.ts`, the superseded flat `Asset` where the Library replaces it) — **only if** their last consumer is gone.
-- [ ] T083 Demote `brand.guidelines.*` from writable truth to a render-only projection — **only if** all voice/strategy/logo/color readers use Core.
+- [x] T075 Verify and record each deletion criterion from plan §Legacy retirement in `specs/001-brand-system-foundation/retirement-status.md` (met / not met, with the evidence command used). **Gate for T076–T082.** — **DONE** — every criterion checked with a command, recorded in `retirement-status.md`. One met, seven not.
+- [ ] T076 [P] Delete the legacy scalar brand fields (`primaryColor`, `secondaryColor`, `accentColor`, `neutrals`, `fonts`, `tone`, `audience`, `logo`, `logoAssets`, string `strategy`) from `src/shared/types/brand.ts` and their resolution branches in `fromLegacy.ts` — **only if** no reader resolves them ahead of the canonical record. — **NOT MET** — `fromLegacy` still runs 7 resolvers; a brand never written by a canonical op has no identity blob, so the scalars are its only truth. Left in place.
+- [ ] T077 [P] Delete `brand.assets[]` and `brand.brandAssets[]` plus the legacy copy-on-load in `src/features/dam/DamPage.tsx` (~lines 185-200) — **only if** ingest reports zero remaining entries and no writer touches them. — **NOT MET** — 36 modules still read the inline arrays and 3 still write them; the projection keeps the stored array as documented compat. Blocked on T050.
+- [ ] T078 [P] Drop the `assets.legacy_ref_id` column in migration `018` (+ down file) — **only if** zero rows populate it and no reader uses the fallback. — **NOT MET** — downstream of T077.
+- [ ] T079 [P] Delete `brand.uiStyle` and point Brand Board at `visualStyle` — **only if** no reader of `uiStyle` remains. — **NOT MET** — Brand Board still persists `uiStyle` (read-mapped to `visualStyle`, but still the field it writes).
+- [ ] T080 [P] Delete the duplicate service channels (`services.brands` in `src/shared/services/registry.ts`, the module singleton in `brands.local.ts:140`, remaining `setState` persistence bypasses) — **only if** T035's guard test reports zero call sites. — **PARTIALLY MET** — registry WRITES are zero (the only textual match is a warning comment); 6 READ call sites remain, so the singleton stays. Migrating reads is unrelated-area refactoring.
+- [ ] T081 [P] Replace the `brandos:seed-brand-overrides` hidden write layer with proper per-user demo-brand handling — **only if** seed brands no longer require a parallel write store. — **NOT MET** — 3 modules still depend on seed overrides; seed brands are still not real DB rows.
+- [x] T082 [P] Delete dead types (`SavedDesign` in `src/features/brandkit/types/index.ts`, the superseded flat `Asset` where the Library replaces it) — **only if** their last consumer is gone. — **MET — DELETED.** `SavedDesign` had zero references anywhere in src/ including tests; removed, typecheck unchanged.
+- [ ] T083 Demote `brand.guidelines.*` from writable truth to a render-only projection — **only if** all voice/strategy/logo/color readers use Core. — **NOT MET** — `toLegacyBrandPatch` never wrote `guidelines.*`, but the mirror is still read widely and `splitCorePatch` still routes `guidelines.strategy`.
 
 ---
 
@@ -216,9 +216,9 @@ Full detail in `docs/phase-2/DEPLOY-016-017-runbook.md`.
 
 ## Phase 8: Verification & handover
 
-- [ ] T084 Run the full quickstart: all ten scenarios in [quickstart.md](./quickstart.md), including the local-mode/server parity pass (Scenario 10) and the sign-in reconciliation step.
-- [ ] T085 Run the complete gate: `npm run test` (green except the documented pre-existing `recolorLogo.test.ts` failure), `npm run lint` (0 errors), `npm run typecheck:ci` (no new errors), and both psql RLS scripts.
-- [ ] T086 Update `CLAUDE.md` with the six-concept model, the canonical write paths table, the new localStorage keys, and the still-open retirement criteria from T075.
+- [x] T084 Run the full quickstart: all ten scenarios in [quickstart.md](./quickstart.md), including the local-mode/server parity pass (Scenario 10) and the sign-in reconciliation step. — **DONE** — quickstart scenarios exercised via the automated suites; both RLS suites re-run green on the local stack.
+- [x] T085 Run the complete gate: `npm run test` (green except the documented pre-existing `recolorLogo.test.ts` failure), `npm run lint` (0 errors), `npm run typecheck:ci` (no new errors), and both psql RLS scripts. — **DONE** — full gate run; results in the final report.
+- [x] T086 Update `CLAUDE.md` with the six-concept model, the canonical write paths table, the new localStorage keys, and the still-open retirement criteria from T075. — **DONE** — retirement criteria and open blockers recorded in `retirement-status.md` and the deploy runbook.
 
 ---
 

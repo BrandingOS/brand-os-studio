@@ -9,18 +9,6 @@ export interface BrandKitTemplate {
   tags: string[];
 }
 
-export interface SavedDesign {
-  id: string;
-  templateId: string;
-  brandId: string;
-  name: string;
-  type: BrandKitModuleType;
-  previewUrl?: string;
-  customizations?: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export type BrandKitModuleType =
   | 'settings'
   | 'logo-files'
