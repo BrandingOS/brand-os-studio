@@ -64,5 +64,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The `browser` Vitest project runs in real Chromium via Playwright, so
+      # the browser binary and its system libraries must exist before tests
+      # start. Without this the whole run aborts with an unhandled
+      # "Executable doesn't exist" error rather than a test failure, which is
+      # what made the CI signal unreadable.
+      #
+      # --with-deps installs the OS packages Chromium needs on ubuntu-latest;
+      # only chromium is installed because that is the only browser the suite
+      # uses (see vite.config.ts test.projects).
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Run tests
         run: npx vitest run --reporter=verbose

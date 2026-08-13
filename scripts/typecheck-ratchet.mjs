@@ -38,13 +38,37 @@ function runTsc() {
   }
 }
 
+/**
+ * Strip machine-specific absolute paths out of an error message.
+ *
+ * TypeScript inlines absolute paths into some messages, e.g.
+ *   Conversion of type 'typeof import("/Users/you/repo/node_modules/lucide-react/…")'
+ *
+ * Baselining that verbatim makes the file valid on exactly ONE machine: the
+ * same error reads `/home/runner/work/…` in CI, does not match, and is
+ * reported as a new regression. Three entries (IconSelector, LogoCanvas,
+ * fabric-setup) failed CI for precisely this reason while passing locally.
+ *
+ * Normalizing to a repo-relative path keeps the error's identity — file, code
+ * and meaning are unchanged — while making the baseline portable.
+ */
+function stripAbsolutePaths(text) {
+  // The repo root itself, wherever it is checked out.
+  const rooted = text.split(ROOT + '/').join('').split(ROOT).join('');
+  // Any other absolute path that reaches a node_modules/src segment (e.g. a
+  // pnpm store or a differently-rooted checkout).
+  return rooted.replace(/(["'(])\/(?:[^"'()\s]*\/)?(node_modules|src)\//g, '$1$2/');
+}
+
 /** Normalize each `file(line,col): error TSxxxx: message` to `file | TSxxxx | message`. */
 function signatures(output) {
   const re = /^(.+?)\((\d+),(\d+)\): error (TS\d+): (.*)$/;
   const sigs = [];
   for (const line of output.split('\n')) {
     const m = re.exec(line.trim());
-    if (m) sigs.push(`${m[1]} | ${m[4]} | ${m[5]}`);
+    // The FILE is already repo-relative in tsc output; only the MESSAGE can
+    // carry an absolute path.
+    if (m) sigs.push(`${m[1]} | ${m[4]} | ${stripAbsolutePaths(m[5])}`);
   }
   return sigs.sort();
 }
@@ -59,6 +83,19 @@ const output = runTsc();
 const current = signatures(output);
 
 if (UPDATE) {
+  // A baseline containing an absolute path is valid on one machine only and
+  // will report phantom regressions everywhere else — the bug this normalizer
+  // exists to prevent. Fail loudly rather than committing one again.
+  const leaked = current.filter((s) => /(^|["'( ])\/(Users|home|root|tmp)\//.test(s));
+  if (leaked.length) {
+    console.error(
+      `[typecheck-ratchet] Refusing to write a machine-specific baseline: ${leaked.length} ` +
+        'entr(y|ies) still contain an absolute path. Extend stripAbsolutePaths().',
+    );
+    console.error(leaked.slice(0, 3).map((l) => `  ${l.slice(0, 160)}`).join('\n'));
+    process.exit(2);
+  }
+
   writeFileSync(BASELINE, current.join('\n') + (current.length ? '\n' : ''));
   console.log(`[typecheck-ratchet] Baseline updated: ${current.length} known errors written to .typecheck-baseline.txt`);
   process.exit(0);
