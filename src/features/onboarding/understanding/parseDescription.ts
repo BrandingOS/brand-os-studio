@@ -302,7 +302,7 @@ export async function parseDescriptionToSections(
     return sections.length > 0 ? sections : heuristicParse(text);
   } catch (err) {
     if ((err as { name?: string })?.name === 'AbortError') return [];
-    console.warn('[onboarding-v4] description parse failed:', err);
+    console.warn('[onboarding] description parse failed:', err);
     return heuristicParse(text);
   }
 }

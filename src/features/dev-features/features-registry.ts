@@ -91,16 +91,7 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     entry: 'src/pages/onboard-brand/index.tsx',
     status: 'active',
     description:
-      'Canonical pre-brand onboarding flow. Lives outside the brand shell — runs before a brand exists. Implementation in src/features/onboarding-v4/screens/.',
-  },
-  {
-    id: 'onboarding-create',
-    name: 'Onboarding — Create flow',
-    tab: 'setup',
-    route: '/onboard-brand/create',
-    entry: 'src/pages/onboard-brand/create.tsx',
-    status: 'active',
-    description: 'Sub-route of the canonical onboarding used by explicit "create new brand" CTAs. Implementation in src/features/onboarding-v4/screens/CreateScreen.tsx.',
+      'THE onboarding flow (spec 002). Three screens, brand-first: the brand exists from the naming step, and /onboard-brand/:slug resumes it. Implementation in src/features/onboarding/.',
   },
   {
     id: 'brand-editor-metadata',
@@ -588,7 +579,7 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     route: '/onboarding',
     entry: 'src/pages/onboarding',
     status: 'dead',
-    description: 'Legacy onboarding. Redirect to /onboard-brand; delete in Phase 6.',
+    description: 'Legacy onboarding. Redirects to /onboard-brand.',
   },
   {
     id: 'dashboard-shell-dead',

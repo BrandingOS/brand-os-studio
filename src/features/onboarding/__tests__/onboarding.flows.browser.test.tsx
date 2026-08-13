@@ -74,7 +74,10 @@ describe('Screen 1 — tell us about your brand', () => {
 
 // ── Screen 3, the critical rule ──────────────────────────────────────
 describe('Screen 3 — reading is never accepting', () => {
-  function renderReview(confirmed = new Set<string>(), onAccept = () => {}) {
+  function renderReview(
+    confirmed = new Set<string>(),
+    onAccept: (path: never) => void = () => {},
+  ) {
     return render(
       <MemoryRouter>
         <ReviewStep

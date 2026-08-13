@@ -161,6 +161,11 @@ describe('applyCorePatch', () => {
       { actor: { kind: 'system', agent: 'ai' } },
     );
     expect(coreValueMeta(out?.identityMeta, 'voice.tone').provenance).toBe('ai-suggested');
-    expect(coreValueMeta(out?.identityMeta, 'voice.tone').authority).toBe('provisional');
+    // Spec 002: a fresh system write opens at `suggested`, so a brand-new
+    // machine proposal is distinguishable from a value a user set but never
+    // confirmed. The claim under test — attribution follows the supplied actor
+    // — is unchanged.
+    expect(coreValueMeta(out?.identityMeta, 'voice.tone').authority).toBe('suggested');
+    expect(coreValueMeta(out?.identityMeta, 'voice.tone').setBy).toBe('ai');
   });
 });

@@ -1,8 +1,8 @@
 /**
  * The shape of material a user brings in.
  *
- * These types moved out of `features/onboarding-v4` when spec 002 replaced that
- * flow: the intake utilities beside this file (folder walking, archive
+ * These types moved out of the onboarding feature when spec 002 replaced the
+ * flow that first used them: the intake utilities beside this file (folder walking, archive
  * extraction, content hashing, image analysis, family grouping) are proven and
  * survive the feature that happened to be their first caller.
  *

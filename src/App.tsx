@@ -26,7 +26,7 @@ const OnboardingPage = lazy(() => import("./pages/onboarding"));
 const OnboardingBrandPage = lazy(() => import("./pages/onboarding-brand"));
 const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
 // Canonical pre-brand onboarding. The onboarding screens live in
-// src/features/onboarding-v4/screens/ and are consumed here.
+// src/features/onboarding/ and are consumed here.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
 // v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
 // See docs/ux-v2/PLAN.md for the full restructure plan.
@@ -337,10 +337,10 @@ const App = () => (
           <Route path="/onboarding-brand" element={<OnboardingBrandPage />} />
           {logoMakerFlowRoutes}
           <Route path="/onboarding/preview" element={<BrandPreviewPage />} />
-          {/* Canonical pre-brand onboarding. Older /onboarding-v3, /onboarding-v4,
-              and the ns-less workspace tabs (/setup, /brand-kit, /guideline,
-              /design-workspace, /tools-workspace) were dead generations superseded
-              by /onboard-brand + the brand-scoped /b/:slug/* tabs — removed. */}
+          {/* The ONE onboarding entry point (spec 002). Every earlier
+              generation — /onboarding-v3, /onboarding-v4, the two-path
+              /onboard-brand + /onboard-brand/create split, and the ns-less
+              workspace tabs — is removed, not disabled. */}
           <Route path="/onboard-brand" element={
             <ProtectedRoute>
               <OnboardBrandPage />
