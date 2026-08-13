@@ -26,6 +26,8 @@ import { LocalAssetsService } from './adapters/database/LocalAssetsService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
 import { LocalFormatPresetsService } from './adapters/format-presets/LocalFormatPresetsService';
 import { LocalBrandMemoryService } from './adapters/brand-memory/LocalBrandMemoryService';
+import { StubKitAdoptionService } from './adapters/kit-adoptions/StubKitAdoptionService';
+import { StubBrandContextService } from './adapters/brand-context/StubBrandContextService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
 import { SupabaseAssetsService } from './adapters/database/SupabaseAssetsService';
@@ -90,6 +92,15 @@ export function bootServices(): void {
     const ds = container.get<IDesignStorage>(SERVICE_KEYS.DESIGN_STORAGE);
     return new LocalBrandMemoryService(ds);
   });
+
+  // ─── Brand System Foundation — Official Kit + Context ───────
+  // Phase 0 registers the DI contract with stub implementations so consumers
+  // can be typed against a stable interface. The Official Kit and Context
+  // phases replace these two lines with the local implementations (and add
+  // Supabase overrides below). Registered in BOTH modes, like every other
+  // service, so `boot.test.ts` can assert the key resolves either way.
+  container.register(SERVICE_KEYS.KIT_ADOPTIONS, () => new StubKitAdoptionService());
+  container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new StubBrandContextService());
 }
 
 /**

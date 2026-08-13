@@ -363,6 +363,15 @@ export const SERVICE_KEYS = {
    *  their own EdgeFunctionAgent (which calls fetch). Production
    *  registers `createEdgeFunctionAgent` per active brandKit. */
   AI_AGENT: 'aiAgent',
+  /** Brand System Foundation — Official Brand Kit adoptions. Each record is a
+   *  REFERENCE to a Core value / Library item / kit deliverable plus adoption
+   *  metadata; it never holds a copy of the adopted object. Only an explicit
+   *  action by an authorized human creates one. */
+  KIT_ADOPTIONS: 'kitAdoptions',
+  /** Brand System Foundation — Brand Context v1. Plain recorded signals
+   *  (favourites, dislikes, references, approvals, usage). No memory engine,
+   *  no embeddings; it can never write Brand Core. */
+  BRAND_CONTEXT: 'brandContext',
 } as const;
 
 // ─── Mockup Templates Service ──────────────────────────────────
