@@ -165,12 +165,24 @@ function actorId(actor: Actor): string {
 /**
  * Records a WRITE to a Core value (not a promotion — see `promoteCoreValue`).
  *
- * Two behaviors are deliberate:
+ * Three behaviors are deliberate:
  *  - A human editing a confirmed/official value KEEPS its authority. They
  *    already decided; changing the value is another decision of the same weight.
  *  - The system editing a confirmed/official value DEMOTES it to provisional.
  *    It must not silently overwrite settled truth and leave it looking settled;
  *    demoting surfaces that the value now needs a human's eyes again.
+ *  - The system writing a value that has NO metadata entry yet opens it at
+ *    `suggested`. `DEFAULT_CORE_VALUE_META` is `provisional`/`imported`, which
+ *    is right for its stated purpose — reading data that predates the sidecar —
+ *    but wrong as the starting point for a brand-new machine proposal, where we
+ *    know exactly who wrote it and that no human has looked. Without this, a
+ *    fresh AI suggestion would be indistinguishable from a value a user set but
+ *    never confirmed. Onboarding (spec 002) is the first system-actor writer in
+ *    the product and depends on that distinction.
+ *
+ *    Scope note: this changes only the no-entry system-write branch. The READ
+ *    default in `coreValueMeta` is untouched, so pre-sidecar data behaves
+ *    exactly as before.
  */
 export function recordCoreWrite(
   meta: IdentityMeta | undefined,
@@ -181,12 +193,19 @@ export function recordCoreWrite(
 ): IdentityMeta {
   const current = coreValueMeta(meta, path);
   const settled = isAtLeast(current.authority, 'confirmed');
+  // Distinguishes "never recorded" from "recorded as provisional" — the read
+  // default collapses the two, and this branch needs them apart.
+  const unrecorded = meta?.[path] === undefined;
 
   let authority: Authority;
   if (actor.kind === 'human') {
     authority = settled ? current.authority : 'provisional';
+  } else if (settled) {
+    authority = 'provisional';
+  } else if (unrecorded || current.authority === 'suggested') {
+    authority = 'suggested';
   } else {
-    authority = settled ? 'provisional' : current.authority === 'suggested' ? 'suggested' : 'provisional';
+    authority = 'provisional';
   }
 
   const next: CoreValueMeta = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { OnboardingAsset } from '../types';
+import type { OnboardingAsset } from './intakeTypes';
 import { groupFontAssets, parseFontName, weightsSummary } from './fontFamily';
 
 function font(name: string, source: OnboardingAsset['fontSource'] = 'upload'): OnboardingAsset {

@@ -51,6 +51,15 @@ export interface Brand {
    * losslessly.
    */
   businessInfo?: import('@/domain/brand/identity').BusinessInfo;
+  /**
+   * Onboarding progress (migration 022 `brands.onboarding`, spec 002).
+   *
+   * Absent means the brand was not created by onboarding — every brand that
+   * predates 002 — and is treated as finished. See
+   * `src/shared/onboarding/onboardingState.ts`, which is the only module that
+   * interprets this shape.
+   */
+  onboarding?: import('@/shared/onboarding/onboardingState').OnboardingState;
 
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target

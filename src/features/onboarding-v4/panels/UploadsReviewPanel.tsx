@@ -3,7 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useV4Store } from '../store/onboardingV4Store';
 import type { AssetKind, OnboardingAsset } from '../types';
 import { GOOGLE_FONTS } from '@/shared/design-system/googleFonts';
-import { enqueueFile, extractDominantColors, genId, normalizeHex } from '../utils/assetUpload';
+import { enqueueFile, extractDominantColors, genId, normalizeHex } from '@/shared/upload/intake';
 import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
 import { CopyIcon, type OrganicIconHandle } from '@/features/setup/components/organic-icons';
 import { hexToName } from '@/features/setup/data/colorNames';
@@ -12,7 +12,7 @@ import { LogoSlots } from './LogoSlots';
 import { AboutGroup } from './AboutGroup';
 import { useCosmosTheme } from '../components/useCosmosTheme';
 import { SOCIAL_PLATFORMS, detectPlatform, getPlatform } from '../data/socialPlatforms';
-import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '../utils/fontFamily';
+import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '@/shared/upload/fontFamily';
 import { extractSlogan } from '../services/parseDescription';
 import { type SuggestedPalette, suggestPalettesFor } from '../data/suggestedPalettes';
 import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
@@ -557,6 +557,7 @@ export function UploadsReviewPanel() {
       max: MAX_ASSETS,
       getCount: () => useV4Store.getState().assets.length,
       getAssets: () => useV4Store.getState().assets,
+    classify: (id: string, file: File) => { void import('../services/brandVision').then(m => m.classifyAndRoute(id, file)); },
       addAsset,
       updateAssetProgress,
       markAssetDone,

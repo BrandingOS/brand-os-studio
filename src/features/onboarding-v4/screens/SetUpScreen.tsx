@@ -16,7 +16,7 @@ import type { LogoSlot, OnboardingAsset } from '../types';
 import type { Asset, BrandLogoAssets } from '@/shared/types/brand';
 import { parseDescriptionToSections } from '../services/parseDescription';
 import { createBrandResilient } from '../services/createBrand';
-import { type FontFamilyGroup, groupFontAssets } from '../utils/fontFamily';
+import { type FontFamilyGroup, groupFontAssets } from '@/shared/upload/fontFamily';
 import {
   describeStorageUsage,
   freeDisposableStorage,

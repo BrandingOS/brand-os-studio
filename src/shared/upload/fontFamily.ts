@@ -6,7 +6,7 @@
  * one row per family and keeps the individual weights as detail, so the user
  * sees the two fonts they picked — not eight rows.
  */
-import type { OnboardingAsset } from '../types';
+import type { OnboardingAsset } from './intakeTypes';
 
 /** Canonical display label + CSS numeric weight, keyed by the lowercased token. */
 const WEIGHT_TOKENS: Record<string, { label: string; rank: number }> = {

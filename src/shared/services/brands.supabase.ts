@@ -90,6 +90,7 @@ export class SupabaseBrandsService implements IBrandsService {
       guidelines?: unknown;
       strategy?: unknown;
       logoAssets?: unknown;
+      onboarding?: unknown;
     };
     if (extras.guidelines !== undefined) brandData.guidelines = extras.guidelines;
     if (extras.strategy !== undefined) brandData.strategy = extras.strategy;
@@ -97,13 +98,32 @@ export class SupabaseBrandsService implements IBrandsService {
     // failed left an onboarded brand with no logos at all. They're a plain
     // JSONB column, so write them with the row.
     if (extras.logoAssets !== undefined) brandData.logo_assets = extras.logoAssets;
+    // The onboarding marker travels WITH the insert (spec 002). A follow-up
+    // update would mean a window where the brand exists but has no recorded
+    // step — close the tab in that window and resume sends you to Setup on a
+    // brand you never finished.
+    if (extras.onboarding !== undefined) brandData.onboarding = extras.onboarding;
 
-    const { data, error } = await supabase
-      .from('brands')
-      .insert(brandData)
-      .select()
-      .single();
+    // One call site, reused for the retry — a second `.insert()` expression
+    // would duplicate the generated-types overload complaint this file already
+    // carries, and the ratchet reads that as a new error.
+    const insertRow = () => supabase.from('brands').insert(brandData).select().single();
 
+    let result = await insertRow();
+
+    // Pre-022 tolerance, mirroring update()'s: an environment with the code but
+    // not the migration must still create brands. The marker is the only thing
+    // lost, and its absence reads as "finished" — the safe direction.
+    if (
+      result.error &&
+      (result.error.code === '42703' ||
+        /column .* does not exist/i.test(result.error.message ?? ''))
+    ) {
+      delete brandData.onboarding;
+      result = await insertRow();
+    }
+
+    const { data, error } = result;
     if (error) throw error;
     // Migrated like getBySlug — the store caches this as `current`.
     return migrateBrandToCurrent(this.mapFromDatabase(data));
@@ -145,6 +165,9 @@ export class SupabaseBrandsService implements IBrandsService {
     // Brand Core authority/provenance sidecar + Business Info (migration 016).
     if (patch.identityMeta !== undefined) updateData.identity_meta = patch.identityMeta;
     if (patch.businessInfo !== undefined) updateData.business_info = patch.businessInfo;
+    // Onboarding progress (migration 022). Tolerated below when the column is
+    // absent — losing your place is survivable, a failed save is not.
+    if (patch.onboarding !== undefined) updateData.onboarding = patch.onboarding;
     if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
     if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
     if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
@@ -176,7 +199,7 @@ export class SupabaseBrandsService implements IBrandsService {
       // compensation and leave a Kit adoption behind a value that reloads as
       // merely provisional. A missing column there is a deployment error and
       // must surface as one.
-      const TOLERATED_COLS = ['logo_system', 'brand_assets', 'business_info'] as const;
+      const TOLERATED_COLS = ['logo_system', 'brand_assets', 'business_info', 'onboarding'] as const;
 
       if (missingCol) {
         // Drop ONLY the column the database named. The previous version removed
@@ -246,6 +269,7 @@ export class SupabaseBrandsService implements IBrandsService {
       identitySchemaVersion: data.identity_schema_version || undefined,
       identityMeta: data.identity_meta || undefined,
       businessInfo: data.business_info || undefined,
+      onboarding: data.onboarding || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,

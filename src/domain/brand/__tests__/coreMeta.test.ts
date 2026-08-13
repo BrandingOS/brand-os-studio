@@ -100,11 +100,48 @@ describe('recordCoreWrite', () => {
     });
   });
 
-  it('an AI write lands at provisional — never confirmed', () => {
+  it('an AI write never reaches confirmed', () => {
     const meta = recordCoreWrite(undefined, 'colors.primary', ai, 'ai-suggested', NOW);
     expect(isAtLeast(meta['colors.primary']!.authority, 'confirmed')).toBe(false);
     expect(meta['colors.primary']!.provenance).toBe('ai-suggested');
     expect(meta['colors.primary']!.setBy).toBe('ai-suggester');
+  });
+
+  // ── The fresh-system-write band (spec 002, plan §9) ────────────────
+  // A brand-new machine proposal must be distinguishable from a value a user
+  // set but never confirmed. These five pin the change AND everything around
+  // it that must not move.
+
+  it('a fresh SYSTEM write opens at suggested', () => {
+    const meta = recordCoreWrite(undefined, 'colors.primary', ai, 'ai-suggested', NOW);
+    expect(meta['colors.primary']!.authority).toBe('suggested');
+  });
+
+  it('a fresh HUMAN write still lands at provisional', () => {
+    const meta = recordCoreWrite(undefined, 'colors.primary', human, 'user-entered', NOW);
+    expect(meta['colors.primary']!.authority).toBe('provisional');
+  });
+
+  it('a SYSTEM write over a value already recorded as provisional stays provisional', () => {
+    // Only the NO-ENTRY case opens at suggested. A recorded provisional value
+    // was set by someone; a later machine write must not quietly weaken it.
+    let meta: IdentityMeta = recordCoreWrite(undefined, 'voice.tone', human, 'user-entered', NOW);
+    expect(meta['voice.tone']!.authority).toBe('provisional');
+    meta = recordCoreWrite(meta, 'voice.tone', ai, 'ai-suggested', NOW);
+    expect(meta['voice.tone']!.authority).toBe('provisional');
+  });
+
+  it('the legacy READ default is unchanged for pre-sidecar data', () => {
+    // coreValueMeta still answers provisional/imported for an absent entry.
+    // The write branch above must not have leaked into the read path.
+    expect(coreValueMeta(undefined, 'colors.primary')).toEqual(DEFAULT_CORE_VALUE_META);
+    expect(coreValueMeta({}, 'voice.tone').authority).toBe('provisional');
+    expect(coreValueMeta({}, 'voice.tone').provenance).toBe('imported');
+  });
+
+  it('INV-3 still refuses a system actor reaching confirmed or official', () => {
+    expect(() => assertActorMayReach(ai, 'confirmed')).toThrow(/authorized human/i);
+    expect(() => assertActorMayReach(ai, 'official')).toThrow(/authorized human/i);
   });
 
   it('a human editing a confirmed value KEEPS its authority', () => {

@@ -11,7 +11,7 @@
  * exactly what the router gave it. The moment the user drags a logo, its
  * slot no longer matches the auto map and it becomes untouchable.
  */
-import type { LogoSlot, OnboardingAsset } from '../types';
+import type { LogoSlot, OnboardingAsset } from './intakeTypes';
 
 /** Primary-worthiness by the classifier's slot hint. Lockups
  *  (primary/horizontal/vertical) outrank unhinted uploads (often a flat

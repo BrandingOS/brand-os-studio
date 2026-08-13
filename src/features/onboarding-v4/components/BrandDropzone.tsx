@@ -9,7 +9,7 @@ import {
   genId,
   isSupportedUploadFile,
   simulateUpload,
-} from '../utils/assetUpload';
+} from '@/shared/upload/intake';
 
 const MAX_ASSETS = 20;
 
@@ -30,6 +30,7 @@ export function BrandDropzone() {
     max: MAX_ASSETS,
     getCount: () => useV4Store.getState().assets.length,
     getAssets: () => useV4Store.getState().assets,
+    classify: (id: string, file: File) => { void import('../services/brandVision').then(m => m.classifyAndRoute(id, file)); },
     addAsset,
     updateAssetProgress,
     markAssetDone,

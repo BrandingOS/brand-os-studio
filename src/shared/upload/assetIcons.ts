@@ -1,4 +1,4 @@
-import type { AssetKind } from '../types';
+import type { AssetKind } from './intakeTypes';
 
 export function formatSize(b: number | undefined): string {
   if (b == null) return '';

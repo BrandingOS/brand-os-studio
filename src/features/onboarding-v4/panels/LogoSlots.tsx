@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useV4Store } from '../store/onboardingV4Store';
 import type { LogoSlot, OnboardingAsset } from '../types';
-import { buildAsset, imageAspectRatio, rasterFileToVariants, simulateUpload, svgFileToVariants } from '../utils/assetUpload';
-import { planPrimarySwap } from '../utils/logoFamily';
+import { buildAsset, imageAspectRatio, rasterFileToVariants, simulateUpload, svgFileToVariants } from '@/shared/upload/intake';
+import { planPrimarySwap } from '@/shared/upload/logoFamily';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 
 interface SlotDef {

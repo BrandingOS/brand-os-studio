@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import type { OnboardingAsset } from '../types';
+import type { OnboardingAsset } from './intakeTypes';
 import { formatSize, iconForMime } from './assetIcons';
 
 const LOGO_FILENAME = /(?:^|[\s_\-/.])(?:logo|wordmark|brand[-_ ]?mark|monogram|emblem|mark)(?:[\s_\-/.]|$)/i;
@@ -100,6 +100,14 @@ export interface QueueDeps {
   addAsset: (a: OnboardingAsset) => void;
   updateAssetProgress: (id: string, pct: number) => void;
   markAssetDone: (id: string, previewUrl?: string | null) => void;
+  /**
+   * Optional refinement pass for images, called after the item is queued.
+   *
+   * A CALLBACK rather than a direct call into the classifier, because intake
+   * must not know where the result goes. The heuristics above are the instant
+   * answer and remain the answer when no callback is supplied.
+   */
+  classify?: (assetId: string, file: File) => void;
 }
 
 /* ------------------------------------------------------------------ *
@@ -295,14 +303,10 @@ async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | n
     (p) => deps.updateAssetProgress(asset.id, p),
     () => deps.markAssetDone(asset.id, previewUrl)
   );
-  // Brand Vision: our trained model refines kind/isLogo/logoSlot async.
-  // Non-blocking — the heuristics above give the instant first guess and
-  // remain the answer if the service isn't running.
-  if (asset.kind === 'image') {
-    import('../services/brandVision')
-      .then(({ classifyAndRoute }) => classifyAndRoute(asset.id, file))
-      .catch(() => {});
-  }
+  // Optional refinement of kind/isLogo/logoSlot. Non-blocking — the heuristics
+  // above give the instant first guess and remain the answer when no classifier
+  // is wired up (the default).
+  if (asset.kind === 'image') deps.classify?.(asset.id, file);
   return asset.id;
 }
 

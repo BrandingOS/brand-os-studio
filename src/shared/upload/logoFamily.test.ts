@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { planPrimarySwap, primaryRank } from './logoFamily';
-import type { LogoSlot } from '../types';
+import type { LogoSlot } from './intakeTypes';
 
 type A = { id: string; logoSlot: LogoSlot | null; aiLogoSlot?: LogoSlot };
 const auto = (entries: Array<[string, LogoSlot]>) => new Map(entries);
