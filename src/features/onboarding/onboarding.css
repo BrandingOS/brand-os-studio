@@ -1,0 +1,545 @@
+/**
+ * Onboarding V3 — the approved design, in DS tokens only.
+ *
+ * The one idea this file encodes: a DASHED rule means a value has not been
+ * decided; a SOLID rule means the user decided it. It sits on the atomic value,
+ * never on the container — a card that dashes as a whole cannot show mixed
+ * state, and a page of dashed rectangles reads as a wireframe.
+ *
+ * Every colour, radius, shadow, duration and easing below is a `--ds-*` token.
+ * No new visual values are introduced.
+ */
+
+.onb {
+  min-height: 100dvh;
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-family: var(--ds-font);
+  display: flex;
+  flex-direction: column;
+}
+
+.onb-container {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--ds-space-6) var(--ds-space-6) var(--ds-space-12);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 640px) {
+  .onb-container { padding: var(--ds-space-4) var(--ds-space-4) 0; }
+}
+
+/* ── Chrome ─────────────────────────────────────────────────────── */
+.onb-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-6);
+}
+.onb-exit {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  padding: var(--ds-space-2);
+  border-radius: var(--ds-radius-control);
+}
+.onb-exit:hover { color: var(--ds-text); }
+
+/* Progress is a filling rule, not step dots: dots imply a fixed-length
+   gauntlet where every stop must be cleared, and every step here except the
+   name is skippable. */
+.onb-rule {
+  height: 2px;
+  background: var(--ds-hairline);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: var(--ds-space-6);
+}
+.onb-rule > i {
+  display: block;
+  height: 100%;
+  background: var(--ds-accent);
+  border-radius: 2px;
+  transition: width var(--ds-duration-panel) var(--ds-ease);
+}
+
+.onb-h {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.026em;
+  line-height: 1.12;
+  margin: 0 0 var(--ds-space-2);
+  text-wrap: balance;
+}
+.onb-h--brand { font-size: 31px; }
+@media (max-width: 640px) {
+  .onb-h { font-size: 21px; }
+  .onb-h--brand { font-size: 23px; }
+}
+.onb-sub {
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  line-height: 1.5;
+  margin: 0 0 var(--ds-space-6);
+}
+/* The line that carries the whole brand-first model: leaving is obviously
+   safe, which is what the model actually guarantees. */
+.onb-saved {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  margin: 0 0 var(--ds-space-6);
+}
+
+.onb-body { flex: 1; }
+
+/* ── Footer ─────────────────────────────────────────────────────── */
+.onb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  margin-top: var(--ds-space-8);
+  padding-top: var(--ds-space-5);
+  border-top: 1px solid var(--ds-hairline);
+}
+.onb-hint { font-size: 12.5px; color: var(--ds-text-muted); }
+.onb-hint-link {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ds-dash);
+  padding: var(--ds-space-1) 0;
+}
+.onb-hint-link:hover { color: var(--ds-text); }
+
+@media (max-width: 640px) {
+  .onb-foot {
+    position: sticky;
+    bottom: 0;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: var(--ds-space-2);
+    background: var(--ds-bg);
+    margin-top: var(--ds-space-5);
+    padding: var(--ds-space-3) 0 calc(var(--ds-space-4) + env(safe-area-inset-bottom));
+  }
+  .onb-foot .ds-btn { width: 100%; justify-content: center; }
+  .onb-hint, .onb-hint-link { text-align: center; }
+}
+
+/* ── Section shell — ALWAYS solid. It is furniture. ──────────────── */
+.onb-sec {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  padding: var(--ds-space-5);
+  margin-bottom: var(--ds-space-4);
+}
+.onb-sec-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-4);
+}
+.onb-sec-t {
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.onb-sec-m {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  font-family: var(--ds-font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ds-text-muted);
+}
+/* CONTEXTUAL count only. Never a bar, never a percentage, never a colour that
+   changes with how much is left — this must not become completion pressure. */
+.onb-count { white-space: nowrap; }
+
+.onb-bulk {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--ds-dash);
+  padding: 2px 0;
+}
+.onb-bulk:hover { color: var(--ds-text); }
+.onb-bulk:disabled { opacity: 0.35; cursor: default; text-decoration: none; }
+
+@media (max-width: 640px) {
+  .onb-sec-h { flex-direction: column; align-items: flex-start; gap: 2px; }
+}
+
+/* ── THE ATOMIC VALUE — dashed until decided ────────────────────── */
+.onb-v {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--ds-dash);
+  transition: border-color var(--ds-duration-panel) var(--ds-ease);
+}
+.onb-v[data-decided='true'] {
+  border-bottom-style: solid;
+  border-bottom-color: var(--ds-hairline);
+}
+.onb-v:last-child { border-bottom: none; }
+
+.onb-v-b { flex: 1; min-width: 0; }
+.onb-v-k {
+  font-family: var(--ds-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+  margin-bottom: 3px;
+}
+.onb-v-t {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ds-text);
+}
+/* Origin stays VISUALLY SECONDARY to the value it explains: smaller, muted,
+   and below. It must never compete with the brand content itself. */
+.onb-v-o {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ds-text-placeholder);
+  margin-top: 3px;
+}
+.onb-v[data-decided='true'] .onb-v-o { color: var(--ds-text-muted); }
+
+.onb-v-a {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.onb-accept {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ds-text);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition:
+    background var(--ds-duration-state) var(--ds-ease),
+    border-color var(--ds-duration-state) var(--ds-ease),
+    color var(--ds-duration-state) var(--ds-ease);
+}
+.onb-accept:hover { background: var(--ds-surface-hover); }
+.onb-accept:disabled { opacity: 0.5; cursor: default; }
+/* Confirmed is monochrome — semantic colour is reserved for warnings and
+   errors, so a settled value reads as settled rather than as "success". */
+.onb-v[data-decided='true'] .onb-accept {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ds-text-muted);
+  padding-left: 0;
+  padding-right: 0;
+}
+.onb-edit {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  padding: var(--ds-space-1) 6px;
+  border-radius: 6px;
+}
+.onb-edit:hover { color: var(--ds-text); background: var(--ds-surface-hover); }
+
+@media (max-width: 640px) {
+  /* Actions are always visible on touch — hover does not exist — and the
+     accept control becomes a full-width button rather than a small pill. */
+  .onb-v { flex-direction: column; align-items: stretch; gap: var(--ds-space-3); }
+  .onb-v-a { justify-content: stretch; }
+  .onb-accept { flex: 1; justify-content: center; padding: 10px 14px; }
+  .onb-v[data-decided='true'] .onb-accept { justify-content: flex-start; }
+}
+
+/* ── Swatches ───────────────────────────────────────────────────── */
+.onb-sw { display: flex; gap: var(--ds-space-3); flex-wrap: wrap; margin-top: 6px; }
+.onb-sw-i { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.onb-sw-c {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--ds-radius-tile);
+  border: 1px dashed var(--ds-dash-strong);
+  transition: border-color var(--ds-duration-panel) var(--ds-ease);
+}
+.onb-v[data-decided='true'] .onb-sw-c {
+  border-style: solid;
+  border-color: var(--ds-border-strong);
+}
+.onb-sw-h {
+  font-family: var(--ds-font-mono);
+  font-size: 9.5px;
+  color: var(--ds-text-placeholder);
+}
+
+/* ── Specimen ───────────────────────────────────────────────────── */
+.onb-specimen {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
+  text-wrap: balance;
+}
+@media (max-width: 640px) { .onb-specimen { font-size: 21px; } }
+
+/* ── Logo tiles ─────────────────────────────────────────────────── */
+.onb-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: var(--ds-space-3);
+}
+@media (max-width: 640px) { .onb-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+.onb-tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--ds-radius-tile);
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--ds-dash);
+  background:
+    conic-gradient(from 90deg at 50% 50%,
+      var(--ds-surface-subtle) 25%, var(--ds-surface-hover) 0 50%,
+      var(--ds-surface-subtle) 0 75%, var(--ds-surface-hover) 0) 0 0 / 14px 14px;
+  transition: border-color var(--ds-duration-panel) var(--ds-ease);
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.onb-tile[data-decided='true'] { border-style: solid; border-color: var(--ds-border); }
+.onb-tile--empty {
+  background: var(--ds-surface-subtle);
+  border-width: 2px;
+  color: var(--ds-text-placeholder);
+  font-size: 11.5px;
+}
+.onb-tile img { max-width: 72%; max-height: 66%; object-fit: contain; }
+.onb-tile-v {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-family: var(--ds-font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-hairline);
+  border-radius: var(--ds-radius-pill);
+  padding: 2px 7px;
+}
+
+/* ── Understanding — a transition, not a step ───────────────────── */
+.onb-understanding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-8);
+  padding: var(--ds-space-12) 0;
+}
+.onb-found {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  width: 100%;
+  max-width: 300px;
+}
+.onb-found-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--ds-text-secondary);
+  animation: onb-arrive var(--ds-duration-panel) var(--ds-ease) both;
+}
+.onb-found-line[data-pending='true'] { color: var(--ds-text-muted); }
+.onb-found-mark { flex: none; width: 13px; font-size: 12px; color: var(--ds-text); }
+.onb-found-line[data-pending='true'] .onb-found-mark { color: var(--ds-text-placeholder); }
+
+@keyframes onb-arrive {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ── Directions ─────────────────────────────────────────────────── */
+.onb-dirs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ds-space-3); }
+@media (max-width: 760px) { .onb-dirs { grid-template-columns: 1fr; } }
+
+.onb-dir {
+  text-align: left;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  padding: var(--ds-space-4);
+  cursor: pointer;
+  font: inherit;
+  color: var(--ds-text);
+  transition:
+    border-color var(--ds-duration-state) var(--ds-ease),
+    background var(--ds-duration-state) var(--ds-ease);
+}
+.onb-dir:hover { background: var(--ds-surface-hover); }
+.onb-dir[aria-pressed='true'] { border-color: var(--ds-border-strong); }
+.onb-dir-t { font-size: 14.5px; font-weight: 600; letter-spacing: -0.012em; margin-bottom: 2px; }
+.onb-dir-q { font-size: 12px; color: var(--ds-text-muted); margin-bottom: var(--ds-space-4); }
+.onb-dir-sw { display: flex; gap: 5px; margin-bottom: var(--ds-space-4); }
+.onb-dir-sw > i {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid var(--ds-border-strong);
+}
+.onb-dir-name { font-size: 20px; letter-spacing: -0.028em; }
+
+/* ── Inline editor — never a modal, page never moves ────────────── */
+.onb-edit-box {
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-focus-border);
+  border-radius: var(--ds-radius-control);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.onb-edit-a {
+  display: flex;
+  gap: var(--ds-space-2);
+  align-items: center;
+  margin-top: var(--ds-space-3);
+}
+.onb-edit-note {
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+  margin-left: auto;
+}
+@media (max-width: 640px) { .onb-edit-note { display: none; } }
+
+/* ── Material rows ──────────────────────────────────────────────── */
+.onb-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--ds-hairline);
+}
+.onb-row:last-child { border-bottom: none; }
+.onb-row-th {
+  width: 34px; height: 34px; flex: none;
+  border-radius: 7px;
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-hairline);
+  display: grid; place-items: center;
+  font-family: var(--ds-font-mono);
+  font-size: 9px;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+}
+.onb-row-th img { width: 100%; height: 100%; object-fit: cover; }
+.onb-row-n { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; }
+.onb-row-m {
+  font-family: var(--ds-font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.onb-row-x {
+  flex: none; background: none; border: none; font: inherit;
+  color: var(--ds-text-muted); cursor: pointer;
+  padding: var(--ds-space-2); border-radius: 6px; font-size: 13px;
+}
+.onb-row-x:hover { color: var(--ds-text); background: var(--ds-surface-hover); }
+.onb-row--error .onb-row-m { color: var(--ds-warning-fg); }
+
+/* ── Inline messages — never modal ──────────────────────────────── */
+.onb-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: var(--ds-radius-control);
+  padding: 11px var(--ds-space-4);
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: var(--ds-space-4);
+}
+.onb-note--quiet {
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-hairline);
+  color: var(--ds-text-secondary);
+}
+.onb-note--warn {
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-warning-border);
+  color: var(--ds-warning-fg);
+}
+.onb-note--error {
+  background: var(--ds-danger-bg);
+  border: 1px solid var(--ds-danger-border);
+  color: var(--ds-danger-fg);
+}
+.onb-note button {
+  margin-left: auto;
+  flex: none;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Arrival ────────────────────────────────────────────────────── */
+.onb-arrival { text-align: center; padding: var(--ds-space-12) 0; }
+.onb-arrival .onb-tiles {
+  grid-template-columns: repeat(3, 80px);
+  justify-content: center;
+  margin-bottom: var(--ds-space-6);
+}
+
+/* Motion only ever explains a change of state. */
+.onb-step { animation: onb-arrive var(--ds-duration-panel) var(--ds-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onb-step,
+  .onb-found-line { animation: none; }
+  .onb-v,
+  .onb-tile,
+  .onb-sw-c,
+  .onb-rule > i { transition: none; }
+}
