@@ -158,10 +158,17 @@ export function useAssetUpload(brandId: string | undefined) {
         // in the Library, so this is an UPDATE, not a create. Creating instead
         // would hit a duplicate-key error in Supabase, and would silently
         // append a second item with the same id in the local adapter.
+        //
+        // TOMBSTONES ARE INCLUDED in the lookup. A deleted item keeps its id —
+        // that is the point of a tombstone — and the projection hides it, so
+        // `stageAsset` mints the same content-hash id again with nothing to
+        // warn it. Creating on that id is the very duplicate-key collision this
+        // block exists to avoid.
         const staged = asset.id;
         const existingItem = (
-          await assets.listLibrary(brandId, { includeArchived: true })
+          await assets.listLibrary(brandId, { includeArchived: true, includeDeleted: true })
         ).find((a) => a.id === staged || a.legacyRefId === staged);
+        const isTombstone = Boolean(existingItem?.deletedAt);
 
         // CRITICAL for the create path: use the id the LIBRARY returns, never
         // the staged one. `stageAsset` mints `asset-<contentHash>`, which is not
@@ -171,14 +178,19 @@ export function useAssetUpload(brandId: string | undefined) {
         // logos silently stop resolving in production while working locally.
         // The staged id is preserved as `legacyRefId` so content-hash identity
         // (dedupe, replace) survives.
-        const created = existingItem
-          ? await assets.update(existingItem.id, payload)
-          : await assets.create({
-              brandId,
-              id: staged,
-              legacyRefId: staged,
-              ...payload,
-            });
+        const created =
+          existingItem && !isTombstone
+            ? await assets.update(existingItem.id, payload)
+            : await assets.create({
+                brandId,
+                // A tombstoned twin still holds `staged`, so let the store mint
+                // a fresh id. Re-uploading material you deleted is a NEW item,
+                // not a resurrection: the deletion stays a deletion, and its
+                // lineage record keeps pointing at what it always did.
+                ...(isTombstone ? {} : { id: staged }),
+                legacyRefId: staged,
+                ...payload,
+              });
 
         // Everything downstream must speak the Library's id.
         const stored: BrandAsset = { ...asset, id: created.id };

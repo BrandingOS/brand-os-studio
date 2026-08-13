@@ -120,3 +120,28 @@ describe('CodeRabbit Round 2 #13 — a replacement updates, it does not create',
     expect(items[0].legacyRefId).toBe('asset-legacy-1');
   });
 });
+
+describe('CodeRabbit Round 3 #15 — a tombstoned twin still holds the id', () => {
+  it('re-uploading deleted material creates a NEW item instead of colliding', async () => {
+    // A tombstone keeps its id, and the projection hides it — so `stageAsset`
+    // happily mints the same content-hash id again with nothing to warn it.
+    // Creating on that id is a duplicate-key error in Supabase.
+    const { result } = renderHook(() => useAssetUpload(BRAND_ID));
+    await act(async () => {
+      await result.current.upload(file(), { kind: 'image' });
+    });
+    const [first] = await assets.listLibrary(BRAND_ID);
+    await assets.softDelete(first.id);
+    expect(await assets.listLibrary(BRAND_ID)).toHaveLength(0);
+
+    await act(async () => {
+      await result.current.upload(file(), { kind: 'image' });
+    });
+
+    const live = await assets.listLibrary(BRAND_ID);
+    expect(live).toHaveLength(1);
+    // A new identity — the deletion stays a deletion.
+    expect(live[0].id).not.toBe(first.id);
+    expect((await assets.getById(first.id))?.deletedAt).toBeTruthy();
+  });
+});

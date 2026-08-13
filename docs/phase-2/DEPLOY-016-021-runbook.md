@@ -108,7 +108,8 @@ SELECT with_check FROM pg_policies
 -- 021b: onboarding scratch is owner-scoped
 SELECT policyname, qual FROM pg_policies
  WHERE schemaname = 'storage' AND policyname IN ('scratch_select_own','scratch_delete_own');
--- both quals must mention `owner`
+-- both quals must read `owner = auth.uid()`, with NO `owner IS NULL` escape —
+-- a null owner matches for every authenticated user, which is the same hole
 ```
 
 ## 3b. Validation status — VERIFIED on a clean database, 2026-08-13
@@ -130,7 +131,7 @@ Nothing was run against production.
 | Demo-brand write grants (020) | 0 remaining |
 | Deleting a folder that holds assets (017) | asset survives, `folder_id` nulled, **`brand_id` intact** |
 | `notifications` INSERT policy (021) | `user_id = auth.uid()`; cross-account insert denied |
-| `onboarding-scratch` select/delete (021) | owner-scoped; another user's object neither readable nor matched |
+| `onboarding-scratch` select/delete (021) | strictly owner-scoped; neither another user's object nor a null-owner object is visible |
 | `supabase/tests/016_core_meta_isolation.test.sql` | ✓ ALL 4 ASSERTIONS PASSED |
 | `supabase/tests/017_library_kit_context_isolation.test.sql` | ✓ ALL 5 ASSERTIONS PASSED |
 | `supabase/tests/021_cross_account_holes.test.sql` | ✓ ALL 021 RLS ASSERTIONS PASSED |
@@ -226,6 +227,15 @@ All of the following, not a subset:
   `down/017` drops Library organization, adoptions and context signals but
   **deletes no asset** — asset rows, bucket files, and the legacy
   `brand.assets[]` / `brand.brandAssets[]` arrays are untouched.
+
+  ⚠️ **Rolling back after users have used the release DOES discard data created
+  by it**, even though no pre-existing data is touched. Specifically: folders and
+  their assignments, Kit adoptions, context signals, and the Library flags
+  (favourite / dislike / use-as-reference / archive / tombstone) all live in
+  017 columns and tables, and server-side Kit state lives in 018's table. A
+  rollback removes them. Assets themselves survive — they become unfiled and
+  unflagged, and Kit state reverts to whatever each browser still holds locally.
+  Take a backup before rolling back a release that has been live.
 
 ## Deferred to a later step (deliberately NOT part of this deploy)
 

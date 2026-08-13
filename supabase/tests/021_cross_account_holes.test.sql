@@ -99,10 +99,14 @@ VALUES
   ('onboarding-scratch', 'a/logo.png',
    '11111111-1111-1111-1111-111111111111', '11111111-1111-1111-1111-111111111111'),
   ('onboarding-scratch', 'b/logo.png',
-   '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222');
+   '22222222-2222-2222-2222-222222222222', '22222222-2222-2222-2222-222222222222'),
+  -- A null-owner row: only the service role can create one. It must NOT be
+  -- visible to an ordinary authenticated user, because `owner IS NULL` matches
+  -- for everyone — the same hole this migration closes, in miniature.
+  ('onboarding-scratch', 'orphan/logo.png', NULL, NULL);
 
 DO $$
-DECLARE own_visible INT; others_visible INT;
+DECLARE own_visible INT; others_visible INT; ownerless_visible INT;
 BEGIN
   PERFORM pg_temp.act_as('11111111-1111-1111-1111-111111111111');
 
@@ -119,6 +123,11 @@ BEGIN
    WHERE bucket_id = 'onboarding-scratch'
      AND owner = '22222222-2222-2222-2222-222222222222';
 
+  SELECT count(*) INTO ownerless_visible
+    FROM storage.objects
+   WHERE bucket_id = 'onboarding-scratch'
+     AND owner IS NULL;
+
   PERFORM pg_temp.back_to_super();
 
   IF own_visible <> 1 THEN
@@ -126,6 +135,9 @@ BEGIN
   END IF;
   IF others_visible > 0 THEN
     RAISE EXCEPTION 'FAILED: cross-account leak — read another user''s onboarding upload';
+  END IF;
+  IF ownerless_visible > 0 THEN
+    RAISE EXCEPTION 'FAILED: a null-owner object is visible — that predicate matches every user';
   END IF;
   RAISE NOTICE 'PASSED: onboarding scratch reads are owner-scoped';
 END $$;
@@ -146,9 +158,9 @@ BEGIN
     FROM pg_policies
    WHERE schemaname = 'storage'
      AND policyname IN ('scratch_select_own', 'scratch_delete_own')
-     AND qual NOT LIKE '%owner%';
+     AND (qual NOT LIKE '%owner%' OR qual LIKE '%owner IS NULL%');
   IF unscoped > 0 THEN
-    RAISE EXCEPTION 'FAILED: an onboarding-scratch "own" policy is not owner-scoped';
+    RAISE EXCEPTION 'FAILED: an onboarding-scratch "own" policy is not STRICTLY owner-scoped';
   END IF;
 
   RAISE NOTICE 'PASSED: final policy set carries no unrestricted insert and no unscoped "own" policy';

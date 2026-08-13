@@ -40,10 +40,12 @@
 -- That is robust regardless of the object-key convention, unlike a path-prefix
 -- rule which would silently stop matching if the key format changed.
 --
--- Anonymous onboarding (uploads made before sign-in) has `owner IS NULL`;
--- those objects stay readable by their session as before, because a NULL owner
--- cannot be attributed to another user either. They remain writable only
--- through the unchanged insert policy.
+-- Strict equality, with NO `owner IS NULL` escape. A null owner is not "this
+-- session's own upload" — it matches for EVERY authenticated user, which is the
+-- same cross-account hole in miniature. It is also unreachable: the unchanged
+-- `scratch_insert_own` policy is `TO authenticated`, so a client upload always
+-- carries an owner. Rows with a null owner can only come from the service role,
+-- and server-managed objects have no reason to be client-readable.
 --
 -- Reversible: supabase/migrations/down/021_close_cross_account_holes.down.sql
 -- (deliberately a no-op — see that file.)
@@ -62,7 +64,7 @@ ON storage.objects FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'onboarding-scratch'
-  AND (owner = (SELECT auth.uid()) OR owner IS NULL)
+  AND owner = (SELECT auth.uid())
 );
 
 DROP POLICY IF EXISTS "scratch_delete_own" ON storage.objects;
@@ -71,7 +73,7 @@ ON storage.objects FOR DELETE
 TO authenticated
 USING (
   bucket_id = 'onboarding-scratch'
-  AND (owner = (SELECT auth.uid()) OR owner IS NULL)
+  AND owner = (SELECT auth.uid())
 );
 
 -- Guard rail: fail loudly if either hole is somehow still open afterwards.
@@ -90,10 +92,11 @@ BEGIN
   SELECT count(*) INTO unscoped
     FROM pg_policies
    WHERE schemaname = 'storage' AND policyname IN ('scratch_select_own', 'scratch_delete_own')
-     AND qual NOT LIKE '%owner%';
+     AND (qual NOT LIKE '%owner%' OR qual LIKE '%owner IS NULL%');
 
   IF unscoped > 0 THEN
-    RAISE EXCEPTION 'onboarding-scratch policies are still not owner-scoped after 021';
+    RAISE EXCEPTION 'onboarding-scratch policies are not strictly owner-scoped after 021 '
+      '(missing owner check, or a null-owner escape that matches for every user)';
   END IF;
 
   RAISE NOTICE 'Cross-account holes closed: notification inserts are self-scoped; onboarding scratch is owner-scoped.';
