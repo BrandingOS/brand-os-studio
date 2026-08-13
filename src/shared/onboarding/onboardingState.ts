@@ -37,6 +37,50 @@ export interface OnboardingState {
   startedAt: string;
   /** ISO timestamp, or null while onboarding is unfinished. */
   completedAt: string | null;
+  /**
+   * Core paths that hold a COMPATIBILITY PLACEHOLDER, not a chosen value.
+   *
+   * `brands.primary_color` is `text not null` and the canonical schema requires
+   * `colors.primary.hex` to match a hex pattern and `typography.primary.family`
+   * to be non-empty — so a brand that has only been named cannot be persisted
+   * with those genuinely absent. Rather than fabricate a brand colour, the
+   * create path writes a documented neutral and records the path here.
+   *
+   * This list lives in ONBOARDING state, deliberately below the canonical
+   * projection: it is not Core, it carries no authority, and Core metadata
+   * records nothing for these paths. Anything asking "did the user choose a
+   * primary colour?" can ask `isPlaceholderPath`, and the entry is dropped the
+   * moment a real value is written.
+   *
+   * Absent on every brand that predates this, which reads as "no placeholders".
+   */
+  placeholders?: string[];
+}
+
+/**
+ * The neutral stand-ins.
+ *
+ * Chosen to be obviously unclaimed rather than plausible: a mid-grey is not a
+ * brand colour, and the system font stack is not a typeface decision. They
+ * exist to satisfy a NOT NULL column and a zod pattern, nothing more.
+ */
+export const CORE_PLACEHOLDERS = {
+  'colors.primary': '#8A877E',
+  'typography.primary': 'system-ui',
+} as const;
+
+/** Paths that currently hold a placeholder rather than a chosen value. */
+export function placeholderPaths(brand: Pick<Brand, 'onboarding'> | null | undefined): string[] {
+  const raw = (brand?.onboarding as { placeholders?: unknown } | undefined)?.placeholders;
+  return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
+}
+
+/** True when this Core path holds a placeholder — never a value the user chose. */
+export function isPlaceholderPath(
+  brand: Pick<Brand, 'onboarding'> | null | undefined,
+  path: string,
+): boolean {
+  return placeholderPaths(brand).includes(path);
 }
 
 function isStep(v: unknown): v is OnboardingStep {
@@ -56,11 +100,15 @@ export function readOnboardingState(brand: Pick<Brand, 'onboarding'> | null | un
   // A completed marker is history, not state. Everything downstream treats a
   // finished brand exactly like a brand that never onboarded.
   if (typeof o.completedAt === 'string' && o.completedAt) return null;
+  const placeholders = Array.isArray(o.placeholders)
+    ? o.placeholders.filter((p): p is string => typeof p === 'string')
+    : [];
   return {
     step: isStep(o.step) ? o.step : 'basics',
     branch: o.branch === 'new' ? 'new' : 'existing',
     startedAt: typeof o.startedAt === 'string' ? o.startedAt : new Date().toISOString(),
     completedAt: null,
+    ...(placeholders.length ? { placeholders } : {}),
   };
 }
 
@@ -74,9 +122,38 @@ export function resumeStep(brand: Pick<Brand, 'onboarding'> | null | undefined):
   return readOnboardingState(brand)?.step ?? 'basics';
 }
 
-/** A fresh marker, for the moment the brand is named. */
-export function startedState(branch: OnboardingBranch = 'existing'): OnboardingState {
-  return { step: 'basics', branch, startedAt: new Date().toISOString(), completedAt: null };
+/**
+ * A fresh marker, for the moment the brand is named.
+ *
+ * `placeholders` lists what the create path had to invent to satisfy
+ * persistence. A brand created with real values passes an empty list.
+ */
+export function startedState(
+  branch: OnboardingBranch = 'existing',
+  placeholders: string[] = [],
+): OnboardingState {
+  return {
+    step: 'basics',
+    branch,
+    startedAt: new Date().toISOString(),
+    completedAt: null,
+    ...(placeholders.length ? { placeholders } : {}),
+  };
+}
+
+/**
+ * Drops a path from the placeholder list once a real value is written.
+ *
+ * Returns `null` when nothing changed, so callers can skip a pointless save.
+ */
+export function clearPlaceholders(
+  current: OnboardingState | null,
+  written: readonly string[],
+): OnboardingState | null {
+  if (!current?.placeholders?.length) return null;
+  const next = current.placeholders.filter((p) => !written.includes(p));
+  if (next.length === current.placeholders.length) return null;
+  return { ...current, ...(next.length ? { placeholders: next } : { placeholders: undefined }) };
 }
 
 /**
