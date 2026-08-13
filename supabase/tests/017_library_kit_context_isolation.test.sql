@@ -184,6 +184,67 @@ BEGIN
 END $$;
 RESET ROLE;
 
+-- ── Cross-brand folder references are impossible (CodeRabbit #11) ───────────
+-- RLS governs which rows you may READ. It does not constrain which id you may
+-- WRITE into a foreign key, so folder references need composite FKs.
+INSERT INTO public.brands (id, user_id, workspace_id, name, slug, primary_color) VALUES
+  ('dddddddd-dddd-dddd-dddd-dddddddddd02', '11111111-1111-1111-1111-111111111111',
+   'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Brand A2', 'brand-a2-017', '#222222');
+
+DO $$
+DECLARE parent_blocked BOOLEAN := false; asset_blocked BOOLEAN := false;
+BEGIN
+  BEGIN
+    INSERT INTO public.brand_folders (brand_id, name, parent_id)
+      VALUES ('dddddddd-dddd-dddd-dddd-dddddddddd02', 'stolen',
+              'f0f0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0');
+  EXCEPTION WHEN foreign_key_violation THEN parent_blocked := true;
+  END;
+
+  BEGIN
+    INSERT INTO public.assets (brand_id, name, type, category, url, folder_id)
+      VALUES ('dddddddd-dddd-dddd-dddd-dddddddddd02', 'x', 'image', 'photo', 'u',
+              'f0f0f0f0-f0f0-f0f0-f0f0-f0f0f0f0f0f0');
+  EXCEPTION WHEN foreign_key_violation THEN asset_blocked := true;
+  END;
+
+  IF NOT parent_blocked THEN
+    RAISE EXCEPTION 'FAILED: a folder was parented under another brand''s folder';
+  END IF;
+  IF NOT asset_blocked THEN
+    RAISE EXCEPTION 'FAILED: an asset was filed into another brand''s folder';
+  END IF;
+  RAISE NOTICE 'PASSED: folder references cannot cross a brand boundary';
+END $$;
+
+-- ── Adoptions are immutable (CodeRabbit #12) ────────────────────────────────
+DO $$
+DECLARE update_policies INT;
+BEGIN
+  SELECT count(*) INTO update_policies
+    FROM pg_policies
+   WHERE tablename = 'brand_kit_adoptions' AND cmd = 'UPDATE';
+
+  IF update_policies > 0 THEN
+    RAISE EXCEPTION 'FAILED: an UPDATE policy exists on brand_kit_adoptions — adopted_by could be rewritten';
+  END IF;
+  RAISE NOTICE 'PASSED: adoptions are immutable (no UPDATE policy; adopted_by cannot be reattributed)';
+END $$;
+
+-- ── The demo-brand blanket grants are gone (CodeRabbit #6) ──────────────────
+DO $$
+DECLARE demo_policies INT;
+BEGIN
+  SELECT count(*) INTO demo_policies
+    FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'brands' AND policyname ILIKE '%demo%';
+
+  IF demo_policies > 0 THEN
+    RAISE EXCEPTION 'FAILED: % demo-brand policy/policies still grant blanket access', demo_policies;
+  END IF;
+  RAISE NOTICE 'PASSED: no demo-brand blanket grants on public.brands';
+END $$;
+
 DO $$ BEGIN RAISE NOTICE '✓ ALL 017 RLS ASSERTIONS PASSED'; END $$;
 
 ROLLBACK;

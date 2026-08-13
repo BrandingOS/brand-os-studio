@@ -91,7 +91,28 @@ export async function promoteCoreValue(
     identityMeta: recordCoreAuthorityChange(brand.identityMeta, path, to, actor),
   };
   assertCanonicalBrand(next);
-  return repo.save(next);
+
+  try {
+    return await repo.save(next);
+  } catch (saveError) {
+    // Ordering alone only protects one direction. If the adoption landed and
+    // the authority write then failed, the Kit would hold a core_value row for
+    // a value that is not official — the divergence this op exists to prevent.
+    // Undo the adoption so both sides return to their prior state.
+    if (to === 'official' && opts.adoptions) {
+      try {
+        await opts.adoptions.unadopt(brandId, 'core_value', path);
+      } catch {
+        // Compensation failed too: report the ORIGINAL failure, but make the
+        // orphaned adoption discoverable rather than silent.
+        console.error(
+          `[promoteCoreValue] Persist failed AND the compensating unadopt failed for ` +
+            `${brandId}/${path}. An adoption row may exist without official authority.`,
+        );
+      }
+    }
+    throw saveError;
+  }
 }
 
 /**
@@ -118,8 +139,10 @@ export async function demoteCoreValue(
   const floor: Authority =
     to === 'provisional' && isAtLeast(current.authority, 'confirmed') ? 'confirmed' : to;
 
+  let removedAdoption = false;
   if (isAtLeast(current.authority, 'official') && !isAtLeast(floor, 'official') && opts.adoptions) {
     await opts.adoptions.unadopt(brandId, 'core_value', path);
+    removedAdoption = true;
   }
 
   const next: CanonicalBrand = {
@@ -127,5 +150,28 @@ export async function demoteCoreValue(
     identityMeta: recordCoreAuthorityChange(brand.identityMeta, path, floor, actor),
   };
   assertCanonicalBrand(next);
-  return repo.save(next);
+
+  try {
+    return await repo.save(next);
+  } catch (saveError) {
+    // Mirror of the promote path: the row was already removed, so a failed
+    // save would leave the value official with no adoption backing it.
+    if (removedAdoption && opts.adoptions) {
+      try {
+        await opts.adoptions.adopt({
+          brandId,
+          targetKind: 'core_value',
+          targetRef: path,
+          actor,
+          viaCorePromotion: true,
+        });
+      } catch {
+        console.error(
+          `[demoteCoreValue] Persist failed AND the compensating re-adopt failed for ` +
+            `${brandId}/${path}. The value may remain official with no adoption record.`,
+        );
+      }
+    }
+    throw saveError;
+  }
 }

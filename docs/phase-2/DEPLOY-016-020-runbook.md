@@ -1,63 +1,54 @@
 # Deploy runbook — migrations 016 + 017 (Brand System Foundation, Phase 0)
 
-> ## ⛔ REQUIRED BEFORE PRODUCTION DEPLOYMENT
+> ## ✅ RELEASE GATE — CLEARED 2026-08-13
 >
-> Two **pre-existing** database defects were found while validating 016/017
-> locally (details in §3b). Neither is caused by these migrations, and neither
-> is optional: both must be corrected before 016/017 go to production.
+> Two pre-existing database defects previously blocked this deployment. Both are
+> now FIXED and verified on a clean database; this section is the single source
+> of truth for that gate.
 >
-> **B1 — a fresh migration chain must apply cleanly from 001 → latest.**
-> Today `supabase db reset` fails on three legacy migrations, so the schema in
-> production cannot be reproduced from this repository. Until that is true, a
-> deploy cannot be rehearsed against a faithful copy of production, and no
-> contributor can stand up a local database. Fix: repair or supersede
-> `20250905210043`, `20250905210159` (demo-brand INSERTs whose `user_id`
-> subquery is NULL on an empty `auth.users`) and `20250905213158`
-> (`CREATE POLICY … FOR SELECT … WITH CHECK`, which Postgres rejects outright).
-> **Done when** `supabase db reset` completes with no errors on a clean machine.
+> **T087 — a fresh chain applies cleanly.** `supabase db reset` now runs
+> 001 → 020 with **zero errors** (previously it died on the first legacy file).
+> Nine legacy files were repaired: demo seeds that assumed a specific
+> `auth.users` row, `WITH CHECK` on a SELECT policy, `'demo-brand-1'` written
+> into a uuid column, duplicate object creation, and an assumed landing-page
+> table. Editing them is safe because every one of those versions is already
+> recorded as applied in production, and Supabase applies by version.
 >
-> **B2 — the stale `brands_select_policy` / `has_role` type mismatch must be
-> corrected.** The policy calls `has_role(auth.uid(), 'admin'::app_role)` while
-> migration 006 retyped `user_roles.role` to `app_role_v2`, so the comparison
-> raises `operator does not exist: public.app_role_v2 = public.app_role`.
-> Owners never hit it (the `user_id = auth.uid()` branch short-circuits); a
-> NON-owner reading a brand does. The policy is superseded by migration 001's
-> `brands_select`. Fix: confirm whether `brands_select_policy`,
-> `brands_update_policy` and `brands_delete_policy` still exist in production
-> and, if so, drop them in a new migration. **Done when** a non-owner
-> `SELECT` on `public.brands` returns rows or zero rows, never an error.
+> **T088 — the `has_role` / `app_role` mismatch is fixed at the root.**
+> Migration 006 could not drop the old function because five policies depended
+> on it, so its enum swap never completed — that incomplete swap WAS the
+> mismatch. 006 now drops the dependants first and recreates the three
+> non-superseded ones against the corrected enum; 019 drops the three
+> superseded `brands_*_policy` idempotently. Verified: a non-owner `SELECT` on
+> `public.brands` returns without error.
 >
-> Both were verified locally: dropping the three stale policies is what made
-> the 016 RLS suite pass end to end.
-
-Same shape as 013/014/015. **Additive, non-destructive, reversible.** Two
-migrations ship together because they are the schema half of one feature
-(`specs/001-brand-system-foundation`).
-
-- **016** adds two nullable JSONB columns to `public.brands`: `identity_meta`
-  (Brand Core authority/provenance sidecar) and `business_info` (reusable
-  company facts). No RLS change — the existing `brands` policies govern them.
-- **017** adds nine additive columns to `public.assets` (Library semantics),
-  plus three new brand-scoped tables: `brand_folders`, `brand_kit_adoptions`,
-  `brand_context_signals`, each with membership-aware RLS via
-  `public.is_brand_member()`.
-
-The application is **tolerant of the pre-016/017 state**, by the same pattern
-015 used: the canonical brand model defaults missing `identity_meta` at read
-time, and the Supabase adapters carry `42703` missing-column tolerance. So
-shipping the code before the deploy causes no breakage and no data loss.
-
-**Nothing reads these columns yet.** Phase 0 is schema + contracts only.
+> There is no remaining stop condition on the migration chain. The statement-wise
+> `psql` workaround previously described in §3b is obsolete and has been removed.
 
 ## 1. Commands
 
+**`db push` applies EVERY local migration not recorded remotely, in timestamp
+order.** The linked history ends at 015, so this deploys **five** migrations,
+not two. Confirm the pending set before running it.
+
 ```bash
-supabase db push --linked   # applies 016 then 017; 011–015 already remote, skipped
+supabase migration list --linked   # expect 016-020 local-only
+supabase db push --linked
 ```
 
-Migration files:
-- `supabase/migrations/20260813000000_016_brand_core_and_business_info.sql`
-- `supabase/migrations/20260813010000_017_brand_library_kit_context.sql`
+Migration files, in apply order:
+- `20260813000000_016_brand_core_and_business_info.sql` — 2 columns on `brands`
+- `20260813010000_017_brand_library_kit_context.sql` — Library columns + 3 tables
+- `20260813020000_018_brand_kit_state.sql` — server home for kit state
+- `20260813030000_019_drop_stale_brands_policies.sql` — removes the T088 policies
+- `20260813040000_020_drop_demo_brand_grants.sql` — removes blanket demo-brand write grants
+
+**Rollback order is the reverse: 020 → 019 → 018 → 017 → 016.** Two of those
+down files are deliberate NO-OPs, because reversing them would restore a known
+defect: `down/019` would re-break non-owner brand reads, and `down/020` would
+restore a policy letting any authenticated user rewrite the demo brand row
+(including `user_id`). `down/018` drops server-side kit state — kit data returns
+to being browser-local, which is where it lived before 018.
 
 ## 2. Checks BEFORE
 

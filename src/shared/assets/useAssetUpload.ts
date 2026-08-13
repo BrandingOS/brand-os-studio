@@ -136,9 +136,18 @@ export function useAssetUpload(brandId: string | undefined) {
           file: { size: file.size, mime: file.type },
         });
 
-        await assets.create({
+        // CRITICAL: use the id the LIBRARY returns, never the staged one.
+        // `stageAsset` mints `asset-<contentHash>`, which is not a uuid, so
+        // SupabaseAssetsService cannot honour it and the database generates its
+        // own. Pointing logoSystem at the staged id would leave every
+        // authenticated upload referencing an asset that does not exist —
+        // logos silently stop resolving in production while working locally.
+        // The staged id is preserved as `legacyRefId` so content-hash identity
+        // (dedupe, replace) survives.
+        const created = await assets.create({
           brandId,
           id: asset.id,
+          legacyRefId: asset.id,
           name: asset.name,
           type: opts.role ? 'logo' : kind === 'logo' ? 'logo' : 'image',
           category: opts.role ? 'logo' : 'photo',
@@ -154,24 +163,27 @@ export function useAssetUpload(brandId: string | undefined) {
           origin: 'uploaded',
         });
 
+        // Everything downstream must speak the Library's id.
+        const stored: BrandAsset = { ...asset, id: created.id };
+
         if (opts.role) {
           // Only the logoSystem REF is written to the brand — the asset itself
           // lives in the Library, and the projection makes it resolvable to the
           // synchronous readers on the next store hydration.
-          const patch = stageLogoRef(brand, opts.role, asset.id, {
+          const patch = stageLogoRef(brand, opts.role, created.id, {
             description: opts.description,
             usage: opts.usage,
           });
           await updateBrand(brandId, patch);
           if (!opts.silent) toast.success('Logo saved');
-          return asset;
+          return stored;
         }
 
         // Non-logo assets need no brand write at all now: re-project so the
         // new item is visible through the legacy readers immediately.
         await reproject(brandId);
         if (!opts.silent) toast.success('Asset saved');
-        return asset;
+        return stored;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Upload failed');
         return null;

@@ -21,9 +21,29 @@ import type { Asset } from '@/shared/types/brand';
 import type { IAssetsService } from '@/core/types/services';
 import type { MockBrand } from './mockBrand';
 
-/** Matches a Library item to a Setup entry by the url it renders. */
+/**
+ * Matches a Library item to a Setup entry by the url it renders.
+ *
+ * TOMBSTONES ARE INCLUDED deliberately. A deleted item's url may still sit in
+ * a Setup slot, so skipping tombstones here would re-create the asset on the
+ * next sync and silently undo an explicit deletion. A tombstone means "the
+ * user removed this" — it counts as known.
+ */
 function urlIndex(items: Asset[]): Set<string> {
-  return new Set(items.filter((a) => a.deletedAt == null).map((a) => a.url));
+  const seen = new Set<string>();
+  for (const a of items) {
+    if (a.url) seen.add(a.url);
+    // A tombstone has its url cleared on delete, so match on what it rendered.
+    if (a.deletedAt != null && a.metadata?.originalName) {
+      seen.add(a.metadata.originalName);
+    }
+  }
+  return seen;
+}
+
+/** True when this Setup entry corresponds to something already known. */
+function isKnown(index: Set<string>, url: string, originalName?: string): boolean {
+  return index.has(url) || (originalName ? index.has(originalName) : false);
 }
 
 export interface SetupLibrarySyncResult {
@@ -36,13 +56,19 @@ export async function syncSetupLibrary(
   mock: MockBrand,
   assets: IAssetsService,
 ): Promise<SetupLibrarySyncResult> {
-  const existing = urlIndex(await assets.listForBrand(brandId));
+  // TOMBSTONES INCLUDED. Without them a deleted photo whose url still sits in
+  // a Setup slot would be re-created on the next save, silently undoing an
+  // explicit deletion.
+  const existing = urlIndex(
+    await assets.listLibrary(brandId, { includeArchived: true, includeDeleted: true }),
+  );
   let createdPhotos = 0;
   let createdIcons = 0;
 
   for (const photo of mock.photos ?? []) {
     const src = photo?.src;
-    if (!src || existing.has(src)) continue;
+    const originalName = `photo-${photo?.slot ?? photo?.id}`;
+    if (!src || isKnown(existing, src, originalName)) continue;
     await assets.create({
       brandId,
       name: `Photo ${photo.slot ?? ''}`.trim(),
@@ -51,7 +77,7 @@ export async function syncSetupLibrary(
       source: 'upload',
       url: src,
       tags: ['setup'],
-      metadata: { originalName: `photo-${photo.slot ?? photo.id}` },
+      metadata: { originalName },
       origin: 'uploaded',
     });
     existing.add(src);
@@ -59,7 +85,7 @@ export async function syncSetupLibrary(
   }
 
   for (const icon of mock.icons ?? []) {
-    if (!icon || existing.has(icon)) continue;
+    if (!icon || isKnown(existing, icon)) continue;
     await assets.create({
       brandId,
       name: 'Icon',

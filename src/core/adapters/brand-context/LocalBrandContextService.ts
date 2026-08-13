@@ -75,6 +75,7 @@ export class LocalBrandContextService implements IBrandContextService {
     return q.limit ? rows.slice(0, q.limit) : rows;
   }
 
+  /** No-op when the id is not local — the caller may also be deleting server-side. */
   async remove(id: string): Promise<void> {
     for (let i = 0; i < localStorage.length; i += 1) {
       const k = localStorage.key(i);

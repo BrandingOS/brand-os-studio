@@ -41,7 +41,12 @@ async function withLibraryProjection<T extends Brand | undefined | null>(brand: 
   if (!brand) return brand;
   try {
     const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
-    const items: Asset[] = await assets.listForBrand(brand.id);
+    // Tombstones included: the projection needs them to subtract stale stored
+    // aliases of deleted assets (see libraryProjection).
+    const items: Asset[] = await assets.listLibrary(brand.id, {
+      includeArchived: true,
+      includeDeleted: true,
+    });
     return projectLibraryOntoBrand(brand, items) as T;
   } catch {
     // The projection is an enhancement, never a gate: if the Library cannot be
@@ -223,7 +228,17 @@ export const useBrandStore = create<BrandStore>()(
               // recorder's zero-count is the evidence for.
               if (import.meta.env.DEV) throw routingError;
               recordCoreWriteFallback(id, routedKeys, routingError);
-              Object.assign(rest, core);
+              // MERGE, never assign. splitCorePatch cuts `guidelines` in two —
+              // core keeps strategy/aboutSections, rest keeps colorPalette,
+              // iconography, socialMedia, applications. A plain Object.assign
+              // would overwrite rest.guidelines with the Core-only half, and
+              // since the service persists `guidelines` as a whole value, the
+              // caller's other sections would be erased from the record.
+              const { guidelines: coreGuidelines, ...coreRest } = core;
+              Object.assign(rest, coreRest);
+              if (coreGuidelines) {
+                rest.guidelines = { ...(rest.guidelines ?? {}), ...coreGuidelines };
+              }
             }
           }
 

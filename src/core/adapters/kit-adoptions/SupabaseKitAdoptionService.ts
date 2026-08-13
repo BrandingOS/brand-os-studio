@@ -58,7 +58,9 @@ export class SupabaseKitAdoptionService implements IKitAdoptionService {
       .order('adopted_at', { ascending: true });
 
     if (error) {
-      if (isMissingTable(error)) return this.local.list(brandId);
+      // An empty Kit is the truthful answer for a real brand whose table is not
+      // deployed; local rows for such a brand should not exist (adopt refuses).
+      if (isMissingTable(error)) return [];
       throw error;
     }
     return (data ?? []).map(mapRow);
@@ -66,6 +68,7 @@ export class SupabaseKitAdoptionService implements IKitAdoptionService {
 
   async adopt(input: AdoptInput): Promise<KitAdoption> {
     assertAdoptable(input);
+    // A dev-bypass brand has no server row at all, so local IS its home.
     if (this.isLocalBrand(input.brandId)) return this.local.adopt(input);
 
     const { data, error } = await table()
@@ -83,7 +86,18 @@ export class SupabaseKitAdoptionService implements IKitAdoptionService {
       .single();
 
     if (error) {
-      if (isMissingTable(error)) return this.local.adopt(input);
+      // Do NOT fall back to localStorage for a real brand. Once migration 017
+      // lands, `list` reads the database and the local row becomes invisible —
+      // the user would be told the item is officially adopted while the Kit
+      // shows nothing. Failing loudly is the honest outcome for a write that
+      // must be durable and attributable.
+      if (isMissingTable(error)) {
+        throw new Error(
+          '[SupabaseKitAdoptionService] Cannot record this adoption: migration 017 ' +
+            '(brand_kit_adoptions) is not deployed. Refusing to store it locally, ' +
+            'where it would be silently hidden once the table exists.',
+        );
+      }
       throw error;
     }
     return mapRow(data);
@@ -116,7 +130,7 @@ export class SupabaseKitAdoptionService implements IKitAdoptionService {
       .maybeSingle();
 
     if (error) {
-      if (isMissingTable(error)) return this.local.isAdopted(brandId, targetKind, targetRef);
+      if (isMissingTable(error)) return false;
       throw error;
     }
     return Boolean(data);

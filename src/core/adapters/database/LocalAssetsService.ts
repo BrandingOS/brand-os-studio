@@ -298,17 +298,40 @@ export class LocalAssetsService implements IAssetsService {
     return updated;
   }
 
-  /** Items fall back to unfiled — deleting a folder never deletes material. */
+  /**
+   * Items fall back to unfiled — deleting a folder never deletes material.
+   *
+   * Descendants go with it, matching the database, where `parent_id` is
+   * `ON DELETE CASCADE`. Removing only the named folder would leave child
+   * folders pointing at a parent that no longer exists — dangling locally and
+   * divergent from the server for the same user action.
+   */
   async deleteFolder(id: string): Promise<void> {
     const hit = this.locateFolder(id);
     if (!hit) return;
-    hit.folders.splice(hit.index, 1);
-    this.writeFolders(hit.brandId, hit.folders);
+
+    // Collect the whole subtree before removing anything.
+    const doomed = new Set<string>([id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const f of hit.folders) {
+        if (f.parentId && doomed.has(f.parentId) && !doomed.has(f.id)) {
+          doomed.add(f.id);
+          grew = true;
+        }
+      }
+    }
+
+    this.writeFolders(
+      hit.brandId,
+      hit.folders.filter((f) => !doomed.has(f.id)),
+    );
 
     const assets = this.read(hit.brandId);
     let touched = false;
     for (const a of assets) {
-      if (a.folderId === id) {
+      if (a.folderId && doomed.has(a.folderId)) {
         a.folderId = null;
         touched = true;
       }

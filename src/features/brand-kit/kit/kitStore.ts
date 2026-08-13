@@ -76,8 +76,18 @@ export type KitStoreState = {
   clearError: (key: DeliverableKey) => void;
 };
 
-/** In-flight hydrate guard — see `hydrate`. */
-let hydratingFor: string | null = null;
+/**
+ * In-flight hydrations, keyed by brand id.
+ *
+ * A single-slot guard had two defects. A second call for the SAME brand
+ * returned an already-resolved promise, so `await hydrate(id, brand)` continued
+ * with `brandId: null` and empty deliverables — a component mounting twice in
+ * one tick reads an empty kit. And with two different brands in flight, the
+ * later call overwrote the slot and its `finally` cleared the guard while the
+ * first was still loading, so the winner was decided by completion order rather
+ * than call order. Returning the SAME promise per brand fixes both.
+ */
+const hydrating = new Map<string, Promise<void>>();
 
 function persist(brandId: string | null, deliverables: Record<DeliverableKey, DeliverableRecord>) {
   if (!brandId) return;
@@ -208,11 +218,14 @@ export const useKitStore = create<KitStoreState>((set, get) => {
     generatingKeys: [],
 
     hydrate: async (brandId, brand) => {
-      if (get().brandId === brandId || hydratingFor === brandId) return;
-      // Guards a double-hydrate now that the load is awaited: two mounts in the
-      // same tick would otherwise both miss the brandId check and race.
-      hydratingFor = brandId;
-      try {
+      if (get().brandId === brandId) return;
+
+      // Join the in-flight hydration for this brand rather than returning
+      // early, so every caller awaits real completion.
+      const existing = hydrating.get(brandId);
+      if (existing) return existing;
+
+      const run = (async () => {
         const repo = getKitStateRepository();
         let state = await repo.load(brandId);
         if (!state) {
@@ -220,9 +233,12 @@ export const useKitStore = create<KitStoreState>((set, get) => {
           await repo.save(brandId, state);
         }
         set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
-      } finally {
-        hydratingFor = null;
-      }
+      })().finally(() => {
+        hydrating.delete(brandId);
+      });
+
+      hydrating.set(brandId, run);
+      return run;
     },
 
     generate: (keys, ctx, opts) => runGeneration(keys, ctx, opts),

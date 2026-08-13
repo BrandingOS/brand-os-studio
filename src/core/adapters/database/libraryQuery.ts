@@ -30,9 +30,10 @@ export function isArchived(a: Asset): boolean {
 }
 
 export function matchesLibraryQuery(a: Asset, q: LibraryQuery = {}): boolean {
-  // A tombstone is an inert lineage record, not Library content. It is never
-  // listed, by any query — `getById` is how lineage resolves it.
-  if (isTombstoned(a)) return false;
+  // A tombstone is an inert lineage record, not Library content, so it is not
+  // listed for display. `includeDeleted` is the deliberate exception for the
+  // two callers that must SEE deletions to honour them.
+  if (isTombstoned(a) && !q.includeDeleted) return false;
   if (!q.includeArchived && isArchived(a)) return false;
 
   if (q.folderId !== undefined) {
@@ -44,9 +45,11 @@ export function matchesLibraryQuery(a: Asset, q: LibraryQuery = {}): boolean {
   if (q.references && !a.useAsReference) return false;
 
   if (q.search) {
-    const needle = q.search.toLowerCase();
-    const haystack = `${a.name} ${(a.tags ?? []).join(' ')}`.toLowerCase();
-    if (!haystack.includes(needle)) return false;
+    // NAME ONLY — matching the documented `name ILIKE %$%` above. This
+    // predicate previously also searched tags, so the two adapters returned
+    // different result sets for the same query: exactly the divergence this
+    // module exists to prevent. Tag filtering has its own `tags` option.
+    if (!a.name.toLowerCase().includes(q.search.toLowerCase())) return false;
   }
   if (q.tags?.length) {
     const own = new Set(a.tags ?? []);

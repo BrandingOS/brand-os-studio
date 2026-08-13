@@ -135,6 +135,13 @@ export interface LibraryQuery {
   references?: boolean;
   /** Default false — archived items are hidden from default views. */
   includeArchived?: boolean;
+  /**
+   * Default false. Tombstones are lineage records, not Library content, so
+   * they are never listed for display. Two callers legitimately need them:
+   * the Setup sync (a tombstoned url must not be re-created) and the Library
+   * projection (a stored alias of a deleted asset must be subtracted).
+   */
+  includeDeleted?: boolean;
   search?: string;
   tags?: string[];
 }

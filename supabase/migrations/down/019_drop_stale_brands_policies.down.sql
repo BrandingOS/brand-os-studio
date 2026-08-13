@@ -1,30 +1,18 @@
--- Down migration for 019 — restores the stale brands_*_policy set.
+-- Down migration for 019 — deliberately a NO-OP.
 --
--- Provided for symmetry with the rest of the chain, but think before running
--- it: these policies carry the app_role/app_role_v2 defect that 019 exists to
--- remove, so restoring them re-introduces `ERROR: operator does not exist` for
--- any NON-OWNER reading a brand. They are also redundant with migration 001's
--- membership policies, which remain in force either way.
+-- 019 removes `brands_select_policy` / `brands_update_policy` /
+-- `brands_delete_policy`. An earlier version of this file recreated them for
+-- symmetry with the rest of the chain. That was wrong: those policies are
+-- exactly the ones the forward migration identifies as failing for non-owner
+-- requests, so restoring them would re-break collaborator reads, updates and
+-- deletes on public.brands — a rollback that causes an outage is not a
+-- rollback.
 --
--- Recreated with USING (not the original invalid WITH CHECK on SELECT).
+-- They are also redundant: migration 001's membership policies
+-- (`brands_select` / `brands_insert` / `brands_update` / `brands_delete`)
+-- express the same intent correctly and remain in force whether or not this
+-- file runs. There is therefore nothing to restore.
 
-DROP POLICY IF EXISTS brands_select_policy ON public.brands;
-CREATE POLICY "brands_select_policy"
-ON public.brands
-FOR SELECT
-TO authenticated
-USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
-
-DROP POLICY IF EXISTS brands_update_policy ON public.brands;
-CREATE POLICY "brands_update_policy"
-ON public.brands
-FOR UPDATE
-TO authenticated
-USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
-
-DROP POLICY IF EXISTS brands_delete_policy ON public.brands;
-CREATE POLICY "brands_delete_policy"
-ON public.brands
-FOR DELETE
-TO authenticated
-USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+DO $$ BEGIN
+  RAISE NOTICE 'down/019 is intentionally a no-op: the stale brands_*_policy set is superseded by migration 001 and carried a known defect; it is not restored.';
+END $$;

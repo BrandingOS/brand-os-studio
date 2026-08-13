@@ -104,10 +104,13 @@ CREATE TABLE IF NOT EXISTS public.brand_folders (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   brand_id   UUID NOT NULL REFERENCES public.brands(id) ON DELETE CASCADE,
   name       TEXT NOT NULL,
-  parent_id  UUID REFERENCES public.brand_folders(id) ON DELETE CASCADE,
+  parent_id  UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (brand_id, parent_id, name)
+  UNIQUE (brand_id, parent_id, name),
+  -- Target for the composite foreign keys below, so a folder reference can
+  -- never cross a brand boundary.
+  UNIQUE (id, brand_id)
 );
 
 -- Postgres treats NULLs as DISTINCT in UNIQUE, so the constraint above does not
@@ -118,14 +121,29 @@ CREATE UNIQUE INDEX IF NOT EXISTS brand_folders_root_name_unique
 
 CREATE INDEX IF NOT EXISTS idx_brand_folders_brand ON public.brand_folders (brand_id);
 
+-- A folder's parent must belong to the SAME brand. A plain FK on `id` alone
+-- would let an editor who knows another brand's folder UUID nest under it —
+-- and deleting that foreign parent would then cascade into this brand's
+-- folders. RLS governs which rows you can READ; it does not constrain which
+-- id you may WRITE into a foreign key.
+DO $fk$
+BEGIN
+  ALTER TABLE public.brand_folders
+    ADD CONSTRAINT brand_folders_parent_same_brand
+    FOREIGN KEY (parent_id, brand_id)
+    REFERENCES public.brand_folders (id, brand_id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; WHEN duplicate_table THEN NULL; END $fk$;
+
+-- Same reasoning for an asset's folder: the pair must match, so an asset can
+-- never be filed into another brand's folder.
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint WHERE conname = 'assets_folder_fk'
   ) THEN
     ALTER TABLE public.assets
-      ADD CONSTRAINT assets_folder_fk FOREIGN KEY (folder_id)
-      REFERENCES public.brand_folders(id) ON DELETE SET NULL NOT VALID;
+      ADD CONSTRAINT assets_folder_fk FOREIGN KEY (folder_id, brand_id)
+      REFERENCES public.brand_folders (id, brand_id) ON DELETE SET NULL NOT VALID;
   END IF;
 END $$;
 
@@ -205,9 +223,13 @@ CREATE POLICY brand_kit_adoptions_insert ON public.brand_kit_adoptions
     public.is_brand_member(brand_id, 'editor')
     AND adopted_by = (SELECT auth.uid())
   );
+-- NO UPDATE POLICY, deliberately. An adoption is a historical fact: who
+-- adopted what, and when. An UPDATE policy that checked only membership would
+-- let an editor rewrite `adopted_by` to another user, defeating the
+-- self-attribution the INSERT policy enforces and corrupting provenance.
+-- Changing an adoption means un-adopting and adopting again, which records the
+-- new decision honestly.
 DROP POLICY IF EXISTS brand_kit_adoptions_update ON public.brand_kit_adoptions;
-CREATE POLICY brand_kit_adoptions_update ON public.brand_kit_adoptions
-  FOR UPDATE USING (public.is_brand_member(brand_id, 'editor'));
 DROP POLICY IF EXISTS brand_kit_adoptions_delete ON public.brand_kit_adoptions;
 CREATE POLICY brand_kit_adoptions_delete ON public.brand_kit_adoptions
   FOR DELETE USING (public.is_brand_member(brand_id, 'admin'));

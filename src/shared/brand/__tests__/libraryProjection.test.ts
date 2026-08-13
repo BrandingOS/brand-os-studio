@@ -138,3 +138,34 @@ describe('unIngestedCount — the retirement gauge', () => {
     expect(unIngestedCount(b, lib)).toBe(0);
   });
 });
+
+describe('CodeRabbit #24 — a deleted asset must stop rendering', () => {
+  const stored = (id: string) =>
+    ({ id, kind: 'logo', name: id, formats: { svg: { url: 'u', size: 1 } }, metadata: { createdAt: 'x', version: 1 } } as BrandAsset);
+
+  it('subtracts a stored entry whose id was tombstoned', () => {
+    const projected = projectLibraryOntoBrand(
+      brand({ brandAssets: [stored('lib_1')] }),
+      [libItem({ id: 'lib_1', deletedAt: new Date(), url: '' })],
+    );
+    expect(projected.brandAssets).toEqual([]);
+  });
+
+  it('subtracts a stored entry matched by the tombstone\'s legacyRefId', () => {
+    // The ingest case: the Library row has a new uuid, the stored array still
+    // carries the old id. Deleting must remove BOTH aliases.
+    const projected = projectLibraryOntoBrand(
+      brand({ brandAssets: [stored('old_1')] }),
+      [libItem({ id: 'uuid-x', legacyRefId: 'old_1', deletedAt: new Date(), url: '' })],
+    );
+    expect(projected.brandAssets).toEqual([]);
+  });
+
+  it('leaves unrelated stored entries alone', () => {
+    const projected = projectLibraryOntoBrand(
+      brand({ brandAssets: [stored('keep_me'), stored('lib_1')] }),
+      [libItem({ id: 'lib_1', deletedAt: new Date(), url: '' })],
+    );
+    expect(projected.brandAssets?.map((a) => a.id)).toEqual(['keep_me']);
+  });
+});

@@ -97,11 +97,20 @@ function colorChangesFrom(patch: Partial<Brand>): BrandColorChanges | null {
   const changes: BrandColorChanges = {};
   const cs = patch.colorSystem;
 
+  // An EMPTY string is a value the user typed, not an absent field. Treating
+  // `''` as absent made a cleared colour silently disappear: splitCorePatch
+  // still routed the key (it is not `undefined`), colorChangesFrom returned
+  // null, applyCorePatch wrote nothing, and the store re-read the unchanged
+  // brand — so the edit vanished with no error. `hex: ''` reaches
+  // changeBrandColors, which validates it at the boundary and rejects it
+  // loudly instead.
+  const token = (v: string | undefined) => (v === undefined ? undefined : { hex: v });
+
   // The full v3 token wins over the scalar: it carries name/rgb/cmyk/pantone
   // that a bare hex would drop.
-  const primary = cs?.primary ?? (patch.primaryColor ? { hex: patch.primaryColor } : undefined);
-  const secondary = cs?.secondary ?? (patch.secondaryColor ? { hex: patch.secondaryColor } : undefined);
-  const accent = cs?.accent ?? (patch.accentColor ? { hex: patch.accentColor } : undefined);
+  const primary = cs?.primary ?? token(patch.primaryColor);
+  const secondary = cs?.secondary ?? token(patch.secondaryColor);
+  const accent = cs?.accent ?? token(patch.accentColor);
   const neutrals: ColorToken[] | undefined =
     cs?.neutrals ?? patch.neutrals?.map((hex) => ({ hex }));
 

@@ -97,9 +97,23 @@ export function projectLibraryOntoBrand(brand: Brand, library: Asset[]): Brand {
   const live = library.filter((a) => a.deletedAt == null && Boolean(a.url));
   const projected = live.map(assetToBrandAsset);
 
+  // Identities the Library has DELETED. A stored entry carrying one of them is
+  // a stale alias of deleted material: keeping it would leave a tombstoned
+  // asset rendering forever through the legacy readers. Both identifiers count
+  // — the item's own id and the legacy id it was ingested from.
+  const deleted = new Set<string>();
+  for (const a of library) {
+    if (a.deletedAt == null) continue;
+    deleted.add(a.id);
+    if (a.legacyRefId) deleted.add(a.legacyRefId);
+  }
+
   const byId = new Map<string, BrandAsset>();
   // Stored entries first, so a Library item with the same id overwrites it.
-  for (const a of brand.brandAssets ?? []) byId.set(a.id, a);
+  for (const a of brand.brandAssets ?? []) {
+    if (deleted.has(a.id)) continue;
+    byId.set(a.id, a);
+  }
   for (const a of projected) byId.set(a.id, a);
 
   return { ...brand, brandAssets: [...byId.values()] };

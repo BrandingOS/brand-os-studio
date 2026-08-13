@@ -157,8 +157,19 @@ export class SupabaseAssetsService implements IAssetsService {
     return this.patchRow(id, updateData);
   }
 
-  /** Shared write path so every Library mutation gets the same tolerance. */
-  private async patchRow(id: string, updateData: Record<string, unknown>): Promise<Asset> {
+  /**
+   * Shared write path so every Library mutation gets the same tolerance.
+   *
+   * `requireLibraryColumns` is for mutations whose WHOLE MEANING lives in a 017
+   * column — tombstoning and archiving. For those, degrading is not graceful:
+   * it returns an unchanged row that looks like a success. They opt out of the
+   * tolerance and get a real error instead.
+   */
+  private async patchRow(
+    id: string,
+    updateData: Record<string, unknown>,
+    opts: { requireLibraryColumns?: boolean } = {},
+  ): Promise<Asset> {
     const { data, error } = await assetsTable()
       .update(updateData)
       .eq('id', id)
@@ -167,6 +178,13 @@ export class SupabaseAssetsService implements IAssetsService {
 
     if (error) {
       if (isMissingColumn(error)) {
+        if (opts.requireLibraryColumns) {
+          throw new Error(
+            `[SupabaseAssetsService] Cannot record this change: migration 017 is not ` +
+              `deployed, so the required column is missing (${error.message}). Refusing ` +
+              'to report success for a write that did not happen.',
+          );
+        }
         const safe = { ...updateData };
         for (const c of LIBRARY_COLUMNS) delete safe[c];
         if (!Object.keys(safe).length) {
@@ -205,9 +223,9 @@ export class SupabaseAssetsService implements IAssetsService {
     // Mirrors `matchesLibraryQuery` — see libraryQuery.ts for the mapping.
     let query = assetsTable()
       .select('*')
-      .eq('brand_id', brandId)
-      .is('deleted_at', null);
+      .eq('brand_id', brandId);
 
+    if (!q.includeDeleted) query = query.is('deleted_at', null);
     if (!q.includeArchived) query = query.is('archived_at', null);
     if (q.folderId === null) query = query.is('folder_id', null);
     else if (q.folderId !== undefined) query = query.eq('folder_id', q.folderId);
@@ -262,11 +280,13 @@ export class SupabaseAssetsService implements IAssetsService {
   }
 
   async archive(id: string): Promise<Asset> {
-    return this.patchRow(id, { archived_at: new Date().toISOString() });
+    return this.patchRow(id, { archived_at: new Date().toISOString() }, {
+      requireLibraryColumns: true,
+    });
   }
 
   async unarchive(id: string): Promise<Asset> {
-    return this.patchRow(id, { archived_at: null });
+    return this.patchRow(id, { archived_at: null }, { requireLibraryColumns: true });
   }
 
   /**
@@ -292,24 +312,38 @@ export class SupabaseAssetsService implements IAssetsService {
     const placedIn = current.provenance?.relations?.placedInDesignIds ?? [];
     if (placedIn.length) return { ok: false, reason: 'referenced', workItemIds: placedIn };
 
+    // Read the path BEFORE the tombstone clears it, but do not act on it yet.
     const { data: pathRow } = await supabase
       .from('assets')
       .select('storage_path')
       .eq('id', id)
       .maybeSingle();
-    if (pathRow?.storage_path) {
-      await supabase.storage.from('brand-assets').remove([pathRow.storage_path]);
-    }
+    const storagePath = (pathRow as { storage_path?: string } | null)?.storage_path;
 
-    await this.patchRow(id, {
-      deleted_at: new Date().toISOString(),
-      url: '',
-      storage_path: null,
-      is_favorite: false,
-      is_disliked: false,
-      use_as_reference: false,
-      folder_id: null,
-    });
+    // ORDER IS THE POINT. The tombstone is written first and is allowed to
+    // throw: removing the stored object before knowing the row was marked
+    // deleted is unrecoverable data loss reported as success — exactly what
+    // happens pre-017, where the tolerance would strip `deleted_at` and leave
+    // the item visible with its file already gone.
+    await this.patchRow(
+      id,
+      {
+        deleted_at: new Date().toISOString(),
+        url: '',
+        storage_path: null,
+        is_favorite: false,
+        is_disliked: false,
+        use_as_reference: false,
+        folder_id: null,
+      },
+      { requireLibraryColumns: true },
+    );
+
+    // Only now is the file safe to remove. A failure here leaves an orphaned
+    // object, which is recoverable; the reverse is not.
+    if (storagePath) {
+      await supabase.storage.from('brand-assets').remove([storagePath]);
+    }
     return { ok: true };
   }
 

@@ -13,8 +13,10 @@
  *     the existing item by that key and skips it. Running twice produces the
  *     same Library as running once.
  *
- *  2. **Dry-run first.** `dryRun: true` performs ZERO writes and returns the
- *     same report the real run would. Read it before you commit.
+ *  2. **Dry-run first.** `dryRun: true` performs ZERO writes and reports what
+ *     WOULD be created. It cannot predict logo rewrites or unresolved slots —
+ *     those depend on the ids the store actually mints — so it flags them as
+ *     unpredicted (`logoFindingsPredicted: false`) instead of reporting empty.
  *
  *  3. **Original ids preserved where the store allows it.** A rewrite of a
  *     `logoSystem` ref is the one step in this whole phase that can strand a
@@ -66,6 +68,14 @@ export interface LibraryIngestReport {
   brandPatch: Partial<Brand>;
   /** Slots that do NOT resolve after ingest — investigate before retiring legacy data. */
   unresolvedLogoSlots: string[];
+  /**
+   * FALSE in a dry run: `logoRewrites` and `unresolvedLogoSlots` cannot be
+   * predicted without asking the store for real ids, so they are reported as
+   * unknown rather than as empty. An operator reading "no logo rewrites
+   * needed" from a dry run would otherwise be reassured about the one step
+   * documented as able to strand a logo.
+   */
+  logoFindingsPredicted: boolean;
 }
 
 /** Every addressable logo slot, as [path, getter, setter]. */
@@ -286,15 +296,18 @@ export async function ingestBrandLibrary(
     logoRewrites,
     brandPatch: logoRewrites.length && !dryRun ? { logoSystem: nextLogos } : {},
     unresolvedLogoSlots,
+    logoFindingsPredicted: !dryRun,
   };
 }
 
 /** One-line summary for a console/dev report. */
 export function formatIngestReport(r: LibraryIngestReport): string {
   const mode = r.dryRun ? 'DRY RUN' : 'applied';
-  const rewrites = r.logoRewrites.length
-    ? `, ${r.logoRewrites.length} logo ref rewrite(s)`
-    : ', no logo rewrites needed';
+  const rewrites = !r.logoFindingsPredicted
+    ? ', logo rewrites NOT PREDICTED in dry run'
+    : r.logoRewrites.length
+      ? `, ${r.logoRewrites.length} logo ref rewrite(s)`
+      : ', no logo rewrites needed';
   const unresolved = r.unresolvedLogoSlots.length
     ? ` — UNRESOLVED SLOTS: ${r.unresolvedLogoSlots.join(', ')}`
     : '';

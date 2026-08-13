@@ -237,3 +237,47 @@ describe('legacy surface still works', () => {
     expect(updated).toMatchObject({ name: 'renamed.svg', tags: ['x'] });
   });
 });
+
+describe('CodeRabbit review — regressions', () => {
+  it('#23 deleting a folder removes its DESCENDANTS too, matching ON DELETE CASCADE', async () => {
+    const root = await svc.createFolder({ brandId: BRAND, name: 'Root' });
+    const child = await svc.createFolder({ brandId: BRAND, name: 'Child', parentId: root.id });
+    const grandchild = await svc.createFolder({ brandId: BRAND, name: 'GC', parentId: child.id });
+    const asset = await svc.create(input());
+    await svc.moveToFolder(asset.id, grandchild.id);
+
+    await svc.deleteFolder(root.id);
+
+    expect(await svc.listFolders(BRAND)).toEqual([]);
+    // Material is never deleted — it just becomes unfiled.
+    expect((await svc.getById(asset.id))?.folderId).toBeNull();
+  });
+
+  it('#23 an unrelated sibling tree survives', async () => {
+    const a = await svc.createFolder({ brandId: BRAND, name: 'A' });
+    await svc.createFolder({ brandId: BRAND, name: 'A-child', parentId: a.id });
+    const b = await svc.createFolder({ brandId: BRAND, name: 'B' });
+
+    await svc.deleteFolder(a.id);
+
+    expect((await svc.listFolders(BRAND)).map((f) => f.id)).toEqual([b.id]);
+  });
+
+  it('#22 search matches NAME only, so both adapters agree', async () => {
+    await svc.create(input({ name: 'mark.svg', tags: ['hero'] }));
+    // 'hero' is a tag, not part of the name — the SQL path cannot match it.
+    expect(await svc.listLibrary(BRAND, { search: 'hero' })).toHaveLength(0);
+    expect(await svc.listLibrary(BRAND, { tags: ['hero'] })).toHaveLength(1);
+    expect(await svc.listLibrary(BRAND, { search: 'mark' })).toHaveLength(1);
+  });
+
+  it('#19/#24 includeDeleted surfaces tombstones for the callers that need them', async () => {
+    const a = await svc.create(input());
+    await svc.softDelete(a.id);
+
+    expect(await svc.listLibrary(BRAND)).toHaveLength(0);
+    const withTombs = await svc.listLibrary(BRAND, { includeDeleted: true, includeArchived: true });
+    expect(withTombs.map((x) => x.id)).toEqual([a.id]);
+    expect(withTombs[0].deletedAt).toBeTruthy();
+  });
+});

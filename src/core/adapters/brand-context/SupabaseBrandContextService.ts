@@ -28,6 +28,13 @@ function isMissingTable(error: { code?: string; message?: string } | null): bool
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Newest signals considered by `summarize`. Note the consequence:
+ * `signalCount` then reports the window, not the lifetime total. That is the
+ * right trade — the summary is about current preferences, not history size.
+ */
+const SUMMARY_WINDOW = 500;
+
 function mapRow(r: any): ContextSignal {
   return {
     id: r.id,
@@ -83,11 +90,22 @@ export class SupabaseBrandContextService implements IBrandContextService {
   }
 
   async remove(id: string): Promise<void> {
+    // `record` and `list` fall back to local storage for a non-uuid brand or a
+    // missing table, so signals genuinely live there and are visible through
+    // `list`. Deleting only server-side would make those undeletable, breaking
+    // the "inspectable AND correctable" promise. Signal ids are unique, so
+    // attempting both is safe.
     const { error } = await table().delete().eq('id', id);
     if (error && !isMissingTable(error)) throw error;
+    await this.local.remove(id);
   }
 
   async summarize(brandId: string): Promise<ContextSummary> {
-    return summarizeSignals(await this.list(brandId));
+    // BOUNDED. Server-side signals are uncapped and grow with every favourite,
+    // dislike, reference and approval, so an unbounded read would transfer the
+    // whole history on every call and degrade over a brand's life. The rule is
+    // "latest signal per target wins", so a newest-first window yields the same
+    // answer for every target seen recently.
+    return summarizeSignals(await this.list(brandId, { limit: SUMMARY_WINDOW }));
   }
 }

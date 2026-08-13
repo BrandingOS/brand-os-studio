@@ -220,3 +220,32 @@ describe('softDelete', () => {
     expect(calls.some((c) => c.op === 'update')).toBe(false);
   });
 });
+
+describe('CodeRabbit C1 — a tombstone must precede storage removal', () => {
+  it('does NOT remove the stored object when the tombstone write fails', async () => {
+    // Pre-017: patchRow's tolerance would strip deleted_at. Removing the file
+    // first and reporting ok:true would be unrecoverable loss dressed as success.
+    resultQueue = [
+      { data: ROW, error: null },                    // getById
+      { data: { storage_path: 'b1/logo.svg' }, error: null }, // path lookup
+      MISSING_COLUMN,                                // tombstone write fails
+    ];
+    await expect(new SupabaseAssetsService().softDelete('a1')).rejects.toThrow(
+      /migration 017 is not deployed|Refusing to report success/i,
+    );
+    expect(calls.some((c) => c.op === 'remove')).toBe(false);
+  });
+
+  it('archive fails loudly rather than returning an unchanged row', async () => {
+    resultQueue = [MISSING_COLUMN];
+    await expect(new SupabaseAssetsService().archive('a1')).rejects.toThrow(
+      /Refusing to report success/i,
+    );
+  });
+
+  it('ordinary updates still degrade gracefully — tolerance is not removed', async () => {
+    resultQueue = [MISSING_COLUMN, { data: ROW, error: null }];
+    const updated = await new SupabaseAssetsService().update('a1', { name: 'renamed' });
+    expect(updated.id).toBe('a1');
+  });
+});

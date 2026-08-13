@@ -236,12 +236,28 @@ describe('id preservation and logoSystem', () => {
 });
 
 describe('report formatting', () => {
-  it('summarises a clean run', async () => {
+  it('summarises a dry run WITHOUT claiming there are no rewrites', async () => {
+    // The dry run cannot know which ids the store will mint, so it must not
+    // reassure an operator about the one step that can strand a logo.
     const brand = makeBrand({ brandAssets: [brandAsset('a_1')] });
-    const line = formatIngestReport(await ingestBrandLibrary(brand, svc, { dryRun: true }));
+    const report = await ingestBrandLibrary(brand, svc, { dryRun: true });
+    const line = formatIngestReport(report);
+
+    expect(report.logoFindingsPredicted).toBe(false);
     expect(line).toContain('DRY RUN');
     expect(line).toContain('1 created');
-    expect(line).toContain('no logo rewrites needed');
+    expect(line).toContain('NOT PREDICTED');
+    expect(line).not.toContain('no logo rewrites needed');
+  });
+
+  it('a REAL run does report logo findings', async () => {
+    const brand = makeBrand({
+      brandAssets: [brandAsset('a_1')],
+      logoSystem: { primary: { assetId: 'a_1' } },
+    });
+    const report = await ingestBrandLibrary(brand, svc);
+    expect(report.logoFindingsPredicted).toBe(true);
+    expect(formatIngestReport(report)).toContain('no logo rewrites needed');
   });
 
   it('shouts about unresolved slots', async () => {
