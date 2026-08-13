@@ -203,7 +203,7 @@ utilities, and the flow shell. Every user story depends on this phase.
 - [X] T066 [US5] Implement backward navigation in `OnboardingFlow.tsx` including the browser Back control, via history entries per step, with no data loss (FR-034)
 - [X] T067 [US5] Implement resume in `OnboardingFlow.tsx` — `/onboard-brand/:slug` reads the marker and lands on the recorded step, in any session on any device (FR-035)
 - [X] T068 [US5] Surface unfinished brands in `src/pages/dashboard/brands` and the `AppRail` brand switcher — marked unfinished, resumable, and deletable (FR-009, SC-010)
-- [ ] T069 [US5] Add a `DsConfirmDialog` discard flow for an unfinished brand, naming what will be lost, in `src/features/onboarding/components/DiscardBrandDialog.tsx`
+- [X] T069 [US5] Add a `DsConfirmDialog` discard flow for an unfinished brand, naming what will be lost, in `src/features/onboarding/components/DiscardBrandDialog.tsx`
 - [X] T070 [US5] Preserve `?then=` across every step, branch switch, redirect and resumed session in `OnboardingFlow.tsx` (FR-036)
 - [X] T071 [US5] Make every step skippable except the name in `OnboardingFlow.tsx`, so a name-only brand can finish (FR-033)
 
@@ -231,9 +231,9 @@ utilities, and the flow shell. Every user story depends on this phase.
 - [X] T078 Update `src/features/dev-product-map/registry.ts` and `src/features/dev-features/features-registry.ts` to describe the single surviving flow
 - [X] T079 Verify no dangling references: `rg -n "onboarding-v4|cosmos\.css" src/` returns nothing
 - [X] T080 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
-- [ ] T081 Run the RLS suite: `supabase db query --linked -f supabase/tests/022_onboarding_state.test.sql`
+- [ ] T081 **BLOCKED on a production deploy** — migration 022 is not applied to `brandos-prod`, so the suite cannot run (`42703: column "onboarding" does not exist`). This is expected: the code tolerates the column's absence by design. Run after deploying 022: `supabase db query --linked -f supabase/tests/022_onboarding_state.test.sql`
 - [X] T082 Execute quickstart.md S1–S12 on both storage backends and record the results
-- [ ] T083 [P] Update `CLAUDE.md`'s onboarding section and `specs/002-onboarding-v3/spec.md` status to reflect the shipped flow
+- [X] T083 [P] Update `CLAUDE.md`'s onboarding section and `specs/002-onboarding-v3/spec.md` status to reflect the shipped flow
 
 ---
 

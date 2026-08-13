@@ -1,10 +1,11 @@
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { isUnfinished, isPlaceholderPath, unfinishedLabel } from '@/shared/onboarding/onboardingState';
+import { DiscardBrandDialog } from '@/features/onboarding/components/DiscardBrandDialog';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Presentation, Edit, Folder, Loader2, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
@@ -13,6 +14,7 @@ import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 
 export default function BrandsPage() {
   const navigate = useNavigate();
+  const [discarding, setDiscarding] = useState<{ id: string; name: string } | null>(null);
   const { list: brands, loadAll, isLoading } = useBrandStore();
   const uiPreference = useUiPreference();
 
@@ -171,6 +173,15 @@ export default function BrandsPage() {
                           </Button>
                         </>
                       )}
+                      {wip && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDiscarding({ id: brand.id, name: brand.name })}
+                        >
+                          Discard
+                        </Button>
+                      )}
                       <Button
                         className="gap-2"
                         variant={wip ? 'outline' : 'default'}
@@ -190,6 +201,17 @@ export default function BrandsPage() {
           </div>
         )}
       </div>
+
+      <DiscardBrandDialog
+        open={discarding !== null}
+        brandName={discarding?.name ?? ''}
+        onCancel={() => setDiscarding(null)}
+        onConfirm={() => {
+          const target = discarding;
+          setDiscarding(null);
+          if (target) void useBrandStore.getState().delete(target.id);
+        }}
+      />
     </DashboardLayout>
   );
 }

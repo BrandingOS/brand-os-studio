@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-13
 
-**Status**: Draft
+**Status**: Implemented (2026-08-14) — see tasks.md for the task-level record
 
 **Input**: User description: "002 — Onboarding V3. Replace the two divergent onboarding creation flows with one canonical onboarding system. A user can bring an existing brand or start a new one, let BrandingOS understand what they provide, review/correct that understanding, then create a properly structured Brand that continues into Setup V3."
 

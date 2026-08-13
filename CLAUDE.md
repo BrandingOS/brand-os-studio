@@ -906,21 +906,69 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen
 
-## Onboarding v4 — submit mapping notes (post-QA, 2026-08-10)
+## Onboarding V3 — `/onboard-brand` (spec 002, shipped 2026-08-14)
 
-`SetUpScreen.submit()` is the single place free-text sections become the
-brand record. Current invariants (each fixed a QA mismapping — keep them):
+The ONE onboarding flow. `features/onboarding-v4/` and the two-path
+`/onboard-brand` + `/onboard-brand/create` split are deleted, not disabled.
+
+**Brand-first.** Naming the brand at step 1 CREATES it; every step after
+writes to that real record. This is what makes resume work across sessions
+and devices, and it is why there is no draft, no staging store and no
+commit pass at the end.
+
+Three screens: **Tell us about your brand** (name required; description and
+website optional — the user is never asked to classify themselves as
+having-a-brand or starting-new) → **Bring anything you have** (one intake
+surface, or "Nothing yet? Help me start" for three generated directions) →
+**Review what BrandingOS found**. Understanding is a TRANSITION between
+material and review, never a fourth step.
+
+**A proposal is a Core value below `confirmed`.** There is no proposal
+store. That is why proposals survive a closed tab and why the review is a
+filter over Core rather than a join across two stores. `hydrateReview()`
+rebuilds the screen from the brand on resume.
+
+**Per-value acceptance is the rule.** `understanding/acceptance.ts` is the
+ONLY module that promotes, the target is hard-coded to `confirmed`, and
+"Looks right" is a LOOP over the per-value act — never a section-level
+authority. Reading, opening or scrolling past a proposal confirms nothing.
+An edit writes as the user AND promotes, because a human write alone lands
+at `provisional`. Nothing reaches `official`; that is Kit adoption.
+
+**No undo.** `demoteCoreValue` floors at `confirmed` (001's rule that
+un-adopting is not un-deciding), so a confirmation cannot be walked back
+through the canonical ops. Rather than ship a button that silently does
+nothing, changing your mind is an edit, or a change in Setup.
+
+**Persistence sentinels.** `brands.primary_color` is NOT NULL and the
+canonical schema requires a valid hex and a non-empty font family, so a
+name-only brand cannot persist those as absent. It gets a documented
+neutral (`CORE_PLACEHOLDERS`) and the path is recorded in
+`brand.onboarding.placeholders` — BELOW the canonical projection. Those
+paths carry no Core metadata, never render as chosen values, are excluded
+from `buildCreationContext` via `sentinelPaths` so they never reach an AI
+prompt, and are retired permanently by the first real write. Never treat a
+sentinel as brand truth; ask `isPlaceholderPath`.
+
+**The count is contextual.** "X of Y decided" is per SECTION. There is no
+global counter, no progress bar, no percentage and no completion language
+anywhere — finishing with nothing confirmed is a legitimate outcome.
+
+**Origin text is secondary.** "From your description" explains where a
+belief came from; it is smaller, muted and below the value, and must never
+compete with the brand content.
+
+Migration 022 adds `brands.onboarding`. Its absence is tolerated on both
+create and update — the flow degrades to non-resumable, never to a failed
+save.
+
+Kept invariants from the retired flow (each fixed a QA mismapping):
 - Values split on `,;·•|` into real array entries, not one string.
-- The voice sentence goes ONLY to `voiceAndTone`; `strategy.personality`
-  maps from a dedicated "Personality" section or stays empty.
-- Slogan (typed on the review bar or parsed from a Slogan/Tagline/Motto
-  section) persists to `guidelines.slogan` AND as a "Slogan" About section.
 - One picked font family stays one family — `secondary` is undefined
-  unless a second family exists (consumers all fall back to primary).
-- Local slugs are hyphenated (`qa-brand` not `qa_brand`); the Supabase
-  slug trigger is a separate path.
+  unless a second family exists.
+- Local slugs are hyphenated; the Supabase slug trigger is a separate path.
 - The image classifier only runs when `VITE_CLASSIFIER_URL` is set;
-  default is the filename heuristic (no network).
+  default is the filename/alpha heuristic (no network).
 
 ## Auth flow gotchas
 
