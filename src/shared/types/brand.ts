@@ -368,6 +368,17 @@ export interface Asset {
     originalName?: string;
     /** For embed sources — keeps the link live/updated */
     embedUrl?: string;
+    /**
+     * Hash of the material, carried over from the staged `BrandAsset`.
+     *
+     * `stageAsset` de-duplicates by this: identical bytes resolve to the same
+     * asset instead of a second copy. It has to survive the round trip, because
+     * after a reload the only view of an asset is the Library projection — drop
+     * it here and re-uploading the same image quietly creates a duplicate.
+     */
+    contentHash?: string;
+    /** Bumped on each replacement; used for cache-busting downstream. */
+    version?: number;
   };
   createdAt: Date;
 

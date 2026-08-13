@@ -90,3 +90,44 @@ describe('CodeRabbit Round 2 #12 — a deleted item stays deleted', () => {
     expect(out.createdIcons).toBe(0);
   });
 });
+
+describe('CodeRabbit Round 4 #14 — the key identifies the image, not the slot', () => {
+  it('a DIFFERENT image in a slot whose old photo was deleted is still created', () => {
+    // The failure this locks out: keying on the slot meant the tombstone for
+    // the old photo matched the new one, so the new photo was never created —
+    // and the next hydration dropped it from Setup, because Setup reads photos
+    // back out of the projection. The user's work disappeared.
+    return (async () => {
+      const slotA = (src: string) =>
+        mock({ photos: [{ id: 'p1', slot: 'A', src }] });
+
+      await syncSetupLibrary(BRAND, slotA('https://cdn.test/first.jpg'), svc);
+      const [first] = await svc.listLibrary(BRAND);
+      await svc.softDelete(first.id);
+
+      const out = await syncSetupLibrary(BRAND, slotA('https://cdn.test/second.jpg'), svc);
+
+      expect(out.createdPhotos).toBe(1);
+      const live = await svc.listLibrary(BRAND);
+      expect(live).toHaveLength(1);
+      expect(live[0].url).toBe('https://cdn.test/second.jpg');
+    })();
+  });
+
+  it('the SAME image returning to that slot is still recognised as deleted', async () => {
+    const m = mock({ photos: [{ id: 'p1', slot: 'A', src: 'https://cdn.test/first.jpg' }] });
+    await syncSetupLibrary(BRAND, m, svc);
+    const [first] = await svc.listLibrary(BRAND);
+    await svc.softDelete(first.id);
+
+    expect(await syncSetupLibrary(BRAND, m, svc)).toEqual({ createdPhotos: 0, createdIcons: 0 });
+  });
+
+  it('moving a photo to another slot does not duplicate it', async () => {
+    const src = 'https://cdn.test/one.jpg';
+    await syncSetupLibrary(BRAND, mock({ photos: [{ id: 'p1', slot: 'A', src }] }), svc);
+    const out = await syncSetupLibrary(BRAND, mock({ photos: [{ id: 'p1', slot: 'C', src }] }), svc);
+    expect(out.createdPhotos).toBe(0);
+    expect(await svc.listLibrary(BRAND)).toHaveLength(1);
+  });
+});

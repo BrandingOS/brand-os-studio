@@ -49,6 +49,13 @@ export class SupabaseKitStateRepository implements KitStateRepository {
     const valid = state && state.version === 1 && typeof state.deliverables === 'object';
     if (valid) return state;
 
+    // A row EXISTS but this client cannot read it — almost certainly written by
+    // a newer client with a later version. Report "no kit" rather than
+    // adopting the local blob, because the adoption path below WRITES, and
+    // writing a version-1 blob over it would destroy the newer state. Only a
+    // genuinely absent row is a migration case.
+    if (data) return null;
+
     // No server row. Before reporting an empty Kit, adopt whatever this browser
     // already has: users built Kit state while it was browser-local, and
     // returning null here would send `kitStore.hydrate` down the

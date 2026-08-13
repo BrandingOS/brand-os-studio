@@ -82,6 +82,20 @@ BEGIN
   END IF;
 END $$;
 
+-- WRITE LOCK NOTE. `public.assets` is the only PRE-EXISTING table indexed in
+-- this migration (everything below is a table created here, so empty). A plain
+-- `CREATE INDEX` takes a ShareLock: reads continue, writes block until the
+-- build finishes. `CREATE INDEX CONCURRENTLY` avoids that but CANNOT run inside
+-- a transaction block, and `supabase db push` wraps each migration in one — so
+-- it is not expressible here.
+--
+-- Keeping the plain form is the right default: the indexes must exist before
+-- the Library reads land, and on a table of this size the build is brief. If
+-- `public.assets` has grown large enough that a write pause matters, create
+-- these three CONCURRENTLY out-of-band FIRST, then run the migration — the
+-- `IF NOT EXISTS` guards make it a no-op for indexes that already exist. The
+-- runbook's §2 checks carry the row-count threshold and the exact commands.
+
 -- Default Library view = active items only.
 CREATE INDEX IF NOT EXISTS idx_assets_brand_active
   ON public.assets (brand_id)
@@ -118,6 +132,15 @@ CREATE TABLE IF NOT EXISTS public.brand_folders (
 CREATE UNIQUE INDEX IF NOT EXISTS brand_folders_root_name_unique
   ON public.brand_folders (brand_id, name)
   WHERE parent_id IS NULL;
+
+-- A folder cannot be its own parent. Cheap to state, and the alternative is a
+-- traversal that never terminates. (Longer cycles need a walk to detect and are
+-- not reachable through the app, which only ever parents to an existing folder.)
+DO $folder_self_parent$ BEGIN
+  ALTER TABLE public.brand_folders
+    ADD CONSTRAINT brand_folders_no_self_parent CHECK (parent_id IS NULL OR parent_id <> id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $folder_self_parent$;
 
 CREATE INDEX IF NOT EXISTS idx_brand_folders_brand ON public.brand_folders (brand_id);
 

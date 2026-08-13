@@ -59,6 +59,36 @@ supabase migration list --linked   # 015 remote; 016,017,018,019,020,021 pending
 All six must appear as local-only. If fewer are pending, stop — the local and
 remote histories disagree and pushing would apply an unexpected set.
 
+### Write-lock check on `public.assets`
+
+017 creates three indexes on `public.assets`, the one pre-existing table it
+touches. A plain `CREATE INDEX` blocks WRITES (reads are unaffected) until the
+build completes, and `CREATE INDEX CONCURRENTLY` cannot run inside the
+transaction `supabase db push` wraps each migration in.
+
+```sql
+SELECT count(*) AS assets_rows FROM public.assets;
+```
+
+- **Under ~1M rows:** push normally. The build is seconds at most.
+- **Above that, or if any write pause is unacceptable:** create the three
+  indexes CONCURRENTLY first, out of band, then push. `IF NOT EXISTS` in the
+  migration makes it a no-op for indexes that already exist, so the push stays
+  a single unmodified step.
+
+  ```sql
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assets_brand_active
+    ON public.assets (brand_id) WHERE deleted_at IS NULL AND archived_at IS NULL;
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assets_legacy_ref ON public.assets (legacy_ref_id);
+  CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assets_folder     ON public.assets (folder_id);
+  ```
+
+  Run each on its own connection, outside any transaction. A CONCURRENTLY build
+  that fails leaves an INVALID index — drop it and retry before pushing.
+
+This has NOT been measured against production, which has not been touched. The
+threshold above is a standard rule of thumb, not a measurement of this table.
+
 ## 3. Checks AFTER
 
 ```bash

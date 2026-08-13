@@ -258,24 +258,47 @@ export const useKitStore = create<KitStoreState>((set, get) => {
     hydrate: async (brandId, brand) => {
       if (get().brandId === brandId) return;
 
+      // Record the request BEFORE joining. hydrate(A) → hydrate(B) → hydrate(A)
+      // with both loads still in flight: the third call joins A's run, and if
+      // the marker were still B, A's run would drop its own result at the
+      // supersede check below. The caller would await a promise that resolves
+      // while the store never holds A.
+      requestedBrandId = brandId;
+
       // Join the in-flight hydration for this brand rather than returning
       // early, so every caller awaits real completion.
       const existing = hydrating.get(brandId);
       if (existing) return existing;
 
-      // Which brand the UI is actually asking for RIGHT NOW. A load that
-      // finishes after the user has navigated on must not install its brand:
-      // hydrating A, then B, with A completing last would put A's kit on
-      // screen while the UI shows B.
-      requestedBrandId = brandId;
-
       const run = (async () => {
         const repo = getKitStateRepository();
-        let state = await repo.load(brandId);
+        // A repository failure must not leave the surface with no Kit AND no
+        // error — and must not reject into a caller that never catches, which
+        // is an unhandled rejection. `persist` already treats a write failure
+        // as non-fatal; reads follow the same rule: fall back to what can be
+        // reconstructed locally, so the user sees their migrated Kit rather
+        // than an empty one.
+        let state: BrandKitState | null = null;
+        try {
+          state = await repo.load(brandId);
+        } catch (loadError) {
+          console.error(`[kitStore] Kit state failed to load for ${brandId}`, loadError);
+        }
+
         if (!state) {
           state = migrateFromCardCustomizations(brandId, brand);
-          await repo.save(brandId, state);
+          try {
+            await repo.save(brandId, state);
+          } catch (saveError) {
+            // The migrated state still stands in memory; it just is not durable
+            // yet. The next mutation retries the write.
+            console.error(`[kitStore] Kit state failed to persist for ${brandId}`, saveError);
+          }
         }
+
+        // A load that finishes after the user has navigated on must not install
+        // its brand: hydrating A, then B, with A completing last would put A's
+        // kit on screen while the UI shows B.
         if (requestedBrandId !== brandId) return; // superseded — drop the result
         set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
       })().finally(() => {

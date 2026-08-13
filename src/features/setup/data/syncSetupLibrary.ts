@@ -23,17 +23,24 @@ import type { MockBrand } from './mockBrand';
 import { hashUrl } from '@/shared/assets/assetOperations';
 
 /**
- * A stable deletion-match key for an icon.
+ * A stable deletion-match key, derived from the IMAGE, not from where it sits.
  *
- * Photos carry `photo-<slot>`, but an icon in Setup is just a url with no slot
- * and no id. Deleting clears the url, so without a key stored at creation time
- * a tombstoned icon becomes unrecognisable and the next Setup save re-creates
- * it — the deletion silently undone. Hashing the url gives a key that is stable
- * across reorders and short enough to store, unlike the url itself (icons are
- * often data URLs).
+ * Deleting a Library item clears its url, so a key has to be stored at creation
+ * time or the tombstone becomes unrecognisable and the next Setup save
+ * re-creates what the user deleted.
+ *
+ * The key must identify the IMAGE. Photos used to key on the slot
+ * (`photo-<slot>`), which fails in the other direction: delete the photo in
+ * slot B, drop a DIFFERENT image into slot B, and the tombstone still matches
+ * — so the new photo is never created, and the next hydration drops it from
+ * Setup entirely, because Setup reads photos back out of the projection. That
+ * loses work the user just did.
+ *
+ * Hashing the url identifies the image itself, is stable across reordering, and
+ * is short enough to store (icons and photos are often data URLs).
  */
-function iconKey(url: string): string {
-  return `icon-${hashUrl(url)}`;
+function mediaKey(kind: 'photo' | 'icon', url: string): string {
+  return `${kind}-${hashUrl(url)}`;
 }
 
 /**
@@ -82,7 +89,8 @@ export async function syncSetupLibrary(
 
   for (const photo of mock.photos ?? []) {
     const src = photo?.src;
-    const originalName = `photo-${photo?.slot ?? photo?.id}`;
+    // The slot lives in `name` only — it is a position, not an identity.
+    const originalName = src ? mediaKey('photo', src) : '';
     if (!src || isKnown(existing, src, originalName)) continue;
     await assets.create({
       brandId,
@@ -100,7 +108,7 @@ export async function syncSetupLibrary(
   }
 
   for (const icon of mock.icons ?? []) {
-    const originalName = icon ? iconKey(icon) : '';
+    const originalName = icon ? mediaKey('icon', icon) : '';
     if (!icon || isKnown(existing, icon, originalName)) continue;
     await assets.create({
       brandId,

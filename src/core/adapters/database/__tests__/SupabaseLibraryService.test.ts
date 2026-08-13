@@ -39,7 +39,18 @@ vi.mock('@/integrations/supabase/client', () => {
     supabase: {
       from: (table: string) => makeChain(table),
       auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
-      storage: { from: () => ({ remove: async () => ({ error: null }) }) },
+      // Storage removals go in the SAME `calls` log as table operations. The
+      // double previously returned `remove` without recording it, so
+      // `calls.some(c => c.op === 'remove')` was always false — the one
+      // assertion guarding the unrecoverable path could not fail.
+      storage: {
+        from: (bucket: string) => ({
+          remove: async (paths: string[]) => {
+            calls.push({ table: `storage:${bucket}`, op: 'remove', payload: paths });
+            return { error: null };
+          },
+        }),
+      },
     },
   };
 });
@@ -234,6 +245,19 @@ describe('CodeRabbit C1 — a tombstone must precede storage removal', () => {
       /migration 017 is not deployed|Refusing to report success/i,
     );
     expect(calls.some((c) => c.op === 'remove')).toBe(false);
+  });
+
+  it('DOES remove the stored object once the tombstone is written', async () => {
+    // The counterpart to the test above. Without this, "no remove happened"
+    // would also pass for a double that never records removals at all — which
+    // is exactly the defect that made the guard vacuous.
+    resultQueue = [
+      { data: ROW, error: null },                             // getById
+      { data: { storage_path: 'b1/logo.svg' }, error: null }, // path lookup
+      { data: { ...ROW, deleted_at: '2026-08-13T00:00:00.000Z' }, error: null }, // tombstone
+    ];
+    expect(await new SupabaseAssetsService().softDelete('a1')).toEqual({ ok: true });
+    expect(calls.some((c) => c.op === 'remove')).toBe(true);
   });
 
   it('archive fails loudly rather than returning an unchanged row', async () => {

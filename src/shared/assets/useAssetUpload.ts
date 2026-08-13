@@ -149,6 +149,13 @@ export function useAssetUpload(brandId: string | undefined) {
             dimensions: { width, height },
             format: file.type,
             originalName: file.name,
+            // Identity of the MATERIAL, not of this upload. Without these the
+            // Library round trip loses what `stageAsset` de-duplicates on, so
+            // after a reload the same bytes would create a second item, and the
+            // replacement version that downstream cache-busting reads would
+            // reset to 1.
+            contentHash: asset.metadata?.contentHash,
+            version: asset.metadata?.version,
           },
           origin: 'uploaded' as const,
         };

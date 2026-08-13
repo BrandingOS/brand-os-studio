@@ -74,7 +74,11 @@ export function assetToBrandAsset(a: Asset): BrandAsset {
     tags: a.tags ?? [],
     metadata: {
       createdAt,
-      version: 1,
+      // Carried through, not re-invented: `stageAsset` de-duplicates on the
+      // content hash and bumps the version on each replacement, and after a
+      // reload this projection is the only view it has of an existing asset.
+      version: a.metadata?.version ?? 1,
+      contentHash: a.metadata?.contentHash,
       width: a.metadata?.dimensions?.width,
       height: a.metadata?.dimensions?.height,
       originalName: a.metadata?.originalName,
@@ -108,10 +112,24 @@ export function projectLibraryOntoBrand(brand: Brand, library: Asset[]): Brand {
     if (a.legacyRefId) deleted.add(a.legacyRefId);
   }
 
+  // Identities the Library has ABSORBED under a different id. Ingest preserves
+  // the legacy id where it can, but when the store mints its own the item comes
+  // back with a new `id` and the old one in `legacyRefId`. Keyed by id alone,
+  // the stored entry would not collide with its own ingested copy, so readers
+  // would see the same logo twice — and the two could carry different urls,
+  // because only the Library copy stays current. `unIngestedCount` already
+  // counts such an entry as ingested, so the retirement gauge would read zero
+  // while the projection still held the alias.
+  const ingestedFrom = new Set<string>();
+  for (const a of live) {
+    if (a.legacyRefId) ingestedFrom.add(a.legacyRefId);
+  }
+
   const byId = new Map<string, BrandAsset>();
   // Stored entries first, so a Library item with the same id overwrites it.
   for (const a of brand.brandAssets ?? []) {
     if (deleted.has(a.id)) continue;
+    if (ingestedFrom.has(a.id)) continue; // superseded by its Library copy
     byId.set(a.id, a);
   }
   for (const a of projected) byId.set(a.id, a);

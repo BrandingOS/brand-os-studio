@@ -52,12 +52,52 @@ function runTsc() {
  * Normalizing to a repo-relative path keeps the error's identity — file, code
  * and meaning are unchanged — while making the baseline portable.
  */
+/**
+ * Remove every machine-specific path form, so a baseline written on one machine
+ * matches on every other. A leaked absolute path reports phantom regressions
+ * everywhere else — which is exactly how this file's own bug presented in CI.
+ *
+ * The forms that have to collapse: this checkout's root; a Windows drive path
+ * in either slash direction; a `file://` URI; and any other absolute prefix
+ * that reaches a `node_modules/` or `src/` segment (a pnpm store, a container
+ * mount, a differently-rooted checkout).
+ */
 function stripAbsolutePaths(text) {
-  // The repo root itself, wherever it is checked out.
-  const rooted = text.split(ROOT + '/').join('').split(ROOT).join('');
-  // Any other absolute path that reaches a node_modules/src segment (e.g. a
-  // pnpm store or a differently-rooted checkout).
-  return rooted.replace(/(["'(])\/(?:[^"'()\s]*\/)?(node_modules|src)\//g, '$1$2/');
+  let out = text;
+  // `file:///abs/path` → `/abs/path`, so one rule below handles both.
+  out = out.replace(/file:\/\/\//g, '/');
+  // Windows separators, but only inside path-shaped runs, so ordinary prose
+  // and escape sequences in a message are left alone.
+  out = out.replace(/[A-Za-z]:(?:\\|\/)[^"'()\s]*/g, (m) => m.replace(/\\/g, '/'));
+  // Collapse to the meaningful segment FIRST, while the path is still intact.
+  // A Windows drive prefix reaching node_modules/src…
+  out = out.replace(/[A-Za-z]:\/(?:[^"'()\s]*?\/)??(node_modules|src)\//g, '$1/');
+  // …and any other absolute path reaching node_modules/src (a pnpm store, a
+  // container mount, a differently-rooted checkout).
+  // Lazy, so the LEFTMOST meaningful segment wins: a path through
+  // `node_modules/fabric/dist/src/util` collapses to `node_modules/…`, keeping
+  // the package it came from rather than the bare `src/…` tail.
+  out = out.replace(/(^|["'( ])\/(?:[^"'()\s]*?\/)??(node_modules|src)\//g, '$1$2/');
+  // Whatever is left that still starts with this checkout's root. Anchored to a
+  // segment boundary so a root that happens to be a substring elsewhere in the
+  // message is not spliced out of the middle of another path.
+  out = out.replace(
+    new RegExp(`(^|["'( ])${ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?`, 'g'),
+    '$1',
+  );
+  return out;
+}
+
+/**
+ * Any absolute path still standing after normalization. Used to refuse writing
+ * a machine-specific baseline rather than discovering it in someone else's CI.
+ */
+function absolutePathLeaks(sig) {
+  return (
+    /(^|["'( ])\/(?:Users|home|root|tmp|workspace|var|opt|private)\//.test(sig) ||
+    /[A-Za-z]:[\\/]/.test(sig) ||
+    /file:\/\//.test(sig)
+  );
 }
 
 /** Normalize each `file(line,col): error TSxxxx: message` to `file | TSxxxx | message`. */
@@ -66,9 +106,10 @@ function signatures(output) {
   const sigs = [];
   for (const line of output.split('\n')) {
     const m = re.exec(line.trim());
-    // The FILE is already repo-relative in tsc output; only the MESSAGE can
-    // carry an absolute path.
-    if (m) sigs.push(`${m[1]} | ${m[4]} | ${stripAbsolutePaths(m[5])}`);
+    // The FILE is repo-relative for an ordinary local run, but not for every
+    // invocation (a Windows runner, or tsc started from another directory), so
+    // it goes through the same normalizer as the message.
+    if (m) sigs.push(`${stripAbsolutePaths(m[1])} | ${m[4]} | ${stripAbsolutePaths(m[5])}`);
   }
   return sigs.sort();
 }
@@ -86,7 +127,7 @@ if (UPDATE) {
   // A baseline containing an absolute path is valid on one machine only and
   // will report phantom regressions everywhere else — the bug this normalizer
   // exists to prevent. Fail loudly rather than committing one again.
-  const leaked = current.filter((s) => /(^|["'( ])\/(Users|home|root|tmp)\//.test(s));
+  const leaked = current.filter(absolutePathLeaks);
   if (leaked.length) {
     console.error(
       `[typecheck-ratchet] Refusing to write a machine-specific baseline: ${leaked.length} ` +

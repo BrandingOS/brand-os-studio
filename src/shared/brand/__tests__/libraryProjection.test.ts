@@ -169,3 +169,56 @@ describe('CodeRabbit #24 — a deleted asset must stop rendering', () => {
     expect(projected.brandAssets?.map((a) => a.id)).toEqual(['keep_me']);
   });
 });
+
+describe('CodeRabbit Round 4 #16 — an ingested item must not appear twice', () => {
+  const stored = (id: string, url: string) =>
+    ({ id, kind: 'logo', name: id, formats: { svg: { url, size: 1 } },
+       metadata: { createdAt: 'x', version: 1 } } as BrandAsset);
+
+  it('drops the stored entry the Library absorbed under a new id', () => {
+    // Ingest preserves the legacy id where it can. When the store mints its
+    // own instead, the Library copy carries the old id in `legacyRefId` — and
+    // keyed by id alone the two never collide, so readers saw one asset twice.
+    const projected = projectLibraryOntoBrand(
+      brand({ brandAssets: [stored('old_1', 'https://cdn.test/STALE.svg')] }),
+      [libItem({ id: 'uuid-x', legacyRefId: 'old_1', url: 'https://cdn.test/FRESH.svg' })],
+    );
+    expect(projected.brandAssets).toHaveLength(1);
+    expect(projected.brandAssets?.[0].id).toBe('uuid-x');
+    expect(Object.values(projected.brandAssets![0].formats)[0]?.url).toBe(
+      'https://cdn.test/FRESH.svg',
+    );
+  });
+
+  it('agrees with the retirement gauge — nothing un-ingested, nothing aliased', () => {
+    const b = brand({ brandAssets: [stored('old_1', 'u')] });
+    const lib = [libItem({ id: 'uuid-x', legacyRefId: 'old_1' })];
+    expect(unIngestedCount(b, lib)).toBe(0);
+    expect(projectLibraryOntoBrand(b, lib).brandAssets).toHaveLength(1);
+  });
+
+  it('still keeps a stored entry the Library has NOT absorbed', () => {
+    const projected = projectLibraryOntoBrand(
+      brand({ brandAssets: [stored('old_1', 'u')] }),
+      [libItem({ id: 'uuid-x', legacyRefId: 'someone_else' })],
+    );
+    expect(projected.brandAssets?.map((a) => a.id).sort()).toEqual(['old_1', 'uuid-x']);
+  });
+});
+
+describe('CodeRabbit Round 4 #15 — content identity survives the round trip', () => {
+  it('projects contentHash and version back onto the BrandAsset', () => {
+    // After a reload the projection is the ONLY view `stageAsset` has of an
+    // existing asset. Drop these and re-uploading the same image creates a
+    // duplicate, and the replacement version resets.
+    const projected = assetToBrandAsset(
+      libItem({ metadata: { contentHash: 'f90bbb59', version: 3 } }),
+    );
+    expect(projected.metadata.contentHash).toBe('f90bbb59');
+    expect(projected.metadata.version).toBe(3);
+  });
+
+  it('defaults version to 1 for an item that predates the field', () => {
+    expect(assetToBrandAsset(libItem()).metadata.version).toBe(1);
+  });
+});
