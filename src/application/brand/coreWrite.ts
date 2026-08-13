@@ -24,9 +24,14 @@ import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { CanonicalBrand } from '@/domain/brand';
 
 /**
- * Stand-in for call sites that have not yet been given the acting user. Not a
- * placeholder to leave lying around: as auth-aware surfaces pass a real user
- * id, this disappears from the write path.
+ * Stand-in for when there is genuinely no acting user — signed out, or the dev
+ * auth bypass, which seeds a local session with no identity.
+ *
+ * It is no longer what UI writes get by default: `brandStore.update` is the
+ * single funnel every Core edit from the product passes through, and it now
+ * resolves the signed-in user there (`shared/store/currentActor.ts`). What
+ * reaches this constant is an actually-unknown author, recorded as unknown
+ * rather than invented.
  */
 export const UNATTRIBUTED_ACTOR: HumanActor = { kind: 'human', userId: 'unattributed' };
 

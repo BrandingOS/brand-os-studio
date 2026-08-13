@@ -32,7 +32,7 @@ import {
   type HumanActor,
 } from '@/domain/brand/coreMeta';
 import { isCoreFieldPath, type CoreFieldPath } from '@/domain/brand/coreFieldPaths';
-import type { IKitAdoptionService } from '@/core/services/IKitAdoptionService';
+import type { IKitAdoptionService, KitAdoption } from '@/core/services/IKitAdoptionService';
 
 export interface PromoteOptions {
   /**
@@ -71,7 +71,15 @@ export async function promoteCoreValue(
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`promoteCoreValue: brand not found: ${brandId}`);
 
+  // Whether THIS call creates the adoption row. Compensation must undo only
+  // what it did: a value already adopted (re-promoted, or promoted after a
+  // partial earlier failure) has an adoption row that predates this call, and
+  // blindly unadopting on a save failure would delete a record this call never
+  // made — destroying attribution instead of restoring it.
+  let adoptionCreatedHere = false;
+
   if (to === 'official' && opts.adoptions) {
+    adoptionCreatedHere = !(await opts.adoptions.isAdopted(brandId, 'core_value', path));
     // Adoption first: a failure here must leave the brand exactly as it was,
     // rather than an "official" value the Kit has no record of.
     await opts.adoptions.adopt({
@@ -99,7 +107,7 @@ export async function promoteCoreValue(
     // the authority write then failed, the Kit would hold a core_value row for
     // a value that is not official — the divergence this op exists to prevent.
     // Undo the adoption so both sides return to their prior state.
-    if (to === 'official' && opts.adoptions) {
+    if (adoptionCreatedHere && opts.adoptions) {
       try {
         await opts.adoptions.unadopt(brandId, 'core_value', path);
       } catch {
@@ -139,10 +147,15 @@ export async function demoteCoreValue(
   const floor: Authority =
     to === 'provisional' && isAtLeast(current.authority, 'confirmed') ? 'confirmed' : to;
 
-  let removedAdoption = false;
+  // Capture the row BEFORE removing it. Re-adopting from scratch would stamp
+  // the demoting user as the adopter, so a failed save would not restore the
+  // prior state — it would rewrite who made the original decision.
+  let removedAdoption: KitAdoption | null = null;
   if (isAtLeast(current.authority, 'official') && !isAtLeast(floor, 'official') && opts.adoptions) {
+    const rows = await opts.adoptions.list(brandId);
+    removedAdoption =
+      rows.find((r) => r.targetKind === 'core_value' && r.targetRef === path) ?? null;
     await opts.adoptions.unadopt(brandId, 'core_value', path);
-    removedAdoption = true;
   }
 
   const next: CanonicalBrand = {
@@ -162,13 +175,22 @@ export async function demoteCoreValue(
           brandId,
           targetKind: 'core_value',
           targetRef: path,
-          actor,
+          // The ORIGINAL adopter and note, not this caller's. `adoptedAt`
+          // cannot be restored through the contract — the service mints it —
+          // and the Supabase policy requires `adopted_by = auth.uid()`, so a
+          // restore on behalf of a different user is refused by design. That
+          // refusal lands in the catch below and is reported, which is the
+          // honest outcome: the record cannot be recreated faithfully by
+          // someone who did not make it.
+          actor: { kind: 'human', userId: removedAdoption.adoptedBy },
+          ...(removedAdoption.note ? { note: removedAdoption.note } : {}),
           viaCorePromotion: true,
         });
       } catch {
         console.error(
           `[demoteCoreValue] Persist failed AND the compensating re-adopt failed for ` +
-            `${brandId}/${path}. The value may remain official with no adoption record.`,
+            `${brandId}/${path}. The value may remain official with no adoption record ` +
+            `(originally adopted by ${removedAdoption.adoptedBy} at ${removedAdoption.adoptedAt}).`,
         );
       }
     }

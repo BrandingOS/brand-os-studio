@@ -8,6 +8,7 @@ import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyCorePatch, splitCorePatch } from './routeCoreWrite';
 import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
 import { recordCoreWriteFallback } from './coreWriteFallback';
+import { currentCoreWriteOptions } from './currentActor';
 import { projectLibraryOntoBrand } from '@/shared/brand/libraryProjection';
 import type { Asset } from '@/shared/types/brand';
 import type { Brand, CreateBrandInput } from '../types/brand';
@@ -213,7 +214,11 @@ export const useBrandStore = create<BrandStore>()(
           if (routedKeys.length) {
             const repo = container.get<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
             try {
-              const canonical = await applyCorePatch(repo, id, core);
+              // WHO is writing travels with the write. This store's `update`
+              // is the single funnel every UI Core edit passes through, so
+              // attributing here reaches all of them without threading an
+              // actor through each call site.
+              const canonical = await applyCorePatch(repo, id, core, currentCoreWriteOptions());
               if (canonical) canonicalPatch = toLegacyBrandPatch(canonical);
             } catch (routingError) {
               // Transitional safety valve. A canonical op validates the whole

@@ -169,18 +169,42 @@ export class SupabaseBrandsService implements IBrandsService {
       // else, exactly as the pre-014 path does. The dropped fields degrade to
       // their read-time defaults (no authority recorded, no business facts) —
       // never to a failed save.
-      const OPTIONAL_COLS = [
-        'logo_system',
-        'brand_assets',
-        'identity_meta',
-        'business_info',
-      ] as const;
-      if (missingCol && OPTIONAL_COLS.some((c) => c in updateData)) {
-        const safe = { ...updateData };
-        for (const c of OPTIONAL_COLS) delete safe[c];
-        const retry = await supabase.from('brands').update(safe).eq('id', id).select().single();
-        if (retry.error) throw retry.error;
-        return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
+      //
+      // `identity_meta` is NOT in this list, on purpose. It carries authority
+      // and attribution: dropping it would let a save that lost the fact a
+      // value is Official report success, so `promoteCoreValue` would skip its
+      // compensation and leave a Kit adoption behind a value that reloads as
+      // merely provisional. A missing column there is a deployment error and
+      // must surface as one.
+      const TOLERATED_COLS = ['logo_system', 'brand_assets', 'business_info'] as const;
+
+      if (missingCol) {
+        // Drop ONLY the column the database named. The previous version removed
+        // every optional column at once, so one absent column silently discarded
+        // valid logo and business values that the same patch was saving.
+        const attempt = { ...updateData };
+        let lastError = error;
+
+        for (let i = 0; i <= TOLERATED_COLS.length; i += 1) {
+          const named = /column "?([a-z_]+)"?/i.exec(lastError.message ?? '')?.[1];
+          if (!named || !(named in attempt)) break;
+          if (!TOLERATED_COLS.includes(named as (typeof TOLERATED_COLS)[number])) break;
+
+          delete attempt[named];
+          const retry = await supabase
+            .from('brands')
+            .update(attempt)
+            .eq('id', id)
+            .select()
+            .single();
+          if (!retry.error) return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
+
+          const stillMissing =
+            retry.error.code === '42703' ||
+            /column .* does not exist/i.test(retry.error.message ?? '');
+          if (!stillMissing) throw retry.error;
+          lastError = retry.error;
+        }
       }
       throw error;
     }

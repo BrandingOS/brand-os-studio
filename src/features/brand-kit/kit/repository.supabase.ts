@@ -46,10 +46,24 @@ export class SupabaseKitStateRepository implements KitStateRepository {
     const state = data?.state as BrandKitState | undefined;
     // Same validity gate as the local repo: an unrecognised version is treated
     // as absent rather than half-loaded.
-    if (!state || state.version !== 1 || typeof state.deliverables !== 'object') {
-      return null;
+    const valid = state && state.version === 1 && typeof state.deliverables === 'object';
+    if (valid) return state;
+
+    // No server row. Before reporting an empty Kit, adopt whatever this browser
+    // already has: users built Kit state while it was browser-local, and
+    // returning null here would send `kitStore.hydrate` down the
+    // card-customizations migration path, which knows nothing about that blob —
+    // an existing Kit would come back empty the day 018 is deployed.
+    //
+    // One-way and one-time: the local blob is copied up, and from then on the
+    // server row is what `load` finds. The local copy is left in place so a
+    // failed upload is not a loss.
+    const local = await this.local.load(brandId);
+    if (local) {
+      await this.save(brandId, local);
+      return local;
     }
-    return state;
+    return null;
   }
 
   async save(brandId: string, state: BrandKitState): Promise<boolean> {

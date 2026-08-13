@@ -25,6 +25,7 @@ import {
 } from '@/shared/utils/imageUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { BrandAsset, BrandAssetKind, LogoRole } from '@/shared/types/brandAssets';
+import type { Asset } from '@/shared/types/brand';
 import { useService } from '@/core';
 import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import {
@@ -136,22 +137,11 @@ export function useAssetUpload(brandId: string | undefined) {
           file: { size: file.size, mime: file.type },
         });
 
-        // CRITICAL: use the id the LIBRARY returns, never the staged one.
-        // `stageAsset` mints `asset-<contentHash>`, which is not a uuid, so
-        // SupabaseAssetsService cannot honour it and the database generates its
-        // own. Pointing logoSystem at the staged id would leave every
-        // authenticated upload referencing an asset that does not exist —
-        // logos silently stop resolving in production while working locally.
-        // The staged id is preserved as `legacyRefId` so content-hash identity
-        // (dedupe, replace) survives.
-        const created = await assets.create({
-          brandId,
-          id: asset.id,
-          legacyRefId: asset.id,
+        const payload = {
           name: asset.name,
-          type: opts.role ? 'logo' : kind === 'logo' ? 'logo' : 'image',
-          category: opts.role ? 'logo' : 'photo',
-          source: 'upload',
+          type: (opts.role ? 'logo' : kind === 'logo' ? 'logo' : 'image') as Asset['type'],
+          category: (opts.role ? 'logo' : 'photo') as Asset['category'],
+          source: 'upload' as const,
           url: dataUrl,
           size: file.size,
           tags: asset.tags ?? [],
@@ -160,8 +150,35 @@ export function useAssetUpload(brandId: string | undefined) {
             format: file.type,
             originalName: file.name,
           },
-          origin: 'uploaded',
-        });
+          origin: 'uploaded' as const,
+        };
+
+        // `stageAsset` REUSES an existing id in two cases: an explicit replace,
+        // and a content-hash match. Both mean the material already has a home
+        // in the Library, so this is an UPDATE, not a create. Creating instead
+        // would hit a duplicate-key error in Supabase, and would silently
+        // append a second item with the same id in the local adapter.
+        const staged = asset.id;
+        const existingItem = (
+          await assets.listLibrary(brandId, { includeArchived: true })
+        ).find((a) => a.id === staged || a.legacyRefId === staged);
+
+        // CRITICAL for the create path: use the id the LIBRARY returns, never
+        // the staged one. `stageAsset` mints `asset-<contentHash>`, which is not
+        // a uuid, so SupabaseAssetsService cannot honour it and the database
+        // generates its own. Pointing logoSystem at the staged id would leave
+        // every authenticated upload referencing an asset that does not exist —
+        // logos silently stop resolving in production while working locally.
+        // The staged id is preserved as `legacyRefId` so content-hash identity
+        // (dedupe, replace) survives.
+        const created = existingItem
+          ? await assets.update(existingItem.id, payload)
+          : await assets.create({
+              brandId,
+              id: staged,
+              legacyRefId: staged,
+              ...payload,
+            });
 
         // Everything downstream must speak the Library's id.
         const stored: BrandAsset = { ...asset, id: created.id };

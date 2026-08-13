@@ -71,17 +71,32 @@ export class SupabaseKitAdoptionService implements IKitAdoptionService {
     // A dev-bypass brand has no server row at all, so local IS its home.
     if (this.isLocalBrand(input.brandId)) return this.local.adopt(input);
 
+    // Adopting twice is not an error; it is already adopted — and the FIRST
+    // adoption is the one that happened, so its adopter, timestamp and note
+    // must survive a second attempt.
+    //
+    // The upsert cannot express that. Its conflict branch is an UPDATE, and
+    // migration 017 deliberately grants no UPDATE policy on this table (an
+    // adoption is a decision, not an editable row), so a second adopter got an
+    // RLS error rather than the existing record. `LocalKitAdoptionService`
+    // returns the existing row for exactly this case; reading first makes the
+    // two implementations agree.
+    const existing = await table()
+      .select('*')
+      .eq('brand_id', input.brandId)
+      .eq('target_kind', input.targetKind)
+      .eq('target_ref', input.targetRef)
+      .maybeSingle();
+    if (!existing.error && existing.data) return mapRow(existing.data);
+
     const { data, error } = await table()
-      .upsert(
-        {
-          brand_id: input.brandId,
-          target_kind: input.targetKind,
-          target_ref: input.targetRef,
-          adopted_by: input.actor.userId,
-          ...(input.note ? { note: input.note } : {}),
-        },
-        { onConflict: 'brand_id,target_kind,target_ref' },
-      )
+      .insert({
+        brand_id: input.brandId,
+        target_kind: input.targetKind,
+        target_ref: input.targetRef,
+        adopted_by: input.actor.userId,
+        ...(input.note ? { note: input.note } : {}),
+      })
       .select()
       .single();
 

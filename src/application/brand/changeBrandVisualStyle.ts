@@ -23,8 +23,15 @@ export async function changeBrandVisualStyle(
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandVisualStyle: brand not found: ${brandId}`);
 
-  const touched = (Object.keys(change) as (keyof VisualStyle)[])
-    .filter((k) => change[k] !== undefined)
+  // Filter ONCE and use the same patch for both the value and its metadata.
+  // Spreading `change` directly would let an explicit `{ density: undefined }`
+  // clear a stored attribute while `touched` skipped it — a silent erase with
+  // no record of who did it.
+  const patch = Object.fromEntries(
+    Object.entries(change).filter(([, value]) => value !== undefined),
+  ) as Partial<VisualStyle>;
+
+  const touched = (Object.keys(patch) as (keyof VisualStyle)[])
     .map((k) => `visualStyle.${k}` as CoreFieldPath);
 
   const next = withCoreWrites(
@@ -32,7 +39,7 @@ export async function changeBrandVisualStyle(
       ...brand,
       identity: {
         ...brand.identity,
-        visualStyle: { ...brand.identity.visualStyle, ...change },
+        visualStyle: { ...brand.identity.visualStyle, ...patch },
       },
     },
     touched,

@@ -20,6 +20,21 @@
 import type { Asset } from '@/shared/types/brand';
 import type { IAssetsService } from '@/core/types/services';
 import type { MockBrand } from './mockBrand';
+import { hashUrl } from '@/shared/assets/assetOperations';
+
+/**
+ * A stable deletion-match key for an icon.
+ *
+ * Photos carry `photo-<slot>`, but an icon in Setup is just a url with no slot
+ * and no id. Deleting clears the url, so without a key stored at creation time
+ * a tombstoned icon becomes unrecognisable and the next Setup save re-creates
+ * it — the deletion silently undone. Hashing the url gives a key that is stable
+ * across reorders and short enough to store, unlike the url itself (icons are
+ * often data URLs).
+ */
+function iconKey(url: string): string {
+  return `icon-${hashUrl(url)}`;
+}
 
 /**
  * Matches a Library item to a Setup entry by the url it renders.
@@ -85,7 +100,8 @@ export async function syncSetupLibrary(
   }
 
   for (const icon of mock.icons ?? []) {
-    if (!icon || isKnown(existing, icon)) continue;
+    const originalName = icon ? iconKey(icon) : '';
+    if (!icon || isKnown(existing, icon, originalName)) continue;
     await assets.create({
       brandId,
       name: 'Icon',
@@ -94,6 +110,7 @@ export async function syncSetupLibrary(
       source: 'upload',
       url: icon,
       tags: ['setup'],
+      metadata: { originalName },
       origin: 'uploaded',
     });
     existing.add(icon);

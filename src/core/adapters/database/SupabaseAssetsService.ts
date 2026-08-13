@@ -248,11 +248,20 @@ export class SupabaseAssetsService implements IAssetsService {
     const current = await this.getById(id);
     if (!current) throw new Error(`SupabaseAssetsService.setFlags: asset not found: ${id}`);
     const next = reconcileFlags(current, flags);
-    const saved = await this.patchRow(id, {
-      is_favorite: next.isFavorite,
-      is_disliked: next.isDisliked,
-      use_as_reference: next.useAsReference,
-    });
+    // The ENTIRE meaning of this write lives in 017 columns. Without
+    // `requireLibraryColumns` the pre-017 tolerance would strip all three,
+    // leave an empty patch, return the unchanged row — and the code below
+    // would still record a Context signal, so the brand would hold an opinion
+    // the Library never stored, while the caller saw a successful write.
+    const saved = await this.patchRow(
+      id,
+      {
+        is_favorite: next.isFavorite,
+        is_disliked: next.isDisliked,
+        use_as_reference: next.useAsReference,
+      },
+      { requireLibraryColumns: true },
+    );
     // Only transitions — setting a flag that was already set is not a new
     // opinion. Fire-and-forget: capture must never interrupt.
     if (this.deps.context) {

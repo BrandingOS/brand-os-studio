@@ -157,3 +157,41 @@ describe('the Library consults adoptions before deleting', () => {
     expect(await assets.softDelete(item.id)).toEqual({ ok: true });
   });
 });
+
+describe('CodeRabbit Round 2 #7 — a second adopter never rewrites the first', () => {
+  it('returns the ORIGINAL row, keeping its adopter, timestamp and note', async () => {
+    const first = await svc.adopt({
+      brandId: BRAND,
+      targetKind: 'library_item',
+      targetRef: 'asset_1',
+      actor: { kind: 'human', userId: 'alice' },
+      note: 'the launch mark',
+    });
+
+    const second = await svc.adopt({
+      brandId: BRAND,
+      targetKind: 'library_item',
+      targetRef: 'asset_1',
+      actor: { kind: 'human', userId: 'bob' },
+      note: 'bob was here',
+    });
+
+    // Adopting twice is not an error, and it is not a second decision either.
+    expect(second).toEqual(first);
+    expect(second.adoptedBy).toBe('alice');
+    expect(second.note).toBe('the launch mark');
+    expect(await svc.list(BRAND)).toHaveLength(1);
+  });
+
+  it('the Supabase adapter is written to agree — it reads before it inserts', async () => {
+    // Guards the divergence that made this a finding: the Supabase path used an
+    // upsert whose conflict branch is an UPDATE, and migration 017 grants no
+    // UPDATE policy on adoptions, so a second adopter got an RLS error where
+    // the local path returned the existing row.
+    const source = await import('fs/promises').then((fs) =>
+      fs.readFile('src/core/adapters/kit-adoptions/SupabaseKitAdoptionService.ts', 'utf8'),
+    );
+    expect(source).not.toMatch(/\.upsert\(/);
+    expect(source).toMatch(/maybeSingle\(\)[\s\S]*if \(!existing\.error && existing\.data\)/);
+  });
+});

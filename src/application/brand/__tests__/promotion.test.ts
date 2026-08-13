@@ -63,6 +63,13 @@ function makeAdoptions() {
     list: async () => rows,
     adopt: async (input: AdoptInput) => {
       assertAdoptable(input);
+      // Faithful to BOTH real implementations: adopting twice is not an error,
+      // it is already adopted, and the FIRST adoption is the one that happened.
+      const existing = rows.find(
+        (r) => r.targetKind === input.targetKind && r.targetRef === input.targetRef,
+      );
+      if (existing) return existing;
+
       const row: KitAdoption = {
         id: `ad-${rows.length + 1}`,
         brandId: input.brandId,
@@ -70,6 +77,7 @@ function makeAdoptions() {
         targetRef: input.targetRef,
         adoptedBy: input.actor.userId,
         adoptedAt: '2026-08-13T00:00:00.000Z',
+        ...(input.note ? { note: input.note } : {}),
       };
       rows.push(row);
       return row;
@@ -207,5 +215,81 @@ describe('demotion', () => {
     const { repo } = makeRepo();
     const out = await demoteCoreValue(repo, 'b1', 'colors.primary', 'provisional', human);
     expect(coreValueMeta(out.identityMeta, 'colors.primary').authority).toBe('provisional');
+  });
+});
+
+describe('CodeRabbit Round 2 #5 — compensation must restore, not assume', () => {
+  /** A repo whose save always fails, so the compensating path always runs. */
+  function makeFailingRepo() {
+    const { repo } = makeRepo();
+    const save = repo.save.bind(repo);
+    let armed = false;
+    repo.save = (async (b) => {
+      if (armed) throw new Error('persist failed');
+      return save(b);
+    }) as typeof repo.save;
+    return { repo, arm: () => { armed = true; } };
+  }
+
+  it('promote does NOT delete an adoption that predates the call', async () => {
+    // The dangerous case: a value is already adopted (a re-promote, or a
+    // retry after an earlier partial failure). Compensating blindly would
+    // destroy the ORIGINAL adoption — the record this op exists to protect.
+    const { repo, arm } = makeFailingRepo();
+    const { service, rows } = makeAdoptions();
+
+    await promoteCoreValue(repo, 'b1', 'colors.primary', 'official', human, {
+      adoptions: service,
+    });
+    expect(rows).toHaveLength(1);
+    const original = { ...rows[0] };
+
+    arm();
+    await expect(
+      promoteCoreValue(repo, 'b1', 'colors.primary', 'official', human, { adoptions: service }),
+    ).rejects.toThrow('persist failed');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(original);
+  });
+
+  it('promote DOES remove an adoption it created itself', async () => {
+    const { repo, arm } = makeFailingRepo();
+    const { service, rows } = makeAdoptions();
+
+    arm();
+    await expect(
+      promoteCoreValue(repo, 'b1', 'colors.primary', 'official', human, { adoptions: service }),
+    ).rejects.toThrow('persist failed');
+
+    expect(rows).toEqual([]);
+  });
+
+  it('demote restores the ORIGINAL adopter and note, not the demoting user', async () => {
+    const { repo } = makeRepo();
+    const { service, rows } = makeAdoptions();
+    const firstAdopter: HumanActor = { kind: 'human', userId: 'alice' };
+
+    await promoteCoreValue(repo, 'b1', 'colors.primary', 'official', firstAdopter, {
+      adoptions: service,
+      note: 'signed off at launch',
+    });
+    expect(rows[0]).toMatchObject({ adoptedBy: 'alice', note: 'signed off at launch' });
+
+    // Someone ELSE demotes, and the save fails.
+    const save = repo.save.bind(repo);
+    repo.save = (async () => { throw new Error('persist failed'); }) as typeof repo.save;
+
+    const bob: HumanActor = { kind: 'human', userId: 'bob' };
+    await expect(
+      demoteCoreValue(repo, 'b1', 'colors.primary', 'provisional', bob, { adoptions: service }),
+    ).rejects.toThrow('persist failed');
+    repo.save = save;
+
+    // Restored as alice's decision. Recreating it as bob's would rewrite who
+    // made a call bob only tried to undo.
+    expect(rows).toHaveLength(1);
+    expect(rows[0].adoptedBy).toBe('alice');
+    expect(rows[0].note).toBe('signed off at launch');
   });
 });

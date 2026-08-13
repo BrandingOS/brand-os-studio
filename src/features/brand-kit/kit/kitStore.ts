@@ -89,16 +89,54 @@ export type KitStoreState = {
  */
 const hydrating = new Map<string, Promise<void>>();
 
+/** The brand the UI most recently asked to hydrate. See `hydrate`. */
+let requestedBrandId: string | null = null;
+
+/**
+ * Per-brand write queue.
+ *
+ * Saves are fire-and-forget, so two quick mutations previously raced: both
+ * requests were in flight at once and the server kept whichever ARRIVED last,
+ * which is not necessarily the one issued last. Approving an item and then
+ * archiving it could persist the approve — the user's last action silently
+ * undone on the next reload.
+ *
+ * Chaining per brand makes arrival order equal issue order. Different brands
+ * stay independent, and a failed save does not break the chain behind it.
+ */
+const saveQueues = new Map<string, Promise<unknown>>();
+
 function persist(brandId: string | null, deliverables: Record<DeliverableKey, DeliverableRecord>) {
   if (!brandId) return;
   const state: BrandKitState = { version: 1, deliverables };
-  // Fire-and-forget, as it always was: the boolean was never awaited, and a
-  // failed kit write must not break the interaction that triggered it.
-  void getKitStateRepository()
-    .save(brandId, state)
-    .catch(() => {
-      /* persistence failure is non-fatal; state stays in memory */
+  // Still fire-and-forget from the caller's side, as it always was: the boolean
+  // was never awaited, and a failed kit write must not break the interaction
+  // that triggered it.
+  const write = () =>
+    getKitStateRepository()
+      .save(brandId, state)
+      .catch(() => {
+        /* persistence failure is non-fatal; state stays in memory */
+      });
+
+  const prior = saveQueues.get(brandId);
+  // With nothing in flight, start IMMEDIATELY rather than after a microtask.
+  // Deferring unconditionally would delay every first save by a tick for no
+  // benefit — there is nothing to order against.
+  const queued = (prior
+    ? prior
+        .catch(() => {
+          /* an earlier failure must not cancel later writes */
+        })
+        .then(write)
+    : write()
+  )
+    .finally(() => {
+      // Only the tail clears the slot, so a later save never joins a chain
+      // that has already been replaced.
+      if (saveQueues.get(brandId) === queued) saveQueues.delete(brandId);
     });
+  saveQueues.set(brandId, queued);
 }
 
 /** Fix up primaryItemId after item mutations: keep it when still
@@ -225,6 +263,12 @@ export const useKitStore = create<KitStoreState>((set, get) => {
       const existing = hydrating.get(brandId);
       if (existing) return existing;
 
+      // Which brand the UI is actually asking for RIGHT NOW. A load that
+      // finishes after the user has navigated on must not install its brand:
+      // hydrating A, then B, with A completing last would put A's kit on
+      // screen while the UI shows B.
+      requestedBrandId = brandId;
+
       const run = (async () => {
         const repo = getKitStateRepository();
         let state = await repo.load(brandId);
@@ -232,6 +276,7 @@ export const useKitStore = create<KitStoreState>((set, get) => {
           state = migrateFromCardCustomizations(brandId, brand);
           await repo.save(brandId, state);
         }
+        if (requestedBrandId !== brandId) return; // superseded — drop the result
         set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
       })().finally(() => {
         hydrating.delete(brandId);

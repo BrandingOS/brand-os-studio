@@ -142,8 +142,14 @@ BEGIN
     SELECT 1 FROM pg_constraint WHERE conname = 'assets_folder_fk'
   ) THEN
     ALTER TABLE public.assets
+      -- ON DELETE SET NULL on a COMPOSITE key would null BOTH columns —
+      -- including `brand_id`, which is NOT NULL and is the asset's tenancy
+      -- anchor. Postgres would raise on the delete, so a folder could never be
+      -- removed while it held assets. `SET NULL (folder_id)` nulls only the
+      -- folder link: the asset survives, unfiled, still owned by its brand.
       ADD CONSTRAINT assets_folder_fk FOREIGN KEY (folder_id, brand_id)
-      REFERENCES public.brand_folders (id, brand_id) ON DELETE SET NULL NOT VALID;
+      REFERENCES public.brand_folders (id, brand_id)
+      ON DELETE SET NULL (folder_id) NOT VALID;
   END IF;
 END $$;
 
