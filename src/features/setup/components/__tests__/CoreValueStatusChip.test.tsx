@@ -6,10 +6,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import type { CoreValueMeta } from '@/domain/brand/coreMeta';
-import {
-  CoreValueStatusChip,
-  shouldSurfaceStatus,
-} from '../CoreValueStatusChip';
+import { CoreValueStatusChip } from '../CoreValueStatusChip';
+import { shouldSurfaceStatus } from '../coreValueStatus';
 
 afterEach(cleanup);
 

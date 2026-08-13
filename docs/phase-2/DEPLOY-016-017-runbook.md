@@ -65,6 +65,29 @@ SELECT count(*) FROM information_schema.columns
                        'use_as_reference','provenance','deleted_at','legacy_ref_id'); -- 9
 ```
 
+## 3b. Validation status (read before deploying)
+
+**These migrations have NOT been executed against any database yet.** Docker is
+unavailable in the environment where they were authored, so neither
+`supabase start` nor `supabase db reset` could run.
+
+What HAS been verified, statically, against migrations 001–015:
+
+- Every object 016/017 reference exists earlier: `public.is_brand_member()`,
+  `public.set_updated_at()`, `public.brands`, `public.assets`.
+- Every `is_brand_member` role argument (`viewer`/`editor`/`admin`) is a real
+  `workspace_role` enum member.
+- The down files invert the up files exactly: 3 tables created / 3 dropped,
+  9 columns added / 9 dropped, 2 columns added / 2 dropped.
+- Every DDL statement is idempotency-guarded; all 12 policies are preceded by
+  `DROP POLICY IF EXISTS`; `DO $$ … END $$;` blocks balance.
+- Both RLS test scripts insert only columns that exist, satisfy every NOT NULL
+  on `public.brands`, and are transactional and self-asserting.
+
+**What static checking CANNOT tell you**, and why step 4 is still mandatory: it
+cannot catch a syntax error the Postgres parser would reject, and it cannot
+prove a single RLS policy actually denies access. Run step 4 before step 1.
+
 ## 4. RLS verification (required — isolation is proven at the data layer, not the UI)
 
 Needs Docker for the local stack:

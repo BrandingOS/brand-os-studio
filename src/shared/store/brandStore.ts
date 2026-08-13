@@ -7,6 +7,7 @@ import { changeBrandTypographyFamilies } from '@/application/brand/changeBrandTy
 import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyCorePatch, splitCorePatch } from './routeCoreWrite';
 import { migrateBrandToCurrent } from '@/shared/brand/migrateSchema';
+import { recordCoreWriteFallback } from './coreWriteFallback';
 import type { Brand, CreateBrandInput } from '../types/brand';
 import { loadBrandFonts } from '@/shared/design-system/fonts';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
@@ -164,9 +165,14 @@ export const useBrandStore = create<BrandStore>()(
               // brand, so a previously-tolerated malformed record could start
               // failing a save that used to work. In DEV that must be loud; in
               // production the user's edit still lands via the legacy path.
-              // Remove this fallback once no brand fails validation — that is
-              // the deletion criterion for the legacy write path itself.
+              //
+              // Every use is RECORDED (coreWriteFallback.ts) — a silent
+              // fallback would let convergence stall on some brand forever with
+              // nobody the wiser. Removal criterion unchanged: delete this
+              // branch once no brand fails canonical validation, which the
+              // recorder's zero-count is the evidence for.
               if (import.meta.env.DEV) throw routingError;
+              recordCoreWriteFallback(id, routedKeys, routingError);
               Object.assign(rest, core);
             }
           }

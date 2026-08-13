@@ -15,7 +15,7 @@ import type {
 } from '@/core/services/IKitAdoptionService';
 import { assertAdoptable } from '@/core/services/IKitAdoptionService';
 import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository';
-import { coreValueMeta, type HumanActor } from '@/domain/brand';
+import { coreValueMeta, type CoreFieldPath, type HumanActor } from '@/domain/brand';
 import { changeBrandColors } from '../changeBrandColor';
 import { changeBrandVoiceTone } from '../changeBrandVoice';
 import { demoteCoreValue, promoteCoreValue } from '../promoteCoreValue';
@@ -134,8 +134,9 @@ describe('promoteCoreValue is the only route to confirmed/official', () => {
   it('rejects a path outside the closed registry', async () => {
     const { repo } = makeRepo();
     await expect(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      promoteCoreValue(repo, 'b1', 'colors.tertiary' as any, 'confirmed', human),
+      // Deliberately bypassing the type to prove the RUNTIME guard also holds —
+      // a path can reach this op from untyped data (a stored draft, an API body).
+      promoteCoreValue(repo, 'b1', 'colors.tertiary' as CoreFieldPath, 'confirmed', human),
     ).rejects.toThrow(/not a Core field path/i);
   });
 });
