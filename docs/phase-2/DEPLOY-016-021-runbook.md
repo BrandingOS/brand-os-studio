@@ -105,10 +105,13 @@ SELECT to_regclass('public.brand_folders'),
        to_regclass('public.brand_kit_adoptions'),
        to_regclass('public.brand_context_signals');                                  -- all not null
 
--- 017 RLS: 4 policies per new table (12 total)
+-- 017 RLS: 11 policies total, NOT 12 — `brand_kit_adoptions` deliberately has
+-- no UPDATE policy, because an adoption is a decision, not an editable row.
+-- That absence is load-bearing: it is what stops a second adopter rewriting
+-- `adopted_by`, and supabase/tests/017 asserts it.
 SELECT tablename, count(*) FROM pg_policies
  WHERE tablename IN ('brand_folders','brand_kit_adoptions','brand_context_signals')
- GROUP BY tablename;                                                                 -- 4 each
+ GROUP BY tablename;              -- folders 4, context_signals 4, adoptions 3
 
 -- 017 Library columns
 SELECT count(*) FROM information_schema.columns
@@ -155,7 +158,7 @@ Nothing was run against production.
 | `brands.identity_meta` / `business_info` | both present, `jsonb` |
 | `brand_folders`, `brand_kit_adoptions`, `brand_context_signals` | all 3 created |
 | 9 Library columns on `public.assets` | all 9 present |
-| RLS policies on the 3 new tables | 4 each (12 total), `relrowsecurity = true` on all 3 |
+| RLS policies on the 3 new tables | folders 4, context_signals 4, adoptions 3 (11 total — adoptions have no UPDATE by design), `relrowsecurity = true` on all 3 |
 | `brand_kit_state` (018) | created; select/insert/update/delete policies present |
 | Stale `brands_*_policy` (019) | 0 remaining |
 | Demo-brand write grants (020) | 0 remaining |
@@ -194,6 +197,41 @@ the top. Neither originated in 016–021.
    compared `app_role_v2 = app_role`, so a NON-owner reading a brand got
    `ERROR: operator does not exist`. Root cause was migration 006's incomplete
    enum swap. **Fixed** in 006, with 019 dropping the superseded policies.
+
+## 3c. DEPLOYED TO PRODUCTION — 2026-08-13
+
+`supabase db push --linked` against `brandos-prod` (`ciojgoozobzbeglwdxcz`).
+All six migrations applied; every §3 check re-run against production afterwards.
+
+| Check | Result |
+|---|---|
+| 016–021 in BOTH columns of `migration list --linked` | yes, all six |
+| `brands.identity_meta` / `business_info` | both present |
+| `brand_folders`, `brand_kit_adoptions`, `brand_context_signals` | all 3 created |
+| 9 Library columns on `public.assets` | all 9 present |
+| RLS policies on the 3 new tables | 11 (folders 4, signals 4, adoptions 3) |
+| `relrowsecurity` on all 4 new tables | true |
+| `brand_kit_state` (018) | created |
+| Stale `brands_*_policy` (019) | 0 — already absent before the push; 019 was a no-op here |
+| Demo-brand write grants (020) | 0 — already absent before the push; 020 was a no-op here |
+| `assets_folder_fk` | `ON DELETE SET NULL (folder_id)` — the column list is present |
+| `brand_folders_no_self_parent` | present |
+| `notifications_insert` (021) | `user_id = auth.uid()` — was `WITH CHECK (true)` before the push |
+| `scratch_select_own` / `scratch_delete_own` (021) | both `owner = auth.uid()` — both were unscoped before the push |
+| Rows before → after (brands / assets / notifications / scratch objects) | 6→6 / 0→0 / 0→0 / 0→0 |
+
+**021 was the only migration that changed live security state.** The preflight
+confirmed all three holes were live in production (`notifications_insert` open,
+both scratch policies unscoped) and all three are now closed. 019 and 020 found
+their targets already absent and were no-ops, as their idempotency guards intend.
+
+The index-lock gate in §2 was clear: `public.assets` had 0 rows, so the three
+index builds took no meaningful write lock and the out-of-band CONCURRENTLY path
+was not needed.
+
+**T050 (production Library ingest) remains NOT RUN.** It is also now known to
+have nothing to migrate: 0 brands carry a legacy `brandAssets[]` or `assets[]`
+array and 0 carry `logo_system`.
 
 ## 4. RLS verification (required — isolation is proven at the data layer, not the UI)
 
