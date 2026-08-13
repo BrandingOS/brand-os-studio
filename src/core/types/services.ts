@@ -11,7 +11,13 @@
  * It accesses services via the ServiceContainer or the useService() hook.
  */
 
-import type { Brand, CreateBrandInput, Asset } from '@/shared/types/brand';
+import type {
+  Brand,
+  CreateBrandInput,
+  Asset,
+  AssetProvenance,
+  BrandFolder,
+} from '@/shared/types/brand';
 
 // ─── Workspace Types ───────────────────────────────────────────
 
@@ -88,6 +94,56 @@ export interface CreateAssetInput {
   size?: number;
   tags?: string[];
   metadata?: Asset['metadata'];
+  /** Library origin. Defaults to 'uploaded' when omitted. */
+  origin?: Asset['origin'];
+  folderId?: string | null;
+  useAsReference?: boolean;
+  /** Generative media carries its provenance from the moment it exists. */
+  provenance?: AssetProvenance;
+  /** Set by the Library ingest so logoSystem AssetRefs still resolve. */
+  legacyRefId?: string | null;
+}
+
+// ─── Brand Library ─────────────────────────────────────────────
+// The Library is the ONE home for brand-owned material. It is not a new
+// store: `public.assets` + IAssetsService BECOME the Library, because that
+// pair already has membership-aware RLS, a brand-scoped storage bucket, and
+// a local/server implementation pair. The legacy `brand.assets[]` and
+// `brand.brandAssets[]` arrays migrate into it.
+
+export interface LibraryFlags {
+  isFavorite: boolean;
+  /** Mutually exclusive with isFavorite. */
+  isDisliked: boolean;
+  useAsReference: boolean;
+}
+
+export interface LibraryQuery {
+  /** `null` matches unfiled items specifically; omit to match any folder. */
+  folderId?: string | null;
+  origin?: Array<'uploaded' | 'generated' | 'reference'>;
+  favorite?: boolean;
+  references?: boolean;
+  /** Default false — archived items are hidden from default views. */
+  includeArchived?: boolean;
+  search?: string;
+  tags?: string[];
+}
+
+/**
+ * Why a delete did not happen. Deletion never cascades: if material is adopted
+ * by the Official Kit or referenced by saved work, the caller is told what is
+ * in the way so the USER can decide (FR-020).
+ */
+export type DeleteOutcome =
+  | { ok: true }
+  | { ok: false; reason: 'adopted'; adoptedRefs: string[] }
+  | { ok: false; reason: 'referenced'; workItemIds: string[] };
+
+export interface CreateFolderInput {
+  brandId: string;
+  name: string;
+  parentId?: string | null;
 }
 
 export interface IAssetsService {
@@ -95,7 +151,24 @@ export interface IAssetsService {
   getById(id: string): Promise<Asset | null>;
   create(input: CreateAssetInput): Promise<Asset>;
   update(id: string, patch: Partial<CreateAssetInput>): Promise<Asset>;
+  /** @deprecated Prefer `softDelete` — it preserves lineage for saved work. */
   delete(id: string): Promise<void>;
+
+  // ── Library surface ──
+  /** Excludes archived and tombstoned items unless the query says otherwise. */
+  listLibrary(brandId: string, q?: LibraryQuery): Promise<Asset[]>;
+  setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset>;
+  moveToFolder(id: string, folderId: string | null): Promise<Asset>;
+  archive(id: string): Promise<Asset>;
+  unarchive(id: string): Promise<Asset>;
+  /** Tombstones the item. NEVER hard-deletes the row. */
+  softDelete(id: string): Promise<DeleteOutcome>;
+
+  listFolders(brandId: string): Promise<BrandFolder[]>;
+  createFolder(input: CreateFolderInput): Promise<BrandFolder>;
+  renameFolder(id: string, name: string): Promise<BrandFolder>;
+  /** Items in the folder fall back to unfiled; they are never deleted. */
+  deleteFolder(id: string): Promise<void>;
 }
 
 // ─── Storage Service ───────────────────────────────────────────

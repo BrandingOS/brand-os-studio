@@ -370,6 +370,70 @@ export interface Asset {
     embedUrl?: string;
   };
   createdAt: Date;
+
+  // ─── Brand Library (migration 017) ─────────────────────────────────
+  // The Library is ONE home for every piece of brand-owned material —
+  // uploads, generated media, and references alike. These fields are what
+  // make an asset row a Library item rather than a bare file record. All
+  // optional, so an asset created before 017 still satisfies the type.
+  /** Where this material came from. */
+  origin?: 'uploaded' | 'generated' | 'reference';
+  /** Folder membership; null/undefined = unfiled. */
+  folderId?: string | null;
+  isFavorite?: boolean;
+  /** Mutually exclusive with isFavorite (enforced by a DB CHECK). */
+  isDisliked?: boolean;
+  /** Eligible as AI creation context when true. */
+  useAsReference?: boolean;
+  /** Set = archived: hidden from default views, fully recoverable. */
+  archivedAt?: Date | null;
+  /**
+   * Set = TOMBSTONED. The row survives as an inert lineage record (id, name,
+   * origin) so saved work that referenced it never dangles. Not versioning:
+   * there is no history and no restore.
+   */
+  deletedAt?: Date | null;
+  /** Generation provenance for generative media (origin === 'generated'). */
+  provenance?: AssetProvenance;
+  /**
+   * The pre-migration `brand.assets[]` / `brand.brandAssets[]` id, preserved so
+   * logoSystem AssetRefs still resolve during convergence. Dropped once nothing
+   * reads it.
+   */
+  legacyRefId?: string | null;
+}
+
+/**
+ * Why a generated asset exists. Written once at creation and immutable except
+ * for `relations`, which accrues as the asset is used.
+ */
+export interface AssetProvenance {
+  kind: 'generated';
+  prompt?: string;
+  /** Library item ids used as references/inputs. */
+  inputRefs?: string[];
+  contextUsed?: {
+    core?: string[];
+    businessInfo?: boolean;
+    contextSignals?: number;
+  };
+  model?: string;
+  /** ISO timestamp. */
+  generatedAt: string;
+  relations?: {
+    placedInDesignIds?: string[];
+    derivedFromAssetId?: string;
+  };
+}
+
+/** A per-brand organisational grouping of Library items. */
+export interface BrandFolder {
+  id: string;
+  brandId: string;
+  name: string;
+  parentId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CreateBrandInput {
