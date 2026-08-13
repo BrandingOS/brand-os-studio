@@ -25,10 +25,12 @@ import {
 } from '@/shared/utils/imageUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { BrandAsset, BrandAssetKind, LogoRole } from '@/shared/types/brandAssets';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import {
   stageAsset,
   stageAssetDeletion,
-  stageLogoAssignment,
+  stageLogoRef,
   stageLogoRemoval,
 } from './assetOperations';
 
@@ -83,6 +85,8 @@ function getImageDimensions(url: string): Promise<{ width: number; height: numbe
 export function useAssetUpload(brandId: string | undefined) {
   const [uploading, setUploading] = useState(false);
   const updateBrand = useBrandStore((s) => s.update);
+  const reproject = useBrandStore((s) => s.reprojectLibrary);
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
   const getBrand = useCallback(
     () => useBrandStore.getState().list.find((b) => b.id === brandId) ?? useBrandStore.getState().current,
     [brandId],
@@ -115,29 +119,14 @@ export function useAssetUpload(brandId: string | undefined) {
           return null;
         }
 
-        if (opts.role) {
-          const { patch, asset } = stageLogoAssignment(brand, {
-            url: dataUrl,
-            kind: 'logo',
-            name: file.name,
-            role: opts.role,
-            description: opts.description,
-            usage: opts.usage,
-            width,
-            height,
-            originalName: file.name,
-            tags: opts.tags,
-            replaceAssetId: opts.replaceAssetId,
-            file: { size: file.size, mime: file.type },
-          });
-          await updateBrand(brandId, patch);
-          if (!opts.silent) toast.success('Logo saved');
-          return asset;
-        }
-
-        const { brandAssets, asset } = stageAsset(brand, {
+        // The upload lands in the BRAND LIBRARY — the one authoritative asset
+        // store. `stageAsset` is still used, but only to SHAPE the record and
+        // keep its id derivation (content-hash dedupe, replace semantics)
+        // identical to before; its `brandAssets[]` output is discarded, because
+        // that array is now a read-only projection of the Library.
+        const { asset } = stageAsset(brand, {
           url: dataUrl,
-          kind,
+          kind: opts.role ? 'logo' : kind,
           name: file.name,
           width,
           height,
@@ -146,7 +135,41 @@ export function useAssetUpload(brandId: string | undefined) {
           replaceAssetId: opts.replaceAssetId,
           file: { size: file.size, mime: file.type },
         });
-        await updateBrand(brandId, { brandAssets });
+
+        await assets.create({
+          brandId,
+          id: asset.id,
+          name: asset.name,
+          type: opts.role ? 'logo' : kind === 'logo' ? 'logo' : 'image',
+          category: opts.role ? 'logo' : 'photo',
+          source: 'upload',
+          url: dataUrl,
+          size: file.size,
+          tags: asset.tags ?? [],
+          metadata: {
+            dimensions: { width, height },
+            format: file.type,
+            originalName: file.name,
+          },
+          origin: 'uploaded',
+        });
+
+        if (opts.role) {
+          // Only the logoSystem REF is written to the brand — the asset itself
+          // lives in the Library, and the projection makes it resolvable to the
+          // synchronous readers on the next store hydration.
+          const patch = stageLogoRef(brand, opts.role, asset.id, {
+            description: opts.description,
+            usage: opts.usage,
+          });
+          await updateBrand(brandId, patch);
+          if (!opts.silent) toast.success('Logo saved');
+          return asset;
+        }
+
+        // Non-logo assets need no brand write at all now: re-project so the
+        // new item is visible through the legacy readers immediately.
+        await reproject(brandId);
         if (!opts.silent) toast.success('Asset saved');
         return asset;
       } catch (err) {
@@ -156,7 +179,7 @@ export function useAssetUpload(brandId: string | undefined) {
         setUploading(false);
       }
     },
-    [brandId, getBrand, updateBrand],
+    [brandId, getBrand, updateBrand, assets, reproject],
   );
 
   const uploadMany = useCallback(

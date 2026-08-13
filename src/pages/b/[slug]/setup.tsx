@@ -7,6 +7,9 @@ import { useBrandStore } from '@/shared/store/brandStore';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
 import { mockBrandToPatch } from '@/features/setup/data/mockBrandToPatch';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
+import { syncSetupLibrary } from '@/features/setup/data/syncSetupLibrary';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
 
 /**
@@ -41,22 +44,33 @@ export default function BrandSetupPage() {
   const { slug } = useParams<{ slug: string }>();
   const { brand, isLoading } = useBrandFromSlug(slug);
   const updateBrand = useBrandStore((s) => s.update);
+  const reproject = useBrandStore((s) => s.reprojectLibrary);
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
 
   const handlePersist = useCallback(
     async (next: MockBrand) => {
       if (!brand) return;
       const patch = mockBrandToPatch(next, brand);
-      if (Object.keys(patch).length === 0) return;
 
       try {
-        await updateBrand(brand.id, patch);
+        if (Object.keys(patch).length > 0) {
+          await updateBrand(brand.id, patch);
+        }
+        // Photos and icons have no home in the brand record — they go to the
+        // Library, which is also where `brandToMockBrand` reads them back from
+        // (via the projection). Additive: rearranging a Setup slot never
+        // deletes Library material.
+        const synced = await syncSetupLibrary(brand.id, next, assets);
+        if (synced.createdPhotos || synced.createdIcons) {
+          await reproject(brand.id);
+        }
       } catch (err) {
         toast.error('Could not save changes', {
           description: err instanceof Error ? err.message : 'Unknown error',
         });
       }
     },
-    [brand, updateBrand],
+    [brand, updateBrand, assets, reproject],
   );
 
   if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;

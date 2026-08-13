@@ -247,3 +247,34 @@ export function stageAssetDeletion(brand: Brand, assetId: string): Partial<Brand
 
   return { brandAssets, logoSystem };
 }
+
+/**
+ * Points a LogoSystem slot at a Library asset id — and writes NOTHING else.
+ *
+ * The counterpart to `stageLogoAssignment`, for the converged world: the asset
+ * itself now lives in the Brand Library, so the only thing the brand record
+ * still owns is the REFERENCE. `brandAssets[]` is a read-only projection and is
+ * deliberately absent from this patch.
+ */
+export function stageLogoRef(
+  brand: Brand,
+  role: LogoRole,
+  assetId: string,
+  meta: { description?: string; usage?: string } = {},
+): Partial<Brand> {
+  const logoSystem: LogoSystemRefs = JSON.parse(JSON.stringify(brand.logoSystem ?? {}));
+  const ref = { assetId, ...(meta.description ? { description: meta.description } : {}), ...(meta.usage ? { usage: meta.usage } : {}) };
+
+  switch (role) {
+    case 'primary': logoSystem.primary = ref; break;
+    case 'secondary': logoSystem.secondary = ref; break;
+    case 'wordmark': logoSystem.wordmark = ref; break;
+    case 'iconmark': logoSystem.iconmark = ref; break;
+    case 'mono.black': logoSystem.mono = { ...(logoSystem.mono ?? {}), black: ref }; break;
+    case 'mono.white': logoSystem.mono = { ...(logoSystem.mono ?? {}), white: ref }; break;
+    case 'horizontal': logoSystem.orientations = { ...(logoSystem.orientations ?? {}), horizontal: ref }; break;
+    case 'stacked': logoSystem.orientations = { ...(logoSystem.orientations ?? {}), stacked: ref }; break;
+    default: break;
+  }
+  return { logoSystem };
+}
