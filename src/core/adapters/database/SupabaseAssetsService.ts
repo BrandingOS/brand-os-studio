@@ -105,6 +105,13 @@ export class SupabaseAssetsService implements IAssetsService {
       metadata: input.metadata || {},
       uploaded_by: user?.id,
     };
+    // `assets.id` is a uuid column; a legacy app-generated id like
+    // "asset_1786308941230" cannot be stored there. Honour the requested id
+    // only when it is already a uuid, otherwise let the DB mint one and let
+    // `legacy_ref_id` carry the old identity.
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (input.id && UUID.test(input.id)) base.id = input.id;
+
     const withLibrary: Record<string, unknown> = {
       ...base,
       origin: input.origin ?? 'uploaded',

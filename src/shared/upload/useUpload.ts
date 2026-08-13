@@ -2,7 +2,12 @@
  * useUpload — single hook every feature uses to upload an image.
  *
  * Wraps `imageUpload.ts` (compression + validation), shows toasts, and
- * optionally persists the result to the active brand's `assets` array.
+ * optionally persists the result to the BRAND LIBRARY.
+ *
+ * It used to append to the brand record's inline `assets[]` array, which is
+ * why an upload made here never appeared in the Folders page — that surface
+ * reads the assets service. Both now write the same Library, so an upload
+ * lands in one place no matter which surface started it.
  *
  * Returns:
  *   - `upload(file, opts?)` — async, returns UploadResult or null on error
@@ -16,14 +21,11 @@ import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { compressLogo, compressAsset, compressImage, validateUploadFile } from '@/shared/utils/imageUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
-import type { Asset } from '@/shared/types/brand';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import type { UploadOptions, UploadResult } from './types';
 
 const DEFAULT_ACCEPT = ['image/'];
-
-function makeAssetId(): string {
-  return `asset_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
 
 async function compressByKind(file: File, kind: UploadOptions['kind']): Promise<string> {
   if (kind === 'logo') return compressLogo(file);
@@ -42,8 +44,8 @@ function getImageDimensions(dataUrl: string): Promise<{ width: number; height: n
 
 export function useUpload() {
   const [uploading, setUploading] = useState(false);
-  const updateBrand = useBrandStore((s) => s.update);
   const currentBrand = useBrandStore((s) => s.current);
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
 
   const upload = useCallback(async (file: File, opts: UploadOptions = {}): Promise<UploadResult | null> => {
     const kind = opts.kind ?? 'image';
@@ -71,8 +73,8 @@ export function useUpload() {
       };
 
       if (opts.persistAsAsset && currentBrand) {
-        const newAsset: Asset = {
-          id: makeAssetId(),
+        const created = await assets.create({
+          brandId: currentBrand.id,
           name: file.name,
           type: kind === 'logo' ? 'logo' : 'image',
           category: opts.assetCategory ?? (kind === 'logo' ? 'logo' : 'photo'),
@@ -85,11 +87,9 @@ export function useUpload() {
             format: file.type,
             originalName: file.name,
           },
-          createdAt: new Date(),
-        };
-        const nextAssets = [...(currentBrand.assets ?? []), newAsset];
-        await updateBrand(currentBrand.id, { assets: nextAssets });
-        result.id = newAsset.id;
+          origin: 'uploaded',
+        });
+        result.id = created.id;
       }
 
       return result;
@@ -99,7 +99,7 @@ export function useUpload() {
     } finally {
       setUploading(false);
     }
-  }, [currentBrand, updateBrand]);
+  }, [currentBrand, assets]);
 
   const uploadMany = useCallback(async (files: File[], opts: UploadOptions = {}): Promise<UploadResult[]> => {
     const results: UploadResult[] = [];

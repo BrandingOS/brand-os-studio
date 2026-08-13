@@ -122,8 +122,10 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 - [ ] T045 [US4] Add `logoSystem` ref rewriting to the ingest (old brandAssets id → new Library id), with a read-through fallback resolving unrewritten refs via `legacy_ref_id`.
 - [ ] T046 [US4] Unit test `src/domain/brand/__tests__/migrateLibrary.test.ts` — ingest is idempotent across re-runs, no asset is lost from any of the three sources, and every `logoSystem` slot still resolves after the rewrite (R1/R2 coverage).
 - [ ] T047 [US4] Converge `src/shared/upload/useUpload.ts` to write through `IAssetsService` instead of `brand.assets[]`.
-- [ ] T048 [US4] Converge `src/shared/assets/useAssetUpload.ts` and `assetOperations.ts` to write through `IAssetsService` instead of `brand.brandAssets[]`, keeping logo assignment behavior identical.
-- [ ] T049 [US4] Give Setup's photos and icons a real home by routing their slots through the Library (closing the "never persist" gap in `mockBrandToPatch.ts`).
+- [ ] T048 [US4] **BLOCKED — the task's assumption is wrong.** It assumed the `brandAssets[]` write path could move to the Library independently of its readers. It cannot: `brand.brandAssets[]` is a SYNCHRONOUSLY-readable array embedded in the brand object, and ~34 modules resolve `logoSystem` refs through it — including `useBrandLogo.ts`, which every logo render passes through, plus `brandToBrandKit.ts`, `brandResolvers.ts`, `GuidelineBoard`, `BrandPanel` and `brandToMockBrand`. The Library is an async service, so swapping the array for a service call inside a render path means restructuring every one of those call sites. Stopping the write-path change alone would silently break logo rendering for newly-uploaded logos. **Re-scope required** — see T048a/T048b.
+- [ ] T048a [US4] Decide the reader strategy before touching the write path. The two viable shapes: (a) keep `brandAssets[]` as a *derived read-projection* maintained by the same single write path that writes the Library — permitted by the constitution ("derived projections… read-only and reconstructible") and non-breaking; or (b) migrate the ~34 readers to a synchronous Library projection hydrated once per brand load. (a) is the incremental option; (b) is the one that actually retires the array.
+- [ ] T048b [US4] Implement the chosen strategy, then converge `useAssetUpload.ts` / `assetOperations.ts`.
+- [ ] T049 [US4] Give Setup's photos and icons a real home by routing their slots through the Library (closing the "never persist" gap in `mockBrandToPatch.ts`). **Depends on T048a** — Setup reads brand assets through the same synchronous shape.
 - [ ] T050 [US4] Run the ingest against all brands, then run `VALIDATE CONSTRAINT` on the two `NOT VALID` checks from 017 as a separate re-runnable statement (not part of the deploy).
 - [ ] T051 [US4] Browser E2E `src/features/dam/__tests__/libraryConvergence.browser.test.tsx` — upload from the editor, from Setup and from the Library page; assert all three appear with correct `origin`, and that flags/folders persist across a reload (SC-004).
 
@@ -200,6 +202,17 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 - [ ] T081 [P] Replace the `brandos:seed-brand-overrides` hidden write layer with proper per-user demo-brand handling — **only if** seed brands no longer require a parallel write store.
 - [ ] T082 [P] Delete dead types (`SavedDesign` in `src/features/brandkit/types/index.ts`, the superseded flat `Asset` where the Library replaces it) — **only if** their last consumer is gone.
 - [ ] T083 Demote `brand.guidelines.*` from writable truth to a render-only projection — **only if** all voice/strategy/logo/color readers use Core.
+
+---
+
+## Phase 7b: Database blockers — REQUIRED before 016/017 reach production
+
+Both are **pre-existing defects**, found while validating 016/017 against a real
+local Postgres. Neither is caused by this feature; both gate its deployment.
+Full detail in `docs/phase-2/DEPLOY-016-017-runbook.md`.
+
+- [ ] T087 Repair or supersede the three legacy migrations that make a fresh chain fail, so `supabase db reset` completes cleanly from 001 → latest: `20250905210043` and `20250905210159` (demo-brand INSERTs whose `user_id` subquery is NULL on an empty `auth.users`) and `20250905213158` (`CREATE POLICY … FOR SELECT … WITH CHECK`, rejected by Postgres). **Done when** a clean machine can run `supabase db reset` with zero errors — until then a deploy cannot be rehearsed against a faithful copy of production.
+- [ ] T088 Correct the stale `brands_select_policy` / `has_role` type mismatch: the policy passes `'admin'::app_role` while migration 006 retyped `user_roles.role` to `app_role_v2`, raising `operator does not exist` for any NON-owner reading a brand (owners short-circuit). Confirm whether `brands_select_policy`/`brands_update_policy`/`brands_delete_policy` still exist in production and drop them in a new migration if so — they are superseded by migration 001's `brands_select`. **Done when** a non-owner `SELECT` on `public.brands` returns rows or zero rows, never an error.
 
 ---
 

@@ -1,5 +1,35 @@
 # Deploy runbook — migrations 016 + 017 (Brand System Foundation, Phase 0)
 
+> ## ⛔ REQUIRED BEFORE PRODUCTION DEPLOYMENT
+>
+> Two **pre-existing** database defects were found while validating 016/017
+> locally (details in §3b). Neither is caused by these migrations, and neither
+> is optional: both must be corrected before 016/017 go to production.
+>
+> **B1 — a fresh migration chain must apply cleanly from 001 → latest.**
+> Today `supabase db reset` fails on three legacy migrations, so the schema in
+> production cannot be reproduced from this repository. Until that is true, a
+> deploy cannot be rehearsed against a faithful copy of production, and no
+> contributor can stand up a local database. Fix: repair or supersede
+> `20250905210043`, `20250905210159` (demo-brand INSERTs whose `user_id`
+> subquery is NULL on an empty `auth.users`) and `20250905213158`
+> (`CREATE POLICY … FOR SELECT … WITH CHECK`, which Postgres rejects outright).
+> **Done when** `supabase db reset` completes with no errors on a clean machine.
+>
+> **B2 — the stale `brands_select_policy` / `has_role` type mismatch must be
+> corrected.** The policy calls `has_role(auth.uid(), 'admin'::app_role)` while
+> migration 006 retyped `user_roles.role` to `app_role_v2`, so the comparison
+> raises `operator does not exist: public.app_role_v2 = public.app_role`.
+> Owners never hit it (the `user_id = auth.uid()` branch short-circuits); a
+> NON-owner reading a brand does. The policy is superseded by migration 001's
+> `brands_select`. Fix: confirm whether `brands_select_policy`,
+> `brands_update_policy` and `brands_delete_policy` still exist in production
+> and, if so, drop them in a new migration. **Done when** a non-owner
+> `SELECT` on `public.brands` returns rows or zero rows, never an error.
+>
+> Both were verified locally: dropping the three stale policies is what made
+> the 016 RLS suite pass end to end.
+
 Same shape as 013/014/015. **Additive, non-destructive, reversible.** Two
 migrations ship together because they are the schema half of one feature
 (`specs/001-brand-system-foundation`).

@@ -102,6 +102,15 @@ export interface CreateAssetInput {
   provenance?: AssetProvenance;
   /** Set by the Library ingest so logoSystem AssetRefs still resolve. */
   legacyRefId?: string | null;
+  /**
+   * INGEST ONLY. Lets the Library migration keep a legacy asset's original id,
+   * so existing `logoSystem` AssetRefs keep resolving with no rewrite at all —
+   * the safest outcome, since a rewrite is the one step that can strand a logo.
+   * Implementations that cannot honour it (Supabase, where `id` is a uuid and
+   * legacy ids are app-generated strings) ignore it and fall back to
+   * `legacyRefId` + a rewrite.
+   */
+  id?: string;
 }
 
 // ─── Brand Library ─────────────────────────────────────────────

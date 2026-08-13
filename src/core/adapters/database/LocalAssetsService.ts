@@ -132,7 +132,8 @@ export class LocalAssetsService implements IAssetsService {
 
   async create(input: CreateAssetInput): Promise<Asset> {
     const asset: Asset = {
-      id: crypto.randomUUID(),
+      // The ingest may supply the legacy id so logoSystem refs need no rewrite.
+      id: input.id ?? crypto.randomUUID(),
       name: input.name,
       type: input.type,
       category: input.category,
