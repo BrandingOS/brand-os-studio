@@ -1,5 +1,20 @@
 -- Create comprehensive demo brands for hamza2007ezzat@gmail.com
 -- Insert 5 comprehensive demo brands with all available details
+-- T087 FIX (2026-08-13): these demo rows resolve `user_id` from a subquery over
+-- `auth.users` for one hard-coded email. On a FRESH database that table is
+-- empty, the subquery yields NULL, and the insert dies on brands.user_id's
+-- NOT NULL constraint — which is why `supabase db reset` could not rebuild the
+-- schema from this repository.
+--
+-- Wrapped so the seed data is inserted only when that user actually exists.
+-- On a developer's clean database it is simply skipped (there is no user to own
+-- demo brands, and demo content is not required for the schema to be correct).
+-- Editing is safe: this version is already recorded as applied in production,
+-- so Supabase will never re-run it there.
+DO $$
+BEGIN
+IF EXISTS (SELECT 1 FROM auth.users WHERE email = 'hamza2007ezzat@gmail.com') THEN
+
 INSERT INTO brands (
   name,
   primary_color,
@@ -100,3 +115,8 @@ INSERT INTO brands (
   }'::jsonb,
   (SELECT id FROM auth.users WHERE email = 'hamza2007ezzat@gmail.com' LIMIT 1)
 );
+
+ELSE
+  RAISE NOTICE 'Skipping demo seed data: owner account not present on this database.';
+END IF;
+END $$;

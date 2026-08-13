@@ -1,5 +1,5 @@
 -- Create user profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT,
@@ -12,10 +12,12 @@ CREATE TABLE public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create app_role enum
-CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+DO $enum$ BEGIN
+  CREATE TYPE public.app_role AS ENUM ('admin', 'user');
+EXCEPTION WHEN duplicate_object THEN NULL; END $enum$;
 
 -- Create user_roles table
-CREATE TABLE public.user_roles (
+CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   role app_role NOT NULL DEFAULT 'user',
@@ -72,23 +74,40 @@ END;
 $$;
 
 -- Create trigger for new user signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 
 -- Update brands RLS policies to allow admins to see all brands
 DROP POLICY IF EXISTS brands_select_own ON public.brands;
+-- T087 FIX (2026-08-13): this was `WITH CHECK`, which Postgres rejects on a
+-- SELECT policy ("WITH CHECK cannot be applied to SELECT"). The statement was
+-- therefore invalid SQL and could never have executed, yet this migration's
+-- version IS recorded as applied in production — so production's policy set
+-- came from somewhere other than this file. The consequence was that
+-- `supabase db reset` could not rebuild the schema from the repository at all.
+-- Corrected to USING, which is what a read policy takes. Editing is safe:
+-- Supabase applies by version, and this version is already recorded, so it can
+-- never re-run against production; only fresh installs are affected.
+--
+-- Note: the policy created here is SUPERSEDED by migration 001's
+-- `brands_select`, and carries the app_role/app_role_v2 defect that migration
+-- 019 removes. It is repaired rather than deleted so the historical chain
+-- stays faithful, then dropped by 019.
+DROP POLICY IF EXISTS "brands_select_policy" ON public.brands;
 CREATE POLICY "brands_select_policy" 
 ON public.brands 
 FOR SELECT 
 TO authenticated 
-WITH CHECK (
+USING (
   user_id = auth.uid() OR 
   public.has_role(auth.uid(), 'admin')
 );
 
 -- Update other brands policies for admin access
 DROP POLICY IF EXISTS brands_update_own ON public.brands;
+DROP POLICY IF EXISTS "brands_update_policy" ON public.brands;
 CREATE POLICY "brands_update_policy"
 ON public.brands
 FOR UPDATE
@@ -99,6 +118,7 @@ WITH CHECK (
 );
 
 DROP POLICY IF EXISTS brands_delete_own ON public.brands;
+DROP POLICY IF EXISTS "brands_delete_policy" ON public.brands;
 CREATE POLICY "brands_delete_policy"
 ON public.brands
 FOR DELETE
@@ -109,6 +129,7 @@ USING (
 );
 
 -- Profiles RLS policies
+DROP POLICY IF EXISTS "profiles_select_own_or_admin" ON public.profiles;
 CREATE POLICY "profiles_select_own_or_admin"
 ON public.profiles
 FOR SELECT
@@ -118,6 +139,7 @@ USING (
   public.has_role(auth.uid(), 'admin')
 );
 
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own"
 ON public.profiles
 FOR UPDATE
@@ -126,6 +148,7 @@ USING (id = auth.uid())
 WITH CHECK (id = auth.uid());
 
 -- User roles policies (admins can see all, users can see their own)
+DROP POLICY IF EXISTS "user_roles_select_policy" ON public.user_roles;
 CREATE POLICY "user_roles_select_policy"
 ON public.user_roles
 FOR SELECT
@@ -136,6 +159,7 @@ USING (
 );
 
 -- Only admins can insert/update roles
+DROP POLICY IF EXISTS "user_roles_admin_only" ON public.user_roles;
 CREATE POLICY "user_roles_admin_only"
 ON public.user_roles
 FOR ALL
@@ -144,6 +168,7 @@ USING (public.has_role(auth.uid(), 'admin'))
 WITH CHECK (public.has_role(auth.uid(), 'admin'));
 
 -- Add updated_at trigger for profiles
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
 CREATE TRIGGER update_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW

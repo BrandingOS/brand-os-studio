@@ -48,6 +48,7 @@ $$;
 
 -- ── Replace the over-broad SELECT policy ─────────────────────────────────────
 DROP POLICY IF EXISTS "profiles_select_by_member" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_select_coworkers" ON public.profiles;
 CREATE POLICY "profiles_select_coworkers"
   ON public.profiles FOR SELECT
   TO authenticated

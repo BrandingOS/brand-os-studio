@@ -18,6 +18,31 @@ ALTER TABLE public.user_roles
   ALTER COLUMN role TYPE public.app_role_v2 USING (role::text::public.app_role_v2);
 
 -- 1c. Drop has_role function that depends on old enum
+--
+-- T087/T088 FIX (2026-08-13): the legacy `brands_*_policy` set created by
+-- 20250905213225 calls has_role(uuid, app_role), so this DROP failed with
+-- "cannot drop function ... because other objects depend on it" on a fresh
+-- chain. THIS IS THE ROOT OF T088: the drop-and-recreate never completed, so
+-- `user_roles.role` was retyped to app_role_v2 while has_role kept taking
+-- app_role — leaving the comparison to raise `operator does not exist` for any
+-- NON-OWNER reading a brand.
+--
+-- The dependent policies are fully superseded by migration 001's membership
+-- policies (`brands_select`/`insert`/`update`/`delete`), which are already in
+-- place by this point in the chain, so dropping them here loses no access —
+-- it removes a duplicate authority. Migration 019 repeats the drop
+-- idempotently for databases whose history differs.
+DROP POLICY IF EXISTS "brands_select_policy" ON public.brands;
+DROP POLICY IF EXISTS "brands_update_policy" ON public.brands;
+DROP POLICY IF EXISTS "brands_delete_policy" ON public.brands;
+
+-- These three also depend on the old-signature has_role. Unlike the brands
+-- set they are NOT superseded, so they are recreated verbatim below once the
+-- new has_role exists — same predicates, corrected enum.
+DROP POLICY IF EXISTS "profiles_select_own_or_admin" ON public.profiles;
+DROP POLICY IF EXISTS "user_roles_select_policy" ON public.user_roles;
+DROP POLICY IF EXISTS "user_roles_admin_only" ON public.user_roles;
+
 DROP FUNCTION IF EXISTS public.has_role(UUID, public.app_role);
 
 -- 1d. Drop old enum and rename
@@ -102,6 +127,28 @@ AS $$
   );
 $$;
 
+-- T087/T088 FIX (2026-08-13): restore the three policies dropped in 1c, now
+-- that has_role exists against the CURRENT enum. Predicates are unchanged from
+-- 20250905213225 — only the underlying type is correct, which is precisely the
+-- mismatch that made a non-owner brand read raise
+-- "operator does not exist: app_role_v2 = app_role".
+DROP POLICY IF EXISTS "profiles_select_own_or_admin" ON public.profiles;
+CREATE POLICY "profiles_select_own_or_admin"
+ON public.profiles FOR SELECT TO authenticated
+USING (id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "user_roles_select_policy" ON public.user_roles;
+CREATE POLICY "user_roles_select_policy"
+ON public.user_roles FOR SELECT TO authenticated
+USING (user_id = auth.uid() OR public.has_role(auth.uid(), 'admin'));
+
+DROP POLICY IF EXISTS "user_roles_admin_only" ON public.user_roles;
+CREATE POLICY "user_roles_admin_only"
+ON public.user_roles FOR ALL TO authenticated
+USING (public.has_role(auth.uid(), 'admin'))
+WITH CHECK (public.has_role(auth.uid(), 'admin'));
+
+
 -- ─── 7. Update check_admin_email() — assign super_admin ────────────────────
 
 CREATE OR REPLACE FUNCTION public.check_admin_email()
@@ -160,12 +207,14 @@ CREATE TABLE IF NOT EXISTS public.announcements (
 ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
 
 -- Admins can manage announcements
+DROP POLICY IF EXISTS "admin_announcements_manage" ON public.announcements;
 CREATE POLICY "admin_announcements_manage" ON public.announcements
   FOR ALL TO authenticated
   USING (public.is_admin_or_above())
   WITH CHECK (public.is_admin_or_above());
 
 -- All authenticated users can read active announcements
+DROP POLICY IF EXISTS "authenticated_read_active_announcements" ON public.announcements;
 CREATE POLICY "authenticated_read_active_announcements" ON public.announcements
   FOR SELECT TO authenticated
   USING (
@@ -186,12 +235,14 @@ CREATE TABLE IF NOT EXISTS public.platform_config (
 ALTER TABLE public.platform_config ENABLE ROW LEVEL SECURITY;
 
 -- Super admins can manage config
+DROP POLICY IF EXISTS "super_admin_config_manage" ON public.platform_config;
 CREATE POLICY "super_admin_config_manage" ON public.platform_config
   FOR ALL TO authenticated
   USING (public.is_super_admin())
   WITH CHECK (public.is_super_admin());
 
 -- All authenticated users can read config
+DROP POLICY IF EXISTS "authenticated_read_config" ON public.platform_config;
 CREATE POLICY "authenticated_read_config" ON public.platform_config
   FOR SELECT TO authenticated
   USING (true);

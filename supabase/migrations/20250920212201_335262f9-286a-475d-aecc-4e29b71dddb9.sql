@@ -1,6 +1,6 @@
 -- Add slug column to brands table
 ALTER TABLE public.brands 
-ADD COLUMN slug TEXT;
+ADD COLUMN IF NOT EXISTS slug TEXT;
 
 -- Create function to generate unique slug from brand name
 CREATE OR REPLACE FUNCTION public.generate_brand_slug(brand_name TEXT, brand_id UUID DEFAULT NULL)
@@ -57,8 +57,9 @@ SET slug = public.generate_brand_slug(name, id)
 WHERE slug IS NULL;
 
 -- Add unique constraint on slug
-ALTER TABLE public.brands 
-ADD CONSTRAINT brands_slug_unique UNIQUE (slug);
+DO $c$ BEGIN
+  ALTER TABLE public.brands ADD CONSTRAINT brands_slug_unique UNIQUE (slug);
+EXCEPTION WHEN duplicate_table THEN NULL; WHEN duplicate_object THEN NULL; END $c$;
 
 -- Make slug NOT NULL after populating
 ALTER TABLE public.brands 

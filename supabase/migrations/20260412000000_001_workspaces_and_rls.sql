@@ -21,16 +21,19 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
 CREATE POLICY "profiles_select_own"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (id = auth.uid());
 
+DROP POLICY IF EXISTS "profiles_select_by_member" ON public.profiles;
 CREATE POLICY "profiles_select_by_member"
   ON public.profiles FOR SELECT
   TO authenticated
   USING (true);  -- Any authenticated user can see profiles (needed for member lists)
 
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own"
   ON public.profiles FOR UPDATE
   TO authenticated
@@ -96,6 +99,7 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "user_roles_select_own" ON public.user_roles;
 CREATE POLICY "user_roles_select_own"
   ON public.user_roles FOR SELECT
   TO authenticated
@@ -506,6 +510,7 @@ $$;
 -- == Workspaces ==
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "workspaces_select_member" ON public.workspaces;
 CREATE POLICY "workspaces_select_member"
   ON public.workspaces FOR SELECT
   TO authenticated
@@ -516,16 +521,19 @@ CREATE POLICY "workspaces_select_member"
     )
   );
 
+DROP POLICY IF EXISTS "workspaces_insert_auth" ON public.workspaces;
 CREATE POLICY "workspaces_insert_auth"
   ON public.workspaces FOR INSERT
   TO authenticated
   WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "workspaces_update_admin" ON public.workspaces;
 CREATE POLICY "workspaces_update_admin"
   ON public.workspaces FOR UPDATE
   TO authenticated
   USING (public.is_workspace_member(id, 'admin'));
 
+DROP POLICY IF EXISTS "workspaces_delete_owner" ON public.workspaces;
 CREATE POLICY "workspaces_delete_owner"
   ON public.workspaces FOR DELETE
   TO authenticated
@@ -534,6 +542,7 @@ CREATE POLICY "workspaces_delete_owner"
 -- == Workspace Members ==
 ALTER TABLE public.workspace_members ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "wm_select_fellow" ON public.workspace_members;
 CREATE POLICY "wm_select_fellow"
   ON public.workspace_members FOR SELECT
   TO authenticated
@@ -545,6 +554,7 @@ CREATE POLICY "wm_select_fellow"
     )
   );
 
+DROP POLICY IF EXISTS "wm_insert_admin" ON public.workspace_members;
 CREATE POLICY "wm_insert_admin"
   ON public.workspace_members FOR INSERT
   TO authenticated
@@ -554,11 +564,13 @@ CREATE POLICY "wm_insert_admin"
     OR (user_id = auth.uid() AND role = 'owner')
   );
 
+DROP POLICY IF EXISTS "wm_update_admin" ON public.workspace_members;
 CREATE POLICY "wm_update_admin"
   ON public.workspace_members FOR UPDATE
   TO authenticated
   USING (public.is_workspace_member(workspace_id, 'admin'));
 
+DROP POLICY IF EXISTS "wm_delete_admin" ON public.workspace_members;
 CREATE POLICY "wm_delete_admin"
   ON public.workspace_members FOR DELETE
   TO authenticated
@@ -574,6 +586,7 @@ DROP POLICY IF EXISTS "brands_insert_own" ON public.brands;
 DROP POLICY IF EXISTS "brands_update_own" ON public.brands;
 DROP POLICY IF EXISTS "brands_delete_own" ON public.brands;
 
+DROP POLICY IF EXISTS "brands_select" ON public.brands;
 CREATE POLICY "brands_select"
   ON public.brands FOR SELECT
   TO authenticated
@@ -587,11 +600,13 @@ CREATE POLICY "brands_select"
   );
 
 -- Allow anon to see public brands
+DROP POLICY IF EXISTS "brands_select_public" ON public.brands;
 CREATE POLICY "brands_select_public"
   ON public.brands FOR SELECT
   TO anon
   USING (is_public = true);
 
+DROP POLICY IF EXISTS "brands_insert" ON public.brands;
 CREATE POLICY "brands_insert"
   ON public.brands FOR INSERT
   TO authenticated
@@ -600,6 +615,7 @@ CREATE POLICY "brands_insert"
     OR public.is_workspace_member(workspace_id, 'editor')
   );
 
+DROP POLICY IF EXISTS "brands_update" ON public.brands;
 CREATE POLICY "brands_update"
   ON public.brands FOR UPDATE
   TO authenticated
@@ -608,6 +624,7 @@ CREATE POLICY "brands_update"
     OR public.is_brand_member(id, 'editor')
   );
 
+DROP POLICY IF EXISTS "brands_delete" ON public.brands;
 CREATE POLICY "brands_delete"
   ON public.brands FOR DELETE
   TO authenticated
@@ -619,21 +636,25 @@ CREATE POLICY "brands_delete"
 -- == Brand Members ==
 ALTER TABLE public.brand_members ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "bm_select" ON public.brand_members;
 CREATE POLICY "bm_select"
   ON public.brand_members FOR SELECT
   TO authenticated
   USING (public.is_brand_member(brand_id, 'viewer'));
 
+DROP POLICY IF EXISTS "bm_insert" ON public.brand_members;
 CREATE POLICY "bm_insert"
   ON public.brand_members FOR INSERT
   TO authenticated
   WITH CHECK (public.is_brand_member(brand_id, 'admin'));
 
+DROP POLICY IF EXISTS "bm_update" ON public.brand_members;
 CREATE POLICY "bm_update"
   ON public.brand_members FOR UPDATE
   TO authenticated
   USING (public.is_brand_member(brand_id, 'admin'));
 
+DROP POLICY IF EXISTS "bm_delete" ON public.brand_members;
 CREATE POLICY "bm_delete"
   ON public.brand_members FOR DELETE
   TO authenticated
@@ -642,21 +663,25 @@ CREATE POLICY "bm_delete"
 -- == Assets ==
 ALTER TABLE public.assets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "assets_select" ON public.assets;
 CREATE POLICY "assets_select"
   ON public.assets FOR SELECT
   TO authenticated
   USING (public.is_brand_member(brand_id, 'viewer'));
 
+DROP POLICY IF EXISTS "assets_insert" ON public.assets;
 CREATE POLICY "assets_insert"
   ON public.assets FOR INSERT
   TO authenticated
   WITH CHECK (public.is_brand_member(brand_id, 'editor'));
 
+DROP POLICY IF EXISTS "assets_update" ON public.assets;
 CREATE POLICY "assets_update"
   ON public.assets FOR UPDATE
   TO authenticated
   USING (public.is_brand_member(brand_id, 'editor'));
 
+DROP POLICY IF EXISTS "assets_delete" ON public.assets;
 CREATE POLICY "assets_delete"
   ON public.assets FOR DELETE
   TO authenticated
@@ -672,6 +697,7 @@ DROP POLICY IF EXISTS "brand-assets_delete_own" ON storage.objects;
 -- New storage policies: check workspace membership via brand_id in path
 -- Storage paths follow: {brand_id}/logos/... or {brand_id}/assets/...
 -- The first path segment is the brand_id.
+DROP POLICY IF EXISTS "brand_assets_read" ON storage.objects;
 CREATE POLICY "brand_assets_read"
   ON storage.objects FOR SELECT
   TO authenticated
@@ -683,6 +709,7 @@ CREATE POLICY "brand_assets_read"
     )
   );
 
+DROP POLICY IF EXISTS "brand_assets_insert" ON storage.objects;
 CREATE POLICY "brand_assets_insert"
   ON storage.objects FOR INSERT
   TO authenticated
@@ -694,6 +721,7 @@ CREATE POLICY "brand_assets_insert"
     )
   );
 
+DROP POLICY IF EXISTS "brand_assets_update" ON storage.objects;
 CREATE POLICY "brand_assets_update"
   ON storage.objects FOR UPDATE
   TO authenticated
@@ -705,6 +733,7 @@ CREATE POLICY "brand_assets_update"
     )
   );
 
+DROP POLICY IF EXISTS "brand_assets_delete" ON storage.objects;
 CREATE POLICY "brand_assets_delete"
   ON storage.objects FOR DELETE
   TO authenticated
@@ -722,6 +751,7 @@ DROP POLICY IF EXISTS "Users can create their own presentations" ON public.guide
 DROP POLICY IF EXISTS "Users can update their own presentations" ON public.guideline_presentations;
 DROP POLICY IF EXISTS "Users can delete their own presentations" ON public.guideline_presentations;
 
+DROP POLICY IF EXISTS "presentations_select" ON public.guideline_presentations;
 CREATE POLICY "presentations_select"
   ON public.guideline_presentations FOR SELECT
   TO authenticated
@@ -730,6 +760,7 @@ CREATE POLICY "presentations_select"
     OR public.is_brand_member(brand_id, 'viewer')
   );
 
+DROP POLICY IF EXISTS "presentations_insert" ON public.guideline_presentations;
 CREATE POLICY "presentations_insert"
   ON public.guideline_presentations FOR INSERT
   TO authenticated
@@ -738,6 +769,7 @@ CREATE POLICY "presentations_insert"
     OR public.is_brand_member(brand_id, 'editor')
   );
 
+DROP POLICY IF EXISTS "presentations_update" ON public.guideline_presentations;
 CREATE POLICY "presentations_update"
   ON public.guideline_presentations FOR UPDATE
   TO authenticated
@@ -746,6 +778,7 @@ CREATE POLICY "presentations_update"
     OR public.is_brand_member(brand_id, 'editor')
   );
 
+DROP POLICY IF EXISTS "presentations_delete" ON public.guideline_presentations;
 CREATE POLICY "presentations_delete"
   ON public.guideline_presentations FOR DELETE
   TO authenticated
@@ -760,6 +793,7 @@ DROP POLICY IF EXISTS "Users can create slides in their presentations" ON public
 DROP POLICY IF EXISTS "Users can update slides in their presentations" ON public.guideline_slides;
 DROP POLICY IF EXISTS "Users can delete slides in their presentations" ON public.guideline_slides;
 
+DROP POLICY IF EXISTS "slides_select" ON public.guideline_slides;
 CREATE POLICY "slides_select"
   ON public.guideline_slides FOR SELECT
   TO authenticated
@@ -771,6 +805,7 @@ CREATE POLICY "slides_select"
     )
   );
 
+DROP POLICY IF EXISTS "slides_insert" ON public.guideline_slides;
 CREATE POLICY "slides_insert"
   ON public.guideline_slides FOR INSERT
   TO authenticated
@@ -782,6 +817,7 @@ CREATE POLICY "slides_insert"
     )
   );
 
+DROP POLICY IF EXISTS "slides_update" ON public.guideline_slides;
 CREATE POLICY "slides_update"
   ON public.guideline_slides FOR UPDATE
   TO authenticated
@@ -793,6 +829,7 @@ CREATE POLICY "slides_update"
     )
   );
 
+DROP POLICY IF EXISTS "slides_delete" ON public.guideline_slides;
 CREATE POLICY "slides_delete"
   ON public.guideline_slides FOR DELETE
   TO authenticated

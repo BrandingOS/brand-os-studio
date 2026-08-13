@@ -99,11 +99,13 @@ CREATE INDEX idx_notifications_unread ON public.notifications (user_id) WHERE re
 -- == Comments ==
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "comments_select" ON public.comments;
 CREATE POLICY "comments_select"
   ON public.comments FOR SELECT
   TO authenticated
   USING (public.is_brand_member(brand_id, 'viewer'));
 
+DROP POLICY IF EXISTS "comments_insert" ON public.comments;
 CREATE POLICY "comments_insert"
   ON public.comments FOR INSERT
   TO authenticated
@@ -112,6 +114,7 @@ CREATE POLICY "comments_insert"
     AND author_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "comments_update" ON public.comments;
 CREATE POLICY "comments_update"
   ON public.comments FOR UPDATE
   TO authenticated
@@ -120,6 +123,7 @@ CREATE POLICY "comments_update"
     OR public.is_brand_member(brand_id, 'editor')
   );
 
+DROP POLICY IF EXISTS "comments_delete" ON public.comments;
 CREATE POLICY "comments_delete"
   ON public.comments FOR DELETE
   TO authenticated
@@ -131,11 +135,13 @@ CREATE POLICY "comments_delete"
 -- == Approvals ==
 ALTER TABLE public.approvals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "approvals_select" ON public.approvals;
 CREATE POLICY "approvals_select"
   ON public.approvals FOR SELECT
   TO authenticated
   USING (public.is_brand_member(brand_id, 'viewer'));
 
+DROP POLICY IF EXISTS "approvals_insert" ON public.approvals;
 CREATE POLICY "approvals_insert"
   ON public.approvals FOR INSERT
   TO authenticated
@@ -144,11 +150,13 @@ CREATE POLICY "approvals_insert"
     AND submitted_by = auth.uid()
   );
 
+DROP POLICY IF EXISTS "approvals_update" ON public.approvals;
 CREATE POLICY "approvals_update"
   ON public.approvals FOR UPDATE
   TO authenticated
   USING (public.is_brand_member(brand_id, 'editor'));
 
+DROP POLICY IF EXISTS "approvals_delete" ON public.approvals;
 CREATE POLICY "approvals_delete"
   ON public.approvals FOR DELETE
   TO authenticated
@@ -157,6 +165,7 @@ CREATE POLICY "approvals_delete"
 -- == Activity Log (append-only for users, read by workspace members) ==
 ALTER TABLE public.activity_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "activity_select" ON public.activity_log;
 CREATE POLICY "activity_select"
   ON public.activity_log FOR SELECT
   TO authenticated
@@ -167,6 +176,7 @@ CREATE POLICY "activity_select"
     OR user_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "activity_insert" ON public.activity_log;
 CREATE POLICY "activity_insert"
   ON public.activity_log FOR INSERT
   TO authenticated
@@ -177,21 +187,25 @@ CREATE POLICY "activity_insert"
 -- == Notifications ==
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "notifications_select_own" ON public.notifications;
 CREATE POLICY "notifications_select_own"
   ON public.notifications FOR SELECT
   TO authenticated
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "notifications_insert" ON public.notifications;
 CREATE POLICY "notifications_insert"
   ON public.notifications FOR INSERT
   TO authenticated
   WITH CHECK (true);  -- Any auth user can create notifications for others
 
+DROP POLICY IF EXISTS "notifications_update_own" ON public.notifications;
 CREATE POLICY "notifications_update_own"
   ON public.notifications FOR UPDATE
   TO authenticated
   USING (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "notifications_delete_own" ON public.notifications;
 CREATE POLICY "notifications_delete_own"
   ON public.notifications FOR DELETE
   TO authenticated

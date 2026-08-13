@@ -74,6 +74,7 @@ CREATE TRIGGER trg_usage_tracking_updated_at
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Workspace members can view their subscription
+DROP POLICY IF EXISTS "subscriptions_select" ON public.subscriptions;
 CREATE POLICY "subscriptions_select"
   ON public.subscriptions FOR SELECT
   TO authenticated
@@ -86,6 +87,7 @@ CREATE POLICY "subscriptions_select"
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
 -- Only workspace owner/admin can view invoices
+DROP POLICY IF EXISTS "invoices_select" ON public.invoices;
 CREATE POLICY "invoices_select"
   ON public.invoices FOR SELECT
   TO authenticated
@@ -97,6 +99,7 @@ CREATE POLICY "invoices_select"
 ALTER TABLE public.usage_tracking ENABLE ROW LEVEL SECURITY;
 
 -- Workspace members can view usage
+DROP POLICY IF EXISTS "usage_select" ON public.usage_tracking;
 CREATE POLICY "usage_select"
   ON public.usage_tracking FOR SELECT
   TO authenticated

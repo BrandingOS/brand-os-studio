@@ -1,6 +1,7 @@
 -- Add RLS policies for brand-assets storage bucket to allow authenticated users to manage their brand files
 
 -- Policy for reading files (users can read their own brand's files)
+DROP POLICY IF EXISTS "Users can view their brand assets" ON storage.objects;
 CREATE POLICY "Users can view their brand assets"
 ON storage.objects FOR SELECT
 USING (
@@ -11,6 +12,7 @@ USING (
 );
 
 -- Policy for uploading files (users can upload to their own brand folders)
+DROP POLICY IF EXISTS "Users can upload their brand assets" ON storage.objects;
 CREATE POLICY "Users can upload their brand assets"
 ON storage.objects FOR INSERT
 WITH CHECK (
@@ -21,6 +23,7 @@ WITH CHECK (
 );
 
 -- Policy for updating files (users can update their own brand's files)
+DROP POLICY IF EXISTS "Users can update their brand assets" ON storage.objects;
 CREATE POLICY "Users can update their brand assets"
 ON storage.objects FOR UPDATE
 USING (
@@ -31,6 +34,7 @@ USING (
 );
 
 -- Policy for deleting files (users can delete their own brand's files)
+DROP POLICY IF EXISTS "Users can delete their brand assets" ON storage.objects;
 CREATE POLICY "Users can delete their brand assets"
 ON storage.objects FOR DELETE
 USING (

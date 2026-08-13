@@ -18,6 +18,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ─── 2. Storage policies on onboarding-scratch ──────────────────────────────
 
+DROP POLICY IF EXISTS "scratch_insert_own" ON storage.objects;
 CREATE POLICY "scratch_insert_own"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -26,6 +27,7 @@ WITH CHECK (
   AND (storage.foldername(name))[1] IS NOT NULL
 );
 
+DROP POLICY IF EXISTS "scratch_select_own" ON storage.objects;
 CREATE POLICY "scratch_select_own"
 ON storage.objects FOR SELECT
 TO authenticated
@@ -33,6 +35,7 @@ USING (
   bucket_id = 'onboarding-scratch'
 );
 
+DROP POLICY IF EXISTS "scratch_delete_own" ON storage.objects;
 CREATE POLICY "scratch_delete_own"
 ON storage.objects FOR DELETE
 TO authenticated
@@ -55,6 +58,7 @@ CREATE INDEX IF NOT EXISTS onboarding_rate_limits_session_fn_idx
 ALTER TABLE public.onboarding_rate_limits ENABLE ROW LEVEL SECURITY;
 
 -- Block all client access — this table is written/read by Edge Functions only
+DROP POLICY IF EXISTS "rate_limits_no_client_access" ON public.onboarding_rate_limits;
 CREATE POLICY "rate_limits_no_client_access"
 ON public.onboarding_rate_limits FOR ALL
 TO authenticated, anon
