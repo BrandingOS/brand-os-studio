@@ -7,9 +7,17 @@ rather than assumed. **One is met.** The rest are recorded as unmet and their
 legacy paths are left in place, per the standing rule: retire only where the
 criterion is actually proven.
 
-The headline reason so little can retire yet is simple and expected: **the
-production ingest (T050) has not run.** Almost every criterion is downstream of
-"the legacy data has actually moved", and it has not.
+The headline reason so little can retire yet was originally "the production
+ingest (T050) has not run". That is now settled, and the answer is more
+interesting than expected: **production held no legacy asset data at all** — 0
+brands with a `brandAssets[]` or `assets[]` array, 0 with `logo_system`, 0 rows
+in `public.assets`. T050 is closed as not-applicable rather than pending.
+
+That removes the *blocker* but does not satisfy the criteria downstream of it.
+"Zero non-empty arrays in production" is now true trivially, yet 36 modules
+still READ the inline arrays and 3 still write them, so deleting the arrays
+would break those readers. The remaining work is a code migration, not a data
+migration — which is a better problem to have, and a clearer one.
 
 | # | Legacy path | Criterion | Status |
 |---|---|---|---|
@@ -113,6 +121,9 @@ Nothing here blocks deployment. Legacy paths remaining in place is the
 *designed* state at this point: they are read-compatible inputs, not competing
 authorities, and every one of them has a named criterion and a named unblocker.
 
-The single ordering constraint worth stating: **T077, T078 and T076 all wait on
-T050 (production ingest)**, and T050 itself waits on T087/T088. That chain, not
-any code, is what gates the rest of the retirement.
+**Updated 2026-08-13, post-deployment.** The chain that used to gate this is
+gone: T087/T088 are fixed, migrations 016–021 are deployed, and T050 is closed
+as not-applicable. What remains is not an ordering constraint but ordinary work
+— migrating the 36 modules that still read `brand.assets[]` /
+`brand.brandAssets[]` onto the Library projection, after which T077, then T078,
+then T076 become provable in turn.

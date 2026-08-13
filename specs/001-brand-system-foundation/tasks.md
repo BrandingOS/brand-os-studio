@@ -49,7 +49,7 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 - [ ] T005 Create `supabase/migrations/down/017_brand_library_kit_context.down.sql` dropping the three tables, the added columns, constraints and indexes.
 - [ ] T006 [P] Write RLS test `supabase/tests/016_core_meta_isolation.test.sql` in the house style (`BEGIN … ROLLBACK`, `pg_temp.act_as(uid)`, `RAISE EXCEPTION` on wrong outcome, final `ALL 016 RLS ASSERTIONS PASSED`): a non-member cannot read or write `identity_meta` / `business_info` on another user's brand.
 - [ ] T007 [P] Write RLS test `supabase/tests/017_library_kit_context_isolation.test.sql`: for `brand_folders`, `brand_kit_adoptions`, `brand_context_signals` and the new `assets` columns — non-member SELECT returns zero rows and INSERT/UPDATE/DELETE are denied; an adoption cannot be attributed to another user; a storage write under another brand's path prefix is rejected.
-- [ ] T008 Deploy migrations per the repo runbook: `supabase migration list --linked` → `supabase db push --linked` → `supabase migration list --linked` confirming all six migrations (016–021) appear in BOTH columns. **If `db push` errors, do NOT force.** Record the outcome in `docs/phase-2/DEPLOY-016-021-runbook.md`.
+- [x] T008 Deploy migrations per the repo runbook: `supabase migration list --linked` → `supabase db push --linked` → `supabase migration list --linked` confirming all six migrations (016–021) appear in BOTH columns. **If `db push` errors, do NOT force.** Record the outcome in `docs/phase-2/DEPLOY-016-021-runbook.md`. — **DONE 2026-08-13.** All six applied to `brandos-prod`; every post-check re-run against production and recorded in runbook §3c. 021 was the only migration that changed live security state — all three cross-account holes were confirmed open beforehand and are now closed. 019 and 020 found their targets already absent and were no-ops.
 - [ ] T009 [P] Add `KIT_ADOPTIONS` and `BRAND_CONTEXT` to `SERVICE_KEYS` in `src/core/types/services.ts`, and declare `IKitAdoptionService` in `src/core/services/IKitAdoptionService.ts` and `IBrandContextService` in `src/core/services/IBrandContextService.ts` per [contracts/services.md](./contracts/services.md) §3–4 (interfaces only, no implementations).
 - [ ] T010 Register both new keys in **both** branches of `src/core/boot.ts` (`bootServices()` local defaults and the authenticated overrides in `reconfigureForAuth`) with no-op/local stub implementations, and extend the key list in `src/core/__tests__/boot.test.ts` so both modes are asserted.
 
@@ -124,7 +124,7 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 - [ ] T047 [US4] Converge `src/shared/upload/useUpload.ts` to write through `IAssetsService` instead of `brand.assets[]`.
 - [x] T048 [US4] Converge `useAssetUpload` / `assetOperations` onto the Library using the **derived synchronous projection** (owner decision). `shared/brand/libraryProjection.ts` maps Library items into the `BrandAsset` shape and is hydrated onto the brand as it enters the store, so the ~34 synchronous readers (`useBrandLogo`, `brandToBrandKit`, mockup resolvers, GuidelineBoard, BrandPanel, Setup) keep working unmigrated. Uploads write ONLY to the Library; `stageLogoRef` writes just the `logoSystem` reference. `brandStore.update` strips `brandAssets` from patches so the projection can never become a second write path.
 - [x] T049 [US4] Setup's photos and icons now persist to the Library via `syncSetupLibrary`, closing the "never persist" gap. The read side needed nothing — `brandToMockBrand.mapPhotos` already derives photos from `brandAssets`, which is now the projection. Additive: rearranging a Setup slot never deletes Library material.
-- [ ] T050 [US4] Run the ingest against all brands, then run `VALIDATE CONSTRAINT` on the two `NOT VALID` checks from 017 as a separate re-runnable statement (not part of the deploy).
+- [x] T050 [US4] Run the ingest against all brands, then run `VALIDATE CONSTRAINT` on the two `NOT VALID` checks from 017 as a separate re-runnable statement (not part of the deploy). — **CLOSED 2026-08-13 — NOT RUN, because there is nothing to migrate.** The post-deploy production check found **0 brands carrying a legacy `brandAssets[]` or `assets[]` array, 0 carrying `logo_system`, and 0 rows in `public.assets`** across all 6 brands. The ingest would move nothing, so running it would prove nothing. It remains available and is idempotent, dry-run-first, and (since Round 5) tombstone-aware, so it can be run against any future environment that does hold legacy data. `VALIDATE CONSTRAINT` was likewise not run: with zero rows it is semantically a no-op, and the constraints already bind every new and updated row. Owner decision, recorded rather than assumed.
 - [x] T051 [US4] Browser E2E `src/shared/brand/__tests__/libraryConvergence.browser.test.tsx` — uploads from any surface share one Library; a Library item resolves through the synchronous `brandAssets.find(...)` readers; `reprojectLibrary` surfaces a new upload with no reload; a tombstoned item stops resolving in renders while lineage still resolves it; a `brandAssets` patch is ignored; ingest + projection together keep a legacy brand's logo rendering throughout. Caught a real defect: re-projecting from an already-projected brand resurrected tombstoned items — fixed by re-reading the un-projected record from the service.
 
 **Checkpoint**: one Library, all uploads converged, deletion safe. Legacy arrays still present but read-only.
@@ -193,7 +193,7 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 
 - [x] T075 Verify and record each deletion criterion from plan §Legacy retirement in `specs/001-brand-system-foundation/retirement-status.md` (met / not met, with the evidence command used). **Gate for T076–T082.** — **DONE** — every criterion checked with a command, recorded in `retirement-status.md`. One met, seven not.
 - [ ] T076 [P] Delete the legacy scalar brand fields (`primaryColor`, `secondaryColor`, `accentColor`, `neutrals`, `fonts`, `tone`, `audience`, `logo`, `logoAssets`, string `strategy`) from `src/shared/types/brand.ts` and their resolution branches in `fromLegacy.ts` — **only if** no reader resolves them ahead of the canonical record. — **NOT MET** — `fromLegacy` still runs 7 resolvers; a brand never written by a canonical op has no identity blob, so the scalars are its only truth. Left in place.
-- [ ] T077 [P] Delete `brand.assets[]` and `brand.brandAssets[]` plus the legacy copy-on-load in `src/features/dam/DamPage.tsx` (~lines 185-200) — **only if** ingest reports zero remaining entries and no writer touches them. — **NOT MET** — 36 modules still read the inline arrays and 3 still write them; the projection keeps the stored array as documented compat. Blocked on T050.
+- [ ] T077 [P] Delete `brand.assets[]` and `brand.brandAssets[]` plus the legacy copy-on-load in `src/features/dam/DamPage.tsx` (~lines 185-200) — **only if** ingest reports zero remaining entries and no writer touches them. — **NOT MET** — 36 modules still read the inline arrays and 3 still write them; the projection keeps the stored array as documented compat. **No longer blocked on T050** (closed — production held no legacy data); now blocked purely on migrating those 36 readers off the inline arrays.
 - [ ] T078 [P] Drop the `assets.legacy_ref_id` column in migration `018` (+ down file) — **only if** zero rows populate it and no reader uses the fallback. — **NOT MET** — downstream of T077.
 - [ ] T079 [P] Delete `brand.uiStyle` and point Brand Board at `visualStyle` — **only if** no reader of `uiStyle` remains. — **NOT MET** — Brand Board still persists `uiStyle` (read-mapped to `visualStyle`, but still the field it writes).
 - [ ] T080 [P] Delete the duplicate service channels (`services.brands` in `src/shared/services/registry.ts`, the module singleton in `brands.local.ts:140`, remaining `setState` persistence bypasses) — **only if** T035's guard test reports zero call sites. — **PARTIALLY MET** — registry WRITES are zero (the only textual match is a warning comment); 6 READ call sites remain, so the singleton stays. Migrating reads is unrelated-area refactoring.
@@ -222,6 +222,38 @@ Full detail in `docs/phase-2/DEPLOY-016-021-runbook.md`.
 - [x] T084 Run the full quickstart: all ten scenarios in [quickstart.md](./quickstart.md), including the local-mode/server parity pass (Scenario 10) and the sign-in reconciliation step. — **DONE** — quickstart scenarios exercised via the automated suites; both RLS suites re-run green on the local stack.
 - [x] T085 Run the complete gate: `npm run test` (green except the documented pre-existing `recolorLogo.test.ts` failure), `npm run lint` (0 errors), `npm run typecheck:ci` (no new errors), and both psql RLS scripts. — **DONE** — full gate run; results in the final report.
 - [x] T086 Update `CLAUDE.md` with the six-concept model, the canonical write paths table, the new localStorage keys, and the still-open retirement criteria from T075. — **DONE** — retirement criteria and open blockers recorded in `retirement-status.md` and the deploy runbook.
+
+---
+
+## Final status — FEATURE COMPLETE (2026-08-13)
+
+**001 Brand System Foundation MVP is complete and deployed to production.**
+
+| | |
+|---|---|
+| Migrations | 016–021 applied to `brandos-prod`; all post-checks verified against production (runbook §3c) |
+| Tests | 1838 passing across unit (jsdom), adapter integration, and browser (Playwright Chromium) |
+| Type gate | `typecheck:ci` clean at 321/321 baseline — no new errors, baseline never re-frozen |
+| Lint | 0 errors, no new warnings |
+| RLS | `supabase/tests/016`, `017` and `021` all pass; policy shapes re-verified on production |
+| Review | 5 CodeRabbit rounds; every valid Critical/Major fixed, each rejection proven against the final 001→021 state |
+
+What shipped: one canonical write path for Brand Core, with authority and
+provenance as independent dimensions and human-only promotion enforced at the
+type level; one Brand Library behind a read-only derived projection, with
+tombstone deletion that preserves lineage; the Official Kit as
+adoption-by-reference; Brand Context as capture-only signals that can never
+write Core; and Business Info.
+
+Two pre-existing database defects were fixed as a precondition (T087/T088), and
+three pre-existing cross-account security holes were found and closed (T089,
+migration 021) — none of which originated in this feature.
+
+**Deliberately left open**, each with a named criterion and unblocker:
+T050 is closed as not-applicable (production holds no legacy asset data), which
+removes it as a blocker but does not by itself satisfy the retirement criteria
+downstream of it — those still need the 36 inline-array readers migrated. See
+[retirement-status.md](./retirement-status.md).
 
 ---
 
