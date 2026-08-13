@@ -86,21 +86,46 @@ async function mount(args: {
   return { adapter, container, agent };
 }
 
+/**
+ * Drives the CURRENT AI entry point.
+ *
+ * These tests used to open a floating "Ask AI" pill
+ * (`[data-editor-ai-floating-trigger]`). That affordance was deliberately
+ * removed — see `Editor.tsx`: "EditorAiFloatingButton removed — AI now lives
+ * in the Generate sidebar panel via EditorSecondaryPanel → GeneratePanel."
+ * The flows under test (ops → adapter → single-step undo, rejection handling,
+ * cross-page deltas, selection scoping) are unchanged product behaviour; only
+ * the way a user reaches them moved, so the helper moved with it.
+ */
 async function submitPrompt(container: HTMLElement, text: string): Promise<void> {
-  // The AI prompt now lives in a floating "Ask AI" popover anchored
-  // at the bottom of the canvas region (2026-05-08 cleanup). Open it
-  // before driving the input.
-  if (!container.querySelector('[data-ai-prompt-input]')) {
-    const trigger = container.querySelector<HTMLButtonElement>(
-      '[data-editor-ai-floating-trigger]',
+  // Open the Generate panel from the app rail if it is not already mounted.
+  if (!container.querySelector('[data-generate-prompt]')) {
+    const railBtn = container.querySelector<HTMLButtonElement>(
+      'button[data-rail-item="generate"]',
     );
-    if (!trigger) throw new Error('Ask AI floating trigger not in DOM');
-    fireEvent.click(trigger);
+    if (!railBtn) throw new Error('Generate rail item not in DOM');
+    fireEvent.click(railBtn);
+    await waitFor(() => {
+      if (!container.querySelector('[data-generate-prompt]')) {
+        throw new Error('Generate panel did not open');
+      }
+    });
   }
-  const input = container.querySelector<HTMLTextAreaElement>('[data-ai-prompt-input]');
-  if (!input) throw new Error('AI prompt input not in DOM after opening popover');
+
+  // The panel defaults to IMAGE generation; these flows exercise the AI agent
+  // that returns document ops, which is the "Editable" mode. Without this the
+  // prompt goes to the image service instead of the agent.
+  const editable = container.querySelector<HTMLButtonElement>('[data-generate-mode="editable"]');
+  if (!editable) throw new Error('Editable generation mode not in DOM');
+  if (editable.getAttribute('aria-checked') !== 'true') fireEvent.click(editable);
+
+  const input = container.querySelector<HTMLTextAreaElement>('[data-generate-prompt]');
+  if (!input) throw new Error('Generate prompt input not in DOM');
   fireEvent.change(input, { target: { value: text } });
-  fireEvent.click(container.querySelector<HTMLButtonElement>('[data-ai-prompt-send]')!);
+
+  const submit = container.querySelector<HTMLButtonElement>('[data-generate-submit]');
+  if (!submit) throw new Error('Generate submit button not in DOM');
+  fireEvent.click(submit);
 }
 
 // ─── Multi-page presentation fixture for Mode 3 cross-page ─────────────
@@ -205,7 +230,7 @@ describe('Mode 2 — additive in-doc (no selection + add intent)', () => {
     await submitPrompt(container, 'generate a hero image');
 
     await waitFor(() => {
-      const err = container.querySelector('[data-ai-prompt-error]');
+      const err = container.querySelector('[data-generate-error]');
       expect(err?.textContent).toContain('Image generation is not in Phase 3.5 scope');
     });
     // Adapter untouched.
@@ -259,7 +284,10 @@ describe('Mode 3 — edit by command (broad change, optional selection)', () => 
 
     // Disambiguation alternative surfaces as a chip.
     await waitFor(() => {
-      const chips = Array.from(container.querySelectorAll('[data-ai-prompt-suggestion]'));
+      // Chips moved with the surface: GeneratePanel renders them as buttons
+      // inside [data-generate-suggestions]. The BEHAVIOUR is unchanged — it
+      // still appends disambiguation.mode4_alternative (GeneratePanel:438).
+      const chips = Array.from(container.querySelectorAll('[data-generate-suggestions] button'));
       const labels = chips.map((c) => c.textContent ?? '');
       expect(labels).toContain('Change just this headline white instead?');
     });
@@ -291,7 +319,7 @@ describe('Mode 3 — edit by command (broad change, optional selection)', () => 
     const docBefore = JSON.stringify(adapter.getDocument());
     await submitPrompt(container, 'do something');
     await waitFor(() => {
-      expect(container.querySelector('[data-ai-prompt-error]')?.textContent).toContain('malformed JSON');
+      expect(container.querySelector('[data-generate-error]')?.textContent).toContain('malformed JSON');
     });
     expect(JSON.stringify(adapter.getDocument())).toBe(docBefore);
   });
@@ -360,7 +388,7 @@ describe('Mode 4 — refine selection (with selection + refine intent)', () => {
     await submitPrompt(container, 'rotate this layer 45deg');
 
     await waitFor(() => {
-      expect(container.querySelector('[data-ai-prompt-error]')?.textContent).toMatch(
+      expect(container.querySelector('[data-generate-error]')?.textContent).toMatch(
         /out_of_selection_scope|tried to update/i,
       );
     });

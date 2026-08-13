@@ -144,17 +144,46 @@ export class FabricAdapter implements EditorAdapter {
   }
 
   unmount(): void {
-    this.canvas?.dispose();
+    // Fabric v6's `dispose()` is ASYNCHRONOUS and internally calls `clear()`,
+    // which reaches for the 2D context. Detaching the element synchronously
+    // right after calling it meant dispose could land on a canvas whose
+    // context was already gone:
+    //
+    //   TypeError: Cannot read properties of undefined (reading 'clearRect')
+    //     at clearRect (fabric/src/canvas/StaticCanvas.ts)
+    //     at clear     (fabric/src/canvas/Canvas.ts)
+    //
+    // It surfaced as an UNHANDLED REJECTION (nothing awaited the promise), so
+    // it was invisible in fast local runs and only showed up on slower CI —
+    // and an unhandled rejection can fail an unrelated test file, which is
+    // exactly how it presented.
+    //
+    // Detach after disposal settles. React has usually removed the subtree by
+    // then, so the `contains` guard makes the removal a no-op in that case.
+    const canvas = this.canvas;
+    const canvasEl = this.canvasEl;
+    const container = this.container;
+
+    // Local state is cleared SYNCHRONOUSLY: `unmount()` must leave the adapter
+    // unusable immediately, regardless of when disposal finishes.
     this.canvas = null;
-    if (this.canvasEl && this.container?.contains(this.canvasEl)) {
-      this.container.removeChild(this.canvasEl);
-    }
     this.canvasEl = null;
     this.container = null;
     this.fabricByLayerId.clear();
     this.guideLines = [];
     this.changeHandlers.clear();
     this.selectionHandlers.clear();
+
+    void Promise.resolve()
+      .then(() => canvas?.dispose())
+      // A canvas already torn down by the host is a normal teardown race, not
+      // an error worth surfacing — but it must be HANDLED, not left to reject.
+      .catch(() => undefined)
+      .finally(() => {
+        if (canvasEl && container?.contains(canvasEl)) {
+          container.removeChild(canvasEl);
+        }
+      });
   }
 
   // ─── Document ─────────────────────────────────────────────────────────
