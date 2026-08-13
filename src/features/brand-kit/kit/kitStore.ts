@@ -49,7 +49,7 @@ export type KitStoreState = {
   deliverables: Record<DeliverableKey, DeliverableRecord>;
   generatingKeys: DeliverableKey[];
 
-  hydrate: (brandId: string, brand: MockBrand) => void;
+  hydrate: (brandId: string, brand: MockBrand) => Promise<void>;
   generate: (
     keys: DeliverableKey[],
     ctx: GenerationContext,
@@ -76,10 +76,19 @@ export type KitStoreState = {
   clearError: (key: DeliverableKey) => void;
 };
 
+/** In-flight hydrate guard — see `hydrate`. */
+let hydratingFor: string | null = null;
+
 function persist(brandId: string | null, deliverables: Record<DeliverableKey, DeliverableRecord>) {
   if (!brandId) return;
   const state: BrandKitState = { version: 1, deliverables };
-  getKitStateRepository().save(brandId, state);
+  // Fire-and-forget, as it always was: the boolean was never awaited, and a
+  // failed kit write must not break the interaction that triggered it.
+  void getKitStateRepository()
+    .save(brandId, state)
+    .catch(() => {
+      /* persistence failure is non-fatal; state stays in memory */
+    });
 }
 
 /** Fix up primaryItemId after item mutations: keep it when still
@@ -198,15 +207,22 @@ export const useKitStore = create<KitStoreState>((set, get) => {
     deliverables: {},
     generatingKeys: [],
 
-    hydrate: (brandId, brand) => {
-      if (get().brandId === brandId) return;
-      const repo = getKitStateRepository();
-      let state = repo.load(brandId);
-      if (!state) {
-        state = migrateFromCardCustomizations(brandId, brand);
-        repo.save(brandId, state);
+    hydrate: async (brandId, brand) => {
+      if (get().brandId === brandId || hydratingFor === brandId) return;
+      // Guards a double-hydrate now that the load is awaited: two mounts in the
+      // same tick would otherwise both miss the brandId check and race.
+      hydratingFor = brandId;
+      try {
+        const repo = getKitStateRepository();
+        let state = await repo.load(brandId);
+        if (!state) {
+          state = migrateFromCardCustomizations(brandId, brand);
+          await repo.save(brandId, state);
+        }
+        set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
+      } finally {
+        hydratingFor = null;
       }
-      set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
     },
 
     generate: (keys, ctx, opts) => runGeneration(keys, ctx, opts),

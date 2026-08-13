@@ -1,0 +1,124 @@
+/**
+ * Official Brand Kit adoptions — authenticated implementation
+ * (`public.brand_kit_adoptions`, migration 017).
+ *
+ * The row is a reference plus adoption metadata; the adopted material is never
+ * copied here. `adopted_by` is additionally self-attributed by RLS, so an
+ * adoption cannot be credited to another user even if a client tried.
+ *
+ * Degrades to the local implementation when the table is not deployed yet,
+ * matching every other adapter in this codebase.
+ */
+import { supabase } from '@/integrations/supabase/client';
+import {
+  assertAdoptable,
+  type AdoptInput,
+  type AdoptTargetKind,
+  type IKitAdoptionService,
+  type KitAdoption,
+} from '@/core/services/IKitAdoptionService';
+import { LocalKitAdoptionService } from './LocalKitAdoptionService';
+
+// Generated types predate 017 — same untyped accessor used elsewhere.
+const table = () => (supabase as any).from('brand_kit_adoptions');
+
+function isMissingTable(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === '42P01' || error.code === 'PGRST205';
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function mapRow(r: any): KitAdoption {
+  return {
+    id: r.id,
+    brandId: r.brand_id,
+    targetKind: r.target_kind,
+    targetRef: r.target_ref,
+    adoptedBy: r.adopted_by,
+    adoptedAt: r.adopted_at,
+    ...(r.note ? { note: r.note } : {}),
+  };
+}
+
+export class SupabaseKitAdoptionService implements IKitAdoptionService {
+  private readonly local = new LocalKitAdoptionService();
+
+  /** Local brand ids (dev-bypass) can never satisfy a uuid column. */
+  private isLocalBrand(brandId: string): boolean {
+    return !UUID.test(brandId);
+  }
+
+  async list(brandId: string): Promise<KitAdoption[]> {
+    if (this.isLocalBrand(brandId)) return this.local.list(brandId);
+
+    const { data, error } = await table()
+      .select('*')
+      .eq('brand_id', brandId)
+      .order('adopted_at', { ascending: true });
+
+    if (error) {
+      if (isMissingTable(error)) return this.local.list(brandId);
+      throw error;
+    }
+    return (data ?? []).map(mapRow);
+  }
+
+  async adopt(input: AdoptInput): Promise<KitAdoption> {
+    assertAdoptable(input);
+    if (this.isLocalBrand(input.brandId)) return this.local.adopt(input);
+
+    const { data, error } = await table()
+      .upsert(
+        {
+          brand_id: input.brandId,
+          target_kind: input.targetKind,
+          target_ref: input.targetRef,
+          adopted_by: input.actor.userId,
+          ...(input.note ? { note: input.note } : {}),
+        },
+        { onConflict: 'brand_id,target_kind,target_ref' },
+      )
+      .select()
+      .single();
+
+    if (error) {
+      if (isMissingTable(error)) return this.local.adopt(input);
+      throw error;
+    }
+    return mapRow(data);
+  }
+
+  async unadopt(brandId: string, targetKind: AdoptTargetKind, targetRef: string): Promise<void> {
+    if (this.isLocalBrand(brandId)) return this.local.unadopt(brandId, targetKind, targetRef);
+
+    const { error } = await table()
+      .delete()
+      .eq('brand_id', brandId)
+      .eq('target_kind', targetKind)
+      .eq('target_ref', targetRef);
+
+    if (error && !isMissingTable(error)) throw error;
+  }
+
+  async isAdopted(
+    brandId: string,
+    targetKind: AdoptTargetKind,
+    targetRef: string,
+  ): Promise<boolean> {
+    if (this.isLocalBrand(brandId)) return this.local.isAdopted(brandId, targetKind, targetRef);
+
+    const { data, error } = await table()
+      .select('id')
+      .eq('brand_id', brandId)
+      .eq('target_kind', targetKind)
+      .eq('target_ref', targetRef)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTable(error)) return this.local.isAdopted(brandId, targetKind, targetRef);
+      throw error;
+    }
+    return Boolean(data);
+  }
+}

@@ -17,6 +17,7 @@ import { SERVICE_KEYS } from './types/services';
 import type { IBrandsService } from './types/services';
 import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository';
 import type { IDesignStorage } from './types/services';
+import type { IKitAdoptionService } from './services/IKitAdoptionService';
 import { LocalBrandsService } from '@/features/brand/services/brands.local';
 import { LocalDesignStorage } from './adapters/storage/LocalDesignStorage';
 import { SupabaseDesignStorage } from './adapters/storage/SupabaseDesignStorage';
@@ -26,7 +27,10 @@ import { LocalAssetsService } from './adapters/database/LocalAssetsService';
 import { LocalTemplatesService } from './adapters/templates/LocalTemplatesService';
 import { LocalFormatPresetsService } from './adapters/format-presets/LocalFormatPresetsService';
 import { LocalBrandMemoryService } from './adapters/brand-memory/LocalBrandMemoryService';
-import { StubKitAdoptionService } from './adapters/kit-adoptions/StubKitAdoptionService';
+import { LocalKitAdoptionService } from './adapters/kit-adoptions/LocalKitAdoptionService';
+import { SupabaseKitAdoptionService } from './adapters/kit-adoptions/SupabaseKitAdoptionService';
+import { setKitStateRepository, LocalKitStateRepository } from '@/features/brand-kit/kit/repository';
+import { SupabaseKitStateRepository } from '@/features/brand-kit/kit/repository.supabase';
 import { StubBrandContextService } from './adapters/brand-context/StubBrandContextService';
 import { SupabaseBrandsService } from '@/shared/services/brands.supabase';
 import { SupabaseWorkspaceService } from './adapters/database/SupabaseWorkspaceService';
@@ -58,7 +62,15 @@ export function bootServices(): void {
   // Guest/dev → localStorage. reconfigureForAuth swaps to SupabaseAssetsService
   // (→ public.assets). The DAM library is the ONE home for uploaded brand files;
   // brand IDENTITY assets (logos referenced by logoSystem) stay in brand.brandAssets.
-  container.register(SERVICE_KEYS.ASSETS, () => new LocalAssetsService());
+  container.register(
+    SERVICE_KEYS.ASSETS,
+    () =>
+      new LocalAssetsService({
+        // Lets softDelete tell the user an item is adopted instead of removing
+        // material the Official Kit points at.
+        adoptions: container.get<IKitAdoptionService>(SERVICE_KEYS.KIT_ADOPTIONS),
+      }),
+  );
 
   // ─── Brand Consistency Service ─────────────────────────────
   // LocalStorage-backed for now; a Supabase impl can be slotted in
@@ -94,12 +106,15 @@ export function bootServices(): void {
   });
 
   // ─── Brand System Foundation — Official Kit + Context ───────
-  // Phase 0 registers the DI contract with stub implementations so consumers
-  // can be typed against a stable interface. The Official Kit and Context
-  // phases replace these two lines with the local implementations (and add
-  // Supabase overrides below). Registered in BOTH modes, like every other
-  // service, so `boot.test.ts` can assert the key resolves either way.
-  container.register(SERVICE_KEYS.KIT_ADOPTIONS, () => new StubKitAdoptionService());
+  // Adoptions are the Official Brand Kit: references to what the brand owns,
+  // never copies. Local by default; Supabase overrides below when authed.
+  container.register(SERVICE_KEYS.KIT_ADOPTIONS, () => new LocalKitAdoptionService());
+
+  // Brand Kit working state. The repository is a module-level seam rather than
+  // a container key (its consumers are the kit store, not DI), so it is set
+  // here alongside the rest of the wiring and reset to local on every boot —
+  // otherwise a sign-out would leave the Supabase impl in place.
+  setKitStateRepository(new LocalKitStateRepository());
   container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new StubBrandContextService());
 }
 
@@ -133,9 +148,19 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new SupabaseDesignStorage());
   // Authed-only server services (no local guest equivalent — guest never gets these).
   container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
-  container.register(SERVICE_KEYS.ASSETS, () => new SupabaseAssetsService());
+  container.register(
+    SERVICE_KEYS.ASSETS,
+    () =>
+      new SupabaseAssetsService({
+        adoptions: container.get<IKitAdoptionService>(SERVICE_KEYS.KIT_ADOPTIONS),
+      }),
+  );
   container.register(SERVICE_KEYS.COMMENTS, () => new SupabaseCommentsService());
   container.register(SERVICE_KEYS.APPROVALS, () => new SupabaseApprovalsService());
   container.register(SERVICE_KEYS.NOTIFICATIONS, () => new SupabaseNotificationsService());
   container.register(SERVICE_KEYS.ACTIVITY, () => new SupabaseActivityService());
+  container.register(SERVICE_KEYS.KIT_ADOPTIONS, () => new SupabaseKitAdoptionService());
+  // Kit state → server (migration 018; tolerant of a pre-018 env, falls back
+  // to localStorage so nothing breaks before the deploy).
+  setKitStateRepository(new SupabaseKitStateRepository());
 }
