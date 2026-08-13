@@ -179,9 +179,9 @@ Existing directories only (no new top-level layer): `src/domain/brand/`, `src/ap
 
 **Independent test**: quickstart Scenario 8 — a constructive output reopens editable; a generated image carries complete provenance and stays one object when placed.
 
-- [ ] T072 [US5] Write the `provenance` payload (data-model §5.2) on Library create for generated media, setting `origin='generated'` and making the payload immutable except for `relations`.
-- [ ] T073 [US5] Accrue relationships on `provenance.relations` when generated media are placed into a design, keeping the Library item the single canonical object (INV-12).
-- [ ] T074 [US5] Adapter test `src/core/adapters/database/__tests__/generativeProvenance.test.ts` — provenance is complete at creation and immutable (INV-10); relations accrue; deleted relationship targets resolve to tombstones rather than dangling (INV-11).
+- [x] T072 [US5] Write the `provenance` payload (data-model §5.2) on Library create for generated media, setting `origin='generated'` and making the payload immutable except for `relations`. — **DONE** — `saveGeneratedMedia` writes provenance at creation; saving IS the registration, so the asset cannot fork from "the one in the Library".
+- [x] T073 [US5] Accrue relationships on `provenance.relations` when generated media are placed into a design, keeping the Library item the single canonical object (INV-12). — **DONE** — `recordPlacement` accrues relations idempotently and never rewrites the circumstances of the generation.
+- [x] T074 [US5] Adapter test `src/core/adapters/database/__tests__/generativeProvenance.test.ts` — provenance is complete at creation and immutable (INV-10); relations accrue; deleted relationship targets resolve to tombstones rather than dangling (INV-11). — **DONE** — 12 tests: complete-at-creation, omits-what-it-does-not-know, no input aliasing, immutability of prompt/model/generatedAt, and lineage surviving deletion via the tombstone.
 
 **Checkpoint**: both output families persist per their nature. **Feature-complete for the MVP.**
 
