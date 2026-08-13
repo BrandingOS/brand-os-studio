@@ -1903,6 +1903,36 @@ describe('FabricAdapter — teardown must not reject', () => {
     container.remove();
   });
 
+  it('cancels an in-flight render so it cannot draw into a disposed canvas', async () => {
+    // The other half of the teardown race: `renderActivePage` holds a canvas
+    // reference across an await (image loading), then clears it. Unmounting
+    // during that window disposed the canvas under a live render, and the
+    // clear reached for a context that was gone — surfacing as an unhandled
+    // rejection that can fail an unrelated test file.
+    const rejections: unknown[] = [];
+    const onRejection = (e: PromiseRejectionEvent) => {
+      rejections.push(e.reason);
+      e.preventDefault();
+    };
+    globalThis.addEventListener?.('unhandledrejection', onRejection);
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    adapter.mount(container);
+
+    const load = adapter.loadDocument(FIXTURE);
+    // Unmount while the load is still in flight.
+    adapter.unmount();
+    await load.catch(() => undefined);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(rejections).toEqual([]);
+
+    globalThis.removeEventListener?.('unhandledrejection', onRejection);
+    container.remove();
+  });
+
   it('clears adapter state synchronously even though disposal is async', () => {
     const adapter = new FabricAdapter();
     const container = document.createElement('div');

@@ -164,6 +164,20 @@ export class FabricAdapter implements EditorAdapter {
     const canvasEl = this.canvasEl;
     const container = this.container;
 
+    // CANCEL ANY IN-FLIGHT RENDER FIRST.
+    //
+    // `renderActivePage` captures `this.canvas` before awaiting `renderPage`,
+    // which loads images and only then calls `canvas.clear()`. Unmounting
+    // during that await disposed the canvas out from under a render that was
+    // still holding a reference to it, and `clear()` reached for a context that
+    // no longer existed — the same `clearRect` of undefined as above, arriving
+    // from the opposite direction and again as an unhandled rejection.
+    //
+    // `renderPage` already checks `isCancelled()` immediately before it touches
+    // the canvas; it just needed the token to actually move. Bumping it here
+    // makes every in-flight render bail at that guard.
+    this.renderToken += 1;
+
     // Local state is cleared SYNCHRONOUSLY: `unmount()` must leave the adapter
     // unusable immediately, regardless of when disposal finishes.
     this.canvas = null;
