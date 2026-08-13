@@ -56,7 +56,11 @@ describe('provisional values are included by default (FR-006)', () => {
     const meta = recordCoreWrite(undefined, 'colors.primary', AI, 'ai-suggested', NOW);
     const ctx = buildCreationContext({ brand: brand({ identityMeta: meta }) });
     const entry = ctx.core.find((e) => e.path === 'colors.primary')!;
-    expect(entry.authority).toBe('provisional');
+    // Spec 002 — a fresh machine write opens at `suggested`. What the model
+    // needs to know is that this is ASSUMED, not decided, and both bands say
+    // that: the entry is still reported as provisional-or-weaker below.
+    expect(entry.authority).toBe('suggested');
+    expect(ctx.provisionalPaths).toContain('colors.primary');
     expect(entry.provenance).toBe('ai-suggested');
   });
 });

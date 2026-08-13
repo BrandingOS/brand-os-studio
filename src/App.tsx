@@ -28,7 +28,6 @@ const BrandPreviewPage = lazy(() => import("./pages/onboarding/preview"));
 // Canonical pre-brand onboarding. The onboarding screens live in
 // src/features/onboarding-v4/screens/ and are consumed here.
 const OnboardBrandPage = lazy(() => import("./pages/onboard-brand"));
-const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create"));
 // v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
@@ -170,6 +169,14 @@ const BrandKitV2Page = lazy(() => import('./features/brand-kit-alt/BrandKitPage'
 const BrandSettingsV2Page = lazy(() => import('./features/brand-kit-alt/BrandSettingsPage'));
 
 /** /brandkit (no moduleId) → canonical brand-kit hub at /a/:slug/brand-kit. */
+/** The from-scratch path folded into the one converged flow (spec 002).
+ *  "Starting new" is now discovered on the material step, not declared up
+ *  front, so there is nothing left for this URL to show. */
+function OnboardBrandCreateRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={`/onboard-brand${search}`} replace />;
+}
+
 function BrandKitRedirect() {
   const { slug } = useParams<{ slug: string }>();
   return <Navigate to={`/a/${slug}/brand-kit`} replace />;
@@ -334,8 +341,22 @@ const App = () => (
               and the ns-less workspace tabs (/setup, /brand-kit, /guideline,
               /design-workspace, /tools-workspace) were dead generations superseded
               by /onboard-brand + the brand-scoped /b/:slug/* tabs — removed. */}
-          <Route path="/onboard-brand" element={<OnboardBrandPage />} />
-          <Route path="/onboard-brand/create" element={<OnboardBrandCreatePage />} />
+          <Route path="/onboard-brand" element={
+            <ProtectedRoute>
+              <OnboardBrandPage />
+            </ProtectedRoute>
+          } />
+          {/* Resume: the slug names a brand still in onboarding. The flow reads
+              its step off the brand, so this works from a bookmark or another
+              device. Guards for ownership and "already finished" live inside. */}
+          <Route path="/onboard-brand/:slug" element={
+            <ProtectedRoute>
+              <OnboardBrandPage />
+            </ProtectedRoute>
+          } />
+          {/* Superseded by the converged flow (spec 002). Redirect rather than
+              404 so old links and bookmarks still land somewhere useful. */}
+          <Route path="/onboard-brand/create" element={<OnboardBrandCreateRedirect />} />
           {/* v2 workspace home — new WorkspaceShell (no tabs). */}
           <Route path="/dashboard" element={
             <ProtectedRoute>

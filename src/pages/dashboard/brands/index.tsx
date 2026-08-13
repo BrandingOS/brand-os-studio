@@ -1,5 +1,6 @@
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { isUnfinished, isPlaceholderPath, unfinishedLabel } from '@/shared/onboarding/onboardingState';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -46,7 +47,7 @@ export default function BrandsPage() {
           title="My Brands"
           subtitle="Manage and organize all your brands in one place."
           actions={
-            <Button onClick={() => navigate('/onboarding')}>
+            <Button onClick={() => navigate('/onboard-brand')}>
               Create New Brand
             </Button>
           }
@@ -67,7 +68,7 @@ export default function BrandsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={() => navigate('/onboarding')}>
+              <Button onClick={() => navigate('/onboard-brand')}>
                 Create Your First Brand
               </Button>
             </CardContent>
@@ -83,6 +84,15 @@ export default function BrandsPage() {
               ].filter((c): c is string => Boolean(c)).slice(0, 5);
               const stripEnd = brand.secondaryColor || brand.accentColor || brand.primaryColor;
 
+              // Still setting up — a situation, never a deficiency. The same
+              // not-decided language as the flow itself, applied at the scale of
+              // a whole brand: the card stays solid because the brand is real.
+              const wip = isUnfinished(brand);
+              const wipLabel = unfinishedLabel(brand);
+              // A sentinel colour is not a brand colour, so it is not shown as
+              // one — no strip gradient, no swatch, no avatar fill.
+              const colorIsSentinel = isPlaceholderPath(brand, 'colors.primary');
+
               return (
                 <BrandCardMenu key={brand.id} brand={brand} editUrl={identityUrlFor(brand.slug)}>
                 <Card
@@ -93,7 +103,9 @@ export default function BrandsPage() {
                     <div
                       className="w-1.5 shrink-0 transition-[width] duration-[280ms] group-hover:w-2"
                       style={{
-                        background: `linear-gradient(to bottom, ${brand.primaryColor}, ${stripEnd})`,
+                        background: colorIsSentinel
+                          ? 'hsl(var(--border))'
+                          : `linear-gradient(to bottom, ${brand.primaryColor}, ${stripEnd})`,
                       }}
                     />
 
@@ -107,16 +119,18 @@ export default function BrandsPage() {
                         />
                       ) : (
                         <div
-                          className="w-12 h-12 rounded shrink-0 border border-border transition-transform duration-300 motion-safe:group-hover:scale-105"
-                          style={{ backgroundColor: brand.primaryColor }}
+                          className={`w-12 h-12 rounded shrink-0 border transition-transform duration-300 motion-safe:group-hover:scale-105 ${
+                            colorIsSentinel ? 'border-dashed border-muted-foreground/40' : 'border-border'
+                          }`}
+                          style={colorIsSentinel ? undefined : { backgroundColor: brand.primaryColor }}
                         />
                       )}
                       <div className="min-w-0 flex-1">
                         <CardTitle className="text-lg truncate">{brand.name}</CardTitle>
                         <CardDescription className="mt-0.5 truncate">
-                          {brand.tone || 'Brand toolkit'}
+                          {wipLabel ?? (brand.tone || "Brand toolkit")}
                         </CardDescription>
-                        {swatches.length > 0 && (
+                        {swatches.length > 0 && !colorIsSentinel && (
                           <div className="mt-2 flex items-center gap-1.5">
                             {swatches.map((color, i) => (
                               <div
@@ -137,27 +151,34 @@ export default function BrandsPage() {
 
                     {/* Actions on the right */}
                     <div className="flex items-center gap-2 pr-4 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Edit Brand"
-                        onClick={() => navigate(identityUrlFor(brand.slug))}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Brand Kit"
-                        onClick={() => navigate(kitUrlFor(brand.slug))}
-                      >
-                        <Folder className="w-4 h-4" />
-                      </Button>
+                      {!wip && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Edit Brand"
+                            onClick={() => navigate(identityUrlFor(brand.slug))}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Brand Kit"
+                            onClick={() => navigate(kitUrlFor(brand.slug))}
+                          >
+                            <Folder className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
                       <Button
                         className="gap-2"
-                        onClick={() => navigate(homeUrlFor(brand.slug))}
+                        variant={wip ? 'outline' : 'default'}
+                        onClick={() =>
+                          navigate(wip ? `/onboard-brand/${brand.slug}` : homeUrlFor(brand.slug))
+                        }
                       >
-                        Open
+                        {wip ? 'Resume' : 'Open'}
                         <ArrowRight className="w-4 h-4" />
                       </Button>
                     </div>

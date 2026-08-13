@@ -15,7 +15,7 @@ import type {
 } from '@/core/services/IKitAdoptionService';
 import { assertAdoptable } from '@/core/services/IKitAdoptionService';
 import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository';
-import { coreValueMeta, type CoreFieldPath, type HumanActor } from '@/domain/brand';
+import { isAtLeast, coreValueMeta, type CoreFieldPath, type HumanActor } from '@/domain/brand';
 import { changeBrandColors } from '../changeBrandColor';
 import { changeBrandVoiceTone } from '../changeBrandVoice';
 import { demoteCoreValue, promoteCoreValue } from '../promoteCoreValue';
@@ -93,7 +93,7 @@ function makeAdoptions() {
 }
 
 describe('ordinary writes never reach a human-only authority', () => {
-  it('an AI colour write lands at provisional with ai-suggested provenance', async () => {
+  it('a fresh AI colour write lands at suggested with ai-suggested provenance', async () => {
     const { repo } = makeRepo();
     const out = await changeBrandColors(
       repo,
@@ -102,7 +102,12 @@ describe('ordinary writes never reach a human-only authority', () => {
       { actor: AI },
     );
     const meta = coreValueMeta(out.identityMeta, 'colors.primary');
-    expect(meta.authority).toBe('provisional');
+    // Spec 002: a system write to a path with no metadata entry opens at
+    // `suggested`, so a brand-new machine proposal is distinguishable from a
+    // value a user set but never confirmed. The claim this test protects is
+    // unchanged — a machine write never reaches a human-only authority.
+    expect(meta.authority).toBe('suggested');
+    expect(isAtLeast(meta.authority, 'confirmed')).toBe(false);
     expect(meta.provenance).toBe('ai-suggested');
   });
 
