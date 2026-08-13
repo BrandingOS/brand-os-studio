@@ -1867,3 +1867,82 @@ describe('FabricAdapter — selection sync', () => {
     expect(adapter.getSelection().layerIds).toEqual([]);
   });
 });
+
+describe('FabricAdapter — teardown must not reject', () => {
+  it('handles an async dispose that rejects, instead of leaving it unhandled', async () => {
+    // Reproduces the CI-only failure: Fabric v6's dispose() is async and
+    // internally clears the canvas, so a host that has already removed the
+    // element makes it throw. Unhandled, that rejection can fail an unrelated
+    // test file — which is exactly how it surfaced.
+    const rejections: unknown[] = [];
+    const onRejection = (e: PromiseRejectionEvent) => {
+      rejections.push(e.reason);
+      e.preventDefault();
+    };
+    globalThis.addEventListener?.('unhandledrejection', onRejection);
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    adapter.mount(container);
+
+    // Force the failure mode: dispose rejects the way a torn-down canvas does.
+    const canvas = (adapter as unknown as { canvas: { dispose: () => Promise<void> } }).canvas;
+    if (canvas) {
+      canvas.dispose = () =>
+        Promise.reject(new TypeError("Cannot read properties of undefined (reading 'clearRect')"));
+    }
+
+    expect(() => adapter.unmount()).not.toThrow();
+
+    // Let any rejection propagate before asserting.
+    await new Promise((r) => setTimeout(r, 20));
+    expect(rejections).toEqual([]);
+
+    globalThis.removeEventListener?.('unhandledrejection', onRejection);
+    container.remove();
+  });
+
+  it('cancels an in-flight render so it cannot draw into a disposed canvas', async () => {
+    // The other half of the teardown race: `renderActivePage` holds a canvas
+    // reference across an await (image loading), then clears it. Unmounting
+    // during that window disposed the canvas under a live render, and the
+    // clear reached for a context that was gone — surfacing as an unhandled
+    // rejection that can fail an unrelated test file.
+    const rejections: unknown[] = [];
+    const onRejection = (e: PromiseRejectionEvent) => {
+      rejections.push(e.reason);
+      e.preventDefault();
+    };
+    globalThis.addEventListener?.('unhandledrejection', onRejection);
+
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    adapter.mount(container);
+
+    const load = adapter.loadDocument(FIXTURE);
+    // Unmount while the load is still in flight.
+    adapter.unmount();
+    await load.catch(() => undefined);
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(rejections).toEqual([]);
+
+    globalThis.removeEventListener?.('unhandledrejection', onRejection);
+    container.remove();
+  });
+
+  it('clears adapter state synchronously even though disposal is async', () => {
+    const adapter = new FabricAdapter();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    adapter.mount(container);
+
+    adapter.unmount();
+
+    // Immediately unusable — callers must not be able to touch a disposed canvas.
+    expect((adapter as unknown as { canvas: unknown }).canvas).toBeNull();
+    container.remove();
+  });
+});

@@ -13,6 +13,8 @@
  * loss-free sibling-key merge) and should treat this call as best-effort.
  */
 import type { BrandRepository } from '@/domain/brand/repository';
+import { CORE_FIELD_PATHS, type CoreFieldPath } from '@/domain/brand/coreFieldPaths';
+import { withCoreWrites, type CoreWriteOptions } from './coreWrite';
 import { assertCanonicalBrand, type CanonicalBrand, type Strategy } from '@/domain/brand';
 
 export type StrategyChange = Partial<
@@ -26,17 +28,29 @@ export async function changeBrandStrategy(
   repo: BrandRepository,
   brandId: string,
   change: StrategyChange,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandStrategy: brand not found: ${brandId}`);
 
-  const next: CanonicalBrand = {
-    ...brand,
-    identity: {
-      ...brand.identity,
-      strategy: { ...brand.identity.strategy, ...change },
+  // Only the keys actually present in the change are stamped, so touching
+  // `mission` never claims that `values` was re-decided at the same moment.
+  const touched = (Object.keys(change) as (keyof StrategyChange)[])
+    .filter((k) => change[k] !== undefined)
+    .map((k) => `strategy.${k}` as CoreFieldPath)
+    .filter((p) => CORE_FIELD_PATHS.includes(p as never));
+
+  const next: CanonicalBrand = withCoreWrites(
+    {
+      ...brand,
+      identity: {
+        ...brand.identity,
+        strategy: { ...brand.identity.strategy, ...change },
+      },
     },
-  };
+    touched,
+    opts,
+  );
   assertCanonicalBrand(next);
   return repo.save(next);
 }

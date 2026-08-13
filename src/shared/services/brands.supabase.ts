@@ -142,6 +142,9 @@ export class SupabaseBrandsService implements IBrandsService {
     if (patch.identity !== undefined) updateData.identity = patch.identity;
     if (patch.identitySchemaVersion !== undefined)
       updateData.identity_schema_version = patch.identitySchemaVersion;
+    // Brand Core authority/provenance sidecar + Business Info (migration 016).
+    if (patch.identityMeta !== undefined) updateData.identity_meta = patch.identityMeta;
+    if (patch.businessInfo !== undefined) updateData.business_info = patch.businessInfo;
     if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
     if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
     if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
@@ -161,11 +164,47 @@ export class SupabaseBrandsService implements IBrandsService {
       // regression). Once migration 014 is deployed the first branch persists them.
       const missingCol =
         error.code === '42703' || /column .* does not exist/i.test(error.message ?? '');
-      if (missingCol && ('logo_system' in updateData || 'brand_assets' in updateData)) {
-        const { logo_system, brand_assets, ...safe } = updateData;
-        const retry = await supabase.from('brands').update(safe).eq('id', id).select().single();
-        if (retry.error) throw retry.error;
-        return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
+      // Same tolerance extended to the migration-016 columns: an environment
+      // that has the code but not the migration must still save everything
+      // else, exactly as the pre-014 path does. The dropped fields degrade to
+      // their read-time defaults (no authority recorded, no business facts) —
+      // never to a failed save.
+      //
+      // `identity_meta` is NOT in this list, on purpose. It carries authority
+      // and attribution: dropping it would let a save that lost the fact a
+      // value is Official report success, so `promoteCoreValue` would skip its
+      // compensation and leave a Kit adoption behind a value that reloads as
+      // merely provisional. A missing column there is a deployment error and
+      // must surface as one.
+      const TOLERATED_COLS = ['logo_system', 'brand_assets', 'business_info'] as const;
+
+      if (missingCol) {
+        // Drop ONLY the column the database named. The previous version removed
+        // every optional column at once, so one absent column silently discarded
+        // valid logo and business values that the same patch was saving.
+        const attempt = { ...updateData };
+        let lastError = error;
+
+        for (let i = 0; i <= TOLERATED_COLS.length; i += 1) {
+          const named = /column "?([a-z_]+)"?/i.exec(lastError.message ?? '')?.[1];
+          if (!named || !(named in attempt)) break;
+          if (!TOLERATED_COLS.includes(named as (typeof TOLERATED_COLS)[number])) break;
+
+          delete attempt[named];
+          const retry = await supabase
+            .from('brands')
+            .update(attempt)
+            .eq('id', id)
+            .select()
+            .single();
+          if (!retry.error) return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
+
+          const stillMissing =
+            retry.error.code === '42703' ||
+            /column .* does not exist/i.test(retry.error.message ?? '');
+          if (!stillMissing) throw retry.error;
+          lastError = retry.error;
+        }
       }
       throw error;
     }
@@ -205,6 +244,8 @@ export class SupabaseBrandsService implements IBrandsService {
       guidelines: data.guidelines || undefined,
       identity: data.identity || undefined,
       identitySchemaVersion: data.identity_schema_version || undefined,
+      identityMeta: data.identity_meta || undefined,
+      businessInfo: data.business_info || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,

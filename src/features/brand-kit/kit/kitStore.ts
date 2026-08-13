@@ -49,7 +49,7 @@ export type KitStoreState = {
   deliverables: Record<DeliverableKey, DeliverableRecord>;
   generatingKeys: DeliverableKey[];
 
-  hydrate: (brandId: string, brand: MockBrand) => void;
+  hydrate: (brandId: string, brand: MockBrand) => Promise<void>;
   generate: (
     keys: DeliverableKey[],
     ctx: GenerationContext,
@@ -76,10 +76,67 @@ export type KitStoreState = {
   clearError: (key: DeliverableKey) => void;
 };
 
+/**
+ * In-flight hydrations, keyed by brand id.
+ *
+ * A single-slot guard had two defects. A second call for the SAME brand
+ * returned an already-resolved promise, so `await hydrate(id, brand)` continued
+ * with `brandId: null` and empty deliverables — a component mounting twice in
+ * one tick reads an empty kit. And with two different brands in flight, the
+ * later call overwrote the slot and its `finally` cleared the guard while the
+ * first was still loading, so the winner was decided by completion order rather
+ * than call order. Returning the SAME promise per brand fixes both.
+ */
+const hydrating = new Map<string, Promise<void>>();
+
+/** The brand the UI most recently asked to hydrate. See `hydrate`. */
+let requestedBrandId: string | null = null;
+
+/**
+ * Per-brand write queue.
+ *
+ * Saves are fire-and-forget, so two quick mutations previously raced: both
+ * requests were in flight at once and the server kept whichever ARRIVED last,
+ * which is not necessarily the one issued last. Approving an item and then
+ * archiving it could persist the approve — the user's last action silently
+ * undone on the next reload.
+ *
+ * Chaining per brand makes arrival order equal issue order. Different brands
+ * stay independent, and a failed save does not break the chain behind it.
+ */
+const saveQueues = new Map<string, Promise<unknown>>();
+
 function persist(brandId: string | null, deliverables: Record<DeliverableKey, DeliverableRecord>) {
   if (!brandId) return;
   const state: BrandKitState = { version: 1, deliverables };
-  getKitStateRepository().save(brandId, state);
+  // Still fire-and-forget from the caller's side, as it always was: the boolean
+  // was never awaited, and a failed kit write must not break the interaction
+  // that triggered it.
+  const write = () =>
+    getKitStateRepository()
+      .save(brandId, state)
+      .catch(() => {
+        /* persistence failure is non-fatal; state stays in memory */
+      });
+
+  const prior = saveQueues.get(brandId);
+  // With nothing in flight, start IMMEDIATELY rather than after a microtask.
+  // Deferring unconditionally would delay every first save by a tick for no
+  // benefit — there is nothing to order against.
+  const queued = (prior
+    ? prior
+        .catch(() => {
+          /* an earlier failure must not cancel later writes */
+        })
+        .then(write)
+    : write()
+  )
+    .finally(() => {
+      // Only the tail clears the slot, so a later save never joins a chain
+      // that has already been replaced.
+      if (saveQueues.get(brandId) === queued) saveQueues.delete(brandId);
+    });
+  saveQueues.set(brandId, queued);
 }
 
 /** Fix up primaryItemId after item mutations: keep it when still
@@ -198,15 +255,64 @@ export const useKitStore = create<KitStoreState>((set, get) => {
     deliverables: {},
     generatingKeys: [],
 
-    hydrate: (brandId, brand) => {
+    hydrate: async (brandId, brand) => {
+      // Record the request FIRST — before the already-installed check, and
+      // before joining an in-flight run. Two orderings depend on it:
+      //
+      //   hydrate(A) → hydrate(B) → hydrate(A), all in flight: the third call
+      //   joins A's run, and if the marker still said B, A's run would drop its
+      //   own result at the supersede check below.
+      //
+      //   hydrate(A) completes → hydrate(B) starts → user navigates back, so
+      //   hydrate(A) returns early because A is already installed. If the
+      //   marker still said B, B's load would then install itself over the
+      //   brand the user actually asked for last.
+      requestedBrandId = brandId;
+
       if (get().brandId === brandId) return;
-      const repo = getKitStateRepository();
-      let state = repo.load(brandId);
-      if (!state) {
-        state = migrateFromCardCustomizations(brandId, brand);
-        repo.save(brandId, state);
-      }
-      set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
+
+      // Join the in-flight hydration for this brand rather than returning
+      // early, so every caller awaits real completion.
+      const existing = hydrating.get(brandId);
+      if (existing) return existing;
+
+      const run = (async () => {
+        const repo = getKitStateRepository();
+        // A repository failure must not leave the surface with no Kit AND no
+        // error — and must not reject into a caller that never catches, which
+        // is an unhandled rejection. `persist` already treats a write failure
+        // as non-fatal; reads follow the same rule: fall back to what can be
+        // reconstructed locally, so the user sees their migrated Kit rather
+        // than an empty one.
+        let state: BrandKitState | null = null;
+        try {
+          state = await repo.load(brandId);
+        } catch (loadError) {
+          console.error(`[kitStore] Kit state failed to load for ${brandId}`, loadError);
+        }
+
+        if (!state) {
+          state = migrateFromCardCustomizations(brandId, brand);
+          try {
+            await repo.save(brandId, state);
+          } catch (saveError) {
+            // The migrated state still stands in memory; it just is not durable
+            // yet. The next mutation retries the write.
+            console.error(`[kitStore] Kit state failed to persist for ${brandId}`, saveError);
+          }
+        }
+
+        // A load that finishes after the user has navigated on must not install
+        // its brand: hydrating A, then B, with A completing last would put A's
+        // kit on screen while the UI shows B.
+        if (requestedBrandId !== brandId) return; // superseded — drop the result
+        set({ brandId, deliverables: state.deliverables, generatingKeys: [] });
+      })().finally(() => {
+        hydrating.delete(brandId);
+      });
+
+      hydrating.set(brandId, run);
+      return run;
     },
 
     generate: (keys, ctx, opts) => runGeneration(keys, ctx, opts),

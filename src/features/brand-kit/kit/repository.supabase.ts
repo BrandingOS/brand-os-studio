@@ -1,0 +1,105 @@
+/**
+ * Server-backed Brand Kit state (`public.brand_kit_state`, migration 018).
+ *
+ * Kit state was browser-local for everyone, including authenticated users, so a
+ * user's kit never survived a cache clear and never crossed devices. This is
+ * the swap the `KitStateRepository` seam always existed for.
+ *
+ * Degrades the way 014/015/017 do: if the table is not deployed yet, every
+ * operation falls back to `LocalKitStateRepository`, so shipping this ahead of
+ * the migration changes nothing for the user. That fallback is also what makes
+ * the down migration safe.
+ */
+import { supabase } from '@/integrations/supabase/client';
+import { LocalKitStateRepository, type KitStateRepository } from './repository';
+import type { BrandKitState } from './types';
+
+// The generated Supabase types predate 018 — same untyped-accessor workaround
+// used for `designs` and the 017 tables. Remove when types are regenerated.
+const table = () => (supabase as any).from('brand_kit_state');
+
+function isMissingTable(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return error.code === '42P01' || error.code === 'PGRST205';
+}
+
+/** A local id (dev-bypass brands) can never satisfy a uuid column. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export class SupabaseKitStateRepository implements KitStateRepository {
+  private readonly local = new LocalKitStateRepository();
+
+  async load(brandId: string): Promise<BrandKitState | null> {
+    // Local brand ids (brand_1786…) would raise Postgres 22P02 against a uuid
+    // column, so they stay local — the dev-bypass path keeps working.
+    if (!UUID.test(brandId)) return this.local.load(brandId);
+
+    const { data, error } = await table()
+      .select('state')
+      .eq('brand_id', brandId)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingTable(error)) return this.local.load(brandId);
+      throw error;
+    }
+    const state = data?.state as BrandKitState | undefined;
+    // Same validity gate as the local repo: an unrecognised version is treated
+    // as absent rather than half-loaded.
+    const valid = state && state.version === 1 && typeof state.deliverables === 'object';
+    if (valid) return state;
+
+    // A row EXISTS but this client cannot read it — almost certainly written by
+    // a newer client with a later version. Report "no kit" rather than
+    // adopting the local blob, because the adoption path below WRITES, and
+    // writing a version-1 blob over it would destroy the newer state. Only a
+    // genuinely absent row is a migration case.
+    if (data) return null;
+
+    // No server row. Before reporting an empty Kit, adopt whatever this browser
+    // already has: users built Kit state while it was browser-local, and
+    // returning null here would send `kitStore.hydrate` down the
+    // card-customizations migration path, which knows nothing about that blob —
+    // an existing Kit would come back empty the day 018 is deployed.
+    //
+    // One-way and one-time: the local blob is copied up, and from then on the
+    // server row is what `load` finds. The local copy is left in place so a
+    // failed upload is not a loss.
+    const local = await this.local.load(brandId);
+    if (local) {
+      await this.save(brandId, local);
+      return local;
+    }
+    return null;
+  }
+
+  async save(brandId: string, state: BrandKitState): Promise<boolean> {
+    if (!UUID.test(brandId)) return this.local.save(brandId, state);
+
+    // Never write over a row this client cannot read. `load` returns null for an
+    // unsupported version, and `hydrate` responds to null by migrating and
+    // SAVING — so without this guard the first hydration would overwrite a
+    // newer client's state before the user touched anything.
+    const existing = await table().select('version').eq('brand_id', brandId).maybeSingle();
+    if (!existing.error && existing.data && existing.data.version !== state.version) {
+      console.warn(
+        `[SupabaseKitStateRepository] Refusing to overwrite kit state v${existing.data.version} ` +
+          `for ${brandId} with v${state.version}. Update this client to edit it.`,
+      );
+      return false;
+    }
+
+    const { error } = await table().upsert(
+      { brand_id: brandId, version: state.version, state },
+      { onConflict: 'brand_id' },
+    );
+
+    if (error) {
+      if (isMissingTable(error)) return this.local.save(brandId, state);
+      // Persistence failure is non-fatal for the caller (see kitStore.persist);
+      // report it rather than throwing into an interaction.
+      return false;
+    }
+    return true;
+  }
+}

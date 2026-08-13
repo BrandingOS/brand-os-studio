@@ -10,10 +10,10 @@ import { GenerateBar } from './GenerateBar';
 const DEF = getDeliverable('stationery', 'Business Card')!;
 const CTX = { seed: 'ui-brand', brand: mockBrand };
 
-function resetStore() {
+async function resetStore() {
   localStorage.clear();
   useKitStore.setState({ brandId: null, deliverables: {}, generatingKeys: [] });
-  useKitStore.getState().hydrate('ui-brand', mockBrand);
+  await useKitStore.getState().hydrate('ui-brand', mockBrand);
 }
 
 function cardProps(overrides: Partial<Parameters<typeof DeliverableCard>[0]> = {}) {
@@ -33,9 +33,9 @@ function cardProps(overrides: Partial<Parameters<typeof DeliverableCard>[0]> = {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   cleanup();
-  resetStore();
+  await resetStore();
 });
 
 describe('DeliverableCard', () => {

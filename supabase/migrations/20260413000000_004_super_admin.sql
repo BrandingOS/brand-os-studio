@@ -25,66 +25,82 @@ $$;
 -- ─── 2. Admin RLS policies — full read/write on all tables ──────────────────
 
 -- Workspaces: admin can see/edit all
+DROP POLICY IF EXISTS "admin_workspaces_all" ON public.workspaces;
 CREATE POLICY "admin_workspaces_all" ON public.workspaces
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Workspace members: admin can see/edit all
+DROP POLICY IF EXISTS "admin_workspace_members_all" ON public.workspace_members;
 CREATE POLICY "admin_workspace_members_all" ON public.workspace_members
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Brands: admin can see/edit all
+DROP POLICY IF EXISTS "admin_brands_all" ON public.brands;
 CREATE POLICY "admin_brands_all" ON public.brands
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Brand members: admin can see/edit all
+DROP POLICY IF EXISTS "admin_brand_members_all" ON public.brand_members;
 CREATE POLICY "admin_brand_members_all" ON public.brand_members
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Assets: admin can see/edit all
+DROP POLICY IF EXISTS "admin_assets_all" ON public.assets;
 CREATE POLICY "admin_assets_all" ON public.assets
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Comments: admin can see/edit all
+DROP POLICY IF EXISTS "admin_comments_all" ON public.comments;
 CREATE POLICY "admin_comments_all" ON public.comments
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Approvals: admin can see/edit all
+DROP POLICY IF EXISTS "admin_approvals_all" ON public.approvals;
 CREATE POLICY "admin_approvals_all" ON public.approvals
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Activity log: admin can see all
+DROP POLICY IF EXISTS "admin_activity_all" ON public.activity_log;
 CREATE POLICY "admin_activity_all" ON public.activity_log
   FOR SELECT TO authenticated USING (public.is_super_admin());
 
 -- Notifications: admin can see all
+DROP POLICY IF EXISTS "admin_notifications_all" ON public.notifications;
 CREATE POLICY "admin_notifications_all" ON public.notifications
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Subscriptions: admin can see/edit all
+DROP POLICY IF EXISTS "admin_subscriptions_all" ON public.subscriptions;
 CREATE POLICY "admin_subscriptions_all" ON public.subscriptions
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Invoices: admin can see all
+DROP POLICY IF EXISTS "admin_invoices_all" ON public.invoices;
 CREATE POLICY "admin_invoices_all" ON public.invoices
   FOR SELECT TO authenticated USING (public.is_super_admin());
 
 -- Usage tracking: admin can see all
+DROP POLICY IF EXISTS "admin_usage_all" ON public.usage_tracking;
 CREATE POLICY "admin_usage_all" ON public.usage_tracking
   FOR SELECT TO authenticated USING (public.is_super_admin());
 
 -- Profiles: admin can see all profiles
+DROP POLICY IF EXISTS "admin_profiles_all" ON public.profiles;
 CREATE POLICY "admin_profiles_all" ON public.profiles
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- User roles: admin can manage roles
+DROP POLICY IF EXISTS "admin_user_roles_all" ON public.user_roles;
 CREATE POLICY "admin_user_roles_all" ON public.user_roles
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Guideline presentations: admin can see/edit all
+DROP POLICY IF EXISTS "admin_presentations_all" ON public.guideline_presentations;
 CREATE POLICY "admin_presentations_all" ON public.guideline_presentations
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- Guideline slides: admin can see/edit all
+DROP POLICY IF EXISTS "admin_slides_all" ON public.guideline_slides;
 CREATE POLICY "admin_slides_all" ON public.guideline_slides
   FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 

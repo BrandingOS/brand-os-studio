@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import type { Brand, Asset } from '@/shared/types/brand';
-import { services } from '@/shared/services/registry';
+import type { Brand } from '@/shared/types/brand';
+import { useBrandStore } from '@/shared/store/brandStore';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import { useBentoStore } from './store';
 import { BentoCanvas, type BentoCanvasHandle } from './components/BentoCanvas';
 import { BentoTopBar } from './components/BentoTopBar';
@@ -35,6 +37,8 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
   const undo = useBentoStore((s) => s.undo);
   const redo = useBentoStore((s) => s.redo);
   const init = useBentoStore((s) => s.init);
+
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
 
   const canvasRef = useRef<BentoCanvasHandle>(null);
 
@@ -140,22 +144,28 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
     const { tileId, dataUrl, fileSize, fileName } = pending;
 
     if (saveToBrand && brand) {
-      // Persist as brand asset + reference it from the tile.
-      const asset: Asset = {
-        id: `asset_${Date.now()}`,
-        name: assetName || fileName.replace(/\.[^.]+$/, ''),
-        type: 'image',
-        category: 'photo',
-        source: 'upload',
-        url: dataUrl,
-        size: fileSize,
-        tags: ['bento'],
-        metadata: { originalName: fileName },
-        createdAt: new Date(),
-      };
       try {
-        await services.brands.update(brand.id, { assets: [...(brand.assets ?? []), asset] });
-        updateTile(tileId, { kind: 'asset-image', content: { assetId: asset.id } });
+        // Into the BRAND LIBRARY, the one authoritative asset store. Writing
+        // the legacy `assets` array through `brandStore.update` would put asset
+        // truth back on the brand record, where the read-only projection cannot
+        // see it — the tile would reference an id absent from `brandAssets`
+        // until an ingest ran.
+        const created = await assets.create({
+          brandId: brand.id,
+          name: assetName || fileName.replace(/\.[^.]+$/, ''),
+          type: 'image',
+          category: 'photo',
+          source: 'upload',
+          url: dataUrl,
+          size: fileSize,
+          tags: ['bento'],
+          metadata: { originalName: fileName },
+          origin: 'uploaded',
+        });
+        // Re-project so every other mounted surface resolves the new asset
+        // without a reload.
+        await useBrandStore.getState().reprojectLibrary(brand.id);
+        updateTile(tileId, { kind: 'asset-image', content: { assetId: created.id } });
         toast.success('Added to brand assets');
       } catch (err) {
         console.error(err);
@@ -168,7 +178,7 @@ export function BentoEditor({ brand, backTo, extraLeft }: Props) {
       toast.success('Image added');
     }
     setPending(null);
-  }, [pending, brand, updateTile]);
+  }, [pending, brand, updateTile, assets]);
 
   // ─── Export ──────────────────────────────────────────────────────────
   const handleExport = useCallback(async () => {

@@ -79,7 +79,7 @@ describe('TemplateLibraryGenerator', () => {
 describe('LocalKitStateRepository', () => {
   beforeEach(() => localStorage.clear());
 
-  it('round-trips state per brand and rejects corrupt payloads', () => {
+  it('round-trips state per brand and rejects corrupt payloads', async () => {
     const repo = new LocalKitStateRepository();
     const state = emptyKitState();
     state.deliverables['stationery::Business Card'] = {
@@ -89,12 +89,12 @@ describe('LocalKitStateRepository', () => {
       seenVariantIds: ['x'],
       updatedAt: '2026-08-10T00:00:00.000Z',
     };
-    expect(repo.save('b1', state)).toBe(true);
-    expect(repo.load('b1')).toEqual(state);
-    expect(repo.load('other')).toBeNull();
+    expect(await repo.save('b1', state)).toBe(true);
+    expect(await repo.load('b1')).toEqual(state);
+    expect(await repo.load('other')).toBeNull();
 
     localStorage.setItem('brandos:brand-kit:state', '{not json');
-    expect(repo.load('b1')).toBeNull();
+    expect(await repo.load('b1')).toBeNull();
   });
 });
 
@@ -104,12 +104,12 @@ describe('kitStore lifecycle', () => {
   beforeEach(resetStore);
 
   async function generateOne(key = KEY) {
-    useKitStore.getState().hydrate('brand-test-1', mockBrand);
+    await useKitStore.getState().hydrate('brand-test-1', mockBrand);
     await useKitStore.getState().generate([key], CTX, { minDelayMs: 0 });
   }
 
   it('not-created → generate → review → approve → approved', async () => {
-    useKitStore.getState().hydrate('brand-test-1', mockBrand);
+    await useKitStore.getState().hydrate('brand-test-1', mockBrand);
     expect(statusOf(useKitStore.getState(), KEY)).toBe('not-created');
 
     await generateOne();
@@ -133,7 +133,7 @@ describe('kitStore lifecycle', () => {
 
     // Simulate a fresh session.
     useKitStore.setState({ brandId: null, deliverables: {}, generatingKeys: [] });
-    useKitStore.getState().hydrate('brand-test-1', mockBrand);
+    await useKitStore.getState().hydrate('brand-test-1', mockBrand);
     expect(statusOf(useKitStore.getState(), KEY)).toBe('approved');
   });
 
@@ -200,7 +200,7 @@ describe('kitStore lifecycle', () => {
   });
 
   it('generation failure lands in error and is retriable', async () => {
-    useKitStore.getState().hydrate('brand-test-1', mockBrand);
+    await useKitStore.getState().hydrate('brand-test-1', mockBrand);
     const failing = {
       generate: async () => {
         throw new Error('boom');
@@ -214,7 +214,7 @@ describe('kitStore lifecycle', () => {
   });
 
   it('approveTopCandidates bulk-approves the first candidate of each key', async () => {
-    useKitStore.getState().hydrate('brand-test-1', mockBrand);
+    await useKitStore.getState().hydrate('brand-test-1', mockBrand);
     const keys = [KEY, 'stationery::Letterhead'];
     await useKitStore.getState().generate(keys, CTX, { minDelayMs: 0 });
     useKitStore.getState().approveTopCandidates(keys);
@@ -226,7 +226,7 @@ describe('kitStore lifecycle', () => {
     expect(kitCounts(state).total).toBe(25);
   });
 
-  it('migrates pre-redesign card customizations into approved items', () => {
+  it('migrates pre-redesign card customizations into approved items', async () => {
     localStorage.setItem(
       'brandos:brand-kit:customizations',
       JSON.stringify({
@@ -254,7 +254,7 @@ describe('kitStore lifecycle', () => {
         },
       }),
     );
-    useKitStore.getState().hydrate('brand-m1', mockBrand);
+    await useKitStore.getState().hydrate('brand-m1', mockBrand);
     const state = useKitStore.getState();
     expect(statusOf(state, KEY)).toBe('approved');
     const record = state.deliverables[KEY];

@@ -23,7 +23,42 @@ export {
   type AssetRef,
   type AssetFormat,
   type LogoRole,
+  type VisualStyle,
+  type StyleDescriptor,
+  type BrandRules,
+  type LogoProhibition,
+  type Positioning,
+  type BusinessInfo,
 } from './identity';
+
+export {
+  CORE_FIELD_PATHS,
+  isCoreFieldPath,
+  readCoreValue,
+  coreSubsystemOf,
+  type CoreFieldPath,
+} from './coreFieldPaths';
+
+export {
+  AUTHORITY_ORDER,
+  HUMAN_ONLY_AUTHORITIES,
+  DEFAULT_CORE_VALUE_META,
+  isAtLeast,
+  isHumanOnlyAuthority,
+  sanitizeIdentityMeta,
+  coreValueMeta,
+  assertActorMayReach,
+  recordCoreWrite,
+  recordCoreAuthorityChange,
+  coreCompleteness,
+  type Authority,
+  type Provenance,
+  type CoreValueMeta,
+  type IdentityMeta,
+  type Actor,
+  type HumanActor,
+  type SystemActor,
+} from './coreMeta';
 
 export {
   validateCanonicalBrand,

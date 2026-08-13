@@ -22,6 +22,11 @@ const LOCAL_ALWAYS = [
   SERVICE_KEYS.TEMPLATES,
   SERVICE_KEYS.FORMAT_PRESETS,
   SERVICE_KEYS.BRAND_MEMORY,
+  // Brand System Foundation — stubs in Phase 0, real impls in the Kit/Context
+  // phases. Registered in both modes from the start so the swap is a
+  // one-line change here rather than a new registration site.
+  SERVICE_KEYS.KIT_ADOPTIONS,
+  SERVICE_KEYS.BRAND_CONTEXT,
 ];
 
 const AUTHED_ONLY = [

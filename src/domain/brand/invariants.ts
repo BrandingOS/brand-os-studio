@@ -68,6 +68,159 @@ const voice = z
   })
   .passthrough();
 
+/**
+ * Visual style, rules and positioning are CLOSED enumerations where the product
+ * can act on them — an open string would put us back to parsing prose. All
+ * three subsystems are optional: skipping a Core decision is a supported state,
+ * not an invalid brand.
+ */
+const visualStyle = z
+  .object({
+    descriptors: z
+      .array(
+        z.enum([
+          'minimal',
+          'bold',
+          'elegant',
+          'playful',
+          'technical',
+          'organic',
+          'luxury',
+          'retro',
+        ]),
+      )
+      .optional(),
+    cornerStyle: z.enum(['sharp', 'soft', 'rounded', 'pill']).optional(),
+    density: z.enum(['tight', 'balanced', 'airy']).optional(),
+    contrast: z.enum(['low', 'medium', 'high']).optional(),
+    imageryStyle: z
+      .enum(['photographic', 'illustrated', 'abstract', 'mixed', 'none'])
+      .optional(),
+    motion: z.enum(['still', 'subtle', 'expressive']).optional(),
+  })
+  .passthrough();
+
+const brandRules = z
+  .object({
+    logo: z
+      .object({
+        minSizePx: z.number().optional(),
+        clearSpaceRatio: z.number().optional(),
+        allowedBackgrounds: z
+          .array(z.enum(['light', 'dark', 'brand', 'photo']))
+          .optional(),
+        prohibited: z
+          .array(z.enum(['stretch', 'recolor', 'rotate', 'outline', 'shadow']))
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+    color: z
+      .object({
+        neverPair: z.array(z.tuple([hex, hex])).optional(),
+        requireContrastRatio: z.number().optional(),
+      })
+      .passthrough()
+      .optional(),
+    type: z
+      .object({
+        minBodySizePx: z.number().optional(),
+        allowedWeights: z.array(z.number()).optional(),
+      })
+      .passthrough()
+      .optional(),
+    voice: z
+      .object({
+        avoidTerms: z.array(z.string()).optional(),
+        preferTerms: z.array(z.string()).optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+const positioning = z
+  .object({
+    category: z.string().optional(),
+    differentiator: z.string().optional(),
+    audiences: z
+      .array(
+        z
+          .object({
+            label: z.string(),
+            descriptor: z.string().optional(),
+            priority: z.enum(['primary', 'secondary']),
+          })
+          .passthrough(),
+      )
+      .optional(),
+    competitors: z
+      .array(z.object({ name: z.string(), note: z.string().optional() }).passthrough())
+      .optional(),
+  })
+  .passthrough();
+
+/**
+ * The authority/provenance sidecar. Keys are NOT validated against the
+ * CoreFieldPath registry here — `sanitizeIdentityMeta` drops unknown keys on
+ * read (INV-1), which is self-healing; rejecting the whole brand because a
+ * renamed path left stale metadata behind would be a far worse failure mode.
+ */
+const coreValueMeta = z
+  .object({
+    authority: z.enum(['suggested', 'provisional', 'confirmed', 'official']),
+    provenance: z.enum(['user-entered', 'ai-suggested', 'inferred', 'imported']),
+    setBy: z.string().nullable(),
+    setAt: z.string(),
+    promotedBy: z.string().optional(),
+    promotedAt: z.string().optional(),
+  })
+  .passthrough();
+
+const identityMeta = z.record(coreValueMeta);
+
+/** Business Info — every field optional; it must never block creation. */
+const businessInfo = z
+  .object({
+    legalName: z.string().optional(),
+    displayName: z.string().optional(),
+    tagline: z.string().optional(),
+    description: z.string().optional(),
+    industry: z.string().optional(),
+    foundedYear: z.number().int().optional(),
+    contact: z
+      .object({
+        email: z.string().optional(),
+        phone: z.string().optional(),
+        website: z.string().optional(),
+        address: z.object({}).passthrough().optional(),
+      })
+      .passthrough()
+      .optional(),
+    links: z
+      .array(
+        z
+          .object({
+            kind: z.enum([
+              'website',
+              'linkedin',
+              'instagram',
+              'x',
+              'facebook',
+              'youtube',
+              'tiktok',
+              'other',
+            ]),
+            url: z.string(),
+            label: z.string().optional(),
+          })
+          .passthrough(),
+      )
+      .optional(),
+    audienceSummary: z.string().optional(),
+  })
+  .passthrough();
+
 const canonicalBrandSchema = z.object({
   id: z.string().min(1),
   slug: z.string().min(1),
@@ -78,7 +231,12 @@ const canonicalBrandSchema = z.object({
     typography: typographySystem,
     strategy,
     voice,
+    visualStyle: visualStyle.optional(),
+    rules: brandRules.optional(),
+    positioning: positioning.optional(),
   }),
+  identityMeta: identityMeta.optional(),
+  businessInfo: businessInfo.optional(),
   isPublic: z.boolean(),
   publicUrl: z.string().optional(),
   identitySchemaVersion: z.number().int().positive(),

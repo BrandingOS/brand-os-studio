@@ -9,19 +9,25 @@
  */
 import type { BrandRepository } from '@/domain/brand/repository';
 import { assertCanonicalBrand, type CanonicalBrand } from '@/domain/brand';
+import { withCoreWrites, type CoreWriteOptions } from './coreWrite';
 
 export async function changeBrandVoiceTone(
   repo: BrandRepository,
   brandId: string,
   tone: string,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandVoiceTone: brand not found: ${brandId}`);
 
-  const next: CanonicalBrand = {
-    ...brand,
-    identity: { ...brand.identity, voice: { ...brand.identity.voice, tone } },
-  };
+  const next: CanonicalBrand = withCoreWrites(
+    {
+      ...brand,
+      identity: { ...brand.identity, voice: { ...brand.identity.voice, tone } },
+    },
+    ['voice.tone'],
+    opts,
+  );
   assertCanonicalBrand(next);
   return repo.save(next);
 }

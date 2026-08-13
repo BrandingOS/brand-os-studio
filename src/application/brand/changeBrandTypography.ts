@@ -8,6 +8,8 @@
  * the legacy `fonts.*` scalars one-way for un-migrated readers.
  */
 import type { BrandRepository } from '@/domain/brand/repository';
+import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
+import { withCoreWrites, type CoreWriteOptions } from './coreWrite';
 import { assertCanonicalBrand, type CanonicalBrand, type FontToken } from '@/domain/brand';
 
 export interface TypographyFamilyChanges {
@@ -38,6 +40,7 @@ export async function changeBrandTypography(
   repo: BrandRepository,
   brandId: string,
   changes: TypographyChanges,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandTypography: brand not found: ${brandId}`);
@@ -50,7 +53,11 @@ export async function changeBrandTypography(
     ...(c.weights !== undefined ? { weights: c.weights } : {}),
   });
 
-  const next: CanonicalBrand = {
+  const touched: CoreFieldPath[] = [];
+  if (changes.primary) touched.push('typography.primary');
+  if (changes.secondary !== undefined) touched.push('typography.secondary');
+
+  const next: CanonicalBrand = withCoreWrites({
     ...brand,
     identity: {
       ...brand.identity,
@@ -67,7 +74,7 @@ export async function changeBrandTypography(
           : {}),
       },
     },
-  };
+  }, touched, opts);
   assertCanonicalBrand(next);
   return repo.save(next);
 }
@@ -76,11 +83,17 @@ export async function changeBrandTypographyFamilies(
   repo: BrandRepository,
   brandId: string,
   fams: TypographyFamilyChanges,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
-  return changeBrandTypography(repo, brandId, {
-    ...(fams.primary ? { primary: { family: fams.primary } } : {}),
-    ...(fams.secondary !== undefined
-      ? { secondary: fams.secondary ? { family: fams.secondary } : null }
-      : {}),
-  });
+  return changeBrandTypography(
+    repo,
+    brandId,
+    {
+      ...(fams.primary ? { primary: { family: fams.primary } } : {}),
+      ...(fams.secondary !== undefined
+        ? { secondary: fams.secondary ? { family: fams.secondary } : null }
+        : {}),
+    },
+    opts,
+  );
 }

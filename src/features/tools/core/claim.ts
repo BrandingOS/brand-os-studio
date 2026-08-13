@@ -12,7 +12,8 @@
  * its payload into a `CreateBrandInput` plus any post-create patches.
  * That keeps tool-specific knowledge out of the platform.
  */
-import { services } from '@/shared/services/registry';
+import { container } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
 import type { ToolSession, ToolSlug } from './types';
 
@@ -72,9 +73,12 @@ export async function claimSession(slug: ToolSlug): Promise<Brand | null> {
     return null;
   }
   const { create, patch } = fn(session);
-  const brand = await services.brands.create(create);
+  // Resolved per call, not at module load, so an auth swap
+  // (`reconfigureForAuth`) takes effect here like it does everywhere else.
+  const brands = container.get<IBrandsService>(SERVICE_KEYS.BRANDS);
+  const brand = await brands.create(create);
   if (patch) {
-    await services.brands.update(brand.id, patch);
+    await brands.update(brand.id, patch);
   }
   // Clean up the anon session — the work now lives in the brand.
   if (session.anonymousToken) {

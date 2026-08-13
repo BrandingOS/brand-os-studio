@@ -13,8 +13,6 @@ import { ColorSystemGenerator } from '@/features/tools/ui-color-system';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { BrandRepository } from '@/domain/brand/repository';
-import { changeBrandColors } from '@/application/brand/changeBrandColor';
-import { toLegacyBrandPatch } from '@/domain/brand';
 import { applyBrandTokens } from '@/shared/design-system/PresentationStyleAdapter';
 import { isValidHex, normalizeHex, type PaletteSystem, type ShadeStop } from '@/lib/color-engine';
 
@@ -41,25 +39,28 @@ export default function InAppUiColorSystemPage() {
     return guess && isValidHex(guess) ? normalizeHex(guess) : undefined;
   }, [brand]);
 
-  const repo = useService<BrandRepository>(SERVICE_KEYS.BRAND_REPOSITORY);
+  const updateBrand = useBrandStore((s) => s.update);
   const pushToBrand = useCallback(
     async (palette: PaletteSystem) => {
       if (!brand) return;
       try {
         const stops: ShadeStop[] = [50, 100, 200, 500, 800, 950];
-        // Route through the canonical color operation (A7 fix — was a competing
-        // scalar-only write that left colorSystem stale for canonical readers).
-        const updated = await changeBrandColors(repo, brand.id, {
-          primary: { hex: palette.roles.primary.inputHex },
-          ...(palette.roles.secondary?.inputHex ? { secondary: { hex: palette.roles.secondary.inputHex } } : {}),
-          ...(palette.roles.tertiary?.inputHex ? { accent: { hex: palette.roles.tertiary.inputHex } } : {}),
-          neutrals: stops.map((s) => ({ hex: palette.roles.neutral.shades[s].hex })),
+        // One call: the store routes colour fields to changeBrandColors and
+        // merges the canonical result back. This used to call the op itself and
+        // hand-merge via setState — a second write path, and a UI update that
+        // was never persisted if the op's own save had failed.
+        await updateBrand(brand.id, {
+          colorSystem: {
+            primary: { hex: palette.roles.primary.inputHex },
+            ...(palette.roles.secondary?.inputHex
+              ? { secondary: { hex: palette.roles.secondary.inputHex } }
+              : {}),
+            ...(palette.roles.tertiary?.inputHex
+              ? { accent: { hex: palette.roles.tertiary.inputHex } }
+              : {}),
+            neutrals: stops.map((s) => ({ hex: palette.roles.neutral.shades[s].hex })),
+          },
         });
-        const patch = toLegacyBrandPatch(updated);
-        useBrandStore.setState((st) => ({
-          current: st.current?.id === brand.id ? { ...st.current, ...patch } : st.current,
-          list: st.list.map((b) => (b.id === brand.id ? { ...b, ...patch } : b)),
-        }));
         const cur = useBrandStore.getState().current;
         if (cur?.id === brand.id) applyBrandTokens(cur);
         toast.success('Brand Kit updated', {
@@ -71,7 +72,7 @@ export default function InAppUiColorSystemPage() {
         });
       }
     },
-    [brand, repo],
+    [brand, updateBrand],
   );
 
   return (

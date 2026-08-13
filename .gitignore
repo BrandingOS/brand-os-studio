@@ -44,3 +44,4 @@ new-ui/
 **/__screenshots__/
 supabase/.temp/
 .ds-token-versions.json
+supabase/.branches/

@@ -25,10 +25,13 @@ import {
 } from '@/shared/utils/imageUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import type { BrandAsset, BrandAssetKind, LogoRole } from '@/shared/types/brandAssets';
+import type { Asset } from '@/shared/types/brand';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import {
   stageAsset,
   stageAssetDeletion,
-  stageLogoAssignment,
+  stageLogoRef,
   stageLogoRemoval,
 } from './assetOperations';
 
@@ -83,6 +86,8 @@ function getImageDimensions(url: string): Promise<{ width: number; height: numbe
 export function useAssetUpload(brandId: string | undefined) {
   const [uploading, setUploading] = useState(false);
   const updateBrand = useBrandStore((s) => s.update);
+  const reproject = useBrandStore((s) => s.reprojectLibrary);
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
   const getBrand = useCallback(
     () => useBrandStore.getState().list.find((b) => b.id === brandId) ?? useBrandStore.getState().current,
     [brandId],
@@ -115,29 +120,14 @@ export function useAssetUpload(brandId: string | undefined) {
           return null;
         }
 
-        if (opts.role) {
-          const { patch, asset } = stageLogoAssignment(brand, {
-            url: dataUrl,
-            kind: 'logo',
-            name: file.name,
-            role: opts.role,
-            description: opts.description,
-            usage: opts.usage,
-            width,
-            height,
-            originalName: file.name,
-            tags: opts.tags,
-            replaceAssetId: opts.replaceAssetId,
-            file: { size: file.size, mime: file.type },
-          });
-          await updateBrand(brandId, patch);
-          if (!opts.silent) toast.success('Logo saved');
-          return asset;
-        }
-
-        const { brandAssets, asset } = stageAsset(brand, {
+        // The upload lands in the BRAND LIBRARY — the one authoritative asset
+        // store. `stageAsset` is still used, but only to SHAPE the record and
+        // keep its id derivation (content-hash dedupe, replace semantics)
+        // identical to before; its `brandAssets[]` output is discarded, because
+        // that array is now a read-only projection of the Library.
+        const { asset } = stageAsset(brand, {
           url: dataUrl,
-          kind,
+          kind: opts.role ? 'logo' : kind,
           name: file.name,
           width,
           height,
@@ -146,9 +136,97 @@ export function useAssetUpload(brandId: string | undefined) {
           replaceAssetId: opts.replaceAssetId,
           file: { size: file.size, mime: file.type },
         });
-        await updateBrand(brandId, { brandAssets });
+
+        const payload = {
+          name: asset.name,
+          type: (opts.role ? 'logo' : kind === 'logo' ? 'logo' : 'image') as Asset['type'],
+          category: (opts.role ? 'logo' : 'photo') as Asset['category'],
+          source: 'upload' as const,
+          url: dataUrl,
+          size: file.size,
+          tags: asset.tags ?? [],
+          metadata: {
+            dimensions: { width, height },
+            format: file.type,
+            originalName: file.name,
+            // Identity of the MATERIAL, not of this upload. Without these the
+            // Library round trip loses what `stageAsset` de-duplicates on, so
+            // after a reload the same bytes would create a second item, and the
+            // replacement version that downstream cache-busting reads would
+            // reset to 1.
+            contentHash: asset.metadata?.contentHash,
+            version: asset.metadata?.version,
+          },
+          origin: 'uploaded' as const,
+        };
+
+        // `stageAsset` REUSES an existing id in two cases: an explicit replace,
+        // and a content-hash match. Both mean the material already has a home
+        // in the Library, so this is an UPDATE, not a create. Creating instead
+        // would hit a duplicate-key error in Supabase, and would silently
+        // append a second item with the same id in the local adapter.
+        //
+        // TOMBSTONES ARE INCLUDED in the lookup. A deleted item keeps its id —
+        // that is the point of a tombstone — and the projection hides it, so
+        // `stageAsset` mints the same content-hash id again with nothing to
+        // warn it. Creating on that id is the very duplicate-key collision this
+        // block exists to avoid.
+        const staged = asset.id;
+        const matches = (
+          await assets.listLibrary(brandId, { includeArchived: true, includeDeleted: true })
+        ).filter((a) => a.id === staged || a.legacyRefId === staged);
+        // A LIVE match wins over a tombstoned one. After one delete-and-
+        // re-upload cycle both exist — the tombstone still owns `staged` as its
+        // id, and the new live row carries `staged` as its legacyRefId — so
+        // taking whichever the store listed first made the next upload of the
+        // same bytes a coin flip, and every tombstone-first outcome added
+        // another duplicate.
+        const existingItem = matches.find((a) => a.deletedAt == null) ?? matches[0];
+        const isTombstone = Boolean(existingItem?.deletedAt);
+
+        // CRITICAL for the create path: use the id the LIBRARY returns, never
+        // the staged one. `stageAsset` mints `asset-<contentHash>`, which is not
+        // a uuid, so SupabaseAssetsService cannot honour it and the database
+        // generates its own. Pointing logoSystem at the staged id would leave
+        // every authenticated upload referencing an asset that does not exist —
+        // logos silently stop resolving in production while working locally.
+        // The staged id is preserved as `legacyRefId` so content-hash identity
+        // (dedupe, replace) survives.
+        const created =
+          existingItem && !isTombstone
+            ? await assets.update(existingItem.id, payload)
+            : await assets.create({
+                brandId,
+                // A tombstoned twin still holds `staged`, so let the store mint
+                // a fresh id. Re-uploading material you deleted is a NEW item,
+                // not a resurrection: the deletion stays a deletion, and its
+                // lineage record keeps pointing at what it always did.
+                ...(isTombstone ? {} : { id: staged }),
+                legacyRefId: staged,
+                ...payload,
+              });
+
+        // Everything downstream must speak the Library's id.
+        const stored: BrandAsset = { ...asset, id: created.id };
+
+        if (opts.role) {
+          // Only the logoSystem REF is written to the brand — the asset itself
+          // lives in the Library, and the projection makes it resolvable to the
+          // synchronous readers on the next store hydration.
+          const patch = stageLogoRef(brand, opts.role, created.id, {
+            description: opts.description,
+            usage: opts.usage,
+          });
+          await updateBrand(brandId, patch);
+          if (!opts.silent) toast.success('Logo saved');
+          return stored;
+        }
+
+        // Non-logo assets need no brand write at all now: re-project so the
+        // new item is visible through the legacy readers immediately.
+        await reproject(brandId);
         if (!opts.silent) toast.success('Asset saved');
-        return asset;
+        return stored;
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Upload failed');
         return null;
@@ -156,7 +234,7 @@ export function useAssetUpload(brandId: string | undefined) {
         setUploading(false);
       }
     },
-    [brandId, getBrand, updateBrand],
+    [brandId, getBrand, updateBrand, assets, reproject],
   );
 
   const uploadMany = useCallback(

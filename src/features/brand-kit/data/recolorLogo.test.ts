@@ -44,6 +44,13 @@ describe('logoCombosFor', () => {
     // Distinct brand colors should all survive — the dedup is for
     // collapsing near-identical neutrals, not for trimming a designer's
     // intentional palette.
+    //
+    // NOTE: neutrals are deliberately NOT backgrounds (CLAUDE.md, commit
+    // 90d8eb6 — greys were removed from the Logos/Colors drilldown grids).
+    // This test previously asserted a hard-coded count that assumed White and
+    // Black WERE backgrounds, so it broke when that product decision landed.
+    // Asserting the actual invariant — every distinct brand colour survives —
+    // says what the test means and does not re-break on the next count change.
     const combos = logoCombosFor({
       logos: oneLogo,
       colors: {
@@ -58,11 +65,21 @@ describe('logoCombosFor', () => {
         ],
       },
     });
-    // Backgrounds: 5 distinct (Primary, Secondary, Accent, White, Black).
-    // Marks: 3 (Primary, Secondary, White). 5*3 = 15, minus contrast skips.
-    // With the kit's typical contrast skips (mark === bg, low contrast)
-    // we expect at least 8 — well above the threshold.
-    expect(combos.length).toBeGreaterThan(8);
+
+    // Backgrounds are core + accent only: all three must appear, none deduped.
+    const backgrounds = new Set(combos.map((c) => c.bg.hex));
+    expect([...backgrounds].sort()).toEqual(['#00D4AA', '#7231FF', '#F59E0B'].sort());
+
+    // Neutrals must NOT have leaked back in as backgrounds.
+    expect(backgrounds.has('#FFFFFF')).toBe(false);
+    expect(backgrounds.has('#000000')).toBe(false);
+
+    // Marks are Primary, Secondary and White; each pairs with every background
+    // it has enough contrast against, so a curated palette yields real variety.
+    expect(new Set(combos.map((c) => c.mark.name))).toEqual(
+      new Set(['Primary', 'Secondary', 'White']),
+    );
+    expect(combos.length).toBeGreaterThan(4);
   });
 
   it('returns empty when there are no logos', () => {

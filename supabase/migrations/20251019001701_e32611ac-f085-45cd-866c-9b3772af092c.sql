@@ -63,37 +63,42 @@ CREATE TABLE IF NOT EXISTS public.guideline_slides (
 );
 
 -- Indexes for guideline_presentations
-CREATE INDEX idx_guideline_presentations_brand_id ON public.guideline_presentations(brand_id);
-CREATE INDEX idx_guideline_presentations_user_id ON public.guideline_presentations(user_id);
-CREATE INDEX idx_guideline_presentations_published ON public.guideline_presentations(is_published);
+CREATE INDEX IF NOT EXISTS idx_guideline_presentations_brand_id ON public.guideline_presentations(brand_id);
+CREATE INDEX IF NOT EXISTS idx_guideline_presentations_user_id ON public.guideline_presentations(user_id);
+CREATE INDEX IF NOT EXISTS idx_guideline_presentations_published ON public.guideline_presentations(is_published);
 
 -- Indexes for guideline_slides
-CREATE INDEX idx_guideline_slides_presentation_id ON public.guideline_slides(presentation_id);
-CREATE INDEX idx_guideline_slides_order ON public.guideline_slides(presentation_id, order_index);
-CREATE INDEX idx_guideline_slides_type ON public.guideline_slides(slide_type);
+CREATE INDEX IF NOT EXISTS idx_guideline_slides_presentation_id ON public.guideline_slides(presentation_id);
+CREATE INDEX IF NOT EXISTS idx_guideline_slides_order ON public.guideline_slides(presentation_id, order_index);
+CREATE INDEX IF NOT EXISTS idx_guideline_slides_type ON public.guideline_slides(slide_type);
 
 -- Enable RLS
 ALTER TABLE public.guideline_presentations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.guideline_slides ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for guideline_presentations
+DROP POLICY IF EXISTS "Users can view their own presentations" ON public.guideline_presentations;
 CREATE POLICY "Users can view their own presentations"
   ON public.guideline_presentations FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own presentations" ON public.guideline_presentations;
 CREATE POLICY "Users can create their own presentations"
   ON public.guideline_presentations FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own presentations" ON public.guideline_presentations;
 CREATE POLICY "Users can update their own presentations"
   ON public.guideline_presentations FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own presentations" ON public.guideline_presentations;
 CREATE POLICY "Users can delete their own presentations"
   ON public.guideline_presentations FOR DELETE
   USING (auth.uid() = user_id);
 
 -- RLS Policies for guideline_slides
+DROP POLICY IF EXISTS "Users can view slides of their presentations" ON public.guideline_slides;
 CREATE POLICY "Users can view slides of their presentations"
   ON public.guideline_slides FOR SELECT
   USING (
@@ -102,6 +107,7 @@ CREATE POLICY "Users can view slides of their presentations"
     )
   );
 
+DROP POLICY IF EXISTS "Users can create slides in their presentations" ON public.guideline_slides;
 CREATE POLICY "Users can create slides in their presentations"
   ON public.guideline_slides FOR INSERT
   WITH CHECK (
@@ -110,6 +116,7 @@ CREATE POLICY "Users can create slides in their presentations"
     )
   );
 
+DROP POLICY IF EXISTS "Users can update slides in their presentations" ON public.guideline_slides;
 CREATE POLICY "Users can update slides in their presentations"
   ON public.guideline_slides FOR UPDATE
   USING (
@@ -118,6 +125,7 @@ CREATE POLICY "Users can update slides in their presentations"
     )
   );
 
+DROP POLICY IF EXISTS "Users can delete slides in their presentations" ON public.guideline_slides;
 CREATE POLICY "Users can delete slides in their presentations"
   ON public.guideline_slides FOR DELETE
   USING (

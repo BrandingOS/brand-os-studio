@@ -6,10 +6,16 @@
  */
 import { emptyKitState, type BrandKitState } from './types';
 
+/**
+ * ASYNC by design. The interface was synchronous while the only implementation
+ * was localStorage, which made a server-backed one impossible to write without
+ * inventing a write-behind cache in front of it. Promises here cost the two
+ * call sites in `kitStore` a `void`/`await` and unlock the Supabase impl.
+ */
 export interface KitStateRepository {
-  load(brandId: string): BrandKitState | null;
+  load(brandId: string): Promise<BrandKitState | null>;
   /** @returns true when the write landed. */
-  save(brandId: string, state: BrandKitState): boolean;
+  save(brandId: string, state: BrandKitState): Promise<boolean>;
 }
 
 const STORAGE_KEY = 'brandos:brand-kit:state';
@@ -28,7 +34,7 @@ function readStore(): StoreShape {
 }
 
 export class LocalKitStateRepository implements KitStateRepository {
-  load(brandId: string): BrandKitState | null {
+  async load(brandId: string): Promise<BrandKitState | null> {
     const state = readStore()[brandId];
     if (!state || state.version !== 1 || typeof state.deliverables !== 'object') {
       return null;
@@ -36,7 +42,7 @@ export class LocalKitStateRepository implements KitStateRepository {
     return state;
   }
 
-  save(brandId: string, state: BrandKitState): boolean {
+  async save(brandId: string, state: BrandKitState): Promise<boolean> {
     try {
       const store = readStore();
       store[brandId] = state;

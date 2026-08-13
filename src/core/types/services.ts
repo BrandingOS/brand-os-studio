@@ -11,7 +11,13 @@
  * It accesses services via the ServiceContainer or the useService() hook.
  */
 
-import type { Brand, CreateBrandInput, Asset } from '@/shared/types/brand';
+import type {
+  Brand,
+  CreateBrandInput,
+  Asset,
+  AssetProvenance,
+  BrandFolder,
+} from '@/shared/types/brand';
 
 // ─── Workspace Types ───────────────────────────────────────────
 
@@ -88,6 +94,72 @@ export interface CreateAssetInput {
   size?: number;
   tags?: string[];
   metadata?: Asset['metadata'];
+  /** Library origin. Defaults to 'uploaded' when omitted. */
+  origin?: Asset['origin'];
+  folderId?: string | null;
+  useAsReference?: boolean;
+  /** Generative media carries its provenance from the moment it exists. */
+  provenance?: AssetProvenance;
+  /** Set by the Library ingest so logoSystem AssetRefs still resolve. */
+  legacyRefId?: string | null;
+  /**
+   * INGEST ONLY. Lets the Library migration keep a legacy asset's original id,
+   * so existing `logoSystem` AssetRefs keep resolving with no rewrite at all —
+   * the safest outcome, since a rewrite is the one step that can strand a logo.
+   * Implementations that cannot honour it (Supabase, where `id` is a uuid and
+   * legacy ids are app-generated strings) ignore it and fall back to
+   * `legacyRefId` + a rewrite.
+   */
+  id?: string;
+}
+
+// ─── Brand Library ─────────────────────────────────────────────
+// The Library is the ONE home for brand-owned material. It is not a new
+// store: `public.assets` + IAssetsService BECOME the Library, because that
+// pair already has membership-aware RLS, a brand-scoped storage bucket, and
+// a local/server implementation pair. The legacy `brand.assets[]` and
+// `brand.brandAssets[]` arrays migrate into it.
+
+export interface LibraryFlags {
+  isFavorite: boolean;
+  /** Mutually exclusive with isFavorite. */
+  isDisliked: boolean;
+  useAsReference: boolean;
+}
+
+export interface LibraryQuery {
+  /** `null` matches unfiled items specifically; omit to match any folder. */
+  folderId?: string | null;
+  origin?: Array<'uploaded' | 'generated' | 'reference'>;
+  favorite?: boolean;
+  references?: boolean;
+  /** Default false — archived items are hidden from default views. */
+  includeArchived?: boolean;
+  /**
+   * Default false. Tombstones are lineage records, not Library content, so
+   * they are never listed for display. Two callers legitimately need them:
+   * the Setup sync (a tombstoned url must not be re-created) and the Library
+   * projection (a stored alias of a deleted asset must be subtracted).
+   */
+  includeDeleted?: boolean;
+  search?: string;
+  tags?: string[];
+}
+
+/**
+ * Why a delete did not happen. Deletion never cascades: if material is adopted
+ * by the Official Kit or referenced by saved work, the caller is told what is
+ * in the way so the USER can decide (FR-020).
+ */
+export type DeleteOutcome =
+  | { ok: true }
+  | { ok: false; reason: 'adopted'; adoptedRefs: string[] }
+  | { ok: false; reason: 'referenced'; workItemIds: string[] };
+
+export interface CreateFolderInput {
+  brandId: string;
+  name: string;
+  parentId?: string | null;
 }
 
 export interface IAssetsService {
@@ -95,7 +167,24 @@ export interface IAssetsService {
   getById(id: string): Promise<Asset | null>;
   create(input: CreateAssetInput): Promise<Asset>;
   update(id: string, patch: Partial<CreateAssetInput>): Promise<Asset>;
+  /** @deprecated Prefer `softDelete` — it preserves lineage for saved work. */
   delete(id: string): Promise<void>;
+
+  // ── Library surface ──
+  /** Excludes archived and tombstoned items unless the query says otherwise. */
+  listLibrary(brandId: string, q?: LibraryQuery): Promise<Asset[]>;
+  setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset>;
+  moveToFolder(id: string, folderId: string | null): Promise<Asset>;
+  archive(id: string): Promise<Asset>;
+  unarchive(id: string): Promise<Asset>;
+  /** Tombstones the item. NEVER hard-deletes the row. */
+  softDelete(id: string): Promise<DeleteOutcome>;
+
+  listFolders(brandId: string): Promise<BrandFolder[]>;
+  createFolder(input: CreateFolderInput): Promise<BrandFolder>;
+  renameFolder(id: string, name: string): Promise<BrandFolder>;
+  /** Items in the folder fall back to unfiled; they are never deleted. */
+  deleteFolder(id: string): Promise<void>;
 }
 
 // ─── Storage Service ───────────────────────────────────────────
@@ -363,6 +452,15 @@ export const SERVICE_KEYS = {
    *  their own EdgeFunctionAgent (which calls fetch). Production
    *  registers `createEdgeFunctionAgent` per active brandKit. */
   AI_AGENT: 'aiAgent',
+  /** Brand System Foundation — Official Brand Kit adoptions. Each record is a
+   *  REFERENCE to a Core value / Library item / kit deliverable plus adoption
+   *  metadata; it never holds a copy of the adopted object. Only an explicit
+   *  action by an authorized human creates one. */
+  KIT_ADOPTIONS: 'kitAdoptions',
+  /** Brand System Foundation — Brand Context v1. Plain recorded signals
+   *  (favourites, dislikes, references, approvals, usage). No memory engine,
+   *  no embeddings; it can never write Brand Core. */
+  BRAND_CONTEXT: 'brandContext',
 } as const;
 
 // ─── Mockup Templates Service ──────────────────────────────────

@@ -37,6 +37,20 @@ export interface Brand {
   identity?: BrandIdentity;
   /** Schema version of the stored `identity` blob. */
   identitySchemaVersion?: number;
+  /**
+   * Brand Core DNA authority/provenance sidecar (migration 016
+   * `brands.identity_meta`). A map keyed by CoreFieldPath — see
+   * `src/domain/brand/coreMeta.ts`. Typed loosely here because the legacy
+   * `Brand` type is the transport shape, not the domain: `fromLegacyBrand`
+   * sanitizes it against the closed path registry on read.
+   */
+  identityMeta?: Record<string, unknown>;
+  /**
+   * Reusable company facts (migration 016 `brands.business_info`). A concept
+   * distinct from Core DNA; carried here so the legacy boundary round-trips it
+   * losslessly.
+   */
+  businessInfo?: import('@/domain/brand/identity').BusinessInfo;
 
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target
@@ -354,8 +368,83 @@ export interface Asset {
     originalName?: string;
     /** For embed sources — keeps the link live/updated */
     embedUrl?: string;
+    /**
+     * Hash of the material, carried over from the staged `BrandAsset`.
+     *
+     * `stageAsset` de-duplicates by this: identical bytes resolve to the same
+     * asset instead of a second copy. It has to survive the round trip, because
+     * after a reload the only view of an asset is the Library projection — drop
+     * it here and re-uploading the same image quietly creates a duplicate.
+     */
+    contentHash?: string;
+    /** Bumped on each replacement; used for cache-busting downstream. */
+    version?: number;
   };
   createdAt: Date;
+
+  // ─── Brand Library (migration 017) ─────────────────────────────────
+  // The Library is ONE home for every piece of brand-owned material —
+  // uploads, generated media, and references alike. These fields are what
+  // make an asset row a Library item rather than a bare file record. All
+  // optional, so an asset created before 017 still satisfies the type.
+  /** Where this material came from. */
+  origin?: 'uploaded' | 'generated' | 'reference';
+  /** Folder membership; null/undefined = unfiled. */
+  folderId?: string | null;
+  isFavorite?: boolean;
+  /** Mutually exclusive with isFavorite (enforced by a DB CHECK). */
+  isDisliked?: boolean;
+  /** Eligible as AI creation context when true. */
+  useAsReference?: boolean;
+  /** Set = archived: hidden from default views, fully recoverable. */
+  archivedAt?: Date | null;
+  /**
+   * Set = TOMBSTONED. The row survives as an inert lineage record (id, name,
+   * origin) so saved work that referenced it never dangles. Not versioning:
+   * there is no history and no restore.
+   */
+  deletedAt?: Date | null;
+  /** Generation provenance for generative media (origin === 'generated'). */
+  provenance?: AssetProvenance;
+  /**
+   * The pre-migration `brand.assets[]` / `brand.brandAssets[]` id, preserved so
+   * logoSystem AssetRefs still resolve during convergence. Dropped once nothing
+   * reads it.
+   */
+  legacyRefId?: string | null;
+}
+
+/**
+ * Why a generated asset exists. Written once at creation and immutable except
+ * for `relations`, which accrues as the asset is used.
+ */
+export interface AssetProvenance {
+  kind: 'generated';
+  prompt?: string;
+  /** Library item ids used as references/inputs. */
+  inputRefs?: string[];
+  contextUsed?: {
+    core?: string[];
+    businessInfo?: boolean;
+    contextSignals?: number;
+  };
+  model?: string;
+  /** ISO timestamp. */
+  generatedAt: string;
+  relations?: {
+    placedInDesignIds?: string[];
+    derivedFromAssetId?: string;
+  };
+}
+
+/** A per-brand organisational grouping of Library items. */
+export interface BrandFolder {
+  id: string;
+  brandId: string;
+  name: string;
+  parentId?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CreateBrandInput {
