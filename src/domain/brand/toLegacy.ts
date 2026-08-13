@@ -26,6 +26,13 @@ export function toLegacyBrandPatch(c: CanonicalBrand): Partial<Brand> {
     identity: c.identity,
     identitySchemaVersion: c.identitySchemaVersion,
 
+    // Authority/provenance sidecar + Business Info (migration 016). Both are
+    // canonical-only concepts with no legacy scalar to mirror, so they are
+    // written straight through. Left undefined when the brand carries none, so
+    // the `undefined` strip below keeps the patch identical to pre-016 output.
+    identityMeta: c.identityMeta as Partial<Brand>['identityMeta'],
+    businessInfo: c.businessInfo,
+
     // Colors — write BOTH the scalar and the v3 token so every consumer agrees.
     primaryColor: colors.primary.hex,
     secondaryColor: colors.secondary?.hex,

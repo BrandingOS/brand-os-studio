@@ -69,9 +69,89 @@ export interface Voice {
 }
 
 /**
+ * Visual style attributes — CLOSED enumerations, never free text.
+ *
+ * A renderer or an AI prompt has to be able to act on these without
+ * interpreting prose, which is why every field is a fixed union rather than a
+ * description. `brand.uiStyle` (written today by Brand Board) maps into
+ * `cornerStyle`/`density` on read and is retired once no reader remains.
+ */
+export type StyleDescriptor =
+  | 'minimal'
+  | 'bold'
+  | 'elegant'
+  | 'playful'
+  | 'technical'
+  | 'organic'
+  | 'luxury'
+  | 'retro';
+
+export interface VisualStyle {
+  descriptors?: StyleDescriptor[];
+  cornerStyle?: 'sharp' | 'soft' | 'rounded' | 'pill';
+  density?: 'tight' | 'balanced' | 'airy';
+  contrast?: 'low' | 'medium' | 'high';
+  imageryStyle?: 'photographic' | 'illustrated' | 'abstract' | 'mixed' | 'none';
+  motion?: 'still' | 'subtle' | 'expressive';
+}
+
+/**
+ * Core brand rules — the MACHINE-CHECKABLE subset only.
+ *
+ * Narrative do/don'ts stay on `Voice`; this holds what a validator can actually
+ * enforce. Deliberately not a rules ENGINE: there is no expression language and
+ * no evaluation order, just typed constraints the product can check today.
+ */
+export type LogoProhibition = 'stretch' | 'recolor' | 'rotate' | 'outline' | 'shadow';
+
+export interface BrandRules {
+  logo?: {
+    minSizePx?: number;
+    clearSpaceRatio?: number;
+    allowedBackgrounds?: Array<'light' | 'dark' | 'brand' | 'photo'>;
+    prohibited?: LogoProhibition[];
+  };
+  color?: {
+    /** Pairs that must never sit on each other, as [hexA, hexB]. */
+    neverPair?: Array<[string, string]>;
+    requireContrastRatio?: number;
+  };
+  type?: {
+    minBodySizePx?: number;
+    allowedWeights?: number[];
+  };
+  voice?: {
+    avoidTerms?: string[];
+    preferTerms?: string[];
+  };
+}
+
+/**
+ * Positioning / audience essentials, structured.
+ *
+ * `Strategy.positioning` (a sentence) and `Strategy.targetAudience` (a sentence)
+ * remain and are the migration source; they become read-compatibility inputs
+ * once this is populated. Competitors are LABELS ONLY — this is not a CRM and
+ * gains no entity system.
+ */
+export interface Positioning {
+  category?: string;
+  differentiator?: string;
+  audiences?: Array<{
+    label: string;
+    descriptor?: string;
+    priority: 'primary' | 'secondary';
+  }>;
+  competitors?: Array<{ name: string; note?: string }>;
+}
+
+/**
  * The complete, typed brand identity — everything a brand IS. Value objects are
  * owned by this aggregate; each concept has exactly one authoritative copy with
  * no writable mirror.
+ *
+ * The three optional subsystems are additive: every existing consumer reads
+ * colors/logos/typography/strategy/voice exactly as before.
  */
 export interface BrandIdentity {
   colors: ColorSystem;
@@ -79,6 +159,55 @@ export interface BrandIdentity {
   typography: TypographySystem;
   strategy: Strategy;
   voice: Voice;
+  visualStyle?: VisualStyle;
+  rules?: BrandRules;
+  positioning?: Positioning;
+}
+
+/**
+ * Business Info — reusable company facts. A DISTINCT concept from Brand Core
+ * DNA (it is what the business IS, not what the brand LOOKS AND SOUNDS like),
+ * which is why it sits beside `identity` rather than inside it.
+ *
+ * Every field is optional: an incomplete Business Info must never block
+ * creation. Consumers (business card / letterhead / email signature / invoice
+ * renderers) and its zod schema arrive with the Business Info phase; the type
+ * exists now so the legacy boundary can carry it losslessly.
+ */
+export interface BusinessInfo {
+  legalName?: string;
+  displayName?: string;
+  tagline?: string;
+  description?: string;
+  industry?: string;
+  foundedYear?: number;
+  contact?: {
+    email?: string;
+    phone?: string;
+    website?: string;
+    address?: {
+      line1?: string;
+      line2?: string;
+      city?: string;
+      region?: string;
+      postalCode?: string;
+      country?: string;
+    };
+  };
+  links?: Array<{
+    kind:
+      | 'website'
+      | 'linkedin'
+      | 'instagram'
+      | 'x'
+      | 'facebook'
+      | 'youtube'
+      | 'tiktok'
+      | 'other';
+    url: string;
+    label?: string;
+  }>;
+  audienceSummary?: string;
 }
 
 /**
@@ -91,6 +220,17 @@ export interface CanonicalBrand {
   slug: string;
   name: string;
   identity: BrandIdentity;
+  /**
+   * Authority + provenance for each Core value, keyed by `CoreFieldPath`.
+   *
+   * A SIDECAR rather than a wrapper around each value: every existing reader of
+   * `identity.colors.primary.hex` keeps working untouched. Absent entries
+   * resolve to a documented default (see `coreMeta.ts`), so this is always
+   * safe to read and never required to write.
+   */
+  identityMeta?: import('./coreMeta').IdentityMeta;
+  /** Reusable company facts — a distinct concept from Core DNA. */
+  businessInfo?: BusinessInfo;
   isPublic: boolean;
   publicUrl?: string;
   /** Explicit stored schema version — no re-derivation on read. */

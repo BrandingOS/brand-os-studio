@@ -142,6 +142,23 @@ describe('feedback', () => {
     render(<DsBadge tone="danger">Failed</DsBadge>);
     expect(screen.getByText('Failed').className).toContain('ds-badge--danger');
   });
+
+  it('DsBadge renders an optional icon slot without disturbing the label', () => {
+    render(
+      <DsBadge icon={<svg data-testid="glyph" />} title="Suggested by AI">
+        Provisional
+      </DsBadge>,
+    );
+    const badge = screen.getByText(/Provisional/);
+    expect(badge.className).toContain('ds-badge');
+    expect(badge.getAttribute('title')).toBe('Suggested by AI');
+    expect(screen.getByTestId('glyph')).toBeInTheDocument();
+  });
+
+  it('DsBadge omits the icon wrapper when no icon is given', () => {
+    const { container } = render(<DsBadge>Plain</DsBadge>);
+    expect(container.querySelector('.ds-badge__icon')).toBeNull();
+  });
 });
 
 describe('DsMenu', () => {

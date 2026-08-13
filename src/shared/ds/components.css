@@ -409,6 +409,13 @@
   background: var(--ds-surface-hover);
   color: var(--ds-text-secondary);
 }
+.ds-badge__icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  margin-left: -2px;
+}
+.ds-badge__icon svg { width: 11px; height: 11px; display: block; }
 .ds-badge--success { background: var(--ds-success-bg); color: var(--ds-success-fg); }
 .ds-badge--warning { background: var(--ds-warning-bg); color: var(--ds-warning-fg); }
 .ds-badge--danger { background: var(--ds-danger-bg); color: var(--ds-danger-fg); }

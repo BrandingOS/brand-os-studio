@@ -37,6 +37,20 @@ export interface Brand {
   identity?: BrandIdentity;
   /** Schema version of the stored `identity` blob. */
   identitySchemaVersion?: number;
+  /**
+   * Brand Core DNA authority/provenance sidecar (migration 016
+   * `brands.identity_meta`). A map keyed by CoreFieldPath — see
+   * `src/domain/brand/coreMeta.ts`. Typed loosely here because the legacy
+   * `Brand` type is the transport shape, not the domain: `fromLegacyBrand`
+   * sanitizes it against the closed path registry on read.
+   */
+  identityMeta?: Record<string, unknown>;
+  /**
+   * Reusable company facts (migration 016 `brands.business_info`). A concept
+   * distinct from Core DNA; carried here so the legacy boundary round-trips it
+   * losslessly.
+   */
+  businessInfo?: import('@/domain/brand/identity').BusinessInfo;
 
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target

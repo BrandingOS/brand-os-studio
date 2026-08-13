@@ -68,13 +68,25 @@ export function DsBanner({ tone = 'neutral', children, actionLabel, onAction }: 
 
 export interface DsBadgeProps {
   tone?: 'neutral' | 'success' | 'warning' | 'danger';
+  /**
+   * Optional leading glyph. Kept generic — the DS supplies the badge, callers
+   * supply the meaning. Icons are 1.8px-stroke lines, never filled or emoji.
+   */
+  icon?: React.ReactNode;
+  /** Native title, for callers that need a hover explanation. */
+  title?: string;
   children: React.ReactNode;
 }
 
 /** Status badge: DRAFT · PUBLISHED · NEEDS REVIEW · FAILED. */
-export function DsBadge({ tone = 'neutral', children }: DsBadgeProps) {
+export function DsBadge({ tone = 'neutral', icon, title, children }: DsBadgeProps) {
   const toneClass = tone === 'neutral' ? '' : `ds-badge--${tone}`;
-  return <span className={['ds-badge', toneClass].filter(Boolean).join(' ')}>{children}</span>;
+  return (
+    <span className={['ds-badge', toneClass].filter(Boolean).join(' ')} title={title}>
+      {icon ? <span className="ds-badge__icon">{icon}</span> : null}
+      {children}
+    </span>
+  );
 }
 
 export interface DsStatusDotProps {

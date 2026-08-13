@@ -11,7 +11,7 @@
  * failing, which is exactly the class of bug the Official Kit exists to prevent.
  */
 import {
-  assertAdoptableDirectly,
+  assertAdoptable,
   type AdoptInput,
   type AdoptTargetKind,
   type IKitAdoptionService,
@@ -29,7 +29,7 @@ export class StubKitAdoptionService implements IKitAdoptionService {
 
   async adopt(input: AdoptInput): Promise<KitAdoption> {
     // The core_value rule is enforced even by the stub so it can never drift.
-    assertAdoptableDirectly(input.targetKind);
+    assertAdoptable(input);
     throw new Error(NOT_YET);
   }
 

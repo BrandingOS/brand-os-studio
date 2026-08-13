@@ -35,10 +35,14 @@ import type {
 import {
   CANONICAL_BRAND_SCHEMA_VERSION,
   type BrandIdentity,
+  type BusinessInfo,
   type CanonicalBrand,
+  type Positioning,
   type Strategy,
+  type VisualStyle,
   type Voice,
 } from './identity';
+import { sanitizeIdentityMeta, type IdentityMeta } from './coreMeta';
 
 /**
  * Deep-clone JSON-safe value objects (colors/logos/typography are plain data —
@@ -265,6 +269,57 @@ function overlayStoredIdentity(base: BrandIdentity, stored: BrandIdentity): Bran
   };
 }
 
+/**
+ * `brand.uiStyle` (written by Brand Board) → canonical `visualStyle`.
+ *
+ * Read-through only: the legacy field keeps working and is retired once no
+ * reader remains. A stored `identity.visualStyle` always wins — it is the
+ * canonical value, uiStyle is the migration source.
+ */
+function resolveVisualStyle(b: Brand): VisualStyle | undefined {
+  const stored = b.identity?.visualStyle;
+  if (stored) return cloneJson(stored);
+
+  const ui = b.uiStyle;
+  if (!ui) return undefined;
+
+  const cornerStyle: VisualStyle['cornerStyle'] =
+    ui.borderRadius <= 2 ? 'sharp' : ui.borderRadius <= 8 ? 'soft' : ui.borderRadius <= 20 ? 'rounded' : 'pill';
+  const density: VisualStyle['density'] =
+    ui.spacing === 'compact' ? 'tight' : ui.spacing === 'spacious' ? 'airy' : 'balanced';
+  const contrast: VisualStyle['contrast'] =
+    ui.shadowIntensity === 'none' || ui.shadowIntensity === 'subtle'
+      ? 'low'
+      : ui.shadowIntensity === 'bold'
+        ? 'high'
+        : 'medium';
+
+  return { cornerStyle, density, contrast };
+}
+
+/**
+ * Structured positioning. `strategy.positioning` / `strategy.targetAudience`
+ * are sentences; they stay where they are and act as the migration source, so
+ * a brand that has only ever had the sentences still gets a usable structured
+ * value. A stored canonical `positioning` always wins.
+ */
+function resolvePositioning(b: Brand): Positioning | undefined {
+  const stored = b.identity?.positioning;
+  if (stored) return cloneJson(stored);
+
+  const strategy = resolveStrategy(b);
+  const audience = strategy.targetAudience?.trim();
+  const differentiator = strategy.positioning?.trim();
+  if (!audience && !differentiator) return undefined;
+
+  return {
+    ...(differentiator ? { differentiator } : {}),
+    ...(audience
+      ? { audiences: [{ label: audience, priority: 'primary' as const }] }
+      : {}),
+  };
+}
+
 function resolveIdentity(b: Brand): BrandIdentity {
   const base: BrandIdentity = {
     colors: resolveColors(b),
@@ -276,7 +331,20 @@ function resolveIdentity(b: Brand): BrandIdentity {
   // Recover blob-only fields (accent/neutrals, weights, rich voice) from the
   // stored canonical identity when present. Cloned so the canonical aggregate
   // never aliases the mutable legacy input.
-  return b.identity ? overlayStoredIdentity(base, cloneJson(b.identity)) : base;
+  const resolved = b.identity ? overlayStoredIdentity(base, cloneJson(b.identity)) : base;
+
+  // Additive subsystems — omitted entirely when the brand has nothing to say,
+  // so an untouched brand serializes exactly as it did before.
+  const visualStyle = resolveVisualStyle(b);
+  const positioning = resolvePositioning(b);
+  const rules = b.identity?.rules ? cloneJson(b.identity.rules) : undefined;
+
+  return {
+    ...resolved,
+    ...(visualStyle ? { visualStyle } : {}),
+    ...(rules ? { rules } : {}),
+    ...(positioning ? { positioning } : {}),
+  };
 }
 
 /**
@@ -297,11 +365,22 @@ function toDate(v: Date | string | undefined): Date {
 
 /** Legacy Brand → CanonicalBrand. Pure, deterministic, lossless for identity. */
 export function fromLegacyBrand(b: Brand): CanonicalBrand {
+  // Sidecar metadata is sanitized on every read (INV-1): entries for paths
+  // outside the CoreFieldPath registry, or malformed entries, are dropped
+  // rather than rejected. Absent metadata is NOT materialized here — readers
+  // resolve it through `coreValueMeta`, which returns the documented default.
+  const identityMeta: IdentityMeta = sanitizeIdentityMeta(
+    (b as { identityMeta?: unknown }).identityMeta,
+  );
+  const businessInfo = (b as { businessInfo?: BusinessInfo }).businessInfo;
+
   return {
     id: b.id,
     slug: b.slug,
     name: b.name,
     identity: resolveIdentity(b),
+    ...(Object.keys(identityMeta).length ? { identityMeta } : {}),
+    ...(businessInfo ? { businessInfo: cloneJson(businessInfo) } : {}),
     isPublic: b.isPublic ?? false,
     publicUrl: b.publicUrl,
     identitySchemaVersion: CANONICAL_BRAND_SCHEMA_VERSION,

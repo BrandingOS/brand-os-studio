@@ -22,15 +22,15 @@
  * See specs/001-brand-system-foundation/contracts/services.md §3.
  */
 
+import type { HumanActor } from '@/domain/brand/coreMeta';
+
 export type AdoptTargetKind = 'core_value' | 'library_item' | 'kit_deliverable';
 
-/** The actor performing an adoption. Typed human-only: a system/AI caller cannot
- *  construct this, so it cannot compile an adoption. Widening to teams/roles
- *  later means extending this type, not relaxing a runtime check. */
-export interface HumanActor {
-  kind: 'human';
-  userId: string;
-}
+/** The actor performing an adoption. Typed human-only (re-exported from the
+ *  domain so there is ONE definition): a system/AI caller cannot construct it,
+ *  so it cannot compile an adoption. Widening to teams/roles later means
+ *  extending that type, not relaxing a runtime check. */
+export type { HumanActor };
 
 export interface KitAdoption {
   id: string;
@@ -50,6 +50,13 @@ export interface AdoptInput {
   targetRef: string;
   actor: HumanActor;
   note?: string;
+  /**
+   * Set ONLY by `promoteCoreValue`, which owns the Core authority change and
+   * delegates the adoption row here. It is the single sanctioned caller for
+   * `targetKind: 'core_value'`; every other caller is rejected so a Core value
+   * cannot be made official through a second path.
+   */
+  viaCorePromotion?: boolean;
 }
 
 export interface IKitAdoptionService {
@@ -57,7 +64,8 @@ export interface IKitAdoptionService {
   /**
    * Records an adoption. Stores a reference plus adoption metadata only.
    *
-   * @throws when `targetKind === 'core_value'` — use `promoteCoreValue` instead.
+   * @throws when `targetKind === 'core_value'` without `viaCorePromotion` —
+   *         use `promoteCoreValue` instead.
    */
   adopt(input: AdoptInput): Promise<KitAdoption>;
   /** Removes ONLY the adoption record. The referenced item is untouched. */
@@ -66,8 +74,8 @@ export interface IKitAdoptionService {
 }
 
 /** Guard shared by every implementation so the rule cannot drift between them. */
-export function assertAdoptableDirectly(targetKind: AdoptTargetKind): void {
-  if (targetKind === 'core_value') {
+export function assertAdoptable(input: AdoptInput): void {
+  if (input.targetKind === 'core_value' && !input.viaCorePromotion) {
     throw new Error(
       '[KitAdoptionService] Core values cannot be adopted directly. Use ' +
         "promoteCoreValue(repo, brandId, path, 'official', actor) — it owns the " +

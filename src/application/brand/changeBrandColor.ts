@@ -18,6 +18,8 @@ import {
   type CanonicalBrand,
   type ColorToken,
 } from '@/domain/brand';
+import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
+import { withCoreWrites, type CoreWriteOptions } from './coreWrite';
 
 export type ColorRole = 'primary' | 'secondary' | 'accent';
 
@@ -43,11 +45,12 @@ export async function changeBrandColor(
   brandId: string,
   role: ColorRole,
   token: ColorToken,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandColor: brand not found: ${brandId}`);
 
-  const next = withColor(brand, role, token);
+  const next = withCoreWrites(withColor(brand, role, token), [`colors.${role}`], opts);
   // Validate at the boundary — a bad hex is rejected before it can be persisted.
   assertCanonicalBrand(next);
   return repo.save(next);
@@ -58,8 +61,9 @@ export function changeBrandPrimaryColor(
   repo: BrandRepository,
   brandId: string,
   hex: string,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
-  return changeBrandColor(repo, brandId, 'primary', { hex });
+  return changeBrandColor(repo, brandId, 'primary', { hex }, opts);
 }
 
 export interface BrandColorChanges {
@@ -77,14 +81,25 @@ export async function changeBrandColors(
   repo: BrandRepository,
   brandId: string,
   changes: BrandColorChanges,
+  opts?: CoreWriteOptions,
 ): Promise<CanonicalBrand> {
   const brand = await repo.getById(brandId);
   if (!brand) throw new Error(`changeBrandColors: brand not found: ${brandId}`);
 
   let next = brand;
-  if (changes.primary) next = withColor(next, 'primary', changes.primary);
-  if (changes.secondary) next = withColor(next, 'secondary', changes.secondary);
-  if (changes.accent) next = withColor(next, 'accent', changes.accent);
+  const touched: CoreFieldPath[] = [];
+  if (changes.primary) {
+    next = withColor(next, 'primary', changes.primary);
+    touched.push('colors.primary');
+  }
+  if (changes.secondary) {
+    next = withColor(next, 'secondary', changes.secondary);
+    touched.push('colors.secondary');
+  }
+  if (changes.accent) {
+    next = withColor(next, 'accent', changes.accent);
+    touched.push('colors.accent');
+  }
   if (changes.neutrals) {
     next = {
       ...next,
@@ -93,7 +108,9 @@ export async function changeBrandColors(
         colors: { ...next.identity.colors, neutrals: changes.neutrals },
       },
     };
+    touched.push('colors.neutrals');
   }
+  next = withCoreWrites(next, touched, opts);
   assertCanonicalBrand(next);
   return repo.save(next);
 }

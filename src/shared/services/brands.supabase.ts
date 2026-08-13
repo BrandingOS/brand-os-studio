@@ -142,6 +142,9 @@ export class SupabaseBrandsService implements IBrandsService {
     if (patch.identity !== undefined) updateData.identity = patch.identity;
     if (patch.identitySchemaVersion !== undefined)
       updateData.identity_schema_version = patch.identitySchemaVersion;
+    // Brand Core authority/provenance sidecar + Business Info (migration 016).
+    if (patch.identityMeta !== undefined) updateData.identity_meta = patch.identityMeta;
+    if (patch.businessInfo !== undefined) updateData.business_info = patch.businessInfo;
     if (patch.guidelines !== undefined) updateData.guidelines = patch.guidelines;
     if (patch.isPublic !== undefined) updateData.is_public = patch.isPublic;
     if (patch.publicUrl !== undefined) updateData.public_url = patch.publicUrl;
@@ -161,8 +164,20 @@ export class SupabaseBrandsService implements IBrandsService {
       // regression). Once migration 014 is deployed the first branch persists them.
       const missingCol =
         error.code === '42703' || /column .* does not exist/i.test(error.message ?? '');
-      if (missingCol && ('logo_system' in updateData || 'brand_assets' in updateData)) {
-        const { logo_system, brand_assets, ...safe } = updateData;
+      // Same tolerance extended to the migration-016 columns: an environment
+      // that has the code but not the migration must still save everything
+      // else, exactly as the pre-014 path does. The dropped fields degrade to
+      // their read-time defaults (no authority recorded, no business facts) —
+      // never to a failed save.
+      const OPTIONAL_COLS = [
+        'logo_system',
+        'brand_assets',
+        'identity_meta',
+        'business_info',
+      ] as const;
+      if (missingCol && OPTIONAL_COLS.some((c) => c in updateData)) {
+        const safe = { ...updateData };
+        for (const c of OPTIONAL_COLS) delete safe[c];
         const retry = await supabase.from('brands').update(safe).eq('id', id).select().single();
         if (retry.error) throw retry.error;
         return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
@@ -205,6 +220,8 @@ export class SupabaseBrandsService implements IBrandsService {
       guidelines: data.guidelines || undefined,
       identity: data.identity || undefined,
       identitySchemaVersion: data.identity_schema_version || undefined,
+      identityMeta: data.identity_meta || undefined,
+      businessInfo: data.business_info || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,
