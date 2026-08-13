@@ -65,28 +65,55 @@ SELECT count(*) FROM information_schema.columns
                        'use_as_reference','provenance','deleted_at','legacy_ref_id'); -- 9
 ```
 
-## 3b. Validation status (read before deploying)
+## 3b. Validation status — VERIFIED locally on 2026-08-13
 
-**These migrations have NOT been executed against any database yet.** Docker is
-unavailable in the environment where they were authored, so neither
-`supabase start` nor `supabase db reset` could run.
+**016 and 017 have been executed against a real isolated Postgres** (the local
+Supabase stack, `supabase_db_ciojgoozobzbeglwdxcz`), applied on top of the full
+001→015 chain. Nothing was run against production.
 
-What HAS been verified, statically, against migrations 001–015:
+Results:
 
-- Every object 016/017 reference exists earlier: `public.is_brand_member()`,
-  `public.set_updated_at()`, `public.brands`, `public.assets`.
-- Every `is_brand_member` role argument (`viewer`/`editor`/`admin`) is a real
-  `workspace_role` enum member.
-- The down files invert the up files exactly: 3 tables created / 3 dropped,
-  9 columns added / 9 dropped, 2 columns added / 2 dropped.
-- Every DDL statement is idempotency-guarded; all 12 policies are preceded by
-  `DROP POLICY IF EXISTS`; `DO $$ … END $$;` blocks balance.
-- Both RLS test scripts insert only columns that exist, satisfy every NOT NULL
-  on `public.brands`, and are transactional and self-asserting.
+| Check | Result |
+|---|---|
+| 016 + 017 apply on top of 001–015 | clean, zero errors |
+| Re-apply both (idempotency) | clean — every guard fired `… already exists, skipping` |
+| `brands.identity_meta` / `business_info` | both present, `jsonb` |
+| `brand_folders`, `brand_kit_adoptions`, `brand_context_signals` | all 3 created |
+| 9 Library columns on `public.assets` | all 9 present |
+| RLS policies on the 3 new tables | 4 each (12 total), `relrowsecurity = true` on all 3 |
+| `supabase/tests/016_core_meta_isolation.test.sql` | ✓ ALL 4 ASSERTIONS PASSED |
+| `supabase/tests/017_library_kit_context_isolation.test.sql` | ✓ ALL 5 ASSERTIONS PASSED |
+| `down/017` then `down/016` | both apply; zero leftover tables/columns |
+| Collateral damage from rollback | none — `public.assets` and `public.brands` intact |
+| Re-apply after full rollback (round-trip) | clean |
 
-**What static checking CANNOT tell you**, and why step 4 is still mandatory: it
-cannot catch a syntax error the Postgres parser would reject, and it cannot
-prove a single RLS policy actually denies access. Run step 4 before step 1.
+Step 4 below remains the command reference; it has now been run.
+
+### Two PRE-EXISTING defects found while doing this (neither is from 016/017)
+
+Both were discovered because this was the first time the migration chain was
+replayed from scratch. Neither blocks this deploy; both are worth a separate fix.
+
+1. **The chain cannot be applied from zero.** `supabase db reset` fails on three
+   legacy migrations: `20250905210043` and `20250905210159` insert demo brands
+   with `user_id = (SELECT id FROM auth.users WHERE email = '…')`, which is NULL
+   on a fresh database (NOT NULL violation); `20250905213158` contains
+   `CREATE POLICY … FOR SELECT … WITH CHECK (…)`, which Postgres rejects outright
+   (`WITH CHECK cannot be applied to SELECT`). A migration containing invalid SQL
+   cannot ever have applied successfully, so production's policy set came from
+   somewhere else. Consequence: no contributor can stand up a local database from
+   the repo, which is why this validation had to apply the chain statement-wise
+   through `psql` instead.
+
+2. **`brands_select_policy` has a type mismatch that errors at runtime.**
+   `20250905213225` creates it with `has_role(auth.uid(), 'admin'::app_role)`,
+   and `20260416000000_006_admin_panel_upgrade` later retypes `user_roles.role`
+   to `app_role_v2`. `has_role` then compares `app_role_v2 = app_role`:
+   `ERROR: operator does not exist`. Owners are unaffected (the `user_id =
+   auth.uid()` branch short-circuits), so this only bites a NON-owner reading a
+   brand. The policy is superseded by migration 001's `brands_select`; dropping
+   the three stale `brands_*_policy` policies is the likely fix. **Check whether
+   they still exist in production** before assuming it is dormant there.
 
 ## 4. RLS verification (required — isolation is proven at the data layer, not the UI)
 
