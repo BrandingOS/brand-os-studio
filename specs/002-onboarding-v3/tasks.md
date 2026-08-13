@@ -31,9 +31,9 @@ Web SPA, layers `pages → features → core/shared → adapters`. Feature code 
 
 **Purpose**: Skeleton and routing, so later tasks have somewhere to land.
 
-- [ ] T001 Create the feature skeleton `src/features/onboarding/` with `steps/`, `understanding/`, `state/`, `components/` and an `index.ts` barrel exporting only `OnboardingFlow`
+- [X] T001 Create the feature skeleton `src/features/onboarding/` with `steps/`, `understanding/`, `state/`, `components/` and an `index.ts` barrel exporting only `OnboardingFlow`
 - [ ] T002 Add the `/onboard-brand/:slug` route beside the existing `/onboard-brand` entry in `src/App.tsx`, lazy-loaded like its sibling
-- [ ] T003 [P] Create `src/shared/upload/index.ts` as the destination barrel for the intake utilities moved in T014
+- [X] T003 [P] Create `src/shared/upload/index.ts` as the destination barrel for the intake utilities moved in T014
 
 ---
 
@@ -46,35 +46,35 @@ utilities, and the flow shell. Every user story depends on this phase.
 
 ### The approved Foundation touch (plan §9 — narrowly bounded)
 
-- [ ] T004 In `src/domain/brand/coreMeta.ts`, change `recordCoreWrite` so a **system** actor writing a path with **no existing metadata entry** records `suggested`. Touch nothing else: `coreValueMeta`'s read default stays `provisional`/`imported`, human writes still record `provisional`, a system write over a settled value still demotes to `provisional`, and `assertActorMayReach`/INV-3 is unchanged
-- [ ] T005 [P] Add focused cases to `src/domain/brand/__tests__/coreMeta.test.ts`: (a) fresh system write → `suggested`; (b) fresh human write → still `provisional`; (c) system write over a confirmed value → still demotes to `provisional`; (d) absent entry still READS as `provisional`/`imported` via `coreValueMeta`; (e) INV-3 still throws for a system actor reaching `confirmed`/`official`. Retitle the existing "an AI write lands at provisional" case to match its assertion
+- [X] T004 In `src/domain/brand/coreMeta.ts`, change `recordCoreWrite` so a **system** actor writing a path with **no existing metadata entry** records `suggested`. Touch nothing else: `coreValueMeta`'s read default stays `provisional`/`imported`, human writes still record `provisional`, a system write over a settled value still demotes to `provisional`, and `assertActorMayReach`/INV-3 is unchanged
+- [X] T005 [P] Add focused cases to `src/domain/brand/__tests__/coreMeta.test.ts`: (a) fresh system write → `suggested`; (b) fresh human write → still `provisional`; (c) system write over a confirmed value → still demotes to `provisional`; (d) absent entry still READS as `provisional`/`imported` via `coreValueMeta`; (e) INV-3 still throws for a system actor reaching `confirmed`/`official`. Retitle the existing "an AI write lands at provisional" case to match its assertion
 
 ### Onboarding state persistence
 
-- [ ] T006 [P] Create `supabase/migrations/20260814000000_018_brand_onboarding_state.sql` adding `ALTER TABLE public.brands ADD COLUMN IF NOT EXISTS onboarding jsonb;` — idempotent, no backfill
-- [ ] T007 [P] Create `supabase/migrations/down/018_brand_onboarding_state.down.sql` dropping the column, with a data-loss note
-- [ ] T008 [P] Add the `onboarding?: OnboardingState` field to `Brand` in `src/shared/types/brand.ts`, shaped per data-model.md §1
-- [ ] T009 Create `src/shared/onboarding/onboardingState.ts`: `readOnboardingState(brand)`, `markStep(brandId, step)`, `markComplete(brandId)`, `isUnfinished(brand)`. Absent column and `null` both read as finished; unrecognised `step`/`branch` degrade to `basics`/`existing` rather than throwing
-- [ ] T010 Persist `onboarding` in `src/shared/services/brands.supabase.ts` — map it in `update`, read it in `mapFromDatabase`, and add `onboarding` to the `TOLERATED_COLS` list so a pre-migration environment still saves everything else
-- [ ] T011 [P] Verify and, if needed, extend `src/features/brand/services/brands.local.ts` so `onboarding` round-trips through the localStorage snapshot
-- [ ] T012 [P] Create `supabase/tests/018_onboarding_state.test.sql` — self-asserting: another account can neither read nor write a brand's `onboarding` column
-- [ ] T013 [P] Unit tests for the helper in `src/shared/onboarding/__tests__/onboardingState.test.ts` covering every row of data-model.md §1's meaning table
+- [X] T006 [P] Create `supabase/migrations/20260814000000_022_brand_onboarding_state.sql` adding `ALTER TABLE public.brands ADD COLUMN IF NOT EXISTS onboarding jsonb;` — idempotent, no backfill
+- [X] T007 [P] Create `supabase/migrations/down/022_brand_onboarding_state.down.sql` dropping the column, with a data-loss note
+- [X] T008 [P] Add the `onboarding?: OnboardingState` field to `Brand` in `src/shared/types/brand.ts`, shaped per data-model.md §1
+- [X] T009 Create `src/shared/onboarding/onboardingState.ts`: `readOnboardingState(brand)`, `markStep(brandId, step)`, `markComplete(brandId)`, `isUnfinished(brand)`. Absent column and `null` both read as finished; unrecognised `step`/`branch` degrade to `basics`/`existing` rather than throwing
+- [X] T010 Persist `onboarding` in `src/shared/services/brands.supabase.ts` — map it in `update`, read it in `mapFromDatabase`, and add `onboarding` to the `TOLERATED_COLS` list so a pre-migration environment still saves everything else
+- [X] T011 [P] Verify and, if needed, extend `src/features/brand/services/brands.local.ts` so `onboarding` round-trips through the localStorage snapshot
+- [X] T012 [P] Create `supabase/tests/022_onboarding_state.test.sql` — self-asserting: another account can neither read nor write a brand's `onboarding` column
+- [X] T013 [P] Unit tests for the helper in `src/shared/onboarding/__tests__/onboardingState.test.ts` covering every row of data-model.md §1's meaning table
 
 ### Move the proven intake utilities
 
-- [ ] T014 Move `src/features/onboarding-v4/utils/assetUpload.ts` to `src/shared/upload/intake.ts` with its exports unchanged (`collectDroppedFiles`, `filterFolderPick`, `enqueueFile`, `hashFile`, `isSupportedUploadFile`, `extractDominantColors`, `imageFileHasAlpha`, `imageAspectRatio`, `normalizeHex`, `svgFileToVariants`, `rasterFileToVariants`, `recolorSvgString`)
-- [ ] T015 [P] Move `src/features/onboarding-v4/utils/{fontFamily,logoFamily}.ts` and their existing test files to `src/shared/upload/`, keeping the suites green without rewriting them
-- [ ] T016 Update every importer of the moved modules to the new paths; `npm run typecheck:ci` is the completeness check
+- [X] T014 Move `src/features/onboarding-v4/utils/assetUpload.ts` to `src/shared/upload/intake.ts` with its exports unchanged (`collectDroppedFiles`, `filterFolderPick`, `enqueueFile`, `hashFile`, `isSupportedUploadFile`, `extractDominantColors`, `imageFileHasAlpha`, `imageAspectRatio`, `normalizeHex`, `svgFileToVariants`, `rasterFileToVariants`, `recolorSvgString`)
+- [X] T015 [P] Move `src/features/onboarding-v4/utils/{fontFamily,logoFamily}.ts` and their existing test files to `src/shared/upload/`, keeping the suites green without rewriting them
+- [X] T016 Update every importer of the moved modules to the new paths; `npm run typecheck:ci` is the completeness check
 
 ### Flow shell
 
 - [ ] T017 Create `src/features/onboarding/OnboardingFlow.tsx` — the step machine (`basics → material → review`), reading the authoritative step from the brand's onboarding marker and treating `?step=` as advisory
-- [ ] T018 Create `src/features/onboarding/steps/BasicsStep.tsx` — name, branch choice, optional description. Naming CREATES the brand via `createBrandResilient` and writes the onboarding marker (FR-007)
+- [X] T018 Create `src/features/onboarding/steps/BasicsStep.tsx` — name, branch choice, optional description. Naming CREATES the brand via `createBrandResilient` and writes the onboarding marker (FR-007)
 - [ ] T019 Add route guards in `OnboardingFlow.tsx`: unauthenticated → login; brand not owned → not-found decided at the data layer; `completedAt` set → redirect to `/b/:slug/setup`; out-of-range `?step=` → the recorded step
-- [ ] T020 Create `src/features/onboarding/understanding/finish.ts` implementing the finish contract (contracts §5) — ordering, `markComplete`, navigation to `?then=` or Setup, and idempotence on a second call
+- [X] T020 Create `src/features/onboarding/understanding/finish.ts` implementing the finish contract (contracts §5) — ordering, `markComplete`, navigation to `?then=` or Setup, and idempotence on a second call
 - [ ] T021 Add the synchronous re-entrancy guard to `BasicsStep` and `finish.ts` so a same-tick double activation or a re-entry cannot produce a second brand (FR-005)
-- [ ] T022 [P] Create `src/features/onboarding/components/StepHeader.tsx` from DS primitives (`DsEyebrow`, `DsProgress`) — no hardcoded visual values
-- [ ] T023 [P] Create `src/features/onboarding/state/onboardingStore.ts` — transient UI state only (current branch, in-flight uploads, selection). No brand values, no material.
+- [X] T022 [P] Create `src/features/onboarding/components/StepHeader.tsx` from DS primitives (`DsEyebrow`, `DsProgress`) — no hardcoded visual values
+- [X] T023 [P] Create `src/features/onboarding/state/onboardingStore.ts` — transient UI state only (current branch, in-flight uploads, selection). No brand values, no material.
 
 ### Boundary guard tests
 
@@ -94,20 +94,20 @@ utilities, and the flow shell. Every user story depends on this phase.
 
 ### Tests for User Story 1
 
-- [ ] T027 [P] [US1] Unit tests in `src/features/onboarding/understanding/__tests__/interpret.test.ts` — material and description map to the correct `CoreFieldPath` with the correct provenance per data-model.md §4; unmappable input emits nothing and leaves its item unplaced
+- [X] T027 [P] [US1] Unit tests in `src/features/onboarding/understanding/__tests__/interpret.test.ts` — material and description map to the correct `CoreFieldPath` with the correct provenance per data-model.md §4; unmappable input emits nothing and leaves its item unplaced
 - [ ] T028 [P] [US1] Adapter integration test in `src/features/onboarding/__tests__/materialToLibrary.test.ts` — uploaded material becomes Library items on BOTH adapters, with `contentHash` set and no `data:` URL on the brand record
 - [ ] T029 [P] [US1] Browser E2E in `src/features/onboarding/__tests__/uploadJourney.browser.test.tsx` — basics → material → review with a realistic file set, asserting group placement and that nothing is lost
 
 ### Implementation for User Story 1
 
-- [ ] T030 [P] [US1] Create `src/features/onboarding/understanding/proposals.ts` — the `Proposal` type and the source → `CoreFieldPath` → op map from data-model.md §4
-- [ ] T031 [US1] Create `src/features/onboarding/understanding/interpret.ts` — pure, two-tier (assisted parse via the existing `parseDescription`, deterministic fallback), deterministic ordering, evidence on every proposal, never throws for want of the assisted tier
-- [ ] T032 [US1] Create `src/features/onboarding/steps/MaterialStep.tsx` — `DsDropZone` intake wired to `src/shared/upload/intake.ts`, uploading each item to the Library through `IAssetsService.create` as it arrives (FR-013)
+- [X] T030 [P] [US1] Create `src/features/onboarding/understanding/proposals.ts` — the `Proposal` type and the source → `CoreFieldPath` → op map from data-model.md §4
+- [X] T031 [US1] Create `src/features/onboarding/understanding/interpret.ts` — pure, two-tier (assisted parse via the existing `parseDescription`, deterministic fallback), deterministic ordering, evidence on every proposal, never throws for want of the assisted tier
+- [X] T032 [US1] Create `src/features/onboarding/steps/MaterialStep.tsx` — `DsDropZone` intake wired to `src/shared/upload/intake.ts`, uploading each item to the Library through `IAssetsService.create` as it arrives (FR-013)
 - [ ] T033 [US1] Create `src/features/onboarding/components/LogoSlotBoard.tsx` — the existing slot routing and swap/demote planning, rebuilt on `DsLogoTile` + `DsMenu`
 - [ ] T034 [US1] Write logo placements as `logoSystem` references via `stageLogoRef` in `MaterialStep`, using the id the Library returned — never the staged content-hash id (research §R4)
 - [ ] T035 [P] [US1] Create `src/features/onboarding/components/ColorBoard.tsx` on `DsSwatchRow` — extracted, suggested and manually added swatches, with lock and set-primary
-- [ ] T036 [P] [US1] Render fonts, documents and links with `DsAssetRow` in `src/features/onboarding/components/MaterialGroups.tsx`
-- [ ] T037 [US1] Surface uninterpreted material as an explicit "unplaced" group in `MaterialGroups.tsx` (FR-021) — never discard
+- [X] T036 [P] [US1] Render fonts, documents and links with `DsAssetRow` in `src/features/onboarding/components/MaterialGroups.tsx`
+- [X] T037 [US1] Surface uninterpreted material as an explicit "unplaced" group in `MaterialGroups.tsx` (FR-021) — never discard
 - [ ] T038 [US1] Write proposals into Core as `suggested` values through the canonical ops with a `SystemActor` and the mapped provenance, in `src/features/onboarding/understanding/applyProposals.ts`
 - [ ] T039 [US1] Add the understanding state to `OnboardingFlow.tsx` — `LoadingPill` (never a ring spinner), proposals rendered incrementally as they arrive, auto-advancing into Review
 - [ ] T040 [US1] Report per-item rejection with a reason in `MaterialStep.tsx`, without aborting the rest of the batch (FR-016)
@@ -130,7 +130,7 @@ utilities, and the flow shell. Every user story depends on this phase.
 ### Implementation for User Story 2
 
 - [ ] T043 [US2] Add branch selection to `src/features/onboarding/steps/BasicsStep.tsx` using `DsSegmented`, persisted to the onboarding marker
-- [ ] T044 [US2] Create `src/features/onboarding/components/DirectionPicker.tsx` — colour and typographic directions from the existing `data/{suggestedPalettes,popularPalettes,styleCards,suggestedFonts}.ts`, with lock and shuffle
+- [X] T044 [US2] Create `src/features/onboarding/components/DirectionPicker.tsx` — colour and typographic directions from the existing `data/{suggestedPalettes,popularPalettes,styleCards,suggestedFonts}.ts`, with lock and shuffle
 - [ ] T045 [US2] Branch `MaterialStep.tsx` to render `DirectionPicker` instead of the dropzone when the branch is `new`, feeding the same brand record
 - [ ] T046 [US2] Map a chosen direction to proposals in `understanding/proposals.ts` — tone and typography only for the MVP, per data-model.md §4's note on `visualStyle`
 - [ ] T047 [US2] Preserve everything already captured when the user switches branch, in `BasicsStep.tsx` (FR-010)
@@ -147,18 +147,18 @@ utilities, and the flow shell. Every user story depends on this phase.
 
 ### Tests for User Story 3
 
-- [ ] T048 [P] [US3] Unit test in `src/features/onboarding/understanding/__tests__/acceptance.test.ts` — `acceptProposal` performs exactly one promotion, for exactly the path given
-- [ ] T049 [P] [US3] Unit test in the same file — `acceptAll` produces `IdentityMeta` byte-identical to accepting each path individually, with no group-level record (FR-025c)
-- [ ] T050 [P] [US3] Unit test in the same file — `editValue` writes through the canonical op AND promotes, so a user edit lands at `confirmed` rather than `provisional` (FR-025)
+- [X] T048 [P] [US3] Unit test in `src/features/onboarding/understanding/__tests__/acceptance.test.ts` — `acceptProposal` performs exactly one promotion, for exactly the path given
+- [X] T049 [P] [US3] Unit test in the same file — `acceptAll` produces `IdentityMeta` byte-identical to accepting each path individually, with no group-level record (FR-025c)
+- [X] T050 [P] [US3] Unit test in the same file — `editValue` writes through the canonical op AND promotes, so a user edit lands at `confirmed` rather than `provisional` (FR-025)
 - [ ] T051 [P] [US3] Browser E2E in `src/features/onboarding/__tests__/perValueAcceptance.browser.test.tsx` — open and scroll past proposals without accepting, finish, assert every untouched value is still below `confirmed` and none is `official` (FR-025a, FR-025b, FR-025d)
 
 ### Implementation for User Story 3
 
-- [ ] T052 [US3] Create `src/features/onboarding/understanding/acceptance.ts` — `acceptProposal`, `acceptAll`, `editValue`; the ONLY module in the feature that calls `promoteCoreValue`, with the target authority hard-coded to `'confirmed'`
-- [ ] T053 [US3] Create `src/features/onboarding/steps/ReviewStep.tsx` — renders the brand's Core values filtered by authority; a proposal is simply a value below `confirmed`
-- [ ] T054 [US3] Create `src/features/onboarding/components/ProposalCard.tsx` — accept and edit affordances, and a settled-vs-pending treatment that needs no permanent badge (FR-024)
-- [ ] T055 [US3] Wire accept-all in `ReviewStep.tsx` as a loop over `acceptProposal` — no separate code path, no group-level authority
-- [ ] T056 [US3] Wire remove/reject in `ReviewStep.tsx` — the value is not promoted, and a Context signal is recorded (FR-023)
+- [X] T052 [US3] Create `src/features/onboarding/understanding/acceptance.ts` — `acceptProposal`, `acceptAll`, `editValue`; the ONLY module in the feature that calls `promoteCoreValue`, with the target authority hard-coded to `'confirmed'`
+- [X] T053 [US3] Create `src/features/onboarding/steps/ReviewStep.tsx` — renders the brand's Core values filtered by authority; a proposal is simply a value below `confirmed`
+- [X] T054 [US3] Create `src/features/onboarding/components/ProposalCard.tsx` — accept and edit affordances, and a settled-vs-pending treatment that needs no permanent badge (FR-024)
+- [X] T055 [US3] Wire accept-all in `ReviewStep.tsx` as a loop over `acceptProposal` — no separate code path, no group-level authority
+- [X] T056 [US3] Wire remove/reject in `ReviewStep.tsx` — the value is not promoted, and a Context signal is recorded (FR-023)
 - [ ] T057 [P] [US3] Add a test to `acceptance.test.ts` asserting that rendering `ReviewStep` performs zero promotions — no acceptance may be triggered from a render path, mount effect, observer or scroll handler (FR-025a)
 
 **Checkpoint**: acceptance semantics are exactly as locked — per value, explicit, never `official`.
@@ -231,7 +231,7 @@ utilities, and the flow shell. Every user story depends on this phase.
 - [ ] T078 Update `src/features/dev-product-map/registry.ts` and `src/features/dev-features/features-registry.ts` to describe the single surviving flow
 - [ ] T079 Verify no dangling references: `rg -n "onboarding-v4|cosmos\.css" src/` returns nothing
 - [ ] T080 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
-- [ ] T081 Run the RLS suite: `supabase db query --linked -f supabase/tests/018_onboarding_state.test.sql`
+- [ ] T081 Run the RLS suite: `supabase db query --linked -f supabase/tests/022_onboarding_state.test.sql`
 - [ ] T082 Execute quickstart.md S1–S12 on both storage backends and record the results
 - [ ] T083 [P] Update `CLAUDE.md`'s onboarding section and `specs/002-onboarding-v3/spec.md` status to reflect the shipped flow
 
@@ -281,7 +281,7 @@ Task: "T008 Brand.onboarding field in src/shared/types/brand.ts"
 
 # Then the tests and the RLS suite together:
 Task: "T005 focused coreMeta cases"
-Task: "T012 RLS test in supabase/tests/018_onboarding_state.test.sql"
+Task: "T012 RLS test in supabase/tests/022_onboarding_state.test.sql"
 Task: "T013 onboardingState helper unit tests"
 ```
 
