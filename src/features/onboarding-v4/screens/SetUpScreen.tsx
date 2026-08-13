@@ -14,7 +14,7 @@ import { initialPalettes } from '../data/seedPalettes';
 import { compressAsset, compressLogo } from '@/shared/utils/imageUpload';
 import type { LogoSlot, OnboardingAsset } from '../types';
 import type { Asset, BrandLogoAssets } from '@/shared/types/brand';
-import { parseDescriptionToSections } from '../services/parseDescription';
+import { parseDescriptionToSections } from '@/features/onboarding/understanding/parseDescription';
 import { createBrandResilient } from '../services/createBrand';
 import { type FontFamilyGroup, groupFontAssets } from '@/shared/upload/fontFamily';
 import {

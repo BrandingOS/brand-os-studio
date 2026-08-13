@@ -13,7 +13,7 @@ import { AboutGroup } from './AboutGroup';
 import { useCosmosTheme } from '../components/useCosmosTheme';
 import { SOCIAL_PLATFORMS, detectPlatform, getPlatform } from '../data/socialPlatforms';
 import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '@/shared/upload/fontFamily';
-import { extractSlogan } from '../services/parseDescription';
+import { extractSlogan } from '@/features/onboarding/understanding/parseDescription';
 import { type SuggestedPalette, suggestPalettesFor } from '../data/suggestedPalettes';
 import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
 import { POPULAR_PALETTES } from '../data/popularPalettes';
