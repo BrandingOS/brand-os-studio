@@ -53,18 +53,20 @@ Decisions** section so plan time does not relitigate them.
 Scale after clarification: 42 functional requirements, 11 success criteria, 5
 prioritised user stories (3× P1, 2× P2), 11 edge cases.
 
-Three judgement calls made rather than asked, flagged so they can be overruled at
-plan time:
+**Validation run 3 (2026-08-13)** — 16 of 16 still pass. The three judgement
+calls previously flagged for plan-time review were ruled on by the owner and are
+now locked in the spec, not open questions:
 
-- Domain vocabulary from the constitution's Data Model Doctrine (Brand Library,
-  logo-system references, Core authority and provenance, Business Info, Context)
-  is used throughout. Treated as business language, not implementation detail —
-  the constitution defines these as product concepts.
-- FR-025 — untouched proposals stay suggestions while engaged-with ones become
-  confirmed — is an interpretation of Principle V rather than a stated user
-  requirement. It is testable, but the grain (per value vs per group) is a real
-  UX decision that plan time should confirm.
-- The live defect on the authenticated path (inline asset array never persisted,
-  so uploaded photos, documents and links are discarded while the flow reports
-  success) is closed by FR-026 and FR-031 as part of this feature, rather than
-  split out as a separate fix.
+- **Confirmation is per value** (FR-025, FR-025a–d). Explicit accept or user edit
+  confirms one value; viewing does not; untouched proposals stay Suggested;
+  "accept all" is permitted only as a bulk application of the per-value act, with
+  no group-level authority; nothing reaches Official during onboarding. US3's
+  acceptance scenarios and SC-004 were tightened to match.
+- **Constitution vocabulary stays as written.** Brand Library, logo-system
+  references, Core authority and provenance, Business Info and Context remain
+  product concepts per the Data Model Doctrine.
+- **The authenticated asset-loss defect stays folded into 002**, closed by FR-026
+  and FR-031. No standalone hotfix against the superseded flow.
+
+Scale after lock-in: 46 functional requirements, 11 success criteria, 5
+prioritised user stories, 11 edge cases. No open questions remain.

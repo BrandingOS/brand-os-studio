@@ -133,12 +133,16 @@ brand carries, and at the right authority.
 1. **Given** the system proposed an image as the primary logo, **When** the user
    moves a different image into that slot, **Then** the brand's primary logo is
    the user's choice.
-2. **Given** a group of proposals the user never engages with, **When** the flow
-   completes, **Then** those values remain system suggestions, not values the
-   user confirmed.
-3. **Given** a group the user explicitly accepts or edits, **When** the flow
-   completes, **Then** those values are recorded as confirmed by that user, while
-   still recording that they originated as a suggestion.
+2. **Given** a proposal the user only reads, opens or scrolls past, **When** the
+   flow completes, **Then** it is still recorded as a system suggestion.
+3. **Given** a proposal the user explicitly accepts, or edits, **When** the flow
+   completes, **Then** that individual value is recorded as confirmed by that
+   user, while still recording that it originated as a suggestion.
+4. **Given** a user who uses an "accept all" affordance over a group, **When**
+   the flow completes, **Then** each value in that group carries exactly the
+   record it would have carried had the user accepted it individually.
+5. **Given** any value at all, **When** onboarding completes, **Then** no value
+   has reached official authority.
 
 ---
 
@@ -300,9 +304,21 @@ a different session, finish, and verify the return destination.
   any proposal or item.
 - **FR-024**: The review MUST make it apparent which values were proposed by the
   system and which came from the user, without permanent labelling clutter.
-- **FR-025**: A value MUST only rise above suggestion through an explicit human
-  acceptance — per value or per group. Finishing the flow without engaging with a
-  group MUST leave that group's values as suggestions.
+- **FR-025**: Confirmation MUST be per value. A value rises above suggestion only
+  when the user explicitly accepts it or edits it; either act records that value
+  as **Confirmed** by that user, while still recording that it originated as a
+  suggestion.
+- **FR-025a**: Viewing, opening, expanding or scrolling past a proposal MUST NOT
+  change its authority. Attention is not acceptance.
+- **FR-025b**: Any proposal the user does not explicitly accept or edit MUST
+  remain **Suggested** when the flow completes.
+- **FR-025c**: An "accept all" affordance MAY exist, but only as a bulk
+  application of the same per-value acceptance — it MUST produce exactly the
+  record that accepting each value individually would produce, and MUST NOT
+  introduce a group-level authority.
+- **FR-025d**: No value MAY reach **Official** authority during onboarding.
+  Official is reached only through Official Brand Kit adoption, which this flow
+  does not perform (FR-030).
 
 #### Finish
 
@@ -443,8 +459,9 @@ demonstrated. No superseded onboarding code survives the feature's completion.
 - **SC-003**: 100% of the material present in the review at the moment of
   completion is present and resolvable in the brand, on every supported storage
   backend. Silent loss is zero.
-- **SC-004**: 0 brand values reach confirmed or official status without an
-  explicit human acceptance recorded during the flow.
+- **SC-004**: 0 brand values reach confirmed status without an explicit per-value
+  acceptance or edit recorded during the flow, and 0 values reach official status
+  at all.
 - **SC-005**: 0 Brand Kit adoptions, guidelines, templates or design outputs are
   produced by onboarding.
 - **SC-006**: Completing the flow produces exactly 1 brand, including under
@@ -527,3 +544,15 @@ relitigated at plan time without an explicit amendment.
   because either leaves a second onboarding implementation alive in the tree,
   which is the condition Principles II and IX exist to prevent. *(Decided
   2026-08-13.)*
+- **The grain of confirmation** — *per value*. An explicit accept or a user edit
+  confirms that one value; viewing it does not; anything untouched stays
+  Suggested; "accept all" is permitted only as a bulk application of the same
+  per-value act, never as a group-level authority; and nothing reaches Official
+  during onboarding. Recorded as FR-025 and FR-025a–d. *(Decided 2026-08-13.)*
+- **Constitution vocabulary stays as written** — Brand Library, logo-system
+  references, Core authority and provenance, Business Info and Context are used
+  throughout as product concepts, per the Data Model Doctrine, and are not to be
+  rewritten into looser business language. *(Decided 2026-08-13.)*
+- **The authenticated asset-loss defect stays folded into this feature** — closed
+  by FR-026 and FR-031. No standalone hotfix against the superseded flow.
+  *(Decided 2026-08-13.)*
