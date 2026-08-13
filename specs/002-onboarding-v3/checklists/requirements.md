@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,33 +31,40 @@
 
 ## Notes
 
-**Validation run 1 (2026-08-13)** — 15 of 16 items pass.
+**Validation run 1 (2026-08-13)** — 15 of 16 passed. Two [NEEDS CLARIFICATION]
+markers remained, both scope-level with no safe default: when the brand record
+comes into existence, and what proves V3 well enough to delete the superseded
+paths.
 
-Outstanding: two [NEEDS CLARIFICATION] markers remain, both deliberate and both
-tracked in the spec's **Open Questions** section with option tables:
+**Validation run 2 (2026-08-13)** — 16 of 16 pass. Both questions answered by the
+owner and folded into the requirements rather than annotated:
 
-- **Q1** (referenced by FR-032, SC-009) — when the brand record comes into
-  existence, which decides where supplied material lives before creation and what
-  "resume" can mean. No safe default: Constitution VII rules out today's
-  behaviour, and the two viable models have materially different architectures.
-- **Q2** (referenced by FR-038, Existing System Disposition §3) — what proves V3
-  and whether removing the superseded paths is in scope for this feature.
-  Constitution IX requires a stated deletion criterion; "once proven" is not yet
-  testable.
+- **Brand-first** — the brand is created at the naming step; every step after
+  writes to it through the Foundation's authorities. Reshaped FR-003, FR-007 to
+  FR-009, FR-013, FR-035, added the unfinished-brand state (SC-010), and removed
+  the notion of a separate pre-creation draft from the entities.
+- **Removal within this feature** — deletion of the superseded paths is the final
+  step, gated on every acceptance criterion being demonstrated (FR-041, SC-011,
+  Existing System Disposition §3).
 
-Both are scope-level decisions, which is the highest clarification priority. They
-must be resolved before `/speckit-plan`.
+Both decisions are recorded with their reasoning in the spec's **Resolved
+Decisions** section so plan time does not relitigate them.
 
-Three additional notes on judgement calls made rather than asked:
+Scale after clarification: 42 functional requirements, 11 success criteria, 5
+prioritised user stories (3× P1, 2× P2), 11 edge cases.
+
+Three judgement calls made rather than asked, flagged so they can be overruled at
+plan time:
 
 - Domain vocabulary from the constitution's Data Model Doctrine (Brand Library,
   logo-system references, Core authority and provenance, Business Info, Context)
-  is used throughout. This is treated as business language, not implementation
-  detail — the constitution defines these as product concepts.
-- The requirement that untouched proposals stay suggestions while engaged-with
-  ones become confirmed (FR-021) is an interpretation of Principle V rather than
-  a stated user requirement. It is testable and is called out here so it can be
-  overruled at plan time if the owner wants a coarser grain.
-- The live defect on the authenticated path (inline asset array never persisted)
-  is recorded in the Overview and closed by FR-022/FR-028, rather than being
-  split into a separate fix.
+  is used throughout. Treated as business language, not implementation detail —
+  the constitution defines these as product concepts.
+- FR-025 — untouched proposals stay suggestions while engaged-with ones become
+  confirmed — is an interpretation of Principle V rather than a stated user
+  requirement. It is testable, but the grain (per value vs per group) is a real
+  UX decision that plan time should confirm.
+- The live defect on the authenticated path (inline asset array never persisted,
+  so uploaded photos, documents and links are discarded while the flow reports
+  success) is closed by FR-026 and FR-031 as part of this feature, rather than
+  split out as a separate fix.
