@@ -30,6 +30,19 @@ export interface ApplyReport {
   failed: Array<{ path: CoreFieldPath; reason: string }>;
 }
 
+/**
+ * Sentinel paths a successful write retires.
+ *
+ * A path leaves the sentinel list the moment a REAL value lands on it, and
+ * never comes back: the list only ever shrinks, so a brand cannot regress to
+ * holding a stand-in for something it has since decided.
+ */
+export function sentinelsRetiredBy(report: ApplyReport): CoreFieldPath[] {
+  return report.applied.filter(
+    (p) => p === 'colors.primary' || p === 'typography.primary',
+  );
+}
+
 type Hex = { hex: string };
 
 function asHex(v: unknown): Hex | undefined {

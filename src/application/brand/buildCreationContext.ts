@@ -65,15 +65,32 @@ export interface BuildCreationContextInput {
   references?: CreationContextReference[];
   /** Defaults to `suggested` — i.e. include everything the brand has. */
   minAuthority?: Authority;
+  /**
+   * Core paths holding a PERSISTENCE SENTINEL rather than a chosen value.
+   *
+   * A brand that has only been named still needs a `colors.primary.hex` and a
+   * `typography.primary.family` to satisfy a NOT NULL column and the canonical
+   * schema (spec 002). Those stand-ins are not brand truth, so they must never
+   * reach a generation prompt — an AI told the brand colour is a mid-grey will
+   * faithfully produce grey work for a brand that never chose one.
+   *
+   * Supplied by callers that can see `brand.onboarding`; omitted everywhere
+   * else, which is correct because no other brand carries sentinels.
+   */
+  sentinelPaths?: readonly string[];
 }
 
 export function buildCreationContext(input: BuildCreationContextInput): CreationContext {
-  const { brand, context, references = [], minAuthority = 'suggested' } = input;
+  const { brand, context, references = [], minAuthority = 'suggested', sentinelPaths = [] } = input;
 
   const core: CreationCoreEntry[] = [];
   const provisionalPaths: CoreFieldPath[] = [];
 
   for (const path of CORE_FIELD_PATHS) {
+    // A sentinel is not a value. Skipped before anything else looks at it, so
+    // it cannot appear in `core`, in `provisionalPaths`, or in a prompt.
+    if (sentinelPaths.includes(path)) continue;
+
     const value = readCoreValue(brand.identity, path);
     const present = Array.isArray(value)
       ? value.length > 0
