@@ -320,12 +320,20 @@ function ColorsTab({ brand }: { brand: Brand }) {
       // canonical result. This block used to call the op and hand-merge with
       // setState — which showed the user a value the store had not persisted if
       // anything downstream failed.
-      await updateBrand(brand.id, {
-        colorSystem: {
-          primary: { hex: primary },
-          ...(secondary ? { secondary: { hex: secondary } } : {}),
-        },
-      });
+      // Only what changed — see the note in StrategyTab: an unchanged secondary
+      // must not be re-stamped as a fresh decision because the primary moved.
+      // Partial by design: the store's Core router reads the keys that are
+      // present, and sending an unchanged one would re-stamp its authority.
+      const colorSystem: Partial<NonNullable<Brand['colorSystem']>> = {};
+      if (primary !== (brand.colorSystem?.primary?.hex ?? brand.primaryColor ?? '')) {
+        colorSystem.primary = { hex: primary };
+      }
+      if (secondary && secondary !== (brand.colorSystem?.secondary?.hex ?? brand.secondaryColor ?? '')) {
+        colorSystem.secondary = { hex: secondary };
+      }
+      if (Object.keys(colorSystem).length) {
+        await updateBrand(brand.id, { colorSystem } as Partial<Brand>);
+      }
       const cur = useBrandStore.getState().current;
       if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Colors updated');
@@ -408,12 +416,15 @@ function TypographyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      await updateBrand(brand.id, {
-        fonts: {
-          primary: primaryFont,
-          ...(secondaryFont ? { secondary: secondaryFont } : {}),
-        },
-      });
+      // Only what changed — see the note in StrategyTab.
+      const fonts: Record<string, string> = {};
+      if (primaryFont !== (brand.fonts?.primary ?? '')) fonts.primary = primaryFont;
+      if (secondaryFont && secondaryFont !== (brand.fonts?.secondary ?? '')) {
+        fonts.secondary = secondaryFont;
+      }
+      if (Object.keys(fonts).length) {
+        await updateBrand(brand.id, { fonts } as Partial<Brand>);
+      }
       const cur = useBrandStore.getState().current;
       if (cur?.id === brand.id) applyBrandTokens(cur);
       toast.success('Typography updated');
@@ -537,6 +548,29 @@ function StrategyTab({ brand }: { brand: Brand }) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      // ONLY the fields the user actually changed. `changeBrandStrategy` stamps
+      // authority metadata for every key it receives, so sending all four on
+      // every save would record a fresh human decision on values nobody
+      // touched — the sidecar would claim mission, vision, values and
+      // positioning were all re-decided the moment one of them was edited,
+      // which is exactly the false attribution the metadata exists to prevent.
+      const nextValues = values
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+      const changed: Record<string, unknown> = {};
+      if (mission !== (strategy?.mission ?? '')) changed.mission = mission;
+      if (vision !== (strategy?.vision ?? '')) changed.vision = vision;
+      if (positioning !== (strategy?.positioning ?? '')) changed.positioning = positioning;
+      if (nextValues.join('\u0000') !== (strategy?.values ?? []).join('\u0000')) {
+        changed.values = nextValues;
+      }
+
+      if (!Object.keys(changed).length) {
+        toast.success('Strategy updated');
+        return;
+      }
+
       // Strategy arrives under `guidelines` — the store splits that key so the
       // Core half (strategy + About sections) reaches changeBrandStrategy while
       // the rest keeps the service path.
@@ -545,13 +579,7 @@ function StrategyTab({ brand }: { brand: Brand }) {
           ...(brand.guidelines ?? {}),
           strategy: {
             ...(brand.guidelines?.strategy ?? {}),
-            mission,
-            vision,
-            values: values
-              .split(',')
-              .map((v) => v.trim())
-              .filter(Boolean),
-            positioning,
+            ...changed,
           },
         },
       } as Partial<Brand>);
@@ -561,7 +589,7 @@ function StrategyTab({ brand }: { brand: Brand }) {
     } finally {
       setSaving(false);
     }
-  }, [brand, mission, vision, values, positioning, updateBrand]);
+  }, [brand, strategy, mission, vision, values, positioning, updateBrand]);
 
   return (
     <Section>

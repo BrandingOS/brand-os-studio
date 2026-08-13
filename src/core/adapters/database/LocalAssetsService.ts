@@ -345,6 +345,13 @@ export class LocalAssetsService implements IAssetsService {
  * Records what the user just expressed. Only TRANSITIONS are recorded — setting
  * a flag that was already set is not a new opinion, and logging it would make
  * the signal stream a record of clicks rather than of preferences.
+ *
+ * BOTH DIRECTIONS count. Recording only false→true made removal unexpressible:
+ * the summary takes the latest signal per target, so an un-favourited item
+ * stayed in `likedRefs` forever, and an item dropped from references kept
+ * feeding AI creation context — the user's correction had no way to reach the
+ * thing it was correcting. The new state travels in `value.on`, which
+ * `summarizeSignals` reads.
  */
 async function emitFlagSignals(
   context: IBrandContextService | undefined,
@@ -354,19 +361,22 @@ async function emitFlagSignals(
   after: { isFavorite: boolean; isDisliked: boolean; useAsReference: boolean },
 ): Promise<void> {
   if (!context) return;
-  const emit = (kind: 'favorite' | 'dislike' | 'reference') =>
+  const emit = (kind: 'favorite' | 'dislike' | 'reference', on: boolean) =>
     context.record({
       brandId,
       kind,
       targetKind: 'library_item',
       targetRef: assetId,
       source: 'user-action',
+      value: { on },
     });
 
   try {
-    if (after.isFavorite && !before.isFavorite) await emit('favorite');
-    if (after.isDisliked && !before.isDisliked) await emit('dislike');
-    if (after.useAsReference && !before.useAsReference) await emit('reference');
+    if (after.isFavorite !== Boolean(before.isFavorite)) await emit('favorite', after.isFavorite);
+    if (after.isDisliked !== Boolean(before.isDisliked)) await emit('dislike', after.isDisliked);
+    if (after.useAsReference !== Boolean(before.useAsReference)) {
+      await emit('reference', after.useAsReference);
+    }
   } catch {
     // Silent by contract.
   }

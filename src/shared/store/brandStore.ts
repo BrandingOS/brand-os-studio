@@ -255,11 +255,23 @@ export const useBrandStore = create<BrandStore>()(
           // re-read rather than issuing a second write. `?? current` keeps the
           // store consistent if the read comes back empty for any reason.
           const needsServiceWrite = Object.keys(rest).length > 0 || !routedKeys.length;
+          // The store's own copies are ALREADY projected, so they cannot be fed
+          // back in as projection input: a projection of a projection treats
+          // last round's derived entries as stored legacy data, and items the
+          // Library has tombstoned reappear. Strip the derived array so the
+          // fallback re-enters the pipeline as un-projected material — the same
+          // rule `reprojectLibrary` follows.
+          const fromStore = () => {
+            const cached =
+              useBrandStore.getState().list.find((b) => b.id === id) ??
+              useBrandStore.getState().current;
+            if (!cached) return cached;
+            const { brandAssets: _projected, ...unprojected } = cached;
+            return unprojected as Brand;
+          };
           const base = needsServiceWrite
             ? await getBrandsService().update(id, rest)
-            : ((await getBrandsService().getById(id)) ??
-               useBrandStore.getState().list.find((b) => b.id === id) ??
-               useBrandStore.getState().current);
+            : ((await getBrandsService().getById(id)) ?? fromStore());
           // Re-migrate after merging the canonical patch so the identity blob
           // re-hydrates every legacy read-home — including `guidelines.strategy`,
           // which the patch deliberately does not carry. Without this, store

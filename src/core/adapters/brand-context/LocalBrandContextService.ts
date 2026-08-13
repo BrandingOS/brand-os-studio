@@ -117,6 +117,11 @@ export function summarizeSignals(signals: ContextSignal[]): ContextSummary {
   const dislikedRefs: string[] = [];
   const referenceIds: string[] = [];
   for (const s of latest.values()) {
+    // `value.on === false` is a REMOVAL: the user un-favourited the item, or
+    // dropped it from references. Signals written before removals were
+    // expressible carry no `value` at all, and those still mean "set" — so the
+    // absence of the field reads as true, never as a removal.
+    if ((s.value as { on?: boolean } | undefined)?.on === false) continue;
     if (s.kind === 'favorite') likedRefs.push(s.targetRef!);
     else if (s.kind === 'dislike') dislikedRefs.push(s.targetRef!);
     else if (s.kind === 'reference') referenceIds.push(s.targetRef!);

@@ -15,6 +15,7 @@ import {
   summarizeSignals,
 } from '../LocalBrandContextService';
 import { LocalAssetsService } from '@/core/adapters/database/LocalAssetsService';
+import type { ContextSignal } from '@/core/services/IBrandContextService';
 
 const BRAND = 'brand_a';
 const OTHER = 'brand_b';
@@ -157,5 +158,68 @@ describe('context can NEVER write Brand Core (INV-13)', () => {
       );
       expect(offending, `${rel} must not reach Brand Core`).toEqual([]);
     }
+  });
+});
+
+/** Newest-first, matching what `list` returns. */
+function sig(over: Partial<ContextSignal> & Pick<ContextSignal, 'kind'>): ContextSignal {
+  return {
+    id: Math.random().toString(36).slice(2),
+    brandId: BRAND,
+    source: 'user-action',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  } as ContextSignal;
+}
+
+describe('CodeRabbit Round 5 — a removal must reach the summary', () => {
+  it('un-favouriting drops the item from likedRefs', () => {
+    // Only false→true was recorded, and the summary takes the latest signal per
+    // target — so an un-favourited item stayed liked forever. The user's
+    // correction had no way to reach the thing it was correcting.
+    const summary = summarizeSignals([
+      sig({ kind: 'favorite', targetRef: 'a1', value: { on: false } }), // newest
+      sig({ kind: 'favorite', targetRef: 'a1', value: { on: true } }),
+    ]);
+    expect(summary.likedRefs).toEqual([]);
+  });
+
+  it('de-referencing stops the item feeding AI creation context', () => {
+    const summary = summarizeSignals([
+      sig({ kind: 'reference', targetRef: 'a1', value: { on: false } }),
+      sig({ kind: 'reference', targetRef: 'a1', value: { on: true } }),
+    ]);
+    expect(summary.referenceIds).toEqual([]);
+  });
+
+  it('re-favouriting after a removal counts again', () => {
+    const summary = summarizeSignals([
+      sig({ kind: 'favorite', targetRef: 'a1', value: { on: true } }),
+      sig({ kind: 'favorite', targetRef: 'a1', value: { on: false } }),
+      sig({ kind: 'favorite', targetRef: 'a1', value: { on: true } }),
+    ]);
+    expect(summary.likedRefs).toEqual(['a1']);
+  });
+
+  it('un-favouriting through the SERVICE clears it, end to end', async () => {
+    const ctx = new LocalBrandContextService();
+    const assets = new LocalAssetsService({ context: ctx });
+    const a = await assets.create({
+      brandId: BRAND, name: 'x.svg', type: 'image', category: 'logo', url: 'u',
+    });
+
+    await assets.setFlags(a.id, { isFavorite: true });
+    expect((await ctx.summarize(BRAND)).likedRefs).toEqual([a.id]);
+
+    await assets.setFlags(a.id, { isFavorite: false });
+    expect((await ctx.summarize(BRAND)).likedRefs).toEqual([]);
+  });
+
+  it('a signal written before removals were expressible still means "set"', () => {
+    // Back-compat: no `value` at all is the old shape, and it recorded an
+    // addition. Reading its absence as a removal would silently wipe every
+    // preference captured before this change.
+    const summary = summarizeSignals([sig({ kind: 'favorite', targetRef: 'a1' })]);
+    expect(summary.likedRefs).toEqual(['a1']);
   });
 });

@@ -145,3 +145,29 @@ describe('CodeRabbit Round 3 #15 — a tombstoned twin still holds the id', () =
     expect((await assets.getById(first.id))?.deletedAt).toBeTruthy();
   });
 });
+
+describe('CodeRabbit Round 5 — a live match must beat a tombstoned twin', () => {
+  it('a third upload of the same bytes does not keep adding items', async () => {
+    // After one delete-and-re-upload cycle, TWO rows answer to the staged id:
+    // the tombstone still owns it as its `id`, and the new live row carries it
+    // as `legacyRefId`. Taking whichever the store listed first made the next
+    // upload a coin flip, and every tombstone-first outcome added a duplicate.
+    const { result } = renderHook(() => useAssetUpload(BRAND_ID));
+
+    await act(async () => { await result.current.upload(file(), { kind: 'image' }); });
+    const [first] = await assets.listLibrary(BRAND_ID);
+    await assets.softDelete(first.id);
+
+    await act(async () => { await result.current.upload(file(), { kind: 'image' }); });
+    expect(await assets.listLibrary(BRAND_ID)).toHaveLength(1);
+
+    // The third and fourth uploads must UPDATE the live row, not create more.
+    await act(async () => { await result.current.upload(file(), { kind: 'image' }); });
+    await act(async () => { await result.current.upload(file(), { kind: 'image' }); });
+
+    const live = await assets.listLibrary(BRAND_ID);
+    expect(live).toHaveLength(1);
+    // …and the tombstone is still a tombstone.
+    expect((await assets.getById(first.id))?.deletedAt).toBeTruthy();
+  });
+});

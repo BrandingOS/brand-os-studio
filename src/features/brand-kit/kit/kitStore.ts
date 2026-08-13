@@ -256,14 +256,20 @@ export const useKitStore = create<KitStoreState>((set, get) => {
     generatingKeys: [],
 
     hydrate: async (brandId, brand) => {
-      if (get().brandId === brandId) return;
-
-      // Record the request BEFORE joining. hydrate(A) → hydrate(B) → hydrate(A)
-      // with both loads still in flight: the third call joins A's run, and if
-      // the marker were still B, A's run would drop its own result at the
-      // supersede check below. The caller would await a promise that resolves
-      // while the store never holds A.
+      // Record the request FIRST — before the already-installed check, and
+      // before joining an in-flight run. Two orderings depend on it:
+      //
+      //   hydrate(A) → hydrate(B) → hydrate(A), all in flight: the third call
+      //   joins A's run, and if the marker still said B, A's run would drop its
+      //   own result at the supersede check below.
+      //
+      //   hydrate(A) completes → hydrate(B) starts → user navigates back, so
+      //   hydrate(A) returns early because A is already installed. If the
+      //   marker still said B, B's load would then install itself over the
+      //   brand the user actually asked for last.
       requestedBrandId = brandId;
+
+      if (get().brandId === brandId) return;
 
       // Join the in-flight hydration for this brand rather than returning
       // early, so every caller awaits real completion.

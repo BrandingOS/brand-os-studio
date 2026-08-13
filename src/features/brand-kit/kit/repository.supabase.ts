@@ -76,6 +76,19 @@ export class SupabaseKitStateRepository implements KitStateRepository {
   async save(brandId: string, state: BrandKitState): Promise<boolean> {
     if (!UUID.test(brandId)) return this.local.save(brandId, state);
 
+    // Never write over a row this client cannot read. `load` returns null for an
+    // unsupported version, and `hydrate` responds to null by migrating and
+    // SAVING — so without this guard the first hydration would overwrite a
+    // newer client's state before the user touched anything.
+    const existing = await table().select('version').eq('brand_id', brandId).maybeSingle();
+    if (!existing.error && existing.data && existing.data.version !== state.version) {
+      console.warn(
+        `[SupabaseKitStateRepository] Refusing to overwrite kit state v${existing.data.version} ` +
+          `for ${brandId} with v${state.version}. Update this client to edit it.`,
+      );
+      return false;
+    }
+
     const { error } = await table().upsert(
       { brand_id: brandId, version: state.version, state },
       { onConflict: 'brand_id' },

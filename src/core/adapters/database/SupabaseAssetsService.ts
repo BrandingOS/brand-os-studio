@@ -266,14 +266,23 @@ export class SupabaseAssetsService implements IAssetsService {
     // opinion. Fire-and-forget: capture must never interrupt.
     if (this.deps.context) {
       const brandId = (await this.brandIdOf(id)) ?? '';
-      const emit = (kind: 'favorite' | 'dislike' | 'reference') =>
+      // Both directions, matching LocalAssetsService: a removal has to be
+      // expressible or the summary can never drop the target.
+      const emit = (kind: 'favorite' | 'dislike' | 'reference', on: boolean) =>
         this.deps.context!.record({
           brandId, kind, targetKind: 'library_item', targetRef: id, source: 'user-action',
+          value: { on },
         });
       try {
-        if (next.isFavorite && !current.isFavorite) await emit('favorite');
-        if (next.isDisliked && !current.isDisliked) await emit('dislike');
-        if (next.useAsReference && !current.useAsReference) await emit('reference');
+        if (next.isFavorite !== Boolean(current.isFavorite)) {
+          await emit('favorite', next.isFavorite);
+        }
+        if (next.isDisliked !== Boolean(current.isDisliked)) {
+          await emit('dislike', next.isDisliked);
+        }
+        if (next.useAsReference !== Boolean(current.useAsReference)) {
+          await emit('reference', next.useAsReference);
+        }
       } catch { /* silent by contract */ }
     }
     return saved;

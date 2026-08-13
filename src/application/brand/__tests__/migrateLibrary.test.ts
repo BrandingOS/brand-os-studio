@@ -269,3 +269,33 @@ describe('report formatting', () => {
     expect(line).toContain('UNRESOLVED SLOTS: primary');
   });
 });
+
+describe('CodeRabbit Round 5 — a re-run must not resurrect a deleted item', () => {
+  it('skips a legacy asset that was ingested and then deleted', async () => {
+    // `listForBrand` hides tombstones, so the ingest used to see a deleted item
+    // as absent and create it again — a second run silently undoing an explicit
+    // deletion, which is the exact opposite of the idempotency it claims. This
+    // matters most for the production ingest, which runs against real deletions.
+    const brand = makeBrand({ brandAssets: [brandAsset('a_1')] });
+
+    await ingestBrandLibrary(brand, svc);
+    const [item] = await svc.listForBrand(BRAND_ID);
+    await svc.softDelete(item.id);
+
+    const second = await ingestBrandLibrary(brand, svc);
+
+    expect(second.created).toBe(0);
+    expect(second.items[0].skippedReason).toBe('already-ingested');
+    // Still gone.
+    expect(await svc.listForBrand(BRAND_ID)).toHaveLength(0);
+  });
+
+  it('skips an ARCHIVED item too — archiving is not an invitation to re-create', async () => {
+    const brand = makeBrand({ brandAssets: [brandAsset('a_1')] });
+    await ingestBrandLibrary(brand, svc);
+    const [item] = await svc.listForBrand(BRAND_ID);
+    await svc.archive(item.id);
+
+    expect((await ingestBrandLibrary(brand, svc)).created).toBe(0);
+  });
+})

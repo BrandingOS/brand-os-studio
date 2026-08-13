@@ -190,7 +190,16 @@ export async function ingestBrandLibrary(
   // Existing Library state, indexed by the legacy id it came from AND by its
   // own id — an item whose legacy id was preserved has no legacyRefId to match
   // on if it was created by an earlier run of a different shape.
-  const existing = await assets.listForBrand(brandId);
+  //
+  // TOMBSTONES AND ARCHIVED ITEMS ARE INCLUDED. `listForBrand` hides both, so
+  // an item that was ingested and then deleted would look absent and be created
+  // again — a re-run silently undoing an explicit deletion, which breaks the
+  // first rule this ingest claims for itself. Idempotency has to mean idempotent
+  // against the whole Library, not against its default view.
+  const existing = await assets.listLibrary(brandId, {
+    includeArchived: true,
+    includeDeleted: true,
+  });
   const byLegacyRef = new Map<string, Asset>();
   for (const a of existing) {
     if (a.legacyRefId) byLegacyRef.set(a.legacyRefId, a);

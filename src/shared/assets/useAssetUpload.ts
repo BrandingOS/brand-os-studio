@@ -172,9 +172,16 @@ export function useAssetUpload(brandId: string | undefined) {
         // warn it. Creating on that id is the very duplicate-key collision this
         // block exists to avoid.
         const staged = asset.id;
-        const existingItem = (
+        const matches = (
           await assets.listLibrary(brandId, { includeArchived: true, includeDeleted: true })
-        ).find((a) => a.id === staged || a.legacyRefId === staged);
+        ).filter((a) => a.id === staged || a.legacyRefId === staged);
+        // A LIVE match wins over a tombstoned one. After one delete-and-
+        // re-upload cycle both exist — the tombstone still owns `staged` as its
+        // id, and the new live row carries `staged` as its legacyRefId — so
+        // taking whichever the store listed first made the next upload of the
+        // same bytes a coin flip, and every tombstone-first outcome added
+        // another duplicate.
+        const existingItem = matches.find((a) => a.deletedAt == null) ?? matches[0];
         const isTombstone = Boolean(existingItem?.deletedAt);
 
         // CRITICAL for the create path: use the id the LIBRARY returns, never

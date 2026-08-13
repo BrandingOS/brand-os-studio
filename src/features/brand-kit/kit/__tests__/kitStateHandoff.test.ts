@@ -16,10 +16,11 @@ import type { BrandKitState } from '../types';
  * row. That is the case the finding is about — a missing TABLE already fell
  * back to local, but a missing ROW reported an empty Kit.
  */
+let serverRow: { version: number; state?: unknown } | null = null;
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: serverRow, error: null }) }) }),
       upsert: async () => ({ error: null }),
     }),
   },
@@ -45,6 +46,7 @@ function state(marker: string): BrandKitState {
 
 beforeEach(() => {
   localStorage.clear();
+  serverRow = null;
   vi.restoreAllMocks();
 });
 
@@ -145,5 +147,46 @@ describe('CodeRabbit Round 2 #9/#10 — ordering', () => {
 
     // The UI is on B. A finishing last must not drag the store back.
     expect(useKitStore.getState().brandId).toBe(BRAND_B);
+  });
+});
+
+describe('CodeRabbit Round 5 — the last requested brand always wins', () => {
+  it('a re-request for the installed brand supersedes an in-flight load', async () => {
+    // hydrate(A) completes, hydrate(B) starts, the user navigates BACK to A.
+    // A returns early because it is already installed — and if that early
+    // return skipped recording the request, B would install itself over the
+    // brand the user actually asked for last.
+    const BRAND_B = '22222222-2222-2222-2222-222222222222';
+    const gates = new Map<string, () => void>();
+
+    setKitStateRepository({
+      load: async (id: string) => {
+        if (id === BRAND_B) await new Promise<void>((r) => gates.set(id, r));
+        return state(id === BRAND ? 'A' : 'B');
+      },
+      save: async () => true,
+    });
+
+    const { useKitStore } = await import('../kitStore');
+    useKitStore.setState({ brandId: null, deliverables: {} });
+
+    await useKitStore.getState().hydrate(BRAND, {} as never);
+    expect(useKitStore.getState().brandId).toBe(BRAND);
+
+    const b = useKitStore.getState().hydrate(BRAND_B, {} as never);
+    await useKitStore.getState().hydrate(BRAND, {} as never); // early return
+    gates.get(BRAND_B)?.();
+    await b;
+
+    expect(useKitStore.getState().brandId).toBe(BRAND);
+  });
+
+  it('save refuses to overwrite a row whose version it cannot read', async () => {
+    // `load` reports an unsupported version as "no kit", and `hydrate` answers
+    // null by migrating and SAVING — so without a guard in save, the first
+    // hydration would destroy a newer client's state before the user acted.
+    serverRow = { version: 2 }; // written by a newer client
+    const repo = new SupabaseKitStateRepository();
+    expect(await repo.save(BRAND, state('mine'))).toBe(false);
   });
 });
