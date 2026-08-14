@@ -410,8 +410,15 @@ function FontFamilyRow({
           </span>
           {/* No weight info here — the weights column already tells that
               story. Only the source (or file info) remains. */}
+          {/* WHOSE choice this typeface was, not where it is hosted. Two fonts
+              both say "Google Fonts" whether the user uploaded one, wrote it in
+              their brief, or we proposed it — and that is the one thing about a
+              suggestion the user must not have to guess at. The host is the
+              fallback, for a font that carries no origin. */}
           {(isGoogle || family.assets.length === 1) && (
-            <span className="font-card-sub">{isGoogle ? 'Google Fonts' : family.lead.sub}</span>
+            <span className="font-card-sub">
+              {family.lead.sub || (isGoogle ? 'Google Fonts' : '')}
+            </span>
           )}
         </div>
         <div className="font-card-weights">
@@ -755,7 +762,9 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
       const asset: OnboardingAsset = {
         id: genId(),
         name: family,
-        sub: 'Google Fonts',
+        // The user opened the picker and chose this one. That outranks
+        // everything the system had to say about typefaces.
+        sub: ORIGIN_LABEL.chosen,
         kind: 'font',
         fontSource: 'google',
         previewUrl: null,

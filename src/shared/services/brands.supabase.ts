@@ -256,6 +256,19 @@ export class SupabaseBrandsService implements IBrandsService {
           // The marker is the one dropped field with somewhere else to go.
           if (named === 'onboarding') rememberMarker(id, attempt.onboarding);
           delete attempt[named];
+
+          // Nothing left to send. An empty PATCH matches no rows, so PostgREST
+          // answers PGRST116 and the caller sees a failed save for a write that
+          // has in fact been fully honoured — the marker is in the fallback and
+          // there was never anything else in the patch. That failure propagated:
+          // the understanding pass writes the marker on its own, so it threw
+          // mid-flight and the review rendered with no projection at all.
+          if (Object.keys(attempt).length === 0) {
+            const row = await supabase.from('brands').select('*').eq('id', id).single();
+            if (row.error) throw row.error;
+            return migrateBrandToCurrent(this.mapFromDatabase(row.data));
+          }
+
           const retry = await supabase
             .from('brands')
             .update(attempt)

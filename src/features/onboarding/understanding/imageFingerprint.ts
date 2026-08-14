@@ -38,23 +38,37 @@ const SCAN = 64;
  * a tight one measures the same.
  */
 export interface Print {
-  /** 64 cells, above or below the artwork's mean luminance. */
+  /** 64 cells, above or below the artwork's mean. */
   hash: string;
   /** Width ÷ height of the trimmed artwork. */
   ratio: number;
 }
 
+/** Below this the pixel is background, not artwork. */
+const INK_ALPHA = 24;
+/** Above this a pixel is opaque enough that the image has no real transparency. */
+const OPAQUE_ALPHA = 250;
+/** Off-white enough to be artwork, in a flattened image. */
+const INK_LUMINANCE = 236;
+
 /**
- * Draws the image small and records which cells are brighter than the mean.
+ * Draws the image small and records which cells are above its mean.
  *
- * Two things make this work on logos specifically:
+ * Three things make this work on logos specifically:
  *
- *  1. **Transparency is composited onto white.** A logo exported with an alpha
- *     channel and the same logo flattened onto its background are one mark;
- *     treating alpha as black would say otherwise.
- *  2. **The artwork is TRIMMED to its bounding box first.** Without this the
+ *  1. **Artwork is found by COVERAGE when the image has any.** A logo is
+ *     usually a shape on transparency, and the shape is what identifies it —
+ *     not its colour. Reading coverage rather than darkness is also the only
+ *     way to see a white-on-transparent export at all: composited onto white it
+ *     is invisible, and the whole @2x folder of a real brand returned no
+ *     fingerprint. A flattened image has no coverage to read, so there the
+ *     measure falls back to "meaningfully off-white".
+ *  2. **Tonal twins land in the same place.** Because coverage ignores colour, a
+ *     mark and its white-on-dark twin fingerprint identically — which is what
+ *     the flow wants, since they are one mark in two dresses.
+ *  3. **The artwork is TRIMMED to its bounding box first.** Without this the
  *     hash is mostly padding — a logo is a small shape on a large empty field,
- *     so every logo hashes to "white with something in the middle" and nothing
+ *     so every logo hashes to "empty with something in the middle" and nothing
  *     is distinguishable. Measured on real exports, untrimmed distances between
  *     unrelated marks ran 11–31 with no cluster; the signal was padding, not
  *     artwork. Trimming makes the hash describe the mark and makes the same
@@ -65,24 +79,34 @@ export async function fingerprint(url: string): Promise<Print | null> {
   try {
     const img = await load(url);
 
-    // Pass 1 — render at working size and find the ink.
+    // Pass 1 — render at working size, on transparency, and find the artwork.
     const scan = document.createElement('canvas');
     scan.width = SCAN;
     scan.height = SCAN;
     const sctx = scan.getContext('2d', { willReadFrequently: true });
     if (!sctx) return null;
-    sctx.fillStyle = '#ffffff';
-    sctx.fillRect(0, 0, SCAN, SCAN);
+    sctx.clearRect(0, 0, SCAN, SCAN);
     sctx.drawImage(img, 0, 0, SCAN, SCAN);
 
     const scanned = sctx.getImageData(0, 0, SCAN, SCAN).data;
+    // Which measure applies is a property of the image, so it is decided once,
+    // for the whole image, before anything is measured with it.
+    let transparent = false;
+    for (let i = 3; i < scanned.length; i += 4) {
+      if (scanned[i] < OPAQUE_ALPHA) {
+        transparent = true;
+        break;
+      }
+    }
+
     let minX = SCAN, minY = SCAN, maxX = -1, maxY = -1;
     for (let y = 0; y < SCAN; y++) {
       for (let x = 0; x < SCAN; x++) {
         const i = (y * SCAN + x) * 4;
+        const alpha = scanned[i + 3];
         const lum = 0.2126 * scanned[i] + 0.7152 * scanned[i + 1] + 0.0722 * scanned[i + 2];
-        // Anything meaningfully off-white is artwork.
-        if (lum < 236) {
+        const ink = transparent ? alpha >= INK_ALPHA : lum < INK_LUMINANCE;
+        if (ink) {
           if (x < minX) minX = x;
           if (x > maxX) maxX = x;
           if (y < minY) minY = y;
@@ -93,26 +117,44 @@ export async function fingerprint(url: string): Promise<Print | null> {
     // A blank image has no artwork to describe.
     if (maxX < minX || maxY < minY) return null;
 
-    const sx = (minX / SCAN) * img.width;
-    const sy = (minY / SCAN) * img.height;
-    const sw = ((maxX - minX + 1) / SCAN) * img.width;
-    const sh = ((maxY - minY + 1) / SCAN) * img.height;
-    const ratio = sh > 0 ? sw / sh : 1;
+    const bw = maxX - minX + 1;
+    const bh = maxY - minY + 1;
+    // The bounding box is measured in the SQUARE scan, which stretched the
+    // image to get there — so it has to be un-stretched by the image's own
+    // proportions to describe the artwork. Measuring the box alone reported
+    // every logo as square, and the shape evidence went quiet.
+    const ratio = bh > 0 && img.width > 0 && img.height > 0
+      ? (bw * img.width) / (bh * img.height)
+      : 1;
 
-    // Pass 2 — hash only the artwork.
+    // Pass 2 — hash only the artwork, cropped from the render above rather
+    // than from the image.
+    //
+    // Not an optimisation. An SVG with a viewBox and no width/height has no
+    // intrinsic size, and Chrome draws NOTHING when such an image is used with
+    // drawImage's source-rectangle form — every logo in a designer's SVG folder
+    // hashed to a blank square, so all of them read as the same artwork and a
+    // three-logo upload folded into one. The scan canvas is an ordinary bitmap
+    // and crops correctly. 64px down to 8 is a generous margin for a 64-bit
+    // hash, so nothing is lost by going through it.
     const canvas = document.createElement('canvas');
     canvas.width = N;
     canvas.height = N;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, N, N);
-    ctx.drawImage(img, sx, sy, Math.max(sw, 1), Math.max(sh, 1), 0, 0, N, N);
+    ctx.clearRect(0, 0, N, N);
+    ctx.drawImage(scan, minX, minY, bw, bh, 0, 0, N, N);
 
     const { data } = ctx.getImageData(0, 0, N, N);
     const cells: number[] = [];
     for (let i = 0; i < data.length; i += 4) {
-      cells.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+      // Coverage where there is any, brightness where there is none — the same
+      // choice pass 1 made, so the two describe the same thing.
+      cells.push(
+        transparent
+          ? data[i + 3]
+          : 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2],
+      );
     }
     const mean = cells.reduce((a, b) => a + b, 0) / cells.length;
     return { hash: cells.map((c) => (c > mean ? '1' : '0')).join(''), ratio };

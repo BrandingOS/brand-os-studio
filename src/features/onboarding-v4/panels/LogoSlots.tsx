@@ -290,6 +290,15 @@ export function LogoSlots({ assets }: Props) {
           target = FALLBACK_ORDER.find((s) => !taken.has(s)) ?? null;
         }
         if (!target) continue;
+        // Someone placed this while we were awaiting an image measurement.
+        //
+        // This loop is asynchronous and the review's own projection — which
+        // knows things this router does not, such as the artwork's proportions
+        // — writes its placements on mount. Without this check the router's
+        // stale plan landed AFTER the projection's and overwrote it, so a
+        // square symbol sat in Primary while the full lockup was labelled Icon.
+        // Whoever placed it first keeps it; the user can move either.
+        if (useV4Store.getState().assets.find((x) => x.id === a.id)?.logoSlot) continue;
         // Reveal a variant slot the router picked but the user hasn't added.
         if (!visibleSlots.includes(target) && ADDABLE_SLOTS.includes(target)) {
           addLogoSlot(target);
