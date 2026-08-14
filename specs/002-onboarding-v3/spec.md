@@ -319,9 +319,14 @@ different session, finish, and verify the return destination.
 - **FR-044**: The first screen MUST ask for the brand name and nothing else, and its
   title MUST plainly state that a brand is being set up. Ambiguous framing such as
   "What are we building?" is not acceptable.
-- **FR-074**: The first screen MUST use the approved split layout — the BrandingOS
-  mark large on the left, the name form on the right — expressed in the canonical
-  Design System's existing visual language. No new form layout may be invented.
+- **FR-074**: The first two screens MUST share one split composition — the BrandingOS
+  mark large and vertically centred on the left, all inputs on the right, with
+  generous whitespace — expressed in the canonical Design System's existing visual
+  language. No new form layout may be invented. The review MUST NOT use the split;
+  it stays full width (FR-062).
+- **FR-076**: The mark MUST evolve across the flow as one continuous object: core
+  only at the naming screen, progressively more nodes and connections at the details
+  screen, completing during the processing transition (FR-057).
 - **FR-007**: Naming the brand MUST create the brand record, and every subsequent
   step MUST write to that record through the Foundation's authorities.
 - **FR-008**: A brand created by this step MUST be valid and usable even if the user
@@ -337,9 +342,11 @@ different session, finish, and verify the return destination.
 
 - **FR-011**: The flow MUST accept an optional free-form description of the brand,
   in a large writing surface, and MUST NOT require it.
-- **FR-045**: The description surface MUST offer a Build-with-AI helper providing at
-  least: copy the prompt, open it in ChatGPT, and open it in Claude, each carrying
-  the brand's name.
+- **FR-045**: The description surface MUST offer a Build-with-AI helper as the
+  retired flow presented it — a small button beside the "Describe your brand" label
+  that opens a **floating popover on click**, offering copy the prompt, open it in
+  ChatGPT, and open it in Claude, each carrying the brand's name. The actions MUST
+  NOT be rendered permanently beneath the writing surface.
 - **FR-046**: The prompt the helper produces MUST instruct the AI to return **plain
   text only** — concise and structured, a lightweight brand and business profile
   and not a long strategy document — covering: brand summary, industry, products
