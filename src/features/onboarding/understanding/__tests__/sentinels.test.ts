@@ -22,8 +22,10 @@ import {
   placeholderPaths,
   readOnboardingState,
   atStep,
+  startedState,
 } from '@/shared/onboarding/onboardingState';
 import { applyProposals, sentinelsRetiredBy } from '../applyProposals';
+import { finishOnboarding } from '../finish';
 import { buildCreateInput, isUndecided } from '../createBrand';
 import type { Proposal } from '../proposals';
 
@@ -226,5 +228,51 @@ describe('INVARIANT 4 — the first real write retires the marker, permanently',
     ]);
     expect(report.applied).toContain('strategy.mission');
     expect(sentinelsRetiredBy(report)).toEqual([]);
+  });
+});
+
+describe('finishing does not resurrect a retired sentinel', () => {
+  // Caught in a browser smoke pass, and the third instance of the same class:
+  // marker writes are read-modify-write, so completing from a snapshot taken
+  // before the understanding pass cleared the sentinels wrote them straight
+  // back. The finished brand then claimed its real colour and typeface were
+  // stand-ins, and Setup rendered them as undecided.
+  it('completes from the LIVE marker, not the caller’s snapshot', async () => {
+    const stale = {
+      id: 'b1',
+      onboarding: startedState(['colors.primary', 'typography.primary']),
+    } as never;
+    const cleared = {
+      id: 'b1',
+      onboarding: clearPlaceholders(
+        readOnboardingState(stale)!,
+        ['colors.primary', 'typography.primary'],
+      )!,
+    } as never;
+
+    let written: Record<string, unknown> | null = null;
+    await finishOnboarding({
+      brand: stale,
+      updateBrand: async (_id, patch) => {
+        written = patch as Record<string, unknown>;
+      },
+      live: () => cleared,
+    });
+
+    expect((written as never as { onboarding: { placeholders?: string[] } }).onboarding.placeholders)
+      .toBeUndefined();
+  });
+
+  it('without a live reader it still completes, using what it was given', async () => {
+    const brand = { id: 'b2', onboarding: startedState([]) } as never;
+    let written: Record<string, unknown> | null = null;
+    await finishOnboarding({
+      brand,
+      updateBrand: async (_id, patch) => {
+        written = patch as Record<string, unknown>;
+      },
+    });
+    expect((written as never as { onboarding: { completedAt: string } }).onboarding.completedAt)
+      .toBeTruthy();
   });
 });

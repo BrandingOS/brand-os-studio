@@ -406,6 +406,13 @@
 }
 
 /* URL pill */
+[data-onboarding="cosmos"] .drop-limits {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--ds-text-placeholder);
+  font-variant-numeric: tabular-nums;
+}
+
 [data-onboarding="cosmos"] .drop-pill {
   width: min(420px, 100%);
   height: 50px;
@@ -1853,6 +1860,23 @@
 }
 
 /* Header-right cluster on the Colors group: shuffle icon + count. */
+[data-onboarding="cosmos"] .review-brandbar-meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+[data-onboarding="cosmos"] .review-tag {
+  font-size: 11.5px;
+  font-weight: 550;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+}
+
 [data-onboarding="cosmos"] .review-group-head-right {
   display: inline-flex;
   align-items: center;
@@ -3382,4 +3406,91 @@
 }
 @media (max-width: 480px) {
   [data-onboarding="cosmos"] .about-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* ── The structured brand profile, inside the About group ──────────────
+   Chips where the concept is categorical, text where the wording carries the
+   meaning. Same surface language as the rest of the review. */
+[data-onboarding="cosmos"] .about-structured {
+  display: flex;
+  flex-direction: column;
+}
+[data-onboarding="cosmos"] .about-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+}
+[data-onboarding="cosmos"] .about-row + .about-row {
+  border-top: 1px solid var(--ds-hairline);
+}
+[data-onboarding="cosmos"] .about-row-key {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+[data-onboarding="cosmos"] .about-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+/* Dashed = nobody has decided this yet. Solid = the user has. The state lives
+   on the value, never on the section. */
+[data-onboarding="cosmos"] .about-chip {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px dashed var(--ds-dash);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: border-color 150ms var(--ds-ease), background 150ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] .about-chip:hover {
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+[data-onboarding="cosmos"] .about-chip.is-on {
+  border-style: solid;
+  border-color: var(--ds-accent);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
+  font-weight: 600;
+}
+[data-onboarding="cosmos"] .about-row-text {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ds-text);
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--ds-dash);
+  padding: 0 0 3px;
+}
+[data-onboarding="cosmos"] .about-row-text:focus {
+  outline: none;
+  border-bottom-color: var(--ds-focus-border);
+}
+
+/* "Looks right" — a loop over the per-value act, never a section authority. */
+[data-onboarding="cosmos"] .looks-right {
+  background: none;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+}
+[data-onboarding="cosmos"] .looks-right:hover {
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
 }

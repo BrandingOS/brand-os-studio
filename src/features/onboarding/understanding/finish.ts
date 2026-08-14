@@ -21,6 +21,14 @@ export interface FinishInput {
   context?: IBrandContextService;
   /** Paths the user rejected, remembered so later suggestions lean away. */
   rejectedPaths?: string[];
+  /**
+   * Reads the brand as it is RIGHT NOW.
+   *
+   * Supplied by callers that hold a render-time snapshot, which is all of them:
+   * the marker is written by several steps and completing from a stale copy
+   * resurrects state a previous write cleared.
+   */
+  live?(id: string): Brand | undefined;
 }
 
 export interface FinishReport {
@@ -35,7 +43,7 @@ export interface FinishReport {
  * second call reads the brand as already finished and does nothing.
  */
 export async function finishOnboarding(input: FinishInput): Promise<FinishReport> {
-  const { brand, businessInfo, updateBrand, context, rejectedPaths = [] } = input;
+  const { brand, businessInfo, updateBrand, context, rejectedPaths = [], live } = input;
   const notSaved: string[] = [];
 
   // Business facts first — if the marker write fails the user can resume and
@@ -67,7 +75,14 @@ export async function finishOnboarding(input: FinishInput): Promise<FinishReport
     }
   }
 
-  const current = readOnboardingState(brand);
+  // Read the marker LIVE rather than from the `brand` passed in.
+  //
+  // Marker writes are read-modify-write, and by the time finish runs the
+  // understanding pass has already cleared the sentinels through a different
+  // write. Completing from a caller's render-time snapshot wrote them straight
+  // back, and the finished brand then claimed its real colour and typeface were
+  // stand-ins — so Setup rendered them as undecided.
+  const current = readOnboardingState(live?.(brand.id) ?? brand);
   // Already finished — nothing to do. This is what makes a double submit safe.
   if (current === null && brand.onboarding) return { notSaved };
 

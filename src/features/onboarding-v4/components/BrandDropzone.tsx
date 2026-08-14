@@ -10,8 +10,7 @@ import {
   isSupportedUploadFile,
   simulateUpload,
 } from '../utils/assetUpload';
-
-const MAX_ASSETS = 20;
+import { MAX_FILES as MAX_ASSETS, refuse } from '@/features/onboarding/material/limits';
 
 export function BrandDropzone() {
   const assets = useV4Store((s) => s.assets);
@@ -45,6 +44,14 @@ export function BrandDropzone() {
         toast.error(`"${file.name}" isn't a supported file type`, {
           description: 'Images, PDFs, design files (.ai/.sketch/.fig/.psd), zips and fonts only.',
         });
+        return true;
+      }
+      // Refused per item, by name and with the real reason. One oversized file
+      // inside a dropped folder must cost the user that file, never the folder,
+      // so this returns true and the batch carries on.
+      const no = refuse(file, useV4Store.getState().assets.length);
+      if (no) {
+        toast.error(no);
         return true;
       }
       void enqueueFile(file, deps);
@@ -227,6 +234,8 @@ export function BrandDropzone() {
             </button>
             or paste the URL
           </p>
+
+          <p className="drop-limits">Up to {MAX_ASSETS} files · 5 MB each</p>
 
           <label
             className="drop-pill"

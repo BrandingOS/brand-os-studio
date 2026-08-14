@@ -906,43 +906,77 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen
 
-## Onboarding — `/onboard-brand` (restored 2026-08-14)
+## Onboarding — `/onboard-brand` (old UI, V3 pipeline — 2026-08-14)
 
-**The live flow is the original `features/onboarding-v4/`**, restored verbatim
-from the `pre-brand-system-evolution` tag. Do not rebuild it from a description
-or a screenshot — if it needs to change, change these files.
+**The interface is `features/onboarding-v4/` and it is FROZEN.** It was restored
+verbatim from the `pre-brand-system-evolution` tag. Do not redesign, restyle or
+rearrange it. Change it only when a requirement genuinely adds or removes a
+field, section or action — and then change these files, never rebuild them from
+a description.
 
 Two paths, as it always had:
 
-- **`/onboard-brand`** → `screens/SetUpScreen.tsx` — "Set up your Brand". One
-  centred 620px column: the brand mark, the title, the `FlowSwitch` to the
-  from-scratch path, then `panels/SetupPanel.tsx` (brand name + the
-  `AITextarea` with its typed placeholder and the `CopyPromptHint` badge + the
-  `BrandDropzone`). Continue → `panels/UploadsReviewPanel.tsx`, "Review your
-  uploads": Logos · Colors · Fonts · Links · About · Brand Assets, then "Set up".
-- **`/onboard-brand/create`** → `screens/CreateScreen.tsx` — "Create your
-  Brand", the two-step from-scratch path (Define → Feel).
+- **`/onboard-brand`** → `screens/SetUpScreen.tsx`. One centred 620px column:
+  brand mark, "Set up your Brand", the `FlowSwitch`, then `panels/SetupPanel.tsx`
+  (name + `AITextarea` with the `CopyPromptHint` badge + `BrandDropzone` with its
+  Paste-a-URL pill). Continue → processing → `panels/UploadsReviewPanel.tsx`
+  ("Review your uploads") → "Open my brand".
+- **`/onboard-brand/create`** → `screens/CreateScreen.tsx`, the from-scratch path.
 
-Visual shell is `styles/cosmos.css` scoped to `[data-onboarding="cosmos"]`; it
-already reads `--ds-*` tokens, so it is theme-correct without change. File-type
-previews come from `public/onboarding-v4/assets/`.
+### What runs underneath — `features/onboarding/`
 
-### The spec-002 V3 feature is still in the tree, UNROUTED
+The V3 pipeline. `bridge/v4Bridge.ts` is the ONLY seam between the two, and it
+moves data across it without deciding anything:
 
-`src/features/onboarding/` holds the brand-first V3 architecture built for spec
-002 — the canonical Brand write pipeline, the controlled vocabularies
-(`vocabulary/`), the Build-with-AI prompt and its deterministic reverse-parse
-(`brief/`), source priority (`understanding/sources.ts`), logo classification,
-the processing stage machine, and per-value acceptance. **Nothing routes to it.**
-Its tests still run and pass.
+| Step | What happens |
+|---|---|
+| Continue | `createBrand` — brand-first, so every later edit is a write against a real id |
+| | material → Library via `toLibrary`; **never inline on the brand record** |
+| processing | `UnderstandingStage` + `understanding/stages.ts` |
+| | `understand()` — interpret → `applyProposals` (system actor ⇒ `suggested`) → `applyBusinessFacts` |
+| review | `project()` reads the canonical brand into the shape the old panel renders |
+| edit | `editAsUser` / `accept` / `acceptSection` — a human write, which confirms that value |
+| Open my brand | `finishOnboarding` → `/b/:slug/setup` or `?then=` |
 
-It is kept because the owner asked for "old UI, V3 brain" and the brain is the
-part worth keeping — but the two have not been joined, and the interface that
-ships is the restored one. Do not wire it up, delete it, or re-derive the old
-interface from it without an explicit decision.
+**The review's store is a PROJECTION, not a source of truth.** An effect in
+`UploadsReviewPanel` pushes the projection into `useV4Store` so the existing
+controls render Core values; every edit writes straight back through the bridge.
 
-Migration 022 (`brands.onboarding`) is applied in code and tolerated when
-absent; it is unused by the restored flow.
+### Rules that bind
+
+- **Marker writes are read-modify-write.** `brand.onboarding` is written by
+  create, by understanding and by finish. ALWAYS read it live at write time —
+  from the store, or via `finishOnboarding`'s `live` callback. A stale snapshot
+  resurrects state a previous write cleared; this bit us three times, most
+  visibly when finishing re-added the sentinels and Setup then showed a real
+  colour and typeface as undecided. Pinned in `sentinels.test.ts` and
+  `onboardingState.test.ts`.
+- **Adaptive understanding.** A recognisable brief (`brief/parseBrief.ts`,
+  ≥3 labels at line starts) parses deterministically with NO assisted call;
+  free prose goes to the assisted parse. `brief/prompt.ts` and `parseBrief.ts`
+  are a two-way contract — a test pins their labels together. `data/typedPrompts.ts`
+  re-exports the canonical builder, so the old badge hands over the new prompt.
+- **Colours/fonts are two-mode.** Concrete values rank `brief`; offered
+  `Directions:` rank `ai` and stay suggestions. An AI palette is never written
+  as the brand's own.
+- **Source priority** — user > uploaded > brief > AI — lives in
+  `understanding/sources.ts`, and `mergeCandidates` is the ONLY place a
+  `Proposal` is constructed (boundary test enforces it).
+- **Controlled vocabularies** (`vocabulary/`): industry · style · personality ·
+  tone · values. `Other` keeps the user's wording verbatim.
+  `StyleDescriptor` is 17 members; `vocabularies.ts` must stay in sync with the
+  union in `identity.ts` and the `z.enum` in `invariants.ts` — a test asserts it.
+- **Industry and slogan are Business Info**, never mirrored into
+  `positioning.category`. They save on edit; there is nothing to confirm.
+- **Per-value acceptance only.** `understanding/acceptance.ts` is the sole
+  promoter, hard-coded to `confirmed`. "Looks right" is a LOOP over it.
+- **Never expose the model** — no "authority", "provenance", "suggested" as a
+  status. A browser test scans the state-bearing elements.
+- **Limits**: 10 files, 5 MB each, refused per item so a folder loses only its
+  overflow (`material/limits.ts`, applied in `BrandDropzone`).
+
+Migration 022 adds `brands.onboarding`; its absence is tolerated on create and
+update — the flow degrades to non-resumable, never to a failed save.
 
 ## Auth flow gotchas
 

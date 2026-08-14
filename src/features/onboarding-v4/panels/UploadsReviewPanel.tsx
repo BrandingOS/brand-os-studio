@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useV4Store } from '../store/onboardingV4Store';
-import type { AssetKind, OnboardingAsset } from '../types';
+import type { AssetKind, LogoSlot, OnboardingAsset } from '../types';
 import { GOOGLE_FONTS } from '@/shared/design-system/googleFonts';
 import { enqueueFile, extractDominantColors, genId, normalizeHex } from '../utils/assetUpload';
 import { ColorPickerHSV } from '@/features/setup/components/ColorPickerHSV';
@@ -15,6 +15,15 @@ import { SOCIAL_PLATFORMS, detectPlatform, getPlatform } from '../data/socialPla
 import { type FontFamilyGroup, groupFontAssets, weightsSummary } from '../utils/fontFamily';
 import { extractSlogan } from '../services/parseDescription';
 import { type SuggestedPalette, suggestPalettesFor } from '../data/suggestedPalettes';
+import {
+  accept,
+  acceptSection,
+  editAsUser,
+  saveBusinessFact,
+  type Projection,
+} from '@/features/onboarding/bridge/v4Bridge';
+import { VOCABULARIES } from '@/features/onboarding/vocabulary/vocabularies';
+import { PATH_LABEL } from '@/features/onboarding/understanding/proposals';
 import { type SuggestedFontPairing, suggestFontsFor } from '../data/suggestedFonts';
 import { POPULAR_PALETTES } from '../data/popularPalettes';
 import { COLOR_HUNT_PALETTES } from '../data/colorHuntPalettes';
@@ -540,7 +549,17 @@ function kindGlyph(kind: AssetKind): string {
   }
 }
 
-export function UploadsReviewPanel() {
+export interface UploadsReviewPanelProps {
+  /** Present once the brand exists — every write below targets it. */
+  brandId?: string;
+  /** The canonical brand, read into the shape this panel renders. */
+  projection?: Projection | null;
+  actor?: { kind: 'human'; userId: string };
+  /** Called after a write lands, so the projection can be re-read. */
+  onChanged?(): void;
+}
+
+export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: UploadsReviewPanelProps = {}) {
   const assets = useV4Store((s) => s.assets);
   const define = useV4Store((s) => s.define);
   const updateDefine = useV4Store((s) => s.updateDefine);
@@ -726,7 +745,10 @@ export function UploadsReviewPanel() {
   }, [editingSlogan]);
   const commitSlogan = () => {
     setEditingSlogan(false);
-    updateDefine({ slogan: sloganDraft.trim() });
+    const next = sloganDraft.trim();
+    updateDefine({ slogan: next });
+    // A business fact: it saves on edit and there is nothing to confirm.
+    if (brandId) void saveBusinessFact(brandId, { tagline: next }).then(() => onChanged?.());
   };
 
   // Palettes / font pairings to offer when the user uploaded none — ranked
@@ -737,6 +759,65 @@ export function UploadsReviewPanel() {
   );
   const paletteSuggestions = useMemo(() => suggestPalettesFor(brandText), [brandText]);
   const fontSuggestions = useMemo(() => suggestFontsFor(brandText), [brandText]);
+
+  /**
+   * The canonical brand, pushed into the store this panel renders from.
+   *
+   * A PROJECTION, not a second source of truth: the brand decided these values
+   * (from the brief, from the uploads, by source priority), and this only makes
+   * them visible in the controls that already exist. Every edit below writes
+   * straight back, so the store never becomes the authority.
+   */
+  const projectedRef = useRef<string>('');
+  useEffect(() => {
+    if (!projection) return;
+    const key = JSON.stringify(projection);
+    if (projectedRef.current === key) return;
+    projectedRef.current = key;
+    const store = useV4Store.getState();
+
+    // Colours — replace, so a value the user changed upstream cannot linger.
+    for (const c of store.assets.filter((a) => a.kind === 'color')) store.removeAsset(c.id);
+    projection.colors.forEach((c, i) => {
+      const id = genId();
+      store.addAsset({
+        id,
+        name: c.hex,
+        sub: i === 0 ? 'Primary' : 'Brand color',
+        kind: 'color',
+        value: c.hex,
+        previewUrl: null,
+        uploadStatus: 'done',
+        uploadProgress: 1,
+      });
+      if (c.primary) store.setPrimaryColor(id);
+    });
+
+    // Typefaces the brand already knows about.
+    const known = new Set(store.assets.filter((a) => a.kind === 'font').map((a) => a.name));
+    for (const family of projection.fonts) {
+      if (known.has(family)) continue;
+      store.addAsset({
+        id: genId(),
+        name: family,
+        sub: 'From your brand',
+        kind: 'font',
+        fontSource: 'google',
+        previewUrl: null,
+        uploadStatus: 'done',
+        uploadProgress: 1,
+      });
+    }
+
+    // Logo placements the classifier could evidence, and the exact duplicates
+    // it dropped. A role with no evidence stays empty rather than guessed into.
+    for (const { assetId, slot } of projection.logoSlots) {
+      store.updateAsset(assetId, { kind: 'image', isLogo: true, logoSlot: slot as LogoSlot });
+    }
+    for (const id of projection.duplicateIds) store.removeAsset(id);
+
+    if (projection.slogan) store.updateDefine({ slogan: projection.slogan });
+  }, [projection]);
 
   // Auto-extract colors once when the panel opens (only if there are no color assets yet).
   const extractedRef = useRef(false);
@@ -798,6 +879,14 @@ export function UploadsReviewPanel() {
               >
                 {slogan ?? 'your brand slogan'}
               </button>
+            )}
+            {Boolean(projection?.industryLabel || projection?.styleLabels.length) && (
+              <span className="review-brandbar-meta">
+                {projection.industryLabel && <span className="review-tag">{projection.industryLabel}</span>}
+                {projection.styleLabels.length > 0 && (
+                  <span className="review-tag">{projection.styleLabels.join(' · ')}</span>
+                )}
+              </span>
             )}
           </div>
         )}
@@ -882,7 +971,12 @@ export function UploadsReviewPanel() {
           );
         })}
 
-        <AboutGroup />
+        <AboutGroup
+          brandId={brandId}
+          projection={projection}
+          actor={actor}
+          onChanged={onChanged}
+        />
 
         <GroupCard
           group={BRAND_ASSETS_GROUP}
