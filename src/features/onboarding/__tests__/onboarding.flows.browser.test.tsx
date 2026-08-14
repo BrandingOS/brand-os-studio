@@ -16,8 +16,7 @@ import { coreValueMeta, type HumanActor } from '@/domain/brand';
 import { applyProposals } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal } from '../understanding/acceptance';
 import { ReviewStep, type ReviewStepProps } from '../steps/ReviewStep';
-import { NameStep } from '../steps/NameStep';
-import { ProfileStep } from '../steps/ProfileStep';
+import { SetupStep } from '../steps/SetupStep';
 import { UnderstandingStage } from '../steps/UnderstandingStage';
 import { buildCreateInput } from '../understanding/createBrand';
 import { isPlaceholderPath, readOnboardingState } from '@/shared/onboarding/onboardingState';
@@ -106,67 +105,39 @@ function reviewProps(over: Partial<ReviewStepProps> = {}): ReviewStepProps {
 }
 
 // ── Screen 1 ─────────────────────────────────────────────────────────
-describe('Screen 1 — the brand name, and nothing else', () => {
+describe('Screen 1 — Set up your Brand, all on one screen', () => {
+  const props = { busy: false, error: null, onContinue: () => {} };
+
+  it('carries the name, the description and the upload area together', () => {
+    render(<SetupStep {...props} />);
+    expect(screen.getByLabelText(/brand name/i)).toBeTruthy();
+    expect(screen.getByLabelText(/describe your brand/i)).toBeTruthy();
+    expect(screen.getByText(/drag & drop image or folder here/i)).toBeTruthy();
+    expect(screen.getByLabelText(/your website/i)).toBeTruthy();
+  });
+
   it('the name is the only thing that unlocks Continue', () => {
-    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
+    render(<SetupStep {...props} />);
     const cta = screen.getByRole('button', { name: /continue/i });
     expect(cta).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/brand name/i), { target: { value: 'Meridian' } });
     expect(cta).not.toBeDisabled();
   });
 
-  it('asks for nothing but the name', () => {
-    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
-    expect(screen.getAllByRole('textbox')).toHaveLength(1);
-    // No self-classification, and no second field smuggled onto this screen.
-    expect(screen.queryByText(/starting from scratch|i have a brand/i)).toBeNull();
-    expect(screen.queryByLabelText(/describe|website/i)).toBeNull();
-  });
-
-  it('says "brand" plainly rather than something ambiguous', () => {
-    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
-    expect(screen.getByRole('heading', { name: /set up your brand/i })).toBeTruthy();
-    expect(screen.queryByText(/what are we building/i)).toBeNull();
-  });
-
-  it('passes only what was typed — nothing is invented', () => {
-    const seen: string[] = [];
-    render(<NameStep busy={false} error={null} onContinue={(n) => seen.push(n)} />);
-    fireEvent.change(screen.getByLabelText(/brand name/i), { target: { value: 'Meridian' } });
-    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-    expect(seen).toEqual(['Meridian']);
-  });
-});
-
-// ── Screen 2 ─────────────────────────────────────────────────────────
-describe('Screen 2 — describe, bring, website — on ONE screen', () => {
-  const props = {
-    brandName: 'Meridian',
-    initialDescription: '',
-    initialWebsite: '',
-    busy: false,
-    onBack: () => {},
-    onContinue: () => {},
-    onUploaded: () => {},
-  };
-
-  it('carries all three fields together', () => {
-    render(<ProfileStep {...props} />);
-    expect(screen.getByLabelText(/describe your brand/i)).toBeTruthy();
-    expect(screen.getByText(/drag & drop files or a folder/i)).toBeTruthy();
-    expect(screen.getByLabelText(/website/i)).toBeTruthy();
+  it('never asks the user to classify themselves', () => {
+    render(<SetupStep {...props} />);
+    expect(screen.queryByText(/from scratch|i have a brand|starting new/i)).toBeNull();
   });
 
   it('states the file limits before anything is dropped', () => {
-    render(<ProfileStep {...props} />);
+    render(<SetupStep {...props} />);
     expect(screen.getByText(/up to 10 files · 5 mb each/i)).toBeTruthy();
   });
 
   it('the AI actions are behind a popover, never stacked under the textarea', () => {
-    render(<ProfileStep {...props} />);
+    render(<SetupStep {...props} />);
     const trigger = screen.getByRole('button', { name: /build with ai/i });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
-    // The menu exists in the DOM but is inert until asked for.
     expect(screen.getByRole('menu', { hidden: true }).getAttribute('aria-hidden')).toBe('true');
     fireEvent.click(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
@@ -176,20 +147,21 @@ describe('Screen 2 — describe, bring, website — on ONE screen', () => {
   });
 
   it('closes the popover on Escape', () => {
-    render(<ProfileStep {...props} />);
+    render(<SetupStep {...props} />);
     const trigger = screen.getByRole('button', { name: /build with ai/i });
     fireEvent.click(trigger);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('hands back exactly what was typed', () => {
-    const seen: Array<{ description: string; website: string }> = [];
-    render(<ProfileStep {...props} onContinue={(v) => seen.push(v)} />);
+  it('passes only what was typed — nothing is invented', () => {
+    const seen: Array<{ name: string; description: string; website: string }> = [];
+    render(<SetupStep {...props} onContinue={(v) => seen.push(v)} />);
+    fireEvent.change(screen.getByLabelText(/brand name/i), { target: { value: 'Meridian' } });
     fireEvent.change(screen.getByLabelText(/describe your brand/i), { target: { value: 'We build things' } });
-    fireEvent.change(screen.getByLabelText(/website/i), { target: { value: 'meridian.co' } });
-    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
-    expect(seen).toEqual([{ description: 'We build things', website: 'meridian.co' }]);
+    fireEvent.change(screen.getByLabelText(/your website/i), { target: { value: 'meridian.co' } });
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    expect(seen).toEqual([{ name: 'Meridian', description: 'We build things', website: 'meridian.co' }]);
   });
 });
 
@@ -286,9 +258,25 @@ describe('the count never becomes completion pressure', () => {
 describe('the interface never exposes the model', () => {
   it('shows no authority or provenance vocabulary', () => {
     render(<ReviewStep {...reviewProps()} />);
-    const text = document.body.textContent ?? '';
-    for (const banned of ['authority', 'provenance', 'suggested', 'official', 'proposal', 'Core value']) {
-      expect(text.toLowerCase()).not.toContain(banned.toLowerCase());
+    const text = (document.body.textContent ?? '').toLowerCase();
+    for (const banned of ['authority', 'provenance', 'official', 'proposal', 'core value', 'user-entered']) {
+      expect(text).not.toContain(banned);
+    }
+  });
+
+  it('never uses "suggested" as a STATUS, only as ordinary product copy', () => {
+    // "Add suggested palettes" is the retired interface's own wording and means
+    // palettes we are offering — it does not expose the model. What would
+    // expose the model is the word appearing where a value's state is
+    // described, so that is what this checks rather than banning the token
+    // outright.
+    render(<ReviewStep {...reviewProps()} />);
+    const stateBearing = [
+      ...document.querySelectorAll('.onb-vo, .onb-vk, .onb-count, .onb-bulk'),
+    ].map((el) => (el.textContent ?? '').toLowerCase());
+    for (const text of stateBearing) {
+      expect(text).not.toContain('suggested');
+      expect(text).not.toContain('confirmed by the system');
     }
   });
 

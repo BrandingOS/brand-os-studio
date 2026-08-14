@@ -18,6 +18,8 @@ export interface ReviewCardProps {
   title: string;
   /** Right of the head. A count, or a plain fact like "3 logos". */
   meta?: string;
+  /** A head-right affordance, e.g. "Add suggested palettes". */
+  headAction?: ReactNode;
   /** Omitted for sections with nothing to confirm. */
   onLooksRight?(): void;
   looksRightDisabled?: boolean;
@@ -31,6 +33,7 @@ export interface ReviewCardProps {
 export function ReviewCard({
   title,
   meta,
+  headAction,
   onLooksRight,
   looksRightDisabled,
   footer,
@@ -51,6 +54,7 @@ export function ReviewCard({
             things unconfirmed is a legitimate outcome, and a completion meter
             would turn it into a debt.
           */}
+          {headAction}
           {meta && <span className="onb-count">{meta}</span>}
           {onLooksRight && (
             <button

@@ -43,12 +43,12 @@ export function LogosSection({
   return (
     <ReviewCard
       title="Logos"
-      meta={placed ? `${placed} placed` : undefined}
+      meta={placed ? `${placed} ${placed === 1 ? 'logo' : 'logos'}` : undefined}
       empty="No logos yet — upload one and we'll sort the variations."
       footer={
         <>
-          <button type="button" className="onb-hint-link" onClick={onUpload}>
-            Upload a logo
+          <button type="button" className="onb-act" onClick={onUpload}>
+            + Add variation
           </button>
           {duplicatesIgnored > 0 && (
             <span className="onb-hint onb-hint--right">

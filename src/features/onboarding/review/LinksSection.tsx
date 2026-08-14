@@ -6,7 +6,6 @@
  * brand, so there is nothing here to confirm and no "Looks right".
  */
 import { useState } from 'react';
-import { DsButton, DsInput } from '@/shared/ds';
 import { ReviewCard } from './ReviewCard';
 
 export interface BrandLink {
@@ -50,43 +49,40 @@ export function detectPlatform(url: string): { platform: string; label: string }
 }
 
 export function LinksSection({ links, onAdd, onRemove }: LinksSectionProps) {
-  const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState('');
 
   const submit = () => {
     if (!draft.trim()) return;
     onAdd(draft.trim());
     setDraft('');
-    setAdding(false);
   };
 
   return (
     <ReviewCard
       title="Links"
       meta={links.length ? `${links.length} ${links.length === 1 ? 'link' : 'links'}` : undefined}
-      empty="No links yet — add your website or a social profile."
+      empty="No links added."
       footer={
-        adding ? (
-          <div className="onb-addlink">
-            <DsInput
-              value={draft}
-              autoFocus
-              placeholder="yourbrand.com or a profile URL"
-              aria-label="Add a link"
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submit();
-                if (e.key === 'Escape') setAdding(false);
-              }}
-            />
-            <DsButton size="sm" onClick={submit} disabled={!draft.trim()}>Add</DsButton>
-            <DsButton size="sm" tone="tertiary" onClick={() => setAdding(false)}>Cancel</DsButton>
-          </div>
-        ) : (
-          <button type="button" className="onb-hint-link" onClick={() => setAdding(true)}>
-            Add a link
+        <label className="onb-pill onb-pill--add">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+            <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+          </svg>
+          <input
+            type="text"
+            className="onb-pill-input"
+            value={draft}
+            placeholder="Paste a URL or @handle"
+            aria-label="Add a link"
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit();
+            }}
+          />
+          <button type="button" className="onb-act" onClick={submit} disabled={!draft.trim()}>
+            + Add
           </button>
-        )
+        </label>
       }
     >
       {links.length > 0 && (

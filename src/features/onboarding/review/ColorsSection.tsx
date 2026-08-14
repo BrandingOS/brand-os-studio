@@ -6,7 +6,6 @@
  * is nothing to extract from. A suggestion never silently becomes the brand's
  * palette — choosing one is an act the user performs.
  */
-import { DsButton } from '@/shared/ds';
 import { ReviewCard } from './ReviewCard';
 
 export interface Swatch {
@@ -40,27 +39,25 @@ export function ColorsSection({
     <ReviewCard
       title="Colors"
       meta={swatches.length ? `${swatches.length} ${swatches.length === 1 ? 'colour' : 'colours'}` : undefined}
+      headAction={
+        <button type="button" className="onb-suggest" onClick={onSuggest}>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" /></svg> Add suggested palettes
+        </button>
+      }
       onLooksRight={swatches.length ? onLooksRight : undefined}
       looksRightDisabled={decided || busy}
-      empty="No colours yet — extract them from your logo, or pick one."
+      empty="No colors yet — extract from your logos, or pick a color below."
       footer={
         <>
-          {canExtract && (
-            <DsButton size="sm" tone="secondary" onClick={onExtractFromLogo}>
-              Extract from logo
-            </DsButton>
-          )}
-          <button type="button" className="onb-hint-link" onClick={onExtractFromImage}>
-            Extract from an image
+          <button type="button" className="onb-act" onClick={onAdd}>
+            + Add color
           </button>
-          <button type="button" className="onb-hint-link" onClick={onAdd}>
-            Add a colour
+          <button type="button" className="onb-act onb-act--ghost" onClick={onExtractFromLogo} disabled={!canExtract}>
+            Extract from logos
           </button>
-          {!canExtract && (
-            <button type="button" className="onb-hint-link" onClick={onSuggest}>
-              Suggest palettes
-            </button>
-          )}
+          <button type="button" className="onb-act onb-act--ghost" onClick={onExtractFromImage}>
+            Extract from image
+          </button>
         </>
       }
     >

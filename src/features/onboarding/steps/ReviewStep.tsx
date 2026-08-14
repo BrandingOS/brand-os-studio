@@ -162,7 +162,12 @@ export function ReviewStep(p: ReviewStepProps) {
         onEditSection={p.onEditSection}
       />
 
-      <AssetsSection items={p.libraryItems} onRename={p.onRenameAsset} onRemove={p.onRemoveAsset} />
+      <AssetsSection
+        items={p.libraryItems}
+        onRename={p.onRenameAsset}
+        onRemove={p.onRemoveAsset}
+        onAdd={p.onUploadMore}
+      />
 
       <div className="onb-review-f">
         <DsButton tone="tertiary" onClick={p.onBack}>

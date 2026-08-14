@@ -22,11 +22,12 @@ import type { Brand } from '@/shared/types/brand';
 /**
  * The steps a user actually stands on. Understanding is a transition.
  *
- * Three, not four: naming gets a screen of its own, and describing the brand,
- * bringing material and giving a website all happen together on one screen —
- * as they did in the flow this restores (spec FR-043, FR-075).
+ * TWO, matching the interface this restores: one setup screen carrying the
+ * brand name, the description and the upload area together, then the review.
+ * Splitting them apart made the flow feel longer without making any step
+ * clearer (spec FR-043).
  */
-export const ONBOARDING_STEPS = ['name', 'profile', 'review'] as const;
+export const ONBOARDING_STEPS = ['setup', 'review'] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export interface OnboardingState {
@@ -112,9 +113,9 @@ export function readOnboardingState(brand: Pick<Brand, 'onboarding'> | null | un
     : [];
   return {
     // An unrecognised step degrades to the first one. This is also how a brand
-    // recorded under the retired three-step vocabulary ('basics'/'material')
+    // recorded under an earlier vocabulary ('basics'/'material'/'name'/'profile')
     // resumes rather than throwing.
-    step: isStep(o.step) ? o.step : 'name',
+    step: isStep(o.step) ? o.step : 'setup',
     startedAt: typeof o.startedAt === 'string' ? o.startedAt : new Date().toISOString(),
     completedAt: null,
     ...(typeof o.brief === 'string' && o.brief ? { brief: o.brief } : {}),
@@ -127,9 +128,9 @@ export function isUnfinished(brand: Pick<Brand, 'onboarding'> | null | undefined
   return readOnboardingState(brand) !== null;
 }
 
-/** The step to resume at. `name` when there is nothing recorded. */
+/** The step to resume at. `setup` when there is nothing recorded. */
 export function resumeStep(brand: Pick<Brand, 'onboarding'> | null | undefined): OnboardingStep {
-  return readOnboardingState(brand)?.step ?? 'name';
+  return readOnboardingState(brand)?.step ?? 'setup';
 }
 
 /**
@@ -140,7 +141,7 @@ export function resumeStep(brand: Pick<Brand, 'onboarding'> | null | undefined):
  */
 export function startedState(placeholders: string[] = []): OnboardingState {
   return {
-    step: 'name',
+    step: 'setup',
     startedAt: new Date().toISOString(),
     completedAt: null,
     ...(placeholders.length ? { placeholders } : {}),
@@ -192,8 +193,7 @@ export function unfinishedLabel(brand: Pick<Brand, 'onboarding'> | null | undefi
   const s = readOnboardingState(brand);
   if (!s) return null;
   const where: Record<OnboardingStep, string> = {
-    name: 'just started',
-    profile: 'left at your details',
+    setup: 'just started',
     review: 'left at Review',
   };
   return `Still setting up · ${where[s.step]}`;

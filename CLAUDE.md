@@ -915,17 +915,26 @@ The ONE onboarding flow. `features/onboarding-v4/` and the two-path
 the visual and interaction foundation and kept the V3 write pipeline underneath.
 Don't reinvent either half.
 
-**Three screens**, plus a transition:
+**TWO screens** (`ONBOARDING_STEPS = ['setup','review']`), plus a transition.
+One centred column throughout — there is no split screen and no sidebar:
 
-1. **`name`** — split layout, mark large left, name form right, one flat ground
-   (no divider, no tonal panel). Naming CREATES the brand record.
-2. **`profile`** — the SAME split. Describe your brand + upload area + website,
-   all on one screen, reusing the retired components. The Build-with-AI helper
-   is a small button by the label opening a **floating popover** — never three
-   actions stacked under the textarea.
-3. *(transition)* **understanding** — the 9-dot mark assembling. Not a step.
-4. **`review`** — full width, the retired "Review your uploads" page:
-   brand bar · Logos · Colors · Fonts · Links · About · Brand assets.
+1. **`setup`** — "Set up your Brand". The rounded-square mark, the title, then
+   **brand name + describe your brand + the dropzone (with its Paste-a-URL pill)
+   all on ONE screen**, as the interface this restores had them. The
+   Build-with-AI helper is a small badge beside the "Describe your brand" label
+   opening a **floating popover** — never three actions stacked under the
+   textarea. Continue CREATES the brand, flushes held material to the Library,
+   then runs understanding.
+2. *(transition)* **understanding** — the 9-dot mark assembling. Not a step.
+3. **`review`** — "Review your uploads", the same centred column a little wider:
+   brand bar · Logos · Colors · Fonts · Links · About · Brand assets, with the
+   retired affordances (Add variation · Add suggested palettes · Add color ·
+   Extract from logos/image · Add suggested fonts · Pick from Google Fonts ·
+   Add brand asset · the paste-a-link row).
+
+Material is held in the transient store on screen 1 (there is no brand to
+attach it to yet) and written to the Library the moment the brand exists,
+before the review. Refusals still happen at drop time.
 
 **Brand-first.** Naming creates the brand; every step after writes to that real
 record. That is what makes resume work across sessions and devices, and why

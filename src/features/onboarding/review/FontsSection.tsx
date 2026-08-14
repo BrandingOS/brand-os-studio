@@ -40,13 +40,23 @@ export function FontsSection({
     <ReviewCard
       title="Fonts"
       meta={set ? `${set} of ${roles.length} set` : undefined}
+      headAction={
+        pairings.length > 0 && set === 0 ? (
+          <button type="button" className="onb-suggest" onClick={() => onApplyPairing(pairings[0])}>
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 13.5 8.5 20 10 13.5 11.5 12 18 10.5 11.5 4 10 10.5 8.5z" /></svg> Add suggested fonts
+          </button>
+        ) : undefined
+      }
       onLooksRight={set ? onLooksRight : undefined}
       looksRightDisabled={decided || busy}
-      empty="No fonts yet — upload one, or pick a pairing."
+      empty="No fonts yet — pick from Google Fonts or upload a font file."
       footer={
         <>
-          <button type="button" className="onb-hint-link" onClick={onUpload}>
-            Upload a font
+          <button type="button" className="onb-act" onClick={onUpload}>
+            Pick from Google Fonts
+          </button>
+          <button type="button" className="onb-act onb-act--ghost" onClick={onUpload}>
+            + Upload font
           </button>
           {pairings.length > 0 && (
             <span className="onb-hint onb-hint--right">Suggestions come as pairings</span>

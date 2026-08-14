@@ -13,14 +13,20 @@ export interface AssetsSectionProps {
   items: OnboardingAsset[];
   onRename(id: string, next: string): void;
   onRemove(id: string): void;
+  onAdd(): void;
 }
 
-export function AssetsSection({ items, onRename, onRemove }: AssetsSectionProps) {
+export function AssetsSection({ items, onRename, onRemove, onAdd }: AssetsSectionProps) {
   return (
     <ReviewCard
       title="Brand assets"
       meta={items.length ? `${items.length} ${items.length === 1 ? 'asset' : 'assets'}` : undefined}
-      empty="Nothing here yet — anything we can't place elsewhere lands in your brand assets."
+      empty="Nothing here yet — uploads we can't place anywhere else land in your brand assets."
+      footer={
+        <button type="button" className="onb-act" onClick={onAdd}>
+          + Add brand asset
+        </button>
+      }
     >
       {items.length > 0 && (
         <div className="onb-files">

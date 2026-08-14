@@ -20,7 +20,7 @@ import {
 } from '../onboardingState';
 
 const inProgress: OnboardingState = {
-  step: 'profile',
+  step: 'setup',
   startedAt: '2026-08-14T00:00:00.000Z',
   completedAt: null,
 };
@@ -44,7 +44,7 @@ describe('readOnboardingState — the meaning table', () => {
   it('an in-progress marker reads as unfinished, at its step', () => {
     const s = readOnboardingState({ onboarding: inProgress });
     expect(s).not.toBeNull();
-    expect(s!.step).toBe('profile');
+    expect(s!.step).toBe('setup');
   });
 
   it('no brand at all reads as finished rather than throwing', () => {
@@ -56,16 +56,16 @@ describe('readOnboardingState — the meaning table', () => {
 describe('malformed markers degrade, never throw', () => {
   it('an unknown step falls back to basics', () => {
     const s = readOnboardingState({ onboarding: { ...inProgress, step: 'wat' } as never });
-    expect(s!.step).toBe('name');
+    expect(s!.step).toBe('setup');
   });
 
   it('a step from the retired vocabulary resumes rather than throwing', () => {
     // Brands recorded under the three-step names ('basics'/'material') predate
     // R1. Degrading to the first step keeps them openable, which is the whole
     // point of tolerating a malformed marker.
-    for (const old of ['basics', 'material']) {
+    for (const old of ['basics', 'material', 'name', 'profile']) {
       const s = readOnboardingState({ onboarding: { ...inProgress, step: old } as never });
-      expect(s!.step).toBe('name');
+      expect(s!.step).toBe('setup');
     }
   });
 
@@ -94,17 +94,17 @@ describe('isUnfinished / resumeStep', () => {
     expect(isUnfinished({ onboarding: { ...inProgress, completedAt: 'x' } })).toBe(false);
   });
 
-  it('resume lands on the recorded step, or basics when unknown', () => {
-    expect(resumeStep({ onboarding: inProgress })).toBe('profile');
+  it('resume lands on the recorded step, or the first step when unknown', () => {
+    expect(resumeStep({ onboarding: inProgress })).toBe('setup');
     expect(resumeStep({ onboarding: { ...inProgress, step: 'review' } })).toBe('review');
-    expect(resumeStep({})).toBe('name');
+    expect(resumeStep({})).toBe('setup');
   });
 });
 
 describe('transitions', () => {
-  it('starts at the name step, open', () => {
+  it('starts at the setup step, open', () => {
     const s = startedState();
-    expect(s.step).toBe('name');
+    expect(s.step).toBe('setup');
     expect(s.completedAt).toBeNull();
   });
 
@@ -115,8 +115,8 @@ describe('transitions', () => {
   it('moving BACKWARDS rewrites the step — where you are, not how far you got', () => {
     const forward = atStep(inProgress, 'review');
     expect(forward.step).toBe('review');
-    const back = atStep(forward, 'profile');
-    expect(back.step).toBe('profile');
+    const back = atStep(forward, 'setup');
+    expect(back.step).toBe('setup');
   });
 
   it('a step change preserves startedAt', () => {
@@ -131,18 +131,18 @@ describe('transitions', () => {
   });
 
   it('transitions work from nothing', () => {
-    expect(atStep(null, 'profile').step).toBe('profile');
+    expect(atStep(null, 'setup').step).toBe('setup');
     expect(completedState(null).completedAt).toBeTruthy();
   });
 });
 
 describe('unfinishedLabel', () => {
   it('describes a situation, never a deficiency', () => {
-    expect(unfinishedLabel({ onboarding: inProgress })).toBe('Still setting up · left at your details');
+    expect(unfinishedLabel({ onboarding: inProgress })).toBe('Still setting up · just started');
     expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'review' } })).toBe(
       'Still setting up · left at Review',
     );
-    expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'name' } })).toBe(
+    expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'setup' } })).toBe(
       'Still setting up · just started',
     );
   });

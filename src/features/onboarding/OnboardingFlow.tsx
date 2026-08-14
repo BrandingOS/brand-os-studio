@@ -1,12 +1,12 @@
 /**
- * The flow shell — three screens, one brand, no wizard.
+ * The flow shell — two screens and a transition, one brand, no wizard.
  *
  * The step machine takes its authority from the BRAND, not the URL: `?step=` is
  * advisory and an out-of-range value redirects to the recorded step. That is
  * what makes resume work from a bookmark, another device, or a stale tab.
  *
- * Understanding is a TRANSITION, not a screen. It renders between the profile
- * step and the review and advances itself; the step counter never counts it.
+ * Understanding is a TRANSITION, not a screen. It renders between the setup
+ * screen and the review and advances itself; it is never a stop.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -29,8 +29,7 @@ import {
   type OnboardingStep,
 } from '@/shared/onboarding/onboardingState';
 
-import { NameStep } from './steps/NameStep';
-import { ProfileStep } from './steps/ProfileStep';
+import { SetupStep } from './steps/SetupStep';
 import { UnderstandingStage } from './steps/UnderstandingStage';
 import { ReviewStep } from './steps/ReviewStep';
 import { useOnboardingStore } from './state/onboardingStore';
@@ -48,9 +47,9 @@ import { ABOUT_ORDER, PATH_LABEL } from './understanding/proposals';
 import { VOCABULARIES } from './vocabulary/vocabularies';
 import type { AboutValue } from './review/AboutSection';
 import { detectPlatform, type BrandLink } from './review/LinksSection';
+import { suggestPalettesFor } from './data/suggestedPalettes';
+import { suggestFontsFor } from './data/suggestedFonts';
 import './onboarding.css';
-
-const STEP_INDEX: Record<OnboardingStep, number> = { name: 0, profile: 1, review: 2 };
 
 /** Resolves a stored member id back to its label, or shows the user's wording. */
 function labelOf(vocab: keyof typeof VOCABULARIES, id?: string): string | undefined {
@@ -97,11 +96,11 @@ export default function OnboardingFlow() {
   }, [slug, brand, marker, navigate]);
 
   const step: OnboardingStep = useMemo(() => {
-    if (!slug) return 'name';
+    if (!slug) return 'setup';
     const asked = sp.get('step');
     // The brand is the authority; the URL is a hint.
-    const recorded = marker?.step ?? 'name';
-    return asked === 'profile' || asked === 'review' ? (asked as OnboardingStep) : recorded;
+    const recorded = marker?.step ?? 'setup';
+    return asked === 'review' ? 'review' : recorded;
   }, [slug, sp, marker]);
 
   useEffect(() => {
@@ -142,42 +141,13 @@ export default function OnboardingFlow() {
     [brand, updateBrand, navigate, sp, liveMarker],
   );
 
-  // ── Screen 1 → create the brand ─────────────────────────────────
-  const onCreate = useCallback(
-    async (name: string) => {
-      if (gate.current) return;
-      gate.current = true;
-      setBusy(true);
-      setError(null);
-      try {
-        const created = await createBrand(buildCreateInput({ name }) as never);
-        useOnboardingStore.getState().reset();
-        const params = new URLSearchParams();
-        params.set('step', 'profile');
-        if (then) params.set('then', then);
-        navigate(`/onboard-brand/${created.slug}?${params.toString()}`, { replace: true });
-      } catch (e) {
-        setError(
-          e instanceof Error && /duplicate|unique/i.test(e.message)
-            ? 'You already have a brand with that name. Try another, or add a word to tell them apart.'
-            : "Couldn't save that just now. Your details are still here — try again.",
-        );
-        gate.current = false;
-      } finally {
-        setBusy(false);
-      }
-    },
-    [createBrand, navigate, then],
-  );
-
-  // ── Material → Library, as it arrives ───────────────────────────
-  const onUploaded = useCallback(
-    async (item: OnboardingAsset) => {
-      if (!brand) return;
+  // ── Material → Library ──────────────────────────────────────────
+  const sendToLibrary = useCallback(
+    async (brandId: string, item: OnboardingAsset) => {
       try {
         const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
         await assets.create({
-          brandId: brand.id,
+          brandId,
           name: item.name,
           type: item.kind === 'image' ? 'image' : 'document',
           category: item.isLogo ? 'logo' : 'photo',
@@ -196,26 +166,51 @@ export default function OnboardingFlow() {
         });
       }
     },
-    [brand],
+    [],
   );
 
-  // ── Screen 2 → save, then the transition ────────────────────────
-  const onProfileContinue = useCallback(
-    async (values: { description: string; website: string }) => {
-      if (!brand) return;
+  // ── Screen 1 → create the brand, then understand ────────────────
+  const onCreate = useCallback(
+    async (values: { name: string; description: string; website: string }) => {
+      if (gate.current) return;
+      gate.current = true;
       setBusy(true);
+      setError(null);
       try {
         const website = values.website.trim() ? normalizeUrl(values.website) : '';
-        await updateBrand(brand.id, {
-          onboarding: withBrief(liveMarker(), values.description),
-          ...(website ? { publicUrl: website } : {}),
+        const created = await createBrand(
+          buildCreateInput({ name: values.name, ...(website ? { website } : {}) }) as never,
+        );
+        // The brief rides on the marker rather than in `businessInfo.description`,
+        // which belongs to products and services. Two writers on one field would
+        // put the whole brief on screen as the product list.
+        await updateBrand(created.id, {
+          onboarding: withBrief(readOnboardingState(created), values.description),
         } as never);
+
+        // Material was held while the brand did not exist yet — there was
+        // nothing to attach it to. It goes to the Library now, before the
+        // review, so what the review shows is what the Library holds.
+        const held = useOnboardingStore.getState().items;
+        for (const item of held) await sendToLibrary(created.id, item);
+
+        const params = new URLSearchParams();
+        params.set('step', 'review');
+        if (then) params.set('then', then);
+        navigate(`/onboard-brand/${created.slug}?${params.toString()}`, { replace: true });
         setUnderstandingNow(true);
+      } catch (e) {
+        setError(
+          e instanceof Error && /duplicate|unique/i.test(e.message)
+            ? 'You already have a brand with that name. Try another, or add a word to tell them apart.'
+            : "Couldn't save that just now. Your details are still here — try again.",
+        );
+        gate.current = false;
       } finally {
         setBusy(false);
       }
     },
-    [brand, updateBrand, liveMarker],
+    [createBrand, updateBrand, navigate, then, sendToLibrary],
   );
 
   /** The real understanding pass. The transition observes it; it observes nothing. */
@@ -476,6 +471,12 @@ export default function OnboardingFlow() {
     };
   }, [canonical, store.items, store.confirmed, brand]);
 
+  /** What the suggesters rank against — the brand's own words, nothing else. */
+  const brandText = useMemo(
+    () => [brand?.name ?? '', liveMarker()?.brief ?? '', canonical?.businessInfo?.industry ?? ''].join('\n'),
+    [brand?.name, canonical?.businessInfo?.industry, liveMarker],
+  );
+
   const openPaths = useMemo(
     () => reviewModel.values.filter((v) => !v.decided).map((v) => v.path),
     [reviewModel.values],
@@ -493,8 +494,8 @@ export default function OnboardingFlow() {
       results: () => findings,
     });
     return (
-      <div className="onb">
-        <div className="onb-container onb-container--wide">
+      <div className="onb onb-page">
+        <div className="onb-col onb-col--wide">
           <UnderstandingStage
             brandName={brand.name}
             stages={stages}
@@ -511,30 +512,18 @@ export default function OnboardingFlow() {
 
   return (
     <div className="onb">
-      {step === 'name' && (
-        <NameStep
+      {step === 'setup' && (
+        <SetupStep
           busy={busy}
           error={error}
-          onContinue={(n) => void onCreate(n)}
+          onContinue={(v) => void onCreate(v)}
           onExit={() => navigate('/dashboard/brands')}
-        />
-      )}
-
-      {step === 'profile' && brand && (
-        <ProfileStep
-          brandName={brand.name}
-          initialDescription={liveMarker()?.brief ?? ''}
-          initialWebsite={brand.publicUrl ?? ''}
-          busy={busy}
-          onBack={() => navigate(-1)}
-          onContinue={(v) => void onProfileContinue(v)}
-          onExit={() => navigate('/dashboard/brands')}
-          onUploaded={(i) => void onUploaded(i)}
         />
       )}
 
       {step === 'review' && brand && (
-        <div className="onb-container onb-container--wide">
+        <div className="onb-page">
+          <div className="onb-col onb-col--wide">
           <ReviewStep
             brandName={brand.name}
             slogan={reviewModel.slogan}
@@ -543,11 +532,19 @@ export default function OnboardingFlow() {
             logos={reviewModel.logos}
             swatches={reviewModel.swatches}
             colorsDecided={store.confirmed.has('colors.primary')}
-            paletteSuggestions={result?.suggestions.palettes ?? []}
+            paletteSuggestions={
+              result?.suggestions.palettes.length
+                ? result.suggestions.palettes
+                : suggestPalettesFor(brandText).map((p) => ({ name: p.name, hexes: p.colors }))
+            }
             canExtract={store.items.some((a) => a.kind === 'image' && a.previewUrl)}
             fontRoles={reviewModel.fontRoles}
             fontsDecided={store.confirmed.has('typography.primary')}
-            pairings={result?.suggestions.pairings ?? []}
+            pairings={
+              result?.suggestions.pairings.length
+                ? result.suggestions.pairings
+                : suggestFontsFor(brandText).map((p) => ({ heading: p.heading, body: p.body }))
+            }
             links={reviewModel.links}
             about={{
               industry: { value: canonical?.businessInfo?.industry, vocabulary: VOCABULARIES.industry },
@@ -564,9 +561,9 @@ export default function OnboardingFlow() {
             }, "Couldn't save the slogan.")}
             onPlaceLogo={(id, slot) => store.updateItem(id, { logoSlot: slot, isLogo: true })}
             onRemoveLogo={(id) => store.removeItem(id)}
-            onUploadMore={() => void goStep('profile')}
+            onUploadMore={() => void goStep('setup')}
             onColorsLooksRight={() => void onAcceptSection(['colors.primary', 'colors.secondary'])}
-            onAddColor={() => void goStep('profile')}
+            onAddColor={() => void goStep('setup')}
             onExtractFromLogo={() => void guard(async () => {
               const img = store.items.find((a) => a.kind === 'image' && a.previewUrl);
               if (!img?.previewUrl || !brand) return;
@@ -575,8 +572,8 @@ export default function OnboardingFlow() {
                 await onEditValue('colors.primary', { hex: hexes[0] });
               }
             }, "Couldn't read the colours from that logo.")}
-            onExtractFromImage={() => void goStep('profile')}
-            onSuggestPalettes={() => void goStep('profile')}
+            onExtractFromImage={() => void goStep('setup')}
+            onSuggestPalettes={() => void goStep('setup')}
             onApplyPalette={(hexes) => void onEditValue('colors.primary', { hex: hexes[0] })}
             onRemoveColor={(id) => store.removeItem(id)}
             onFontsLooksRight={() => void onAcceptSection(['typography.primary', 'typography.secondary'])}
@@ -631,14 +628,15 @@ export default function OnboardingFlow() {
                 }, "Couldn't save that.");
               }
             }}
-            onAddSection={() => void goStep('profile')}
-            onEditSection={() => void goStep('profile')}
+            onAddSection={() => void goStep('setup')}
+            onEditSection={() => void goStep('setup')}
             onRenameAsset={(id, next) => store.updateItem(id, { name: next })}
             onRemoveAsset={(id) => store.removeItem(id)}
             onDismissProblem={() => store.setProblem(null)}
             onFinish={() => void onFinish()}
             onBack={() => navigate(-1)}
           />
+          </div>
         </div>
       )}
     </div>
