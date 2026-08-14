@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { VOCABULARIES, type VocabularyName } from '@/features/onboarding/vocabulary/vocabularies';
+import { CARDINALITY, VOCABULARIES, type VocabularyName } from '@/features/onboarding/vocabulary/vocabularies';
 
 export type PickerTarget =
   | {
@@ -45,11 +45,13 @@ export interface ValuePickerProps {
 export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps) {
   const [chosen, setChosen] = useState<string[]>([]);
   const [text, setText] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (!target) return;
     setChosen(target.vocab ? [...(target.selected ?? [])] : []);
     setText(target.text ?? '');
+    setQuery('');
   }, [target]);
 
   useEffect(() => {
@@ -64,13 +66,22 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
   if (!target || typeof document === 'undefined') return null;
 
   const isChips = Boolean(target.vocab);
-  const members = target.vocab ? VOCABULARIES[target.vocab] : [];
+  const all = target.vocab ? VOCABULARIES[target.vocab] : [];
   const single = 'single' in target ? target.single : false;
+  const max = target.vocab ? CARDINALITY[target.vocab].max : Infinity;
+  // Long vocabularies are unusable as a wall of chips — 25 industries is a
+  // search problem, not a browsing one.
+  const searchable = all.length > 12;
+  const needle = query.trim().toLowerCase();
+  const members = needle ? all.filter((m) => m.label.toLowerCase().includes(needle)) : all;
 
   const toggle = (id: string) => {
     setChosen((prev) => {
-      if (single) return prev.includes(id) ? [] : [id];
-      return prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id];
+      if (single || max === 1) return prev.includes(id) ? [] : [id];
+      if (prev.includes(id)) return prev.filter((c) => c !== id);
+      // At the cap, the newest choice replaces the oldest rather than being
+      // silently refused — a chip that does nothing when clicked reads as broken.
+      return prev.length >= max ? [...prev.slice(1), id] : [...prev, id];
     });
   };
 
@@ -80,8 +91,8 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
       return;
     }
     // Business fields and single-value Core paths hold one id, not a list.
-    if (target.kind === 'business' || single) onSave(chosen[0] ?? '');
-    else onSave(chosen);
+    if (target.kind === 'business' || single || max === 1) onSave(chosen[0] ?? '');
+    else onSave(chosen.slice(0, max));
   };
 
   return createPortal(
@@ -98,9 +109,25 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
         <div className="value-picker-body">
           {isChips ? (
             <>
+              {searchable && (
+                <input
+                  type="search"
+                  className="value-picker-search"
+                  value={query}
+                  autoFocus
+                  placeholder={`Search ${target.label.toLowerCase()}…`}
+                  aria-label={`Search ${target.label}`}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              )}
               <p className="value-picker-hint">
-                {single ? 'Pick one.' : 'Pick as many as fit.'}
+                {single || max === 1
+                  ? 'Pick one.'
+                  : `Pick up to ${max}.${chosen.length >= max ? ' The next one replaces the oldest.' : ''}`}
               </p>
+              {members.length === 0 && (
+                <p className="value-picker-hint">Nothing matches “{query}”.</p>
+              )}
               <div className="value-picker-chips">
                 {members.map((m) => {
                   const on = chosen.includes(m.id);

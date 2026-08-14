@@ -45,6 +45,15 @@ const ALL_SHUFFLE_PALETTES: string[][] = (() => {
 
 const MAX_ASSETS = 20;
 
+/**
+ * The subtitle on a typeface the product proposed rather than the brand chose.
+ *
+ * An empty Fonts section is a dead end — nothing to react to. A filled one that
+ * looks decided is worse, because the user inherits a choice they never made.
+ * So the field is never empty and the row says plainly whose choice it is.
+ */
+const SUGGESTED_FONT_SUB = 'Suggested — not confirmed';
+
 interface Group {
   id: 'fonts' | 'links' | 'assets';
   label: string;
@@ -178,7 +187,12 @@ function AssetRow({ asset, displayName, displaySub, onRename, onRemove, onMove, 
             {label}
           </button>
         )}
-        <span className="asset-sub">{displaySub ?? asset.sub}</span>
+        <span
+          className="asset-sub"
+          data-suggested={(displaySub ?? asset.sub) === SUGGESTED_FONT_SUB ? 'true' : undefined}
+        >
+          {displaySub ?? asset.sub}
+        </span>
       </div>
       <div className="asset-actions">
         <MoveMenu asset={asset} onMove={onMove} />
@@ -299,9 +313,13 @@ function FontFamilyRow({
         asset={family.lead}
         displayName={family.family}
         displaySub={
-          family.assets.length > 1
-            ? `${family.assets.length} weights · ${weightsSummary(family)}`
-            : family.lead.sub
+          // A typeface we proposed says so even when it has weights to describe,
+          // because "not confirmed" is the more important fact about it.
+          family.lead.sub === SUGGESTED_FONT_SUB
+            ? SUGGESTED_FONT_SUB
+            : family.assets.length > 1
+              ? `${family.assets.length} weights · ${weightsSummary(family)}`
+              : family.lead.sub
         }
         onRename={onRename}
         onMove={onMove}
@@ -839,6 +857,32 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
         uploadStatus: 'done',
         uploadProgress: 1,
       });
+      known.add(family);
+    }
+
+    // Nothing to show is worse than a starting point. When the brand brought no
+    // typeface, put the best-matching PAIRING up — and label it plainly as ours
+    // rather than theirs, because it is not confirmed and must not look it. The
+    // user either confirms it below or picks another.
+    if (known.size === 0) {
+      const suggestion = suggestFontsFor(brandText)[0];
+      if (suggestion) {
+        for (const family of [suggestion.heading, suggestion.body]) {
+          if (known.has(family)) continue;
+          known.add(family);
+          store.addAsset({
+            id: genId(),
+            name: family,
+            sub: SUGGESTED_FONT_SUB,
+            kind: 'font',
+            fontSource: 'google',
+            previewUrl: null,
+            uploadStatus: 'done',
+            uploadProgress: 1,
+          });
+          injectGoogleFont(family);
+        }
+      }
     }
 
     // Logo placements the classifier could evidence, and the exact duplicates
@@ -849,7 +893,7 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
     for (const id of projection.duplicateIds) store.removeAsset(id);
 
     if (projection.slogan) store.updateDefine({ slogan: projection.slogan });
-  }, [projection]);
+  }, [projection, brandText]);
 
   // Auto-extract colors once when the panel opens (only if there are no color assets yet).
   const extractedRef = useRef(false);
@@ -1770,11 +1814,16 @@ function ColorsBoard({ colors, suggestions, onToggleLock, onAdd, onUpdate, onRem
       .map((h) => h.toUpperCase())
       .filter((h, i, arr) => arr.indexOf(h) === i && !taken.has(h));
     if (pool.length === 0) return;
+    // Recolour the swatches that are free, then ADD whatever is left over.
+    // Only replacing meant a brand holding one colour got one colour back and
+    // the rest of the palette was silently dropped — picking a palette has to
+    // give you the palette.
     unlocked.forEach((c, i) => {
-      const hex = pool[i % pool.length];
+      const hex = pool[i];
       if (!hex) return;
       onUpdate(c.id, hex);
     });
+    for (const hex of pool.slice(unlocked.length)) onAdd(hex);
   };
 
   const handleShuffle = () => {

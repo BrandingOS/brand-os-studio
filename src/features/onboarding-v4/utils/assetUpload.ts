@@ -612,9 +612,13 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
           const isNeutral = spread < 14;
 
           if (isNeutral) {
-            // Deliberate neutral swatches occupy a real share of a palette
-            // image; tiny shares are edge noise, huge shares are backgrounds.
-            if (share < 0.08 || share > 0.6) continue;
+            // Tiny shares are edge noise. The upper bound used to be 0.6, on the
+            // reasoning that a dominant neutral is a background — true of a
+            // palette image, wrong of a logo, where a dominant black IS the
+            // mark. A black wordmark was being discarded and the brand came back
+            // without one of its actual colours. Neutrals still sort after
+            // chromatics, so admitting them costs nothing but a swatch.
+            if (share < 0.04 || share > 0.94) continue;
           } else if (share < 0.02) {
             continue;
           }

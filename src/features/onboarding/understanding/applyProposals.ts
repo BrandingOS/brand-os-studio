@@ -21,6 +21,7 @@ import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
 import { changeBrandVisualStyle } from '@/application/brand/changeBrandVisualStyle';
 import { changeBusinessInfo } from '@/application/brand/changeBusinessInfo';
 import type { StyleDescriptor } from '@/domain/brand/identity';
+import { CARDINALITY } from '../vocabulary/vocabularies';
 import type { BusinessFacts, Proposal } from './proposals';
 
 /** The one actor onboarding's interpretation ever writes as. */
@@ -176,7 +177,11 @@ export async function applyProposals(
       await changeBrandVisualStyle(
         repo,
         brandId,
-        { descriptors: style.value as StyleDescriptor[] },
+        // Capped here as well as in the picker. A style list is a decision, and
+        // twelve of them is the absence of one — a brand described as modern,
+        // minimal, bold, geometric, artisanal, corporate, technical, futuristic,
+        // retro, classic, organic and playful has said nothing.
+        { descriptors: (style.value as StyleDescriptor[]).slice(0, CARDINALITY.style.max) },
         { actor, provenance: override?.provenance ?? style.provenance },
       );
       applied.push('visualStyle.descriptors');

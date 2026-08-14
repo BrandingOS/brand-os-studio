@@ -127,10 +127,26 @@ export function LogoSlots({ assets }: Props) {
 
   // Memoized: the auto-router effect depends on this list, and the router can
   // itself add a slot — a fresh array every render would re-trigger it.
-  const visibleSlots: LogoSlot[] = useMemo(
-    () => [...DEFAULT_SLOTS, ...extraSlots.filter((s) => !DEFAULT_SLOTS.includes(s))],
-    [extraSlots],
-  );
+  //
+  // A slot that HOLDS a logo is always visible, whether or not anyone asked for
+  // it. Without that, classification could place five marks and the board still
+  // showed two — the header counted them and the tiles did not exist, which is
+  // the worst version of "where did my upload go?".
+  const filledSlots = useMemo(() => {
+    const seen: LogoSlot[] = [];
+    for (const a of assets) {
+      if (a.kind === 'image' && a.logoSlot && !seen.includes(a.logoSlot)) seen.push(a.logoSlot);
+    }
+    return seen;
+  }, [assets]);
+
+  const visibleSlots: LogoSlot[] = useMemo(() => {
+    const out = [...DEFAULT_SLOTS];
+    for (const s of [...extraSlots, ...filledSlots]) {
+      if (!out.includes(s)) out.push(s);
+    }
+    return out;
+  }, [extraSlots, filledSlots]);
 
   /** Upload a single file to a specific slot. Replaces any existing asset there. */
   const uploadToSlot = useCallback(

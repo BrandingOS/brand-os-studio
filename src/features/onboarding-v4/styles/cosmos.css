@@ -3661,6 +3661,23 @@
 }
 .value-picker-x:hover { color: var(--ds-text); background: var(--ds-surface-hover); }
 .value-picker-body { padding: 14px 18px 18px; overflow-y: auto; }
+.value-picker-search {
+  width: 100%;
+  margin-bottom: 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ds-text);
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  padding: 9px 12px;
+}
+.value-picker-search:focus {
+  outline: none;
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+
 .value-picker-hint {
   margin: 0 0 10px;
   font-size: 12px;
@@ -3723,4 +3740,41 @@
   background: var(--ds-accent);
   color: var(--ds-accent-fg);
   font-weight: 600;
+}
+
+
+/* ── The summary row reads as editable, because it is ──────────────────
+   Name, slogan, industry and style were four pieces of plain-looking text.
+   Nothing said they could be changed, and nothing said which was which. Each
+   now carries a hover affordance, and the tags carry a caret so they read as
+   openable rather than as decoration. */
+[data-onboarding="cosmos"] .review-brandbar {
+  align-items: center;
+  gap: 8px 10px;
+}
+[data-onboarding="cosmos"] button.review-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-onboarding="cosmos"] button.review-tag::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  opacity: 0.5;
+}
+[data-onboarding="cosmos"] button.review-tag:hover::after { opacity: 1; }
+
+/* A font the brand did not choose says so, and does not look decided. */
+[data-onboarding="cosmos"] .asset-sub[data-suggested='true'] {
+  color: var(--ds-warning-fg);
+  font-weight: 550;
 }

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { normalize, normalizeMany, splitList, storedValue, displayValue } from '../normalize';
-import { INDUSTRY, PERSONALITY, STYLE, TONE, VALUES, VOCABULARIES } from '../vocabularies';
+import { CARDINALITY, INDUSTRY, PERSONALITY, STYLE, TONE, VALUES, VOCABULARIES } from '../vocabularies';
 
 describe('every member round-trips', () => {
   it('resolves its own label and its own id', () => {
@@ -86,5 +86,28 @@ describe('lists', () => {
 
   it('drops empty entries rather than emitting a blank Other', () => {
     expect(normalizeMany(['Quality', '', '  '], VALUES).map(storedValue)).toEqual(['quality']);
+  });
+});
+
+describe('cardinality is a real limit, not a suggestion', () => {
+  // A brand described as modern, minimal, bold, geometric, artisanal, corporate,
+  // technical, futuristic, retro, classic, organic and playful has said nothing.
+  // Twelve styles reached the review once; the cap is enforced at every point a
+  // value can enter.
+  it('caps a style list at three', () => {
+    const many = [
+      'Modern', 'Minimal', 'Bold', 'Geometric', 'Artisanal',
+      'Corporate', 'Technical', 'Futuristic', 'Retro',
+    ];
+    expect(normalizeMany(many, STYLE, CARDINALITY.style.max)).toHaveLength(3);
+  });
+
+  it('keeps the first three — what was said first is what was meant most', () => {
+    const out = normalizeMany(['Modern', 'Minimal', 'Bold', 'Retro'], STYLE, CARDINALITY.style.max);
+    expect(out.map(storedValue)).toEqual(['modern', 'minimal', 'bold']);
+  });
+
+  it('holds tone to one', () => {
+    expect(normalizeMany(['Calm', 'Direct'], TONE, CARDINALITY.tone.max)).toHaveLength(1);
   });
 });
