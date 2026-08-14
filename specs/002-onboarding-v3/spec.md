@@ -309,10 +309,9 @@ different session, finish, and verify the return destination.
   concepts were populated.
 - **FR-005**: Repeated activation of any step — a rapid second click, a retry after
   a recoverable error, a re-entry into the flow — MUST NOT produce a second brand.
-- **FR-043**: The flow MUST consist of exactly four screens — brand name, brand and
-  business profile, bring what you have, review — with understanding presented as a
-  transition between the third and fourth, never as a fifth screen or a step in the
-  count.
+- **FR-043**: The flow MUST consist of exactly three screens — brand name; then
+  describe-and-bring; then review — with understanding presented as a transition
+  between the second and third, never as a fourth screen or a step in the count.
 
 #### Screen 1 — Brand name
 
@@ -320,6 +319,9 @@ different session, finish, and verify the return destination.
 - **FR-044**: The first screen MUST ask for the brand name and nothing else, and its
   title MUST plainly state that a brand is being set up. Ambiguous framing such as
   "What are we building?" is not acceptable.
+- **FR-074**: The first screen MUST use the approved split layout — the BrandingOS
+  mark large on the left, the name form on the right — expressed in the canonical
+  Design System's existing visual language. No new form layout may be invented.
 - **FR-007**: Naming the brand MUST create the brand record, and every subsequent
   step MUST write to that record through the Foundation's authorities.
 - **FR-008**: A brand created by this step MUST be valid and usable even if the user
@@ -328,7 +330,10 @@ different session, finish, and verify the return destination.
   MUST be visible, resumable and deletable from wherever the user's brands are
   listed.
 
-#### Screen 2 — Brand and business profile
+#### Screen 2 — Describe your brand, and bring what you have
+
+> One screen. The description surface, the upload area and the website field all
+> live together, exactly as they did in the retired flow (FR-075).
 
 - **FR-011**: The flow MUST accept an optional free-form description of the brand,
   in a large writing surface, and MUST NOT require it.
@@ -352,8 +357,9 @@ different session, finish, and verify the return destination.
   information naturally, and the system MUST parse whatever they provide into the
   same structured model.
 
-#### Screen 3 — Bring what you have
-
+- **FR-075**: The description surface, the upload area and the website field MUST
+  appear on this one screen, reusing the retired flow's components and styling
+  rather than a redesign of those fields.
 - **FR-012**: The flow MUST accept brand material as files, folders and archives, by
   both drag-and-drop and an explicit picker.
 - **FR-050**: The flow MUST accept an optional website address on this screen.
@@ -422,13 +428,16 @@ different session, finish, and verify the return destination.
 
 - **FR-022**: The review MUST present everything the system understood, grouped, and
   MUST be reachable before any of it rises above suggestion.
-- **FR-062**: The review MUST be built on the retired flow's "Review your uploads"
-  interface as its visual and interaction base — improved, wider, cleaner and less
-  vertically cramped — and MUST NOT be replaced by a different card model.
+- **FR-062**: The review MUST use the retired flow's "Review your uploads" page as
+  its foundation **as-is** — its card stack, brand bar, section heads and footers —
+  improved only where necessary (wider, cleaner, less vertically cramped). It MUST
+  NOT be replaced by a different card or review concept.
 - **FR-063**: The review MUST open with a brand summary carrying the name, slogan,
   industry and style.
-- **FR-064**: The review MUST be organised into exactly these sections: Logos,
-  Colors, Fonts, Brand Profile, Online, Files.
+- **FR-064**: The review MUST keep the retired flow's section composition and order
+  — brand bar, then **Logos · Colors · Fonts · Links · About · Brand Assets** — and
+  MUST NOT be reorganised into a different set. About is extended to carry the
+  structured brand profile (FR-068); every other section is improved in place.
 - **FR-065**: Logos MUST be automatically classified into primary, wordmark, mark,
   on-light, on-dark, horizontal and vertical roles wherever the evidence supports
   it; exact duplicates MUST be ignored; near-duplicate variants MUST be grouped
@@ -442,14 +451,17 @@ different session, finish, and verify the return destination.
 - **FR-067**: Typefaces MUST resolve by source priority: uploaded or known fonts
   first. When there are none, the review MUST offer suggested typography as **font
   pairings**, never as unrelated individual fonts.
-- **FR-068**: In Brand Profile, categorical concepts — industry, style, personality,
-  tone, values — MUST be presented as selections from the controlled vocabularies,
-  and concepts whose meaning lives in the wording — summary, audience, positioning,
-  mission — MUST be presented as concise text. Meaningful prose MUST NOT be
-  converted into artificial dropdowns.
-- **FR-069**: Online MUST carry the website and relevant social links only, and the
-  user MUST be able to add, edit and remove a link. Files MUST carry the remaining
-  Library material — documents, decks, references, imagery.
+- **FR-068**: The About section MUST carry the structured brand profile. Categorical
+  concepts — industry, style, personality, tone, values — MUST be presented as
+  selections from the controlled vocabularies; concepts whose meaning lives in the
+  wording — summary, products and services, audience, positioning, mission — MUST be
+  presented as concise text. Meaningful prose MUST NOT be converted into artificial
+  dropdowns. The retired About group's free-form authored sections MUST survive
+  alongside the structured fields.
+- **FR-069**: Links MUST carry the website and social links only, and the user MUST
+  be able to add, edit and remove a link. Brand Assets MUST carry the remaining
+  Library material — documents, decks, references, imagery — including anything
+  that could not be placed.
 - **FR-023**: The user MUST be able to accept, correct, re-place, rename or remove
   any proposal or item.
 - **FR-024**: The review MUST make it apparent which values were proposed by the
@@ -797,7 +809,18 @@ at plan time without an explicit amendment.
   distinct Core concept — the market category a brand competes in — and is not a
   second home for industry.
 
-## Open Decision — requires owner approval before implementation
+## Resolved — approved 2026-08-14
+
+- **The visual-style vocabulary — APPROVED to widen**, and to be made comprehensive
+  and logical enough to support later filtering and recommendation, not merely to
+  cover the five names originally requested. Recorded as FR-047 and SC-013.
+- **`BrandMark` gains `activeNodes` — APPROVED.** The real mark animates
+  progressively during processing; the logo geometry is NOT duplicated anywhere.
+- **The published design artifact is a reference checkpoint only.** Implementation
+  takes the retired flow's UI and components as its real visual foundation, with the
+  V3 architecture underneath. Recorded as FR-062, FR-072, FR-074 and FR-075.
+
+<details><summary>Superseded framing of the style question</summary>
 
 - **The visual-style vocabulary.** The requested style options include Modern,
   Classic, Editorial, Brutalist and Futuristic. The Foundation's `StyleDescriptor`
@@ -811,3 +834,5 @@ at plan time without an explicit amendment.
   options the revision explicitly asked for. **Recommendation: widen the union.**
   This is the only Foundation change R1 requires, and it is not started without
   approval.
+
+</details>

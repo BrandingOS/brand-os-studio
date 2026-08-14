@@ -246,13 +246,13 @@ export function planStages(input: UnderstandingInput): Stage[];
 
 ## 12. Revised URL contract
 
-§1's three steps become four:
+§1's step vocabulary is renamed; the count stays three:
 
 ```text
-/onboard-brand                       → name
-/onboard-brand/:slug?step=profile    → profile
-/onboard-brand/:slug?step=material   → material   (understanding runs on leaving)
-/onboard-brand/:slug?step=review     → review
+/onboard-brand                       → name      (split layout)
+/onboard-brand/:slug?step=profile    → profile   (describe + upload + website)
+                                                 (understanding runs on leaving)
+/onboard-brand/:slug?step=review     → review    (the retired review page)
 ```
 
 Unchanged: the brand is the authority and `?step=` is advisory; an out-of-range

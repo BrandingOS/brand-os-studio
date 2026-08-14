@@ -44,14 +44,14 @@ The work divides cleanly into five buckets:
 
 | Bucket | Nature | Touches the write pipeline? |
 |---|---|---|
-| **A. Screen split + shell** — four screens, name alone on the first | Restructure | Step vocabulary only |
+| **A. Screen split + shell** — three screens, name alone on the first | Restructure | Step vocabulary only |
 | **B. The brief** — description surface, Build-with-AI helper, prompt, reverse-parse | New | No — feeds `interpret` |
 | **C. Vocabularies** — closed lists + normalisation for industry/style/personality/tone/values | New | Values only; same ops |
 | **D. Processing moment** — 9-dot symbol, real stages, real findings, minimum beat | New | No — observes existing work |
-| **E. Review rebuild** — six sections on the old layout, logo classification, source priority | Rebuild | No — same ops, richer surface |
+| **E. Review extension** — the OLD review page as-is, About grown structured, logo classification, source priority | Extend | No — same ops, richer surface |
 
-Only **C** raises a Foundation question, and it is additive and unstarted — see
-§9b. Everything else composes over what already exists.
+Only **C** touches the Foundation, additively and with owner approval — see §9b.
+Everything else composes over what already exists.
 
 The governing constraint is Principle IX: R1 restores a proven interface rather
 than inventing a third one. Where the retired code was good it comes back; where it
@@ -85,7 +85,7 @@ floor on the *screen*, never a delay inserted into the work.
 persistence; no new generic UI control where a DS primitive exists; no new visual
 language.
 
-**Scale/Scope (R1)**: 4 screens, ~14 new files, ~6 files restored from git history,
+**Scale/Scope (R1)**: 3 screens, ~12 new files, ~6 files restored from git history,
 ~4 files deleted, 0 new migrations.
 
 ---
@@ -101,7 +101,7 @@ language.
 | III — Structured Core | Values structured, not prose | **Strengthened.** The vocabularies replace free text in exactly the places where free text was unusable, and FR-068 forbids converting meaningful prose into fake dropdowns. |
 | IV — Six concepts distinct | No blurring | **Pass.** Industry and slogan go to Business Info, not Core; `positioning.category` stays a distinct Core concept. FR-030 still enforced by test. |
 | V — AI proposes, human disposes | No silent promotion | **Pass.** Unchanged. Open questions are *asked*, never auto-answered; an answer is a user edit and confirms that value. |
-| VI — Calm surface | Shallow navigation | **Pass.** Four screens, one job each. Progressive questions replace the questionnaire FR-055 forbids. |
+| VI — Calm surface | Shallow navigation | **Pass.** Three screens. Progressive questions replace the questionnaire FR-055 forbids. |
 | VII — Never trapped | Skip / leave / resume | **Pass.** Name is still the only required input. Every open question is skippable. |
 | VIII — Outputs match their nature | Each output in its right form | **N/A.** Onboarding produces no output — FR-030 forbids every deliverable, and a test enforces it. Recorded rather than omitted. |
 | IX — Evolve, don't rewrite | Reuse + stated deletion criterion | **Pass, and this is R1's core rationale.** §6a lists what is restored from git history rather than re-authored. FR-073 states the deletion criterion. |
@@ -118,13 +118,12 @@ No complexity-tracking entries.
 
 ```text
 src/features/onboarding/
-├── OnboardingFlow.tsx                # shell: 4-step machine, ?then=, resume, guards
+├── OnboardingFlow.tsx                # shell: 3-step machine, ?then=, resume, guards
 ├── steps/
-│   ├── NameStep.tsx                  # NEW  screen 1 — name only, creates the brand
-│   ├── ProfileStep.tsx               # NEW  screen 2 — description + Build-with-AI
-│   ├── MaterialStep.tsx              # REBUILT screen 3 — dropzone + website, limits
+│   ├── NameStep.tsx                  # NEW  screen 1 — split layout, name only, creates the brand
+│   ├── ProfileStep.tsx               # NEW  screen 2 — describe + Build-with-AI + dropzone + website
 │   ├── UnderstandingStage.tsx        # NEW  the processing moment (a transition)
-│   └── ReviewStep.tsx                # REBUILT screen 4 — six sections
+│   └── ReviewStep.tsx                # EXTENDED screen 3 — the old review, About grown
 ├── brief/
 │   ├── prompt.ts                     # NEW  the Build-with-AI prompt builder
 │   ├── BuildWithAI.tsx               # NEW  copy / open in ChatGPT / open in Claude
@@ -143,11 +142,12 @@ src/features/onboarding/
 │   ├── acceptance.ts                 # kept — still the only promoter
 │   ├── createBrand.ts · finish.ts    # kept
 │   └── hydrate.ts                    # EXTENDED six sections
-├── review/                           # NEW  the six section components
-│   ├── BrandSummaryBar.tsx           # name · slogan · industry · style
+├── review/                           # the OLD review's sections, ported + extended
+│   ├── ReviewCard.tsx                # the retired `.review-group` shell, as-is
+│   ├── BrandBar.tsx                  # the retired brand bar — name – slogan (editable)
 │   ├── LogosSection.tsx · ColorsSection.tsx · FontsSection.tsx
-│   ├── ProfileSection.tsx · OnlineSection.tsx · FilesSection.tsx
-│   └── ReviewCard.tsx                # the shared section shell (head + count + foot)
+│   ├── LinksSection.tsx · AssetsSection.tsx
+│   └── AboutSection.tsx              # the retired About group + the structured profile
 ├── data/                             # RESTORED from git history (see §6a)
 │   ├── suggestedPalettes.ts · popularPalettes.ts · colorHuntPalettes.ts
 │   ├── suggestedFonts.ts · socialPlatforms.tsx
@@ -155,13 +155,13 @@ src/features/onboarding/
 ├── state/onboardingStore.ts          # transient UI only
 └── onboarding.css                    # EXTENDED — --ds-* only
 
-DELETED by R1: steps/BasicsStep.tsx, understanding/directions.ts,
-                any remaining branch vocabulary
+DELETED by R1: steps/BasicsStep.tsx, steps/MaterialStep.tsx (absorbed into
+                ProfileStep), understanding/directions.ts, branch vocabulary
 ```
 
 **Structure Decision**: `review/` becomes its own folder because the six sections
-are substantial and share one card shell; keeping them in `components/` alongside
-the flow-level pieces would obscure that. `brief/` and `vocabulary/` are separated
+are substantial and share one card shell — the retired `UploadsReviewPanel` was
+2,179 lines in a single file, which is precisely what not to restore. `brief/` and `vocabulary/` are separated
 from `understanding/` because they are pure and independently testable — the brief
 parser and the normaliser have no knowledge of Core paths.
 
@@ -172,21 +172,19 @@ parser and the normaliser have no knowledge of Core paths.
 ### The flow
 
 ```text
-/onboard-brand                        Name       brand name, nothing else
-        │  naming CREATES the brand (FR-007)
+/onboard-brand                        Name       split layout — mark left, name right
+        │  naming CREATES the brand (FR-007, FR-074)
         ▼
-/onboard-brand/:slug?step=profile     Profile    description · Build with AI
-        ▼
-/onboard-brand/:slug?step=material    Material   files · folders · website
-        │
+/onboard-brand/:slug?step=profile     Profile    describe · Build with AI ·
+        │                                        dropzone · website  (one screen, FR-075)
         ├─ understanding runs ─▶  UnderstandingStage   (a transition, not a step)
         ▼
-/onboard-brand/:slug?step=review      Review     six sections · Open my brand
+/onboard-brand/:slug?step=review      Review     the OLD review page · Open my brand
         ▼
 /b/:slug/setup   or   ?then= destination
 ```
 
-`ONBOARDING_STEPS` becomes `['name', 'profile', 'material', 'review']`. An
+`ONBOARDING_STEPS` becomes `['name', 'profile', 'review']`. An
 unrecognised recorded step degrades to `'name'` — the helper already degrades
 rather than throws, so this is a vocabulary change, not a behaviour change.
 
@@ -385,7 +383,7 @@ read default in `coreValueMeta` was left untouched, human writes still record
 `provisional`, a system write over a settled value still demotes, and INV-3 is
 unchanged. Shipped with five focused tests. **No further action.**
 
-## 9b. The one Foundation question R1 raises — NOT APPROVED, NOT STARTED
+## 9b. The Foundation touch R1 requires — APPROVED 2026-08-14
 
 `identity.ts` declares:
 
@@ -408,20 +406,25 @@ Evidence gathered before proposing anything:
   migration, no default change, nothing to backfill. Existing values stay valid.
 - Exactly two files change: `identity.ts` and `invariants.ts`.
 
-**Options:**
+**Approved 2026-08-14**, and widened in scope by the owner: the vocabulary is to be
+made *comprehensive and logical enough to support later filtering and
+recommendation*, not merely extended by the five names originally requested.
 
-| | Effect |
+The approved set is **17 members**, each a distinct, filterable axis with no
+synonym pairs:
+
+| Group | Members |
 |---|---|
-| **A. Widen the union** *(recommended)* | The vocabulary the revision asked for, stored as typed members. Two-file additive change. |
-| **B. Constrain to the existing eight** | Zero Foundation change; drops Modern, Classic, Editorial, Brutalist and Futuristic from the product's style language. |
+| Reduction | `minimal` · `maximal` |
+| Era | `modern` · `classic` · `retro` · `futuristic` |
+| Register | `elegant` · `luxury` · `bold` · `playful` |
+| Form | `organic` · `geometric` · `brutalist` |
+| Discipline | `editorial` · `technical` · `corporate` · `artisanal` |
 
-Recommendation **A**, on the grounds that a closed vocabulary that cannot express
-the product's own style language is a defect in the vocabulary rather than a
-constraint to design around, and that this is the smallest possible shape of
-change. **Blocked pending owner approval; no task starts it.**
-
-If **B** is chosen instead, only `vocabulary/vocabularies.ts` changes and the
-review's style chips shrink to eight — nothing else in R1 moves.
+All eight existing members survive unchanged; nine are added. Two candidate members
+were deliberately rejected: `illustrative` (belongs to the existing
+`visualStyle.imageryStyle` field — adding it here would blur two fields) and
+`energetic`/`serene` (mood, which `voice.tone` already owns).
 
 ---
 
@@ -504,7 +507,7 @@ All three layers, per the repo's binding policy. R1's additions:
   `CopyPromptHint` used the shadcn `Popover` directly; `BuildWithAI` uses `DsMenu`
   instead, so R1 removes a frozen-layer import rather than adding one.
 
-### 11a. The one proposed DS change — `BrandMark` gains a per-node activation mode
+### 11a. The approved DS change — `BrandMark` gains a per-node activation mode
 
 The processing moment needs the nine dots individually addressable: the centre
 steady from the start, each outer node lighting as its stage completes, with
@@ -519,14 +522,15 @@ strings, in the same viewBox. Three options were weighed:
 | Add an `activeNodes` prop to `BrandMark` | **Proposed.** Generic ("light a subset of the mark's nodes"), product-agnostic, and the mark is already the DS's loader. |
 | Build the whole moment inside the DS | **Rejected.** `DsOnboardingProcessing` would be a feature-named component in the DS — explicitly forbidden. |
 
-**Proposal**: extend `BrandMark` with an optional `activeNodes?: number[]` (and the
+**Approved 2026-08-14**: extend `BrandMark` with an optional `activeNodes?: number[]` (and the
 existing `loading` unchanged), keeping every current call site byte-identical. The
 onboarding-specific composition — stage copy, findings, connections, the beat —
 stays in the feature-local `UnderstandingMark`. This is rung **C** of the ladder
 (extend, because the missing capability genuinely belongs to that abstraction),
 not rung D.
 
-Stated here rather than added silently, per §8 of the UI reuse policy.
+Stated rather than added silently, per §8 of the UI reuse policy. The owner's
+instruction is explicit: **do not duplicate the logo geometry anywhere.**
 
 ### 11b. Restored visual anatomy
 
@@ -552,18 +556,18 @@ bug the smoke pass caught on 2026-08-14.
 Each phase is independently demonstrable, and nothing later depends on a decision
 from §9b except the style chips.
 
-1. **Shell + screen split** — four-step vocabulary, `NameStep`, `ProfileStep`,
-   guards, resume, `?then=`. Delete `BasicsStep`.
-2. **Vocabularies + normalisation** — pure, fully unit tested. *(Style list depends
-   on §9b; every other list is unblocked.)*
+1. **Shell + screen split** — three-step vocabulary, `NameStep` (split layout),
+   `ProfileStep` (describe + dropzone + website), guards, resume, `?then=`.
+   Delete `BasicsStep` and `MaterialStep`.
+2. **Vocabularies + normalisation** — pure, fully unit tested. Style list per §9b.
 3. **The brief** — `prompt.ts`, `BuildWithAI`, `parseBrief`, detection.
 4. **Adaptive understanding** — routing, `sources.ts`, vocabulary normalisation
    into proposals, `questions.ts`.
-5. **Material step** — dropzone restored, website field, FR-051 limits.
+5. **Material intake** — dropzone restored into `ProfileStep`, website field, limits.
 6. **Logo classification** — dedupe, variant grouping, evidence-only roles.
 7. **The processing moment** — `stages.ts`, `UnderstandingMark`, the beat.
-8. **Review rebuild** — `ReviewCard`, the six sections, brand summary bar, open
-   questions inline, "Open my brand".
+8. **Review extension** — the retired review page ported as-is, then About grown to
+   carry the structured profile, open questions inline, "Open my brand".
 9. **Retirement** — delete `directions.ts` and the branch remnants; verify one
    implementation per screen (FR-073); full gate.
 
@@ -577,7 +581,7 @@ from §9b except the style chips.
 | Vocabulary normalisation silently mangles a user's wording | `Other` preserves the original text verbatim; never coerced. Asserted by test. |
 | The processing moment becomes theatre | Stages are constructed only from scheduled work, so unheld copy is unrepresentable. SC-014 tests it. |
 | The minimum beat reads as a fake delay | 1.2s is a floor applied after the work resolves, and only when the work was faster. Never additive to real work. |
-| §9b is declined late, after style chips are built | Phase 2 is ordered before the review; if B is chosen only the list constant changes. |
+| The review port drifts into a redesign | FR-062 makes the retired page the foundation *as-is* and FR-064 fixes the section composition; the port is diffed against `904801a^` at review. |
 | The review rebuild reintroduces the mobile sticky-CTA overlap | The bottom-padding allowance is carried forward explicitly (§11b) and covered by the existing mobile smoke step. |
 | Migration 022 still undeployed | Unchanged from the shipped design: absence is tolerated, resume degrades, no save fails. T081 stays blocked on the owner's deploy. |
 
@@ -592,7 +596,7 @@ from §9b except the style chips.
 | III | Categorical concepts become closed vocabularies; FR-068 protects prose from fake dropdowns | **Pass (strengthened)** |
 | IV | Industry/slogan → Business Info; `positioning.category` stays distinct; FR-030 guard unchanged | **Pass** |
 | V | Acceptance module untouched; an answered question is a user edit, which confirms | **Pass** |
-| VI | Four screens; questions are progressive, never a questionnaire | **Pass** |
+| VI | Three screens; questions are progressive, never a questionnaire | **Pass** |
 | VII | Name still the only required input; every question skippable; "Open my brand" always enabled | **Pass** |
 | IX | §6a restores six proven files from git rather than re-authoring; §6d states what dies | **Pass** |
 | X | §11 pre-flight complete; one DS extension proposed openly (§11a), no new DS component | **Pass** |
@@ -604,10 +608,7 @@ No violations. Complexity tracking remains empty.
 
 ## 15. Ready for `/speckit-tasks`
 
-Phase 0 and Phase 1 artifacts are current. Two decisions are open, both stated, and
-neither blocks task generation:
-
-- **§9b** — the style vocabulary. Affects one constant and two Foundation lines.
-- **§11a** — the `BrandMark` extension. Affects one DS component additively.
-
-Both are surfaced for approval alongside the design artifact.
+Phase 0 and Phase 1 artifacts are current. Both previously-open decisions were
+**approved on 2026-08-14** (§9b the style vocabulary, §11a the `BrandMark`
+extension), so no task is blocked. Implementation waits only on visual approval of
+the design checkpoint.

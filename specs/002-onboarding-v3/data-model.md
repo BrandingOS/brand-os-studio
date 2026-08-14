@@ -180,7 +180,7 @@ the revision entirely:
 
 | Field | Change |
 |---|---|
-| `step` | vocabulary becomes `'name' \| 'profile' \| 'material' \| 'review'` |
+| `step` | vocabulary becomes `'name' \| 'profile' \| 'review'` — three screens (FR-043) |
 | `branch` | **removed** — FR-002 retires self-classification |
 | `brief` | **added** — the raw profile text, so resume on another device still has it |
 | `startedAt` · `completedAt` · `placeholders` | unchanged |
@@ -259,16 +259,19 @@ industry answer.
 
 ## 10. Review sections — revised
 
-§4's five sections are superseded by six (FR-064):
+§4's five proposal sections are superseded by the retired page's own composition:
+
+The retired page's composition and order are kept (FR-064):
 
 | Section | Carries | Confirmable |
 |---|---|---|
+| *(brand bar)* | name, slogan, industry, style | slogan/industry/style save on edit |
 | Logos | `logos.*` references | placement, not a Core statement |
 | Colors | `colors.*` | yes |
 | Fonts | `typography.*` | yes |
-| Brand Profile | `strategy.*`, `voice.*`, `visualStyle.*`, plus Business Info facts | Core values yes; business facts save on edit |
-| Online | `businessInfo.contact.website`, `businessInfo.links` | no |
-| Files | Library items with no other placement | no |
+| Links | `businessInfo.contact.website`, `businessInfo.links` | no |
+| About | `strategy.*`, `voice.*`, `visualStyle.*`, the retired free-form sections, plus Business Info facts | Core values yes; business facts save on edit |
+| Brand Assets | Library items with no other placement | no |
 
 A section mixing confirmable and non-confirmable values is not exposed as such:
 FR-070 forbids the interface from explaining the model. "Looks right" simply
