@@ -37,13 +37,13 @@ import { container } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS } from '@/core/types/services';
 import type { IBrandContextService } from '@/core/services/IBrandContextService';
 import type { Brand } from '@/shared/types/brand';
-import { placeholderPaths } from '@/shared/onboarding/onboardingState';
+import { atStep, placeholderPaths, readOnboardingState, resumeStep } from '@/shared/onboarding/onboardingState';
 import { UnderstandingStage } from '@/features/onboarding/steps/UnderstandingStage';
 import { planStages, findingsFrom, type Finding } from '@/features/onboarding/understanding/stages';
 import { groupFontFamilies } from '@/features/onboarding/understanding/fonts';
 import { classifyLogos } from '@/features/onboarding/understanding/logoClassify';
 import { looksLikeBrief } from '@/features/onboarding/brief/parseBrief';
-import { fingerprint } from '@/features/onboarding/understanding/imageFingerprint';
+import { fingerprint, type Print } from '@/features/onboarding/understanding/imageFingerprint';
 import {
   brandRepository,
   createBrand as createTheBrand,
@@ -102,6 +102,7 @@ export function SetUpScreen() {
 
   const createBrand = useBrandStore((s) => s.create);
   const updateBrand = useBrandStore((s) => s.update);
+  const brands = useBrandStore((s) => s.list);
   const userId = useSessionStore((s) => s.user?.id);
 
   const [busy, setBusy] = useState(false);
@@ -114,7 +115,7 @@ export function SetUpScreen() {
    * Rendering eight images to a canvas on every projection would be wasteful,
    * and the artwork does not change while the review is open.
    */
-  const printsRef = useRef<Map<string, string | null>>(new Map());
+  const printsRef = useRef<Map<string, Print | null>>(new Map());
 
   // `busy` disables the CTA only after the next render — a second click in the
   // same tick still reaches submit and created a DUPLICATE brand. The ref is
@@ -136,8 +137,21 @@ export function SetUpScreen() {
     // the address rather than leaving it lying about where the user is.
     if (askedStep === 'details' && !define.name.trim()) {
       navigate('/onboard-brand' + (then ? `?then=${encodeURIComponent(then)}` : ''), { replace: true });
+      return;
     }
-  }, [askedStep, slug, define.name, setupPanel, setSetupPanel, navigate, then]);
+    // Resuming an unfinished brand — `/onboard-brand/:slug` with no step named.
+    // The brand's own marker knows where its owner stopped, so the address is
+    // corrected to that step rather than dropping them at the first panel with
+    // their review already built and invisible. A brand that never got past the
+    // setup panel has nothing durable to restore and stays where it is.
+    if (slug && !askedStep) {
+      const resuming = brands.find((b) => b.slug === slug);
+      if (resuming && resumeStep(resuming) === 'review') {
+        const qs = then ? `?step=review&then=${encodeURIComponent(then)}` : '?step=review';
+        navigate(`/onboard-brand/${slug}${qs}`, { replace: true });
+      }
+    }
+  }, [askedStep, slug, define.name, setupPanel, setSetupPanel, navigate, then, brands]);
 
   /** Moves to a panel BY navigating, so history and the URL cannot disagree. */
   const goToPanel = useCallback(
@@ -193,7 +207,6 @@ export function SetUpScreen() {
    * cannot be restored is the transient upload list, so the logo board comes
    * back empty; the Library still holds the files.
    */
-  const brands = useBrandStore((s) => s.list);
   const updateDefine = useV4Store((s) => s.updateDefine);
   useEffect(() => {
     if (!slug || brand?.slug === slug) return;
@@ -357,6 +370,27 @@ export function SetUpScreen() {
     await refresh(brand);
   }, [brand, updateBrand, refresh, define.description, extractColours]);
 
+  /**
+   * Records that the user is standing on the review.
+   *
+   * Until this is written the brand's marker still says `setup`, so leaving
+   * without finishing sent the user back to a blank name panel while a fully
+   * built review sat on the record. The marker is read LIVE from the store
+   * rather than from the `brand` captured at create time — understanding has
+   * written to it in between, and a stale copy would put the placeholders back.
+   */
+  const recordAtReview = useCallback(
+    async (b: Brand) => {
+      const live = useBrandStore.getState().list.find((x) => x.id === b.id) ?? b;
+      try {
+        await updateBrand(b.id, { onboarding: atStep(readOnboardingState(live), 'review') });
+      } catch {
+        // Losing your place is a nuisance; blocking the review over it is worse.
+      }
+    },
+    [updateBrand],
+  );
+
   // ── Open my brand ──────────────────────────────────────────────────
   const finish = useCallback(async () => {
     if (!brand || busyRef.current) return;
@@ -420,7 +454,9 @@ export function SetUpScreen() {
               setProcessing(false);
               busyRef.current = false;
               // The brand exists now, so the review gets an address that can be
-              // refreshed, shared and resumed.
+              // refreshed, shared and resumed — and the marker says so, which is
+              // what makes "Resume" from the dashboard land back here.
+              void recordAtReview(brand);
               goToPanel(3, brand.slug);
             }}
           />

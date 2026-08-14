@@ -28,6 +28,23 @@ export const SAME_MARK_DISTANCE = 6;
 const SCAN = 64;
 
 /**
+ * What one image turned out to be.
+ *
+ * The ratio is the second thing the trim pass already knows and the single most
+ * reliable signal about what KIND of logo this is: an icon is roughly square, a
+ * wordmark is several times wider than it is tall, and neither fact can be
+ * faked by a filename. It is the artwork's own proportions, not the file's —
+ * padding is excluded, so the same mark exported into a square canvas and into
+ * a tight one measures the same.
+ */
+export interface Print {
+  /** 64 cells, above or below the artwork's mean luminance. */
+  hash: string;
+  /** Width ÷ height of the trimmed artwork. */
+  ratio: number;
+}
+
+/**
  * Draws the image small and records which cells are brighter than the mean.
  *
  * Two things make this work on logos specifically:
@@ -43,7 +60,7 @@ const SCAN = 64;
  *     artwork. Trimming makes the hash describe the mark and makes the same
  *     mark at any size or format land in the same place.
  */
-export async function fingerprint(url: string): Promise<string | null> {
+export async function fingerprint(url: string): Promise<Print | null> {
   if (typeof document === 'undefined') return null;
   try {
     const img = await load(url);
@@ -80,6 +97,7 @@ export async function fingerprint(url: string): Promise<string | null> {
     const sy = (minY / SCAN) * img.height;
     const sw = ((maxX - minX + 1) / SCAN) * img.width;
     const sh = ((maxY - minY + 1) / SCAN) * img.height;
+    const ratio = sh > 0 ? sw / sh : 1;
 
     // Pass 2 — hash only the artwork.
     const canvas = document.createElement('canvas');
@@ -97,7 +115,7 @@ export async function fingerprint(url: string): Promise<string | null> {
       cells.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
     }
     const mean = cells.reduce((a, b) => a + b, 0) / cells.length;
-    return cells.map((c) => (c > mean ? '1' : '0')).join('');
+    return { hash: cells.map((c) => (c > mean ? '1' : '0')).join(''), ratio };
   } catch {
     // An unreadable image simply has no fingerprint; it is never dropped for it.
     return null;
@@ -122,32 +140,26 @@ export function distance(a: string, b: string): number {
   return d;
 }
 
-/** Whether two fingerprints describe the same artwork. */
-export function sameArtwork(a: string | null, b: string | null): boolean {
+/** Whether two prints describe the same artwork. */
+export function sameArtwork(a: Print | null | undefined, b: Print | null | undefined): boolean {
   if (!a || !b) return false;
-  return distance(a, b) <= SAME_MARK_DISTANCE;
+  return distance(a.hash, b.hash) <= SAME_MARK_DISTANCE;
 }
 
 /**
- * Groups ids by artwork, keeping the FIRST of each group as its representative.
+ * What the artwork's proportions say it is — `null` when they say nothing.
  *
- * Returns a map from every id to the id that represents it, so callers can fold
- * duplicates into one entry without deciding which to keep.
+ * Two thresholds with a deliberate gap between them, because most logos live in
+ * that gap: a lockup of symbol + name is wide but not a wordmark, and this
+ * returns nothing for it rather than a confident wrong answer. The user
+ * confirms every role anyway, so silence here costs one glance; a wrong answer
+ * costs a correction.
  */
-export function groupByArtwork(
-  items: ReadonlyArray<{ id: string; fingerprint: string | null }>,
-): Map<string, string> {
-  const representative = new Map<string, string>();
-  const leads: Array<{ id: string; fingerprint: string | null }> = [];
-
-  for (const item of items) {
-    const lead = leads.find((l) => sameArtwork(l.fingerprint, item.fingerprint));
-    if (lead) {
-      representative.set(item.id, lead.id);
-    } else {
-      leads.push(item);
-      representative.set(item.id, item.id);
-    }
-  }
-  return representative;
+export function shapeSuggests(print: Print | null | undefined): 'wordmark' | 'mark' | null {
+  if (!print) return null;
+  // Text set on one line. Nothing else is this wide.
+  if (print.ratio >= 4) return 'wordmark';
+  // A symbol drawn in a square-ish field.
+  if (print.ratio <= 1.35) return 'mark';
+  return null;
 }

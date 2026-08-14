@@ -909,6 +909,12 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
     // copy still in the store would be handed a slot before it is removed.
     for (const id of projection.duplicateIds) store.removeAsset(id);
     for (const { assetId, slot } of projection.logoSlots) {
+      // A role the user has confirmed is theirs. This effect re-runs on every
+      // projection — i.e. after every edit anywhere on the review — so without
+      // this guard the classifier would quietly put its own answer back over
+      // the one the owner just gave it.
+      const placed = useV4Store.getState().assets.find((a) => a.id === assetId);
+      if (placed?.slotConfirmed) continue;
       store.updateAsset(assetId, { kind: 'image', isLogo: true, logoSlot: slot as LogoSlot });
     }
 

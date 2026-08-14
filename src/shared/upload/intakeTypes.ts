@@ -34,6 +34,10 @@ export interface OnboardingAsset {
   isLogo?: boolean;
   /** Slot a logo asset is bound to (only for kind=image with isLogo). */
   logoSlot?: LogoSlot;
+  /** Whether the USER has agreed to which variant this is. A placement the
+   *  system made is a question until the owner answers it; one the user chose
+   *  is already answered. */
+  slotConfirmed?: boolean;
   /** Slot suggested by classification. A HINT — the router turns it into a real
    *  placement. Setting `logoSlot` directly at intake would hide the tile from
    *  the dropzone, which filters out already-placed logos. */

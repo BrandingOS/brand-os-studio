@@ -37,6 +37,17 @@ export interface OnboardingAsset {
   isLogo?: boolean;
   /** Slot a logo asset is bound to (only for kind=image with isLogo). */
   logoSlot?: LogoSlot;
+  /**
+   * Whether the USER has agreed to which variant this is.
+   *
+   * The system places every logo it recognises, and it is sometimes wrong in a
+   * way only a person can see — a wide logotype named `Logomark.svg` looks like
+   * an icon to a filename and nothing like one to an eye. So a placement we
+   * made is a QUESTION until the owner answers it, and the board says which
+   * placements are still questions. A slot the user chose themselves is already
+   * answered and never asks.
+   */
+  slotConfirmed?: boolean;
   /** Slot suggested by the Brand Vision classifier. Unlike `logoSlot` this is
    *  only a hint — the review step's router turns it into a real placement.
    *  (Setting `logoSlot` directly at upload time would hide the tile from the

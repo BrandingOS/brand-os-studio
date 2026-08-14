@@ -33,7 +33,7 @@ import { buildCreateInput, normalizeUrl } from '../understanding/createBrand';
 import { interpret, type Understanding } from '../understanding/interpret';
 import { applyBusinessFacts, applyProposals, sentinelsRetiredBy } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal, editValue } from '../understanding/acceptance';
-import { classifyLogos } from '../understanding/logoClassify';
+import { classifyLogos, type Prints } from '../understanding/logoClassify';
 import { groupFontFamilies } from '../understanding/fonts';
 import { VOCABULARIES, type VocabularyName } from '../vocabulary/vocabularies';
 
@@ -229,7 +229,7 @@ export function project(
   items: OnboardingAsset[],
   sentinelPaths: readonly string[] = [],
   /** Visual fingerprints by asset id, so identical artwork folds into one. */
-  prints?: ReadonlyMap<string, string | null>,
+  prints?: Prints,
 ): Projection {
   const identity = canonical.identity;
   const business = canonical.businessInfo ?? {};

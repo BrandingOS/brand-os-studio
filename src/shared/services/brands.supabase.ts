@@ -8,6 +8,7 @@ import { vectorBrand } from '@/data/brands/vector';
 import { uniexBrand } from '@/data/brands/uniex';
 import { migrateBrandToCurrent, migrateBrands } from '@/shared/brand/migrateSchema';
 import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOverrides';
+import { forgetMarker, rememberMarker, rememberedMarker } from './onboardingMarkerFallback';
 
 /**
  * Seed brands are always available regardless of database state.
@@ -15,6 +16,43 @@ import { applySeedOverride, patchSeedOverride } from '@/shared/brand/seedBrandOv
  */
 const SEED_BRANDS: Brand[] = [raqmBrand, skamBrand, vectorBrand, uniexBrand, demoBrandIdentity];
 const SEED_BRAND_IDS = new Set(SEED_BRANDS.map((b) => b.id));
+
+/**
+ * The column this error says the database does not have — or `null`.
+ *
+ * PostgREST reports a missing column TWO ways, and the tolerance below was only
+ * written for one of them:
+ *
+ *   42703     `column "onboarding" does not exist`
+ *             Postgres itself rejected the statement.
+ *   PGRST204  `Could not find the 'onboarding' column of 'brands' in the
+ *             schema cache`
+ *             PostgREST rejected the payload against its own schema cache,
+ *             before Postgres ever saw it.
+ *
+ * The second is the one an INSERT or UPDATE naming an unknown column actually
+ * hits, so checking only for 42703 meant the pre-migration tolerance never ran
+ * on the path it exists for. The visible cost was exact: on an environment
+ * carrying the 002 code without migration 022, creating a brand failed
+ * outright, and every write of the onboarding marker with it — so a brand left
+ * mid-flow came back reading as finished and sat in the dashboard among the
+ * brands its owner had actually completed.
+ *
+ * Returns `''` when the column cannot be named, which callers read as "some
+ * column, we do not know which".
+ */
+export function missingColumnName(
+  error: { code?: string; message?: string } | null | undefined,
+): string | null {
+  if (!error) return null;
+  const message = error.message ?? '';
+  const fromCache = /could not find the '?"?([a-z_]+)'?"?\s+column/i.exec(message)?.[1];
+  if (error.code === 'PGRST204' || fromCache) return fromCache ?? '';
+  if (error.code === '42703' || /column .* does not exist/i.test(message)) {
+    return /column "?([a-z_]+)"?/i.exec(message)?.[1] ?? '';
+  }
+  return null;
+}
 
 export class SupabaseBrandsService implements IBrandsService {
   async list(workspaceId?: string): Promise<Brand[]> {
@@ -114,17 +152,20 @@ export class SupabaseBrandsService implements IBrandsService {
     // Pre-022 tolerance, mirroring update()'s: an environment with the code but
     // not the migration must still create brands. The marker is the only thing
     // lost, and its absence reads as "finished" — the safe direction.
-    if (
-      result.error &&
-      (result.error.code === '42703' ||
-        /column .* does not exist/i.test(result.error.message ?? ''))
-    ) {
+    const absent = missingColumnName(result.error);
+    let markerDropped: unknown;
+    if (absent !== null && (absent === 'onboarding' || absent === '')) {
+      markerDropped = brandData.onboarding;
       delete brandData.onboarding;
       result = await insertRow();
     }
 
     const { data, error } = result;
     if (error) throw error;
+    // The row exists now, so the marker the column could not take gets a home
+    // against its id. Without this the brand comes back unmarked, which every
+    // reader is obliged to call finished.
+    if (markerDropped !== undefined) rememberMarker(data.id, markerDropped);
     // Migrated like getBySlug — the store caches this as `current`.
     return migrateBrandToCurrent(this.mapFromDatabase(data));
   }
@@ -185,8 +226,7 @@ export class SupabaseBrandsService implements IBrandsService {
       // may not exist yet in this environment. Rather than fail the whole save,
       // retry without them — logos fall back to the legacy URL derivation (no
       // regression). Once migration 014 is deployed the first branch persists them.
-      const missingCol =
-        error.code === '42703' || /column .* does not exist/i.test(error.message ?? '');
+      const missingCol = missingColumnName(error) !== null;
       // Same tolerance extended to the migration-016 columns: an environment
       // that has the code but not the migration must still save everything
       // else, exactly as the pre-014 path does. The dropped fields degrade to
@@ -209,10 +249,12 @@ export class SupabaseBrandsService implements IBrandsService {
         let lastError = error;
 
         for (let i = 0; i <= TOLERATED_COLS.length; i += 1) {
-          const named = /column "?([a-z_]+)"?/i.exec(lastError.message ?? '')?.[1];
+          const named = missingColumnName(lastError);
           if (!named || !(named in attempt)) break;
           if (!TOLERATED_COLS.includes(named as (typeof TOLERATED_COLS)[number])) break;
 
+          // The marker is the one dropped field with somewhere else to go.
+          if (named === 'onboarding') rememberMarker(id, attempt.onboarding);
           delete attempt[named];
           const retry = await supabase
             .from('brands')
@@ -222,10 +264,7 @@ export class SupabaseBrandsService implements IBrandsService {
             .single();
           if (!retry.error) return migrateBrandToCurrent(this.mapFromDatabase(retry.data));
 
-          const stillMissing =
-            retry.error.code === '42703' ||
-            /column .* does not exist/i.test(retry.error.message ?? '');
-          if (!stillMissing) throw retry.error;
+          if (missingColumnName(retry.error) === null) throw retry.error;
           lastError = retry.error;
         }
       }
@@ -245,6 +284,8 @@ export class SupabaseBrandsService implements IBrandsService {
       .eq('id', id);
 
     if (error) throw error;
+    // Nothing left to remember a place in a flow for.
+    forgetMarker(id);
   }
 
   private mapFromDatabase(data: any): Brand {
@@ -269,7 +310,10 @@ export class SupabaseBrandsService implements IBrandsService {
       identitySchemaVersion: data.identity_schema_version || undefined,
       identityMeta: data.identity_meta || undefined,
       businessInfo: data.business_info || undefined,
-      onboarding: data.onboarding || undefined,
+      // The row wins whenever it has one. The fallback only answers for brands
+      // whose marker the database had nowhere to put (pre-022), and it stops
+      // being consulted for a brand the moment the column carries its marker.
+      onboarding: data.onboarding || (rememberedMarker(data.id) as Brand['onboarding']) || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,

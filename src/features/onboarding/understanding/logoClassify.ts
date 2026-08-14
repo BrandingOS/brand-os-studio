@@ -11,10 +11,10 @@
  *     the same mark, not two logos. They are grouped under one entry with the
  *     variants attached, rather than listed as separate items — which is what
  *     turned a tidy upload into a wall of near-identical tiles before.
- *  3. **Assign roles from evidence only.** A role with nothing to support it
- *     is left EMPTY. Guessing "this must be the wordmark" because a slot is
- *     free produces a confident wrong answer, and the user then has to notice
- *     and undo it — strictly worse than an empty slot they can fill.
+ *  3. **Assign roles from evidence, strongest first.** What the classifier saw
+ *     in the file, then the artwork's own proportions, then the filename — in
+ *     that order, because that is the order they are trustworthy in. A name is
+ *     a label someone typed once; a shape is the thing itself.
  *
  * Everything returned is a proposal. The user's drag or swap outranks all of
  * it by source priority, and re-running classification cannot undo their
@@ -23,7 +23,10 @@
  * Pure — no service, no store, no React.
  */
 import type { LogoSlot, OnboardingAsset } from '@/shared/upload/intakeTypes';
-import { sameArtwork } from './imageFingerprint';
+import { sameArtwork, shapeSuggests, type Print } from './imageFingerprint';
+
+/** Visual prints by asset id. Absent falls back to filenames alone. */
+export type Prints = ReadonlyMap<string, Print | null>;
 
 export interface LogoGroup {
   /** The item that represents this mark. */
@@ -86,7 +89,7 @@ function withoutVariantTokens(s: string): string {
 function sameMark(
   a: OnboardingAsset,
   b: OnboardingAsset,
-  prints?: ReadonlyMap<string, string | null>,
+  prints?: Prints,
 ): boolean {
   const pa = prints?.get(a.id) ?? null;
   const pb = prints?.get(b.id) ?? null;
@@ -119,24 +122,54 @@ export function looksLikeLogo(a: OnboardingAsset): boolean {
   return /logo|wordmark|logotype|monogram|brandmark|icon|mark|symbol|favicon|lockup/.test(n);
 }
 
-/** The role a single item's evidence supports. `null` when nothing does. */
-function roleFor(a: OnboardingAsset): { slot: LogoSlot | null; evidence: string } {
+/**
+ * Whether a filename contains a token as its OWN word.
+ *
+ * Substring matching is what made this wrong in the most visible way: `"mark"`
+ * is inside `"logomark"`, `"wordmark"`, `"brandmark"` and `"watermark"`, so a
+ * wide logotype exported as `Logomark.svg` was labelled Icon on the board. A
+ * separator or an end of string has to sit either side of the token now, which
+ * keeps `logo-mark.svg` matching and stops `logomark.svg` from doing so.
+ */
+function word(name: string, ...tokens: string[]): boolean {
+  return tokens.some((t) => new RegExp(`(?:^|[\\s_\\-/.])${t}(?:[\\s_\\-/.]|$)`).test(name));
+}
+
+/**
+ * The role a single item's evidence supports. `null` when nothing does.
+ *
+ * The filename is the weakest of the three signals here and the one most often
+ * wrong, so the artwork's own proportions get a VETO over it: an icon is not
+ * four times wider than it is tall, and a wordmark is not square, whatever the
+ * file happens to be called. A vetoed claim leaves the group unroled rather
+ * than substituting a second guess — the fill pass below reads the shape
+ * directly and says so.
+ */
+function roleFor(a: OnboardingAsset, print?: Print | null): { slot: LogoSlot | null; evidence: string } {
   // Classification already ran and had something to say. That IS evidence.
   if (a.aiLogoSlot) return { slot: a.aiLogoSlot, evidence: 'what we saw in the file' };
 
   const n = a.name.toLowerCase();
-  const has = (...tokens: string[]) => tokens.some((t) => n.includes(t));
+  const shape = shapeSuggests(print);
 
-  if (has('wordmark', 'logotype', '-type', 'text')) return { slot: 'wordmark', evidence: 'its filename' };
-  if (has('icon', 'mark', 'symbol', 'monogram', 'favicon')) return { slot: 'mark', evidence: 'its filename' };
-  if (has('white', 'inverse', 'inverted', 'reverse', 'ondark', 'on-dark')) {
+  if (word(n, 'wordmark', 'logotype', 'type', 'text')) {
+    if (shape !== 'mark') return { slot: 'wordmark', evidence: 'its filename' };
+  } else if (word(n, 'icon', 'mark', 'symbol', 'monogram', 'favicon')) {
+    if (shape !== 'wordmark') return { slot: 'mark', evidence: 'its filename' };
+  }
+  // Tone, not shape — these say which background the artwork is FOR, so the
+  // proportions have nothing to contradict.
+  if (word(n, 'white', 'inverse', 'inverted', 'reverse', 'ondark', 'on-dark')) {
     // NOTE the mirrored naming, kept from the flow this restores: the "on dark"
     // slot holds the LIGHT-coloured artwork.
     return { slot: 'dark', evidence: 'its filename' };
   }
-  if (has('black', 'onlight', 'on-light')) return { slot: 'light', evidence: 'its filename' };
-  if (has('horizontal', 'wide', 'lockup-h')) return { slot: 'horizontal', evidence: 'its filename' };
-  if (has('vertical', 'stacked', 'lockup-v')) return { slot: 'vertical', evidence: 'its filename' };
+  if (word(n, 'black', 'onlight', 'on-light')) return { slot: 'light', evidence: 'its filename' };
+  // Below the tone tokens on purpose: "Primary Logo White" is the on-dark
+  // artwork of the primary, and the tone is the more specific fact about it.
+  if (word(n, 'primary', 'main')) return { slot: 'primary', evidence: 'its filename' };
+  if (word(n, 'horizontal', 'wide', 'lockup-h')) return { slot: 'horizontal', evidence: 'its filename' };
+  if (word(n, 'vertical', 'stacked', 'lockup-v')) return { slot: 'vertical', evidence: 'its filename' };
 
   return { slot: null, evidence: '' };
 }
@@ -152,7 +185,7 @@ function roleFor(a: OnboardingAsset): { slot: LogoSlot | null; evidence: string 
 export function classifyLogos(
   items: readonly OnboardingAsset[],
   /** Visual fingerprints by asset id. Absent falls back to filenames. */
-  prints?: ReadonlyMap<string, string | null>,
+  prints?: Prints,
 ): ClassifyResult {
   const images = items.filter((a) => a.kind === 'image' && !a.generated && looksLikeLogo(a));
 
@@ -179,7 +212,7 @@ export function classifyLogos(
       host.variants.push(a);
       continue;
     }
-    const { slot, evidence } = roleFor(a);
+    const { slot, evidence } = roleFor(a, prints?.get(a.id));
     groups.push({ lead: a, variants: [], slot, evidence });
   }
 
@@ -216,10 +249,21 @@ export function classifyLogos(
   // Leaving unplaced logos out was the stricter reading of "evidence only", and
   // it meant someone who uploaded five marks saw two — the rest silently absent
   // with nothing to click. A named slot the user can correct beats a logo they
-  // cannot see, so the remainder fill the free slots in order, and their
-  // evidence says plainly that the order is all it rests on.
+  // cannot see.
+  //
+  // Shape decides first and order is only the fallback. It runs HERE rather
+  // than up with the filename evidence because the primary has been settled by
+  // now: a symbol-plus-name lockup is wide too, and reading its width earlier
+  // would have called the brand's main logo a wordmark.
   for (const g of groups) {
     if (g.slot !== null) continue;
+    const shaped = shapeSuggests(prints?.get(g.lead.id));
+    if (shaped && !taken.has(shaped)) {
+      g.slot = shaped;
+      g.evidence = shaped === 'wordmark' ? 'its shape — wide, like set text' : 'its shape — square, like a symbol';
+      taken.add(shaped);
+      continue;
+    }
     const free = SLOT_ORDER.find((s) => !taken.has(s));
     if (!free) break;
     g.slot = free;

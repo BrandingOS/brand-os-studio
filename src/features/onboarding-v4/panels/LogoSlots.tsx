@@ -173,6 +173,9 @@ export function LogoSlots({ assets }: Props) {
       asset.kind = 'image';
       asset.isLogo = true;
       asset.logoSlot = slot;
+      // The user dropped this file onto a slot they named. There is nothing
+      // left to ask them about it.
+      asset.slotConfirmed = true;
       if (opts?.generated) asset.generated = true;
 
       let previewUrl: string | null = null;
@@ -386,8 +389,11 @@ export function LogoSlots({ assets }: Props) {
       if (!DEFAULT_SLOTS.includes(target) && !state.extraLogoSlots.includes(target)) {
         addLogoSlot(target);
       }
-      updateAsset(assetId, { logoSlot: target });
-      if (occupant && from) updateAsset(occupant.id, { logoSlot: from });
+      // "This is actually the wordmark" IS the confirmation.
+      updateAsset(assetId, { logoSlot: target, slotConfirmed: true });
+      // The one that moved out of the way was not chosen for its new slot, so
+      // it goes back to asking.
+      if (occupant && from) updateAsset(occupant.id, { logoSlot: from, slotConfirmed: false });
     },
     [addLogoSlot, updateAsset],
   );
@@ -531,6 +537,13 @@ export function LogoSlots({ assets }: Props) {
               onPick={(file) => uploadToSlot(slot, file)}
               onRemove={() => asset && removeAsset(asset.id)}
               onRemoveSlot={isExtra ? () => removeLogoSlot(slot) : undefined}
+              onConfirm={() => {
+                if (!asset) return;
+                // Forget that we placed it. The family resolver only moves
+                // logos it placed itself, and this one now belongs to the user.
+                autoRef.current.delete(asset.id);
+                updateAsset(asset.id, { slotConfirmed: true });
+              }}
               onContextMenu={(e, pickFile) => openSlotMenu(e, slot, asset, pickFile, isExtra)}
             />
           );
@@ -592,11 +605,16 @@ interface SlotCardProps {
   onPick(file: File): void;
   onRemove(): void;
   onRemoveSlot?(): void;
+  onConfirm(): void;
   onContextMenu?(e: React.MouseEvent<HTMLDivElement>, pickFile: () => void): void;
 }
 
-function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onContextMenu }: SlotCardProps) {
+function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfirm, onContextMenu }: SlotCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  // A placement WE made, still unanswered. Derived variants are not asked about
+  // — they were generated from a logo the user already placed, and their role is
+  // the reason they exist.
+  const needsConfirm = Boolean(asset && !asset.generated && !asset.slotConfirmed);
 
   const onClick = () => inputRef.current?.click();
   const onDrop = (e: React.DragEvent) => {
@@ -641,32 +659,57 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConte
         </button>
       )}
       {asset && (
-        <span
-          className="logo-slot-name"
-          role="button"
-          tabIndex={0}
-          title="Logo options"
-          onClick={
-            onContextMenu
-              ? (e) => {
-                  e.stopPropagation();
-                  onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
-                }
-              : undefined
-          }
-          onKeyDown={
-            onContextMenu
-              ? (e) => {
-                  if (e.key !== 'Enter' && e.key !== ' ') return;
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
-                }
-              : undefined
-          }
-        >
-          {def.label}
-        </span>
+        <div className={`logo-slot-role${needsConfirm ? ' is-unconfirmed' : ''}`}>
+          <span
+            className="logo-slot-name"
+            role="button"
+            tabIndex={0}
+            title={needsConfirm ? `We think this is the ${def.label.toLowerCase()} — click to change it` : 'Logo options'}
+            onClick={
+              onContextMenu
+                ? (e) => {
+                    e.stopPropagation();
+                    onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              onContextMenu
+                ? (e) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
+                  }
+                : undefined
+            }
+          >
+            {/* The primary is the one role that needs no picture — it is the
+                logo, not a variant of it. Every other chip carries the same
+                glyph the variant picker uses, so "which kind is this?" is
+                answered by looking rather than by reading. */}
+            {def.key !== 'primary' && (
+              <span className="logo-slot-name-icon" aria-hidden="true">{VARIANT_PREVIEW[def.key]}</span>
+            )}
+            {def.label}
+          </span>
+          {needsConfirm && (
+            <button
+              type="button"
+              className="logo-slot-confirm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onConfirm();
+              }}
+              title={`Yes — this is the ${def.label.toLowerCase()}`}
+              aria-label={`Confirm this is the ${def.label.toLowerCase()}`}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </button>
+          )}
+        </div>
       )}
       {asset?.generated && <span className="logo-slot-badge">Auto</span>}
       {isExtra && onRemoveSlot && !asset && (

@@ -8,12 +8,16 @@
 import { describe, it, expect } from 'vitest';
 import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
 import { classifyLogos } from '../logoClassify';
+import type { Print } from '../imageFingerprint';
 
 const img = (name: string, over: Partial<OnboardingAsset> = {}): OnboardingAsset => ({
   id: `i-${name}`, name, sub: '', kind: 'image',
   previewUrl: `blob:${name}`, uploadStatus: 'done', uploadProgress: 1,
   ...over,
 });
+
+/** A print with a stated shape. `ratio` is width ÷ height of the artwork. */
+const print = (hash: string, ratio = 2): Print => ({ hash, ratio });
 
 describe('exact duplicates', () => {
   it('collapse by content hash, even under a different filename', () => {
@@ -165,7 +169,7 @@ describe('the same artwork under different filenames is one logo', () => {
       img('Artboard 261.png', { contentHash: '2', isLogo: true }),
       img('Asset 23.png', { contentHash: '3', isLogo: true }),
     ];
-    const prints = new Map(items.map((i) => [i.id, same]));
+    const prints = new Map(items.map((i) => [i.id, print(same)]));
     const out = classifyLogos(items, prints);
     expect(out.groups).toHaveLength(1);
     expect(out.groups[0].variants).toHaveLength(2);
@@ -176,7 +180,7 @@ describe('the same artwork under different filenames is one logo', () => {
       img('a.png', { contentHash: '1', isLogo: true }),
       img('b.png', { contentHash: '2', isLogo: true }),
     ];
-    const prints = new Map([[items[0].id, same], [items[1].id, other]]);
+    const prints = new Map([[items[0].id, print(same)], [items[1].id, print(other)]]);
     expect(classifyLogos(items, prints).groups).toHaveLength(2);
   });
 
@@ -216,5 +220,92 @@ describe('export noise does not make one mark into several', () => {
       img('Logotype.svg', { contentHash: '2', isLogo: true }),
     ]);
     expect(out.groups).toHaveLength(2);
+  });
+});
+
+describe('a filename is read as words, not as letters', () => {
+  // The one that shipped and was visible: a wide KAAFEX logotype exported as
+  // "Logomark.svg" was labelled ICON on the board, because "mark" is a
+  // substring of "logomark".
+  it('does not find "mark" inside "logomark"', () => {
+    const out = classifyLogos([
+      img('Logo.svg', { contentHash: '1', isLogo: true }),
+      img('Logomark.svg', { contentHash: '2', isLogo: true }),
+    ]);
+    expect(out.groups[1].slot).not.toBe('mark');
+  });
+
+  it('still finds it when it is its own word', () => {
+    const out = classifyLogos([
+      img('kaafex-logo.svg', { contentHash: '1', isLogo: true }),
+      img('kaafex-mark.svg', { contentHash: '2', isLogo: true }),
+    ]);
+    expect(out.groups[1].slot).toBe('mark');
+  });
+});
+
+describe('the folder a designer actually hands over', () => {
+  // The real one, from the owner's own archive: a square symbol, a wide
+  // logotype and the lockup of the two, in the order a file listing gives
+  // them. Every earlier version of this got at least one of the three wrong.
+  const FOLDER = [
+    { name: 'Logomark.svg', ratio: 1, hash: '1111000011110000111100001111000011110000111100001111000011110000' },
+    { name: 'Logotype.svg', ratio: 6.35, hash: '0000111100001111000011110000111100001111000011110000111100001111' },
+    { name: 'Primary Logo.svg', ratio: 6.22, hash: '1100110011001100110011001100110011001100110011001100110011001100' },
+  ];
+
+  it('puts each of the three where it belongs', () => {
+    const items = FOLDER.map((f, i) => img(f.name, { contentHash: `${i}`, isLogo: true }));
+    const prints = new Map(items.map((a, i) => [a.id, print(FOLDER[i].hash, FOLDER[i].ratio)]));
+    const byName = Object.fromEntries(
+      classifyLogos(items, prints).groups.map((g) => [g.lead.name, g.slot]),
+    );
+    expect(byName['Primary Logo.svg']).toBe('primary');
+    expect(byName['Logotype.svg']).toBe('wordmark');
+    expect(byName['Logomark.svg']).toBe('mark');
+  });
+});
+
+describe('the artwork outranks its filename', () => {
+  // Two hashes far enough apart that they are never read as one mark.
+  const HASHES: Record<string, string> = {
+    a: '1010101010101010101010101010101010101010101010101010101010101010',
+    b: '0101010101010101010101010101010101010101010101010101010101010101',
+  };
+  const shaped = (name: string, ratio: number, hash: keyof typeof HASHES) => {
+    const a = img(name, { contentHash: hash, isLogo: true });
+    return [a, print(HASHES[hash], ratio)] as const;
+  };
+
+  it('refuses to call something four times wider than tall an icon', () => {
+    const [lead, leadPrint] = shaped('logo.svg', 3, 'a');
+    const [wide, widePrint] = shaped('icon.svg', 6, 'b');
+    const out = classifyLogos([lead, wide], new Map([[lead.id, leadPrint], [wide.id, widePrint]]));
+    expect(out.groups[1].slot).not.toBe('mark');
+  });
+
+  it('reads a wide unnamed mark as the wordmark', () => {
+    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
+    const [wide, widePrint] = shaped('two.svg', 6, 'b');
+    const out = classifyLogos([lead, wide], new Map([[lead.id, leadPrint], [wide.id, widePrint]]));
+    expect(out.groups[0].slot).toBe('primary');
+    expect(out.groups[1].slot).toBe('wordmark');
+    expect(out.groups[1].evidence).toContain('shape');
+  });
+
+  it('reads a square unnamed mark as the icon', () => {
+    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
+    const [square, squarePrint] = shaped('two.svg', 1.05, 'b');
+    const out = classifyLogos([lead, square], new Map([[lead.id, leadPrint], [square.id, squarePrint]]));
+    expect(out.groups[1].slot).toBe('mark');
+  });
+
+  it('leaves the in-between shapes to the order they arrived in', () => {
+    // A symbol-plus-name lockup is wide without being a wordmark. Guessing
+    // here is exactly what the confirmation step exists to avoid.
+    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
+    const [mid, midPrint] = shaped('two.svg', 2.4, 'b');
+    const out = classifyLogos([lead, mid], new Map([[lead.id, leadPrint], [mid.id, midPrint]]));
+    expect(out.groups[1].evidence).toBe('the order you brought them');
   });
 });

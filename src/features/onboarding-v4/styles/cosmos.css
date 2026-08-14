@@ -2837,9 +2837,18 @@
 [data-onboarding="cosmos"] .logo-slot-overlay-btn:hover { background: #fff; }
 [data-onboarding="cosmos"] .logo-slot-overlay-btn.is-danger:hover { color: #b34a4a; }
 /* Role label on filled slots — "Primary" / "Icon" / "Wordmark" … */
-[data-onboarding="cosmos"] .logo-slot-name {
+/* The role chip and its confirm button travel together in the corner. */
+[data-onboarding="cosmos"] .logo-slot-role {
   position: absolute;
   bottom: 5px; left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+[data-onboarding="cosmos"] .logo-slot-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 8.5px;
   font-weight: 600;
   padding: 1.5px 6px;
@@ -2861,6 +2870,49 @@
   background: rgba(20, 20, 22, 0.85);
   color: rgba(255, 255, 255, 0.85);
   border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* The variant glyph, at chip scale — the same drawing the picker shows. */
+[data-onboarding="cosmos"] .logo-slot-name-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 8px;
+  opacity: 0.72;
+}
+[data-onboarding="cosmos"] .logo-slot-name-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* A role WE chose, still unanswered. Dashed, because the same border style
+   means "not decided yet" everywhere else in this flow. */
+[data-onboarding="cosmos"] .logo-slot-role.is-unconfirmed .logo-slot-name {
+  border-style: dashed;
+  border-color: var(--ds-accent, #d9a441);
+  color: var(--ds-text-primary, #2b2a26);
+}
+[data-onboarding="cosmos"] .logo-slot-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-accent, #d9a441);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ds-accent, #d9a441);
+  cursor: pointer;
+  padding: 0;
+  transition: background 140ms var(--ds-ease), color 140ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] .logo-slot-confirm:hover {
+  background: var(--ds-accent, #d9a441);
+  color: #fff;
+}
+[data-onboarding="cosmos"] .logo-slot.tone-dark .logo-slot-confirm {
+  background: rgba(20, 20, 22, 0.85);
 }
 
 /* Slot thumbnails inside the right-click "Set as …" items */
