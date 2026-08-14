@@ -91,7 +91,7 @@ export const FEATURE_REGISTRY: FeatureEntry[] = [
     entry: 'src/pages/onboard-brand/index.tsx',
     status: 'active',
     description:
-      'THE onboarding flow (spec 002). Three screens, brand-first: the brand exists from the naming step, and /onboard-brand/:slug resumes it. Implementation in src/features/onboarding/.',
+      'The onboarding flow — upload path at /onboard-brand, from-scratch path at /onboard-brand/create. Implementation in src/features/onboarding-v4/.',
   },
   {
     id: 'brand-editor-metadata',
