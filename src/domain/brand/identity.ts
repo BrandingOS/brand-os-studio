@@ -76,15 +76,46 @@ export interface Voice {
  * description. `brand.uiStyle` (written today by Brand Board) maps into
  * `cornerStyle`/`density` on read and is retired once no reader remains.
  */
+/**
+ * The closed visual-style vocabulary.
+ *
+ * Widened 2026-08-14 (spec 002 R1, owner-approved) from eight members to
+ * seventeen. Purely ADDITIVE — every original member survives, so no stored
+ * brand is invalidated and no migration is implied.
+ *
+ * Grouped by the axis each member varies along, which is deliberate: a
+ * vocabulary meant to drive filtering and recommendation later must not contain
+ * synonym pairs, or two brands that mean the same thing land in different
+ * buckets. `illustrative` is excluded because `VisualStyle.imageryStyle`
+ * already owns it, and mood words are excluded because `Voice.tone` does.
+ *
+ * The product-facing labels live in
+ * `features/onboarding/vocabulary/vocabularies.ts`, which a test keeps in sync
+ * with this union and with the matching `z.enum` in `invariants.ts`.
+ */
 export type StyleDescriptor =
+  // reduction
   | 'minimal'
-  | 'bold'
+  | 'maximal'
+  // era
+  | 'modern'
+  | 'classic'
+  | 'retro'
+  | 'futuristic'
+  // register
   | 'elegant'
-  | 'playful'
-  | 'technical'
-  | 'organic'
   | 'luxury'
-  | 'retro';
+  | 'bold'
+  | 'playful'
+  // form
+  | 'organic'
+  | 'geometric'
+  | 'brutalist'
+  // discipline
+  | 'editorial'
+  | 'technical'
+  | 'corporate'
+  | 'artisanal';
 
 export interface VisualStyle {
   descriptors?: StyleDescriptor[];

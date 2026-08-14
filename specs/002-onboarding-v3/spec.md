@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-13
 
-**Status**: **Revision R1 in progress (2026-08-14)** — the Foundation and pipeline
+**Status**: **Implemented — revision R1 complete (2026-08-14)** — the Foundation and pipeline
 described below shipped on 2026-08-14 and are KEPT. The user-facing flow is being
 returned to the pre-V3 onboarding interface as its visual and interaction
 foundation, and extended. See "Revision R1" below and the task-level record in

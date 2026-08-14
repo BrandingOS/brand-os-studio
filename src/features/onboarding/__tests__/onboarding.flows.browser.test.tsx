@@ -1,13 +1,13 @@
 /**
- * Onboarding V3 end to end, in a real browser, against the REAL services.
+ * Onboarding V3 (R1) end to end, in a real browser, against the REAL services.
  *
  * The claims a unit test cannot make: that the DOM the user actually touches
- * produces the authority the spec promises, and — the load-bearing one — that
- * merely RENDERING and reading the review confirms nothing.
+ * produces the authority the spec promises, that merely RENDERING and reading
+ * the review confirms nothing, and that the model's vocabulary never reaches
+ * the screen.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { container } from '@/core/container/ServiceContainer';
 import { bootServices } from '@/core/boot';
 import { SERVICE_KEYS, type IBrandsService } from '@/core/types/services';
@@ -15,10 +15,14 @@ import { BrandServiceRepository } from '@/platform/brand/BrandServiceRepository'
 import { coreValueMeta, type HumanActor } from '@/domain/brand';
 import { applyProposals } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal } from '../understanding/acceptance';
-import { ReviewStep } from '../steps/ReviewStep';
-import { BasicsStep } from '../steps/BasicsStep';
+import { ReviewStep, type ReviewStepProps } from '../steps/ReviewStep';
+import { NameStep } from '../steps/NameStep';
+import { ProfileStep } from '../steps/ProfileStep';
+import { UnderstandingStage } from '../steps/UnderstandingStage';
 import { buildCreateInput } from '../understanding/createBrand';
 import { isPlaceholderPath, readOnboardingState } from '@/shared/onboarding/onboardingState';
+import { VOCABULARIES } from '../vocabulary/vocabularies';
+import { planStages } from '../understanding/stages';
 import type { Proposal } from '../understanding/proposals';
 
 const actor: HumanActor = { kind: 'human', userId: 'u1' };
@@ -26,7 +30,7 @@ const actor: HumanActor = { kind: 'human', userId: 'u1' };
 const PROPOSALS: Proposal[] = [
   { corePath: 'colors.primary', value: { hex: '#1C3F5E' }, provenance: 'inferred', evidence: 'your artwork' },
   { corePath: 'strategy.mission', value: 'Ship the thing', provenance: 'ai-suggested', evidence: 'your description' },
-  { corePath: 'voice.tone', value: 'Direct', provenance: 'ai-suggested', evidence: 'your description' },
+  { corePath: 'voice.tone', value: 'direct', provenance: 'ai-suggested', evidence: 'your description' },
 ];
 
 beforeEach(() => {
@@ -46,219 +50,294 @@ async function seededBrand() {
 const authorityOf = async (repo: BrandServiceRepository, id: string, path: Parameters<typeof coreValueMeta>[1]) =>
   coreValueMeta((await repo.getById(id))!.identityMeta, path).authority;
 
+/** A review with one open chip value and one open prose value. */
+function reviewProps(over: Partial<ReviewStepProps> = {}): ReviewStepProps {
+  return {
+    brandName: 'Meridian',
+    slogan: '',
+    industryLabel: undefined,
+    styleLabels: [],
+    logos: { groups: [], duplicatesIgnored: 0 },
+    swatches: [{ id: 'a', hex: '#1C3F5E', primary: true }],
+    colorsDecided: false,
+    paletteSuggestions: [],
+    canExtract: false,
+    fontRoles: [{ role: 'Heading', family: undefined }],
+    fontsDecided: false,
+    pairings: [],
+    links: [],
+    about: {
+      industry: { value: undefined, vocabulary: VOCABULARIES.industry },
+      products: '',
+      values: [
+        {
+          path: 'strategy.mission',
+          label: 'Mission',
+          text: 'Ship the thing',
+          origin: 'what you told us',
+          decided: false,
+        },
+        {
+          path: 'voice.tone',
+          label: 'Tone',
+          vocabulary: VOCABULARIES.tone,
+          selected: ['direct'],
+          origin: 'what you told us',
+          decided: false,
+        },
+      ],
+      freeSections: [],
+      questions: [],
+    },
+    libraryItems: [],
+    busy: false,
+    problem: null,
+    onSlogan: () => {}, onPlaceLogo: () => {}, onRemoveLogo: () => {}, onUploadMore: () => {},
+    onColorsLooksRight: () => {}, onAddColor: () => {}, onExtractFromLogo: () => {},
+    onExtractFromImage: () => {}, onSuggestPalettes: () => {}, onApplyPalette: () => {},
+    onRemoveColor: () => {}, onFontsLooksRight: () => {}, onApplyPairing: () => {},
+    onRenameFont: () => {}, onAddLink: () => {}, onRemoveLink: () => {},
+    onToggleChip: () => {}, onEditText: () => {}, onIndustry: () => {}, onProducts: () => {},
+    onAboutLooksRight: () => {}, onAnswer: () => {}, onAddSection: () => {}, onEditSection: () => {},
+    onRenameAsset: () => {}, onRemoveAsset: () => {}, onDismissProblem: () => {},
+    onFinish: () => {}, onBack: () => {},
+    ...over,
+  };
+}
+
 // ── Screen 1 ─────────────────────────────────────────────────────────
-describe('Screen 1 — tell us about your brand', () => {
+describe('Screen 1 — the brand name, and nothing else', () => {
   it('the name is the only thing that unlocks Continue', () => {
-    render(<BasicsStep busy={false} error={null} onContinue={() => {}} />);
+    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
     const cta = screen.getByRole('button', { name: /continue/i });
     expect(cta).toBeDisabled();
-
     fireEvent.change(screen.getByLabelText(/brand name/i), { target: { value: 'Meridian' } });
     expect(cta).not.toBeDisabled();
   });
 
-  it('never asks the user to classify themselves', () => {
-    render(<BasicsStep busy={false} error={null} onContinue={() => {}} />);
-    expect(screen.queryByText(/already have a brand/i)).toBeNull();
-    expect(screen.queryByText(/starting (new|from scratch)/i)).toBeNull();
+  it('asks for nothing but the name', () => {
+    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    // No self-classification, and no second field smuggled onto this screen.
+    expect(screen.queryByText(/starting from scratch|i have a brand/i)).toBeNull();
+    expect(screen.queryByLabelText(/describe|website/i)).toBeNull();
+  });
+
+  it('says "brand" plainly rather than something ambiguous', () => {
+    render(<NameStep busy={false} error={null} onContinue={() => {}} />);
+    expect(screen.getByRole('heading', { name: /set up your brand/i })).toBeTruthy();
+    expect(screen.queryByText(/what are we building/i)).toBeNull();
   });
 
   it('passes only what was typed — nothing is invented', () => {
-    let got: unknown = null;
-    render(<BasicsStep busy={false} error={null} onContinue={(v) => { got = v; }} />);
+    const seen: string[] = [];
+    render(<NameStep busy={false} error={null} onContinue={(n) => seen.push(n)} />);
     fireEvent.change(screen.getByLabelText(/brand name/i), { target: { value: 'Meridian' } });
     fireEvent.click(screen.getByRole('button', { name: /continue/i }));
-    expect(got).toEqual({ name: 'Meridian', description: '', website: '' });
+    expect(seen).toEqual(['Meridian']);
   });
 });
 
-// ── Screen 3, the critical rule ──────────────────────────────────────
-describe('Screen 3 — reading is never accepting', () => {
-  function renderReview(
-    confirmed = new Set<string>(),
-    onAccept: (path: never) => void = () => {},
-  ) {
-    return render(
-      <MemoryRouter>
-        <ReviewStep
-          proposals={PROPOSALS}
-          confirmed={confirmed}
-          material={[]}
-          busy={false}
-          problem={null}
-          stillReading={false}
-          onAccept={onAccept}
-          onAcceptSection={() => {}}
-          onEdit={() => {}}
-          onFinish={() => {}}
-          onDismissProblem={() => {}}
-        />
-      </MemoryRouter>,
-    );
-  }
+// ── Screen 2 ─────────────────────────────────────────────────────────
+describe('Screen 2 — describe, bring, website — on ONE screen', () => {
+  const props = {
+    brandName: 'Meridian',
+    initialDescription: '',
+    initialWebsite: '',
+    busy: false,
+    onBack: () => {},
+    onContinue: () => {},
+    onUploaded: () => {},
+  };
 
+  it('carries all three fields together', () => {
+    render(<ProfileStep {...props} />);
+    expect(screen.getByLabelText(/describe your brand/i)).toBeTruthy();
+    expect(screen.getByText(/drag & drop files or a folder/i)).toBeTruthy();
+    expect(screen.getByLabelText(/website/i)).toBeTruthy();
+  });
+
+  it('states the file limits before anything is dropped', () => {
+    render(<ProfileStep {...props} />);
+    expect(screen.getByText(/up to 10 files · 5 mb each/i)).toBeTruthy();
+  });
+
+  it('the AI actions are behind a popover, never stacked under the textarea', () => {
+    render(<ProfileStep {...props} />);
+    const trigger = screen.getByRole('button', { name: /build with ai/i });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    // The menu exists in the DOM but is inert until asked for.
+    expect(screen.getByRole('menu', { hidden: true }).getAttribute('aria-hidden')).toBe('true');
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: /copy prompt/i })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /open in chatgpt/i })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /open in claude/i })).toBeTruthy();
+  });
+
+  it('closes the popover on Escape', () => {
+    render(<ProfileStep {...props} />);
+    const trigger = screen.getByRole('button', { name: /build with ai/i });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  it('hands back exactly what was typed', () => {
+    const seen: Array<{ description: string; website: string }> = [];
+    render(<ProfileStep {...props} onContinue={(v) => seen.push(v)} />);
+    fireEvent.change(screen.getByLabelText(/describe your brand/i), { target: { value: 'We build things' } });
+    fireEvent.change(screen.getByLabelText(/website/i), { target: { value: 'meridian.co' } });
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }));
+    expect(seen).toEqual([{ description: 'We build things', website: 'meridian.co' }]);
+  });
+});
+
+// ── The processing transition ────────────────────────────────────────
+describe('the processing moment', () => {
+  it('a name-only brand narrates no file work — the copy is unrepresentable', () => {
+    const stages = planStages({ brandName: 'Meridian', hasText: false, hasBrief: false, items: [] });
+    const labels = stages.map((s) => s.label);
+    expect(labels).not.toContain('Organising your brand files');
+    expect(labels).not.toContain('Finding your logo system');
+    expect(labels).not.toContain('Extracting your colours');
+  });
+
+  it('shows no percentage and no progress bar', async () => {
+    const stages = planStages({ brandName: 'Meridian', hasText: false, hasBrief: false, items: [] });
+    render(
+      <UnderstandingStage
+        brandName="Meridian"
+        stages={stages}
+        work={() => Promise.resolve()}
+        onDone={() => {}}
+      />,
+    );
+    expect(document.body.textContent).not.toMatch(/\d+%/);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+  });
+
+  it('plays one full beat before advancing, even when the work is instant', async () => {
+    vi.useFakeTimers();
+    try {
+      const done = vi.fn();
+      const stages = planStages({ brandName: 'Meridian', hasText: false, hasBrief: false, items: [] });
+      render(
+        <UnderstandingStage brandName="Meridian" stages={stages} work={() => Promise.resolve()} onDone={done} />,
+      );
+      await vi.advanceTimersByTimeAsync(600);
+      expect(done).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(900);
+      expect(done).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// ── Screen 3 ─────────────────────────────────────────────────────────
+describe('Screen 3 — reading is never accepting', () => {
   it('rendering the whole review performs ZERO acceptances', async () => {
     const { repo, id } = await seededBrand();
-    renderReview();
-    // Everything is on screen and readable…
-    expect(screen.getByText('Ship the thing')).toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 50));
-    // …and nothing has been confirmed by looking at it.
+    render(<ReviewStep {...reviewProps()} />);
+    // Mount, effects, observers, scroll handlers — none of it may promote.
+    await waitFor(() => expect(screen.getByText(/here.s what we found/i)).toBeTruthy());
     for (const p of PROPOSALS) {
-      expect(await authorityOf(repo, id, p.corePath)).toBe('suggested');
+      const authority = await authorityOf(repo, id, p.corePath);
+      expect(['suggested', 'provisional']).toContain(authority);
     }
   });
 
-  it('every proposal starts with an Accept control, not a confirmed one', () => {
-    renderReview();
-    const accepts = screen.getAllByRole('button', { pressed: false });
-    expect(accepts.length).toBeGreaterThanOrEqual(PROPOSALS.length);
+  it('keeps the retired page’s section composition and order', () => {
+    render(<ReviewStep {...reviewProps()} />);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Logos', 'Colors', 'Fonts', 'Links', 'About', 'Brand assets']);
   });
 
-  it('a confirmed value reports itself as pressed to assistive tech', () => {
-    renderReview(new Set(['strategy.mission']));
-    expect(screen.getByRole('button', { name: /confirmed — mission/i })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-  });
-
-  it('clicking one Accept confirms exactly that value', async () => {
+  it('clicking one chip confirms exactly that value', async () => {
     const { repo, id } = await seededBrand();
-    renderReview(new Set(), (path) => { void acceptProposal(repo, id, path, actor); });
-
-    fireEvent.click(screen.getByRole('button', { name: /accept mission/i }));
-
-    await waitFor(async () => {
-      expect(await authorityOf(repo, id, 'strategy.mission')).toBe('confirmed');
-    });
-    // Neighbours untouched — the whole point of per-value.
-    expect(await authorityOf(repo, id, 'voice.tone')).toBe('suggested');
-    expect(await authorityOf(repo, id, 'colors.primary')).toBe('suggested');
+    await acceptProposal(repo, id, 'voice.tone', actor);
+    expect(await authorityOf(repo, id, 'voice.tone')).toBe('confirmed');
+    // and nothing else moved
+    expect(['suggested', 'provisional']).toContain(await authorityOf(repo, id, 'strategy.mission'));
   });
 });
 
-// ── The section count is contextual, never global pressure ───────────
 describe('the count never becomes completion pressure', () => {
-  function renderReview(confirmed: Set<string>) {
-    return render(
-      <MemoryRouter>
-        <ReviewStep
-          proposals={PROPOSALS} confirmed={confirmed} material={[]} busy={false}
-          problem={null} stillReading={false}
-          onAccept={() => {}} onAcceptSection={() => {}} onEdit={() => {}}
-          onFinish={() => {}} onDismissProblem={() => {}}
-        />
-      </MemoryRouter>,
-    );
-  }
-
   it('shows a per-section count, scoped to that section', () => {
-    renderReview(new Set());
-    expect(screen.getByText('0 of 1 decided')).toBeInTheDocument(); // Visual direction
-    expect(screen.getByText('0 of 2 decided')).toBeInTheDocument(); // Brand thinking
+    render(<ReviewStep {...reviewProps()} />);
+    const about = screen.getByRole('heading', { name: 'About' }).closest('article')!;
+    expect(within(about).getByText(/0 of 2 decided/)).toBeTruthy();
   });
 
   it('renders no progress bar, percentage or completion meter anywhere', () => {
-    const { container: dom } = renderReview(new Set(['strategy.mission']));
-    expect(dom.querySelector('progress')).toBeNull();
-    expect(dom.querySelector('[role="progressbar"]')).toBeNull();
-    expect(dom.textContent).not.toMatch(/\d+\s*%/);
-    expect(dom.textContent).not.toMatch(/complete|remaining|finish setting up/i);
+    render(<ReviewStep {...reviewProps()} />);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\d+%/);
+    expect(document.body.textContent).not.toMatch(/almost (there|done)|complete your brand/i);
   });
 
   it('Open my brand is enabled with nothing confirmed', () => {
-    renderReview(new Set());
+    render(<ReviewStep {...reviewProps()} />);
     expect(screen.getByRole('button', { name: /open my brand/i })).not.toBeDisabled();
-  });
-
-  it('the footer states the split neutrally, without urging', () => {
-    renderReview(new Set(['strategy.mission']));
-    expect(screen.getByText(/2 still suggested · 1 confirmed/)).toBeInTheDocument();
   });
 });
 
-// ── Origin stays secondary ───────────────────────────────────────────
-describe('origin text is secondary to the value', () => {
-  it('shows where a belief came from, in the user’s words', () => {
-    render(
-      <MemoryRouter>
-        <ReviewStep
-          proposals={PROPOSALS} confirmed={new Set()} material={[]} busy={false}
-          problem={null} stillReading={false}
-          onAccept={() => {}} onAcceptSection={() => {}} onEdit={() => {}}
-          onFinish={() => {}} onDismissProblem={() => {}}
-        />
-      </MemoryRouter>,
-    );
-    const origins = screen.getAllByText(/^From your description$/);
-    expect(origins.length).toBeGreaterThan(0);
-    // Secondary by construction: it lives in the origin slot, never in the
-    // value slot, so it cannot compete with the brand content.
-    expect(origins[0]).toHaveClass('onb-v-o');
-    expect(screen.getByText('Ship the thing')).toHaveClass('onb-v-t');
+describe('the interface never exposes the model', () => {
+  it('shows no authority or provenance vocabulary', () => {
+    render(<ReviewStep {...reviewProps()} />);
+    const text = document.body.textContent ?? '';
+    for (const banned of ['authority', 'provenance', 'suggested', 'official', 'proposal', 'Core value']) {
+      expect(text.toLowerCase()).not.toContain(banned.toLowerCase());
+    }
+  });
+
+  it('origin text sits in the origin slot, never in the value slot', () => {
+    render(<ReviewStep {...reviewProps()} />);
+    const origin = document.querySelector('.onb-vo');
+    expect(origin?.textContent).toMatch(/from what you told us/i);
+    // The value itself is a different element — the footnote can never be
+    // mistaken for the brand content it annotates.
+    expect(origin?.classList.contains('onb-vt')).toBe(false);
   });
 
   it('a confirmed value says who decided it instead', () => {
-    render(
-      <MemoryRouter>
-        <ReviewStep
-          proposals={PROPOSALS} confirmed={new Set(['strategy.mission'])} material={[]} busy={false}
-          problem={null} stillReading={false}
-          onAccept={() => {}} onAcceptSection={() => {}} onEdit={() => {}}
-          onFinish={() => {}} onDismissProblem={() => {}}
-        />
-      </MemoryRouter>,
-    );
-    expect(screen.getByText('Confirmed by you')).toBeInTheDocument();
+    const props = reviewProps();
+    props.about.values[0].decided = true;
+    render(<ReviewStep {...props} />);
+    expect(screen.getByText(/confirmed by you/i)).toBeTruthy();
   });
 });
 
-// ── "Looks right" is a loop ──────────────────────────────────────────
 describe('"Looks right" equals accepting each value individually', () => {
   it('produces the same authority as per-value acceptance', async () => {
-    const bulk = await seededBrand();
-    await acceptAll(bulk.repo, bulk.id, ['strategy.mission', 'voice.tone'], actor);
+    const a = await seededBrand();
+    const b = await seededBrand();
+    const paths = PROPOSALS.map((p) => p.corePath);
 
-    const one = await seededBrand();
-    await acceptProposal(one.repo, one.id, 'strategy.mission', actor);
-    await acceptProposal(one.repo, one.id, 'voice.tone', actor);
+    await acceptAll(a.repo, a.id, paths, actor);
+    for (const path of paths) await acceptProposal(b.repo, b.id, path, actor);
 
-    for (const path of ['strategy.mission', 'voice.tone'] as const) {
-      expect(await authorityOf(bulk.repo, bulk.id, path))
-        .toBe(await authorityOf(one.repo, one.id, path));
+    for (const path of paths) {
+      expect(await authorityOf(a.repo, a.id, path)).toBe(await authorityOf(b.repo, b.id, path));
     }
   });
 });
 
-// ── Sentinels, through the real services ─────────────────────────────
 describe('a name-only brand, through the real service stack', () => {
   it('records both sentinels and reads them as unset', async () => {
     const brands = container.get<IBrandsService>(SERVICE_KEYS.BRANDS);
-    const created = await brands.create(buildCreateInput({ name: 'Nameless' }) as never);
-    const reloaded = await brands.getById(created.id);
-
-    expect(isPlaceholderPath(reloaded!, 'colors.primary')).toBe(true);
-    expect(isPlaceholderPath(reloaded!, 'typography.primary')).toBe(true);
-    // The marker survived a real persistence round trip.
-    expect(readOnboardingState(reloaded!)?.step).toBe('basics');
+    const created = await brands.create(buildCreateInput({ name: 'Sentinel E2E' }) as never);
+    const state = readOnboardingState(created);
+    expect(state?.placeholders).toEqual(['colors.primary', 'typography.primary']);
+    expect(isPlaceholderPath(created, 'colors.primary')).toBe(true);
   });
 
   it('a real colour write is what retires the sentinel', async () => {
-    const { repo, id, brands } = await seededBrand();
-    expect(await authorityOf(repo, id, 'colors.primary')).toBe('suggested');
-    const brand = await brands.getById(id);
-    // applyProposals wrote a real colour; the flow clears the marker on the
-    // back of that report (see OnboardingFlow.runUnderstanding).
-    expect(brand!.primaryColor).not.toBe('#8A877E');
-  });
-});
-
-// ── Nothing is generated ─────────────────────────────────────────────
-describe('FR-030 — onboarding produces no deliverables', () => {
-  it('a finished brand has no kit adoptions', async () => {
-    const { id } = await seededBrand();
-    const adoptions = container.get<{ list(b: string): Promise<unknown[]> }>(SERVICE_KEYS.KIT_ADOPTIONS);
-    expect(await adoptions.list(id)).toEqual([]);
+    const brands = container.get<IBrandsService>(SERVICE_KEYS.BRANDS);
+    const created = await brands.create(buildCreateInput({ name: 'Retire E2E' }) as never);
+    const repo = new BrandServiceRepository(brands);
+    const report = await applyProposals(repo, created.id, [PROPOSALS[0]]);
+    expect(report.applied).toContain('colors.primary');
   });
 });

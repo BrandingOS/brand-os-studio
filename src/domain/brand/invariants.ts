@@ -78,15 +78,27 @@ const visualStyle = z
   .object({
     descriptors: z
       .array(
+        // Mirrors `StyleDescriptor` in identity.ts — widened additively in
+        // 002 R1. A test asserts the two stay in step with the product's
+        // style vocabulary.
         z.enum([
           'minimal',
-          'bold',
-          'elegant',
-          'playful',
-          'technical',
-          'organic',
-          'luxury',
+          'maximal',
+          'modern',
+          'classic',
           'retro',
+          'futuristic',
+          'elegant',
+          'luxury',
+          'bold',
+          'playful',
+          'organic',
+          'geometric',
+          'brutalist',
+          'editorial',
+          'technical',
+          'corporate',
+          'artisanal',
         ]),
       )
       .optional(),

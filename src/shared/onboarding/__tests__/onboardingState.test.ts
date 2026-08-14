@@ -8,18 +8,19 @@
 import { describe, it, expect } from 'vitest';
 import {
   atStep,
+  clearPlaceholders,
   completedState,
   isUnfinished,
   readOnboardingState,
   resumeStep,
   startedState,
   unfinishedLabel,
+  withBrief,
   type OnboardingState,
 } from '../onboardingState';
 
 const inProgress: OnboardingState = {
-  step: 'material',
-  branch: 'existing',
+  step: 'profile',
   startedAt: '2026-08-14T00:00:00.000Z',
   completedAt: null,
 };
@@ -43,8 +44,7 @@ describe('readOnboardingState — the meaning table', () => {
   it('an in-progress marker reads as unfinished, at its step', () => {
     const s = readOnboardingState({ onboarding: inProgress });
     expect(s).not.toBeNull();
-    expect(s!.step).toBe('material');
-    expect(s!.branch).toBe('existing');
+    expect(s!.step).toBe('profile');
   });
 
   it('no brand at all reads as finished rather than throwing', () => {
@@ -56,12 +56,17 @@ describe('readOnboardingState — the meaning table', () => {
 describe('malformed markers degrade, never throw', () => {
   it('an unknown step falls back to basics', () => {
     const s = readOnboardingState({ onboarding: { ...inProgress, step: 'wat' } as never });
-    expect(s!.step).toBe('basics');
+    expect(s!.step).toBe('name');
   });
 
-  it('an unknown branch falls back to existing', () => {
-    const s = readOnboardingState({ onboarding: { ...inProgress, branch: 'nope' } as never });
-    expect(s!.branch).toBe('existing');
+  it('a step from the retired vocabulary resumes rather than throwing', () => {
+    // Brands recorded under the three-step names ('basics'/'material') predate
+    // R1. Degrading to the first step keeps them openable, which is the whole
+    // point of tolerating a malformed marker.
+    for (const old of ['basics', 'material']) {
+      const s = readOnboardingState({ onboarding: { ...inProgress, step: old } as never });
+      expect(s!.step).toBe('name');
+    }
   });
 
   it('a missing startedAt is filled rather than left undefined', () => {
@@ -90,34 +95,32 @@ describe('isUnfinished / resumeStep', () => {
   });
 
   it('resume lands on the recorded step, or basics when unknown', () => {
-    expect(resumeStep({ onboarding: inProgress })).toBe('material');
+    expect(resumeStep({ onboarding: inProgress })).toBe('profile');
     expect(resumeStep({ onboarding: { ...inProgress, step: 'review' } })).toBe('review');
-    expect(resumeStep({})).toBe('basics');
+    expect(resumeStep({})).toBe('name');
   });
 });
 
 describe('transitions', () => {
-  it('starts at basics, open', () => {
+  it('starts at the name step, open', () => {
     const s = startedState();
-    expect(s.step).toBe('basics');
+    expect(s.step).toBe('name');
     expect(s.completedAt).toBeNull();
-    expect(s.branch).toBe('existing');
   });
 
-  it('records the branch when the user takes the help-me-start path', () => {
-    expect(startedState('new').branch).toBe('new');
+  it('records the placeholders the create path had to invent', () => {
+    expect(startedState(['colors.primary']).placeholders).toEqual(['colors.primary']);
   });
 
   it('moving BACKWARDS rewrites the step — where you are, not how far you got', () => {
     const forward = atStep(inProgress, 'review');
     expect(forward.step).toBe('review');
-    const back = atStep(forward, 'material');
-    expect(back.step).toBe('material');
+    const back = atStep(forward, 'profile');
+    expect(back.step).toBe('profile');
   });
 
-  it('a step change preserves branch and startedAt', () => {
+  it('a step change preserves startedAt', () => {
     const next = atStep(inProgress, 'review');
-    expect(next.branch).toBe(inProgress.branch);
     expect(next.startedAt).toBe(inProgress.startedAt);
   });
 
@@ -128,18 +131,18 @@ describe('transitions', () => {
   });
 
   it('transitions work from nothing', () => {
-    expect(atStep(null, 'material').step).toBe('material');
+    expect(atStep(null, 'profile').step).toBe('profile');
     expect(completedState(null).completedAt).toBeTruthy();
   });
 });
 
 describe('unfinishedLabel', () => {
   it('describes a situation, never a deficiency', () => {
-    expect(unfinishedLabel({ onboarding: inProgress })).toBe('Still setting up · left at your files');
+    expect(unfinishedLabel({ onboarding: inProgress })).toBe('Still setting up · left at your details');
     expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'review' } })).toBe(
       'Still setting up · left at Review',
     );
-    expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'basics' } })).toBe(
+    expect(unfinishedLabel({ onboarding: { ...inProgress, step: 'name' } })).toBe(
       'Still setting up · just started',
     );
   });
@@ -151,5 +154,36 @@ describe('unfinishedLabel', () => {
 
   it('is null for a finished brand', () => {
     expect(unfinishedLabel({})).toBeNull();
+  });
+});
+
+describe('marker writes are read-modify-write — the staleness hazard', () => {
+  // A real bug, caught in a browser smoke pass: the understanding pass retired
+  // both sentinels, then the step change wrote them straight back from a
+  // render-time snapshot taken before the clear. The review then rendered a
+  // real colour and a real typeface as undecided.
+  //
+  // These two cases pin the shape of it, so the reason `OnboardingFlow` reads
+  // the marker from the store at write time survives anyone tidying that up.
+  const withSentinels = startedState(['colors.primary', 'typography.primary']);
+
+  it('stepping from the CLEARED marker keeps it cleared', () => {
+    const cleared = clearPlaceholders(withSentinels, ['colors.primary', 'typography.primary'])!;
+    expect(atStep(cleared, 'review').placeholders).toBeUndefined();
+  });
+
+  it('stepping from a STALE marker resurrects what was cleared', () => {
+    const cleared = clearPlaceholders(withSentinels, ['colors.primary', 'typography.primary'])!;
+    expect(cleared.placeholders).toBeUndefined();
+    // The same write, from the pre-clear snapshot — this is the bug.
+    expect(atStep(withSentinels, 'review').placeholders).toEqual([
+      'colors.primary',
+      'typography.primary',
+    ]);
+  });
+
+  it('the brief survives a step change', () => {
+    const withText = withBrief(withSentinels, 'Industry: Retail');
+    expect(atStep(withText, 'review').brief).toBe('Industry: Retail');
   });
 });

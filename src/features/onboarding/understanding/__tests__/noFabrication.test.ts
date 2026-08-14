@@ -69,7 +69,7 @@ describe('placeholders sit below the canonical projection', () => {
 
   it('a brand holding placeholders is undecided', () => {
     expect(isUndecided(brand)).toBe(true);
-    expect(isUndecided({ onboarding: startedState('existing', []) })).toBe(false);
+    expect(isUndecided({ onboarding: startedState([]) })).toBe(false);
   });
 
   it('a placeholder is dropped the moment a real value is written', () => {
@@ -101,7 +101,7 @@ describe('a placeholder is never proposed', () => {
     // The decisive check: proposals come from supplied material and supplied
     // text only. A placeholder in the brand record cannot become one, because
     // interpretation never reads the brand.
-    return expect(interpret({ items: [] }, {})).resolves.toEqual([]);
+    return expect(interpret({ items: [] }, {}).then((u) => u.proposals)).resolves.toEqual([]);
   });
 
   it('proposes only what the user actually supplied', async () => {
@@ -114,9 +114,10 @@ describe('a placeholder is never proposed', () => {
       },
       {},
     );
-    expect(out.map((p) => p.corePath)).toEqual(['colors.primary']);
-    expect((out[0].value as { hex: string }).hex).toBe('#1C3F5E');
-    expect((out[0].value as { hex: string }).hex).not.toBe(CORE_PLACEHOLDERS['colors.primary']);
+    const proposals = out.proposals;
+    expect(proposals.map((p) => p.corePath)).toEqual(['colors.primary']);
+    expect((proposals[0].value as { hex: string }).hex).toBe('#1C3F5E');
+    expect((proposals[0].value as { hex: string }).hex).not.toBe(CORE_PLACEHOLDERS['colors.primary']);
   });
 });
 

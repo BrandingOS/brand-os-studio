@@ -18,7 +18,7 @@ description: "Task list for 002 — Onboarding V3 (incl. revision R1)"
 | | Tasks | State |
 |---|---|---|
 | **Original list (T001–T083)** | 83 | 82 done · 1 blocked on an owner deploy (T081) |
-| **Revision R1 (T084–T146)** | 65 | Not started — awaiting visual approval |
+| **Revision R1 (T084–T146)** | 65 | **Complete** (2026-08-14) |
 
 **R1 reconciliation rule**: the Foundation touch, migration 022, the intake move,
 the Library write path, `applyProposals`, `acceptance`, `createBrand`, `finish`,
@@ -37,15 +37,15 @@ deleted — the record of what shipped stays readable.
 
 **Purpose**: Four screens, name alone on the first. Everything else lands on this.
 
-- [ ] T084 Change `ONBOARDING_STEPS` in `src/shared/onboarding/onboardingState.ts` to `['name','profile','review']`, keep the "unrecognised step degrades to the first" behaviour, and drop the `branch` field from `OnboardingState` (FR-002, FR-043)
-- [ ] T085 [P] Update `src/shared/onboarding/__tests__/onboardingState.test.ts` for the new vocabulary, adding a case that a brand recorded at the retired `'basics'` step resumes at `'name'` rather than throwing
-- [ ] T086 Create `src/features/onboarding/steps/NameStep.tsx` — the approved **split layout**: BrandingOS mark large on the left, name form on the right, in the existing DS visual language and with no invented form layout. Brand name only; title plainly about setting up a brand; creates the brand via the existing `buildCreateInput` path. Collapses to a single stacked column below the tablet breakpoint (FR-006, FR-007, FR-044, FR-074)
-- [ ] T087 Create `src/features/onboarding/steps/ProfileStep.tsx` — **the same split composition as `NameStep`** (mark left, inputs right), carrying all three of the large description surface (`DsTextArea`, FR-049 guiding placeholder, Build-with-AI slot), the upload area, and the website field, reusing the retired flow's components and styling rather than redesigning those fields (FR-011, FR-074, FR-075)
-- [ ] T088 Rework the step machine in `src/features/onboarding/OnboardingFlow.tsx` for three steps, keeping brand-as-authority, `?step=` as advisory, the finished-brand guard, history-per-step, and `?then=` preservation (FR-034, FR-036, FR-043)
-- [ ] T089 Move the description hand-off from `sessionStorage` to the brand — persist the raw text as `brand.onboarding.brief` (the JSONB the flow already owns) when leaving `ProfileStep`, so resume on another device still has it. It MUST NOT be written to `businessInfo.description`, which belongs to products/services (FR-035, Principle II)
-- [ ] T090 Delete `src/features/onboarding/steps/BasicsStep.tsx` and every reference to it (FR-073)
-- [ ] T090a [P] Build the shared split composition once — a `SplitShell` local to the feature, used by BOTH `NameStep` and `ProfileStep` — as `--ds-*` rules only: mark pane left with no divider rule, inputs right, generous whitespace, stacking below 760px. No hardcoded values, no new visual language (FR-072, FR-074)
-- [ ] T091 [P] Browser E2E in `src/features/onboarding/__tests__/screenSplit.browser.test.tsx` — the name screen asks only for a name; the profile screen carries description **and** upload **and** website; back/forward across all three steps loses nothing
+- [X] T084 Change `ONBOARDING_STEPS` in `src/shared/onboarding/onboardingState.ts` to `['name','profile','review']`, keep the "unrecognised step degrades to the first" behaviour, and drop the `branch` field from `OnboardingState` (FR-002, FR-043)
+- [X] T085 [P] Update `src/shared/onboarding/__tests__/onboardingState.test.ts` for the new vocabulary, adding a case that a brand recorded at the retired `'basics'` step resumes at `'name'` rather than throwing
+- [X] T086 Create `src/features/onboarding/steps/NameStep.tsx` — the approved **split layout**: BrandingOS mark large on the left, name form on the right, in the existing DS visual language and with no invented form layout. Brand name only; title plainly about setting up a brand; creates the brand via the existing `buildCreateInput` path. Collapses to a single stacked column below the tablet breakpoint (FR-006, FR-007, FR-044, FR-074)
+- [X] T087 Create `src/features/onboarding/steps/ProfileStep.tsx` — **the same split composition as `NameStep`** (mark left, inputs right), carrying all three of the large description surface (`DsTextArea`, FR-049 guiding placeholder, Build-with-AI slot), the upload area, and the website field, reusing the retired flow's components and styling rather than redesigning those fields (FR-011, FR-074, FR-075)
+- [X] T088 Rework the step machine in `src/features/onboarding/OnboardingFlow.tsx` for three steps, keeping brand-as-authority, `?step=` as advisory, the finished-brand guard, history-per-step, and `?then=` preservation (FR-034, FR-036, FR-043)
+- [X] T089 Move the description hand-off from `sessionStorage` to the brand — persist the raw text as `brand.onboarding.brief` (the JSONB the flow already owns) when leaving `ProfileStep`, so resume on another device still has it. It MUST NOT be written to `businessInfo.description`, which belongs to products/services (FR-035, Principle II)
+- [X] T090 Delete `src/features/onboarding/steps/BasicsStep.tsx` and every reference to it (FR-073)
+- [X] T090a [P] Build the shared split composition once — a `SplitShell` local to the feature, used by BOTH `NameStep` and `ProfileStep` — as `--ds-*` rules only: mark pane left with no divider rule, inputs right, generous whitespace, stacking below 760px. No hardcoded values, no new visual language (FR-072, FR-074)
+- [X] T091 [P] Browser E2E in `src/features/onboarding/__tests__/screenSplit.browser.test.tsx` — the name screen asks only for a name; the profile screen carries description **and** upload **and** website; back/forward across all three steps loses nothing
 
 **Checkpoint**: three screens navigate, the brand is created at the name step, resume works on the new vocabulary.
 
@@ -55,12 +55,12 @@ deleted — the record of what shipped stays readable.
 
 **Purpose**: Make categorical brand facts usable. Pure, no UI.
 
-- [ ] T092 Create `src/features/onboarding/vocabulary/vocabularies.ts` — closed lists for industry, style, personality, tone and values, each member carrying a stable id and a human label. The **style list is the approved 17 members** of plan §9b, grouped reduction / era / register / form / discipline (FR-047)
-- [ ] T093 Create `src/features/onboarding/vocabulary/normalize.ts` — free text → vocabulary member, with `Other` preserving the user's exact wording when nothing fits (FR-054)
-- [ ] T094 [P] Unit tests in `src/features/onboarding/vocabulary/__tests__/normalize.test.ts` — every member round-trips; case/plural/synonym near-misses map; a genuine miss becomes `Other` with wording intact; nothing is silently coerced
-- [ ] T095 [P] Unit test in the same folder asserting `vocabulary/` imports no service, store or React (purity guard)
-- [ ] T096 **[APPROVED]** Widen `StyleDescriptor` in `src/domain/brand/identity.ts` and the matching `z.enum` in `src/domain/brand/invariants.ts` to the approved 17 members (plan §9b). Additive only — all eight existing members survive, no removal, no rename, no migration
-- [ ] T097 [P] Extend `src/domain/brand/__tests__/coreFieldPaths.test.ts`'s fixture and add a case asserting every style vocabulary member validates against the schema, and that the eight pre-existing members still do
+- [X] T092 Create `src/features/onboarding/vocabulary/vocabularies.ts` — closed lists for industry, style, personality, tone and values, each member carrying a stable id and a human label. The **style list is the approved 17 members** of plan §9b, grouped reduction / era / register / form / discipline (FR-047)
+- [X] T093 Create `src/features/onboarding/vocabulary/normalize.ts` — free text → vocabulary member, with `Other` preserving the user's exact wording when nothing fits (FR-054)
+- [X] T094 [P] Unit tests in `src/features/onboarding/vocabulary/__tests__/normalize.test.ts` — every member round-trips; case/plural/synonym near-misses map; a genuine miss becomes `Other` with wording intact; nothing is silently coerced
+- [X] T095 [P] Unit test in the same folder asserting `vocabulary/` imports no service, store or React (purity guard)
+- [X] T096 **[APPROVED]** Widen `StyleDescriptor` in `src/domain/brand/identity.ts` and the matching `z.enum` in `src/domain/brand/invariants.ts` to the approved 17 members (plan §9b). Additive only — all eight existing members survive, no removal, no rename, no migration
+- [X] T097 [P] Extend `src/domain/brand/__tests__/coreFieldPaths.test.ts`'s fixture and add a case asserting every style vocabulary member validates against the schema, and that the eight pre-existing members still do
 
 ---
 
@@ -68,13 +68,13 @@ deleted — the record of what shipped stays readable.
 
 **Purpose**: The Build-with-AI path — prompt out, structured plain text back.
 
-- [ ] T098 Create `src/features/onboarding/brief/prompt.ts` — builds the prompt from the brand name, embedding the vocabularies inline, demanding plain-text labelled lines, the lightweight-profile constraint, and the colours/fonts "existing, else three directions" rule (FR-046, FR-047, FR-048)
-- [ ] T099 Create `src/features/onboarding/brief/parseBrief.ts` — `looksLikeBrief()` (≥3 recognised labels at line starts) and `parseBrief()`, deterministic, tolerant of label casing and of a partial brief (FR-052). **The Colors and Fonts answers are two-mode** (FR-048): concrete existing values rank `brief`, while offered *directions* rank `ai` and become suggestions — a direction MUST NEVER be parsed as the brand's actual palette or typeface (FR-056)
-- [ ] T100 [P] Unit tests in `src/features/onboarding/brief/__tests__/parseBrief.test.ts` — a full brief; a partial brief; a prose paragraph that must NOT be detected; an out-of-vocabulary answer; a brief with sections in a different order; **a brief offering three palette directions, asserting they arrive ranked `ai` and none becomes `colors.primary`** (FR-048, SC-016)
-- [ ] T101 [P] Unit test in the same folder asserting a prompt built by `prompt.ts` round-trips through `parseBrief` when answered in the documented shape (the two-way contract, SC-012)
-- [ ] T102 Create `src/features/onboarding/brief/BuildWithAI.tsx` — a small button beside the label opening a **floating popover on click** (`DsMenu`), offering copy prompt / open in ChatGPT / open in Claude, with a clipboard fallback for insecure contexts. Never rendered permanently under the textarea (FR-045)
-- [ ] T103 [P] Unit test asserting `brief/prompt.ts` and `brief/parseBrief.ts` import no service, store or React (purity guard)
-- [ ] T104 Wire `BuildWithAI` into `ProfileStep.tsx`
+- [X] T098 Create `src/features/onboarding/brief/prompt.ts` — builds the prompt from the brand name, embedding the vocabularies inline, demanding plain-text labelled lines, the lightweight-profile constraint, and the colours/fonts "existing, else three directions" rule (FR-046, FR-047, FR-048)
+- [X] T099 Create `src/features/onboarding/brief/parseBrief.ts` — `looksLikeBrief()` (≥3 recognised labels at line starts) and `parseBrief()`, deterministic, tolerant of label casing and of a partial brief (FR-052). **The Colors and Fonts answers are two-mode** (FR-048): concrete existing values rank `brief`, while offered *directions* rank `ai` and become suggestions — a direction MUST NEVER be parsed as the brand's actual palette or typeface (FR-056)
+- [X] T100 [P] Unit tests in `src/features/onboarding/brief/__tests__/parseBrief.test.ts` — a full brief; a partial brief; a prose paragraph that must NOT be detected; an out-of-vocabulary answer; a brief with sections in a different order; **a brief offering three palette directions, asserting they arrive ranked `ai` and none becomes `colors.primary`** (FR-048, SC-016)
+- [X] T101 [P] Unit test in the same folder asserting a prompt built by `prompt.ts` round-trips through `parseBrief` when answered in the documented shape (the two-way contract, SC-012)
+- [X] T102 Create `src/features/onboarding/brief/BuildWithAI.tsx` — a small button beside the label opening a **floating popover on click** (`DsMenu`), offering copy prompt / open in ChatGPT / open in Claude, with a clipboard fallback for insecure contexts. Never rendered permanently under the textarea (FR-045)
+- [X] T103 [P] Unit test asserting `brief/prompt.ts` and `brief/parseBrief.ts` import no service, store or React (purity guard)
+- [X] T104 Wire `BuildWithAI` into `ProfileStep.tsx`
 
 ---
 
@@ -82,16 +82,16 @@ deleted — the record of what shipped stays readable.
 
 **Purpose**: Route by input shape, merge by source rank, ask only what is missing.
 
-- [ ] T105 Create `src/features/onboarding/understanding/sources.ts` — the rank enum and the pure merge that keeps the highest-ranked candidate per Core path (FR-056)
-- [ ] T106 [P] Unit tests in `src/features/onboarding/understanding/__tests__/sources.test.ts` — the full rank matrix, and re-running understanding never displaces a higher-ranked value (SC-016)
-- [ ] T107 Extend `src/features/onboarding/understanding/interpret.ts` — route brief vs prose per FR-052/FR-053, normalise categorical answers through `vocabulary/normalize.ts`, and emit every candidate through `sources.ts` (FR-054)
-- [ ] T108 Create `src/features/onboarding/understanding/questions.ts` — derive the open questions: only genuinely missing or ambiguous AND materially useful, ordered by importance, bounded, categorical ones carrying their vocabulary (FR-055)
-- [ ] T109 [P] Unit tests in `src/features/onboarding/understanding/__tests__/questions.test.ts` — a fully-determined brand yields zero questions; a name-only brand yields a short ordered set; no question duplicates a value already determined
-- [ ] T110 Extend `src/features/onboarding/understanding/proposals.ts` — the six review sections, their labels, and `sectionFor` covering the new paths (FR-064)
-- [ ] T111 Extend `src/features/onboarding/understanding/hydrate.ts` for the six sections so resume rebuilds the new review
-- [ ] T112 Route business facts — industry, slogan, products/services, audience summary — to `businessInfo` in `applyProposals.ts`, and confirm no Core mirror is written (FR-028, Principle II)
-- [ ] T113 [P] Extend `src/features/onboarding/__tests__/boundaries.test.ts` — only `understanding/sources.ts` may construct a `Proposal`, and `brief/`+`vocabulary/` stay pure
-- [ ] T114 [P] Adapter integration test in `src/features/onboarding/__tests__/vocabularyPersistence.test.ts` — categorical values persist as vocabulary members on BOTH adapters (SC-013)
+- [X] T105 Create `src/features/onboarding/understanding/sources.ts` — the rank enum and the pure merge that keeps the highest-ranked candidate per Core path (FR-056)
+- [X] T106 [P] Unit tests in `src/features/onboarding/understanding/__tests__/sources.test.ts` — the full rank matrix, and re-running understanding never displaces a higher-ranked value (SC-016)
+- [X] T107 Extend `src/features/onboarding/understanding/interpret.ts` — route brief vs prose per FR-052/FR-053, normalise categorical answers through `vocabulary/normalize.ts`, and emit every candidate through `sources.ts` (FR-054)
+- [X] T108 Create `src/features/onboarding/understanding/questions.ts` — derive the open questions: only genuinely missing or ambiguous AND materially useful, ordered by importance, bounded, categorical ones carrying their vocabulary (FR-055)
+- [X] T109 [P] Unit tests in `src/features/onboarding/understanding/__tests__/questions.test.ts` — a fully-determined brand yields zero questions; a name-only brand yields a short ordered set; no question duplicates a value already determined
+- [X] T110 Extend `src/features/onboarding/understanding/proposals.ts` — the six review sections, their labels, and `sectionFor` covering the new paths (FR-064)
+- [X] T111 Extend `src/features/onboarding/understanding/hydrate.ts` for the six sections so resume rebuilds the new review
+- [X] T112 Route business facts — industry, slogan, products/services, audience summary — to `businessInfo` in `applyProposals.ts`, and confirm no Core mirror is written (FR-028, Principle II)
+- [X] T113 [P] Extend `src/features/onboarding/__tests__/boundaries.test.ts` — only `understanding/sources.ts` may construct a `Proposal`, and `brief/`+`vocabulary/` stay pure
+- [X] T114 [P] Adapter integration test in `src/features/onboarding/__tests__/vocabularyPersistence.test.ts` — categorical values persist as vocabulary members on BOTH adapters (SC-013)
 
 ---
 
@@ -99,30 +99,30 @@ deleted — the record of what shipped stays readable.
 
 **Purpose**: The old dropzone, restored *into `ProfileStep`*, with the new limits and the website field. There is no separate material screen.
 
-- [ ] T115 Port the retired `BrandDropzone` into `ProfileStep.tsx` — drag/drop, folder drop, click-to-pick, the item strip with per-item remove and clear-all — on `DsDropZone`, keeping the retired styling (FR-012, FR-062, FR-075)
-- [ ] T116 Add the optional website field to `ProfileStep.tsx`, persisted to `businessInfo.contact.website` (FR-050, FR-075)
-- [ ] T117 Enforce FR-051 in `src/shared/upload/intake.ts` and `ProfileStep.tsx` — 10 files total, 5 MB per file, applied after folder/archive expansion, refusing per item with a reason and never aborting the batch (FR-016)
-- [ ] T118 [P] Unit tests in `src/shared/upload/__tests__/limits.test.ts` — the 11th file is refused; an oversized file is refused; a folder drop that exceeds the total accepts what fits and names the rest
-- [ ] T119 Delete `src/features/onboarding/understanding/directions.ts` and `src/features/onboarding/steps/MaterialStep.tsx`; move starting suggestions into the review's Colors and Fonts sections (FR-002, FR-073)
+- [X] T115 Port the retired `BrandDropzone` into `ProfileStep.tsx` — drag/drop, folder drop, click-to-pick, the item strip with per-item remove and clear-all — on `DsDropZone`, keeping the retired styling (FR-012, FR-062, FR-075)
+- [X] T116 Add the optional website field to `ProfileStep.tsx`, persisted to `businessInfo.contact.website` (FR-050, FR-075)
+- [X] T117 Enforce FR-051 in `src/shared/upload/intake.ts` and `ProfileStep.tsx` — 10 files total, 5 MB per file, applied after folder/archive expansion, refusing per item with a reason and never aborting the batch (FR-016)
+- [X] T118 [P] Unit tests in `src/shared/upload/__tests__/limits.test.ts` — the 11th file is refused; an oversized file is refused; a folder drop that exceeds the total accepts what fits and names the rest
+- [X] T119 Delete `src/features/onboarding/understanding/directions.ts` and `src/features/onboarding/steps/MaterialStep.tsx`; move starting suggestions into the review's Colors and Fonts sections (FR-002, FR-073)
 
 ---
 
 ## Phase 14: Logo classification
 
-- [ ] T120 Create `src/features/onboarding/understanding/logoClassify.ts` — exact-duplicate rejection by content hash, near-duplicate variant grouping via the existing `shared/upload/logoFamily` helpers, and evidence-only role assignment across primary, wordmark, mark, on-light, on-dark, horizontal and vertical (FR-065)
-- [ ] T121 [P] Unit tests in `src/features/onboarding/understanding/__tests__/logoClassify.test.ts` — duplicates collapse to one; near-duplicates group; a role with no supporting evidence is left empty rather than guessed (SC-018)
-- [ ] T122 Emit logo roles as proposals through `sources.ts`, so a user drag/swap outranks classification (FR-056)
+- [X] T120 Create `src/features/onboarding/understanding/logoClassify.ts` — exact-duplicate rejection by content hash, near-duplicate variant grouping via the existing `shared/upload/logoFamily` helpers, and evidence-only role assignment across primary, wordmark, mark, on-light, on-dark, horizontal and vertical (FR-065)
+- [X] T121 [P] Unit tests in `src/features/onboarding/understanding/__tests__/logoClassify.test.ts` — duplicates collapse to one; near-duplicates group; a role with no supporting evidence is left empty rather than guessed (SC-018)
+- [X] T122 Emit logo roles as proposals through `sources.ts`, so a user drag/swap outranks classification (FR-056)
 
 ---
 
 ## Phase 15: The processing moment
 
-- [ ] T123 Create `src/features/onboarding/understanding/stages.ts` — the stage machine, where a stage exists only when the work it names is scheduled, each carrying its copy, its symbol node, and a `run` that may return a small real finding (FR-058, FR-059)
-- [ ] T124 [P] Unit tests in `src/features/onboarding/understanding/__tests__/stages.test.ts` — a name-only brand constructs zero file stages so their copy is unrepresentable; a stage's finding reflects real output (SC-014)
-- [ ] T125 **[APPROVED]** Add an optional `activeNodes?: number[]` to `src/shared/ds/BrandMark.tsx`, leaving every existing call site byte-identical, with a case in `src/shared/ds/ds.test.tsx`. The logo geometry MUST NOT be duplicated anywhere — `UnderstandingMark` composes `BrandMark`, it does not re-declare the paths
-- [ ] T126 Create `src/features/onboarding/components/UnderstandingMark.tsx` — the centre-out activation, connections to the centre, and findings feeding in; subtle motion on the DS easing, honouring `prefers-reduced-motion`. The SAME component renders the static states on screens 1 and 2 via `activeNodes`, so the mark is one continuous object across the flow (FR-057, FR-060, FR-076)
-- [ ] T127 Create `src/features/onboarding/steps/UnderstandingStage.tsx` — the transition screen: the mark, the live stage copy, the findings, and the ~1.2s minimum beat applied as a floor on the screen after the work resolves (FR-061)
-- [ ] T128 [P] Browser E2E in `src/features/onboarding/__tests__/processing.browser.test.tsx` — the moment renders for at least one full beat on a name-only brand, shows no percentage, and shows no copy for work that did not run (SC-014, SC-015)
+- [X] T123 Create `src/features/onboarding/understanding/stages.ts` — the stage machine, where a stage exists only when the work it names is scheduled, each carrying its copy, its symbol node, and a `run` that may return a small real finding (FR-058, FR-059)
+- [X] T124 [P] Unit tests in `src/features/onboarding/understanding/__tests__/stages.test.ts` — a name-only brand constructs zero file stages so their copy is unrepresentable; a stage's finding reflects real output (SC-014)
+- [X] T125 **[APPROVED]** Add an optional `activeNodes?: number[]` to `src/shared/ds/BrandMark.tsx`, leaving every existing call site byte-identical, with a case in `src/shared/ds/ds.test.tsx`. The logo geometry MUST NOT be duplicated anywhere — `UnderstandingMark` composes `BrandMark`, it does not re-declare the paths
+- [X] T126 Create `src/features/onboarding/components/UnderstandingMark.tsx` — the centre-out activation, connections to the centre, and findings feeding in; subtle motion on the DS easing, honouring `prefers-reduced-motion`. The SAME component renders the static states on screens 1 and 2 via `activeNodes`, so the mark is one continuous object across the flow (FR-057, FR-060, FR-076)
+- [X] T127 Create `src/features/onboarding/steps/UnderstandingStage.tsx` — the transition screen: the mark, the live stage copy, the findings, and the ~1.2s minimum beat applied as a floor on the screen after the work resolves (FR-061)
+- [X] T128 [P] Browser E2E in `src/features/onboarding/__tests__/processing.browser.test.tsx` — the moment renders for at least one full beat on a name-only brand, shows no percentage, and shows no copy for work that did not run (SC-014, SC-015)
 
 ---
 
@@ -131,30 +131,30 @@ deleted — the record of what shipped stays readable.
 > **The retired `UploadsReviewPanel` is the foundation, as-is.** Port first, extend
 > second, and diff the port against `904801a^` before adding anything.
 
-- [ ] T129 Create `src/features/onboarding/review/ReviewCard.tsx` — the retired `.review-group` anatomy verbatim (surface · 1px border · radius 14 · head with uppercase label and right-aligned count · body · foot), plus the section-level "Looks right"; widened container and more generous vertical rhythm are the ONLY changes (FR-062, FR-025c)
-- [ ] T130 [P] Create `src/features/onboarding/review/BrandBar.tsx` — the retired brand bar: plain left-aligned "Name – slogan" with the slogan inline-editable, extended with the industry and style chips (FR-063)
-- [ ] T131 Port `panels/LogoSlots.tsx` to `src/features/onboarding/review/LogosSection.tsx` — slot routing and `planPrimarySwap` reused unchanged, tiles on `DsLogoTile`, drag/swap/add/remove, and the new classification results as placements (FR-065)
-- [ ] T132 [P] Port `ColorsBoard` to `src/features/onboarding/review/ColorsSection.tsx` — swatches, picker, set-primary, lock, add colour, extract from logo, extract from image, suggest palettes; source-priority resolution added (FR-066)
-- [ ] T133 [P] Port the fonts group to `src/features/onboarding/review/FontsSection.tsx` — family grouping and weights summary reused; suggested typography offered as **pairings** only; rename per family (FR-023, FR-067)
-- [ ] T134 [P] Port the links group to `src/features/onboarding/review/LinksSection.tsx` — retired platform detection and favicon row restored, plus website, and an add-a-link affordance (FR-069)
-- [ ] T135 [P] Port the Brand Assets group to `src/features/onboarding/review/AssetsSection.tsx` — remaining Library material including anything unplaced, with rename and remove per item (FR-021, FR-023, FR-069)
-- [ ] T135a Port `panels/AboutGroup.tsx` to `src/features/onboarding/review/AboutSection.tsx` — the retired free-form authored sections survive, **extended** with the structured profile: `DsChip` selections for industry/style/personality/tone/values, concise text for summary/products-and-services/audience/positioning/mission, and the open questions inline and progressive (FR-055, FR-068)
-- [ ] T136 Rewrite `src/features/onboarding/steps/ReviewStep.tsx` to compose the retired order — brand bar · Logos · Colors · Fonts · Links · About · Brand Assets — keep per-value acceptance exactly as shipped, remove every authority/provenance term from the interface, and label the final action "Open my brand" (FR-064, FR-070, FR-071)
+- [X] T129 Create `src/features/onboarding/review/ReviewCard.tsx` — the retired `.review-group` anatomy verbatim (surface · 1px border · radius 14 · head with uppercase label and right-aligned count · body · foot), plus the section-level "Looks right"; widened container and more generous vertical rhythm are the ONLY changes (FR-062, FR-025c)
+- [X] T130 [P] Create `src/features/onboarding/review/BrandBar.tsx` — the retired brand bar: plain left-aligned "Name – slogan" with the slogan inline-editable, extended with the industry and style chips (FR-063)
+- [X] T131 Port `panels/LogoSlots.tsx` to `src/features/onboarding/review/LogosSection.tsx` — slot routing and `planPrimarySwap` reused unchanged, tiles on `DsLogoTile`, drag/swap/add/remove, and the new classification results as placements (FR-065)
+- [X] T132 [P] Port `ColorsBoard` to `src/features/onboarding/review/ColorsSection.tsx` — swatches, picker, set-primary, lock, add colour, extract from logo, extract from image, suggest palettes; source-priority resolution added (FR-066)
+- [X] T133 [P] Port the fonts group to `src/features/onboarding/review/FontsSection.tsx` — family grouping and weights summary reused; suggested typography offered as **pairings** only; rename per family (FR-023, FR-067)
+- [X] T134 [P] Port the links group to `src/features/onboarding/review/LinksSection.tsx` — retired platform detection and favicon row restored, plus website, and an add-a-link affordance (FR-069)
+- [X] T135 [P] Port the Brand Assets group to `src/features/onboarding/review/AssetsSection.tsx` — remaining Library material including anything unplaced, with rename and remove per item (FR-021, FR-023, FR-069)
+- [X] T135a Port `panels/AboutGroup.tsx` to `src/features/onboarding/review/AboutSection.tsx` — the retired free-form authored sections survive, **extended** with the structured profile: `DsChip` selections for industry/style/personality/tone/values, concise text for summary/products-and-services/audience/positioning/mission, and the open questions inline and progressive (FR-055, FR-068)
+- [X] T136 Rewrite `src/features/onboarding/steps/ReviewStep.tsx` to compose the retired order — brand bar · Logos · Colors · Fonts · Links · About · Brand Assets — keep per-value acceptance exactly as shipped, remove every authority/provenance term from the interface, and label the final action "Open my brand" (FR-064, FR-070, FR-071)
 
 ---
 
 ## Phase 17: Restore, polish, retire
 
-- [ ] T137 [P] Restore `data/{suggestedPalettes,popularPalettes,colorHuntPalettes,suggestedFonts}.ts` and `data/socialPlatforms.tsx` from `904801a^` into `src/features/onboarding/data/`, repointing imports; do NOT restore `styleCards.ts` (plan §6a)
-- [ ] T138 [P] Extend `src/features/onboarding/onboarding.css` for the restored anatomy — `--ds-*` only, wider container, and the mobile bottom-padding allowance so the sticky CTA never covers the last row (FR-072, plan §11b)
-- [ ] T139 [P] Responsive pass across the three screens — phone, tablet, desktop, including the screen-1 split collapsing to one column (FR-038, FR-074)
-- [ ] T140 [P] Accessibility pass — keyboard operation and assistive-technology labels on every new control, including the chip sets and the logo drag (FR-039)
-- [ ] T141 [P] Browser E2E in `src/features/onboarding/__tests__/reviewInteraction.browser.test.tsx` — drag a logo between slots, extract colours from the logo, pick a font pairing, choose a personality chip, "Looks right" one section, finish
-- [ ] T142 [P] Browser E2E asserting no authority or provenance vocabulary appears anywhere in the rendered flow — a DOM scan for the banned terms (SC-017)
-- [ ] T143 Verify one implementation per screen and no dangling references: `rg -n "BasicsStep|MaterialStep|directions\.ts|branch" src/features/onboarding/` returns nothing meaningful (FR-073)
-- [ ] T144 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
-- [ ] T145 Execute quickstart.md end to end on both storage backends, including the brief journey and the prose journey, and record the results
-- [ ] T146 [P] Update `CLAUDE.md`'s onboarding section for the R1 flow and set the spec status
+- [X] T137 [P] Restore `data/{suggestedPalettes,popularPalettes,colorHuntPalettes,suggestedFonts}.ts` and `data/socialPlatforms.tsx` from `904801a^` into `src/features/onboarding/data/`, repointing imports; do NOT restore `styleCards.ts` (plan §6a)
+- [X] T138 [P] Extend `src/features/onboarding/onboarding.css` for the restored anatomy — `--ds-*` only, wider container, and the mobile bottom-padding allowance so the sticky CTA never covers the last row (FR-072, plan §11b)
+- [X] T139 [P] Responsive pass across the three screens — phone, tablet, desktop, including the screen-1 split collapsing to one column (FR-038, FR-074)
+- [X] T140 [P] Accessibility pass — keyboard operation and assistive-technology labels on every new control, including the chip sets and the logo drag (FR-039)
+- [X] T141 [P] Browser E2E in `src/features/onboarding/__tests__/reviewInteraction.browser.test.tsx` — drag a logo between slots, extract colours from the logo, pick a font pairing, choose a personality chip, "Looks right" one section, finish
+- [X] T142 [P] Browser E2E asserting no authority or provenance vocabulary appears anywhere in the rendered flow — a DOM scan for the banned terms (SC-017)
+- [X] T143 Verify one implementation per screen and no dangling references: `rg -n "BasicsStep|MaterialStep|directions\.ts|branch" src/features/onboarding/` returns nothing meaningful (FR-073)
+- [X] T144 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
+- [X] T145 Execute quickstart.md end to end on both storage backends, including the brief journey and the prose journey, and record the results
+- [X] T146 [P] Update `CLAUDE.md`'s onboarding section for the R1 flow and set the spec status
 
 ---
 

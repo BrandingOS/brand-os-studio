@@ -18,7 +18,10 @@ import { changeBrandColors, type BrandColorChanges } from '@/application/brand/c
 import { changeBrandTypography, type TypographyChanges } from '@/application/brand/changeBrandTypography';
 import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
 import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
-import type { Proposal } from './proposals';
+import { changeBrandVisualStyle } from '@/application/brand/changeBrandVisualStyle';
+import { changeBusinessInfo } from '@/application/brand/changeBusinessInfo';
+import type { StyleDescriptor } from '@/domain/brand/identity';
+import type { BusinessFacts, Proposal } from './proposals';
 
 /** The one actor onboarding's interpretation ever writes as. */
 export const INTERPRETER: Actor = { kind: 'system', agent: 'onboarding-interpreter' };
@@ -144,13 +147,14 @@ export async function applyProposals(
     'strategy.vision',
     'strategy.values',
     'strategy.positioning',
+    'strategy.personality',
     'strategy.targetAudience',
   ];
   for (const path of strategyPaths) {
     const p = by(path);
     if (!p) continue;
     const field = path.split('.')[1] as
-      | 'mission' | 'vision' | 'values' | 'positioning' | 'targetAudience';
+      | 'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience';
     try {
       await changeBrandStrategy(repo, brandId, { [field]: p.value } as never, {
         actor,
@@ -162,5 +166,57 @@ export async function applyProposals(
     }
   }
 
+  // ── Visual style ───────────────────────────────────────────────────
+  // `descriptors` is a CLOSED union, so anything the normaliser could not
+  // resolve to a member was already dropped upstream. Writing an "Other"
+  // string here would fail schema validation and cost the whole write.
+  const style = by('visualStyle.descriptors');
+  if (style && Array.isArray(style.value) && style.value.length) {
+    try {
+      await changeBrandVisualStyle(
+        repo,
+        brandId,
+        { descriptors: style.value as StyleDescriptor[] },
+        { actor, provenance: override?.provenance ?? style.provenance },
+      );
+      applied.push('visualStyle.descriptors');
+    } catch (e) {
+      failed.push({ path: 'visualStyle.descriptors', reason: reason(e) });
+    }
+  }
+
   return { applied, failed };
+}
+
+/**
+ * Writes the business facts.
+ *
+ * Separate from `applyProposals` because these are NOT Core: they describe what
+ * the business is, not what the brand looks and sounds like, so they carry no
+ * authority sidecar and there is nothing to confirm. One call, because
+ * `changeBusinessInfo` merges — writing them field by field would be four round
+ * trips and a lost-update race between them.
+ *
+ * Returns the names of anything that did not save, so the caller can say so.
+ * Never throws: a business fact failing must not cost the Core writes.
+ */
+export async function applyBusinessFacts(
+  repo: BrandRepository,
+  brandId: string,
+  facts: BusinessFacts,
+): Promise<string[]> {
+  const change: Record<string, unknown> = {};
+  if (facts.industry) change.industry = facts.industry;
+  if (facts.tagline) change.tagline = facts.tagline;
+  if (facts.description) change.description = facts.description;
+  if (facts.audienceSummary) change.audienceSummary = facts.audienceSummary;
+  if (facts.website) change.contact = { website: facts.website };
+  if (!Object.keys(change).length) return [];
+
+  try {
+    await changeBusinessInfo(repo, brandId, change as never);
+    return [];
+  } catch {
+    return ['your business details'];
+  }
 }

@@ -24,12 +24,11 @@
  * need no placeholder at all.
  */
 import type { Brand, CreateBrandInput } from '@/shared/types/brand';
-import { CORE_PLACEHOLDERS, startedState, type OnboardingBranch } from '@/shared/onboarding/onboardingState';
+import { CORE_PLACEHOLDERS, startedState } from '@/shared/onboarding/onboardingState';
 
 export interface CreateOnboardingBrandInput {
   name: string;
-  branch?: OnboardingBranch;
-  /** Only supplied when the user actually typed one. */
+  /** Only supplied when the user actually typed one, on the profile screen. */
   website?: string;
 }
 
@@ -53,7 +52,7 @@ export function buildCreateInput(input: CreateOnboardingBrandInput): CreateBrand
     tone: '',
     audience: '',
     ...(input.website ? { publicUrl: normalizeUrl(input.website) } : {}),
-    onboarding: startedState(input.branch ?? 'existing', placeholders),
+    onboarding: startedState(placeholders),
   };
 }
 

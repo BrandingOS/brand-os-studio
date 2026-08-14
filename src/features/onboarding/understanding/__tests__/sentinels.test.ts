@@ -154,13 +154,13 @@ describe('INVARIANT 3 — the marker survives resume', () => {
 
   it('survives moving between steps', () => {
     const state = readOnboardingState(brand)!;
-    const moved = atStep(atStep(state, 'material'), 'review');
+    const moved = atStep(atStep(state, 'profile'), 'review');
     expect(moved.placeholders).toEqual(['colors.primary', 'typography.primary']);
   });
 
   it('survives moving BACKWARDS', () => {
     const state = readOnboardingState(brand)!;
-    const back = atStep(atStep(state, 'review'), 'material');
+    const back = atStep(atStep(state, 'review'), 'profile');
     expect(back.placeholders).toEqual(['colors.primary', 'typography.primary']);
   });
 

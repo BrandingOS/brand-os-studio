@@ -19,24 +19,31 @@
  */
 import type { Brand } from '@/shared/types/brand';
 
-/** The steps a user actually stands on. Understanding is a transition. */
-export const ONBOARDING_STEPS = ['basics', 'material', 'review'] as const;
-export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
-
 /**
- * Which entry path produced this brand. Recorded for Context, never asked for
- * up front — the user is not made to classify themselves (spec §Screen 1).
- * `new` is set when they take the "Help me start" path.
+ * The steps a user actually stands on. Understanding is a transition.
+ *
+ * Three, not four: naming gets a screen of its own, and describing the brand,
+ * bringing material and giving a website all happen together on one screen —
+ * as they did in the flow this restores (spec FR-043, FR-075).
  */
-export type OnboardingBranch = 'existing' | 'new';
+export const ONBOARDING_STEPS = ['name', 'profile', 'review'] as const;
+export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export interface OnboardingState {
   step: OnboardingStep;
-  branch: OnboardingBranch;
   /** ISO timestamp — when the brand was named. */
   startedAt: string;
   /** ISO timestamp, or null while onboarding is unfinished. */
   completedAt: string | null;
+  /**
+   * The raw profile text, so resume on another device still has it.
+   *
+   * Onboarding's own transient input, NOT a brand concept — which is why it
+   * lives on the marker rather than in `businessInfo.description`, where
+   * products and services live. Two writers on one field would put the whole
+   * brief on screen as the product list.
+   */
+  brief?: string;
   /**
    * Core paths that hold a COMPATIBILITY PLACEHOLDER, not a chosen value.
    *
@@ -104,10 +111,13 @@ export function readOnboardingState(brand: Pick<Brand, 'onboarding'> | null | un
     ? o.placeholders.filter((p): p is string => typeof p === 'string')
     : [];
   return {
-    step: isStep(o.step) ? o.step : 'basics',
-    branch: o.branch === 'new' ? 'new' : 'existing',
+    // An unrecognised step degrades to the first one. This is also how a brand
+    // recorded under the retired three-step vocabulary ('basics'/'material')
+    // resumes rather than throwing.
+    step: isStep(o.step) ? o.step : 'name',
     startedAt: typeof o.startedAt === 'string' ? o.startedAt : new Date().toISOString(),
     completedAt: null,
+    ...(typeof o.brief === 'string' && o.brief ? { brief: o.brief } : {}),
     ...(placeholders.length ? { placeholders } : {}),
   };
 }
@@ -117,9 +127,9 @@ export function isUnfinished(brand: Pick<Brand, 'onboarding'> | null | undefined
   return readOnboardingState(brand) !== null;
 }
 
-/** The step to resume at. `basics` when there is nothing recorded. */
+/** The step to resume at. `name` when there is nothing recorded. */
 export function resumeStep(brand: Pick<Brand, 'onboarding'> | null | undefined): OnboardingStep {
-  return readOnboardingState(brand)?.step ?? 'basics';
+  return readOnboardingState(brand)?.step ?? 'name';
 }
 
 /**
@@ -128,17 +138,20 @@ export function resumeStep(brand: Pick<Brand, 'onboarding'> | null | undefined):
  * `placeholders` lists what the create path had to invent to satisfy
  * persistence. A brand created with real values passes an empty list.
  */
-export function startedState(
-  branch: OnboardingBranch = 'existing',
-  placeholders: string[] = [],
-): OnboardingState {
+export function startedState(placeholders: string[] = []): OnboardingState {
   return {
-    step: 'basics',
-    branch,
+    step: 'name',
     startedAt: new Date().toISOString(),
     completedAt: null,
     ...(placeholders.length ? { placeholders } : {}),
   };
+}
+
+/** The marker with the user's profile text recorded on it. */
+export function withBrief(current: OnboardingState | null, brief: string): OnboardingState {
+  const base = current ?? startedState();
+  const text = brief.trim();
+  return { ...base, ...(text ? { brief: text } : { brief: undefined }) };
 }
 
 /**
@@ -179,8 +192,8 @@ export function unfinishedLabel(brand: Pick<Brand, 'onboarding'> | null | undefi
   const s = readOnboardingState(brand);
   if (!s) return null;
   const where: Record<OnboardingStep, string> = {
-    basics: 'just started',
-    material: 'left at your files',
+    name: 'just started',
+    profile: 'left at your details',
     review: 'left at Review',
   };
   return `Still setting up · ${where[s.step]}`;

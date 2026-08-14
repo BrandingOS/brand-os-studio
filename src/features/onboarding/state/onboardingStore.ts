@@ -12,7 +12,6 @@
 import { create } from 'zustand';
 import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
 import type { Proposal } from '../understanding/proposals';
-import type { StartingDirection } from '../understanding/interpret';
 
 /** What the understanding pass has said so far, for the transition's lines. */
 export interface UnderstandingLine {
@@ -29,9 +28,6 @@ interface State {
   understanding: boolean;
   lines: UnderstandingLine[];
   proposals: Proposal[];
-  /** Generated directions, only when the user asked for help starting. */
-  directions: StartingDirection[];
-  chosenDirection: StartingDirection | null;
   /** Core paths confirmed this session, so the UI can render without refetching. */
   confirmed: Set<string>;
   /** Set when a save could not complete, shown inline and never as a modal. */
@@ -46,8 +42,6 @@ interface Actions {
   addLine(line: UnderstandingLine): void;
   completeLine(id: string): void;
   setProposals(p: Proposal[]): void;
-  setDirections(d: StartingDirection[]): void;
-  chooseDirection(d: StartingDirection | null): void;
   markConfirmed(paths: string[]): void;
   setProblem(p: string | null): void;
   reset(): void;
@@ -58,8 +52,6 @@ const initial: State = {
   understanding: false,
   lines: [],
   proposals: [],
-  directions: [],
-  chosenDirection: null,
   confirmed: new Set(),
   problem: null,
 };
@@ -78,8 +70,6 @@ export const useOnboardingStore = create<State & Actions>((set, get) => ({
     set({ lines: get().lines.map((l) => (l.id === id ? { ...l, done: true } : l)) }),
 
   setProposals: (proposals) => set({ proposals }),
-  setDirections: (directions) => set({ directions }),
-  chooseDirection: (chosenDirection) => set({ chosenDirection }),
 
   // A Set, not a count: the UI needs to know WHICH values are settled so a
   // section can show mixed state. A total would only support a progress bar,
