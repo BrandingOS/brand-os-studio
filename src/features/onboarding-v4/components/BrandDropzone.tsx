@@ -221,13 +221,10 @@ export function BrandDropzone() {
           </div>
 
           <h3 className="drop-title">Bring what you already have</h3>
-          <p className="drop-sub">
-            Logos, fonts, colours, brand files — we&rsquo;ll sort them. Your website
-            and social links go here too.
-          </p>
+          <p className="drop-sub">Logos, fonts, colours or brand files.</p>
 
           <p className="drop-text">
-            Drag &amp; drop image or folder here,
+            Drop files here or
             <button
               type="button"
               className="drop-inline"
@@ -236,12 +233,10 @@ export function BrandDropzone() {
                 fileInputRef.current?.click();
               }}
             >
-              upload file
+              upload
             </button>
-            or paste the URL
+            <span className="drop-limits">Up to {MAX_ASSETS} files · 5 MB each</span>
           </p>
-
-          <p className="drop-limits">Up to {MAX_ASSETS} files · 5 MB each</p>
 
           <label
             className="drop-pill"
@@ -268,7 +263,7 @@ export function BrandDropzone() {
             <input
               ref={urlInputRef}
               type="url"
-              placeholder="Paste your website or a social link"
+              placeholder="Paste your Website or social link"
               autoComplete="off"
               spellCheck={false}
               value={urlValue}

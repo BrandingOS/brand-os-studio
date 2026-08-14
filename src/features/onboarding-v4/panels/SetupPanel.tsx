@@ -6,6 +6,12 @@ import { CopyPromptHint } from '../components/CopyPromptHint';
 
 interface Props {
   /**
+   * Advances the flow. Wired to the form's submit so Enter works — on a screen
+   * with a single text field, pressing Enter IS the expected way to continue,
+   * and swallowing it makes the form feel broken.
+   */
+  onSubmit?(): void;
+  /**
    * 1 asks only for the name; 2 asks for everything else.
    *
    * Split deliberately: the AI prompt is built around the brand's name, so the
@@ -16,14 +22,22 @@ interface Props {
   part: 1 | 2;
 }
 
-export function SetupPanel({ part }: Props) {
+export function SetupPanel({ part, onSubmit }: Props) {
   const define = useV4Store((s) => s.define);
   const update = useV4Store((s) => s.updateDefine);
 
   if (part === 1) {
     return (
       <section className="panel is-active setup-panel-form">
-        <form className="cosmos-form" autoComplete="off" noValidate onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="cosmos-form"
+          autoComplete="off"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit?.();
+          }}
+        >
           <div className="field">
             <DsInput
               id="brand-name"

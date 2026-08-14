@@ -914,14 +914,25 @@ rearrange it. Change it only when a requirement genuinely adds or removes a
 field, section or action — and then change these files, never rebuild them from
 a description.
 
-Two paths, as it always had:
+**The step is in the URL.** One URL for a whole flow costs refresh-safety,
+sharing and analytics, so each panel has an address:
 
-- **`/onboard-brand`** → `screens/SetUpScreen.tsx`. One centred 620px column:
-  brand mark, "Set up your Brand", the `FlowSwitch`, then `panels/SetupPanel.tsx`
-  (name + `AITextarea` with the `CopyPromptHint` badge + `BrandDropzone` with its
-  Paste-a-URL pill). Continue → processing → `panels/UploadsReviewPanel.tsx`
-  ("Review your uploads") → "Open my brand".
-- **`/onboard-brand/create`** → `screens/CreateScreen.tsx`, the from-scratch path.
+| URL | Panel |
+|---|---|
+| `/onboard-brand` | 1 · Brand name only. Enter submits. |
+| `/onboard-brand?step=details` | 2 · Describe + `BrandDropzone` (files, and the website/social pill) |
+| *(transition)* | the 9-dot processing moment |
+| `/onboard-brand/:slug?step=review` | 3 · "Review your uploads" → "Open my brand" |
+| `/onboard-brand/create` | the from-scratch path (`screens/CreateScreen.tsx`) |
+
+The router owns the panel — there is no `popstate` listener and no
+`history.pushState`, so Back and Forward are ordinary route changes. **Never
+guard re-entrancy on `history.state`**: a reload keeps the entry's state, so the
+app remounts at panel 1 while history still says 2 and Continue goes dead.
+
+Only the review URL is genuinely restorable, because the brand exists by then
+and `project()` reads it back. `?step=details` on a cold load has no name to
+show, so it redirects to `/onboard-brand` rather than rendering an empty form.
 
 ### What runs underneath — `features/onboarding/`
 

@@ -3516,3 +3516,36 @@
   border-color: var(--ds-border-strong);
   color: var(--ds-text);
 }
+
+
+/* ── Compact dropzone ──────────────────────────────────────────────────
+   Same anatomy — previews, title, drop line, URL pill — at roughly half the
+   height. The zone competes with the description field for the fold, and at
+   its original size the Continue button sat below it on a laptop. */
+[data-onboarding="cosmos"] .drop-zone .drop-content { gap: 10px; }
+[data-onboarding="cosmos"] .drop-inset { padding: 22px 20px; }
+
+[data-onboarding="cosmos"] .previews { height: 46px; margin-bottom: 2px; }
+[data-onboarding="cosmos"] .preview-card { width: 38px; height: 46px; }
+[data-onboarding="cosmos"] .preview-png { left: 0; }
+[data-onboarding="cosmos"] .preview-jpg { left: 29px; }
+[data-onboarding="cosmos"] .preview-pdf { left: 58px; }
+
+[data-onboarding="cosmos"] .drop-title { font-size: 14.5px; }
+[data-onboarding="cosmos"] .drop-sub { font-size: 12.5px; }
+[data-onboarding="cosmos"] .drop-text {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  margin: 0;
+}
+/* The limit rides on the drop line rather than claiming a row of its own. */
+[data-onboarding="cosmos"] .drop-text .drop-limits {
+  font-size: 11.5px;
+  color: var(--ds-text-placeholder);
+  font-variant-numeric: tabular-nums;
+}
+[data-onboarding="cosmos"] .drop-pill { height: 44px; }

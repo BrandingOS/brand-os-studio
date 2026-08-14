@@ -344,6 +344,15 @@ const App = () => (
               <OnboardBrandCreatePage />
             </ProtectedRoute>
           } />
+          {/* Review + resume. The slug names a brand that already exists, so
+              this URL is genuinely restorable — unlike the pre-brand steps,
+              which hold nothing durable. React Router ranks the static
+              `/create` above this dynamic segment, so they cannot collide. */}
+          <Route path="/onboard-brand/:slug" element={
+            <ProtectedRoute>
+              <OnboardBrandPage />
+            </ProtectedRoute>
+          } />
           {/* v2 workspace home — new WorkspaceShell (no tabs). */}
           <Route path="/dashboard" element={
             <ProtectedRoute>

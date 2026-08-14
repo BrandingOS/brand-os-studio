@@ -20,7 +20,7 @@
  * than embedded on the record.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CosmosShell } from '../components/CosmosShell';
 import { BrandMark } from '../components/BrandMark';
@@ -70,10 +70,28 @@ const HEADINGS: Record<1 | 2, { title: string; subtitle: string }> = {
   },
 };
 
+/**
+ * Which panel a URL asks for.
+ *
+ * The step is in the URL rather than only in memory, so refreshing, sharing or
+ * landing back on the flow does something sensible, and so each step is
+ * distinguishable in analytics. A hash was rejected: it is not sent to the
+ * server, collides with in-page anchoring, and reads as a fragment of one page
+ * rather than a step of a flow.
+ *
+ * The pre-brand steps hold nothing durable, so `?step=details` on a cold load
+ * falls back to the first panel rather than showing a details screen for a
+ * brand with no name. Review is different — the brand exists by then, so
+ * `/onboard-brand/:slug?step=review` is genuinely restorable.
+ */
+const STEP_PARAM: Record<1 | 2 | 3, string | null> = { 1: null, 2: 'details', 3: 'review' };
+
 export function SetUpScreen() {
   const navigate = useNavigate();
+  const { slug } = useParams<{ slug?: string }>();
   const [sp] = useSearchParams();
   const then = sp.get('then');
+  const askedStep = sp.get('step');
   const define = useV4Store((s) => s.define);
   const assets = useV4Store((s) => s.assets);
   const setupPanel = useV4Store((s) => s.setupPanel);
@@ -95,21 +113,38 @@ export function SetUpScreen() {
   // the synchronous re-entrancy gate; `busy` is just the UI.
   const busyRef = useRef(false);
 
+  /**
+   * The URL is the authority for which panel shows; the store follows it.
+   *
+   * That means browser Back and Forward simply work — they are ordinary route
+   * changes — and there is no popstate listener to keep in step with a second
+   * copy of the same fact.
+   */
   useEffect(() => {
-    if (setupPanel !== 1) setSetupPanel(1);
-    // run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const wanted: 1 | 2 | 3 =
+      askedStep === 'review' && slug ? 3 : askedStep === 'details' && define.name.trim() ? 2 : 1;
+    if (wanted !== setupPanel) setSetupPanel(wanted);
+    // A details URL with nothing typed is a cold load or a stale share. Correct
+    // the address rather than leaving it lying about where the user is.
+    if (askedStep === 'details' && !define.name.trim()) {
+      navigate('/onboard-brand' + (then ? `?then=${encodeURIComponent(then)}` : ''), { replace: true });
+    }
+  }, [askedStep, slug, define.name, setupPanel, setSetupPanel, navigate, then]);
 
-  useEffect(() => {
-    const onPop = (e: PopStateEvent) => {
-      const target = (e.state as { setupPanel?: 1 | 2 | 3 } | null)?.setupPanel ?? 1;
-      setSetupPanel(target);
+  /** Moves to a panel BY navigating, so history and the URL cannot disagree. */
+  const goToPanel = useCallback(
+    (panel: 1 | 2 | 3, brandSlug?: string) => {
+      const params = new URLSearchParams();
+      const step = STEP_PARAM[panel];
+      if (step) params.set('step', step);
+      if (then) params.set('then', then);
+      const path = brandSlug ? `/onboard-brand/${brandSlug}` : '/onboard-brand';
+      const qs = params.toString();
+      navigate(qs ? `${path}?${qs}` : path);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [setSetupPanel]);
+    },
+    [navigate, then],
+  );
 
   const hasUploadInFlight = assets.some((a) => a.uploadStatus === 'uploading');
 
@@ -130,6 +165,35 @@ export function SetUpScreen() {
     if (!canonical) return;
     setProjection(project(canonical, useV4Store.getState().assets, placeholderPaths(b)));
   }, []);
+
+  /**
+   * Resume: `/onboard-brand/:slug?step=review` after a reload.
+   *
+   * The brand is the durable half of this flow, so a review URL can be restored
+   * — the values are on the record, and the projection reads them back. What
+   * cannot be restored is the transient upload list, so the logo board comes
+   * back empty; the Library still holds the files.
+   */
+  const brands = useBrandStore((s) => s.list);
+  const updateDefine = useV4Store((s) => s.updateDefine);
+  useEffect(() => {
+    if (!slug || brand?.slug === slug) return;
+    const found = brands.find((b) => b.slug === slug);
+    if (!found) {
+      // Depends on `brands`, not just the slug: on a cold load the store is
+      // still empty when this first runs, and without the list as a dependency
+      // the effect never fired again — the review rendered its shell with
+      // nothing in it.
+      void useBrandStore.getState().loadAll();
+      return;
+    }
+    setBrand(found);
+    // The name lives on the brand; the transient store does not survive a
+    // reload, so take it back from the record rather than showing a blank
+    // brand bar.
+    updateDefine({ name: found.name });
+    void refresh(found);
+  }, [slug, brand?.slug, brands, refresh, updateDefine]);
 
   // ── Continue from the setup panel ──────────────────────────────────
   const beginUnderstanding = useCallback(async () => {
@@ -238,23 +302,13 @@ export function SetUpScreen() {
   }, [brand, updateBrand, navigate, then]);
 
   const goNext = () => {
-    if (setupPanel === 1) {
-      // Re-entrancy is guarded by the CURRENT panel, not by history.state.
-      // Reading it from history looked equivalent and was not: a reload keeps
-      // the entry's state, so after refreshing on panel 2 the app remounted at
-      // panel 1 while history still said 2 — and Continue became a dead button.
-      window.history.pushState({ setupPanel: 2 }, '', window.location.pathname + window.location.search);
-      setSetupPanel(2);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (setupPanel === 2) {
-      void beginUnderstanding();
-    } else {
-      void finish();
-    }
+    if (setupPanel === 1) goToPanel(2);
+    else if (setupPanel === 2) void beginUnderstanding();
+    else void finish();
   };
 
   const goBack = () => {
-    if (setupPanel > 1) window.history.back();
+    if (setupPanel > 1) navigate(-1);
   };
 
   const createHref = then ? `/onboard-brand/create?then=${encodeURIComponent(then)}` : '/onboard-brand/create';
@@ -281,9 +335,9 @@ export function SetUpScreen() {
             onDone={() => {
               setProcessing(false);
               busyRef.current = false;
-              window.history.pushState({ setupPanel: 3 }, '', window.location.pathname + window.location.search);
-              setSetupPanel(3);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+              // The brand exists now, so the review gets an address that can be
+              // refreshed, shared and resumed.
+              goToPanel(3, brand.slug);
             }}
           />
         </div>
@@ -305,7 +359,9 @@ export function SetUpScreen() {
           </header>
         )}
 
-        {setupPanel === 1 && <SetupPanel key="name" part={1} />}
+        {setupPanel === 1 && (
+          <SetupPanel key="name" part={1} onSubmit={() => canAdvance && goNext()} />
+        )}
         {setupPanel === 2 && <SetupPanel key="details" part={2} />}
         {setupPanel === 3 && (
           <UploadsReviewPanel
