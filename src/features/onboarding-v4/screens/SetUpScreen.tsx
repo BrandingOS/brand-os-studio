@@ -43,6 +43,7 @@ import { planStages, findingsFrom, type Finding } from '@/features/onboarding/un
 import { groupFontFamilies } from '@/features/onboarding/understanding/fonts';
 import { classifyLogos } from '@/features/onboarding/understanding/logoClassify';
 import { looksLikeBrief } from '@/features/onboarding/brief/parseBrief';
+import { fingerprint } from '@/features/onboarding/understanding/imageFingerprint';
 import {
   brandRepository,
   createBrand as createTheBrand,
@@ -108,6 +109,12 @@ export function SetUpScreen() {
   const [processing, setProcessing] = useState(false);
   const [findings, setFindings] = useState<Record<string, Finding | null>>({});
   const [projection, setProjection] = useState<Projection | null>(null);
+  /**
+   * Visual fingerprints, computed once during processing and reused after.
+   * Rendering eight images to a canvas on every projection would be wasteful,
+   * and the artwork does not change while the review is open.
+   */
+  const printsRef = useRef<Map<string, string | null>>(new Map());
 
   // `busy` disables the CTA only after the next render — a second click in the
   // same tick still reaches submit and created a DUPLICATE brand. The ref is
@@ -173,7 +180,9 @@ export function SetUpScreen() {
     const canonical = await brandRepository().getById(b.id);
     if (!canonical) return;
     const live = useBrandStore.getState().list.find((x) => x.id === b.id) ?? b;
-    setProjection(project(canonical, useV4Store.getState().assets, placeholderPaths(live)));
+    setProjection(
+      project(canonical, useV4Store.getState().assets, placeholderPaths(live), printsRef.current),
+    );
   }, []);
 
   /**
@@ -300,6 +309,16 @@ export function SetUpScreen() {
   /** The real work the processing screen observes. It observes nothing back. */
   const runUnderstanding = useCallback(async () => {
     if (!brand) return;
+
+    // Fingerprint the artwork first: everything downstream — duplicate folding,
+    // slot assignment, the logo count — depends on knowing which pictures are
+    // the same picture, and filenames do not say.
+    const images = useV4Store.getState().assets.filter((a) => a.kind === 'image' && a.previewUrl);
+    for (const img of images) {
+      if (printsRef.current.has(img.id)) continue;
+      printsRef.current.set(img.id, await fingerprint(img.previewUrl as string));
+    }
+
     await extractColours();
     const items = useV4Store.getState().assets;
     const { understanding, notSaved } = await understand(
@@ -315,11 +334,19 @@ export function SetUpScreen() {
       });
     }
 
-    const logos = classifyLogos(items);
+    // Fold redundant copies of the same artwork HERE, while the review does not
+    // yet exist. Doing it in the panel raced its own logo router — the router
+    // places any logo it can see on mount, so a copy removed a moment later had
+    // already been handed a slot, and six uploads of three marks still drew six
+    // tiles.
+    const logos = classifyLogos(items, printsRef.current);
+    const redundant = logos.groups.flatMap((g) => g.variants.map((v) => v.id));
+    for (const id of redundant) useV4Store.getState().removeAsset(id);
+
     setFindings(
       findingsFrom({
         logoGroups: logos.groups.length,
-        logoVariants: logos.groups.reduce((n, g) => n + g.variants.length, 0),
+        logoVariants: redundant.length,
         colors: understanding.proposals.filter((p) => p.corePath.startsWith('colors.')).length,
         typeface: groupFontFamilies(items)[0]?.family,
         industryLabel: labelOf('industry', understanding.business.industry),

@@ -23,6 +23,7 @@ import { container } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
 import type { BrandRepository } from '@/domain/brand/repository';
 import type { CanonicalBrand } from '@/domain/brand';
+import { coreValueMeta } from '@/domain/brand/coreMeta';
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { Brand } from '@/shared/types/brand';
 import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
@@ -152,11 +153,41 @@ export function labelOf(vocab: VocabularyName, id?: string): string | undefined 
 
 // ── The projection ────────────────────────────────────────────────────────
 
+/** How many swatches a palette holds. A palette is a decision, not a mood board. */
+export const MAX_PALETTE = 5;
+
+/**
+ * Where a value came from, in the user's language.
+ *
+ * The most important thing about a typeface on this screen is whose choice it
+ * was: a font the user uploaded and a font we proposed look identical in a list
+ * and must never be mistaken for each other. Uploaded evidence outranks the
+ * brief, which outranks anything we suggested — and the label says so.
+ */
+export type ValueOrigin = 'uploaded' | 'brief' | 'suggested' | 'chosen';
+
+export const ORIGIN_LABEL: Record<ValueOrigin, string> = {
+  uploaded: 'From your upload',
+  brief: 'From your brand profile',
+  suggested: 'Suggested — not confirmed',
+  chosen: 'Chosen by you',
+};
+
+/** Reads the origin off a Core value's recorded provenance and authority. */
+export function originOf(canonical: CanonicalBrand, path: CoreFieldPath): ValueOrigin {
+  const meta = coreValueMeta(canonical.identityMeta, path);
+  if (meta.provenance === 'user-entered') return 'chosen';
+  if (meta.provenance === 'inferred') return 'uploaded';
+  return 'brief';
+}
+
 export interface Projection {
   /** Colour swatches, in Core order: primary, secondary, then neutrals. */
   colors: Array<{ hex: string; primary: boolean }>;
-  /** Typeface families, primary first. */
-  fonts: string[];
+  /** Typeface families, primary first, each with where it came from. */
+  fonts: Array<{ family: string; origin: ValueOrigin }>;
+  /** Where the palette came from. */
+  colorOrigin?: ValueOrigin;
   /** Logo placements the classifier could evidence. */
   logoSlots: Array<{ assetId: string; slot: string }>;
   /** Exact duplicates dropped before the board saw them. */
@@ -197,6 +228,8 @@ export function project(
   canonical: CanonicalBrand,
   items: OnboardingAsset[],
   sentinelPaths: readonly string[] = [],
+  /** Visual fingerprints by asset id, so identical artwork folds into one. */
+  prints?: ReadonlyMap<string, string | null>,
 ): Projection {
   const identity = canonical.identity;
   const business = canonical.businessInfo ?? {};
@@ -212,21 +245,41 @@ export function project(
     if (n?.hex) colors.push({ hex: n.hex.toUpperCase(), primary: false });
   }
 
-  const fonts: string[] = [];
+  const fonts: Projection['fonts'] = [];
   if (!sentinelPaths.includes('typography.primary') && identity?.typography?.primary?.family) {
-    fonts.push(identity.typography.primary.family);
+    fonts.push({
+      family: identity.typography.primary.family,
+      origin: originOf(canonical, 'typography.primary'),
+    });
   }
-  if (identity?.typography?.secondary?.family) fonts.push(identity.typography.secondary.family);
+  if (identity?.typography?.secondary?.family) {
+    fonts.push({
+      family: identity.typography.secondary.family,
+      origin: originOf(canonical, 'typography.secondary'),
+    });
+  }
 
-  const classified = classifyLogos(items);
-  const placedIds = new Set(classified.groups.map((g) => g.lead.id));
-  const duplicateIds = items
-    .filter((a) => a.kind === 'image' && !a.generated && !placedIds.has(a.id))
-    .filter((a) => classified.groups.some((g) => g.variants.some((v) => v.id === a.id)) === false)
-    .map((a) => a.id);
+  const classified = classifyLogos(items, prints);
+
+  /**
+   * The redundant copies — every image folded UNDER a lead as the same artwork.
+   *
+   * These are removed from the store rather than merely hidden, because the
+   * board has its own router that places any logo it finds. Leaving them in
+   * meant the projection folded six uploads into three and the router promptly
+   * put the other three back, which is why the same picture appeared six times.
+   *
+   * This is deliberately NOT "every image that is not a lead": that set also
+   * contains photographs, which belong in Brand Assets and must never be
+   * deleted for failing to be a logo.
+   */
+  const duplicateIds = classified.groups.flatMap((g) => g.variants.map((v) => v.id));
 
   return {
-    colors,
+    // Capped here as well as at every entry point: the projection is what the
+    // review renders, so it is the last place a ninth swatch could slip in.
+    colors: colors.slice(0, MAX_PALETTE),
+    colorOrigin: colors.length ? originOf(canonical, 'colors.primary') : undefined,
     fonts,
     logoSlots: classified.groups
       .filter((g) => g.slot !== null)

@@ -5,7 +5,7 @@
  * dropped folder must cost the user that file, never the folder.
  */
 import { describe, it, expect } from 'vitest';
-import { MAX_FILES, MAX_FILE_BYTES, describeLimits, partition, refuse } from '../limits';
+import { MAX_FILES, MAX_FILE_BYTES, countUploads, describeLimits, partition, refuse } from '../limits';
 
 const file = (name: string, bytes: number): File =>
   new File([new Uint8Array(Math.min(bytes, 1024))], name, { type: 'image/png' });
@@ -67,5 +67,61 @@ describe('a batch loses only its overflow', () => {
 describe('the limits are stated before anything is dropped', () => {
   it('reads in plain language', () => {
     expect(describeLimits()).toBe('Up to 10 files · 5 MB each');
+  });
+});
+
+describe('the limit counts files the USER brought, and nothing else', () => {
+  const a = (over: Partial<{ kind: string; generated: boolean; fontSource: string; name: string }> = {}) => ({
+    kind: 'image', name: 'x.png', ...over,
+  });
+
+  it('ignores the variants we generate ourselves', () => {
+    // Three uploaded logos silently became six or nine, and the user hit a
+    // limit they had not reached.
+    expect(countUploads([a(), a({ generated: true }), a({ generated: true })])).toBe(1);
+  });
+
+  it('ignores links — a URL is not a file', () => {
+    expect(countUploads([a(), a({ kind: 'link', name: 'kaafex.com' })])).toBe(1);
+  });
+
+  it('ignores colours — a swatch is a value, not an upload', () => {
+    expect(countUploads([a(), a({ kind: 'color', name: '#1B4D3E' })])).toBe(1);
+  });
+
+  it('ignores a font we suggested, because nobody uploaded it', () => {
+    expect(countUploads([a({ kind: 'font', fontSource: 'google', name: 'Space Grotesk' })])).toBe(0);
+  });
+
+  it('counts one uploaded typeface once, however many weights it has', () => {
+    const weights = ['Sohne-Regular.ttf', 'Sohne-Medium.ttf', 'Sohne-Bold.ttf'].map((name) =>
+      a({ kind: 'font', fontSource: 'upload', name }),
+    );
+    expect(countUploads(weights)).toBe(1);
+  });
+
+  it('counts two different uploaded typefaces as two', () => {
+    expect(
+      countUploads([
+        a({ kind: 'font', fontSource: 'upload', name: 'Sohne-Regular.ttf' }),
+        a({ kind: 'font', fontSource: 'upload', name: 'Tiempos-Regular.ttf' }),
+      ]),
+    ).toBe(2);
+  });
+
+  it('the screenshot case: six visible items are nowhere near the limit', () => {
+    const state = [
+      a({ kind: 'link', name: 'kaafex.com' }),
+      a({ name: 'Artboard 261.png' }),
+      a({ name: 'Artboard 26.png' }),
+      a({ name: 'Asset 23.png' }),
+      a({ kind: 'link', name: 'instagram.com' }),
+      a({ kind: 'font', fontSource: 'google', name: 'Space Grotesk' }),
+      // what the user never saw:
+      a({ generated: true }), a({ generated: true }), a({ generated: true }),
+      a({ generated: true }), a({ generated: true }), a({ generated: true }),
+    ];
+    expect(countUploads(state)).toBe(3);
+    expect(countUploads(state)).toBeLessThan(MAX_FILES);
   });
 });

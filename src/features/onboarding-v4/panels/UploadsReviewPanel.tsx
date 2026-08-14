@@ -21,6 +21,7 @@ import {
   editAsUser,
   renameBrand,
   saveBusinessFact,
+  ORIGIN_LABEL,
   type Projection,
 } from '@/features/onboarding/bridge/v4Bridge';
 import { VOCABULARIES } from '@/features/onboarding/vocabulary/vocabularies';
@@ -46,13 +47,22 @@ const ALL_SHUFFLE_PALETTES: string[][] = (() => {
 const MAX_ASSETS = 20;
 
 /**
+ * How many colours a brand palette holds here.
+ *
+ * A palette is a decision; eight swatches is a mood board. Extraction, the
+ * suggested palettes and manual adds all pass through this, because a cap
+ * enforced in one of three places is not a cap.
+ */
+const MAX_COLORS = 5;
+
+/**
  * The subtitle on a typeface the product proposed rather than the brand chose.
  *
  * An empty Fonts section is a dead end — nothing to react to. A filled one that
  * looks decided is worse, because the user inherits a choice they never made.
  * So the field is never empty and the row says plainly whose choice it is.
  */
-const SUGGESTED_FONT_SUB = 'Suggested — not confirmed';
+const SUGGESTED_FONT_SUB = ORIGIN_LABEL.suggested;
 
 interface Group {
   id: 'fonts' | 'links' | 'assets';
@@ -666,6 +676,13 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
       if (!hex) return false;
       const existing = useV4Store.getState().assets.filter((a) => a.kind === 'color' && a.value);
       if (existing.some((a) => a.value === hex)) return false;
+      // A manual pick is the user's; it replaces the last extracted swatch
+      // rather than being refused at the cap.
+      if (existing.length >= MAX_COLORS) {
+        if (source === 'extracted') return false;
+        const last = existing[existing.length - 1];
+        if (last) removeAsset(last.id);
+      }
       // Extraction from two sources (logo + palette image) can yield the same
       // brand color a few RGB points apart — collapse those instead of
       // stacking near-identical swatches. Manual picks are always honored.
@@ -694,7 +711,7 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
       addAsset(asset);
       return true;
     },
-    [addAsset]
+    [addAsset, removeAsset]
   );
 
   const addLink = useCallback(
@@ -845,12 +862,13 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
 
     // Typefaces the brand already knows about.
     const known = new Set(store.assets.filter((a) => a.kind === 'font').map((a) => a.name));
-    for (const family of projection.fonts) {
+    for (const { family, origin } of projection.fonts) {
       if (known.has(family)) continue;
       store.addAsset({
         id: genId(),
         name: family,
-        sub: 'From your brand',
+        // Whose choice it was is the most important thing about it.
+        sub: ORIGIN_LABEL[origin],
         kind: 'font',
         fontSource: 'google',
         previewUrl: null,
@@ -887,10 +905,12 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
 
     // Logo placements the classifier could evidence, and the exact duplicates
     // it dropped. A role with no evidence stays empty rather than guessed into.
+    // Duplicates go FIRST: the board's router places any logo it can see, so a
+    // copy still in the store would be handed a slot before it is removed.
+    for (const id of projection.duplicateIds) store.removeAsset(id);
     for (const { assetId, slot } of projection.logoSlots) {
       store.updateAsset(assetId, { kind: 'image', isLogo: true, logoSlot: slot as LogoSlot });
     }
-    for (const id of projection.duplicateIds) store.removeAsset(id);
 
     if (projection.slogan) store.updateDefine({ slogan: projection.slogan });
   }, [projection, brandText]);
@@ -1011,7 +1031,13 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
             <h3>Logos</h3>
             <span className="review-group-count">
               {(() => {
-                const n = assets.filter((a) => a.kind === 'image' && a.isLogo).length;
+                // What the USER brought. The black/white variants this flow
+                // derives from an upload are shown on the board but never
+                // counted as logos the user supplied — counting them made
+                // three uploads read as five.
+                const n = assets.filter(
+                  (a) => a.kind === 'image' && a.isLogo && !a.generated,
+                ).length;
                 return `${n} ${n === 1 ? 'logo' : 'logos'}`;
               })()}
             </span>

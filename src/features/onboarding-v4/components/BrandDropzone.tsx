@@ -10,7 +10,7 @@ import {
   isSupportedUploadFile,
   simulateUpload,
 } from '../utils/assetUpload';
-import { MAX_FILES as MAX_ASSETS, refuse } from '@/features/onboarding/material/limits';
+import { MAX_FILES as MAX_ASSETS, countUploads, refuse } from '@/features/onboarding/material/limits';
 
 export function BrandDropzone() {
   const assets = useV4Store((s) => s.assets);
@@ -27,7 +27,7 @@ export function BrandDropzone() {
 
   const deps = {
     max: MAX_ASSETS,
-    getCount: () => useV4Store.getState().assets.length,
+    getCount: () => countUploads(useV4Store.getState().assets),
     getAssets: () => useV4Store.getState().assets,
     addAsset,
     updateAssetProgress,
@@ -49,7 +49,7 @@ export function BrandDropzone() {
       // Refused per item, by name and with the real reason. One oversized file
       // inside a dropped folder must cost the user that file, never the folder,
       // so this returns true and the batch carries on.
-      const no = refuse(file, useV4Store.getState().assets.length);
+      const no = refuse(file, countUploads(useV4Store.getState().assets));
       if (no) {
         toast.error(no);
         return true;
@@ -62,7 +62,7 @@ export function BrandDropzone() {
 
   const addUrl = useCallback(
     (raw: string) => {
-      if (useV4Store.getState().assets.length >= MAX_ASSETS) return false;
+      // A link is not a file, so it is never refused by the file limit.
       let url = String(raw || '').trim();
       if (!url) return false;
       if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
@@ -186,7 +186,7 @@ export function BrandDropzone() {
     if (a.kind === 'color') return false;
     return true;
   });
-  const atLimit = assets.length >= MAX_ASSETS;
+  const atLimit = countUploads(assets) >= MAX_ASSETS;
   const itemsLabel = `${visibleAssets.length} ${visibleAssets.length === 1 ? 'item' : 'items'}`;
 
   return (

@@ -148,3 +148,73 @@ describe('an image that is not a logo is not treated as one', () => {
     }
   });
 });
+
+describe('the same artwork under different filenames is one logo', () => {
+  // The case that shipped: three exports of one mark, called "Artboard 26.png",
+  // "Artboard 261.png" and "Asset 23.png". Their names agree on nothing and
+  // their bytes differ, so both the filename heuristic and the content hash
+  // said "three logos" — and the board drew the identical picture three times.
+  const same = '1010101010101010101010101010101010101010101010101010101010101010';
+  const other = '0101010101010101010101010101010101010101010101010101010101010101';
+
+  it('folds identical artwork into one entry', () => {
+    // `isLogo` is what intake sets when it recognises artwork — these names
+    // carry no signal of their own, which is exactly the point.
+    const items = [
+      img('Artboard 26.png', { contentHash: '1', isLogo: true }),
+      img('Artboard 261.png', { contentHash: '2', isLogo: true }),
+      img('Asset 23.png', { contentHash: '3', isLogo: true }),
+    ];
+    const prints = new Map(items.map((i) => [i.id, same]));
+    const out = classifyLogos(items, prints);
+    expect(out.groups).toHaveLength(1);
+    expect(out.groups[0].variants).toHaveLength(2);
+  });
+
+  it('keeps genuinely different artwork apart', () => {
+    const items = [
+      img('a.png', { contentHash: '1', isLogo: true }),
+      img('b.png', { contentHash: '2', isLogo: true }),
+    ];
+    const prints = new Map([[items[0].id, same], [items[1].id, other]]);
+    expect(classifyLogos(items, prints).groups).toHaveLength(2);
+  });
+
+  it('falls back to filenames when a picture could not be read', () => {
+    const items = [
+      img('brand-logo.svg', { contentHash: '1' }),
+      img('brand-logo-white.svg', { contentHash: '2' }),
+    ];
+    const prints = new Map([[items[0].id, null], [items[1].id, null]]);
+    expect(classifyLogos(items, prints).groups).toHaveLength(1);
+  });
+});
+
+describe('export noise does not make one mark into several', () => {
+  it('folds a vector and its raster export', () => {
+    // The pair a designer actually hands over. A vector often cannot be
+    // fingerprinted on a canvas, so the filename is the only signal left — and
+    // "@2x" was enough to split them.
+    const out = classifyLogos([
+      img('Primary Logo.svg', { contentHash: '1', isLogo: true }),
+      img('Primary Logo@2x.png', { contentHash: '2', isLogo: true }),
+    ]);
+    expect(out.groups).toHaveLength(1);
+  });
+
+  it('folds pixel dimensions in a filename', () => {
+    const out = classifyLogos([
+      img('kaafex-logo.png', { contentHash: '1', isLogo: true }),
+      img('kaafex-logo 1024x1024.png', { contentHash: '2', isLogo: true }),
+    ]);
+    expect(out.groups).toHaveLength(1);
+  });
+
+  it('still keeps two genuinely different marks apart', () => {
+    const out = classifyLogos([
+      img('Logomark.svg', { contentHash: '1', isLogo: true }),
+      img('Logotype.svg', { contentHash: '2', isLogo: true }),
+    ]);
+    expect(out.groups).toHaveLength(2);
+  });
+});

@@ -23,6 +23,7 @@
  * Pure — no service, no store, no React.
  */
 import type { LogoSlot, OnboardingAsset } from '@/shared/upload/intakeTypes';
+import { sameArtwork } from './imageFingerprint';
 
 export interface LogoGroup {
   /** The item that represents this mark. */
@@ -41,13 +42,24 @@ export interface ClassifyResult {
   duplicatesIgnored: number;
 }
 
-/** Normalised stem, for the near-duplicate heuristic. */
+/**
+ * Normalised stem, for the near-duplicate heuristic.
+ *
+ * Export noise is stripped before comparing, because it is the SAME artwork
+ * that carries it: "Primary Logo.svg" and "Primary Logo@2x.png" are one mark
+ * exported twice, and leaving `@2x` in the stem made them two. Density
+ * suffixes, pixel dimensions and the usual copy/final/v2 tails all go.
+ */
 function stem(name: string): string {
   return name
     .toLowerCase()
     .replace(/\.[a-z0-9]+$/, '')
-    .replace(/[\s_-]+/g, '')
-    .replace(/\b(v?\d+|copy|final|new|old)\b/g, '');
+    // @2x · @3x · -2x
+    .replace(/[@-]\d+x\b/g, '')
+    // 1024x1024 · 512×512
+    .replace(/\b\d+\s*[x×]\s*\d+\b/g, '')
+    .replace(/\b(v?\d+|copy|final|new|old|export|asset|artboard)\b/g, '')
+    .replace(/[\s_-]+/g, '');
 }
 
 /** Tokens that only ever appear in a variant's name, never in the base mark. */
@@ -65,11 +77,21 @@ function withoutVariantTokens(s: string): string {
 /**
  * Whether two images are the same mark in different dress.
  *
- * Deliberately name-based rather than pixel-based: comparing rendered pixels
- * needs a canvas, which would make this impure and untestable in jsdom, and
- * the naming signal is strong — people call these files `logo-white.svg`.
+ * The name is a weak signal and often no signal at all — real exports are
+ * called "Artboard 26.png" and "Asset 23.png", which agree on nothing. So the
+ * caller may supply a visual fingerprint (see `imageFingerprint.ts`) and that
+ * decides when it is available; the filename is the fallback for anything that
+ * could not be rendered.
  */
-function sameMark(a: OnboardingAsset, b: OnboardingAsset): boolean {
+function sameMark(
+  a: OnboardingAsset,
+  b: OnboardingAsset,
+  prints?: ReadonlyMap<string, string | null>,
+): boolean {
+  const pa = prints?.get(a.id) ?? null;
+  const pb = prints?.get(b.id) ?? null;
+  if (pa && pb) return sameArtwork(pa, pb);
+
   const sa = withoutVariantTokens(stem(a.name));
   const sb = withoutVariantTokens(stem(b.name));
   if (!sa || !sb) return false;
@@ -127,7 +149,11 @@ function roleFor(a: OnboardingAsset): { slot: LogoSlot | null; evidence: string 
  * main logo and "the first one you gave us" is honest and correctable — unlike
  * inventing a reason.
  */
-export function classifyLogos(items: readonly OnboardingAsset[]): ClassifyResult {
+export function classifyLogos(
+  items: readonly OnboardingAsset[],
+  /** Visual fingerprints by asset id. Absent falls back to filenames. */
+  prints?: ReadonlyMap<string, string | null>,
+): ClassifyResult {
   const images = items.filter((a) => a.kind === 'image' && !a.generated && looksLikeLogo(a));
 
   // ── 1. exact duplicates ──────────────────────────────────────────────────
@@ -148,7 +174,7 @@ export function classifyLogos(items: readonly OnboardingAsset[]): ClassifyResult
   // ── 2. near-duplicate grouping ───────────────────────────────────────────
   const groups: LogoGroup[] = [];
   for (const a of unique) {
-    const host = groups.find((g) => sameMark(g.lead, a));
+    const host = groups.find((g) => sameMark(g.lead, a, prints));
     if (host) {
       host.variants.push(a);
       continue;

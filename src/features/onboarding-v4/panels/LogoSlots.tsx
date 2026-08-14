@@ -29,6 +29,11 @@ const SLOT_DEFS: Record<LogoSlot, SlotDef> = {
 const DEFAULT_SLOTS: LogoSlot[] = ['primary', 'wordmark'];
 const ADDABLE_SLOTS: LogoSlot[] = ['mark', 'dark', 'light', 'horizontal', 'vertical'];
 
+/** Canonical board order, so tiles do not shuffle with upload order. */
+const SLOT_ORDER_ALL: LogoSlot[] = [
+  'primary', 'wordmark', 'mark', 'dark', 'light', 'horizontal', 'vertical',
+];
+
 const VARIANT_PREVIEW: Record<LogoSlot, JSX.Element> = {
   primary: <PreviewPrimary />,
   dark: <PreviewDark />,
@@ -141,11 +146,20 @@ export function LogoSlots({ assets }: Props) {
   }, [assets]);
 
   const visibleSlots: LogoSlot[] = useMemo(() => {
-    const out = [...DEFAULT_SLOTS];
-    for (const s of [...extraSlots, ...filledSlots]) {
+    // With nothing yet, the default slots ARE the invitation — somewhere to
+    // drop, and a hint at what a logo system contains.
+    if (filledSlots.length === 0) {
+      return [...DEFAULT_SLOTS, ...extraSlots.filter((s) => !DEFAULT_SLOTS.includes(s))];
+    }
+    // Once logos exist, an empty slot is just an unanswered question sitting
+    // between two real logos. "Add variation" is the way to ask for another
+    // one, so a slot appears when it holds something or when it was asked for.
+    const out: LogoSlot[] = [];
+    for (const s of [...filledSlots, ...extraSlots]) {
       if (!out.includes(s)) out.push(s);
     }
-    return out;
+    // Keep the board in the canonical order rather than upload order.
+    return SLOT_ORDER_ALL.filter((s) => out.includes(s));
   }, [extraSlots, filledSlots]);
 
   /** Upload a single file to a specific slot. Replaces any existing asset there. */

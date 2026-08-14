@@ -18,6 +18,48 @@ export const MAX_FILES = 10;
 /** Per-file ceiling. */
 export const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * What actually counts against the limit.
+ *
+ * The limit is a promise about how many FILES the user may bring, so only
+ * things the user brought as files may count. Everything below was counting and
+ * should not have been:
+ *
+ *   generated variants   the black/white marks WE derive from an uploaded logo.
+ *                        Three logos silently became six or nine.
+ *   links                a URL is not a file and costs no storage.
+ *   colours              a swatch is a value, not an upload.
+ *   suggested fonts      a Google family we proposed was never uploaded.
+ *
+ * Font FILES group by family: five weights of one typeface are one typeface,
+ * and charging the user five slots for it is the same mistake the font grouping
+ * exists to prevent everywhere else.
+ */
+export interface CountableAsset {
+  kind: string;
+  generated?: boolean;
+  fontSource?: string;
+  name: string;
+}
+
+export function countUploads(items: readonly CountableAsset[]): number {
+  const families = new Set<string>();
+  let n = 0;
+  for (const a of items) {
+    if (a.generated) continue;
+    if (a.kind === 'color' || a.kind === 'link') continue;
+    if (a.kind === 'font') {
+      // Only fonts the user actually uploaded, and one per family.
+      if (a.fontSource !== 'upload') continue;
+      const family = a.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_](regular|medium|bold|light|thin|black|italic|semibold|extrabold)$/i, '');
+      if (families.has(family.toLowerCase())) continue;
+      families.add(family.toLowerCase());
+    }
+    n++;
+  }
+  return n;
+}
+
 /** The line shown under the dropzone. */
 export function describeLimits(): string {
   return `Up to ${MAX_FILES} files · ${Math.round(MAX_FILE_BYTES / (1024 * 1024))} MB each`;
