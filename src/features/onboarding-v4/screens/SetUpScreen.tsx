@@ -30,6 +30,7 @@ import { SetupPanel } from '../panels/SetupPanel';
 import { UploadsReviewPanel } from '../panels/UploadsReviewPanel';
 
 import { useV4Store } from '../store/onboardingV4Store';
+import { extractDominantColors, genId, normalizeHex } from '../utils/assetUpload';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { container } from '@/core/container/ServiceContainer';
@@ -159,11 +160,20 @@ export function SetUpScreen() {
     [userId],
   );
 
-  /** Reads the brand back and re-projects it onto the review. */
+  /**
+   * Reads the brand back and re-projects it onto the review.
+   *
+   * The sentinel list is read from the STORE, not from the `b` passed in: `b` is
+   * usually the record as created, and understanding retires sentinels through a
+   * separate write. Projecting against the stale copy treated a real extracted
+   * colour as a stand-in and the Colors section rendered empty while the brand
+   * held #231F20.
+   */
   const refresh = useCallback(async (b: Brand) => {
     const canonical = await brandRepository().getById(b.id);
     if (!canonical) return;
-    setProjection(project(canonical, useV4Store.getState().assets, placeholderPaths(b)));
+    const live = useBrandStore.getState().list.find((x) => x.id === b.id) ?? b;
+    setProjection(project(canonical, useV4Store.getState().assets, placeholderPaths(live)));
   }, []);
 
   /**
@@ -241,9 +251,56 @@ export function SetUpScreen() {
     }
   }, [createBrand, updateBrand, define, updateAsset]);
 
+  /**
+   * Pulls the palette out of the artwork the user brought.
+   *
+   * Runs BEFORE interpretation, which is the whole point: the review used to
+   * show a single colour because extraction lived in the review panel's own
+   * mount effect and therefore happened after understanding had already
+   * decided the brand's palette from nothing.
+   *
+   * Capped at five. A brand has a palette, not a swatch library, and every
+   * extra swatch past that is noise the user has to delete.
+   */
+  const extractColours = useCallback(async () => {
+    const store = useV4Store.getState();
+    if (store.assets.some((a) => a.kind === 'color')) return;
+    const artwork = store.assets.filter((a) => a.kind === 'image' && a.previewUrl).slice(0, 3);
+    if (!artwork.length) return;
+
+    const found: string[] = [];
+    for (const img of artwork) {
+      if (found.length >= 5) break;
+      try {
+        for (const hex of await extractDominantColors(img.previewUrl as string, 6)) {
+          const normalised = normalizeHex(hex);
+          if (!normalised || found.includes(normalised)) continue;
+          found.push(normalised);
+          if (found.length >= 5) break;
+        }
+      } catch {
+        /* one unreadable image costs its own colours, never the batch */
+      }
+    }
+
+    found.forEach((hex, i) => {
+      store.addAsset({
+        id: genId(),
+        name: hex,
+        sub: i === 0 ? 'Primary' : 'Extracted',
+        kind: 'color',
+        value: hex,
+        previewUrl: null,
+        uploadStatus: 'done',
+        uploadProgress: 1,
+      });
+    });
+  }, []);
+
   /** The real work the processing screen observes. It observes nothing back. */
   const runUnderstanding = useCallback(async () => {
     if (!brand) return;
+    await extractColours();
     const items = useV4Store.getState().assets;
     const { understanding, notSaved } = await understand(
       brand,
@@ -271,7 +328,7 @@ export function SetUpScreen() {
     );
 
     await refresh(brand);
-  }, [brand, updateBrand, refresh, define.description]);
+  }, [brand, updateBrand, refresh, define.description, extractColours]);
 
   // ── Open my brand ──────────────────────────────────────────────────
   const finish = useCallback(async () => {

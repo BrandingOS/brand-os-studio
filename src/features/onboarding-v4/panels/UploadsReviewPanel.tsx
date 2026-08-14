@@ -19,6 +19,7 @@ import {
   accept,
   acceptSection,
   editAsUser,
+  renameBrand,
   saveBusinessFact,
   type Projection,
 } from '@/features/onboarding/bridge/v4Bridge';
@@ -435,24 +436,36 @@ function FontFamilyRow({
  *  locally. No third-party favicon service: fetching the real favicon
  *  leaked every brand URL to Google. Falls back to the platform glyph
  *  for bad URLs. */
+/**
+ * The site's own icon, with the platform glyph behind it.
+ *
+ * A first letter says nothing — half the internet starts with the same one, and
+ * it reads as a missing image rather than a brand. The favicon is what people
+ * actually recognise, so it is tried first and the platform glyph is the
+ * fallback for a host that has none (or that fails to load).
+ */
 function LinkFavicon({ url, fallback }: { url?: string; fallback: React.ReactNode }) {
-  const letter = useMemo(() => {
+  const [failed, setFailed] = useState(false);
+  const host = useMemo(() => {
     if (!url) return null;
     try {
-      const host = new URL(url).hostname.replace(/^www\./, '');
-      return host.charAt(0).toUpperCase() || null;
+      return new URL(url).hostname.replace(/^www\./, '');
     } catch {
       return null;
     }
   }, [url]);
 
-  if (!letter) {
+  if (!host || failed) {
     return <span className="asset-thumb-platform">{fallback}</span>;
   }
   return (
-    <span className="asset-thumb-letter" aria-hidden="true">
-      {letter}
-    </span>
+    <img
+      className="asset-thumb-favicon"
+      src={`https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(host)}`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
   );
 }
 
@@ -734,6 +747,25 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
   }, [aboutSections, define.description]);
   // A slogan the user typed inline wins; clearing it falls back to the parse.
   const slogan = define.slogan?.trim() ? define.slogan.trim() : parsedSlogan;
+  // Set when a brand-bar tag is clicked, so the matching About card opens.
+  const [openPath, setOpenPath] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editingName) {
+      nameInputRef.current?.focus();
+      nameInputRef.current?.select();
+    }
+  }, [editingName]);
+  const commitName = () => {
+    setEditingName(false);
+    const next = nameDraft.trim();
+    if (!next || next === brandName) return;
+    updateDefine({ name: next });
+    if (brandId) void renameBrand(brandId, next).then(() => onChanged?.());
+  };
+
   const [editingSlogan, setEditingSlogan] = useState(false);
   const [sloganDraft, setSloganDraft] = useState('');
   const sloganInputRef = useRef<HTMLInputElement>(null);
@@ -850,7 +882,34 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
       <div className="review-groups">
         {brandName && (
           <div className="review-brandbar">
-            <span className="review-brandbar-name">{brandName}</span>
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                type="text"
+                className="review-brandbar-name-input"
+                value={nameDraft}
+                maxLength={60}
+                aria-label="Brand name"
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={commitName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitName();
+                  if (e.key === 'Escape') setEditingName(false);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="review-brandbar-name"
+                title="Edit name"
+                onClick={() => {
+                  setNameDraft(brandName);
+                  setEditingName(true);
+                }}
+              >
+                {brandName}
+              </button>
+            )}
             <span className="review-brandbar-sep" aria-hidden="true">–</span>
             {editingSlogan ? (
               <input
@@ -882,9 +941,21 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
             )}
             {Boolean(projection?.industryLabel || projection?.styleLabels.length) && (
               <span className="review-brandbar-meta">
-                {projection.industryLabel && <span className="review-tag">{projection.industryLabel}</span>}
+                {/* Clicking a tag opens the value it summarises — the summary and
+                    the control are the same thing, so it should behave like one. */}
+                {projection.industryLabel && (
+                  <button type="button" className="review-tag" onClick={() => setOpenPath('industry')}>
+                    {projection.industryLabel}
+                  </button>
+                )}
                 {projection.styleLabels.length > 0 && (
-                  <span className="review-tag">{projection.styleLabels.join(' · ')}</span>
+                  <button
+                    type="button"
+                    className="review-tag"
+                    onClick={() => setOpenPath('visualStyle.descriptors')}
+                  >
+                    {projection.styleLabels.join(' · ')}
+                  </button>
                 )}
               </span>
             )}
@@ -976,6 +1047,8 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
           projection={projection}
           actor={actor}
           onChanged={onChanged}
+          openPath={openPath}
+          onOpenPathHandled={() => setOpenPath(null)}
         />
 
         <GroupCard

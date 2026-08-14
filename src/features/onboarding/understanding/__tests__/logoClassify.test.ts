@@ -71,13 +71,37 @@ describe('roles come from evidence, never from a free slot', () => {
     expect(out.groups[0].evidence).toBe('what we saw in the file');
   });
 
-  it('leaves a second claimant unplaced rather than displacing the first', () => {
+  it('gives a contested role to one claimant and a free slot to the other', () => {
+    // Both name themselves "icon", so only one can hold that role. The loser is
+    // not hidden — every logo the user brought gets a place they can correct.
     const out = classifyLogos([
       img('one-icon.svg', { contentHash: '1' }),
       img('two-icon.svg', { contentHash: '2' }),
     ]);
     expect(out.groups.filter((g) => g.slot === 'mark')).toHaveLength(1);
-    expect(out.groups.filter((g) => g.slot === null)).toHaveLength(1);
+    expect(out.groups.filter((g) => g.slot === null)).toHaveLength(0);
+    expect(new Set(out.groups.map((g) => g.slot)).size).toBe(2);
+  });
+
+  it('places every logo the user brought', () => {
+    const out = classifyLogos([
+      img('a-logo.svg', { contentHash: '1' }),
+      img('b-logo.svg', { contentHash: '2' }),
+      img('c-logo.svg', { contentHash: '3' }),
+      img('d-logo.svg', { contentHash: '4' }),
+    ]);
+    expect(out.groups).toHaveLength(4);
+    expect(out.groups.every((g) => g.slot !== null)).toBe(true);
+    // and never twice into the same slot
+    expect(new Set(out.groups.map((g) => g.slot)).size).toBe(4);
+  });
+
+  it('says plainly when a placement rests only on the order', () => {
+    const out = classifyLogos([
+      img('a-logo.svg', { contentHash: '1' }),
+      img('b-logo.svg', { contentHash: '2' }),
+    ]);
+    expect(out.groups[1].evidence).toBe('the order you brought them');
   });
 
   it('names the first unroled logo primary, and says why', () => {
@@ -96,5 +120,31 @@ describe('roles come from evidence, never from a free slot', () => {
 
   it('nothing in, nothing out', () => {
     expect(classifyLogos([]).groups).toEqual([]);
+  });
+});
+
+describe('an image that is not a logo is not treated as one', () => {
+  it('keeps photographs out of the logo board', () => {
+    const out = classifyLogos([
+      img('team-photo.jpg', { contentHash: '1' }),
+      img('office-front.jpg', { contentHash: '2' }),
+    ]);
+    // They are not lost — they simply belong in Brand Assets.
+    expect(out.groups).toHaveLength(0);
+  });
+
+  it('trusts the classifier when it has spoken', () => {
+    expect(
+      classifyLogos([img('DSC_0041.jpg', { contentHash: '1', aiPlacement: 'logos' })]).groups,
+    ).toHaveLength(1);
+    expect(
+      classifyLogos([img('brand-logo.svg', { contentHash: '1', aiPlacement: 'images' })]).groups,
+    ).toHaveLength(0);
+  });
+
+  it('treats vector artwork and logo-ish filenames as logos', () => {
+    for (const name of ['mark.svg', 'acme-logo.png', 'wordmark.png', 'monogram.png']) {
+      expect(classifyLogos([img(name, { contentHash: name })]).groups).toHaveLength(1);
+    }
   });
 });

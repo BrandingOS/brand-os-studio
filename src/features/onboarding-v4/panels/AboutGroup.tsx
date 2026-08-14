@@ -1,18 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AboutEditorModal, type AboutEditorInitial } from '@/features/setup/components/AboutEditorModal';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { useV4Store } from '../store/onboardingV4Store';
-import {
-  accept,
-  acceptSection,
-  editAsUser,
-  saveBusinessFact,
-  type Projection,
-} from '@/features/onboarding/bridge/v4Bridge';
-import { VOCABULARIES } from '@/features/onboarding/vocabulary/vocabularies';
+import { editAsUser, saveBusinessFact, type Projection } from '@/features/onboarding/bridge/v4Bridge';
+import { VOCABULARIES, type VocabularyMember } from '@/features/onboarding/vocabulary/vocabularies';
 import { PATH_LABEL } from '@/features/onboarding/understanding/proposals';
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
+import { ValuePicker, type PickerTarget } from './ValuePicker';
 import type { AboutSection } from '../types';
 import { useCosmosTheme } from '../components/useCosmosTheme';
 
@@ -45,124 +40,29 @@ export interface AboutGroupProps {
   projection?: Projection | null;
   actor?: { kind: 'human'; userId: string };
   onChanged?(): void;
+  /** A path the brand bar asked to edit. Opens that card's picker. */
+  openPath?: string | null;
+  onOpenPathHandled?(): void;
 }
 
-/**
- * The brand profile, as selections where the concept is categorical and as
- * text where the meaning lives in the wording.
- *
- * The split is about MEANING, not convenience. Industry, style, personality,
- * tone and values are things two brands should answer with the same token if
- * they mean the same thing — something downstream will compare them. Summary,
- * audience, positioning and mission are not: turning those into dropdowns
- * would throw away the only part that mattered.
- *
- * Picking a chip or saving text is an explicit choice, so it confirms that one
- * value. Nothing else moves.
- */
-function StructuredProfile({
+/** A structured brand value, rendered as one of the section widgets. */
+interface ValueCard {
+  key: string;
+  name: string;
+  content: string;
+  target: PickerTarget;
+}
+
+export function AboutGroup({
   brandId,
   projection,
   actor,
   onChanged,
-}: Required<Pick<AboutGroupProps, 'projection'>> & AboutGroupProps) {
-  if (!projection) return null;
-  const rows = projection.profile;
-  if (!rows.length && !projection.industryLabel) return null;
-
-  const write = async (path: CoreFieldPath, value: unknown) => {
-    if (!brandId || !actor) return;
-    await editAsUser(brandId, path, value, actor);
-    onChanged?.();
-  };
-
-  return (
-    <div className="about-structured">
-      {projection.industryLabel && (
-        <div className="about-row">
-          <span className="about-row-key">Industry</span>
-          <div className="about-chips">
-            {VOCABULARIES.industry.map((m) => {
-              const on = m.label === projection.industryLabel;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  className={`about-chip${on ? ' is-on' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => {
-                    if (!brandId) return;
-                    void saveBusinessFact(brandId, { industry: m.id }).then(() => onChanged?.());
-                  }}
-                >
-                  {m.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {rows.map((row) => {
-        const label = PATH_LABEL[row.path] ?? row.path;
-        if (row.vocab) {
-          const selected = Array.isArray(row.value)
-            ? (row.value as string[])
-            : row.value
-              ? [String(row.value)]
-              : [];
-          const single = row.path === 'voice.tone';
-          return (
-            <div className="about-row" key={row.path}>
-              <span className="about-row-key">{label}</span>
-              <div className="about-chips">
-                {VOCABULARIES[row.vocab].map((m) => {
-                  const on = selected.includes(m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className={`about-chip${on ? ' is-on' : ''}`}
-                      aria-pressed={on}
-                      onClick={() => {
-                        const next = single
-                          ? on ? '' : m.id
-                          : on
-                            ? selected.filter((s) => s !== m.id)
-                            : [...selected, m.id];
-                        void write(row.path, next);
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div className="about-row" key={row.path}>
-            <span className="about-row-key">{label}</span>
-            <textarea
-              className="about-row-text"
-              defaultValue={String(row.value ?? '')}
-              rows={2}
-              aria-label={label}
-              onBlur={(e) => {
-                const next = e.target.value.trim();
-                if (next && next !== String(row.value ?? '')) void write(row.path, next);
-              }}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export function AboutGroup({ brandId, projection, actor, onChanged }: AboutGroupProps = {}) {
+  openPath,
+  onOpenPathHandled,
+}: AboutGroupProps = {}) {
   const sections = useV4Store((s) => s.aboutSections);
+  const [picking, setPicking] = useState<PickerTarget | null>(null);
   const addSection = useV4Store((s) => s.addAboutSection);
   const updateSection = useV4Store((s) => s.updateAboutSection);
   const removeSection = useV4Store((s) => s.removeAboutSection);
@@ -241,45 +141,102 @@ export function AboutGroup({ brandId, projection, actor, onChanged }: AboutGroup
     setCtxMenu({ x: e.clientX, y: e.clientY, items });
   };
 
+  /**
+   * The structured profile, as widgets in the list this section always had.
+   *
+   * Not a separate stacked block: every option laid out at once turned one card
+   * into a page of chips, and the section stopped being scannable. A card shows
+   * what the value IS; opening it is where the alternatives live.
+   */
+  const valueCards: ValueCard[] = [];
+  if (projection) {
+    if (projection.industryLabel) {
+      valueCards.push({
+        key: 'industry',
+        name: 'Industry',
+        content: projection.industryLabel,
+        target: { kind: 'business', field: 'industry', label: 'Industry', vocab: 'industry', selected: [] },
+      });
+    }
+    for (const row of projection.profile) {
+      const label = PATH_LABEL[row.path] ?? row.path;
+      if (row.vocab) {
+        const ids = Array.isArray(row.value) ? (row.value as string[]) : row.value ? [String(row.value)] : [];
+        const members = VOCABULARIES[row.vocab];
+        const labels = ids.map((id) => members.find((m) => m.id === id)?.label ?? id);
+        valueCards.push({
+          key: row.path,
+          name: label,
+          content: labels.join(' · '),
+          target: {
+            kind: 'core',
+            path: row.path,
+            label,
+            vocab: row.vocab,
+            selected: ids,
+            single: row.path === 'voice.tone',
+          },
+        });
+      } else {
+        valueCards.push({
+          key: row.path,
+          name: label,
+          content: String(row.value ?? ''),
+          target: { kind: 'core', path: row.path, label, text: String(row.value ?? '') },
+        });
+      }
+    }
+  }
+
+  // The brand bar can ask for one of these directly.
+  useEffect(() => {
+    if (!openPath) return;
+    const card = valueCards.find((c) => c.key === openPath);
+    if (card) setPicking(card.target);
+    onOpenPathHandled?.();
+    // valueCards is derived; keying on the request alone is what is meant here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openPath]);
+
+  const commit = async (target: PickerTarget, next: unknown) => {
+    if (!brandId) return;
+    if (target.kind === 'business') {
+      await saveBusinessFact(brandId, { [target.field]: next });
+    } else if (actor) {
+      await editAsUser(brandId, target.path as CoreFieldPath, next, actor);
+    }
+    onChanged?.();
+  };
+
+  const total = valueCards.length + sections.length;
+
   return (
     <article className="review-group about-group">
       <header className="review-group-head">
         <h3>About</h3>
-        <span className="review-group-head-right">
-          <span className="review-group-count">
-            {sections.length} {sections.length === 1 ? 'section' : 'sections'}
-          </span>
-          {projection && projection.profile.length > 0 && brandId && actor && (
-            <button
-              type="button"
-              className="looks-right"
-              onClick={() => {
-                void acceptSection(
-                  brandId,
-                  projection.profile.map((r) => r.path),
-                  actor,
-                ).then(() => onChanged?.());
-              }}
-            >
-              Looks right
-            </button>
-          )}
+        <span className="review-group-count">
+          {total} {total === 1 ? 'section' : 'sections'}
         </span>
       </header>
 
-      <StructuredProfile
-        brandId={brandId}
-        projection={projection ?? null}
-        actor={actor}
-        onChanged={onChanged}
-      />
-
-      {sections.length === 0 ? (
+      {total === 0 ? (
         <p className="review-group-empty">
           Add anything you want to say about your brand — voice, mission, audience, vibe…
         </p>
       ) : (
-        <div className="about-list" data-dense={sections.length > 6 ? 'true' : undefined}>
+        <div className="about-list" data-dense={total > 6 ? 'true' : undefined}>
+          {valueCards.map((card) => (
+            <button
+              key={card.key}
+              type="button"
+              className="about-card"
+              onClick={() => setPicking(card.target)}
+              title="Click to change"
+            >
+              <span className="about-card-name">{card.name}</span>
+              <span className="about-card-content">{card.content || 'Not set yet'}</span>
+            </button>
+          ))}
           {sections.map((section) => (
             <button
               key={section.id}
@@ -331,6 +288,17 @@ export function AboutGroup({ brandId, projection, actor, onChanged }: AboutGroup
       {ctxMenu && (
         <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={closeCtxMenu} />
       )}
+
+      <ValuePicker
+        target={picking}
+        theme={theme}
+        onClose={() => setPicking(null)}
+        onSave={(next) => {
+          const target = picking;
+          setPicking(null);
+          if (target) void commit(target, next);
+        }}
+      />
     </article>
   );
 }

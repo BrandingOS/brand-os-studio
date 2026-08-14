@@ -62,7 +62,7 @@ export function SetupPanel({ part, onSubmit }: Props) {
             <label htmlFor="description">Describe your brand</label>
             <CopyPromptHint variant="badge" brandName={define.name} />
           </div>
-          <AITextarea value={define.description} onChange={(v) => update({ description: v })} />
+          <AITextarea autoFocus value={define.description} onChange={(v) => update({ description: v })} />
         </div>
 
         <div className="field">

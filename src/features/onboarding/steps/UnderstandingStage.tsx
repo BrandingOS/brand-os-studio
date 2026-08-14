@@ -31,8 +31,14 @@ export interface UnderstandingStageProps {
   onDone(): void;
 }
 
-/** How long each stage's copy holds before the next, when work outpaces it. */
-const STAGE_MS = 520;
+/**
+ * How long each stage holds before the next, when the work outpaces the screen.
+ *
+ * Slower than it needs to be, on purpose: the spoke draws, then the node lands,
+ * then its ring expands — roughly 700ms of motion per stage. At 520ms the beats
+ * overlapped and the thing read as a flicker rather than an assembly.
+ */
+const STAGE_MS = 760;
 
 export function UnderstandingStage({ brandName, stages, work, onDone }: UnderstandingStageProps) {
   const [index, setIndex] = useState(0);
@@ -99,7 +105,11 @@ export function UnderstandingStage({ brandName, stages, work, onDone }: Understa
       <UnderstandingMark active={active} />
 
       <div className="onb-proc-copy">
-        <p className="onb-proc-line">{current?.label ?? 'Preparing your brand system'}</p>
+        {/* Keyed so each stage's copy animates in rather than swapping text
+            inside a static node. */}
+        <p className="onb-proc-line" key={current?.id ?? 'idle'}>
+          {current?.label ?? 'Preparing your brand system'}
+        </p>
         <p className="onb-proc-sub">{brandName}</p>
       </div>
 

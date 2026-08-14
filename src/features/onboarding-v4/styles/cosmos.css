@@ -3549,3 +3549,178 @@
   font-variant-numeric: tabular-nums;
 }
 [data-onboarding="cosmos"] .drop-pill { height: 44px; }
+
+
+[data-onboarding="cosmos"] .asset-thumb-favicon {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+
+/* ── Name + slogan read as fields, because they are ────────────────────
+   Both are editable, so both need the affordance. A dashed rule is the same
+   language the rest of the review uses for "not decided yet", and it turns
+   into a real input on click. */
+[data-onboarding="cosmos"] .review-brandbar-name {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 150ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] .review-brandbar-name:hover {
+  border-bottom-color: var(--ds-dash);
+}
+[data-onboarding="cosmos"] .review-brandbar-name-input {
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--ds-border-strong);
+  outline: none;
+  padding: 0 2px 1px;
+  min-width: 160px;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan {
+  border-bottom: 1px dashed transparent;
+}
+[data-onboarding="cosmos"] .review-brandbar-slogan:hover {
+  border-bottom-color: var(--ds-dash);
+}
+/* The summary tags are buttons — they open the value they summarise. */
+[data-onboarding="cosmos"] button.review-tag {
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 150ms var(--ds-ease), color 150ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] button.review-tag:hover {
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+
+/* ── Changing one value ────────────────────────────────────────────────
+   Opened from an About card, so the section stays a list of what the brand IS
+   and the alternatives live one click in. */
+.value-picker-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--ds-scrim);
+}
+.value-picker {
+  position: fixed;
+  z-index: 91;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(72vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  box-shadow: var(--ds-shadow-float);
+  overflow: hidden;
+}
+.value-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--ds-hairline);
+}
+.value-picker-head h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ds-text);
+}
+.value-picker-x {
+  background: none;
+  border: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.value-picker-x:hover { color: var(--ds-text); background: var(--ds-surface-hover); }
+.value-picker-body { padding: 14px 18px 18px; overflow-y: auto; }
+.value-picker-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+.value-picker-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.value-picker-text {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ds-text);
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-control);
+  padding: 10px 12px;
+}
+.value-picker-text:focus {
+  outline: none;
+  border-color: var(--ds-focus-border);
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+.value-picker-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--ds-hairline);
+}
+.value-picker-cancel,
+.value-picker-save {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--ds-radius-control);
+  padding: 9px 16px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.value-picker-cancel { background: none; color: var(--ds-text-secondary); }
+.value-picker-cancel:hover { background: var(--ds-surface-hover); color: var(--ds-text); }
+.value-picker-save { background: var(--ds-accent); color: var(--ds-accent-fg); }
+
+/* The chips inside the picker use the About chip language. */
+.value-picker .about-chip {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--ds-dash);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+}
+.value-picker .about-chip:hover { border-color: var(--ds-border-strong); color: var(--ds-text); }
+.value-picker .about-chip.is-on {
+  border-style: solid;
+  border-color: var(--ds-accent);
+  background: var(--ds-accent);
+  color: var(--ds-accent-fg);
+  font-weight: 600;
+}

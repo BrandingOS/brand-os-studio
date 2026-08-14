@@ -410,7 +410,7 @@
 .onb-file-x:hover { color: var(--ds-text); }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PROCESSING — a transition
+   PROCESSING — the mark assembling
    ═══════════════════════════════════════════════════════════════════ */
 
 .onb-proc {
@@ -418,46 +418,127 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--ds-space-6);
-  min-height: 70vh;
+  gap: var(--ds-space-8);
+  min-height: 72vh;
   text-align: center;
 }
+
 .onb-mark { display: grid; place-items: center; }
+.onb-mark-svg { overflow: visible; }
+
+/* The halo widens as the system fills — a shape, never a number. */
+.onb-halo { transition: r 900ms var(--ds-ease); }
+
+/* The core is alive from the first frame: the brand already exists. */
+.onb-core {
+  fill: var(--ds-accent);
+  animation: onb-breathe 2.8s var(--ds-ease) infinite;
+  transform-origin: 56.51px 56.5px;
+}
+@keyframes onb-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.82; }
+}
+
+/* A spoke DRAWS outward when its stage completes — we reached for something. */
+.onb-spoke {
+  stroke: var(--ds-accent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  transition: opacity 260ms var(--ds-ease), stroke-dashoffset 620ms var(--ds-ease);
+}
+.onb-spoke.is-on { opacity: 0.26; stroke-dashoffset: 0; }
+
+/* The node lands a beat after its spoke arrives. */
+.onb-node-dot {
+  fill: var(--ds-accent);
+  opacity: 0.11;
+  transform-origin: center;
+  transition: opacity 420ms var(--ds-ease);
+}
+.onb-node.is-on .onb-node-dot {
+  opacity: 1;
+  animation: onb-land 520ms var(--ds-ease) 180ms both;
+}
+@keyframes onb-land {
+  0% { transform: scale(0.62); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* One ring, once: the "found it" beat. */
+.onb-node-ring {
+  fill: none;
+  stroke: var(--ds-accent);
+  stroke-width: 1.6;
+  transform-origin: center;
+  animation: onb-ring 900ms var(--ds-ease) 200ms both;
+}
+@keyframes onb-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.onb-proc-copy { display: flex; flex-direction: column; gap: 6px; }
 .onb-proc-line {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 550;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.018em;
   min-height: 24px;
+  animation: onb-line-in 420ms var(--ds-ease) both;
 }
-.onb-proc-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--ds-text-muted); }
+@keyframes onb-line-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.onb-proc-sub {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-placeholder);
+}
 
 .onb-finds {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
   justify-content: center;
-  max-width: 440px;
+  max-width: 460px;
+  min-height: 30px;
 }
 .onb-find {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 11px;
-  font-size: 12px;
+  padding: 6px 13px;
+  font-size: 12.5px;
   color: var(--ds-text-secondary);
   background: var(--ds-surface);
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-pill);
-  animation: onb-find-in var(--ds-duration-modal) var(--ds-ease) both;
+  box-shadow: var(--ds-shadow-xs);
+  animation: onb-find-in 480ms var(--ds-ease) both;
 }
 .onb-find b { color: var(--ds-text); font-weight: 600; }
 @keyframes onb-find-in {
-  from { opacity: 0; transform: translateY(4px); }
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
   to { opacity: 1; transform: none; }
 }
+
+/* Everything settles instantly, and nothing loops, when motion is unwelcome. */
 @media (prefers-reduced-motion: reduce) {
+  .onb-core,
+  .onb-node.is-on .onb-node-dot,
+  .onb-node-ring,
+  .onb-proc-line,
   .onb-find { animation: none; }
+  .onb-halo, .onb-spoke, .onb-node-dot { transition: none; }
+  .onb-node-ring { display: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

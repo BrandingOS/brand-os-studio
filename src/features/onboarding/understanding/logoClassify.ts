@@ -76,6 +76,27 @@ function sameMark(a: OnboardingAsset, b: OnboardingAsset): boolean {
   return sa === sb;
 }
 
+/**
+ * Whether an image is plausibly a logo at all.
+ *
+ * Photographs are not logos, and treating every image as one filled the board
+ * with product shots while the real mark sat in a slot behind them. Anything
+ * that fails this stays an ordinary image and lands in Brand Assets, which is
+ * where the user will look for it.
+ */
+export function looksLikeLogo(a: OnboardingAsset): boolean {
+  if (a.isLogo || a.logoSlot || a.aiLogoSlot) return true;
+  if (a.aiPlacement === 'logos') return true;
+  // The classifier has spoken and did not say logos, so this is not a mark.
+  // A truthiness check, not a second comparison — the line above already
+  // narrowed 'logos' out of the type.
+  if (a.aiPlacement) return false;
+  const n = a.name.toLowerCase();
+  // Vector artwork is almost never a photograph.
+  if (/\.svg$/.test(n)) return true;
+  return /logo|wordmark|logotype|monogram|brandmark|icon|mark|symbol|favicon|lockup/.test(n);
+}
+
 /** The role a single item's evidence supports. `null` when nothing does. */
 function roleFor(a: OnboardingAsset): { slot: LogoSlot | null; evidence: string } {
   // Classification already ran and had something to say. That IS evidence.
@@ -107,7 +128,7 @@ function roleFor(a: OnboardingAsset): { slot: LogoSlot | null; evidence: string 
  * inventing a reason.
  */
 export function classifyLogos(items: readonly OnboardingAsset[]): ClassifyResult {
-  const images = items.filter((a) => a.kind === 'image' && !a.generated);
+  const images = items.filter((a) => a.kind === 'image' && !a.generated && looksLikeLogo(a));
 
   // ── 1. exact duplicates ──────────────────────────────────────────────────
   const seenHash = new Set<string>();
@@ -162,6 +183,22 @@ export function classifyLogos(items: readonly OnboardingAsset[]): ClassifyResult
       first.evidence = 'the first logo you brought';
       taken.add('primary');
     }
+  }
+
+  // Everything the user brought gets a place on the board.
+  //
+  // Leaving unplaced logos out was the stricter reading of "evidence only", and
+  // it meant someone who uploaded five marks saw two — the rest silently absent
+  // with nothing to click. A named slot the user can correct beats a logo they
+  // cannot see, so the remainder fill the free slots in order, and their
+  // evidence says plainly that the order is all it rests on.
+  for (const g of groups) {
+    if (g.slot !== null) continue;
+    const free = SLOT_ORDER.find((s) => !taken.has(s));
+    if (!free) break;
+    g.slot = free;
+    g.evidence = 'the order you brought them';
+    taken.add(free);
   }
 
   return { groups, duplicatesIgnored };

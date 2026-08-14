@@ -4,10 +4,12 @@ import { TYPED_PROMPTS } from '../data/typedPrompts';
 interface Props {
   value: string;
   onChange(value: string): void;
+  /** Focus on mount, so the user can start typing without reaching for it. */
+  autoFocus?: boolean;
 }
 
 /** AI-styled textarea: typed placeholder rotates while empty; sparkle icon pulses. */
-export function AITextarea({ value, onChange }: Props) {
+export function AITextarea({ value, onChange, autoFocus }: Props) {
   const [typedChars, setTypedChars] = useState<string[]>([]);
   const tokenRef = useRef(0);
   const idxRef = useRef(0);
@@ -69,6 +71,7 @@ export function AITextarea({ value, onChange }: Props) {
       <textarea
         id="description"
         className="textarea ai-textarea"
+        autoFocus={autoFocus}
         placeholder=""
         value={value}
         onChange={(e) => onChange(e.target.value)}

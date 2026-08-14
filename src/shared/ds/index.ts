@@ -42,5 +42,5 @@ export { DsRail, type DsRailItem, type DsRailProps } from './Rail';
 export { DsAssetRow, type DsAssetRowAction, type DsAssetRowProps } from './AssetRow';
 export { DsSwatchRow, type DsSwatchRowSwatch, type DsSwatchRowProps } from './SwatchRow';
 export { DsLogoTile, DsLogoTileEmpty, type DsLogoTileProps } from './LogoTile';
-export { BrandMark, LoadingPill, type BrandMarkProps } from './BrandMark';
+export { BrandMark, LoadingPill, RING_CENTRES, CORE_CENTRE, type BrandMarkProps } from './BrandMark';
 export { DsEyebrow, DsKbd, DsChip, DsTooltip, DsEmptyState, type DsChipProps } from './primitives';

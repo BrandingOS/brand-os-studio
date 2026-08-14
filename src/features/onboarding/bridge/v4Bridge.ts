@@ -288,6 +288,19 @@ export async function acceptSection(
   await acceptAll(repo(), brandId, paths, actor);
 }
 
+/**
+ * Renames the brand.
+ *
+ * The name is the brand's own identity rather than a Core value, so it carries
+ * no authority and there is nothing to confirm — it simply saves. The slug is
+ * deliberately left alone: it is already in the URL the user is standing on.
+ */
+export async function renameBrand(brandId: string, name: string): Promise<void> {
+  const brand = await repo().getById(brandId);
+  if (!brand) return;
+  await repo().save({ ...brand, name });
+}
+
 /** Business facts save on edit and carry nothing to confirm. */
 export async function saveBusinessFact(
   brandId: string,

@@ -21,7 +21,7 @@ import { UnderstandingStage } from '../steps/UnderstandingStage';
 import { buildCreateInput } from '../understanding/createBrand';
 import { isPlaceholderPath, readOnboardingState } from '@/shared/onboarding/onboardingState';
 import { VOCABULARIES } from '../vocabulary/vocabularies';
-import { planStages } from '../understanding/stages';
+import { MINIMUM_BEAT_MS, planStages } from '../understanding/stages';
 import type { Proposal } from '../understanding/proposals';
 
 const actor: HumanActor = { kind: 'human', userId: 'u1' };
@@ -197,9 +197,12 @@ describe('the processing moment', () => {
       render(
         <UnderstandingStage brandName="Meridian" stages={stages} work={() => Promise.resolve()} onDone={done} />,
       );
-      await vi.advanceTimersByTimeAsync(600);
+      // The work resolved immediately; the screen must not follow it out.
+      await vi.advanceTimersByTimeAsync(MINIMUM_BEAT_MS - 200);
       expect(done).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(900);
+      // It stays until the assembly has actually played — the floor is the
+      // minimum, and a sequence longer than it governs instead.
+      await vi.advanceTimersByTimeAsync(4000);
       expect(done).toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
