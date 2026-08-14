@@ -220,6 +220,12 @@ export function BrandDropzone() {
             </div>
           </div>
 
+          <h3 className="drop-title">Bring what you already have</h3>
+          <p className="drop-sub">
+            Logos, fonts, colours, brand files — we&rsquo;ll sort them. Your website
+            and social links go here too.
+          </p>
+
           <p className="drop-text">
             Drag &amp; drop image or folder here,
             <button
@@ -262,7 +268,7 @@ export function BrandDropzone() {
             <input
               ref={urlInputRef}
               type="url"
-              placeholder="Paste a URL"
+              placeholder="Paste your website or a social link"
               autoComplete="off"
               spellCheck={false}
               value={urlValue}

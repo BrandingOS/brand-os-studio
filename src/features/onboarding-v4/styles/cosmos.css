@@ -225,7 +225,11 @@
   min-width: 0;
 }
 
-[data-onboarding="cosmos"] .field label {
+/* Field labels. Scoped away from `.drop-pill`, which is also a <label> — it
+   wraps the URL input so clicking anywhere in the pill focuses it. Without the
+   exclusion this rule out-specifies the pill's own padding (attribute + class +
+   type beats attribute + class) and pinned the link icon 2px from the edge. */
+[data-onboarding="cosmos"] .field label:not(.drop-pill) {
   font-size: 12px;
   font-weight: 500;
   color: var(--ds-text-muted);
@@ -413,6 +417,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+[data-onboarding="cosmos"] .drop-title {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ds-text);
+}
+[data-onboarding="cosmos"] .drop-sub {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ds-text-muted);
+}
+
 [data-onboarding="cosmos"] .drop-pill {
   width: min(420px, 100%);
   height: 50px;
@@ -421,8 +440,11 @@
   border: 1px solid var(--ds-border);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 22px 0 26px;
+  gap: 12px;
+  /* The icon sat too close to the left edge. A pill this tall needs a deeper
+     inset than a square field for the icon to read as placed rather than
+     pinned. */
+  padding: 0 22px 0 32px;
   transition:
     background 200ms var(--ds-ease),
     border-color 200ms var(--ds-ease),

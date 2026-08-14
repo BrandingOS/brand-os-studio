@@ -53,9 +53,21 @@ import {
 } from '@/features/onboarding/bridge/v4Bridge';
 import { destinationAfterFinish, finishOnboarding } from '@/features/onboarding/understanding/finish';
 
-const PANEL_META: Record<1 | 2, { caption?: string; label: string }> = {
+const PANEL_META: Record<1 | 2 | 3, { caption?: string; label: string }> = {
   1: { label: 'Continue' },
-  2: { label: 'Open my brand' },
+  2: { label: 'Continue' },
+  3: { label: 'Open my brand' },
+};
+
+const HEADINGS: Record<1 | 2, { title: string; subtitle: string }> = {
+  1: {
+    title: 'Set up your Brand',
+    subtitle: 'Upload your brand and let the system structure everything for you.',
+  },
+  2: {
+    title: 'Tell us about it',
+    subtitle: 'Describe the brand, and bring anything you already have.',
+  },
 };
 
 export function SetUpScreen() {
@@ -91,7 +103,7 @@ export function SetUpScreen() {
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
-      const target = (e.state as { setupPanel?: 1 | 2 } | null)?.setupPanel ?? 1;
+      const target = (e.state as { setupPanel?: 1 | 2 | 3 } | null)?.setupPanel ?? 1;
       setSetupPanel(target);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -102,7 +114,8 @@ export function SetUpScreen() {
   const hasUploadInFlight = assets.some((a) => a.uploadStatus === 'uploading');
 
   const canAdvance = useMemo(() => {
-    if (setupPanel === 1) return define.name.trim().length > 0 && !hasUploadInFlight;
+    // The name is the only thing the flow ever requires.
+    if (setupPanel === 1) return define.name.trim().length > 0;
     return !hasUploadInFlight;
   }, [setupPanel, define.name, hasUploadInFlight]);
 
@@ -226,6 +239,14 @@ export function SetUpScreen() {
 
   const goNext = () => {
     if (setupPanel === 1) {
+      // Re-entrancy is guarded by the CURRENT panel, not by history.state.
+      // Reading it from history looked equivalent and was not: a reload keeps
+      // the entry's state, so after refreshing on panel 2 the app remounted at
+      // panel 1 while history still said 2 — and Continue became a dead button.
+      window.history.pushState({ setupPanel: 2 }, '', window.location.pathname + window.location.search);
+      setSetupPanel(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (setupPanel === 2) {
       void beginUnderstanding();
     } else {
       void finish();
@@ -260,8 +281,8 @@ export function SetUpScreen() {
             onDone={() => {
               setProcessing(false);
               busyRef.current = false;
-              window.history.pushState({ setupPanel: 2 }, '', window.location.pathname + window.location.search);
-              setSetupPanel(2);
+              window.history.pushState({ setupPanel: 3 }, '', window.location.pathname + window.location.search);
+              setSetupPanel(3);
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
@@ -273,17 +294,20 @@ export function SetUpScreen() {
   return (
     <CosmosShell variant="setup">
       <div className="container">
-        {setupPanel === 1 && (
+        {setupPanel !== 3 && (
           <header className="cosmos-header">
             <BrandMark />
-            <h1>Set up your Brand</h1>
-            <p className="subtitle">Upload your brand and let the system structure everything for you.</p>
-            <FlowSwitch to={createHref} prefix="No brand yet?" emphasis="Create one from scratch" />
+            <h1>{HEADINGS[setupPanel].title}</h1>
+            <p className="subtitle">{HEADINGS[setupPanel].subtitle}</p>
+            {setupPanel === 1 && (
+              <FlowSwitch to={createHref} prefix="No brand yet?" emphasis="Create one from scratch" />
+            )}
           </header>
         )}
 
-        {setupPanel === 1 && <SetupPanel key="setup" />}
-        {setupPanel === 2 && (
+        {setupPanel === 1 && <SetupPanel key="name" part={1} />}
+        {setupPanel === 2 && <SetupPanel key="details" part={2} />}
+        {setupPanel === 3 && (
           <UploadsReviewPanel
             key="uploads"
             brandId={brand?.id}
@@ -295,7 +319,7 @@ export function SetUpScreen() {
 
         <FooterCTA
           caption={meta.caption}
-          label={busy ? (setupPanel === 1 ? 'Setting up…' : 'Opening…') : meta.label}
+          label={busy ? (setupPanel === 3 ? 'Opening…' : 'Setting up…') : meta.label}
           onClick={goNext}
           disabled={!canAdvance || busy}
           onBack={setupPanel > 1 ? goBack : undefined}

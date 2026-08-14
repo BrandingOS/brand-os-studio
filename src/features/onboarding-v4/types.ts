@@ -95,4 +95,5 @@ export interface StyleCardState {
 
 export type CreateStep = 1 | 2;
 
-export type SetupPanel = 1 | 2;
+/** 1 = brand name · 2 = describe + bring · 3 = review your uploads. */
+export type SetupPanel = 1 | 2 | 3;

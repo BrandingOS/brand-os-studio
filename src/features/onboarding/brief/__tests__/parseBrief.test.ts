@@ -147,3 +147,42 @@ describe('the prompt and the parser cannot disagree', () => {
     expect(prompt).toContain('Northwind');
   });
 });
+
+describe('evidence outranks suggestion in the prompt itself', () => {
+  // The complaint this fixes: a brand that had just uploaded its logo and
+  // palette was still being handed a prompt asking for three palette
+  // DIRECTIONS, so the AI confidently proposed colours that contradicted the
+  // brand's own artwork.
+  it('states known colours as fact and forbids alternatives', () => {
+    const prompt = buildBriefPrompt('Northwind', { colors: ['#1B4D3E', '#E8DCC8'] });
+    expect(prompt).toContain('ALREADY uses these colours');
+    expect(prompt).toContain('#1B4D3E, #E8DCC8');
+    expect(prompt).not.toMatch(/3 palette directions/);
+  });
+
+  it('states known typefaces as fact and forbids alternatives', () => {
+    const prompt = buildBriefPrompt('Northwind', { fonts: ['Söhne', 'Tiempos'] });
+    expect(prompt).toContain('ALREADY uses these typefaces');
+    expect(prompt).toContain('Söhne, Tiempos');
+    expect(prompt).not.toMatch(/3 pairings/);
+  });
+
+  it('treats an existing logo as a settled identity, not a brief for a redesign', () => {
+    const prompt = buildBriefPrompt('Northwind', { hasLogo: true });
+    expect(prompt).toContain('already has a logo');
+    expect(prompt).toContain('do not propose a redesign');
+  });
+
+  it('still asks for directions when the brand genuinely has nothing', () => {
+    const prompt = buildBriefPrompt('Northwind');
+    expect(prompt).toContain('3 palette directions');
+    expect(prompt).toContain('3 pairings');
+    expect(prompt).not.toContain('ALREADY uses');
+  });
+
+  it('an answer to the evidence-led prompt still parses', () => {
+    // The labels must not drift when the two modes swap.
+    const prompt = buildBriefPrompt('Northwind', { colors: ['#1B4D3E'] });
+    for (const label of BRIEF_LABELS) expect(prompt).toContain(`${label}:`);
+  });
+});

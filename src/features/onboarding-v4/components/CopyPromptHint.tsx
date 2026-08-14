@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AI_TOOL_NAMES, buildAIPrompt } from '../data/typedPrompts';
+import { useV4Store } from '../store/onboardingV4Store';
+import { groupFontAssets } from '../utils/fontFamily';
 import { CopyIcon, type OrganicIconHandle } from '@/features/setup/components/organic-icons';
 
 /** Deep links that open a chat with the prompt prefilled, ready to send. */
@@ -41,6 +43,20 @@ const ROTATING_PHRASES = ['Tell me everything', 'Copy AI prompt', 'Get AI-ready'
 interface Props {
   brandName: string;
   variant?: 'link' | 'badge';
+}
+
+/**
+ * What the brand demonstrably already has, read at the moment the prompt is
+ * built. Evidence the user supplied outranks anything an AI would offer, so the
+ * prompt states it as fact instead of asking for suggestions.
+ */
+function knownAssets() {
+  const assets = useV4Store.getState().assets;
+  return {
+    colors: assets.filter((a) => a.kind === 'color' && a.value).map((a) => (a.value ?? '').toUpperCase()),
+    fonts: groupFontAssets(assets.filter((a) => a.kind === 'font')).map((f) => f.family),
+    hasLogo: assets.some((a) => a.kind === 'image' && (a.isLogo || a.logoSlot)),
+  };
 }
 
 export function CopyPromptHint({ brandName, variant = 'link' }: Props) {
@@ -126,7 +142,7 @@ export function CopyPromptHint({ brandName, variant = 'link' }: Props) {
   };
 
   const handleCopy = async () => {
-    const text = buildAIPrompt(brandName);
+    const text = buildAIPrompt(brandName, knownAssets());
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
@@ -168,7 +184,7 @@ export function CopyPromptHint({ brandName, variant = 'link' }: Props) {
   };
 
   const openInTool = (tool: (typeof OPEN_IN_TOOLS)[number]) => {
-    const prompt = buildAIPrompt(brandName);
+    const prompt = buildAIPrompt(brandName, knownAssets());
     window.open(tool.buildUrl(prompt), '_blank', 'noopener,noreferrer');
     setMenuOpen(false);
   };
