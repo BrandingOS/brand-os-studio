@@ -1,6 +1,6 @@
 ---
 
-description: "Task list for 002 — Onboarding V3"
+description: "Task list for 002 — Onboarding V3 (incl. revision R1)"
 ---
 
 # Tasks: Onboarding V3
@@ -9,333 +9,310 @@ description: "Task list for 002 — Onboarding V3"
 
 **Prerequisites**: [plan.md](./plan.md) · [spec.md](./spec.md) · [research.md](./research.md) · [data-model.md](./data-model.md) · [contracts/onboarding.md](./contracts/onboarding.md) · [quickstart.md](./quickstart.md)
 
-**Tests**: REQUIRED. The repository's binding policy (CLAUDE.md, "Test coverage requirements") mandates all three layers — unit (jsdom), adapter integration (jsdom), browser E2E (Playwright) — for every non-trivial change. Test tasks below are not optional.
-
-**Organization**: Grouped by user story so each is independently implementable and testable.
-
-## Format: `[ID] [P?] [Story] Description`
-
-- **[P]**: Can run in parallel (different files, no dependencies on incomplete work)
-- **[Story]**: US1–US5 from spec.md
-- Every task names its exact file path
-
-## Path Conventions
-
-Web SPA, layers `pages → features → core/shared → adapters`. Feature code in
-`src/features/onboarding/`, shared utilities in `src/shared/`, migrations in
-`supabase/migrations/`, RLS tests in `supabase/tests/`.
+**Tests**: REQUIRED. The repository's binding policy (CLAUDE.md, "Test coverage requirements") mandates all three layers — unit (jsdom), adapter integration (jsdom), browser E2E (Playwright) — for every non-trivial change.
 
 ---
 
-## Phase 1: Setup
+## Status
 
-**Purpose**: Skeleton and routing, so later tasks have somewhere to land.
+| | Tasks | State |
+|---|---|---|
+| **Original list (T001–T083)** | 83 | 82 done · 1 blocked on an owner deploy (T081) |
+| **Revision R1 (T084–T146)** | 63 | Not started — awaiting design approval |
+
+**R1 reconciliation rule**: the Foundation touch, migration 022, the intake move,
+the Library write path, `applyProposals`, `acceptance`, `createBrand`, `finish`,
+the sentinel mechanism, resume, and the unfinished-brand state are **done and are
+not re-done**. R1 rebuilds the four screens above that pipeline and adds the brief,
+the vocabularies, the processing moment and the six-section review.
+
+Original tasks superseded by R1 are marked **[SUPERSEDED]** in place rather than
+deleted — the record of what shipped stays readable.
+
+---
+
+# Part A — Revision R1 (active)
+
+## Phase 9: Shell + screen split
+
+**Purpose**: Four screens, name alone on the first. Everything else lands on this.
+
+- [ ] T084 Extend `ONBOARDING_STEPS` in `src/shared/onboarding/onboardingState.ts` to `['name','profile','material','review']`, keep the "unrecognised step degrades to the first" behaviour, and drop the `branch` field from `OnboardingState` (FR-002, FR-043)
+- [ ] T085 [P] Update `src/shared/onboarding/__tests__/onboardingState.test.ts` for the new vocabulary, adding a case that a brand recorded at the retired `'basics'` step resumes at `'name'` rather than throwing
+- [ ] T086 Create `src/features/onboarding/steps/NameStep.tsx` — brand name only, title plainly about setting up a brand, `DsInput` + primary action; creates the brand via the existing `buildCreateInput` path (FR-006, FR-007, FR-044)
+- [ ] T087 Create `src/features/onboarding/steps/ProfileStep.tsx` — the large description surface on `DsTextArea` with FR-049 guiding placeholder, and a slot for the Build-with-AI helper (FR-011)
+- [ ] T088 Rework the step machine in `src/features/onboarding/OnboardingFlow.tsx` for four steps, keeping brand-as-authority, `?step=` as advisory, the finished-brand guard, history-per-step, and `?then=` preservation (FR-034, FR-036, FR-043)
+- [ ] T089 Move the description hand-off from `sessionStorage` to the brand — persist the raw text as `brand.onboarding.brief` (the JSONB the flow already owns) when leaving `ProfileStep`, so resume on another device still has it. It MUST NOT be written to `businessInfo.description`, which belongs to products/services (FR-035, Principle II)
+- [ ] T090 Delete `src/features/onboarding/steps/BasicsStep.tsx` and every reference to it (FR-073)
+- [ ] T091 [P] Browser E2E in `src/features/onboarding/__tests__/screenSplit.browser.test.tsx` — name screen asks only for a name; profile screen carries the description; back/forward across all four steps loses nothing
+
+**Checkpoint**: four screens navigate, the brand is created at the name step, resume works on the new vocabulary.
+
+---
+
+## Phase 10: Controlled vocabularies
+
+**Purpose**: Make categorical brand facts usable. Pure, no UI.
+
+> **T092's style list depends on plan §9b.** If the union is not widened, this task
+> ships the existing eight members and nothing else in R1 changes.
+
+- [ ] T092 Create `src/features/onboarding/vocabulary/vocabularies.ts` — closed lists for industry, style, personality, tone and values, each member carrying a stable id and a human label (FR-047)
+- [ ] T093 Create `src/features/onboarding/vocabulary/normalize.ts` — free text → vocabulary member, with `Other` preserving the user's exact wording when nothing fits (FR-054)
+- [ ] T094 [P] Unit tests in `src/features/onboarding/vocabulary/__tests__/normalize.test.ts` — every member round-trips; case/plural/synonym near-misses map; a genuine miss becomes `Other` with wording intact; nothing is silently coerced
+- [ ] T095 [P] Unit test in the same folder asserting `vocabulary/` imports no service, store or React (purity guard)
+- [ ] T096 **[BLOCKED on plan §9b approval]** Widen `StyleDescriptor` in `src/domain/brand/identity.ts` and the matching `z.enum` in `src/domain/brand/invariants.ts` with the additional members. Additive only — no removal, no rename, no migration
+- [ ] T097 [P] **[BLOCKED with T096]** Extend `src/domain/brand/__tests__/coreFieldPaths.test.ts`'s fixture and add a case asserting every vocabulary style member validates against the schema
+
+---
+
+## Phase 11: The brief
+
+**Purpose**: The Build-with-AI path — prompt out, structured plain text back.
+
+- [ ] T098 Create `src/features/onboarding/brief/prompt.ts` — builds the prompt from the brand name, embedding the vocabularies inline, demanding plain-text labelled lines, the lightweight-profile constraint, and the colours/fonts "existing, else three directions" rule (FR-046, FR-047, FR-048)
+- [ ] T099 Create `src/features/onboarding/brief/parseBrief.ts` — `looksLikeBrief()` (≥3 recognised labels at line starts) and `parseBrief()`, deterministic, tolerant of label casing and of a partial brief (FR-052). **The Colors and Fonts answers are two-mode** (FR-048): concrete existing values rank `brief`, while offered *directions* rank `ai` and become suggestions — a direction MUST NEVER be parsed as the brand's actual palette or typeface (FR-056)
+- [ ] T100 [P] Unit tests in `src/features/onboarding/brief/__tests__/parseBrief.test.ts` — a full brief; a partial brief; a prose paragraph that must NOT be detected; an out-of-vocabulary answer; a brief with sections in a different order; **a brief offering three palette directions, asserting they arrive ranked `ai` and none becomes `colors.primary`** (FR-048, SC-016)
+- [ ] T101 [P] Unit test in the same folder asserting a prompt built by `prompt.ts` round-trips through `parseBrief` when answered in the documented shape (the two-way contract, SC-012)
+- [ ] T102 Create `src/features/onboarding/brief/BuildWithAI.tsx` — copy prompt, open in ChatGPT, open in Claude, on `DsButton` + `DsMenu`, with a clipboard fallback for insecure contexts (FR-045)
+- [ ] T103 [P] Unit test asserting `brief/prompt.ts` and `brief/parseBrief.ts` import no service, store or React (purity guard)
+- [ ] T104 Wire `BuildWithAI` into `ProfileStep.tsx`
+
+---
+
+## Phase 12: Adaptive understanding + source priority
+
+**Purpose**: Route by input shape, merge by source rank, ask only what is missing.
+
+- [ ] T105 Create `src/features/onboarding/understanding/sources.ts` — the rank enum and the pure merge that keeps the highest-ranked candidate per Core path (FR-056)
+- [ ] T106 [P] Unit tests in `src/features/onboarding/understanding/__tests__/sources.test.ts` — the full rank matrix, and re-running understanding never displaces a higher-ranked value (SC-016)
+- [ ] T107 Extend `src/features/onboarding/understanding/interpret.ts` — route brief vs prose per FR-052/FR-053, normalise categorical answers through `vocabulary/normalize.ts`, and emit every candidate through `sources.ts` (FR-054)
+- [ ] T108 Create `src/features/onboarding/understanding/questions.ts` — derive the open questions: only genuinely missing or ambiguous AND materially useful, ordered by importance, bounded, categorical ones carrying their vocabulary (FR-055)
+- [ ] T109 [P] Unit tests in `src/features/onboarding/understanding/__tests__/questions.test.ts` — a fully-determined brand yields zero questions; a name-only brand yields a short ordered set; no question duplicates a value already determined
+- [ ] T110 Extend `src/features/onboarding/understanding/proposals.ts` — the six review sections, their labels, and `sectionFor` covering the new paths (FR-064)
+- [ ] T111 Extend `src/features/onboarding/understanding/hydrate.ts` for the six sections so resume rebuilds the new review
+- [ ] T112 Route business facts — industry, slogan, products/services, audience summary — to `businessInfo` in `applyProposals.ts`, and confirm no Core mirror is written (FR-028, Principle II)
+- [ ] T113 [P] Extend `src/features/onboarding/__tests__/boundaries.test.ts` — only `understanding/sources.ts` may construct a `Proposal`, and `brief/`+`vocabulary/` stay pure
+- [ ] T114 [P] Adapter integration test in `src/features/onboarding/__tests__/vocabularyPersistence.test.ts` — categorical values persist as vocabulary members on BOTH adapters (SC-013)
+
+---
+
+## Phase 13: Material step
+
+**Purpose**: The old dropzone, restored, with the new limits and the website field.
+
+- [ ] T115 Rebuild `src/features/onboarding/steps/MaterialStep.tsx` on the retired `BrandDropzone` interaction — drag/drop, folder drop, click-to-pick, the item strip with per-item remove and clear-all — on `DsDropZone` (FR-012, FR-062)
+- [ ] T116 Add the optional website field to `MaterialStep.tsx`, persisted to `businessInfo.contact.website` (FR-050)
+- [ ] T117 Enforce FR-051 in `src/shared/upload/intake.ts` and `MaterialStep.tsx` — 10 files total, 5 MB per file, applied after folder/archive expansion, refusing per item with a reason and never aborting the batch (FR-016)
+- [ ] T118 [P] Unit tests in `src/shared/upload/__tests__/limits.test.ts` — the 11th file is refused; an oversized file is refused; a folder drop that exceeds the total accepts what fits and names the rest
+- [ ] T119 Delete `src/features/onboarding/understanding/directions.ts` and its branch affordance; move starting suggestions into the review's Colors and Fonts sections (FR-002, FR-073)
+
+---
+
+## Phase 14: Logo classification
+
+- [ ] T120 Create `src/features/onboarding/understanding/logoClassify.ts` — exact-duplicate rejection by content hash, near-duplicate variant grouping via the existing `shared/upload/logoFamily` helpers, and evidence-only role assignment across primary, wordmark, mark, on-light, on-dark, horizontal and vertical (FR-065)
+- [ ] T121 [P] Unit tests in `src/features/onboarding/understanding/__tests__/logoClassify.test.ts` — duplicates collapse to one; near-duplicates group; a role with no supporting evidence is left empty rather than guessed (SC-018)
+- [ ] T122 Emit logo roles as proposals through `sources.ts`, so a user drag/swap outranks classification (FR-056)
+
+---
+
+## Phase 15: The processing moment
+
+- [ ] T123 Create `src/features/onboarding/understanding/stages.ts` — the stage machine, where a stage exists only when the work it names is scheduled, each carrying its copy, its symbol node, and a `run` that may return a small real finding (FR-058, FR-059)
+- [ ] T124 [P] Unit tests in `src/features/onboarding/understanding/__tests__/stages.test.ts` — a name-only brand constructs zero file stages so their copy is unrepresentable; a stage's finding reflects real output (SC-014)
+- [ ] T125 **[Requires plan §11a approval]** Add an optional `activeNodes?: number[]` to `src/shared/ds/BrandMark.tsx`, leaving every existing call site byte-identical, with a case in `src/shared/ds/ds.test.tsx`
+- [ ] T126 Create `src/features/onboarding/components/UnderstandingMark.tsx` — the centre-out activation, connections to the centre, and findings feeding in; subtle motion on the DS easing, honouring `prefers-reduced-motion` (FR-057, FR-060)
+- [ ] T127 Create `src/features/onboarding/steps/UnderstandingStage.tsx` — the transition screen: the mark, the live stage copy, the findings, and the ~1.2s minimum beat applied as a floor on the screen after the work resolves (FR-061)
+- [ ] T128 [P] Browser E2E in `src/features/onboarding/__tests__/processing.browser.test.tsx` — the moment renders for at least one full beat on a name-only brand, shows no percentage, and shows no copy for work that did not run (SC-014, SC-015)
+
+---
+
+## Phase 16: Review rebuild
+
+- [ ] T129 Create `src/features/onboarding/review/ReviewCard.tsx` — the restored section anatomy (head · right-aligned count · body · foot) plus the section-level "Looks right", widened and with a more generous vertical rhythm (FR-062, FR-025c)
+- [ ] T130 [P] Create `src/features/onboarding/review/BrandSummaryBar.tsx` — name, slogan, industry, style; slogan inline-editable as in the retired brand bar (FR-063)
+- [ ] T131 Create `src/features/onboarding/review/LogosSection.tsx` — classified slots on `DsLogoTile`, drag/swap/add/remove, `planPrimarySwap` reused (FR-065)
+- [ ] T132 [P] Create `src/features/onboarding/review/ColorsSection.tsx` — source-priority resolution, add colour, extract from logo, extract from image, suggest palettes when there is nothing to extract from (FR-066)
+- [ ] T133 [P] Create `src/features/onboarding/review/FontsSection.tsx` — uploaded/known fonts first, suggested typography offered as **pairings** only, with rename per family (FR-023, FR-067)
+- [ ] T134 Create `src/features/onboarding/review/ProfileSection.tsx` — `DsChip` selections for industry/style/personality/tone/values, concise text for summary/audience/positioning/mission, and the open questions rendered inline and progressively (FR-055, FR-068)
+- [ ] T135 [P] Create `src/features/onboarding/review/OnlineSection.tsx` — website + social links with the retired platform detection restored, **and an add-a-link affordance** — and `review/FilesSection.tsx` — remaining Library material including anything unplaced, **with rename and remove per item** (FR-021, FR-023, FR-069)
+- [ ] T136 Rewrite `src/features/onboarding/steps/ReviewStep.tsx` to compose the six sections, keep per-value acceptance exactly as shipped, remove every authority/provenance term from the interface, and label the final action "Open my brand" (FR-064, FR-070, FR-071)
+
+---
+
+## Phase 17: Restore, polish, retire
+
+- [ ] T137 [P] Restore `data/{suggestedPalettes,popularPalettes,colorHuntPalettes,suggestedFonts}.ts` and `data/socialPlatforms.tsx` from `904801a^` into `src/features/onboarding/data/`, repointing imports; do NOT restore `styleCards.ts` (plan §6a)
+- [ ] T138 [P] Extend `src/features/onboarding/onboarding.css` for the restored anatomy — `--ds-*` only, wider container, and the mobile bottom-padding allowance so the sticky CTA never covers the last row (FR-072, plan §11b)
+- [ ] T139 [P] Responsive pass across the four screens — phone, tablet, desktop (FR-038)
+- [ ] T140 [P] Accessibility pass — keyboard operation and assistive-technology labels on every new control, including the chip sets and the logo drag (FR-039)
+- [ ] T141 [P] Browser E2E in `src/features/onboarding/__tests__/reviewInteraction.browser.test.tsx` — drag a logo between slots, extract colours from the logo, pick a font pairing, choose a personality chip, "Looks right" one section, finish
+- [ ] T142 [P] Browser E2E asserting no authority or provenance vocabulary appears anywhere in the rendered flow — a DOM scan for the banned terms (SC-017)
+- [ ] T143 Verify one implementation per screen and no dangling references: `rg -n "BasicsStep|directions\.ts|branch" src/features/onboarding/` returns nothing meaningful (FR-073)
+- [ ] T144 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
+- [ ] T145 Execute quickstart.md end to end on both storage backends, including the brief journey and the prose journey, and record the results
+- [ ] T146 [P] Update `CLAUDE.md`'s onboarding section for the R1 flow and set the spec status
+
+---
+
+## R1 dependencies
+
+```text
+Phase 9  (shell)          ─┬─▶ Phase 13 (material)  ─┬─▶ Phase 14 (logos) ─┐
+                           │                          │                     │
+Phase 10 (vocabularies) ──┼─▶ Phase 11 (brief) ──────┼─▶ Phase 12 ─────────┼─▶ Phase 16 (review)
+                           │                          │   (understanding)   │
+                           └──────────────────────────┴─▶ Phase 15 ─────────┘
+                                                          (processing)
+                                                                            └─▶ Phase 17
+```
+
+- Phase 10 blocks 11 (the prompt embeds the vocabularies) and 12 (normalisation).
+- Phase 12 blocks 16 (the review renders proposals and questions).
+- Phases 14 and 15 are independent of each other and can run in parallel.
+- T096/T097 are blocked on plan §9b; T125 on plan §11a. Neither blocks any other task.
+
+## R1 parallel opportunities
+
+- T092–T095 (vocabularies) alongside T098–T101 (prompt + parser) — different folders
+- T131–T135 (the five section components) — different files, one shared card shell
+- Every `[P]` test task within a phase
+
+---
+
+# Part B — Original task list (shipped 2026-08-14, retained as the record)
+
+## Phase 1: Setup
 
 - [X] T001 Create the feature skeleton `src/features/onboarding/` with `steps/`, `understanding/`, `state/`, `components/` and an `index.ts` barrel exporting only `OnboardingFlow`
 - [X] T002 Add the `/onboard-brand/:slug` route beside the existing `/onboard-brand` entry in `src/App.tsx`, lazy-loaded like its sibling
 - [X] T003 [P] Create `src/shared/upload/index.ts` as the destination barrel for the intake utilities moved in T014
 
----
-
-## Phase 2: Foundational (Blocking Prerequisites)
-
-**Purpose**: The approved Foundation touch, the persistence for resume, the moved
-utilities, and the flow shell. Every user story depends on this phase.
-
-**⚠️ CRITICAL**: No user story work begins until this phase is complete.
+## Phase 2: Foundational
 
 ### The approved Foundation touch (plan §9 — narrowly bounded)
 
-- [X] T004 In `src/domain/brand/coreMeta.ts`, change `recordCoreWrite` so a **system** actor writing a path with **no existing metadata entry** records `suggested`. Touch nothing else: `coreValueMeta`'s read default stays `provisional`/`imported`, human writes still record `provisional`, a system write over a settled value still demotes to `provisional`, and `assertActorMayReach`/INV-3 is unchanged
-- [X] T005 [P] Add focused cases to `src/domain/brand/__tests__/coreMeta.test.ts`: (a) fresh system write → `suggested`; (b) fresh human write → still `provisional`; (c) system write over a confirmed value → still demotes to `provisional`; (d) absent entry still READS as `provisional`/`imported` via `coreValueMeta`; (e) INV-3 still throws for a system actor reaching `confirmed`/`official`. Retitle the existing "an AI write lands at provisional" case to match its assertion
+- [X] T004 In `src/domain/brand/coreMeta.ts`, change `recordCoreWrite` so a **system** actor writing a path with **no existing metadata entry** records `suggested`
+- [X] T005 [P] Add focused cases to `src/domain/brand/__tests__/coreMeta.test.ts` covering the five band cases
 
 ### Onboarding state persistence
 
-- [X] T006 [P] Create `supabase/migrations/20260814000000_022_brand_onboarding_state.sql` adding `ALTER TABLE public.brands ADD COLUMN IF NOT EXISTS onboarding jsonb;` — idempotent, no backfill
-- [X] T007 [P] Create `supabase/migrations/down/022_brand_onboarding_state.down.sql` dropping the column, with a data-loss note
-- [X] T008 [P] Add the `onboarding?: OnboardingState` field to `Brand` in `src/shared/types/brand.ts`, shaped per data-model.md §1
-- [X] T009 Create `src/shared/onboarding/onboardingState.ts`: `readOnboardingState(brand)`, `markStep(brandId, step)`, `markComplete(brandId)`, `isUnfinished(brand)`. Absent column and `null` both read as finished; unrecognised `step`/`branch` degrade to `basics`/`existing` rather than throwing
-- [X] T010 Persist `onboarding` in `src/shared/services/brands.supabase.ts` — map it in `update`, read it in `mapFromDatabase`, and add `onboarding` to the `TOLERATED_COLS` list so a pre-migration environment still saves everything else
-- [X] T011 [P] Verify and, if needed, extend `src/features/brand/services/brands.local.ts` so `onboarding` round-trips through the localStorage snapshot
-- [X] T012 [P] Create `supabase/tests/022_onboarding_state.test.sql` — self-asserting: another account can neither read nor write a brand's `onboarding` column
-- [X] T013 [P] Unit tests for the helper in `src/shared/onboarding/__tests__/onboardingState.test.ts` covering every row of data-model.md §1's meaning table
+- [X] T006 [P] Create `supabase/migrations/20260814000000_022_brand_onboarding_state.sql` — idempotent, no backfill
+- [X] T007 [P] Create `supabase/migrations/down/022_brand_onboarding_state.down.sql`
+- [X] T008 [P] Add the `onboarding?: OnboardingState` field to `Brand` in `src/shared/types/brand.ts`
+- [X] T009 Create `src/shared/onboarding/onboardingState.ts` *(vocabulary revised by T084)*
+- [X] T010 Persist `onboarding` in `src/shared/services/brands.supabase.ts` including `TOLERATED_COLS`
+- [X] T011 [P] Verify `onboarding` round-trips through the localStorage snapshot
+- [X] T012 [P] Create `supabase/tests/022_onboarding_state.test.sql`
+- [X] T013 [P] Unit tests in `src/shared/onboarding/__tests__/onboardingState.test.ts` *(extended by T085)*
 
 ### Move the proven intake utilities
 
-- [X] T014 Move `src/features/onboarding-v4/utils/assetUpload.ts` to `src/shared/upload/intake.ts` with its exports unchanged (`collectDroppedFiles`, `filterFolderPick`, `enqueueFile`, `hashFile`, `isSupportedUploadFile`, `extractDominantColors`, `imageFileHasAlpha`, `imageAspectRatio`, `normalizeHex`, `svgFileToVariants`, `rasterFileToVariants`, `recolorSvgString`)
-- [X] T015 [P] Move `src/features/onboarding-v4/utils/{fontFamily,logoFamily}.ts` and their existing test files to `src/shared/upload/`, keeping the suites green without rewriting them
-- [X] T016 Update every importer of the moved modules to the new paths; `npm run typecheck:ci` is the completeness check
+- [X] T014 Move `assetUpload.ts` → `src/shared/upload/intake.ts`
+- [X] T015 [P] Move `{fontFamily,logoFamily}.ts` and their tests to `src/shared/upload/`
+- [X] T016 Update every importer of the moved modules
 
 ### Flow shell
 
-- [X] T017 Create `src/features/onboarding/OnboardingFlow.tsx` — the step machine (`basics → material → review`), reading the authoritative step from the brand's onboarding marker and treating `?step=` as advisory
-- [X] T018 Create `src/features/onboarding/steps/BasicsStep.tsx` — name, branch choice, optional description. Naming CREATES the brand via `createBrandResilient` and writes the onboarding marker (FR-007)
-- [X] T019 Add route guards in `OnboardingFlow.tsx`: unauthenticated → login; brand not owned → not-found decided at the data layer; `completedAt` set → redirect to `/b/:slug/setup`; out-of-range `?step=` → the recorded step
-- [X] T020 Create `src/features/onboarding/understanding/finish.ts` implementing the finish contract (contracts §5) — ordering, `markComplete`, navigation to `?then=` or Setup, and idempotence on a second call
-- [X] T021 Add the synchronous re-entrancy guard to `BasicsStep` and `finish.ts` so a same-tick double activation or a re-entry cannot produce a second brand (FR-005)
-- [X] T022 [P] Create `src/features/onboarding/components/StepHeader.tsx` from DS primitives (`DsEyebrow`, `DsProgress`) — no hardcoded visual values
-- [X] T023 [P] Create `src/features/onboarding/state/onboardingStore.ts` — transient UI state only (current branch, in-flight uploads, selection). No brand values, no material.
+- [X] T017 Create `src/features/onboarding/OnboardingFlow.tsx` *(reworked by T088)*
+- [X] T018 Create `src/features/onboarding/steps/BasicsStep.tsx` — **[SUPERSEDED by T086/T087/T090]**
+- [X] T019 Add route guards in `OnboardingFlow.tsx`
+- [X] T020 Create `src/features/onboarding/understanding/finish.ts`
+- [X] T021 Add the synchronous re-entrancy guard
+- [X] T022 [P] Create `StepHeader.tsx` from DS primitives
+- [X] T023 [P] Create `src/features/onboarding/state/onboardingStore.ts` — transient UI state only
 
 ### Boundary guard tests
 
-- [X] T024 [P] Create `src/features/onboarding/__tests__/boundaries.test.ts` asserting `features/onboarding` has no import path to the kit-adoption service or design storage (FR-030), modelled on 001's context-isolation test
-- [X] T025 [P] Extend the same file to assert the feature never sends `assets`, `brandAssets` or `logoAssets` in a brand patch (FR-026)
-- [X] T026 [P] Assert in the same file that `understanding/interpret.ts` imports no service or store — it must stay pure (contracts §2 guard 1)
+- [X] T024 [P] `boundaries.test.ts` — no import path to kit-adoption or design storage (FR-030)
+- [X] T025 [P] No `assets`/`brandAssets`/`logoAssets` in a brand patch (FR-026)
+- [X] T026 [P] `understanding/interpret.ts` imports no service or store
 
-**Checkpoint**: the brand can be named and created, resume state persists, the shell navigates, and the boundaries are enforced.
+## Phase 3: US1 — Bring an existing brand
 
----
+- [X] T027 [P] [US1] Unit tests in `understanding/__tests__/interpret.test.ts`
+- [X] T028 [P] [US1] Adapter integration test — material becomes Library items on BOTH adapters
+- [X] T029 [P] [US1] Browser E2E — basics → material → review with a realistic file set
+- [X] T030 [P] [US1] Create `understanding/proposals.ts` *(extended by T110)*
+- [X] T031 [US1] Create `understanding/interpret.ts` *(extended by T107)*
+- [X] T032 [US1] Create `steps/MaterialStep.tsx` *(rebuilt by T115)*
+- [X] T033 [US1] Create `components/LogoSlotBoard.tsx` *(rebuilt as `review/LogosSection.tsx` by T131)*
+- [X] T034 [US1] Write logo placements as `logoSystem` references
+- [X] T035 [P] [US1] Create `components/ColorBoard.tsx` *(rebuilt as `review/ColorsSection.tsx` by T132)*
+- [X] T036 [P] [US1] Render fonts, documents and links with `DsAssetRow`
+- [X] T037 [US1] Surface uninterpreted material as "unplaced" *(becomes the Files section, T135)*
+- [X] T038 [US1] Create `understanding/applyProposals.ts`
+- [X] T039 [US1] Add the understanding state *(becomes the processing moment, Phase 15)*
+- [X] T040 [US1] Report per-item rejection with a reason
 
-## Phase 3: User Story 1 — Bring an existing brand and have it understood (P1) 🎯 MVP
+## Phase 4: US2 — Start a new brand from scratch — **[SUPERSEDED by R1's no-branch model]**
 
-**Goal**: A user drops real material and sees what BrandingOS understood, correctly grouped, before anything is confirmed.
+- [X] T041 [P] [US2] Browser E2E — the from-scratch journey — **[SUPERSEDED]**
+- [X] T042 [P] [US2] Unit test — branch parity — **[SUPERSEDED; SC-007 now compares material vs no-material]**
+- [X] T043 [US2] Branch selection in `BasicsStep.tsx` — **[SUPERSEDED by FR-002]**
+- [X] T044 [US2] Create `components/DirectionPicker.tsx` — **[SUPERSEDED by T132/T133]**
+- [X] T045 [US2] Branch `MaterialStep.tsx` on branch — **[SUPERSEDED by FR-002]**
+- [X] T046 [US2] Map a chosen direction to proposals — **[SUPERSEDED]**
+- [X] T047 [US2] Preserve captured data across a branch switch — **[SUPERSEDED; no branch exists]**
 
-**Independent Test**: complete the flow with a logo, a font file, a palette image, a PDF and a link; verify every item appears under the right group and nothing is dropped (quickstart S1).
+## Phase 5: US3 — Review and correct
 
-### Tests for User Story 1
+- [X] T048 [P] [US3] `acceptProposal` performs exactly one promotion
+- [X] T049 [P] [US3] `acceptAll` is byte-identical to individual acceptance
+- [X] T050 [P] [US3] `editValue` writes through the canonical op AND promotes
+- [X] T051 [P] [US3] Browser E2E — untouched values stay below `confirmed`, none `official`
+- [X] T052 [US3] Create `understanding/acceptance.ts` — the only promoter
+- [X] T053 [US3] Create `steps/ReviewStep.tsx` *(rewritten by T136)*
+- [X] T054 [US3] Create `components/ProposalCard.tsx` *(shipped as `ValueRow.tsx`; absorbed by Phase 16)*
+- [X] T055 [US3] Wire accept-all as a loop over `acceptProposal`
+- [X] T056 [US3] Wire remove/reject with a Context signal
+- [X] T057 [P] [US3] Rendering `ReviewStep` performs zero promotions
 
-- [X] T027 [P] [US1] Unit tests in `src/features/onboarding/understanding/__tests__/interpret.test.ts` — material and description map to the correct `CoreFieldPath` with the correct provenance per data-model.md §4; unmappable input emits nothing and leaves its item unplaced
-- [X] T028 [P] [US1] Adapter integration test in `src/features/onboarding/__tests__/materialToLibrary.test.ts` — uploaded material becomes Library items on BOTH adapters, with `contentHash` set and no `data:` URL on the brand record
-- [X] T029 [P] [US1] Browser E2E in `src/features/onboarding/__tests__/uploadJourney.browser.test.tsx` — basics → material → review with a realistic file set, asserting group placement and that nothing is lost
+## Phase 6: US4 — The brand you land on is already correct
 
-### Implementation for User Story 1
+- [X] T058 [P] [US4] Adapter integration test — business facts persist on BOTH adapters
+- [X] T059 [P] [US4] Browser E2E — every review item is resolvable in the brand
+- [X] T060 [P] [US4] Zero kit adoptions, guidelines, templates or designs
+- [X] T061 [US4] Write business facts to `businessInfo` *(extended by T112)*
+- [X] T062 [US4] Record Context signals — fire-and-forget
+- [X] T063 [US4] Per-slice failure reporting
 
-- [X] T030 [P] [US1] Create `src/features/onboarding/understanding/proposals.ts` — the `Proposal` type and the source → `CoreFieldPath` → op map from data-model.md §4
-- [X] T031 [US1] Create `src/features/onboarding/understanding/interpret.ts` — pure, two-tier (assisted parse via the existing `parseDescription`, deterministic fallback), deterministic ordering, evidence on every proposal, never throws for want of the assisted tier
-- [X] T032 [US1] Create `src/features/onboarding/steps/MaterialStep.tsx` — `DsDropZone` intake wired to `src/shared/upload/intake.ts`, uploading each item to the Library through `IAssetsService.create` as it arrives (FR-013)
-- [X] T033 [US1] Create `src/features/onboarding/components/LogoSlotBoard.tsx` — the existing slot routing and swap/demote planning, rebuilt on `DsLogoTile` + `DsMenu`
-- [X] T034 [US1] Write logo placements as `logoSystem` references via `stageLogoRef` in `MaterialStep`, using the id the Library returned — never the staged content-hash id (research §R4)
-- [X] T035 [P] [US1] Create `src/features/onboarding/components/ColorBoard.tsx` on `DsSwatchRow` — extracted, suggested and manually added swatches, with lock and set-primary
-- [X] T036 [P] [US1] Render fonts, documents and links with `DsAssetRow` in `src/features/onboarding/components/MaterialGroups.tsx`
-- [X] T037 [US1] Surface uninterpreted material as an explicit "unplaced" group in `MaterialGroups.tsx` (FR-021) — never discard
-- [X] T038 [US1] Write proposals into Core as `suggested` values through the canonical ops with a `SystemActor` and the mapped provenance, in `src/features/onboarding/understanding/applyProposals.ts`
-- [X] T039 [US1] Add the understanding state to `OnboardingFlow.tsx` — `LoadingPill` (never a ring spinner), proposals rendered incrementally as they arrive, auto-advancing into Review
-- [X] T040 [US1] Report per-item rejection with a reason in `MaterialStep.tsx`, without aborting the rest of the batch (FR-016)
+## Phase 7: US5 — Never trapped
 
-**Checkpoint**: US1 is demonstrable end to end — material in the Library, logos referenced, proposals visible.
-
----
-
-## Phase 4: User Story 2 — Start a new brand from scratch (P1)
-
-**Goal**: A user with no material converges into the same review and the same brand shape.
-
-**Independent Test**: complete the from-scratch branch and compare the resulting brand with a US1 brand — same concepts, same write authorities, different values (quickstart S2).
-
-### Tests for User Story 2
-
-- [X] T041 [P] [US2] Browser E2E in `src/features/onboarding/__tests__/fromScratchJourney.browser.test.tsx` — the from-scratch journey through to finish
-- [X] T042 [P] [US2] Unit test in `src/features/onboarding/__tests__/branchParity.test.ts` — brands from both branches populate the same concepts through the same write paths (SC-007)
-
-### Implementation for User Story 2
-
-- [X] T043 [US2] Add branch selection to `src/features/onboarding/steps/BasicsStep.tsx` using `DsSegmented`, persisted to the onboarding marker
-- [X] T044 [US2] Create `src/features/onboarding/components/DirectionPicker.tsx` — colour and typographic directions from the existing `data/{suggestedPalettes,popularPalettes,styleCards,suggestedFonts}.ts`, with lock and shuffle
-- [X] T045 [US2] Branch `MaterialStep.tsx` to render `DirectionPicker` instead of the dropzone when the branch is `new`, feeding the same brand record
-- [X] T046 [US2] Map a chosen direction to proposals in `understanding/proposals.ts` — tone and typography only for the MVP, per data-model.md §4's note on `visualStyle`
-- [X] T047 [US2] Preserve everything already captured when the user switches branch, in `BasicsStep.tsx` (FR-010)
-
-**Checkpoint**: both branches reach the same review with the same brand shape.
-
----
-
-## Phase 5: User Story 3 — Review and correct before confirming (P1)
-
-**Goal**: Per-value human acceptance is the only thing that raises a value above suggestion.
-
-**Independent Test**: change a proposal in every group, finish, and verify the corrections — not the proposals — are what the brand carries, at the right authority (quickstart S3).
-
-### Tests for User Story 3
-
-- [X] T048 [P] [US3] Unit test in `src/features/onboarding/understanding/__tests__/acceptance.test.ts` — `acceptProposal` performs exactly one promotion, for exactly the path given
-- [X] T049 [P] [US3] Unit test in the same file — `acceptAll` produces `IdentityMeta` byte-identical to accepting each path individually, with no group-level record (FR-025c)
-- [X] T050 [P] [US3] Unit test in the same file — `editValue` writes through the canonical op AND promotes, so a user edit lands at `confirmed` rather than `provisional` (FR-025)
-- [X] T051 [P] [US3] Browser E2E in `src/features/onboarding/__tests__/perValueAcceptance.browser.test.tsx` — open and scroll past proposals without accepting, finish, assert every untouched value is still below `confirmed` and none is `official` (FR-025a, FR-025b, FR-025d)
-
-### Implementation for User Story 3
-
-- [X] T052 [US3] Create `src/features/onboarding/understanding/acceptance.ts` — `acceptProposal`, `acceptAll`, `editValue`; the ONLY module in the feature that calls `promoteCoreValue`, with the target authority hard-coded to `'confirmed'`
-- [X] T053 [US3] Create `src/features/onboarding/steps/ReviewStep.tsx` — renders the brand's Core values filtered by authority; a proposal is simply a value below `confirmed`
-- [X] T054 [US3] Create `src/features/onboarding/components/ProposalCard.tsx` — accept and edit affordances, and a settled-vs-pending treatment that needs no permanent badge (FR-024)
-- [X] T055 [US3] Wire accept-all in `ReviewStep.tsx` as a loop over `acceptProposal` — no separate code path, no group-level authority
-- [X] T056 [US3] Wire remove/reject in `ReviewStep.tsx` — the value is not promoted, and a Context signal is recorded (FR-023)
-- [X] T057 [P] [US3] Add a test to `acceptance.test.ts` asserting that rendering `ReviewStep` performs zero promotions — no acceptance may be triggered from a render path, mount effect, observer or scroll handler (FR-025a)
-
-**Checkpoint**: acceptance semantics are exactly as locked — per value, explicit, never `official`.
-
----
-
-## Phase 6: User Story 4 — The brand you land on is already correct (P2)
-
-**Goal**: Everything supplied is where it belongs, nothing supplied is lost, nothing extra is generated.
-
-**Independent Test**: complete with material in every category, then verify a one-to-one match between the review and the brand in Setup and the Library (quickstart S1 step 5, S5).
-
-### Tests for User Story 4
-
-- [X] T058 [P] [US4] Adapter integration test in `src/features/onboarding/__tests__/businessInfo.test.ts` — business facts persist on BOTH adapters
-- [X] T059 [P] [US4] Browser E2E in `src/features/onboarding/__tests__/brandIsCorrect.browser.test.tsx` — every item in the review is present and resolvable in the created brand (SC-003)
-- [X] T060 [P] [US4] Test in `src/features/onboarding/__tests__/noDeliverables.test.ts` — a completed onboarding produces zero kit adoptions, guidelines, templates or designs (SC-005)
-
-### Implementation for User Story 4
-
-- [X] T061 [US4] Write business facts to `businessInfo` in `src/features/onboarding/understanding/applyProposals.ts` — links, website, audience summary, description, industry only (research §R7)
-- [X] T062 [US4] Record Context signals in `src/features/onboarding/understanding/context.ts` — a `preference` signal on a rejected proposal, a `reference` signal on material flagged as reference. Fire-and-forget; a failure is swallowed and never blocks (FR-029)
-- [X] T063 [US4] Implement per-slice failure reporting in `finish.ts` and `MaterialStep.tsx` — anything not stored is named to the user, and success is never reported for an unstored write (FR-031)
-
-**Checkpoint**: the storage guarantees hold on both backends, and the flow closes the authenticated asset-loss defect.
-
----
-
-## Phase 7: User Story 5 — Never trapped (P2)
-
-**Goal**: Skip, go back, leave, resume anywhere, and return to where you came from.
-
-**Independent Test**: skip every optional step, navigate backwards, close and reopen from another session, finish, and land on the `?then=` destination (quickstart S6–S8, S12).
-
-### Tests for User Story 5
-
-- [X] T064 [P] [US5] Browser E2E in `src/features/onboarding/__tests__/continuity.browser.test.tsx` — name-only finish, browser Back through steps, resume after reload, `?then=` return, and double-submit producing exactly one brand
-- [X] T065 [P] [US5] Adapter integration test in `src/features/onboarding/__tests__/preMigrationTolerance.test.ts` — with the `onboarding` column absent, every save still succeeds and only resume degrades (quickstart S9)
-
-### Implementation for User Story 5
-
-- [X] T066 [US5] Implement backward navigation in `OnboardingFlow.tsx` including the browser Back control, via history entries per step, with no data loss (FR-034)
-- [X] T067 [US5] Implement resume in `OnboardingFlow.tsx` — `/onboard-brand/:slug` reads the marker and lands on the recorded step, in any session on any device (FR-035)
-- [X] T068 [US5] Surface unfinished brands in `src/pages/dashboard/brands` and the `AppRail` brand switcher — marked unfinished, resumable, and deletable (FR-009, SC-010)
-- [X] T069 [US5] Add a `DsConfirmDialog` discard flow for an unfinished brand, naming what will be lost, in `src/features/onboarding/components/DiscardBrandDialog.tsx`
-- [X] T070 [US5] Preserve `?then=` across every step, branch switch, redirect and resumed session in `OnboardingFlow.tsx` (FR-036)
-- [X] T071 [US5] Make every step skippable except the name in `OnboardingFlow.tsx`, so a name-only brand can finish (FR-033)
-
-**Checkpoint**: all five stories independently functional.
-
----
+- [X] T064 [P] [US5] Browser E2E — name-only finish, Back, resume, `?then=`, double-submit
+- [X] T065 [P] [US5] Adapter integration test — pre-migration column tolerance
+- [X] T066 [US5] Backward navigation including the browser Back control
+- [X] T067 [US5] Resume from `/onboard-brand/:slug`
+- [X] T068 [US5] Surface unfinished brands in the brand list and the `AppRail` switcher
+- [X] T069 [US5] `DsConfirmDialog` discard flow naming what will be lost
+- [X] T070 [US5] Preserve `?then=` everywhere
+- [X] T071 [US5] Every step skippable except the name
 
 ## Phase 8: Polish, then Retirement
 
-**Purpose**: Cross-cutting quality, then the deletion the feature is gated on.
-
-### Polish
-
-- [X] T072 [P] Responsive pass across `src/features/onboarding/` — phone, tablet, desktop (FR-038)
-- [X] T073 [P] Accessibility pass across `src/features/onboarding/` — keyboard operation and assistive-technology labels on every interactive control (FR-039)
-- [X] T074 [P] Verify zero hardcoded visual values in `src/features/onboarding/` — `--ds-*` tokens only (plan §11)
-
-### Retirement — gated on every acceptance criterion above passing (FR-041)
-
-> **Do not start T075 until Phases 1–7 are complete and quickstart S1–S12 pass on both storage backends.**
-
+- [X] T072 [P] Responsive pass
+- [X] T073 [P] Accessibility pass
+- [X] T074 [P] Zero hardcoded visual values — `--ds-*` only
 - [X] T075 Delete `src/features/onboarding-v4/` in full, including `styles/cosmos.css`
-- [X] T076 Delete `src/pages/onboard-brand/create.tsx` and its route entry in `src/App.tsx`
-- [X] T077 Redirect `/onboard-brand/create` to `/onboard-brand` preserving the query string, in `src/App.tsx`; confirm the existing `src/pages/onboarding-brand/index.tsx` shim still resolves (FR-042)
-- [X] T078 Update `src/features/dev-product-map/registry.ts` and `src/features/dev-features/features-registry.ts` to describe the single surviving flow
-- [X] T079 Verify no dangling references: `rg -n "onboarding-v4|cosmos\.css" src/` returns nothing
-- [X] T080 Run the full gate — `npm run lint`, `npm run typecheck:ci`, `npm run test` — all green
-- [ ] T081 **BLOCKED on a production deploy** — migration 022 is not applied to `brandos-prod`, so the suite cannot run (`42703: column "onboarding" does not exist`). This is expected: the code tolerates the column's absence by design. Run after deploying 022: `supabase db query --linked -f supabase/tests/022_onboarding_state.test.sql`
-- [X] T082 Execute quickstart.md S1–S12 on both storage backends and record the results
-- [X] T083 [P] Update `CLAUDE.md`'s onboarding section and `specs/002-onboarding-v3/spec.md` status to reflect the shipped flow
-
----
-
-## Dependencies & Execution Order
-
-### Phase dependencies
-
-- **Phase 1 (Setup)**: no dependencies
-- **Phase 2 (Foundational)**: depends on Phase 1 — **BLOCKS every user story**
-- **Phase 3–7 (User Stories)**: all depend on Phase 2
-- **Phase 8 (Polish + Retirement)**: retirement depends on Phases 3–7 complete AND validated
-
-### User story dependencies
-
-- **US1 (P1)**: after Phase 2. No dependency on other stories. **This is the MVP.**
-- **US2 (P1)**: after Phase 2. Reuses US1's review but is independently testable via T041/T042.
-- **US3 (P1)**: after Phase 2. Testable against proposals from either branch; US1 is the convenient source.
-- **US4 (P2)**: after US1 (needs material flowing) — verifies the end state.
-- **US5 (P2)**: after Phase 2. Independent of the others.
-
-### Within each story
-
-- Tests are written first and must fail before implementation
-- Types and pure functions before the components that consume them
-- `understanding/` before the steps that call it
-- Story complete and checkpointed before moving on
-
-### Parallel opportunities
-
-- T005–T013 are largely independent (Foundation touch, migration, state helper, RLS test)
-- T014–T016 (the utility move) can run alongside T017–T023 (the shell) — different files
-- All tests within a story marked [P] can run together
-- US2, US3 and US5 can be worked in parallel by different people once Phase 2 lands
-- T072–T074 (polish) can run in parallel
-
----
-
-## Parallel Example: Phase 2 Foundational
-
-```bash
-# The Foundation touch, the migration, and the type can all go at once:
-Task: "T004 recordCoreWrite fresh system write → suggested in src/domain/brand/coreMeta.ts"
-Task: "T006 migration 018 in supabase/migrations/"
-Task: "T008 Brand.onboarding field in src/shared/types/brand.ts"
-
-# Then the tests and the RLS suite together:
-Task: "T005 focused coreMeta cases"
-Task: "T012 RLS test in supabase/tests/022_onboarding_state.test.sql"
-Task: "T013 onboardingState helper unit tests"
-```
-
-## Parallel Example: User Story 1
-
-```bash
-# All three test layers first:
-Task: "T027 interpret() unit tests"
-Task: "T028 material→Library adapter integration test"
-Task: "T029 upload journey browser E2E"
-
-# Then the independent components:
-Task: "T035 ColorBoard"
-Task: "T036 MaterialGroups rows"
-```
-
----
-
-## Implementation Strategy
-
-### MVP (Phases 1–3)
-
-1. Phase 1 Setup
-2. Phase 2 Foundational — includes the approved Foundation touch and the migration
-3. Phase 3 US1 — bring an existing brand and see it understood
-4. **STOP and VALIDATE**: quickstart S1 on both backends
-
-At this point a user can bring a brand and get a real, Library-backed, correctly
-referenced brand out of it. Values sit at `suggested` until Phase 5 adds
-acceptance, which is honest rather than broken — nothing has been promoted that a
-human did not decide.
-
-### Incremental delivery
-
-1. Phases 1–2 → foundation ready
-2. + US1 → MVP, validate, demo
-3. + US2 → both branches converge
-4. + US3 → acceptance semantics complete; the flow is constitutionally whole
-5. + US4 → storage guarantees verified end to end
-6. + US5 → continuity
-7. + Phase 8 → polish, then delete the superseded flow
-
-### Retirement discipline
-
-Phase 8's deletion block is the feature's completion criterion (FR-041), not
-housekeeping. It runs last, after validation, and it is a single revertible
-commit — that is the whole rollback plan.
+- [X] T076 Delete `src/pages/onboard-brand/create.tsx` and its route entry
+- [X] T077 Redirect `/onboard-brand/create` preserving the query string
+- [X] T078 Update the dev product-map and features registries
+- [X] T079 Verify no dangling references
+- [X] T080 Run the full gate — all green
+- [ ] T081 **BLOCKED on a production deploy** — migration 022 is not applied to `brandos-prod`, so the RLS suite cannot run (`42703: column "onboarding" does not exist`). This is expected: the code tolerates the column's absence by design. Run after deploying 022: `supabase db query --linked -f supabase/tests/022_onboarding_state.test.sql`
+- [X] T082 Execute quickstart.md S1–S12 on both storage backends *(re-run by T145)*
+- [X] T083 [P] Update `CLAUDE.md` and the spec status *(re-run by T146)*
 
 ---
 
 ## Notes
 
-- 83 tasks: 3 setup, 23 foundational, 14 US1, 7 US2, 10 US3, 6 US4, 8 US5, 12 polish/retirement
-- The Foundation touch is exactly two tasks (T004, T005) and changes one branch of one function. Anything beyond that is out of scope
-- Every task names a file path; [P] means a genuinely different file with no incomplete dependency
-- Commit after each task or logical group; stop at any checkpoint to validate a story on its own
-- Both storage backends are first-class throughout — a behaviour that works on only one is not done
+- **146 tasks total**: 83 original (82 done, 1 blocked) + 63 for R1.
+- R1 re-does no backend or Foundation work. The only Foundation line it may touch is
+  the additive `StyleDescriptor` widening (T096/T097), which is blocked on approval.
+- Two tasks are gated on decisions surfaced with the design artifact: T096/T097
+  (plan §9b) and T125 (plan §11a). Neither blocks any other task.
+- Every task names a file path; `[P]` means a genuinely different file with no
+  incomplete dependency.
+- Both storage backends stay first-class throughout.

@@ -217,3 +217,9 @@ Verified: every capability this feature needs already has an implementation in
 the repo — upload intake, hashing, image analysis, zip extraction (jszip, already
 a dependency), the AI proxy client, the Library services, the canonical write ops,
 the DS. Nothing is added to `package.json`.
+
+---
+
+> **Naming note (2026-08-14)**: this document numbers its *findings* R1–R9.
+> The 2026-08-14 revision is also called "R1" in spec.md, plan.md and tasks.md.
+> They are unrelated; context disambiguates.

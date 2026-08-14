@@ -166,3 +166,103 @@ Unchanged by this: the function's signature, INV-3 (a system actor cannot reach
 
 See [research.md §R2](../research.md) for the evidence that the branch has no
 existing callers.
+
+---
+
+# Addendum — Revision R1 (2026-08-14)
+
+## 8. Source-priority contract *(new — the one pipeline property R1 adds)*
+
+```ts
+// understanding/sources.ts — pure, no imports beyond types
+export const RANK = { ai: 0, brief: 1, uploaded: 2, user: 3 } as const;
+
+export function mergeCandidates(candidates: Candidate[]): Proposal[];
+```
+
+**Guarantees:**
+
+1. For any Core path, the surviving candidate is the one with the highest rank.
+2. Ties are broken by order of arrival, deterministically.
+3. Re-running interpretation is idempotent with respect to rank: a rank-0
+   suggestion can never displace a rank-3 user value, on any run (SC-016).
+4. **`mergeCandidates` is the only function in the feature that constructs a
+   `Proposal`.** Enforced by the boundary test, which is what makes guarantee 1 a
+   property of the system rather than of each call site.
+
+## 9. Brief contract *(new — two-way)*
+
+```ts
+// brief/prompt.ts
+export function buildBriefPrompt(brandName: string): string;
+
+// brief/parseBrief.ts   — pure, deterministic, no network
+export function looksLikeBrief(text: string): boolean;
+export function parseBrief(text: string): ParsedBrief;
+```
+
+**Guarantees:**
+
+1. `looksLikeBrief` returns true only when at least three of the prompt's declared
+   labels appear at line starts. Ordinary prose must not trigger it.
+2. `parseBrief` never throws. Unrecognised lines are returned as residual prose.
+3. A brief answered in the documented shape round-trips: every label
+   `buildBriefPrompt` emits is a label `parseBrief` recognises. Pinned by test.
+4. When `looksLikeBrief` is true, **no assisted-understanding call is made**
+   (FR-052, SC-012).
+5. `buildBriefPrompt` embeds the current vocabularies, so the prompt and the
+   normaliser can never disagree about the allowed options.
+
+## 10. Vocabulary contract *(new)*
+
+```ts
+// vocabulary/normalize.ts — pure
+export function normalize(text: string, vocab: VocabularyMember[]): Normalized;
+```
+
+**Guarantees:**
+
+1. Every member's own label normalises back to that member.
+2. A miss returns `{ kind: 'other', text }` with the user's wording **verbatim** —
+   never truncated, cased or coerced to a member (FR-054).
+3. `normalize` is total: it returns for any input, including empty.
+
+## 11. Processing-stage contract *(new)*
+
+```ts
+// understanding/stages.ts
+export function planStages(input: UnderstandingInput): Stage[];
+```
+
+**Guarantees:**
+
+1. A stage is present only when the work it names is scheduled for this run. Copy
+   for work that will not happen is therefore unrepresentable, not merely unused
+   (FR-058, SC-014).
+2. `run()` returns a real finding or `null`; the moment never invents one.
+3. `planStages` performs no I/O and no timing. The minimum beat (FR-061) is applied
+   by `UnderstandingStage` as a floor on the screen after the work resolves, and is
+   never a delay inserted between stages.
+
+## 12. Revised URL contract
+
+§1's three steps become four:
+
+```text
+/onboard-brand                       → name
+/onboard-brand/:slug?step=profile    → profile
+/onboard-brand/:slug?step=material   → material   (understanding runs on leaving)
+/onboard-brand/:slug?step=review     → review
+```
+
+Unchanged: the brand is the authority and `?step=` is advisory; an out-of-range
+value is corrected to the recorded step; a finished brand redirects to
+`/b/:slug/setup`; `?then=` survives every step and every resumed session.
+
+## 13. Contracts explicitly NOT changed by R1
+
+`§4` (acceptance) and `§5` (finish) are untouched. `acceptance.ts` remains the only
+module that calls `promoteCoreValue`, the target stays hard-coded to `'confirmed'`,
+and no acceptance may be triggered from a render path. The processing moment, the
+brief and the vocabularies all sit *upstream* of these contracts and none of them
+promotes anything.

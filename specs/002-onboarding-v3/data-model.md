@@ -165,3 +165,111 @@ Named so a later reader does not assume an omission:
 - **No Kit adoption, deliverable, template or design record** (FR-030), enforced
   by an import-path guard test.
 - **No timed cleanup of abandoned brands.** Explicit non-goal.
+
+---
+
+# Addendum — Revision R1 (2026-08-14)
+
+> Naming note: research.md numbers its *findings* R1–R9. "Revision R1" here and in
+> spec.md / plan.md / tasks.md means the 2026-08-14 revision, not research finding R1.
+
+## 7. Persisted state — unchanged
+
+R1 adds **no migration and no persisted field**. `brands.onboarding` (§1) carries
+the revision entirely:
+
+| Field | Change |
+|---|---|
+| `step` | vocabulary becomes `'name' \| 'profile' \| 'material' \| 'review'` |
+| `branch` | **removed** — FR-002 retires self-classification |
+| `brief` | **added** — the raw profile text, so resume on another device still has it |
+| `startedAt` · `completedAt` · `placeholders` | unchanged |
+
+`brief` is onboarding's own transient input, not a brand concept. It lives on the
+marker rather than in `businessInfo.description`, which belongs to products and
+services — two writers on one field would mean the review showed the raw brief as
+the product list.
+
+An unrecognised `step` still degrades to the first step rather than throwing, so a
+brand recorded at the retired `'basics'` resumes at `'name'`.
+
+## 8. New in-memory types
+
+```ts
+/** A closed vocabulary member. `id` is what persists; `label` is what is shown. */
+interface VocabularyMember { id: string; label: string }
+
+/** The result of normalising free text against a vocabulary. */
+type Normalized =
+  | { kind: 'member'; member: VocabularyMember }
+  | { kind: 'other';  text: string };   // the user's wording, verbatim
+
+/** Where a candidate value came from. Higher wins; see contracts §8. */
+type SourceRank = 0 | 1 | 2 | 3;   // ai < brief < uploaded < user
+
+/** Something important that nothing the user supplied determined. */
+/** The Business Info fields onboarding may ask about. Closed, like CoreFieldPath. */
+type BusinessInfoPath = 'industry' | 'tagline' | 'description' | 'audienceSummary';
+
+interface OpenQuestion {
+  target:
+    | { concept: 'core';     path: CoreFieldPath }
+    | { concept: 'business'; path: BusinessInfoPath };
+  prompt: string;                       // in the user's words
+  vocabulary?: VocabularyMember[];      // present ⇒ answer as a selection
+  importance: number;                   // ordering only; never a progress metric
+}
+
+/** One unit of real work the processing moment may narrate. */
+interface Stage {
+  id: string;
+  label: string;                        // e.g. "Extracting your colours"
+  node: number;                         // which of the 8 outer dots lights
+  run(): Promise<Finding | null>;
+}
+interface Finding { label: string; value: string }   // "Typeface" · "Inter"
+```
+
+None of these is persisted. `OpenQuestion` is *derived* from the brand's Core on
+each render of the review — it is not stored, which is what keeps Principle II
+intact and what makes an answered question simply a user edit.
+
+## 9. Controlled vocabularies → storage targets
+
+| Concept | Target | Stored as | Carries authority? |
+|---|---|---|---|
+| Industry | `businessInfo.industry` | member id | no — a business fact |
+| Slogan | `businessInfo.tagline` | free text | no |
+| Products / services | `businessInfo.description` | free text | no |
+| Style | `identity.visualStyle.descriptors` | member id[] | yes |
+| Personality | `identity.strategy.personality` | member id[] | yes |
+| Tone | `identity.voice.tone` | member id — at most one | yes |
+| Values | `identity.strategy.values` | member id[] | yes |
+| Summary | `identity.strategy.mission` | prose | yes |
+| Audience | `identity.strategy.targetAudience` | prose | yes |
+| Positioning | `identity.strategy.positioning` | prose | yes |
+
+Every target except `visualStyle.descriptors` is already `string` or `string[]`, so
+the vocabularies are enforced at the boundary rather than in the schema.
+`visualStyle.descriptors` is a closed union — see plan §9b.
+
+**Industry is not mirrored into Core.** `positioning.category` remains a distinct
+concept (the market category a brand competes in) and is never written from the
+industry answer.
+
+## 10. Review sections — revised
+
+§4's five sections are superseded by six (FR-064):
+
+| Section | Carries | Confirmable |
+|---|---|---|
+| Logos | `logos.*` references | placement, not a Core statement |
+| Colors | `colors.*` | yes |
+| Fonts | `typography.*` | yes |
+| Brand Profile | `strategy.*`, `voice.*`, `visualStyle.*`, plus Business Info facts | Core values yes; business facts save on edit |
+| Online | `businessInfo.contact.website`, `businessInfo.links` | no |
+| Files | Library items with no other placement | no |
+
+A section mixing confirmable and non-confirmable values is not exposed as such:
+FR-070 forbids the interface from explaining the model. "Looks right" simply
+confirms the Core values present; the business facts were already saved.
