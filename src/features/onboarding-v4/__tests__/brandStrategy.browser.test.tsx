@@ -183,3 +183,45 @@ describe('no list covers every brand', () => {
     expect(document.querySelector('.value-picker-other')).toBeNull();
   });
 });
+
+describe('a step forward has a step back', () => {
+  const openFromAdd = (label: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /new section/i }));
+    const chip = [...document.querySelectorAll('.about-suggestion-chip')].find(
+      (e) => e.textContent === label,
+    ) as HTMLElement;
+    fireEvent.click(chip);
+  };
+
+  it('returns to the section list rather than out of everything', async () => {
+    render(<AboutGroup projection={null} />);
+    openFromAdd('Brand summary');
+    expect(document.querySelector('.value-picker')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    // Back where it came from, chips and all.
+    expect(document.querySelector('.value-picker')).toBeNull();
+    expect(document.querySelectorAll('.about-suggestion-chip').length).toBeGreaterThan(1);
+  });
+
+  it('offers no way back when there is nowhere to go', () => {
+    // Opened from a card, this picker IS the first step.
+    render(
+      <AboutGroup projection={empty({ profile: [{ path: 'strategy.mission', value: 'Ship it' }] })} />,
+    );
+    fireEvent.click(document.querySelector('.about-card')!);
+    expect(document.querySelector('.value-picker')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+  });
+
+  it('forgets where it came from once the answer is given', () => {
+    render(<AboutGroup projection={null} />);
+    openFromAdd('Brand summary');
+    fireEvent.change(document.querySelector('.value-picker-text')!, {
+      target: { value: 'A brand about things' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    // Saving is finishing, not stepping back.
+    expect(document.querySelector('.value-picker')).toBeNull();
+    expect(document.querySelector('.about-suggestion-chip')).toBeNull();
+  });
+});

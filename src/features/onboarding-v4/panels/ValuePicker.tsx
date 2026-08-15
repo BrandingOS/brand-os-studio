@@ -39,11 +39,13 @@ export type PickerTarget =
 export interface ValuePickerProps {
   target: PickerTarget | null;
   theme: string;
+  /** Where this was opened FROM, when that is somewhere to return to. */
+  onBack?(): void;
   onClose(): void;
   onSave(next: unknown): void;
 }
 
-export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps) {
+export function ValuePicker({ target, theme, onBack, onClose, onSave }: ValuePickerProps) {
   const [chosen, setChosen] = useState<string[]>([]);
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
@@ -60,11 +62,13 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
   useEffect(() => {
     if (!target) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // Escape steps back where there is a step to take, and closes otherwise —
+      // the same key meaning "undo the last move" either way.
+      if (e.key === 'Escape') (onBack ?? onClose)();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [target, onClose]);
+  }, [target, onBack, onClose]);
 
   if (!target || typeof document === 'undefined') return null;
 
@@ -123,6 +127,16 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
       <div className="value-picker-scrim" role="presentation" onClick={onClose} />
       <div className="value-picker" role="dialog" aria-modal="true" aria-label={`Change ${target.label}`}>
         <header className="value-picker-head">
+          {/* Only when there IS somewhere to go back to. Arriving here from the
+              New-section chips is a step forward, and a step forward with no
+              way back means closing the whole thing and starting again. */}
+          {onBack && (
+            <button type="button" className="value-picker-back" onClick={onBack} aria-label="Back">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          )}
           <h4>{target.label}</h4>
           <button type="button" className="value-picker-x" onClick={onClose} aria-label="Close">
             ×

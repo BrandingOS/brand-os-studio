@@ -3906,10 +3906,32 @@
 }
 .value-picker-head h4 {
   margin: 0;
+  /* Takes the room, so the title sits beside Back rather than centred between
+     the two controls. */
+  margin-right: auto;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--ds-text);
+}
+/* Back to where this was opened from. Present only when there is one. */
+.value-picker-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--ds-text-muted, #9a988f);
+  cursor: pointer;
+  transition: background 150ms var(--ds-ease), color 150ms var(--ds-ease);
+}
+.value-picker-back:hover {
+  background: var(--ds-surface-hover, #f4f2ec);
+  color: var(--ds-text, #2b2a26);
 }
 .value-picker-x {
   background: none;

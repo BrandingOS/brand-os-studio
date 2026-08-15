@@ -62,6 +62,8 @@ export function AboutGroup({
 }: AboutGroupProps = {}) {
   const sections = useV4Store((s) => s.aboutSections);
   const [picking, setPicking] = useState<PickerTarget | null>(null);
+  /** True when the open picker was reached from the New-section chips. */
+  const [cameFromAdd, setCameFromAdd] = useState(false);
   const addSection = useV4Store((s) => s.addAboutSection);
   const updateSection = useV4Store((s) => s.updateAboutSection);
   const removeSection = useV4Store((s) => s.removeAboutSection);
@@ -324,6 +326,9 @@ export function AboutGroup({
                 if (!card) return false;
                 setEditing(null);
                 setPicking(card.target);
+                // Remember where this came from, so the picker can offer a way
+                // back rather than only a way out.
+                setCameFromAdd(true);
                 return true;
               }}
               onClose={() => setEditing(null)}
@@ -347,10 +352,23 @@ export function AboutGroup({
       <ValuePicker
         target={picking}
         theme={theme}
-        onClose={() => setPicking(null)}
+        onBack={
+          cameFromAdd
+            ? () => {
+                setPicking(null);
+                setCameFromAdd(false);
+                launchAdd();
+              }
+            : undefined
+        }
+        onClose={() => {
+          setPicking(null);
+          setCameFromAdd(false);
+        }}
         onSave={(next) => {
           const target = picking;
           setPicking(null);
+          setCameFromAdd(false);
           if (target) void commit(target, next);
         }}
       />
