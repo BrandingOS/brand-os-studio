@@ -75,6 +75,40 @@ describe('a placement the system made', () => {
   });
 });
 
+describe('the chip opens the variants, and only the variants', () => {
+  // It used to open the whole logo menu — Replace, two of the seven roles, and
+  // a red Remove. The chip asks which kind of logo this is; what it opens
+  // should be the answer to that question.
+  it('shows every role as a card, marking the one it has', async () => {
+    board([logo({ logoSlot: 'mark' })]);
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    await screen.findByText('Wordmark');
+    const labels = [...document.querySelectorAll('.logo-variant-card-label')].map((e) => e.textContent);
+    expect(labels).toEqual(['Primary', 'Wordmark', 'Icon', 'On dark', 'On light', 'Horizontal', 'Vertical']);
+    expect(document.querySelector('.logo-variant-card.is-current .logo-variant-card-label')?.textContent).toBe('Icon');
+  });
+
+  it('offers nothing but roles — no replace, no remove', async () => {
+    board([logo({ logoSlot: 'mark' })]);
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    await screen.findByText('Wordmark');
+    const inPicker = [...document.querySelectorAll('.logo-variant-picker')]
+      .map((p) => p.textContent ?? '')
+      .join(' ');
+    expect(inPicker).not.toMatch(/replace|remove/i);
+  });
+
+  it('moves the logo to the role picked, and that settles the question', async () => {
+    board([logo({ logoSlot: 'mark' })]);
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    const wordmark = (await screen.findByText('Wordmark')).closest('button')!;
+    fireEvent.click(wordmark);
+    const moved = useV4Store.getState().assets[0];
+    expect(moved.logoSlot).toBe('wordmark');
+    expect(moved.slotConfirmed).toBe(true);
+  });
+});
+
 describe('the chip says which kind of logo this is', () => {
   it('draws the variant beside its name', () => {
     const { container } = board([logo({ logoSlot: 'mark' })]);

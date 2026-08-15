@@ -2849,6 +2849,10 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* A real button now — it opens the variant picker — so the UA's own font
+     and line-height have to be sent back where they came from. */
+  font-family: inherit;
+  line-height: 1.4;
   font-size: 8.5px;
   font-weight: 600;
   padding: 1.5px 6px;
@@ -3405,6 +3409,19 @@
   flex-direction: column;
   gap: 6px;
 }
+
+/* The role picker shows all SEVEN variants, not the handful still unused, so
+ * the tall single column it inherits would run the height of the page. Same
+ * cards, laid out to be read at a glance. */
+[data-onboarding="cosmos"] .logo-variant-picker.is-roles,
+.logo-variant-picker.is-roles {
+  width: 232px;
+}
+[data-onboarding="cosmos"] .logo-variant-picker.is-roles .logo-variant-grid,
+.logo-variant-picker.is-roles .logo-variant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
 [data-onboarding="cosmos"] .logo-variant-card,
 .logo-variant-card {
   display: flex;
@@ -3426,6 +3443,15 @@
 .logo-variant-card:hover {
   background: var(--ds-surface-hover, #faf9f5);
   border-color: var(--ds-border, #e6e4dd);
+}
+
+/* The role this logo already has. Shown rather than hidden, so the picker
+ * answers "which one is it?" as well as "which one should it be". */
+[data-onboarding="cosmos"] .logo-variant-card.is-current,
+.logo-variant-card.is-current {
+  border-color: var(--ds-text-primary, #2b2a26);
+  background: var(--ds-surface, #fff);
+  cursor: default;
 }
 
 /* Small role caption on each variant card — icon centered, caption tucked

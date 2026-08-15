@@ -546,6 +546,7 @@ export function LogoSlots({ assets }: Props) {
               onPick={(file) => uploadToSlot(slot, file)}
               onRemove={() => asset && removeAsset(asset.id)}
               onRemoveSlot={isExtra ? () => removeLogoSlot(slot) : undefined}
+              onPickRole={(role) => asset && reassignSlot(asset.id, role)}
               onConfirm={() => {
                 if (!asset) return;
                 // Forget that we placed it. The family resolver only moves
@@ -615,11 +616,14 @@ interface SlotCardProps {
   onRemove(): void;
   onRemoveSlot?(): void;
   onConfirm(): void;
+  /** Move this logo to another role. Swaps with whatever is already there. */
+  onPickRole(role: LogoSlot): void;
   onContextMenu?(e: React.MouseEvent<HTMLDivElement>, pickFile: () => void): void;
 }
 
-function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfirm, onContextMenu }: SlotCardProps) {
+function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onContextMenu }: SlotCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [rolesOpen, setRolesOpen] = useState(false);
   // A placement WE made, still unanswered. Derived variants are not asked about
   // — they were generated from a logo the user already placed, and their role is
   // the reason they exist.
@@ -669,39 +673,60 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
       )}
       {asset && (
         <div className={`logo-slot-role${needsConfirm ? ' is-unconfirmed' : ''}`}>
-          <span
-            className="logo-slot-name"
-            role="button"
-            tabIndex={0}
-            title={needsConfirm ? `We think this is the ${def.label.toLowerCase()} — click to change it` : 'Logo options'}
-            onClick={
-              onContextMenu
-                ? (e) => {
-                    e.stopPropagation();
-                    onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
-                  }
-                : undefined
-            }
-            onKeyDown={
-              onContextMenu
-                ? (e) => {
-                    if (e.key !== 'Enter' && e.key !== ' ') return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onContextMenu(e as unknown as React.MouseEvent<HTMLDivElement>, onClick);
-                  }
-                : undefined
-            }
-          >
-            {/* The primary is the one role that needs no picture — it is the
-                logo, not a variant of it. Every other chip carries the same
-                glyph the variant picker uses, so "which kind is this?" is
-                answered by looking rather than by reading. */}
-            {def.key !== 'primary' && (
-              <span className="logo-slot-name-icon" aria-hidden="true">{VARIANT_PREVIEW[def.key]}</span>
-            )}
-            {def.label}
-          </span>
+          {/*
+            The chip asks one question — which kind of logo is this? — so what
+            it opens is the answer to that question and nothing else: the same
+            visual variant cards "Add variation" shows. It used to open the
+            whole logo menu, where the two role changes sat between Replace and
+            a red Remove, and the roles you could reach were only the three
+            someone had picked as common.
+          */}
+          <Popover open={rolesOpen} onOpenChange={setRolesOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="logo-slot-name"
+                title={
+                  needsConfirm
+                    ? `We think this is the ${def.label.toLowerCase()} — pick another if it isn't`
+                    : 'Change which variant this is'
+                }
+              >
+                {/* The primary is the one role that needs no picture — it is
+                    the logo, not a variant of it. Every other chip carries the
+                    same glyph the picker uses, so "which kind is this?" is
+                    answered by looking rather than by reading. */}
+                {def.key !== 'primary' && (
+                  <span className="logo-slot-name-icon" aria-hidden="true">{VARIANT_PREVIEW[def.key]}</span>
+                )}
+                {def.label}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" side="bottom" className="logo-variant-picker is-roles">
+              <div className="logo-variant-grid">
+                {SLOT_ORDER_ALL.map((role) => {
+                  const roleDef = SLOT_DEFS[role];
+                  const current = role === def.key;
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      className={`logo-variant-card${current ? ' is-current' : ''}`}
+                      aria-pressed={current}
+                      title={roleDef.hint}
+                      onClick={() => {
+                        setRolesOpen(false);
+                        if (!current) onPickRole(role);
+                      }}
+                    >
+                      <div className="logo-variant-card-stage">{VARIANT_PREVIEW[role]}</div>
+                      <span className="logo-variant-card-label">{roleDef.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
           {needsConfirm && (
             <button
               type="button"
