@@ -3157,48 +3157,6 @@
   overflow: hidden;
 }
 
-/* What "New section" opens: the fields still unanswered, then a way to write
- * something the list never thought of. Unscoped — Radix portals it. */
-.about-add-menu {
-  width: 232px;
-  padding: 6px;
-  background: var(--ds-surface, #fff);
-  border: 1px solid var(--ds-border, #e6e4dd);
-  border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(16, 16, 20, 0.14);
-  max-height: 320px;
-  overflow-y: auto;
-}
-.about-add-menu-eyebrow {
-  margin: 4px 8px 6px;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-text-muted, #9a988f);
-}
-.about-add-menu-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 7px 9px;
-  border: none;
-  border-radius: 9px;
-  background: none;
-  color: var(--ds-text-primary, #2b2a26);
-  font-family: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.about-add-menu-item:hover { background: var(--ds-surface-hover, #f4f2ec); }
-.about-add-menu-item.is-own {
-  margin-top: 4px;
-  padding-top: 11px;
-  border-top: 1px solid var(--ds-border, #e6e4dd);
-  border-radius: 0 0 9px 9px;
-  color: var(--ds-text-muted, #9a988f);
-}
-.about-add-menu-item.is-own:hover { color: var(--ds-text-primary, #2b2a26); }
 
 /* Writing your own answer, under the chips. */
 .value-picker-other {

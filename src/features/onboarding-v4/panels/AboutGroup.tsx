@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AboutEditorModal, type AboutEditorInitial } from '@/features/setup/components/AboutEditorModal';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { useV4Store } from '../store/onboardingV4Store';
@@ -63,7 +62,6 @@ export function AboutGroup({
 }: AboutGroupProps = {}) {
   const sections = useV4Store((s) => s.aboutSections);
   const [picking, setPicking] = useState<PickerTarget | null>(null);
-  const [adding, setAdding] = useState(false);
   const addSection = useV4Store((s) => s.addAboutSection);
   const updateSection = useV4Store((s) => s.updateAboutSection);
   const removeSection = useV4Store((s) => s.removeAboutSection);
@@ -244,8 +242,8 @@ export function AboutGroup({
    *
    * Eleven empty cards is a form, and a form is not a review — it fills the
    * section with placeholders and buries the two or three things the brand
-   * actually told us. The unanswered ones move inside "New section", where they
-   * are still one click away and are what that button offers first.
+   * actually told us. The unanswered ones move inside "New section", which
+   * already offered chips of its own; they are those chips now.
    */
   const answered = valueCards.filter((c) => c.content.trim());
   const unanswered = valueCards.filter((c) => !c.content.trim());
@@ -297,44 +295,10 @@ export function AboutGroup({
       )}
 
       <div className="review-group-foot">
-        <Popover open={adding} onOpenChange={setAdding}>
-          <PopoverTrigger asChild>
-            <button type="button" className="add-more-btn">
-              <span className="add-more-plus" aria-hidden="true">+</span>
-              New section
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="about-add-menu">
-            {unanswered.length > 0 && (
-              <>
-                <p className="about-add-menu-eyebrow">Still to answer</p>
-                {unanswered.map((card) => (
-                  <button
-                    key={card.key}
-                    type="button"
-                    className="about-add-menu-item"
-                    onClick={() => {
-                      setAdding(false);
-                      setPicking(card.target);
-                    }}
-                  >
-                    {card.name}
-                  </button>
-                ))}
-              </>
-            )}
-            <button
-              type="button"
-              className="about-add-menu-item is-own"
-              onClick={() => {
-                setAdding(false);
-                launchAdd();
-              }}
-            >
-              Something else…
-            </button>
-          </PopoverContent>
-        </Popover>
+        <button type="button" className="add-more-btn" onClick={launchAdd}>
+          <span className="add-more-plus" aria-hidden="true">+</span>
+          New section
+        </button>
       </div>
 
       {typeof document !== 'undefined' &&
@@ -348,6 +312,20 @@ export function AboutGroup({
               open={!!editing}
               initial={editing}
               takenTitles={sections.map((s) => s.name)}
+              /*
+               * The chips this modal already had, pointed at the questions this
+               * brand has not answered. A structured one opens its own picker —
+               * Industry is a choice from a vocabulary, not a paragraph — and
+               * anything else fills in the title, exactly as before.
+               */
+              suggestions={unanswered.map((c) => c.name)}
+              onPickSuggestion={(name) => {
+                const card = unanswered.find((c) => c.name === name);
+                if (!card) return false;
+                setEditing(null);
+                setPicking(card.target);
+                return true;
+              }}
               onClose={() => setEditing(null)}
               onSave={({ id, title, content }) => {
                 if (id) updateSection(id, { name: title, content });

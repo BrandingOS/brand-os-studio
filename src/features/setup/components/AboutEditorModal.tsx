@@ -13,6 +13,22 @@ type Props = {
   /** Titles already in use — their suggestion chips are suppressed so
    *  users don't create duplicates by accident. */
   takenTitles?: string[];
+  /**
+   * The chips to offer, when the caller knows better than the generic list.
+   *
+   * Onboarding passes the strategy fields its brand has not answered yet, so
+   * the chips are the actual questions outstanding rather than a fixed set of
+   * suggestions that may already be filled in.
+   */
+  suggestions?: string[];
+  /**
+   * What a chip means, when it means more than filling in the title.
+   *
+   * Industry is a choice from a vocabulary, not a paragraph — so onboarding
+   * takes the chip as "open that field" and returns `true` to say it handled
+   * it. Anything else falls through to the old behaviour.
+   */
+  onPickSuggestion?: (title: string) => boolean;
   onClose: () => void;
   onSave: (next: { id?: string; title: string; content: string }) => void;
   onDelete?: (id: string) => void;
@@ -39,6 +55,8 @@ export function AboutEditorModal({
   open,
   initial,
   takenTitles,
+  suggestions,
+  onPickSuggestion,
   onClose,
   onSave,
   onDelete,
@@ -104,21 +122,22 @@ export function AboutEditorModal({
         />
         {!initial?.id && (
           <div className="about-suggestions" aria-label="Suggested section names">
-            {SUGGESTED_TITLES.filter(
-              (s) => !(takenTitles ?? []).some((t) => t.toLowerCase() === s.toLowerCase()),
-            ).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="about-suggestion-chip"
-                onClick={() => {
-                  setTitle(s);
-                  contentRef.current?.focus();
-                }}
-              >
-                {s}
-              </button>
-            ))}
+            {(suggestions ?? SUGGESTED_TITLES)
+              .filter((s) => !(takenTitles ?? []).some((t) => t.toLowerCase() === s.toLowerCase()))
+              .map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className="about-suggestion-chip"
+                  onClick={() => {
+                    if (onPickSuggestion?.(s)) return;
+                    setTitle(s);
+                    contentRef.current?.focus();
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
           </div>
         )}
 

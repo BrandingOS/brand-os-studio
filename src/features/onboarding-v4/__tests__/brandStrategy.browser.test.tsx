@@ -49,8 +49,9 @@ const names = () =>
 beforeEach(() => useV4Store.getState().reset());
 afterEach(cleanup);
 
+/** The chips the New-section modal offers. */
 const offered = () =>
-  [...document.querySelectorAll('.about-add-menu-item')].map((e) => e.textContent);
+  [...document.querySelectorAll('.about-suggestion-chip')].map((e) => e.textContent);
 
 const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /new section/i }));
 
@@ -63,7 +64,7 @@ describe('the fields exist before the answers do', () => {
   it('keeps every one of them a click away', () => {
     render(<AboutGroup projection={empty()} />);
     openMenu();
-    expect(offered()).toEqual([...EXPECTED, 'Something else…']);
+    expect(offered()).toEqual(EXPECTED);
   });
 
   it('shows the ones that were answered, and offers only the rest', () => {
@@ -98,20 +99,22 @@ describe('the fields exist before the answers do', () => {
     expect(screen.getByRole('heading', { name: 'Brand Strategy' })).toBeTruthy();
   });
 
-  it('still offers a section of the user’s own', () => {
+  it('still takes a section of the user’s own', () => {
+    // The modal is the one this flow always had: a name, some words, Save.
     render(<AboutGroup projection={null} />);
     openMenu();
-    expect(offered()).toContain('Something else…');
+    expect(document.querySelector('input[placeholder*="Audience"]')).toBeTruthy();
+    expect(document.querySelector('textarea')).toBeTruthy();
   });
 });
 
 describe('choices where they fit, prose where they do not', () => {
   const open = (label: string) => {
     fireEvent.click(screen.getByRole('button', { name: /new section/i }));
-    const item = [...document.querySelectorAll('.about-add-menu-item')].find(
+    const chip = [...document.querySelectorAll('.about-suggestion-chip')].find(
       (e) => e.textContent === label,
     ) as HTMLElement;
-    fireEvent.click(item);
+    fireEvent.click(chip);
   };
 
   it('asks for words where the meaning is in the wording', () => {
