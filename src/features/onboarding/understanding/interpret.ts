@@ -105,7 +105,9 @@ function fromBrief(b: ParsedBrief): Candidate[] {
     out.push({ corePath, value, rank: RANK.brief, provenance: 'ai-suggested', evidence: 'your brand profile' });
   };
 
-  if (b.summary) add('strategy.mission', b.summary);
+  // Its own field. Filing it as the mission meant a brief that answered both
+  // "what is this brand" and "what does it set out to do" kept only one.
+  if (b.summary) add('strategy.summary', b.summary);
   if (b.audience) add('strategy.targetAudience', b.audience);
   if (b.positioning) add('strategy.positioning', b.positioning);
   if (b.tone) add('voice.tone', storedValue(normalize(b.tone, VOCABULARIES.tone)));

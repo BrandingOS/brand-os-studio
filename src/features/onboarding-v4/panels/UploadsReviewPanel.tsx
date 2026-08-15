@@ -609,6 +609,11 @@ export interface UploadsReviewPanelProps {
 
 export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: UploadsReviewPanelProps = {}) {
   const assets = useV4Store((s) => s.assets);
+  /** Logos the system placed whose role nobody has agreed to yet. */
+  const unconfirmedLogos = useMemo(
+    () => assets.filter((a) => a.logoSlot && !a.generated && !a.slotConfirmed),
+    [assets],
+  );
   const define = useV4Store((s) => s.define);
   const updateDefine = useV4Store((s) => s.updateDefine);
   const aboutSections = useV4Store((s) => s.aboutSections);
@@ -943,7 +948,10 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
     }
     extractedRef.current = true;
     (async () => {
-      for (const img of images.slice(0, 2)) {
+      // The logo first, and only the logo when there is one — a photograph is
+      // full of colours the brand never chose.
+      const logos = images.filter((a) => (a.isLogo || a.logoSlot) && !a.generated);
+      for (const img of (logos.length ? logos : images).slice(0, 2)) {
         if (!img.previewUrl) continue;
         const colors = await extractDominantColors(img.previewUrl, 4);
         for (const c of colors) addColor(c, 'extracted');
@@ -1023,7 +1031,7 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
                 {/* Clicking a tag opens the value it summarises — the summary and
                     the control are the same thing, so it should behave like one. */}
                 {projection.industryLabel && (
-                  <button type="button" className="review-tag" onClick={() => setOpenPath('industry')}>
+                  <button type="button" className="review-tag" onClick={() => setOpenPath('business.industry')}>
                     {projection.industryLabel}
                   </button>
                 )}
@@ -1055,6 +1063,24 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
                 ).length;
                 return `${n} ${n === 1 ? 'logo' : 'logos'}`;
               })()}
+              {/*
+                Beside the count, because that is where the eye lands when the
+                board is already right and the user only wants to say so.
+                Confirming five tiles one at a time is the same answer given
+                five times.
+              */}
+              {unconfirmedLogos.length > 1 && (
+                <button
+                  type="button"
+                  className="review-group-bulk"
+                  onClick={() => {
+                    const store = useV4Store.getState();
+                    for (const a of unconfirmedLogos) store.updateAsset(a.id, { slotConfirmed: true });
+                  }}
+                >
+                  Confirm all {unconfirmedLogos.length}
+                </button>
+              )}
             </span>
           </header>
           <LogoSlots assets={assets} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useV4Store } from '../store/onboardingV4Store';
-import type { LogoSlot, OnboardingAsset } from '../types';
+import type { KnownSlot, LogoSlot, OnboardingAsset } from '../types';
 import { buildAsset, imageAspectRatio, rasterFileToVariants, simulateUpload, svgFileToVariants } from '../utils/assetUpload';
 import { planPrimarySwap } from '../utils/logoFamily';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
@@ -10,39 +10,85 @@ interface SlotDef {
   key: LogoSlot;
   label: string;
   hint: string;
-  tone: 'neutral' | 'light' | 'dark';
+  tone: 'neutral' | 'dark';
 }
 
-const SLOT_DEFS: Record<LogoSlot, SlotDef> = {
+/**
+ * The variants with a name of their own.
+ *
+ * "On light" is gone: a logo on a light background is the ordinary case, which
+ * every other tile already shows. A slot for the default is a slot that never
+ * says anything.
+ */
+const SLOT_DEFS: Record<KnownSlot, SlotDef> = {
   primary: { key: 'primary', label: 'Primary', hint: 'Your main logo', tone: 'neutral' },
-  dark: { key: 'dark', label: 'On dark', hint: 'Light logo for dark backgrounds', tone: 'dark' },
+  dark: { key: 'dark', label: 'On dark', hint: 'Light logo, for dark backgrounds', tone: 'dark' },
+  // Retired, and kept only so a brand that already has one still renders it.
+  // Nothing offers it, and nothing places anything there.
+  light: { key: 'light', label: 'On light', hint: 'Dark logo, for light backgrounds', tone: 'neutral' },
   mark: { key: 'mark', label: 'Icon', hint: 'Just the icon / monogram', tone: 'neutral' },
   wordmark: { key: 'wordmark', label: 'Wordmark', hint: 'Text-only logotype', tone: 'neutral' },
-  light: { key: 'light', label: 'On light', hint: 'Dark logo for light backgrounds', tone: 'light' },
   horizontal: { key: 'horizontal', label: 'Horizontal', hint: 'Wide lockup', tone: 'neutral' },
   vertical: { key: 'vertical', label: 'Vertical', hint: 'Stacked lockup', tone: 'neutral' },
 };
 
-// Only the two slots every brand actually has stay on screen; the rest live
-// behind "Add variation" and appear once the user picks them (or once an
-// upload is classified as one of them).
-const DEFAULT_SLOTS: LogoSlot[] = ['primary', 'wordmark'];
-const ADDABLE_SLOTS: LogoSlot[] = ['mark', 'dark', 'light', 'horizontal', 'vertical'];
+/**
+ * Only the Primary is on screen to begin with.
+ *
+ * A brand has ONE main logo and may have others; showing an empty Wordmark
+ * beside the empty Primary asked a question most brands answer with silence.
+ * Everything else arrives either because an upload turned out to be one, or
+ * because the user asked for it by name.
+ */
+const DEFAULT_SLOTS: LogoSlot[] = ['primary'];
+const ADDABLE_SLOTS: LogoSlot[] = ['wordmark', 'mark', 'dark', 'horizontal', 'vertical'];
 
 /** Canonical board order, so tiles do not shuffle with upload order. */
 const SLOT_ORDER_ALL: LogoSlot[] = [
-  'primary', 'wordmark', 'mark', 'dark', 'light', 'horizontal', 'vertical',
+  'primary', 'wordmark', 'mark', 'dark', 'horizontal', 'vertical',
 ];
 
-const VARIANT_PREVIEW: Record<LogoSlot, JSX.Element> = {
+const VARIANT_PREVIEW: Record<KnownSlot, JSX.Element> = {
   primary: <PreviewPrimary />,
   dark: <PreviewDark />,
+  light: <PreviewLight />,
   mark: <PreviewMark />,
   wordmark: <PreviewWordmark />,
-  light: <PreviewLight />,
   horizontal: <PreviewHorizontal />,
   vertical: <PreviewVertical />,
 };
+
+/**
+ * A variant the product has no name for, named by the user.
+ *
+ * The label IS the key — there is nothing else to keep in step, and two
+ * variants called the same thing are the same variant.
+ */
+const CUSTOM_PREFIX = 'custom:';
+
+export function isCustomSlot(slot: string): boolean {
+  return slot.startsWith(CUSTOM_PREFIX);
+}
+
+export function customSlot(label: string): LogoSlot {
+  return `${CUSTOM_PREFIX}${label.trim()}` as LogoSlot;
+}
+
+function defFor(slot: LogoSlot): SlotDef {
+  if (isCustomSlot(slot)) {
+    return {
+      key: slot,
+      label: slot.slice(CUSTOM_PREFIX.length),
+      hint: 'A variant you named',
+      tone: 'neutral',
+    };
+  }
+  return SLOT_DEFS[slot as KnownSlot];
+}
+
+function previewFor(slot: LogoSlot): JSX.Element {
+  return isCustomSlot(slot) ? <PreviewOther /> : VARIANT_PREVIEW[slot as KnownSlot];
+}
 
 function PreviewPrimary() {
   return (
@@ -83,6 +129,14 @@ function PreviewLight() {
     </svg>
   );
 }
+function PreviewOther() {
+  return (
+    <svg viewBox="0 0 60 30" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+      <path d="M14 15h32" strokeDasharray="4 5" />
+      <path d="M30 8v14" strokeDasharray="4 5" />
+    </svg>
+  );
+}
 function PreviewHorizontal() {
   return (
     <svg viewBox="0 0 60 30" fill="currentColor">
@@ -107,7 +161,6 @@ function inferSlot(name: string, current: Set<LogoSlot>): LogoSlot | null {
   if (!current.has('vertical') && /(?:^|[\s_\-/.])(vertical|stacked|portrait)(?:[\s_\-/.]|$)/.test(n)) return 'vertical';
   if (!current.has('wordmark') && /(?:^|[\s_\-/.])(wordmark|logotype|type)(?:[\s_\-/.]|$)/.test(n)) return 'wordmark';
   if (!current.has('dark') && /(?:white|reverse|on[\s_\-]?dark|inverse)/.test(n)) return 'dark';
-  if (!current.has('light') && /(?:black|on[\s_\-]?light|primary[-_ ]?black)/.test(n)) return 'light';
   return null;
 }
 
@@ -158,8 +211,12 @@ export function LogoSlots({ assets }: Props) {
     for (const s of [...filledSlots, ...extraSlots]) {
       if (!out.includes(s)) out.push(s);
     }
-    // Keep the board in the canonical order rather than upload order.
-    return SLOT_ORDER_ALL.filter((s) => out.includes(s));
+    // Keep the board in the canonical order rather than upload order. Named
+    // variants first, then whatever the user invented, in the order they did.
+    return [
+      ...SLOT_ORDER_ALL.filter((s) => out.includes(s)),
+      ...out.filter((s) => !SLOT_ORDER_ALL.includes(s)),
+    ];
   }, [extraSlots, filledSlots]);
 
   /** Upload a single file to a specific slot. Replaces any existing asset there. */
@@ -198,11 +255,7 @@ export function LogoSlots({ assets }: Props) {
             ...DEFAULT_SLOTS,
             ...next.extraLogoSlots.filter((s) => !DEFAULT_SLOTS.includes(s)),
           ];
-          const lightAsset = next.assets.find((a) => a.logoSlot === 'light');
           const darkAsset = next.assets.find((a) => a.logoSlot === 'dark');
-          if (currentVisible.includes('light') && (!lightAsset || lightAsset.generated)) {
-            uploadToSlot('light', variants.light, { generated: true, allowAutoGenerate: false });
-          }
           if (currentVisible.includes('dark') && (!darkAsset || darkAsset.generated)) {
             uploadToSlot('dark', variants.dark, { generated: true, allowAutoGenerate: false });
           }
@@ -286,7 +339,7 @@ export function LogoSlots({ assets }: Props) {
           // dropping it (the group header counts it, so it must show).
           // Neutral-tone slots first; dark/light last since a generic upload
           // probably isn't tone-specific.
-          const FALLBACK_ORDER: LogoSlot[] = ['mark', 'horizontal', 'vertical', 'dark', 'light'];
+          const FALLBACK_ORDER: LogoSlot[] = ['mark', 'horizontal', 'vertical', 'dark'];
           target = FALLBACK_ORDER.find((s) => !taken.has(s)) ?? null;
         }
         if (!target) continue;
@@ -317,11 +370,7 @@ export function LogoSlots({ assets }: Props) {
             ...DEFAULT_SLOTS,
             ...next.extraLogoSlots.filter((s) => !DEFAULT_SLOTS.includes(s)),
           ];
-          const lightAsset = next.assets.find((x) => x.logoSlot === 'light');
           const darkAsset = next.assets.find((x) => x.logoSlot === 'dark');
-          if (currentVisible.includes('light') && (!lightAsset || lightAsset.generated)) {
-            uploadToSlot('light', variants.light, { generated: true, allowAutoGenerate: false });
-          }
           if (currentVisible.includes('dark') && (!darkAsset || darkAsset.generated)) {
             uploadToSlot('dark', variants.dark, { generated: true, allowAutoGenerate: false });
           }
@@ -361,11 +410,7 @@ export function LogoSlots({ assets }: Props) {
               ...DEFAULT_SLOTS,
               ...next.extraLogoSlots.filter((s) => !DEFAULT_SLOTS.includes(s)),
             ];
-            const lightAsset = next.assets.find((x) => x.logoSlot === 'light');
             const darkAsset = next.assets.find((x) => x.logoSlot === 'dark');
-            if (currentVisible.includes('light') && (!lightAsset || lightAsset.generated)) {
-              uploadToSlot('light', variants.light, { generated: true, allowAutoGenerate: false });
-            }
             if (currentVisible.includes('dark') && (!darkAsset || darkAsset.generated)) {
               uploadToSlot('dark', variants.dark, { generated: true, allowAutoGenerate: false });
             }
@@ -460,14 +505,14 @@ export function LogoSlots({ assets }: Props) {
       const REASSIGN_TARGETS: LogoSlot[] = ['primary', 'mark', 'wordmark'];
       for (const targetSlot of REASSIGN_TARGETS) {
         if (targetSlot === slot) continue;
-        const targetDef = SLOT_DEFS[targetSlot];
+        const targetDef = defFor(targetSlot);
         const occupied = state.assets.some((a) => a.logoSlot === targetSlot);
         items.push({
           label: `Set as ${targetDef.label.toLowerCase()}${occupied ? ' (swap)' : ''}`,
           onSelect: () => reassignSlot(asset.id, targetSlot),
           icon: (
             <span className="ctx-menu-slot-preview" aria-hidden="true">
-              {VARIANT_PREVIEW[targetSlot]}
+              {previewFor(targetSlot)}
             </span>
           ),
         });
@@ -486,7 +531,7 @@ export function LogoSlots({ assets }: Props) {
       });
     } else {
       items.push({
-        label: `Add ${SLOT_DEFS[slot].label.toLowerCase()}…`,
+        label: `Add ${defFor(slot).label.toLowerCase()}…`,
         onSelect: pickFile,
         icon: (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -518,9 +563,26 @@ export function LogoSlots({ assets }: Props) {
     pendingSlotRef.current = slot;
     addLogoSlot(slot);
     setPickerOpen(false);
+    setNaming(null);
     // Defer the click so the popover unmount completes first
     window.setTimeout(() => fileInputRef.current?.click(), 30);
   };
+
+  /** Logos that came in as JPEGs, by filename. */
+  const rasterLogos = useMemo(
+    () =>
+      assets
+        .filter((a) => a.logoSlot && !a.generated && /\.jpe?g$/i.test(a.name))
+        .map((a) => a.name),
+    [assets],
+  );
+
+  /** The name being typed for an "Other" variant, or `null` when not asking. */
+  const [naming, setNaming] = useState<string | null>(null);
+  const nameTaken = (name: string) =>
+    [...visibleSlots, ...extraSlots].some(
+      (s) => defFor(s).label.toLowerCase() === name.trim().toLowerCase(),
+    );
 
   const onPendingFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -534,7 +596,7 @@ export function LogoSlots({ assets }: Props) {
     <>
       <div className="logo-slots">
         {visibleSlots.map((slot) => {
-          const def = SLOT_DEFS[slot];
+          const def = defFor(slot);
           const asset = assets.find((a) => a.logoSlot === slot);
           const isExtra = !DEFAULT_SLOTS.includes(slot);
           return (
@@ -560,7 +622,36 @@ export function LogoSlots({ assets }: Props) {
         })}
       </div>
 
-      {remaining.length > 0 && (
+      {naming !== null ? (
+        <form
+          className="review-group-foot logo-variant-name"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = naming.trim();
+            if (!name || nameTaken(name)) return;
+            startUploadFor(customSlot(name));
+          }}
+        >
+          <input
+            className="logo-variant-name-input"
+            autoFocus
+            value={naming}
+            maxLength={24}
+            placeholder="Name this variant — a seal, a badge…"
+            aria-label="Variant name"
+            onChange={(e) => setNaming(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setNaming(null);
+            }}
+          />
+          <button type="submit" className="add-more-btn" disabled={!naming.trim() || nameTaken(naming)}>
+            {nameTaken(naming) ? 'Already on the board' : 'Add'}
+          </button>
+          <button type="button" className="logo-variant-name-cancel" onClick={() => setNaming(null)}>
+            Cancel
+          </button>
+        </form>
+      ) : (
         <div className="review-group-foot">
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
             <PopoverTrigger asChild>
@@ -572,7 +663,7 @@ export function LogoSlots({ assets }: Props) {
             <PopoverContent align="start" className="logo-variant-picker">
               <div className="logo-variant-grid">
                 {remaining.map((slot) => {
-                  const def = SLOT_DEFS[slot];
+                  const def = defFor(slot);
                   return (
                     <button
                       key={slot}
@@ -582,15 +673,47 @@ export function LogoSlots({ assets }: Props) {
                       title={def.label}
                       aria-label={`Add ${def.label} variant`}
                     >
-                      <div className="logo-variant-card-stage">{VARIANT_PREVIEW[slot]}</div>
+                      <div className="logo-variant-card-stage">{previewFor(slot)}</div>
                       <span className="logo-variant-card-label">{def.label}</span>
                     </button>
                   );
                 })}
+                {/* Brands keep variants this product has no name for — a seal, a
+                    badge, a stamp. Rather than pretend the list is complete,
+                    the last card lets the user name their own. */}
+                <button
+                  type="button"
+                  className="logo-variant-card"
+                  onClick={() => {
+                    setPickerOpen(false);
+                    setNaming('');
+                  }}
+                  title="Name your own variant"
+                  aria-label="Add a variant of your own"
+                >
+                  <div className="logo-variant-card-stage">
+                    <PreviewOther />
+                  </div>
+                  <span className="logo-variant-card-label">Other</span>
+                </button>
               </div>
             </PopoverContent>
           </Popover>
         </div>
+      )}
+
+      {/*
+        A JPEG cannot hold transparency, so a logo saved as one arrives with a
+        background baked in and its edges already softened. Said once, under the
+        board, naming the files — and never in the way of the upload, which is
+        fine and often all the user has.
+      */}
+      {rasterLogos.length > 0 && (
+        <p className="logo-raster-note" role="status">
+          <span aria-hidden="true">⚠</span>{' '}
+          {rasterLogos.length === 1 ? `${rasterLogos[0]} may` : `${rasterLogos.length} of these may`} lose
+          quality or carry a background. For the best result, upload a transparent PNG or SVG if you have one.
+        </p>
       )}
 
       <input
@@ -624,10 +747,19 @@ interface SlotCardProps {
 function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onContextMenu }: SlotCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
+  /** Held for the length of the confirmation beat, then the control retires. */
+  const [flash, setFlash] = useState(false);
   // A placement WE made, still unanswered. Derived variants are not asked about
   // — they were generated from a logo the user already placed, and their role is
   // the reason they exist.
   const needsConfirm = Boolean(asset && !asset.generated && !asset.slotConfirmed);
+
+  // A tile whose logo was swapped out from under it starts asking again, and
+  // must not still be wearing the last answer.
+  useEffect(() => {
+    if (!needsConfirm) return;
+    setFlash(false);
+  }, [needsConfirm, asset?.id]);
 
   const onClick = () => inputRef.current?.click();
   const onDrop = (e: React.DragEvent) => {
@@ -697,7 +829,7 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
                     same glyph the picker uses, so "which kind is this?" is
                     answered by looking rather than by reading. */}
                 {def.key !== 'primary' && (
-                  <span className="logo-slot-name-icon" aria-hidden="true">{VARIANT_PREVIEW[def.key]}</span>
+                  <span className="logo-slot-name-icon" aria-hidden="true">{previewFor(def.key)}</span>
                 )}
                 {def.label}
               </button>
@@ -705,7 +837,7 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
             <PopoverContent align="start" side="bottom" className="logo-variant-picker is-roles">
               <div className="logo-variant-grid">
                 {SLOT_ORDER_ALL.map((role) => {
-                  const roleDef = SLOT_DEFS[role];
+                  const roleDef = defFor(role);
                   const current = role === def.key;
                   return (
                     <button
@@ -719,7 +851,7 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
                         if (!current) onPickRole(role);
                       }}
                     >
-                      <div className="logo-variant-card-stage">{VARIANT_PREVIEW[role]}</div>
+                      <div className="logo-variant-card-stage">{previewFor(role)}</div>
                       <span className="logo-variant-card-label">{roleDef.label}</span>
                     </button>
                   );
@@ -727,20 +859,43 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
               </div>
             </PopoverContent>
           </Popover>
-          {needsConfirm && (
+          {/*
+            A word, not a glyph. The bare tick was the right size for a detail
+            and this is not a detail — it is the one thing the board asks the
+            user to do. It says what it does, it fills with the accent, and it
+            answers with a tick of its own before it goes.
+          */}
+          {(needsConfirm || flash) && (
             <button
               type="button"
-              className="logo-slot-confirm"
+              className={`logo-slot-confirm${flash ? ' is-done' : ''}`}
+              disabled={flash}
               onClick={(e) => {
                 e.stopPropagation();
-                onConfirm();
+                setFlash(true);
+                window.setTimeout(() => {
+                  onConfirm();
+                  setFlash(false);
+                }, 460);
               }}
               title={`Yes — this is the ${def.label.toLowerCase()}`}
               aria-label={`Confirm this is the ${def.label.toLowerCase()}`}
             >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="logo-slot-confirm-tick"
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <path d="M20 6 9 17l-5-5" />
               </svg>
+              <span>{flash ? 'Confirmed' : 'Confirm'}</span>
             </button>
           )}
         </div>

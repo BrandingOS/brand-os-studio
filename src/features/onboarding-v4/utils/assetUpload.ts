@@ -557,15 +557,48 @@ function rgbToHueSat(r: number, g: number, b: number): { hue: number; sat: numbe
   return { hue, sat };
 }
 
-/** Extract up to `count` dominant colors from an image URL.
+/**
+ * The colours an image is actually made of, best first.
  *
- *  Quantizes to a coarse RGB bucket and sorts by frequency. Unlike the
- *  old version, deliberate white/black/grey palette swatches ARE included:
- *  a neutral makes the cut when it covers a meaningful share of the image
- *  (8–60%) — below that it's antialiasing noise, above it it's almost
- *  certainly a background (e.g. a logo on a white canvas). Same-hue
- *  chromatic picks are merged so a red palette doesn't come back as two
- *  slightly different reds. */
+ * The job is not "the most common colours" — that answer is nearly always the
+ * background. It is "the colours this brand chose", and three rules get there:
+ *
+ *  1. **The ground is not a colour.** A flattened logo sits on a canvas, and
+ *     that canvas is the single most common thing in the picture. It is
+ *     identified the way a person would — the colour filling the CORNERS — and
+ *     dropped. Without this a yellow-and-black mark on white came back as
+ *     white plus whatever the antialiasing blended into.
+ *  2. **Chromatic beats neutral, and both beat nothing.** The brand's hues lead
+ *     because they become primary and secondary downstream. Black and near-
+ *     black follow, because a black wordmark IS one of the brand's colours.
+ *     Near-white comes last and only if there is room, since on almost every
+ *     logo it is either the ground or the paper.
+ *  3. **One entry per colour.** A hue and its antialiased blend with the ground
+ *     are the same decision, so they collapse into the more frequent one.
+ */
+type Rgb = { r: number; g: number; b: number };
+
+/**
+ * Whether `c` sits on the line between `a` and `b` — i.e. is a mix of the two.
+ *
+ * That is exactly what an antialiased edge pixel is: some of the ink, some of
+ * the ground. The ends are excluded, so a colour that merely resembles one of
+ * the two is kept.
+ */
+function between(c: Rgb, a: Rgb, b: Rgb, tolerance = 26): boolean {
+  const dr = b.r - a.r;
+  const dg = b.g - a.g;
+  const db = b.b - a.b;
+  const len2 = dr * dr + dg * dg + db * db;
+  if (len2 === 0) return false;
+  const t = ((c.r - a.r) * dr + (c.g - a.g) * dg + (c.b - a.b) * db) / len2;
+  if (t <= 0.12 || t >= 0.88) return false;
+  const pr = a.r + dr * t;
+  const pg = a.g + dg * t;
+  const pb = a.b + db * t;
+  return (c.r - pr) ** 2 + (c.g - pg) ** 2 + (c.b - pb) ** 2 <= tolerance * tolerance;
+}
+
 export async function extractDominantColors(src: string, count = 4): Promise<string[]> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -579,18 +612,44 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         if (!ctx) return resolve([]);
+        // Transparent, so a logo's own transparency stays transparent rather
+        // than turning into a white swatch the brand never chose.
+        ctx.clearRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
         const { data } = ctx.getImageData(0, 0, w, h);
+
+        const at = (x: number, y: number) => {
+          const i = (y * w + x) * 4;
+          return { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+        };
+
+        /**
+         * The ground: what fills the corners.
+         *
+         * All four agreeing is what makes it a ground rather than part of the
+         * artwork — a mark that happens to reach one corner does not lose its
+         * colour to this.
+         */
+        const corners = [at(1, 1), at(w - 2, 1), at(1, h - 2), at(w - 2, h - 2)];
+        const near = (p: { r: number; g: number; b: number }, q: { r: number; g: number; b: number }) =>
+          (p.r - q.r) ** 2 + (p.g - q.g) ** 2 + (p.b - q.b) ** 2 <= 30 * 30;
+        const opaqueCorners = corners.filter((c) => c.a >= 200);
+        const ground =
+          opaqueCorners.length === 4 && opaqueCorners.every((c) => near(c, opaqueCorners[0]))
+            ? opaqueCorners[0]
+            : null;
+
         const buckets = new Map<string, { r: number; g: number; b: number; n: number }>();
         const bucketSize = 24;
         let opaque = 0;
         for (let i = 0; i < data.length; i += 4) {
           const a = data[i + 3];
           if (a < 200) continue;
-          opaque++;
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
+          if (ground && near({ r, g, b }, ground)) continue;
+          opaque++;
           const key = `${Math.floor(r / bucketSize)},${Math.floor(g / bucketSize)},${Math.floor(b / bucketSize)}`;
           const cur = buckets.get(key);
           if (cur) {
@@ -602,7 +661,8 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
         if (opaque === 0) return resolve([]);
 
         const sorted = Array.from(buckets.values()).sort((a, b) => b.n - a.n);
-        const picks: Array<{ r: number; g: number; b: number; hue: number; sat: number }> = [];
+        type Pick = { r: number; g: number; b: number; hue: number; sat: number; rank: number };
+        const picks: Pick[] = [];
         for (const e of sorted) {
           const r = Math.round(e.r / e.n);
           const g = Math.round(e.g / e.n);
@@ -610,15 +670,11 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
           const share = e.n / opaque;
           const spread = Math.max(r, g, b) - Math.min(r, g, b);
           const isNeutral = spread < 14;
+          const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
           if (isNeutral) {
-            // Tiny shares are edge noise. The upper bound used to be 0.6, on the
-            // reasoning that a dominant neutral is a background — true of a
-            // palette image, wrong of a logo, where a dominant black IS the
-            // mark. A black wordmark was being discarded and the brand came back
-            // without one of its actual colours. Neutrals still sort after
-            // chromatics, so admitting them costs nothing but a swatch.
-            if (share < 0.04 || share > 0.94) continue;
+            // Edge noise. A neutral has to be a real presence to count.
+            if (share < 0.04) continue;
           } else if (share < 0.02) {
             continue;
           }
@@ -637,18 +693,30 @@ export async function extractDominantColors(src: string, count = 4): Promise<str
           });
           if (dupe) continue;
 
-          picks.push({ r, g, b, hue, sat });
-          if (picks.length >= count) break;
+          // The soft edge where a colour meets the ground is not a colour.
+          // Every logo has thousands of those pixels, and they come out as a
+          // ramp of greys between the ink and the paper — enough of them to
+          // crowd the brand's real colours off a four-swatch palette.
+          if (ground && picks.some((p) => between({ r, g, b }, p, ground))) continue;
+
+          // 0 a brand colour, 1 a neutral the brand uses. Near-white is
+          // demoted only when the ground could NOT be identified and removed —
+          // there it is probably the paper. Once the ground is gone, white is
+          // as much the artwork as anything else, and a white-on-black logo
+          // must not lose its own colour to a rule about backgrounds.
+          const rank = !isNeutral ? 0 : ground || lum < 200 ? 1 : 2;
+          picks.push({ r, g, b, hue, sat, rank });
         }
-        // Chromatic colors first (they become primary/secondary downstream),
-        // neutrals after — stable within each group by frequency.
-        picks.sort((a, b) => Number(b.sat > 0.15) - Number(a.sat > 0.15));
+
+        picks.sort((a, b) => a.rank - b.rank);
         resolve(
-          picks.map(
-            (p) =>
-              '#' +
-              [p.r, p.g, p.b].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase(),
-          ),
+          picks
+            .slice(0, count)
+            .map(
+              (p) =>
+                '#' +
+                [p.r, p.g, p.b].map((n) => n.toString(16).padStart(2, '0')).join('').toUpperCase(),
+            ),
         );
       } catch {
         resolve([]);

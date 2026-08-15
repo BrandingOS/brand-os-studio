@@ -33,7 +33,8 @@ export type PickerTarget =
       selected: string[];
       single?: boolean;
       text?: undefined;
-    };
+    }
+  | { kind: 'business'; field: string; label: string; text: string; vocab?: undefined; selected?: undefined };
 
 export interface ValuePickerProps {
   target: PickerTarget | null;
@@ -46,12 +47,14 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
   const [chosen, setChosen] = useState<string[]>([]);
   const [text, setText] = useState('');
   const [query, setQuery] = useState('');
+  const [custom, setCustom] = useState('');
 
   useEffect(() => {
     if (!target) return;
     setChosen(target.vocab ? [...(target.selected ?? [])] : []);
     setText(target.text ?? '');
     setQuery('');
+    setCustom('');
   }, [target]);
 
   useEffect(() => {
@@ -69,6 +72,16 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
   const all = target.vocab ? VOCABULARIES[target.vocab] : [];
   const single = 'single' in target ? target.single : false;
   const max = target.vocab ? CARDINALITY[target.vocab].max : Infinity;
+  /**
+   * Whether a word of the user's own can be stored here.
+   *
+   * Everywhere except visual style, which is a CLOSED union in the schema —
+   * writing "swiss-adjacent" into it would fail validation and cost the whole
+   * save. The vocabularies that back the rest are plain strings, so an answer
+   * nobody anticipated is kept verbatim.
+   */
+  const allowsOther = Boolean(target.vocab) && target.vocab !== 'style';
+  const chosenOther = chosen.filter((c) => !all.some((m) => m.id === c));
   // Long vocabularies are unusable as a wall of chips — 25 industries is a
   // search problem, not a browsing one.
   const searchable = all.length > 12;
@@ -83,6 +96,16 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
       // silently refused — a chip that does nothing when clicked reads as broken.
       return prev.length >= max ? [...prev.slice(1), id] : [...prev, id];
     });
+  };
+
+  const addCustom = () => {
+    const word = custom.trim();
+    if (!word) return;
+    setCustom('');
+    // Matching an existing member by name selects THAT rather than storing a
+    // duplicate under different wording.
+    const known = all.find((m) => m.label.toLowerCase() === word.toLowerCase());
+    toggle(known ? known.id : word);
   };
 
   const save = () => {
@@ -143,7 +166,50 @@ export function ValuePicker({ target, theme, onClose, onSave }: ValuePickerProps
                     </button>
                   );
                 })}
+                {/* Words the user already wrote that this list never had. */}
+                {chosenOther.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className="about-chip is-on"
+                    aria-pressed
+                    onClick={() => toggle(c)}
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
+
+              {/*
+                No list covers every brand. A word of the user's own is kept
+                exactly as they wrote it and ranks the same as any other choice
+                — it is their answer either way.
+              */}
+              {allowsOther && (
+                <div className="value-picker-other">
+                  <input
+                    type="text"
+                    className="value-picker-other-input"
+                    value={custom}
+                    placeholder="Something else — write your own"
+                    aria-label={`Add your own ${target.label.toLowerCase()}`}
+                    onChange={(e) => setCustom(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      addCustom();
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="value-picker-other-add"
+                    disabled={!custom.trim()}
+                    onClick={addCustom}
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <textarea

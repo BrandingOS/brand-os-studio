@@ -41,6 +41,7 @@ function fullyPopulatedIdentity(): BrandIdentity {
       scale: { h1: '3rem' },
     } as BrandIdentity['typography'],
     strategy: {
+      summary: 's',
       mission: 'm',
       vision: 'v',
       values: ['x'],

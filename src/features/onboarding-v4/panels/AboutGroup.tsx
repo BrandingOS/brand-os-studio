@@ -4,8 +4,7 @@ import { AboutEditorModal, type AboutEditorInitial } from '@/features/setup/comp
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { useV4Store } from '../store/onboardingV4Store';
 import { editAsUser, saveBusinessFact, type Projection } from '@/features/onboarding/bridge/v4Bridge';
-import { VOCABULARIES, type VocabularyMember } from '@/features/onboarding/vocabulary/vocabularies';
-import { PATH_LABEL } from '@/features/onboarding/understanding/proposals';
+import { VOCABULARIES, type VocabularyName } from '@/features/onboarding/vocabulary/vocabularies';
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import { ValuePicker, type PickerTarget } from './ValuePicker';
 import type { AboutSection } from '../types';
@@ -142,51 +141,81 @@ export function AboutGroup({
   };
 
   /**
-   * The structured profile, as widgets in the list this section always had.
+   * The fields a brand strategy HAS — whether or not anything filled them.
    *
-   * Not a separate stacked block: every option laid out at once turned one card
-   * into a page of chips, and the section stopped being scannable. A card shows
-   * what the value IS; opening it is where the alternatives live.
+   * They used to be built from whatever the understanding pass came back with,
+   * so a user who skipped the prompt arrived at a section offering one button:
+   * "New section". Their brand still had an audience and a tone; the screen
+   * simply never asked. The list is fixed now and the values are looked up
+   * into it, so an empty field is a question waiting rather than a field that
+   * does not exist.
+   *
+   * Choices where a closed vocabulary genuinely exists, prose everywhere the
+   * meaning lives in the wording.
    */
-  const valueCards: ValueCard[] = [];
-  if (projection) {
-    if (projection.industryLabel) {
-      valueCards.push({
-        key: 'industry',
-        name: 'Industry',
-        content: projection.industryLabel,
-        target: { kind: 'business', field: 'industry', label: 'Industry', vocab: 'industry', selected: [] },
-      });
-    }
-    for (const row of projection.profile) {
-      const label = PATH_LABEL[row.path] ?? row.path;
-      if (row.vocab) {
-        const ids = Array.isArray(row.value) ? (row.value as string[]) : row.value ? [String(row.value)] : [];
-        const members = VOCABULARIES[row.vocab];
-        const labels = ids.map((id) => members.find((m) => m.id === id)?.label ?? id);
-        valueCards.push({
-          key: row.path,
-          name: label,
-          content: labels.join(' · '),
-          target: {
-            kind: 'core',
-            path: row.path,
-            label,
-            vocab: row.vocab,
-            selected: ids,
-            single: row.path === 'voice.tone',
-          },
-        });
-      } else {
-        valueCards.push({
-          key: row.path,
-          name: label,
-          content: String(row.value ?? ''),
-          target: { kind: 'core', path: row.path, label, text: String(row.value ?? '') },
-        });
-      }
-    }
-  }
+  const values = new Map(projection?.profile.map((r) => [r.path, r.value]) ?? []);
+  const textOf = (path: CoreFieldPath) => {
+    const v = values.get(path);
+    return typeof v === 'string' ? v : '';
+  };
+  const idsOf = (path: CoreFieldPath) => {
+    const v = values.get(path);
+    if (Array.isArray(v)) return v as string[];
+    return v ? [String(v)] : [];
+  };
+  const labelsOf = (path: CoreFieldPath, vocab: VocabularyName) =>
+    idsOf(path)
+      .map((id) => VOCABULARIES[vocab].find((m) => m.id === id)?.label ?? id)
+      .join(' · ');
+
+  const prose = (path: CoreFieldPath, name: string): ValueCard => ({
+    key: path,
+    name,
+    content: textOf(path),
+    target: { kind: 'core', path, label: name, text: textOf(path) },
+  });
+  const choices = (
+    path: CoreFieldPath,
+    name: string,
+    vocab: VocabularyName,
+    single?: boolean,
+  ): ValueCard => ({
+    key: path,
+    name,
+    content: labelsOf(path, vocab),
+    target: { kind: 'core', path, label: name, vocab, selected: idsOf(path), single },
+  });
+  const fact = (field: 'tagline' | 'description', name: string): ValueCard => ({
+    key: `business.${field}`,
+    name,
+    content: projection?.business?.[field] ?? '',
+    target: { kind: 'business', field, label: name, text: projection?.business?.[field] ?? '' },
+  });
+
+  const valueCards: ValueCard[] = [
+    prose('strategy.summary', 'Brand summary'),
+    {
+      key: 'business.industry',
+      name: 'Industry',
+      content: projection?.industryLabel ?? '',
+      target: {
+        kind: 'business',
+        field: 'industry',
+        label: 'Industry',
+        vocab: 'industry',
+        selected: projection?.business?.industry ? [projection.business.industry] : [],
+      },
+    },
+    fact('description', 'Products / Services'),
+    prose('strategy.targetAudience', 'Audience'),
+    prose('strategy.positioning', 'Positioning'),
+    prose('strategy.mission', 'Mission'),
+    choices('strategy.personality', 'Personality', 'personality'),
+    choices('voice.tone', 'Tone', 'tone', true),
+    choices('visualStyle.descriptors', 'Visual style', 'style'),
+    choices('strategy.values', 'Core values', 'values'),
+    fact('tagline', 'Slogan'),
+  ];
 
   // The brand bar can ask for one of these directly.
   useEffect(() => {
@@ -209,49 +238,46 @@ export function AboutGroup({
   };
 
   const total = valueCards.length + sections.length;
+  const answered = valueCards.filter((c) => c.content.trim()).length;
 
   return (
     <article className="review-group about-group">
       <header className="review-group-head">
-        <h3>About</h3>
+        <h3>Brand Strategy</h3>
+        {/* What is answered, out of what a strategy has. The old count said
+            how many cards were on screen, which the user could already see. */}
         <span className="review-group-count">
-          {total} {total === 1 ? 'section' : 'sections'}
+          {answered} of {valueCards.length} answered
         </span>
       </header>
 
-      {total === 0 ? (
-        <p className="review-group-empty">
-          Add anything you want to say about your brand — voice, mission, audience, vibe…
-        </p>
-      ) : (
-        <div className="about-list" data-dense={total > 6 ? 'true' : undefined}>
-          {valueCards.map((card) => (
-            <button
-              key={card.key}
-              type="button"
-              className="about-card"
-              onClick={() => setPicking(card.target)}
-              title="Click to change"
-            >
-              <span className="about-card-name">{card.name}</span>
-              <span className="about-card-content">{card.content || 'Not set yet'}</span>
-            </button>
-          ))}
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              className="about-card"
-              onClick={() => launchEdit(section)}
-              onContextMenu={(e) => openSectionMenu(e, section)}
-              title="Click to edit"
-            >
-              <span className="about-card-name">{section.name}</span>
-              <span className="about-card-content">{section.content || 'No content yet'}</span>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="about-list" data-dense={total > 6 ? 'true' : undefined}>
+        {valueCards.map((card) => (
+          <button
+            key={card.key}
+            type="button"
+            className={`about-card${card.content.trim() ? '' : ' is-empty'}`}
+            onClick={() => setPicking(card.target)}
+            title={card.content.trim() ? 'Click to change' : 'Click to answer'}
+          >
+            <span className="about-card-name">{card.name}</span>
+            <span className="about-card-content">{card.content || 'Not set yet'}</span>
+          </button>
+        ))}
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            className="about-card"
+            onClick={() => launchEdit(section)}
+            onContextMenu={(e) => openSectionMenu(e, section)}
+            title="Click to edit"
+          >
+            <span className="about-card-name">{section.name}</span>
+            <span className="about-card-content">{section.content || 'No content yet'}</span>
+          </button>
+        ))}
+      </div>
 
       <div className="review-group-foot">
         <button type="button" className="add-more-btn" onClick={launchAdd}>

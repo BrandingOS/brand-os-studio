@@ -2891,32 +2891,134 @@
 }
 
 /* A role WE chose, still unanswered. Dashed, because the same border style
-   means "not decided yet" everywhere else in this flow. */
+   means "not decided yet" everywhere else in this flow. The colour is left
+   alone on a dark tile, where the chip is already light-on-dark. */
 [data-onboarding="cosmos"] .logo-slot-role.is-unconfirmed .logo-slot-name {
   border-style: dashed;
   border-color: var(--ds-accent, #d9a441);
+}
+[data-onboarding="cosmos"] .logo-slot:not(.tone-dark) .logo-slot-role.is-unconfirmed .logo-slot-name {
   color: var(--ds-text-primary, #2b2a26);
 }
+
+/* The one thing the board asks the user to DO, so it says so in a word. */
 [data-onboarding="cosmos"] .logo-slot-confirm {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
+  gap: 3px;
+  height: 17px;
+  padding: 0 7px 0 5px;
   border-radius: 999px;
   border: 1px solid var(--ds-accent, #d9a441);
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--ds-accent, #d9a441);
+  background: var(--ds-accent, #d9a441);
+  color: #fff;
+  font-family: inherit;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
   cursor: pointer;
-  padding: 0;
-  transition: background 140ms var(--ds-ease), color 140ms var(--ds-ease);
+  box-shadow: 0 1px 4px rgba(16, 16, 20, 0.18);
+  transition:
+    transform 160ms var(--ds-ease),
+    background 160ms var(--ds-ease),
+    box-shadow 160ms var(--ds-ease);
 }
 [data-onboarding="cosmos"] .logo-slot-confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 7px rgba(16, 16, 20, 0.24);
+}
+[data-onboarding="cosmos"] .logo-slot-confirm:active { transform: translateY(0); }
+/* The answer, held for a beat so pressing it feels like it landed. */
+[data-onboarding="cosmos"] .logo-slot-confirm.is-done {
+  background: #2f7d4f;
+  border-color: #2f7d4f;
+  cursor: default;
+  transform: none;
+  animation: onb-confirmed 420ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] .logo-slot-confirm.is-done .logo-slot-confirm-tick {
+  animation: onb-tick 320ms var(--ds-ease);
+}
+@keyframes onb-confirmed {
+  0% { transform: scale(1); }
+  38% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes onb-tick {
+  0% { opacity: 0; transform: scale(0.5) rotate(-12deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-onboarding="cosmos"] .logo-slot-confirm,
+  [data-onboarding="cosmos"] .logo-slot-confirm.is-done,
+  [data-onboarding="cosmos"] .logo-slot-confirm.is-done .logo-slot-confirm-tick {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Confirming the whole board at once, beside the count. */
+[data-onboarding="cosmos"] .review-group-bulk {
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-accent, #d9a441);
+  background: transparent;
+  color: var(--ds-accent, #d9a441);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms var(--ds-ease), color 150ms var(--ds-ease);
+}
+[data-onboarding="cosmos"] .review-group-bulk:hover {
   background: var(--ds-accent, #d9a441);
   color: #fff;
 }
-[data-onboarding="cosmos"] .logo-slot.tone-dark .logo-slot-confirm {
-  background: rgba(20, 20, 22, 0.85);
+
+/* Naming a variant this product has no name for. */
+[data-onboarding="cosmos"] .logo-variant-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+[data-onboarding="cosmos"] .logo-variant-name-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--ds-border-strong, #c9c6bd);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text-primary, #2b2a26);
+  font-family: inherit;
+  font-size: 13px;
+}
+[data-onboarding="cosmos"] .logo-variant-name-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--ds-text-primary, #2b2a26);
+}
+[data-onboarding="cosmos"] .logo-variant-name-cancel {
+  border: none;
+  background: none;
+  color: var(--ds-text-muted, #9a988f);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+[data-onboarding="cosmos"] .logo-variant-name-cancel:hover { color: var(--ds-text-primary, #2b2a26); }
+
+/* A JPEG logo is fine, and worth a word. Never in the way of the upload. */
+[data-onboarding="cosmos"] .logo-raster-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ds-text-muted, #9a988f);
 }
 
 /* Slot thumbnails inside the right-click "Set as …" items */
@@ -3032,6 +3134,63 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* A field with no answer yet — an open question, not a broken card. Dashed,
+   the same way every other not-decided thing in this flow is drawn. */
+[data-onboarding="cosmos"] .about-card.is-empty {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--ds-border, #e6e4dd);
+}
+[data-onboarding="cosmos"] .about-card.is-empty:hover {
+  border-color: var(--ds-text-muted, #9a988f);
+}
+[data-onboarding="cosmos"] .about-card.is-empty .about-card-content {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* Writing your own answer, under the chips. */
+.value-picker-other {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ds-border, #e6e4dd);
+}
+.value-picker-other-input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--ds-border-strong, #c9c6bd);
+  background: var(--ds-surface, #fff);
+  color: var(--ds-text-primary, #2b2a26);
+  font-family: inherit;
+  font-size: 13px;
+}
+.value-picker-other-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--ds-text-primary, #2b2a26);
+}
+.value-picker-other-add {
+  padding: 0 14px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--ds-text-primary, #2b2a26);
+  background: var(--ds-text-primary, #2b2a26);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.value-picker-other-add:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* The About editor is portaled to <body>, so it sits outside the onboarding

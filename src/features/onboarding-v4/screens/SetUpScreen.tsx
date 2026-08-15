@@ -287,7 +287,12 @@ export function SetUpScreen() {
   const extractColours = useCallback(async () => {
     const store = useV4Store.getState();
     if (store.assets.some((a) => a.kind === 'color')) return;
-    const artwork = store.assets.filter((a) => a.kind === 'image' && a.previewUrl).slice(0, 3);
+    const images = store.assets.filter((a) => a.kind === 'image' && a.previewUrl && !a.generated);
+    // The LOGO is where a brand's colours are decided. A photograph on the same
+    // upload is full of colours the brand never chose — sky, skin, a wall — and
+    // reading those first is how a yellow-and-black brand came back blue.
+    const logos = images.filter((a) => a.isLogo || a.logoSlot || a.aiLogoSlot);
+    const artwork = (logos.length ? logos : images).slice(0, 3);
     if (!artwork.length) return;
 
     const found: string[] = [];

@@ -45,6 +45,15 @@ export const CANONICAL_BRAND_SCHEMA_VERSION = 1;
 
 /** Brand strategy — one authoritative representation (no legacy triple-split). */
 export interface Strategy {
+  /**
+   * What the brand IS, in a sentence or two.
+   *
+   * Distinct from `mission`, which is what it sets out to DO. The onboarding
+   * brief has always asked for both under their own headings; before this
+   * existed the summary was filed as the mission, so a brand that answered
+   * both questions could only keep one of the answers.
+   */
+  summary?: string;
   mission?: string;
   vision?: string;
   values: string[];

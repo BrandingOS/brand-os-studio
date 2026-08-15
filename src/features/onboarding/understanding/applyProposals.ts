@@ -144,6 +144,7 @@ export async function applyProposals(
   // One op per field: `changeBrandStrategy` takes a single change, and a
   // partial failure must cost only the field that failed.
   const strategyPaths: CoreFieldPath[] = [
+    'strategy.summary',
     'strategy.mission',
     'strategy.vision',
     'strategy.values',
@@ -155,7 +156,7 @@ export async function applyProposals(
     const p = by(path);
     if (!p) continue;
     const field = path.split('.')[1] as
-      | 'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience';
+      | 'summary' | 'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience';
     try {
       await changeBrandStrategy(repo, brandId, { [field]: p.value } as never, {
         actor,
@@ -210,11 +211,15 @@ export async function applyBusinessFacts(
   brandId: string,
   facts: BusinessFacts,
 ): Promise<string[]> {
+  // Presence, not truthiness: these are editable fields now, and a user who
+  // empties one is answering "none" rather than failing to answer. The
+  // understanding pass only sets keys it actually found, so the two cases stay
+  // distinguishable.
   const change: Record<string, unknown> = {};
-  if (facts.industry) change.industry = facts.industry;
-  if (facts.tagline) change.tagline = facts.tagline;
-  if (facts.description) change.description = facts.description;
-  if (facts.audienceSummary) change.audienceSummary = facts.audienceSummary;
+  if (facts.industry !== undefined) change.industry = facts.industry;
+  if (facts.tagline !== undefined) change.tagline = facts.tagline;
+  if (facts.description !== undefined) change.description = facts.description;
+  if (facts.audienceSummary !== undefined) change.audienceSummary = facts.audienceSummary;
   if (facts.website) change.contact = { website: facts.website };
   if (!Object.keys(change).length) return [];
 

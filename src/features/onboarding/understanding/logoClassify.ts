@@ -31,7 +31,7 @@
  *
  * Pure — no service, no store, no React.
  */
-import type { LogoSlot, OnboardingAsset } from '@/shared/upload/intakeTypes';
+import type { KnownSlot, LogoSlot, OnboardingAsset } from '@/shared/upload/intakeTypes';
 import { sameArtwork, type Artwork } from './artwork';
 
 /** What each image turned out to be, by asset id. */
@@ -190,7 +190,6 @@ function roleFor(a: OnboardingAsset, art?: Artwork | null): { slot: LogoSlot | n
     // slot holds the LIGHT-coloured artwork.
     return { slot: 'dark', evidence: 'its filename' };
   }
-  if (word(n, 'black', 'onlight', 'on-light')) return { slot: 'light', evidence: 'its filename' };
   // Below the tone tokens on purpose: "Primary Logo White" is the on-dark
   // artwork of the primary, and the tone is the more specific fact about it.
   if (word(n, 'primary', 'main')) return { slot: 'primary', evidence: 'its filename' };
@@ -309,12 +308,18 @@ export function classifyLogos(
   return { groups, duplicatesIgnored };
 }
 
-/** The slots the board shows, in the order the retired board showed them. */
-export const SLOT_ORDER: LogoSlot[] = [
-  'primary', 'wordmark', 'mark', 'dark', 'light', 'horizontal', 'vertical',
+/**
+ * The slots the board offers, in the order it shows them.
+ *
+ * No "on light": a logo on a light background is the ordinary case, and every
+ * other tile already shows it. `light` survives in the TYPE so a brand saved
+ * before this still loads, but nothing places anything there again.
+ */
+export const SLOT_ORDER: KnownSlot[] = [
+  'primary', 'wordmark', 'mark', 'dark', 'horizontal', 'vertical',
 ];
 
-export const SLOT_LABEL: Record<LogoSlot, string> = {
+export const SLOT_LABEL: Record<KnownSlot, string> = {
   primary: 'Primary',
   wordmark: 'Wordmark',
   mark: 'Icon',

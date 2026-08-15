@@ -2,7 +2,17 @@ export type AssetKind = 'image' | 'pdf' | 'font' | 'design' | 'zip' | 'link' | '
 
 export type FontSource = 'upload' | 'google';
 
-export type LogoSlot =
+/**
+ * A logo's role on the board.
+ *
+ * `light` is no longer offered — a logo on a light background is the ordinary
+ * case — but it stays in the union so a brand saved before that still loads.
+ *
+ * `custom:<name>` is a variant the user named themselves. The name is the key:
+ * there is nothing else to keep in step, and two variants called the same thing
+ * are the same variant.
+ */
+export type KnownSlot =
   | 'primary'
   | 'light'
   | 'dark'
@@ -10,6 +20,8 @@ export type LogoSlot =
   | 'horizontal'
   | 'vertical'
   | 'wordmark';
+
+export type LogoSlot = KnownSlot | `custom:${string}`;
 
 export type SocialPlatformId =
   | 'instagram'

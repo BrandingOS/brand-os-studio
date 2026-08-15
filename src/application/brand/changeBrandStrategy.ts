@@ -20,7 +20,14 @@ import { assertCanonicalBrand, type CanonicalBrand, type Strategy } from '@/doma
 export type StrategyChange = Partial<
   Pick<
     Strategy,
-    'mission' | 'vision' | 'values' | 'positioning' | 'personality' | 'targetAudience' | 'aboutSections'
+    | 'summary'
+    | 'mission'
+    | 'vision'
+    | 'values'
+    | 'positioning'
+    | 'personality'
+    | 'targetAudience'
+    | 'aboutSections'
   >
 >;
 

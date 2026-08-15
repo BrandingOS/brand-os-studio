@@ -55,9 +55,11 @@ describe('a placement the system made', () => {
     expect(screen.getByRole('button', { name: /confirm this is the icon/i })).toBeTruthy();
   });
 
-  it('stops asking once the owner says yes', () => {
+  it('stops asking once the owner says yes', async () => {
     board([logo({ logoSlot: 'mark' })]);
     fireEvent.click(screen.getByRole('button', { name: /confirm this is the icon/i }));
+    // A beat, for the control to answer before it retires.
+    await new Promise((r) => setTimeout(r, 700));
     expect(useV4Store.getState().assets[0].slotConfirmed).toBe(true);
     expect(screen.queryByRole('button', { name: /confirm this is the/i })).toBeNull();
   });
@@ -84,7 +86,7 @@ describe('the chip opens the variants, and only the variants', () => {
     fireEvent.click(document.querySelector('.logo-slot-name')!);
     await screen.findByText('Wordmark');
     const labels = [...document.querySelectorAll('.logo-variant-card-label')].map((e) => e.textContent);
-    expect(labels).toEqual(['Primary', 'Wordmark', 'Icon', 'On dark', 'On light', 'Horizontal', 'Vertical']);
+    expect(labels).toEqual(['Primary', 'Wordmark', 'Icon', 'On dark', 'Horizontal', 'Vertical']);
     expect(document.querySelector('.logo-variant-card.is-current .logo-variant-card-label')?.textContent).toBe('Icon');
   });
 
@@ -122,5 +124,92 @@ describe('the chip says which kind of logo this is', () => {
     const chip = container.querySelector('.logo-slot-name');
     expect(chip?.textContent).toContain('Primary');
     expect(chip?.querySelector('.logo-slot-name-icon')).toBeNull();
+  });
+});
+
+describe('the board starts with one question', () => {
+  it('offers the Primary and nothing else', () => {
+    board([]);
+    const labels = [...document.querySelectorAll('.logo-slot-empty')].map((e) => e.textContent);
+    expect(labels).toEqual(['+Add primary']);
+  });
+
+  it('never offers an On light slot — a light ground is the ordinary case', async () => {
+    board([]);
+    fireEvent.click(screen.getByRole('button', { name: /add variation/i }));
+    const offered = [...document.querySelectorAll('.logo-variant-card-label')].map((e) => e.textContent);
+    expect(offered).not.toContain('On light');
+    expect(offered).toEqual(['Wordmark', 'Icon', 'On dark', 'Horizontal', 'Vertical', 'Other']);
+  });
+
+  it('lets the user name a variant this product has no name for', async () => {
+    board([]);
+    fireEvent.click(screen.getByRole('button', { name: /add variation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add a variant of your own/i }));
+    const field = await screen.findByLabelText('Variant name');
+    expect(field).toBeTruthy();
+  });
+});
+
+describe('an on-dark logo is shown on dark', () => {
+  it('paints the tile so a white logo is visible at all', () => {
+    board([logo({ logoSlot: 'dark' })]);
+    expect(document.querySelector('.logo-slot')?.classList.contains('tone-dark')).toBe(true);
+  });
+
+  it('keeps its own label readable there', () => {
+    // The chip on a dark tile is light-on-dark. An "unconfirmed" rule that set
+    // a dark text colour would have made it unreadable on exactly the tile it
+    // matters most on.
+    board([logo({ logoSlot: 'dark' })]);
+    const chip = document.querySelector('.logo-slot.tone-dark .logo-slot-name') as HTMLElement;
+    const { color, backgroundColor } = getComputedStyle(chip);
+    const lum = (c: string) => {
+      const [r, g, b] = c.match(/\d+/g)!.map(Number);
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    expect(Math.abs(lum(color) - lum(backgroundColor))).toBeGreaterThan(80);
+  });
+
+  it('is never conjured empty', () => {
+    // Nothing was classified as on-dark, so there is no on-dark tile.
+    board([logo({ logoSlot: 'primary' })]);
+    const roles = [...document.querySelectorAll('.logo-slot-name')].map((e) => e.textContent);
+    expect(roles).toEqual(['Primary']);
+  });
+});
+
+describe('confirming says so', () => {
+  it('asks in a word rather than a glyph', () => {
+    board([logo({ logoSlot: 'mark' })]);
+    expect(document.querySelector('.logo-slot-confirm')?.textContent).toContain('Confirm');
+  });
+
+  it('answers before it goes', async () => {
+    board([logo({ logoSlot: 'mark' })]);
+    fireEvent.click(document.querySelector('.logo-slot-confirm')!);
+    expect(document.querySelector('.logo-slot-confirm')?.textContent).toContain('Confirmed');
+    await new Promise((r) => setTimeout(r, 700));
+    expect(useV4Store.getState().assets[0].slotConfirmed).toBe(true);
+    expect(document.querySelector('.logo-slot-confirm')).toBeNull();
+  });
+});
+
+describe('a JPEG logo is allowed, and said so', () => {
+  it('names the file and what might be wrong with it', () => {
+    board([logo({ logoSlot: 'primary', name: 'company-logo.jpg' })]);
+    const note = document.querySelector('.logo-raster-note')?.textContent ?? '';
+    expect(note).toContain('company-logo.jpg');
+    expect(note).toMatch(/transparent PNG or SVG/i);
+  });
+
+  it('does not stand in the way of the upload', () => {
+    board([logo({ logoSlot: 'primary', name: 'company-logo.jpg' })]);
+    expect(document.querySelector('.logo-slot img')).toBeTruthy();
+  });
+
+  it('says nothing about a vector', () => {
+    board([logo({ logoSlot: 'primary', name: 'logo.svg' })]);
+    expect(document.querySelector('.logo-raster-note')).toBeNull();
   });
 });

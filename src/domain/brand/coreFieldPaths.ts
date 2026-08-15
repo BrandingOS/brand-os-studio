@@ -35,6 +35,7 @@ export const CORE_FIELD_PATHS = [
   'typography.accent',
   'typography.scale',
   // Strategy
+  'strategy.summary',
   'strategy.mission',
   'strategy.vision',
   'strategy.values',

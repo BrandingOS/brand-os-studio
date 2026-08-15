@@ -78,6 +78,7 @@ export const PATH_LABEL: Partial<Record<CoreFieldPath, string>> = {
   'typography.primary': 'Typeface',
   'typography.secondary': 'Second typeface',
   'visualStyle.descriptors': 'Style',
+  'strategy.summary': 'Brand summary',
   'strategy.mission': 'Mission',
   'strategy.vision': 'Where it’s going',
   'strategy.values': 'Values',
@@ -131,6 +132,7 @@ export function groupBySection(proposals: Proposal[]): Array<{ section: ReviewSe
 
 /** The order the About section lists its rows in — most concrete first. */
 export const ABOUT_ORDER: CoreFieldPath[] = [
+  'strategy.summary',
   'visualStyle.descriptors',
   'strategy.personality',
   'voice.tone',

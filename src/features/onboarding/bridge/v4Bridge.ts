@@ -195,11 +195,19 @@ export interface Projection {
   slogan: string;
   industryLabel?: string;
   styleLabels: string[];
-  /** The structured profile, for the About section's selections and text. */
+  /** The structured profile, for Brand Strategy's selections and text. */
   profile: Array<{ path: CoreFieldPath; vocab?: VocabularyName; value: unknown }>;
+  /**
+   * The business facts, as STORED rather than as labelled.
+   *
+   * The label is for reading; the picker needs the id it selected, and the
+   * prose fields need their text back to edit it.
+   */
+  business: { industry?: string; tagline?: string; description?: string };
 }
 
 const PROFILE_PATHS: Array<{ path: CoreFieldPath; vocab?: VocabularyName }> = [
+  { path: 'strategy.summary' },
   { path: 'visualStyle.descriptors', vocab: 'style' },
   { path: 'strategy.personality', vocab: 'personality' },
   { path: 'voice.tone', vocab: 'tone' },
@@ -287,6 +295,11 @@ export function project(
     duplicateIds,
     slogan: business.tagline ?? '',
     industryLabel: labelOf('industry', business.industry),
+    business: {
+      ...(business.industry ? { industry: business.industry } : {}),
+      ...(business.tagline ? { tagline: business.tagline } : {}),
+      ...(business.description ? { description: business.description } : {}),
+    },
     styleLabels: ((identity?.visualStyle?.descriptors ?? []) as string[]).map(
       (d) => labelOf('style', d) ?? d,
     ),
