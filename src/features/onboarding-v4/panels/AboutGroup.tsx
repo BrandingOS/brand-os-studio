@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AboutEditorModal, type AboutEditorInitial } from '@/features/setup/components/AboutEditorModal';
 import { ContextMenu, type ContextMenuState } from '@/features/setup/components/ContextMenu';
 import { useV4Store } from '../store/onboardingV4Store';
@@ -62,6 +63,7 @@ export function AboutGroup({
 }: AboutGroupProps = {}) {
   const sections = useV4Store((s) => s.aboutSections);
   const [picking, setPicking] = useState<PickerTarget | null>(null);
+  const [adding, setAdding] = useState(false);
   const addSection = useV4Store((s) => s.addAboutSection);
   const updateSection = useV4Store((s) => s.updateAboutSection);
   const removeSection = useV4Store((s) => s.removeAboutSection);
@@ -237,8 +239,17 @@ export function AboutGroup({
     onChanged?.();
   };
 
-  const total = valueCards.length + sections.length;
-  const answered = valueCards.filter((c) => c.content.trim()).length;
+  /**
+   * A card is something the brand SAYS. An unanswered field says nothing.
+   *
+   * Eleven empty cards is a form, and a form is not a review — it fills the
+   * section with placeholders and buries the two or three things the brand
+   * actually told us. The unanswered ones move inside "New section", where they
+   * are still one click away and are what that button offers first.
+   */
+  const answered = valueCards.filter((c) => c.content.trim());
+  const unanswered = valueCards.filter((c) => !c.content.trim());
+  const total = answered.length + sections.length;
 
   return (
     <article className="review-group about-group">
@@ -247,43 +258,83 @@ export function AboutGroup({
         {/* What is answered, out of what a strategy has. The old count said
             how many cards were on screen, which the user could already see. */}
         <span className="review-group-count">
-          {answered} of {valueCards.length} answered
+          {answered.length} of {valueCards.length} answered
         </span>
       </header>
 
-      <div className="about-list" data-dense={total > 6 ? 'true' : undefined}>
-        {valueCards.map((card) => (
-          <button
-            key={card.key}
-            type="button"
-            className={`about-card${card.content.trim() ? '' : ' is-empty'}`}
-            onClick={() => setPicking(card.target)}
-            title={card.content.trim() ? 'Click to change' : 'Click to answer'}
-          >
-            <span className="about-card-name">{card.name}</span>
-            <span className="about-card-content">{card.content || 'Not set yet'}</span>
-          </button>
-        ))}
-        {sections.map((section) => (
-          <button
-            key={section.id}
-            type="button"
-            className="about-card"
-            onClick={() => launchEdit(section)}
-            onContextMenu={(e) => openSectionMenu(e, section)}
-            title="Click to edit"
-          >
-            <span className="about-card-name">{section.name}</span>
-            <span className="about-card-content">{section.content || 'No content yet'}</span>
-          </button>
-        ))}
-      </div>
+      {total === 0 ? (
+        <p className="review-group-empty">
+          Nothing here yet — add what your brand is about, one piece at a time.
+        </p>
+      ) : (
+        <div className="about-list" data-dense={total > 6 ? 'true' : undefined}>
+          {answered.map((card) => (
+            <button
+              key={card.key}
+              type="button"
+              className="about-card"
+              onClick={() => setPicking(card.target)}
+              title="Click to change"
+            >
+              <span className="about-card-name">{card.name}</span>
+              <span className="about-card-content">{card.content}</span>
+            </button>
+          ))}
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              className="about-card"
+              onClick={() => launchEdit(section)}
+              onContextMenu={(e) => openSectionMenu(e, section)}
+              title="Click to edit"
+            >
+              <span className="about-card-name">{section.name}</span>
+              <span className="about-card-content">{section.content || 'No content yet'}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="review-group-foot">
-        <button type="button" className="add-more-btn" onClick={launchAdd}>
-          <span className="add-more-plus" aria-hidden="true">+</span>
-          New section
-        </button>
+        <Popover open={adding} onOpenChange={setAdding}>
+          <PopoverTrigger asChild>
+            <button type="button" className="add-more-btn">
+              <span className="add-more-plus" aria-hidden="true">+</span>
+              New section
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="about-add-menu">
+            {unanswered.length > 0 && (
+              <>
+                <p className="about-add-menu-eyebrow">Still to answer</p>
+                {unanswered.map((card) => (
+                  <button
+                    key={card.key}
+                    type="button"
+                    className="about-add-menu-item"
+                    onClick={() => {
+                      setAdding(false);
+                      setPicking(card.target);
+                    }}
+                  >
+                    {card.name}
+                  </button>
+                ))}
+              </>
+            )}
+            <button
+              type="button"
+              className="about-add-menu-item is-own"
+              onClick={() => {
+                setAdding(false);
+                launchAdd();
+              }}
+            >
+              Something else…
+            </button>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {typeof document !== 'undefined' &&

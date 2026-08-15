@@ -541,6 +541,19 @@ export function LogoSlots({ assets }: Props) {
         ),
       });
     }
+    // A name the user gave can be a name the user changes.
+    if (isCustomSlot(slot)) {
+      items.push({
+        label: 'Rename variant…',
+        onSelect: () => setNaming({ value: defFor(slot).label, renaming: slot }),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        ),
+      });
+    }
     if (isExtra) {
       items.push({
         label: 'Remove this variant',
@@ -592,19 +605,67 @@ export function LogoSlots({ assets }: Props) {
     [assets],
   );
 
-  /** The name being typed for an "Other" variant, or `null` when not asking. */
-  const [naming, setNaming] = useState<string | null>(null);
+  /**
+   * Naming a variant of the user's own — the file first, the name second.
+   *
+   * Asking for a name before the file meant naming something you were not yet
+   * looking at. With the logo on screen the name is obvious, and the filename
+   * is a good enough first guess to accept as-is.
+   *
+   * `file` is set while a new variant is being named; `renaming` while an
+   * existing one is being relabelled. Both use the same one field.
+   */
+  const [naming, setNaming] = useState<{ value: string; file?: File; renaming?: LogoSlot } | null>(
+    null,
+  );
   const nameTaken = (name: string) =>
     [...visibleSlots, ...extraSlots].some(
-      (s) => defFor(s).label.toLowerCase() === name.trim().toLowerCase(),
+      (s) => s !== naming?.renaming && defFor(s).label.toLowerCase() === name.trim().toLowerCase(),
     );
+
+  /** A filename, as a first guess at a variant name. */
+  const suggestName = (filename: string) =>
+    filename
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/[@-]\d+x\b/gi, '')
+      .replace(/[_-]+/g, ' ')
+      .trim()
+      .slice(0, 24) || 'Variant';
+
+  /** Renames a variant the user named, taking its logo with it. */
+  const renameSlot = useCallback(
+    (from: LogoSlot, to: LogoSlot) => {
+      if (from === to) return;
+      const state = useV4Store.getState();
+      addLogoSlot(to);
+      for (const a of state.assets) {
+        if (a.logoSlot === from) updateAsset(a.id, { logoSlot: to });
+      }
+      removeLogoSlot(from);
+    },
+    [addLogoSlot, removeLogoSlot, updateAsset],
+  );
 
   const onPendingFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     const slot = pendingSlotRef.current;
-    if (file && slot) uploadToSlot(slot, file);
     e.target.value = '';
     pendingSlotRef.current = null;
+    if (!file) return;
+    // No slot means this file is the one being named. It waits here until it
+    // has a name; nothing is added to the board before then.
+    if (!slot) {
+      setNaming({ value: suggestName(file.name), file });
+      return;
+    }
+    uploadToSlot(slot, file);
+  };
+
+  /** Opens the file picker for a variant that will be named afterwards. */
+  const startNamedUpload = () => {
+    pendingSlotRef.current = null;
+    setPickerOpen(false);
+    window.setTimeout(() => fileInputRef.current?.click(), 30);
   };
 
   return (
@@ -643,25 +704,37 @@ export function LogoSlots({ assets }: Props) {
           className="review-group-foot logo-variant-name"
           onSubmit={(e) => {
             e.preventDefault();
-            const name = naming.trim();
+            const name = naming.value.trim();
             if (!name || nameTaken(name)) return;
-            startUploadFor(customSlot(name));
+            const slot = customSlot(name);
+            if (naming.renaming) renameSlot(naming.renaming, slot);
+            else if (naming.file) uploadToSlot(slot, naming.file);
+            setNaming(null);
           }}
         >
+          {naming.file && (
+            <span className="logo-variant-name-file" title={naming.file.name}>
+              {naming.file.name}
+            </span>
+          )}
           <input
             className="logo-variant-name-input"
             autoFocus
-            value={naming}
+            value={naming.value}
             maxLength={24}
             placeholder="Name this variant — a seal, a badge…"
             aria-label="Variant name"
-            onChange={(e) => setNaming(e.target.value)}
+            onChange={(e) => setNaming({ ...naming, value: e.target.value })}
             onKeyDown={(e) => {
               if (e.key === 'Escape') setNaming(null);
             }}
           />
-          <button type="submit" className="add-more-btn" disabled={!naming.trim() || nameTaken(naming)}>
-            {nameTaken(naming) ? 'Already on the board' : 'Add'}
+          <button
+            type="submit"
+            className="add-more-btn"
+            disabled={!naming.value.trim() || nameTaken(naming.value)}
+          >
+            {nameTaken(naming.value) ? 'Already on the board' : naming.renaming ? 'Rename' : 'Add'}
           </button>
           <button type="button" className="logo-variant-name-cancel" onClick={() => setNaming(null)}>
             Cancel
@@ -700,11 +773,8 @@ export function LogoSlots({ assets }: Props) {
                 <button
                   type="button"
                   className="logo-variant-card"
-                  onClick={() => {
-                    setPickerOpen(false);
-                    setNaming('');
-                  }}
-                  title="Name your own variant"
+                  onClick={startNamedUpload}
+                  title="Upload it, then name it"
                   aria-label="Add a variant of your own"
                 >
                   <div className="logo-variant-card-stage">
@@ -879,10 +949,10 @@ function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, 
             </PopoverContent>
           </Popover>
           {/*
-            A word, not a glyph. The bare tick was the right size for a detail
-            and this is not a detail — it is the one thing the board asks the
-            user to do. It says what it does, it fills with the accent, and it
-            answers with a tick of its own before it goes.
+            A tick that pulses. The chip beside it already names the variant, so
+            a button spelling "CONFIRM" said the same thing twice and took a
+            third of the tile to do it. Being noticed is the job; a slow pulse
+            does that, and the press answers with a beat of its own.
           */}
           {(needsConfirm || flash) && (
             <button
@@ -901,7 +971,6 @@ function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, 
               aria-label={`Confirm this is the ${def.label.toLowerCase()}`}
             >
               <svg
-                className="logo-slot-confirm-tick"
                 width="11"
                 height="11"
                 viewBox="0 0 24 24"
@@ -914,7 +983,6 @@ function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, 
               >
                 <path d="M20 6 9 17l-5-5" />
               </svg>
-              <span>{flash ? 'Confirmed' : 'Confirm'}</span>
             </button>
           )}
         </div>

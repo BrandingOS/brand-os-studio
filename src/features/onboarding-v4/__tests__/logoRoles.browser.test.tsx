@@ -46,6 +46,19 @@ function board(assets: OnboardingAsset[]) {
   return render(<Board />);
 }
 
+/** Hands a file to the board's shared picker, the way a file chooser would. */
+function dropFile(name: string) {
+  const inputs = [...document.querySelectorAll<HTMLInputElement>('input[type=file]')];
+  const input = inputs[inputs.length - 1];
+  const file = new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], name, {
+    type: 'image/svg+xml',
+  });
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  fireEvent.change(input);
+}
+
 beforeEach(() => useV4Store.getState().reset());
 afterEach(cleanup);
 
@@ -142,12 +155,16 @@ describe('the board starts with one question', () => {
     expect(offered).toEqual(['Wordmark', 'Icon', 'On dark', 'Horizontal', 'Vertical', 'Other']);
   });
 
-  it('lets the user name a variant this product has no name for', async () => {
+  it('takes the file first, then asks what to call it', async () => {
     board([]);
     fireEvent.click(screen.getByRole('button', { name: /add variation/i }));
     fireEvent.click(screen.getByRole('button', { name: /add a variant of your own/i }));
+    // Nothing is asked until there is something to look at.
+    expect(screen.queryByLabelText('Variant name')).toBeNull();
+    dropFile('brand-seal.svg');
     const field = await screen.findByLabelText('Variant name');
-    expect(field).toBeTruthy();
+    // The filename is a good enough first guess to accept as-is.
+    expect((field as HTMLInputElement).value).toBe('brand seal');
   });
 });
 
@@ -180,15 +197,20 @@ describe('an on-dark logo is shown on dark', () => {
 });
 
 describe('confirming says so', () => {
-  it('asks in a word rather than a glyph', () => {
+  it('is a tick, and says what it is for without spelling it on the tile', () => {
     board([logo({ logoSlot: 'mark' })]);
-    expect(document.querySelector('.logo-slot-confirm')?.textContent).toContain('Confirm');
+    const button = document.querySelector('.logo-slot-confirm')!;
+    // The chip beside it already names the variant; the button only has to be
+    // pressable and legible to a screen reader.
+    expect(button.textContent).toBe('');
+    expect(button.getAttribute('aria-label')).toMatch(/confirm this is the icon/i);
+    expect(button.querySelector('svg')).toBeTruthy();
   });
 
   it('answers before it goes', async () => {
     board([logo({ logoSlot: 'mark' })]);
     fireEvent.click(document.querySelector('.logo-slot-confirm')!);
-    expect(document.querySelector('.logo-slot-confirm')?.textContent).toContain('Confirmed');
+    expect(document.querySelector('.logo-slot-confirm')?.classList.contains('is-done')).toBe(true);
     await new Promise((r) => setTimeout(r, 700));
     expect(useV4Store.getState().assets[0].slotConfirmed).toBe(true);
     expect(document.querySelector('.logo-slot-confirm')).toBeNull();
@@ -218,6 +240,7 @@ describe('a variant the product has no name for', () => {
   const nameIt = async (name: string) => {
     fireEvent.click(screen.getByRole('button', { name: /add variation/i }));
     fireEvent.click(screen.getByRole('button', { name: /add a variant of your own/i }));
+    dropFile('artboard-7.svg');
     const field = await screen.findByLabelText('Variant name');
     fireEvent.change(field, { target: { value: name } });
     return field;
@@ -227,9 +250,21 @@ describe('a variant the product has no name for', () => {
     board([logo({ logoSlot: 'primary' })]);
     await nameIt('Seal');
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    const empties = [...document.querySelectorAll('.logo-slot-empty')].map((e) => e.textContent);
-    expect(empties).toEqual(['+Add seal']);
-    expect(useV4Store.getState().extraLogoSlots).toContain('custom:Seal');
+    const roles = [...document.querySelectorAll('.logo-slot-name')].map((e) => e.textContent);
+    expect(roles).toContain('Seal');
+    expect(useV4Store.getState().assets.some((a) => a.logoSlot === 'custom:Seal')).toBe(true);
+  });
+
+  it('renames one without losing its logo', async () => {
+    board([logo({ logoSlot: 'custom:Seal', id: 'seal' })]);
+    fireEvent.contextMenu(document.querySelector('.logo-slot')!);
+    fireEvent.click(await screen.findByText(/rename variant/i));
+    const field = await screen.findByLabelText('Variant name');
+    expect((field as HTMLInputElement).value).toBe('Seal');
+    fireEvent.change(field, { target: { value: 'Stamp' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+    expect(useV4Store.getState().assets[0].logoSlot).toBe('custom:Stamp');
+    expect([...document.querySelectorAll('.logo-slot-name')].map((e) => e.textContent)).toContain('Stamp');
   });
 
   it('refuses a name the board already carries', async () => {
@@ -253,6 +288,7 @@ describe('a variant the product has no name for', () => {
     await nameIt('Seal');
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(screen.queryByLabelText('Variant name')).toBeNull();
-    expect(useV4Store.getState().extraLogoSlots).toEqual([]);
+    // The file it never named goes with it.
+    expect(useV4Store.getState().assets.some((a) => a.logoSlot === 'custom:Seal')).toBe(false);
   });
 });

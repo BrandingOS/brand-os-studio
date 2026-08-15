@@ -1053,21 +1053,10 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
           <header className="review-group-head">
             <h3>Logos</h3>
             <span className="review-group-count">
-              {(() => {
-                // What the USER brought. The black/white variants this flow
-                // derives from an upload are shown on the board but never
-                // counted as logos the user supplied — counting them made
-                // three uploads read as five.
-                const n = assets.filter(
-                  (a) => a.kind === 'image' && a.isLogo && !a.generated,
-                ).length;
-                return `${n} ${n === 1 ? 'logo' : 'logos'}`;
-              })()}
               {/*
-                Beside the count, because that is where the eye lands when the
-                board is already right and the user only wants to say so.
-                Confirming five tiles one at a time is the same answer given
-                five times.
+                Before the count, not after it: this is an action and the count
+                is the thing it acts on. Confirming five tiles one at a time is
+                the same answer given five times.
               */}
               {unconfirmedLogos.length > 1 && (
                 <button
@@ -1078,9 +1067,22 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
                     for (const a of unconfirmedLogos) store.updateAsset(a.id, { slotConfirmed: true });
                   }}
                 >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
                   Confirm all {unconfirmedLogos.length}
                 </button>
               )}
+              {(() => {
+                // What the USER brought. The black/white variants this flow
+                // derives from an upload are shown on the board but never
+                // counted as logos the user supplied — counting them made
+                // three uploads read as five.
+                const n = assets.filter(
+                  (a) => a.kind === 'image' && a.isLogo && !a.generated,
+                ).length;
+                return `${n} ${n === 1 ? 'logo' : 'logos'}`;
+              })()}
             </span>
           </header>
           <LogoSlots assets={assets} />

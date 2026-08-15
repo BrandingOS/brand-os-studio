@@ -5,6 +5,10 @@
  * so a user who skipped the prompt arrived at one button — "New section" — and
  * had to invent the idea of an audience before they could name one. The fields
  * are fixed now; what varies is only whether they are answered.
+ *
+ * A CARD is something the brand says, so only answered fields get one. The rest
+ * live inside "New section", which is where the eye already goes to add
+ * something — eleven empty cards is a form, and a form is not a review.
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -45,16 +49,35 @@ const names = () =>
 beforeEach(() => useV4Store.getState().reset());
 afterEach(cleanup);
 
+const offered = () =>
+  [...document.querySelectorAll('.about-add-menu-item')].map((e) => e.textContent);
+
+const openMenu = () => fireEvent.click(screen.getByRole('button', { name: /new section/i }));
+
 describe('the fields exist before the answers do', () => {
-  it('shows every strategy field with nothing parsed at all', () => {
+  it('draws no card for a field with nothing in it', () => {
     render(<AboutGroup projection={null} />);
-    expect(names()).toEqual(EXPECTED);
+    expect(names()).toEqual([]);
   });
 
-  it('shows the same fields when the pass returned nothing', () => {
+  it('keeps every one of them a click away', () => {
     render(<AboutGroup projection={empty()} />);
-    expect(names()).toEqual(EXPECTED);
-    expect(document.querySelectorAll('.about-card.is-empty')).toHaveLength(EXPECTED.length);
+    openMenu();
+    expect(offered()).toEqual([...EXPECTED, 'Something else…']);
+  });
+
+  it('shows the ones that were answered, and offers only the rest', () => {
+    render(
+      <AboutGroup
+        projection={empty({
+          profile: [{ path: 'strategy.mission', value: 'Ship the thing' }],
+        })}
+      />,
+    );
+    expect(names()).toEqual(['Mission']);
+    openMenu();
+    expect(offered()).not.toContain('Mission');
+    expect(offered()).toContain('Audience');
   });
 
   it('counts what is answered, not what is on screen', () => {
@@ -77,16 +100,18 @@ describe('the fields exist before the answers do', () => {
 
   it('still offers a section of the user’s own', () => {
     render(<AboutGroup projection={null} />);
-    expect(screen.getByRole('button', { name: /new section/i })).toBeTruthy();
+    openMenu();
+    expect(offered()).toContain('Something else…');
   });
 });
 
 describe('choices where they fit, prose where they do not', () => {
   const open = (label: string) => {
-    const card = [...document.querySelectorAll('.about-card')].find((c) =>
-      c.querySelector('.about-card-name')?.textContent === label,
+    fireEvent.click(screen.getByRole('button', { name: /new section/i }));
+    const item = [...document.querySelectorAll('.about-add-menu-item')].find(
+      (e) => e.textContent === label,
     ) as HTMLElement;
-    fireEvent.click(card);
+    fireEvent.click(item);
   };
 
   it('asks for words where the meaning is in the wording', () => {

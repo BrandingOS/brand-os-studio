@@ -2770,9 +2770,17 @@
     repeating-conic-gradient(var(--ds-surface-hover) 0% 25%, var(--ds-surface-subtle) 0% 50%) 0 0 / 12px 12px;
 }
 [data-onboarding="cosmos"] .logo-slot:hover { border-color: var(--ds-border-strong); }
+/* Fit the tile, whatever the file thinks it is.
+ *
+ * `max-width: 100%` alone loses: a flex item's `min-width` defaults to AUTO,
+ * which is its intrinsic size, so an SVG declaring 1444px refused to shrink and
+ * the tile showed the middle of a logo blown up past its edges. Sizing to the
+ * box and letting `object-fit` do the fitting is the form that always holds. */
 [data-onboarding="cosmos"] .logo-slot-image {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
   display: block;
 }
@@ -2901,82 +2909,86 @@
   color: var(--ds-text-primary, #2b2a26);
 }
 
-/* The one thing the board asks the user to DO, so it says so in a word. */
+/* A tick, and a pulse to be noticed by.
+ *
+ * The chip beside it already says which variant this is, so spelling
+ * "CONFIRM" said it twice and took a third of the tile to do it. What the
+ * control needs is to be SEEN, and a slow pulse does that without shouting. */
 [data-onboarding="cosmos"] .logo-slot-confirm {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  height: 17px;
-  padding: 0 7px 0 5px;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
   border-radius: 999px;
-  border: 1px solid var(--ds-accent, #d9a441);
-  background: var(--ds-accent, #d9a441);
+  border: none;
+  background: var(--ds-text-primary, #2b2a26);
   color: #fff;
-  font-family: inherit;
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  line-height: 1;
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(16, 16, 20, 0.18);
-  transition:
-    transform 160ms var(--ds-ease),
-    background 160ms var(--ds-ease),
-    box-shadow 160ms var(--ds-ease);
+  box-shadow: 0 1px 4px rgba(16, 16, 20, 0.2);
+  animation: onb-confirm-pulse 2.4s var(--ds-ease) infinite;
+  transition: transform 160ms var(--ds-ease), background 160ms var(--ds-ease);
 }
 [data-onboarding="cosmos"] .logo-slot-confirm:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 7px rgba(16, 16, 20, 0.24);
+  animation: none;
+  transform: scale(1.14);
 }
-[data-onboarding="cosmos"] .logo-slot-confirm:active { transform: translateY(0); }
+[data-onboarding="cosmos"] .logo-slot-confirm:active { transform: scale(1); }
+[data-onboarding="cosmos"] .logo-slot.tone-dark .logo-slot-confirm {
+  background: #fff;
+  color: var(--ds-text-primary, #2b2a26);
+}
 /* The answer, held for a beat so pressing it feels like it landed. */
 [data-onboarding="cosmos"] .logo-slot-confirm.is-done {
   background: #2f7d4f;
-  border-color: #2f7d4f;
+  color: #fff;
   cursor: default;
-  transform: none;
   animation: onb-confirmed 420ms var(--ds-ease);
 }
-[data-onboarding="cosmos"] .logo-slot-confirm.is-done .logo-slot-confirm-tick {
-  animation: onb-tick 320ms var(--ds-ease);
+@keyframes onb-confirm-pulse {
+  0%, 62%, 100% { box-shadow: 0 1px 4px rgba(16, 16, 20, 0.2), 0 0 0 0 rgba(47, 125, 79, 0.42); }
+  78% { box-shadow: 0 1px 4px rgba(16, 16, 20, 0.2), 0 0 0 6px rgba(47, 125, 79, 0); }
 }
 @keyframes onb-confirmed {
   0% { transform: scale(1); }
-  38% { transform: scale(1.12); }
+  38% { transform: scale(1.24); }
   100% { transform: scale(1); }
-}
-@keyframes onb-tick {
-  0% { opacity: 0; transform: scale(0.5) rotate(-12deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   [data-onboarding="cosmos"] .logo-slot-confirm,
-  [data-onboarding="cosmos"] .logo-slot-confirm.is-done,
-  [data-onboarding="cosmos"] .logo-slot-confirm.is-done .logo-slot-confirm-tick {
+  [data-onboarding="cosmos"] .logo-slot-confirm.is-done {
     animation: none;
     transition: none;
     transform: none;
   }
 }
 
-/* Confirming the whole board at once, beside the count. */
+/* Confirming the whole board at once. Sits BEFORE the count — it is an action,
+ * and the count is the thing it acts on. Drawn like every other quiet action
+ * in this flow rather than as a second black button. */
 [data-onboarding="cosmos"] .review-group-bulk {
-  margin-left: 10px;
-  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 10px;
+  padding: 4px 11px;
   border-radius: 999px;
-  border: 1px solid var(--ds-accent, #d9a441);
-  background: transparent;
-  color: var(--ds-accent, #d9a441);
+  border: 1px dashed var(--ds-dash);
+  background: var(--ds-surface-subtle);
+  color: var(--ds-text-secondary);
   font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 11.5px;
   cursor: pointer;
-  transition: background 150ms var(--ds-ease), color 150ms var(--ds-ease);
+  transition:
+    background 180ms var(--ds-ease),
+    color 180ms var(--ds-ease),
+    border-color 180ms var(--ds-ease);
 }
 [data-onboarding="cosmos"] .review-group-bulk:hover {
-  background: var(--ds-accent, #d9a441);
-  color: #fff;
+  background: var(--pill-bg-focus);
+  color: var(--ds-text);
+  border-color: var(--ds-dash-strong);
 }
 
 /* Naming a variant this product has no name for. */
@@ -3002,6 +3014,15 @@
   outline: none;
   border-style: solid;
   border-color: var(--ds-text-primary, #2b2a26);
+}
+/* The file being named, so the user can see what they are naming. */
+[data-onboarding="cosmos"] .logo-variant-name-file {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--ds-text-muted, #9a988f);
 }
 [data-onboarding="cosmos"] .logo-variant-name-cancel {
   border: none;
@@ -3136,20 +3157,48 @@
   overflow: hidden;
 }
 
-/* A field with no answer yet — an open question, not a broken card. Dashed,
-   the same way every other not-decided thing in this flow is drawn. */
-[data-onboarding="cosmos"] .about-card.is-empty {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--ds-border, #e6e4dd);
+/* What "New section" opens: the fields still unanswered, then a way to write
+ * something the list never thought of. Unscoped — Radix portals it. */
+.about-add-menu {
+  width: 232px;
+  padding: 6px;
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-border, #e6e4dd);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(16, 16, 20, 0.14);
+  max-height: 320px;
+  overflow-y: auto;
 }
-[data-onboarding="cosmos"] .about-card.is-empty:hover {
-  border-color: var(--ds-text-muted, #9a988f);
+.about-add-menu-eyebrow {
+  margin: 4px 8px 6px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted, #9a988f);
 }
-[data-onboarding="cosmos"] .about-card.is-empty .about-card-content {
-  opacity: 0.6;
-  font-style: italic;
+.about-add-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--ds-text-primary, #2b2a26);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
 }
+.about-add-menu-item:hover { background: var(--ds-surface-hover, #f4f2ec); }
+.about-add-menu-item.is-own {
+  margin-top: 4px;
+  padding-top: 11px;
+  border-top: 1px solid var(--ds-border, #e6e4dd);
+  border-radius: 0 0 9px 9px;
+  color: var(--ds-text-muted, #9a988f);
+}
+.about-add-menu-item.is-own:hover { color: var(--ds-text-primary, #2b2a26); }
 
 /* Writing your own answer, under the chips. */
 .value-picker-other {
