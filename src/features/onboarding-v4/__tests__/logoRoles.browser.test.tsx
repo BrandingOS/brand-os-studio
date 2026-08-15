@@ -292,3 +292,19 @@ describe('a variant the product has no name for', () => {
     expect(useV4Store.getState().assets.some((a) => a.logoSlot === 'custom:Seal')).toBe(false);
   });
 });
+
+describe('renaming is where the name is', () => {
+  it('offers it under the roles the chip opens', async () => {
+    board([logo({ logoSlot: 'custom:Seal' })]);
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    const rename = await screen.findByRole('button', { name: /rename “seal”/i });
+    fireEvent.click(rename);
+    expect((await screen.findByLabelText('Variant name') as HTMLInputElement).value).toBe('Seal');
+  });
+
+  it('offers it for nothing the product named itself', () => {
+    board([logo({ logoSlot: 'primary' })]);
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    expect(screen.queryByRole('button', { name: /^rename/i })).toBeNull();
+  });
+});

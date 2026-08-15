@@ -3653,6 +3653,24 @@
   border-color: var(--ds-border, #e6e4dd);
 }
 
+/* Renaming a variant you named, under the roles — the chip is what you click
+ * when you want to change what this is called. */
+.logo-variant-rename {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 4px 2px;
+  border: none;
+  border-top: 1px solid var(--ds-border, #e6e4dd);
+  background: none;
+  color: var(--ds-text-muted, #9a988f);
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.logo-variant-rename:hover { color: var(--ds-text-primary, #2b2a26); }
+
 /* The role this logo already has. Shown rather than hidden, so the picker
  * answers "which one is it?" as well as "which one should it be". */
 [data-onboarding="cosmos"] .logo-variant-card.is-current,

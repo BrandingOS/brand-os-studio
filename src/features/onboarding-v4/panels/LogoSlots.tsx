@@ -686,6 +686,11 @@ export function LogoSlots({ assets }: Props) {
               onRemoveSlot={isExtra ? () => removeLogoSlot(slot) : undefined}
               roles={allRoles}
               onPickRole={(role) => asset && reassignSlot(asset.id, role)}
+              onRename={
+                isCustomSlot(slot)
+                  ? () => setNaming({ value: defFor(slot).label, renaming: slot })
+                  : undefined
+              }
               onConfirm={() => {
                 if (!asset) return;
                 // Forget that we placed it. The family resolver only moves
@@ -828,12 +833,14 @@ interface SlotCardProps {
   /** Every role this logo could be moved to — the named ones, and any the
    *  user invented. A variant nobody can move a logo into is a dead end. */
   roles: LogoSlot[];
+  /** Rename a variant the user named. Absent for the roles we named. */
+  onRename?(): void;
   /** Move this logo to another role. Swaps with whatever is already there. */
   onPickRole(role: LogoSlot): void;
   onContextMenu?(e: React.MouseEvent<HTMLDivElement>, pickFile: () => void): void;
 }
 
-function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onContextMenu }: SlotCardProps) {
+function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onRename, onContextMenu }: SlotCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   /** Held for the length of the confirmation beat, then the control retires. */
@@ -946,6 +953,21 @@ function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, 
                   );
                 })}
               </div>
+              {/* The chip is what you click when you want to change what this
+                  is called, so the rename belongs here — not only behind a
+                  right-click nobody thinks to try. */}
+              {onRename && (
+                <button
+                  type="button"
+                  className="logo-variant-rename"
+                  onClick={() => {
+                    setRolesOpen(false);
+                    onRename();
+                  }}
+                >
+                  Rename “{def.label}”
+                </button>
+              )}
             </PopoverContent>
           </Popover>
           {/*
