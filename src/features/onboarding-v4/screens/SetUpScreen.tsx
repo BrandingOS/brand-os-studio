@@ -43,7 +43,7 @@ import { planStages, findingsFrom, type Finding } from '@/features/onboarding/un
 import { groupFontFamilies } from '@/features/onboarding/understanding/fonts';
 import { classifyLogos } from '@/features/onboarding/understanding/logoClassify';
 import { looksLikeBrief } from '@/features/onboarding/brief/parseBrief';
-import { fingerprint, type Print } from '@/features/onboarding/understanding/imageFingerprint';
+import { readArtwork, type Artwork } from '@/features/onboarding/understanding/artwork';
 import {
   brandRepository,
   createBrand as createTheBrand,
@@ -111,11 +111,11 @@ export function SetUpScreen() {
   const [findings, setFindings] = useState<Record<string, Finding | null>>({});
   const [projection, setProjection] = useState<Projection | null>(null);
   /**
-   * Visual fingerprints, computed once during processing and reused after.
+   * What each picture turned out to be, read once during processing and reused.
    * Rendering eight images to a canvas on every projection would be wasteful,
    * and the artwork does not change while the review is open.
    */
-  const printsRef = useRef<Map<string, Print | null>>(new Map());
+  const artworkRef = useRef<Map<string, Artwork | null>>(new Map());
 
   // `busy` disables the CTA only after the next render — a second click in the
   // same tick still reaches submit and created a DUPLICATE brand. The ref is
@@ -195,7 +195,7 @@ export function SetUpScreen() {
     if (!canonical) return;
     const live = useBrandStore.getState().list.find((x) => x.id === b.id) ?? b;
     setProjection(
-      project(canonical, useV4Store.getState().assets, placeholderPaths(live), printsRef.current),
+      project(canonical, useV4Store.getState().assets, placeholderPaths(live), artworkRef.current),
     );
   }, []);
 
@@ -328,8 +328,8 @@ export function SetUpScreen() {
     // the same picture, and filenames do not say.
     const images = useV4Store.getState().assets.filter((a) => a.kind === 'image' && a.previewUrl);
     for (const img of images) {
-      if (printsRef.current.has(img.id)) continue;
-      printsRef.current.set(img.id, await fingerprint(img.previewUrl as string));
+      if (artworkRef.current.has(img.id)) continue;
+      artworkRef.current.set(img.id, await readArtwork(img.previewUrl as string));
     }
 
     await extractColours();
@@ -352,7 +352,7 @@ export function SetUpScreen() {
     // places any logo it can see on mount, so a copy removed a moment later had
     // already been handed a slot, and six uploads of three marks still drew six
     // tiles.
-    const logos = classifyLogos(items, printsRef.current);
+    const logos = classifyLogos(items, artworkRef.current);
     const redundant = logos.groups.flatMap((g) => g.variants.map((v) => v.id));
     for (const id of redundant) useV4Store.getState().removeAsset(id);
 

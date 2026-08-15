@@ -11,10 +11,19 @@
  *     the same mark, not two logos. They are grouped under one entry with the
  *     variants attached, rather than listed as separate items — which is what
  *     turned a tidy upload into a wall of near-identical tiles before.
- *  3. **Assign roles from evidence, strongest first.** What the classifier saw
- *     in the file, then the artwork's own proportions, then the filename — in
- *     that order, because that is the order they are trustworthy in. A name is
- *     a label someone typed once; a shape is the thing itself.
+ *  3. **Assign roles from what the artwork IS.** `artwork.ts` looks at the
+ *     picture and answers two questions — what is it made of, and how do the
+ *     pieces sit — and those answers name the role directly:
+ *
+ *         a symbol on its own          the icon
+ *         the name set as type         the wordmark
+ *         symbol beside the name       the primary logo
+ *         symbol above the name        the vertical lockup
+ *         light artwork                made for dark backgrounds
+ *
+ *     The filename is kept, below all of that, for images that could not be
+ *     read at all. It used to be the primary evidence, which is how a wide
+ *     logotype called `Logomark.svg` ended up labelled Icon.
  *
  * Everything returned is a proposal. The user's drag or swap outranks all of
  * it by source priority, and re-running classification cannot undo their
@@ -23,10 +32,29 @@
  * Pure — no service, no store, no React.
  */
 import type { LogoSlot, OnboardingAsset } from '@/shared/upload/intakeTypes';
-import { sameArtwork, shapeSuggests, type Print } from './imageFingerprint';
+import { sameArtwork, type Artwork } from './artwork';
 
-/** Visual prints by asset id. Absent falls back to filenames alone. */
-export type Prints = ReadonlyMap<string, Print | null>;
+/** What each image turned out to be, by asset id. */
+export type Artworks = ReadonlyMap<string, Artwork | null>;
+
+/**
+ * The role the picture itself names — `null` when it is not clear enough.
+ *
+ * Every branch here is something a person would say out loud looking at the
+ * file, which is the point: a role nobody can explain is a role nobody can
+ * check.
+ */
+export function roleFromArtwork(a: Artwork | null | undefined): { slot: LogoSlot; evidence: string } | null {
+  if (!a) return null;
+  if (a.parts === 'shape') return { slot: 'mark', evidence: 'it is a symbol on its own' };
+  if (a.parts === 'text') return { slot: 'wordmark', evidence: 'it is the name, set as type' };
+  if (a.parts === 'both') {
+    return a.arrangement === 'stacked'
+      ? { slot: 'vertical', evidence: 'the symbol sits above the name' }
+      : { slot: 'primary', evidence: 'the symbol sits beside the name' };
+  }
+  return null;
+}
 
 export interface LogoGroup {
   /** The item that represents this mark. */
@@ -82,17 +110,17 @@ function withoutVariantTokens(s: string): string {
  *
  * The name is a weak signal and often no signal at all — real exports are
  * called "Artboard 26.png" and "Asset 23.png", which agree on nothing. So the
- * caller may supply a visual fingerprint (see `imageFingerprint.ts`) and that
- * decides when it is available; the filename is the fallback for anything that
- * could not be rendered.
+ * caller may supply what the picture turned out to be (see `artwork.ts`) and
+ * that decides when it is available; the filename is the fallback for anything
+ * that could not be rendered.
  */
 function sameMark(
   a: OnboardingAsset,
   b: OnboardingAsset,
-  prints?: Prints,
+  art?: Artworks,
 ): boolean {
-  const pa = prints?.get(a.id) ?? null;
-  const pb = prints?.get(b.id) ?? null;
+  const pa = art?.get(a.id) ?? null;
+  const pb = art?.get(b.id) ?? null;
   if (pa && pb) return sameArtwork(pa, pb);
 
   const sa = withoutVariantTokens(stem(a.name));
@@ -138,27 +166,25 @@ function word(name: string, ...tokens: string[]): boolean {
 /**
  * The role a single item's evidence supports. `null` when nothing does.
  *
- * The filename is the weakest of the three signals here and the one most often
- * wrong, so the artwork's own proportions get a VETO over it: an icon is not
- * four times wider than it is tall, and a wordmark is not square, whatever the
- * file happens to be called. A vetoed claim leaves the group unroled rather
- * than substituting a second guess — the fill pass below reads the shape
- * directly and says so.
+ * Order is the whole design: what the picture IS beats what the file is
+ * CALLED, always. The filename branches below only run for an image that could
+ * not be read — a PDF, a broken export, anything the canvas refused.
  */
-function roleFor(a: OnboardingAsset, print?: Print | null): { slot: LogoSlot | null; evidence: string } {
+function roleFor(a: OnboardingAsset, art?: Artwork | null): { slot: LogoSlot | null; evidence: string } {
   // Classification already ran and had something to say. That IS evidence.
   if (a.aiLogoSlot) return { slot: a.aiLogoSlot, evidence: 'what we saw in the file' };
 
-  const n = a.name.toLowerCase();
-  const shape = shapeSuggests(print);
+  const seen = roleFromArtwork(art);
+  if (seen) return seen;
 
+  const n = a.name.toLowerCase();
   if (word(n, 'wordmark', 'logotype', 'type', 'text')) {
-    if (shape !== 'mark') return { slot: 'wordmark', evidence: 'its filename' };
-  } else if (word(n, 'icon', 'mark', 'symbol', 'monogram', 'favicon')) {
-    if (shape !== 'wordmark') return { slot: 'mark', evidence: 'its filename' };
+    return { slot: 'wordmark', evidence: 'its filename' };
   }
-  // Tone, not shape — these say which background the artwork is FOR, so the
-  // proportions have nothing to contradict.
+  if (word(n, 'icon', 'mark', 'symbol', 'monogram', 'favicon')) {
+    return { slot: 'mark', evidence: 'its filename' };
+  }
+  // Tone, not composition — these say which background the artwork is FOR.
   if (word(n, 'white', 'inverse', 'inverted', 'reverse', 'ondark', 'on-dark')) {
     // NOTE the mirrored naming, kept from the flow this restores: the "on dark"
     // slot holds the LIGHT-coloured artwork.
@@ -184,8 +210,8 @@ function roleFor(a: OnboardingAsset, print?: Print | null): { slot: LogoSlot | n
  */
 export function classifyLogos(
   items: readonly OnboardingAsset[],
-  /** Visual fingerprints by asset id. Absent falls back to filenames. */
-  prints?: Prints,
+  /** What each picture turned out to be. Absent falls back to filenames. */
+  art?: Artworks,
 ): ClassifyResult {
   const images = items.filter((a) => a.kind === 'image' && !a.generated && looksLikeLogo(a));
 
@@ -207,12 +233,12 @@ export function classifyLogos(
   // ── 2. near-duplicate grouping ───────────────────────────────────────────
   const groups: LogoGroup[] = [];
   for (const a of unique) {
-    const host = groups.find((g) => sameMark(g.lead, a, prints));
+    const host = groups.find((g) => sameMark(g.lead, a, art));
     if (host) {
       host.variants.push(a);
       continue;
     }
-    const { slot, evidence } = roleFor(a, prints?.get(a.id));
+    const { slot, evidence } = roleFor(a, art?.get(a.id));
     groups.push({ lead: a, variants: [], slot, evidence });
   }
 
@@ -221,16 +247,36 @@ export function classifyLogos(
   // Tracked because "we could not place it" and "it told us nothing" are
   // different situations, and only the second may become the primary.
   const displaced = new Set<LogoGroup>();
-  for (const g of groups) {
+
+  // Dark artwork is asked first, whatever order the files arrived in.
+  //
+  // A brand that brings both dresses of one logo brings the black one as the
+  // logo and the white one as its on-dark version — but if the white one is
+  // simply uploaded first it would take the role and leave the black one
+  // homeless. Asking the dark ones first makes the answer the same either way.
+  const byTone = [...groups].sort(
+    (a, b) => Number(art?.get(a.lead.id)?.tone === 'light') - Number(art?.get(b.lead.id)?.tone === 'light'),
+  );
+  for (const g of byTone) {
     if (g.slot && !taken.has(g.slot)) {
       taken.add(g.slot);
-    } else if (g.slot) {
-      // The role is already spoken for. Leaving this one unplaced is better
-      // than displacing a group whose evidence was just as good.
-      g.slot = null;
-      g.evidence = '';
-      displaced.add(g);
+      continue;
     }
+    if (!g.slot) continue;
+    // The role is spoken for. If THIS artwork is light, it is not a second
+    // primary — it is the on-dark version of the one already there, which is
+    // exactly the slot standing empty beside it.
+    if (art?.get(g.lead.id)?.tone === 'light' && !taken.has('dark')) {
+      g.slot = 'dark';
+      g.evidence = 'the artwork is light — made to sit on dark';
+      taken.add('dark');
+      continue;
+    }
+    // Leaving this one unplaced is better than displacing a group whose
+    // evidence was just as good.
+    g.slot = null;
+    g.evidence = '';
+    displaced.add(g);
   }
   if (!taken.has('primary')) {
     // Only a group that gave NO role evidence at all. A second icon is still
@@ -249,21 +295,10 @@ export function classifyLogos(
   // Leaving unplaced logos out was the stricter reading of "evidence only", and
   // it meant someone who uploaded five marks saw two — the rest silently absent
   // with nothing to click. A named slot the user can correct beats a logo they
-  // cannot see.
-  //
-  // Shape decides first and order is only the fallback. It runs HERE rather
-  // than up with the filename evidence because the primary has been settled by
-  // now: a symbol-plus-name lockup is wide too, and reading its width earlier
-  // would have called the brand's main logo a wordmark.
+  // cannot see. What is left here is a second logo of a kind already placed, so
+  // the only honest thing to say is the order it arrived in.
   for (const g of groups) {
     if (g.slot !== null) continue;
-    const shaped = shapeSuggests(prints?.get(g.lead.id));
-    if (shaped && !taken.has(shaped)) {
-      g.slot = shaped;
-      g.evidence = shaped === 'wordmark' ? 'its shape — wide, like set text' : 'its shape — square, like a symbol';
-      taken.add(shaped);
-      continue;
-    }
     const free = SLOT_ORDER.find((s) => !taken.has(s));
     if (!free) break;
     g.slot = free;

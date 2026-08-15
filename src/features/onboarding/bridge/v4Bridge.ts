@@ -33,7 +33,7 @@ import { buildCreateInput, normalizeUrl } from '../understanding/createBrand';
 import { interpret, type Understanding } from '../understanding/interpret';
 import { applyBusinessFacts, applyProposals, sentinelsRetiredBy } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal, editValue } from '../understanding/acceptance';
-import { classifyLogos, type Prints } from '../understanding/logoClassify';
+import { classifyLogos, type Artworks } from '../understanding/logoClassify';
 import { groupFontFamilies } from '../understanding/fonts';
 import { VOCABULARIES, type VocabularyName } from '../vocabulary/vocabularies';
 
@@ -228,8 +228,8 @@ export function project(
   canonical: CanonicalBrand,
   items: OnboardingAsset[],
   sentinelPaths: readonly string[] = [],
-  /** Visual fingerprints by asset id, so identical artwork folds into one. */
-  prints?: Prints,
+  /** What each picture turned out to be, so identical artwork folds into one. */
+  art?: Artworks,
 ): Projection {
   const identity = canonical.identity;
   const business = canonical.businessInfo ?? {};
@@ -259,7 +259,7 @@ export function project(
     });
   }
 
-  const classified = classifyLogos(items, prints);
+  const classified = classifyLogos(items, art);
 
   /**
    * The redundant copies — every image folded UNDER a lead as the same artwork.

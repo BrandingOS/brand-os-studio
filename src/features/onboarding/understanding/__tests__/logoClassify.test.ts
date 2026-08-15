@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OnboardingAsset } from '@/shared/upload/intakeTypes';
 import { classifyLogos } from '../logoClassify';
-import type { Print } from '../imageFingerprint';
+import type { Artwork } from '../artwork';
 
 const img = (name: string, over: Partial<OnboardingAsset> = {}): OnboardingAsset => ({
   id: `i-${name}`, name, sub: '', kind: 'image',
@@ -16,8 +16,21 @@ const img = (name: string, over: Partial<OnboardingAsset> = {}): OnboardingAsset
   ...over,
 });
 
-/** A print with a stated shape. `ratio` is width ÷ height of the artwork. */
-const print = (hash: string, ratio = 2): Print => ({ hash, ratio });
+/** A reading of one picture. Defaults to an unremarkable dark symbol. */
+const seen = (over: Partial<Artwork> = {}): Artwork => ({
+  hash: '1010101010101010101010101010101010101010101010101010101010101010',
+  ratio: 1,
+  parts: 'shape',
+  arrangement: null,
+  tone: 'dark',
+  ...over,
+});
+
+/** The three things a logo can be, as this module reads them. */
+const SYMBOL = { parts: 'shape', ratio: 1 } as const;
+const WORDS = { parts: 'text', ratio: 6 } as const;
+const LOCKUP = { parts: 'both', arrangement: 'beside', ratio: 5 } as const;
+const STACKED = { parts: 'both', arrangement: 'stacked', ratio: 1.2 } as const;
 
 describe('exact duplicates', () => {
   it('collapse by content hash, even under a different filename', () => {
@@ -153,159 +166,174 @@ describe('an image that is not a logo is not treated as one', () => {
   });
 });
 
-describe('the same artwork under different filenames is one logo', () => {
-  // The case that shipped: three exports of one mark, called "Artboard 26.png",
-  // "Artboard 261.png" and "Asset 23.png". Their names agree on nothing and
-  // their bytes differ, so both the filename heuristic and the content hash
-  // said "three logos" — and the board drew the identical picture three times.
-  const same = '1010101010101010101010101010101010101010101010101010101010101010';
-  const other = '0101010101010101010101010101010101010101010101010101010101010101';
+describe('the picture names the role', () => {
+  // The rule in one line: a symbol on its own is the icon, the name set as
+  // type is the wordmark, and the two together are the logo — beside each
+  // other, or stacked.
+  const board = (...marks: Array<[string, Partial<Artwork>]>) => {
+    const items = marks.map(([name], i) => img(name, { contentHash: `${i}`, isLogo: true }));
+    const art = new Map(
+      marks.map(([, over], i) => [
+        items[i].id,
+        seen({ hash: HASHES[i], ...over }),
+      ]),
+    );
+    return Object.fromEntries(classifyLogos(items, art).groups.map((g) => [g.lead.name, g.slot]));
+  };
+  // Far enough apart that no two are ever read as one mark.
+  const HASHES = [
+    '1111000011110000111100001111000011110000111100001111000011110000',
+    '0000111100001111000011110000111100001111000011110000111100001111',
+    '1100110011001100110011001100110011001100110011001100110011001100',
+    '0011001100110011001100110011001100110011001100110011001100110011',
+  ];
 
-  it('folds identical artwork into one entry', () => {
-    // `isLogo` is what intake sets when it recognises artwork — these names
-    // carry no signal of their own, which is exactly the point.
-    const items = [
-      img('Artboard 26.png', { contentHash: '1', isLogo: true }),
-      img('Artboard 261.png', { contentHash: '2', isLogo: true }),
-      img('Asset 23.png', { contentHash: '3', isLogo: true }),
-    ];
-    const prints = new Map(items.map((i) => [i.id, print(same)]));
-    const out = classifyLogos(items, prints);
-    expect(out.groups).toHaveLength(1);
-    expect(out.groups[0].variants).toHaveLength(2);
+  it('the folder a designer actually hands over', () => {
+    // The real one, from the owner's own archive — and the case every earlier
+    // version got wrong, because `Logomark.svg` is a symbol and `Logotype.svg`
+    // is not, and no filename rule can tell you that.
+    expect(
+      board(
+        ['Logomark.svg', SYMBOL],
+        ['Logotype.svg', WORDS],
+        ['Primary Logo.svg', LOCKUP],
+      ),
+    ).toEqual({
+      'Logomark.svg': 'mark',
+      'Logotype.svg': 'wordmark',
+      'Primary Logo.svg': 'primary',
+    });
   });
 
-  it('keeps genuinely different artwork apart', () => {
+  it('a symbol above the name is the vertical lockup', () => {
+    expect(board(['stacked.svg', STACKED])).toEqual({ 'stacked.svg': 'vertical' });
+  });
+
+  it('says what it saw, in words a person would use', () => {
+    const item = img('anything.svg', { contentHash: '1', isLogo: true });
+    const out = classifyLogos([item], new Map([[item.id, seen(LOCKUP)]]));
+    expect(out.groups[0].evidence).toBe('the symbol sits beside the name');
+  });
+
+  it('outranks the filename outright', () => {
+    // The exact file that shipped labelled Icon: a wide logotype called
+    // "Logomark.svg". The name says icon; the picture says otherwise.
+    expect(board(['Logomark.svg', WORDS])).toEqual({ 'Logomark.svg': 'wordmark' });
+  });
+
+  it('falls back to the filename only when the picture could not be read', () => {
+    const items = [
+      img('brand-wordmark.svg', { contentHash: '1' }),
+      img('brand-icon.svg', { contentHash: '2' }),
+    ];
+    const art = new Map([[items[0].id, null], [items[1].id, null]]);
+    const slots = classifyLogos(items, art).groups.map((g) => g.slot);
+    expect(slots).toEqual(['wordmark', 'mark']);
+  });
+});
+
+describe('light artwork is the on-dark version', () => {
+  const HASH = '1111000011110000111100001111000011110000111100001111000011110000';
+  const pair = (order: Array<'dark' | 'light'>) => {
+    const items = order.map((t, i) => img(`logo-${t}.svg`, { contentHash: `${i}`, isLogo: true }));
+    const art = new Map(
+      order.map((tone, i) => [items[i].id, seen({ hash: HASH, tone, ...LOCKUP })]),
+    );
+    return Object.fromEntries(classifyLogos(items, art).groups.map((g) => [g.lead.name, g.slot]));
+  };
+
+  it('puts the light twin in the On dark slot', () => {
+    expect(pair(['dark', 'light'])).toEqual({
+      'logo-dark.svg': 'primary',
+      'logo-light.svg': 'dark',
+    });
+  });
+
+  it('gets the same answer whichever was uploaded first', () => {
+    // Asked in supply order, the white one uploaded first would take the
+    // primary role and leave the black one homeless.
+    expect(pair(['light', 'dark'])).toEqual({
+      'logo-dark.svg': 'primary',
+      'logo-light.svg': 'dark',
+    });
+  });
+
+  it('says why', () => {
+    const items = [
+      img('a.svg', { contentHash: '1', isLogo: true }),
+      img('b.svg', { contentHash: '2', isLogo: true }),
+    ];
+    const art = new Map([
+      [items[0].id, seen({ hash: HASH, tone: 'dark', ...LOCKUP })],
+      [items[1].id, seen({ hash: HASH, tone: 'light', ...LOCKUP })],
+    ]);
+    const light = classifyLogos(items, art).groups.find((g) => g.slot === 'dark');
+    expect(light?.evidence).toBe('the artwork is light — made to sit on dark');
+  });
+
+  it('does not hold a light logo back when it is the only one', () => {
+    const item = img('white-logo.svg', { contentHash: '1', isLogo: true });
+    const art = new Map([[item.id, seen({ tone: 'light', ...LOCKUP })]]);
+    expect(classifyLogos([item], art).groups[0].slot).toBe('primary');
+  });
+});
+
+describe('the same drawing in two dresses', () => {
+  const HASH = '1010101010101010101010101010101010101010101010101010101010101010';
+
+  it('folds two exports of one mark into one entry', () => {
+    // Same drawing, same tone, different file. The names agree on nothing —
+    // "Artboard 26.png" and "Asset 23.png" — which is exactly the real case.
+    const items = [
+      img('Artboard 26.png', { contentHash: '1', isLogo: true }),
+      img('Asset 23.png', { contentHash: '2', isLogo: true }),
+    ];
+    const art = new Map(items.map((i) => [i.id, seen({ hash: HASH })]));
+    const out = classifyLogos(items, art);
+    expect(out.groups).toHaveLength(1);
+    expect(out.groups[0].variants).toHaveLength(1);
+  });
+
+  it('keeps a light twin separate, so it can hold its own slot', () => {
+    // Same drawing, and coverage alone would call them identical — the tone is
+    // what makes them two entries rather than one hidden behind the other.
+    const items = [
+      img('a.svg', { contentHash: '1', isLogo: true }),
+      img('b.svg', { contentHash: '2', isLogo: true }),
+    ];
+    const art = new Map([
+      [items[0].id, seen({ hash: HASH, tone: 'dark' })],
+      [items[1].id, seen({ hash: HASH, tone: 'light' })],
+    ]);
+    expect(classifyLogos(items, art).groups).toHaveLength(2);
+  });
+
+  it('keeps genuinely different marks apart', () => {
     const items = [
       img('a.png', { contentHash: '1', isLogo: true }),
       img('b.png', { contentHash: '2', isLogo: true }),
     ];
-    const prints = new Map([[items[0].id, print(same)], [items[1].id, print(other)]]);
-    expect(classifyLogos(items, prints).groups).toHaveLength(2);
+    const art = new Map([
+      [items[0].id, seen({ hash: HASH })],
+      [items[1].id, seen({ hash: '0101010101010101010101010101010101010101010101010101010101010101' })],
+    ]);
+    expect(classifyLogos(items, art).groups).toHaveLength(2);
   });
 
-  it('falls back to filenames when a picture could not be read', () => {
+  it('folds by filename when neither picture could be read', () => {
     const items = [
       img('brand-logo.svg', { contentHash: '1' }),
       img('brand-logo-white.svg', { contentHash: '2' }),
     ];
-    const prints = new Map([[items[0].id, null], [items[1].id, null]]);
-    expect(classifyLogos(items, prints).groups).toHaveLength(1);
+    const art = new Map([[items[0].id, null], [items[1].id, null]]);
+    expect(classifyLogos(items, art).groups).toHaveLength(1);
   });
-});
 
-describe('export noise does not make one mark into several', () => {
-  it('folds a vector and its raster export', () => {
-    // The pair a designer actually hands over. A vector often cannot be
-    // fingerprinted on a canvas, so the filename is the only signal left — and
-    // "@2x" was enough to split them.
+  it('folds a vector and its raster export by name alone', () => {
     const out = classifyLogos([
       img('Primary Logo.svg', { contentHash: '1', isLogo: true }),
       img('Primary Logo@2x.png', { contentHash: '2', isLogo: true }),
     ]);
     expect(out.groups).toHaveLength(1);
-  });
-
-  it('folds pixel dimensions in a filename', () => {
-    const out = classifyLogos([
-      img('kaafex-logo.png', { contentHash: '1', isLogo: true }),
-      img('kaafex-logo 1024x1024.png', { contentHash: '2', isLogo: true }),
-    ]);
-    expect(out.groups).toHaveLength(1);
-  });
-
-  it('still keeps two genuinely different marks apart', () => {
-    const out = classifyLogos([
-      img('Logomark.svg', { contentHash: '1', isLogo: true }),
-      img('Logotype.svg', { contentHash: '2', isLogo: true }),
-    ]);
-    expect(out.groups).toHaveLength(2);
-  });
-});
-
-describe('a filename is read as words, not as letters', () => {
-  // The one that shipped and was visible: a wide KAAFEX logotype exported as
-  // "Logomark.svg" was labelled ICON on the board, because "mark" is a
-  // substring of "logomark".
-  it('does not find "mark" inside "logomark"', () => {
-    const out = classifyLogos([
-      img('Logo.svg', { contentHash: '1', isLogo: true }),
-      img('Logomark.svg', { contentHash: '2', isLogo: true }),
-    ]);
-    expect(out.groups[1].slot).not.toBe('mark');
-  });
-
-  it('still finds it when it is its own word', () => {
-    const out = classifyLogos([
-      img('kaafex-logo.svg', { contentHash: '1', isLogo: true }),
-      img('kaafex-mark.svg', { contentHash: '2', isLogo: true }),
-    ]);
-    expect(out.groups[1].slot).toBe('mark');
-  });
-});
-
-describe('the folder a designer actually hands over', () => {
-  // The real one, from the owner's own archive: a square symbol, a wide
-  // logotype and the lockup of the two, in the order a file listing gives
-  // them. Every earlier version of this got at least one of the three wrong.
-  const FOLDER = [
-    { name: 'Logomark.svg', ratio: 1, hash: '1111000011110000111100001111000011110000111100001111000011110000' },
-    { name: 'Logotype.svg', ratio: 6.35, hash: '0000111100001111000011110000111100001111000011110000111100001111' },
-    { name: 'Primary Logo.svg', ratio: 6.22, hash: '1100110011001100110011001100110011001100110011001100110011001100' },
-  ];
-
-  it('puts each of the three where it belongs', () => {
-    const items = FOLDER.map((f, i) => img(f.name, { contentHash: `${i}`, isLogo: true }));
-    const prints = new Map(items.map((a, i) => [a.id, print(FOLDER[i].hash, FOLDER[i].ratio)]));
-    const byName = Object.fromEntries(
-      classifyLogos(items, prints).groups.map((g) => [g.lead.name, g.slot]),
-    );
-    expect(byName['Primary Logo.svg']).toBe('primary');
-    expect(byName['Logotype.svg']).toBe('wordmark');
-    expect(byName['Logomark.svg']).toBe('mark');
-  });
-});
-
-describe('the artwork outranks its filename', () => {
-  // Two hashes far enough apart that they are never read as one mark.
-  const HASHES: Record<string, string> = {
-    a: '1010101010101010101010101010101010101010101010101010101010101010',
-    b: '0101010101010101010101010101010101010101010101010101010101010101',
-  };
-  const shaped = (name: string, ratio: number, hash: keyof typeof HASHES) => {
-    const a = img(name, { contentHash: hash, isLogo: true });
-    return [a, print(HASHES[hash], ratio)] as const;
-  };
-
-  it('refuses to call something four times wider than tall an icon', () => {
-    const [lead, leadPrint] = shaped('logo.svg', 3, 'a');
-    const [wide, widePrint] = shaped('icon.svg', 6, 'b');
-    const out = classifyLogos([lead, wide], new Map([[lead.id, leadPrint], [wide.id, widePrint]]));
-    expect(out.groups[1].slot).not.toBe('mark');
-  });
-
-  it('reads a wide unnamed mark as the wordmark', () => {
-    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
-    const [wide, widePrint] = shaped('two.svg', 6, 'b');
-    const out = classifyLogos([lead, wide], new Map([[lead.id, leadPrint], [wide.id, widePrint]]));
-    expect(out.groups[0].slot).toBe('primary');
-    expect(out.groups[1].slot).toBe('wordmark');
-    expect(out.groups[1].evidence).toContain('shape');
-  });
-
-  it('reads a square unnamed mark as the icon', () => {
-    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
-    const [square, squarePrint] = shaped('two.svg', 1.05, 'b');
-    const out = classifyLogos([lead, square], new Map([[lead.id, leadPrint], [square.id, squarePrint]]));
-    expect(out.groups[1].slot).toBe('mark');
-  });
-
-  it('leaves the in-between shapes to the order they arrived in', () => {
-    // A symbol-plus-name lockup is wide without being a wordmark. Guessing
-    // here is exactly what the confirmation step exists to avoid.
-    const [lead, leadPrint] = shaped('one.svg', 3, 'a');
-    const [mid, midPrint] = shaped('two.svg', 2.4, 'b');
-    const out = classifyLogos([lead, mid], new Map([[lead.id, leadPrint], [mid.id, midPrint]]));
-    expect(out.groups[1].evidence).toBe('the order you brought them');
   });
 });
