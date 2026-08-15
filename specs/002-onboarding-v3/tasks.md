@@ -308,9 +308,57 @@ Phase 10 (vocabularies) ──┼─▶ Phase 11 (brief) ──────┼�
 
 ---
 
+## Revision R2 — what the review actually asks (2026-08-15)
+
+Corrections that came from using R1. The interface is unchanged except where a
+task genuinely adds or removes a field, a control or a state.
+
+- [X] T147 Read the artwork instead of the filename — `understanding/artwork.ts`
+      (composition, arrangement, tone, identity hash), replacing `imageFingerprint.ts`
+- [X] T148 Roles from what the artwork IS — `understanding/logoClassify.ts`
+      (`roleFromArtwork`; filename demoted to last resort; dark artwork asked first
+      so a light twin takes `dark` whichever was uploaded first)
+- [X] T149 [P] Retire the "on light" variant — `LogoSlots.tsx`, `logoClassify.ts`,
+      `intakeTypes.ts` (kept in the union so old brands still render)
+- [X] T150 [P] On-dark tile renders on a dark ground with a legible label — `cosmos.css`
+- [X] T151 The board opens with the Primary alone — `LogoSlots.tsx`
+- [X] T152 `custom:<name>` variants: name, add, pick as a role — `LogoSlots.tsx`,
+      `types.ts`, `intakeTypes.ts`
+- [X] T153 Confirm says so, in a word, with an answer — `LogoSlots.tsx`, `cosmos.css`
+- [X] T154 [P] Confirm all, beside the count — `UploadsReviewPanel.tsx`
+- [X] T155 [P] A raster logo is accepted and noted — `LogoSlots.tsx`
+- [X] T156 Colour extraction: ground removed, blends rejected, ink kept —
+      `utils/assetUpload.ts`; logo preferred as the source — `SetUpScreen.tsx`,
+      `UploadsReviewPanel.tsx`
+- [X] T157 `strategy.summary` as a Core path — `identity.ts`, `coreFieldPaths.ts`,
+      `changeBrandStrategy.ts`, `applyProposals.ts`, `interpret.ts` **(Foundation,
+      additive, no migration)**
+- [X] T158 Brand Strategy: eleven fields, present whether or not anything parsed —
+      `AboutGroup.tsx`, `v4Bridge.ts` (`Projection.business`)
+- [X] T159 [P] "Write your own" in the vocabularies that can store one — `ValuePicker.tsx`
+- [X] T160 [P] Tests: `artwork.browser.test.ts`, `colorExtraction.browser.test.ts`,
+      `brandStrategy.browser.test.tsx`, extended `logoRoles.browser.test.tsx`
+- [X] T161 [P] Update `CLAUDE.md` and the spec status
+
+### Also fixed while here, from the same round of use
+
+- [X] T162 A brand stays unfinished until Finish — the marker records the review
+      step, and Resume returns there (`SetUpScreen.tsx`, `dashboard/brands`)
+- [X] T163 PostgREST reports a missing column two ways — `missingColumnName`
+      handles `PGRST204` as well as `42703`, and an empty PATCH is never sent
+      (`brands.supabase.ts`). This is why marker writes failed entirely on an
+      environment without migration 022.
+- [X] T164 The marker has a local home while the column is absent —
+      `onboardingMarkerFallback.ts`, merged back in `mapFromDatabase`
+- [X] T165 [P] Fonts say whose choice they were, not where they are hosted —
+      `UploadsReviewPanel.tsx`
+
+---
+
 ## Notes
 
-- **148 tasks total**: 83 original (82 done, 1 blocked) + 65 for R1 (T084–T146, incl. T090a and T135a).
+- **167 tasks total**: 83 original (82 done, 1 blocked) + 65 for R1 (T084–T146, incl.
+  T090a and T135a) + 19 for R2 (T147–T165).
 - R1 re-does no backend or Foundation work. Its only Foundation line is the additive
   `StyleDescriptor` widening (T096/T097) — **approved 2026-08-14**.
 - No task is blocked. Both previously-open decisions (plan §9b, plan §11a) were

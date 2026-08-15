@@ -4,11 +4,11 @@
 
 **Created**: 2026-08-13
 
-**Status**: **Implemented — revision R1 complete (2026-08-14)** — the Foundation and pipeline
-described below shipped on 2026-08-14 and are KEPT. The user-facing flow is being
-returned to the pre-V3 onboarding interface as its visual and interaction
-foundation, and extended. See "Revision R1" below and the task-level record in
-tasks.md.
+**Status**: **Implemented — revision R2 complete (2026-08-15)** — the Foundation and pipeline
+described below shipped on 2026-08-14 and are KEPT. R1 returned the user-facing
+flow to the pre-V3 onboarding interface as its visual and interaction
+foundation; R2 corrected what that interface knows and asks. See "Revision R2"
+and "Revision R1" below, and the task-level record in tasks.md.
 
 **Input** *(original)*: "002 — Onboarding V3. Replace the two divergent onboarding
 creation flows with one canonical onboarding system."
@@ -47,6 +47,48 @@ no separate draft to reconcile, which is what keeps this flow inside Principle I
 The final step is not where the brand comes into being — it is where the user
 confirms what the system understood, and that confirmation is what raises reviewed
 values above suggestion.
+
+### Revision R2 — what the review actually asks (2026-08-15)
+
+R1 shipped the interface. R2 is the round of corrections that came from using
+it, and it changes what the screen KNOWS rather than how it looks. The interface
+is unchanged except where a requirement below genuinely adds or removes a field,
+a control or a state.
+
+- **FR-076**: Logo roles MUST be decided by what the artwork IS — a symbol alone
+  is the icon, the name set as type is the wordmark, the two together are a
+  lockup, and their arrangement distinguishes the primary from the vertical. The
+  filename MAY be consulted only for artwork that could not be read.
+- **FR-077**: Light artwork MUST be understood as the on-dark variant, and its
+  tile MUST be rendered on a dark ground with a legible label. An empty on-dark
+  slot MUST NOT be created when no such artwork was found.
+- **FR-078**: The "on light" variant MUST NOT be offered. A logo on a light
+  background is the ordinary case.
+- **FR-079**: The board MUST open with the Primary alone. Further variants MUST
+  arrive either by classification or by the user asking for one by name,
+  INCLUDING a variant the product has no name for, which the user names.
+- **FR-080**: A role the system assigned MUST be confirmable per logo, with a
+  visible action and a visible answer, and MUST be confirmable for the whole
+  board at once. A confirmed role MUST NOT be overwritten by any later pass.
+- **FR-081**: A raster logo MUST be accepted, and the user MUST be told it may
+  lose quality or carry a background.
+- **FR-082**: Colour extraction MUST prefer the logo when one exists, MUST NOT
+  return the background as a brand colour, MUST NOT return antialiased edges as
+  brand colours, and MUST NOT discard a dark or light colour that is the artwork
+  itself.
+- **FR-083**: The brand's structured strategy fields MUST be present and
+  answerable whether or not anything was parsed. An unanswered field is an open
+  question, never an absent one.
+- **FR-084**: The section MUST be called Brand Strategy and MUST carry: brand
+  summary, industry, products / services, audience, positioning, mission,
+  personality, tone, visual style, core values, slogan.
+- **FR-085**: A controlled vocabulary MUST also accept a word of the user's own,
+  kept verbatim, wherever the schema can store one.
+
+**One Foundation change**: `strategy.summary` is added as a Core path. The brief
+has always asked for a brand summary AND a mission under their own headings; the
+summary was being written to `strategy.mission`, so a brief that answered both
+kept only one. Additive, optional, no migration.
 
 ### Revision R1 — old interface, V3 architecture
 

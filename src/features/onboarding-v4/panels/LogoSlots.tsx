@@ -568,6 +568,21 @@ export function LogoSlots({ assets }: Props) {
     window.setTimeout(() => fileInputRef.current?.click(), 30);
   };
 
+  /**
+   * Every role a logo can be moved to: the named ones, then anything the user
+   * named themselves. Without the second half, naming a variant created a slot
+   * no logo could ever be put into.
+   */
+  const allRoles: LogoSlot[] = useMemo(
+    () => [
+      ...SLOT_ORDER_ALL,
+      ...[...visibleSlots, ...extraSlots].filter(
+        (s, i, all) => isCustomSlot(s) && all.indexOf(s) === i,
+      ),
+    ],
+    [visibleSlots, extraSlots],
+  );
+
   /** Logos that came in as JPEGs, by filename. */
   const rasterLogos = useMemo(
     () =>
@@ -608,6 +623,7 @@ export function LogoSlots({ assets }: Props) {
               onPick={(file) => uploadToSlot(slot, file)}
               onRemove={() => asset && removeAsset(asset.id)}
               onRemoveSlot={isExtra ? () => removeLogoSlot(slot) : undefined}
+              roles={allRoles}
               onPickRole={(role) => asset && reassignSlot(asset.id, role)}
               onConfirm={() => {
                 if (!asset) return;
@@ -739,12 +755,15 @@ interface SlotCardProps {
   onRemove(): void;
   onRemoveSlot?(): void;
   onConfirm(): void;
+  /** Every role this logo could be moved to — the named ones, and any the
+   *  user invented. A variant nobody can move a logo into is a dead end. */
+  roles: LogoSlot[];
   /** Move this logo to another role. Swaps with whatever is already there. */
   onPickRole(role: LogoSlot): void;
   onContextMenu?(e: React.MouseEvent<HTMLDivElement>, pickFile: () => void): void;
 }
 
-function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onContextMenu }: SlotCardProps) {
+function SlotCard({ def, asset, isExtra, roles, onPick, onRemove, onRemoveSlot, onConfirm, onPickRole, onContextMenu }: SlotCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [rolesOpen, setRolesOpen] = useState(false);
   /** Held for the length of the confirmation beat, then the control retires. */
@@ -836,7 +855,7 @@ function SlotCard({ def, asset, isExtra, onPick, onRemove, onRemoveSlot, onConfi
             </PopoverTrigger>
             <PopoverContent align="start" side="bottom" className="logo-variant-picker is-roles">
               <div className="logo-variant-grid">
-                {SLOT_ORDER_ALL.map((role) => {
+                {roles.map((role) => {
                   const roleDef = defFor(role);
                   const current = role === def.key;
                   return (

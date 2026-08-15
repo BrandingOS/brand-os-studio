@@ -984,10 +984,88 @@ controls render Core values; every edit writes straight back through the bridge.
 - **Never expose the model** — no "authority", "provenance", "suggested" as a
   status. A browser test scans the state-bearing elements.
 - **Limits**: 10 files, 5 MB each, refused per item so a folder loses only its
-  overflow (`material/limits.ts`, applied in `BrandDropzone`).
+  overflow (`material/limits.ts`, applied in `BrandDropzone`). `countUploads`
+  counts FILES the user brought — not generated variants, links, colours, or a
+  font we suggested, and one uploaded typeface counts once however many weights.
 
-Migration 022 adds `brands.onboarding`; its absence is tolerated on create and
-update — the flow degrades to non-resumable, never to a failed save.
+### The logo detector — `understanding/artwork.ts`
+
+**It looks at the picture. The filename is a last resort.** `readArtwork(url)`
+renders to a canvas and answers two questions, and those answers name the role:
+
+| what it is made of | | how the pieces sit | |
+|---|---|---|---|
+| a symbol alone | `mark` | beside each other | `primary` |
+| the name as type | `wordmark` | one above the other | `vertical` |
+
+plus `tone`, which names the VARIANT rather than the role: light artwork was
+drawn for dark grounds, so a light twin of a placed logo takes `dark`.
+
+Rules that bind here:
+
+- **Words are a wide run of several small pieces sharing a line; a symbol is a
+  compact one.** No letters are read and none need to be.
+- **The seam between symbol and name is the artwork's OWN widest gap**, and it
+  must be conspicuous among the other gaps. Every fixed threshold tried either
+  merged a tight lockup into one run or tore a wordmark in half.
+- **Trim before hashing.** Untrimmed, a logo is mostly padding and every logo
+  hashes alike. Also: Chrome draws NOTHING when an SVG with no intrinsic size is
+  cropped by `drawImage`'s source-rect form — crop from the scan canvas instead.
+- **Coverage, not colour**, so an SVG and its flattened export match — and
+  `sameArtwork` compares tone as well, so a mark and its white twin stay two
+  entries and both get a slot.
+- Filename tokens are matched as WORDS. `"mark"` is inside `"logomark"`, which
+  is how a wide logotype came out labelled Icon.
+
+### The logo board — `onboarding-v4/panels/LogoSlots.tsx`
+
+- Opens with **Primary only**. Other slots appear when an upload turns out to be
+  one, or when the user asks by name. An empty slot is never conjured.
+- **No "on light"** — that is the ordinary case. `light` survives in the
+  `LogoSlot` union so old brands still render; nothing offers or places it.
+- **`custom:<name>`** is a variant the user named. The name IS the key. Custom
+  slots must appear in the role picker too, or they are a dead end.
+- **A role we chose is a QUESTION.** `slotConfirmed` marks the user's answer,
+  and nothing may overwrite a confirmed role — not the classifier re-running,
+  not the board's own async router (which must re-check the live slot before it
+  writes; it is asynchronous and its stale plan used to land last).
+
+### Colour extraction — `onboarding-v4/utils/assetUpload.ts`
+
+`extractDominantColors` answers "the colours this brand chose", not "the most
+common colours" — that answer is nearly always the background. **Read the LOGO
+first when there is one.** Three rules: the ground (what fills all four corners)
+is removed; a colour sitting on the line between two picked colours is an
+antialiased blend, not a decision; near-white is demoted only when no ground
+could be identified, or a white-on-black logo loses its only colour.
+
+### Brand Strategy (the section formerly called About)
+
+**The eleven fields exist whether or not the prompt was used** — summary,
+industry, products/services, audience, positioning, mission, personality, tone,
+visual style, core values, slogan. Choices where a closed vocabulary exists,
+prose where the meaning is in the wording, and "write your own" anywhere the
+schema can hold it — everywhere except `visualStyle.descriptors`, a closed union
+where a free word would fail validation and cost the whole save.
+
+`strategy.summary` is its own Core path: the brief asks for a summary AND a
+mission, and filing the summary as the mission kept only one of the two.
+
+### Migration 022 (`brands.onboarding`)
+
+Its absence is tolerated on create and update. Two things make that real, and
+both were broken:
+
+- **PostgREST reports a missing column two ways** — `42703` from Postgres, and
+  `PGRST204` ("Could not find the 'x' column … in the schema cache") from
+  PostgREST's own payload check, which is what an INSERT/UPDATE actually hits.
+  `missingColumnName` in `brands.supabase.ts` knows both.
+- **Dropping the only field in a patch leaves an empty PATCH**, which matches no
+  rows and answers `PGRST116` — a failed save for a write already honoured.
+
+While the column is absent the marker lives in `onboardingMarkerFallback.ts`
+(localStorage, per browser) and is merged back in `mapFromDatabase`, so an
+unfinished brand still reads as unfinished. The row always wins when it has one.
 
 ## Auth flow gotchas
 

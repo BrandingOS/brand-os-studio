@@ -213,3 +213,46 @@ describe('a JPEG logo is allowed, and said so', () => {
     expect(document.querySelector('.logo-raster-note')).toBeNull();
   });
 });
+
+describe('a variant the product has no name for', () => {
+  const nameIt = async (name: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /add variation/i }));
+    fireEvent.click(screen.getByRole('button', { name: /add a variant of your own/i }));
+    const field = await screen.findByLabelText('Variant name');
+    fireEvent.change(field, { target: { value: name } });
+    return field;
+  };
+
+  it('puts it on the board under the name the user gave it', async () => {
+    board([logo({ logoSlot: 'primary' })]);
+    await nameIt('Seal');
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    const empties = [...document.querySelectorAll('.logo-slot-empty')].map((e) => e.textContent);
+    expect(empties).toEqual(['+Add seal']);
+    expect(useV4Store.getState().extraLogoSlots).toContain('custom:Seal');
+  });
+
+  it('refuses a name the board already carries', async () => {
+    board([logo({ logoSlot: 'primary' })]);
+    await nameIt('Primary');
+    const add = screen.getByRole('button', { name: /already on the board/i });
+    expect((add as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('is a role like any other — pickable from the chip', async () => {
+    board([logo({ logoSlot: 'primary' })]);
+    await nameIt('Seal');
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(document.querySelector('.logo-slot-name')!);
+    const offered = [...document.querySelectorAll('.logo-variant-card-label')].map((e) => e.textContent);
+    expect(offered).toContain('Seal');
+  });
+
+  it('lets the user back out', async () => {
+    board([logo({ logoSlot: 'primary' })]);
+    await nameIt('Seal');
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+    expect(screen.queryByLabelText('Variant name')).toBeNull();
+    expect(useV4Store.getState().extraLogoSlots).toEqual([]);
+  });
+});
