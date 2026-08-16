@@ -9,6 +9,10 @@ import { CopyIcon, type OrganicIconHandle } from './organic-icons';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
 import { hexToName } from '../data/colorNames';
 import { STRATEGY_CARDS, contentOf, type StrategyKey } from '../data/strategyCards';
+import { ADDABLE_LOGO_ROLES } from '@/shared/brand/logoRoles';
+import { TILE_ID_BY_ROLE } from '../data/logoBoard';
+import { LinkCard } from '@/shared/brand/LinkCard';
+import type { SitePreview } from '@/shared/brand/sitePreview';
 import type { LogoRole } from '@/shared/types/brandAssets';
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
@@ -286,31 +290,25 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 /** Relative luminance check — swatches with light bg get dark text. */
 /**
- * The logo roles a tile can be reassigned to (right-click → Change logo type).
+ * The logo variants a tile can be reassigned to (right-click → Change logo type).
  *
- * The SAME set onboarding offers, in the same order and under the same names,
- * so a variant named on the review is the variant named here. Each carries its
- * canonical role, which is what the tile persists — the ids and labels are for
- * the person reading them.
- *
- * `On light` is deliberately absent, as it is in onboarding: a logo on a light
- * background is the ordinary case, not a variant. A brand that already holds
- * one still renders it (`mapLogos` builds the tile); nothing offers it.
+ * Derived from `shared/brand/logoRoles`, which is the ONE list — the review
+ * board reads the same one, so a variant named there is the variant named here
+ * and neither can drift. The tile ids are Setup's own (`mapLogos` builds tiles
+ * with them); the label, the ground and the canonical role all come from the
+ * shared definition.
  */
 export const LOGO_ROLES: Array<{
   id: string;
   label: string;
   variant: 'light' | 'dark';
   role: LogoRole;
-}> = [
-  { id: 'primary', label: 'Primary', variant: 'light', role: 'primary' },
-  { id: 'wordmark', label: 'Wordmark', variant: 'light', role: 'wordmark' },
-  { id: 'mark', label: 'Icon', variant: 'light', role: 'iconmark' },
-  { id: 'on-dark', label: 'On dark', variant: 'dark', role: 'mono.white' },
-  { id: 'horizontal', label: 'Horizontal', variant: 'light', role: 'horizontal' },
-  { id: 'vertical', label: 'Vertical', variant: 'light', role: 'stacked' },
-  { id: 'alternate', label: 'Alternate', variant: 'light', role: 'secondary' },
-];
+}> = ADDABLE_LOGO_ROLES.map((d) => ({
+  id: TILE_ID_BY_ROLE[d.role] ?? d.slot,
+  label: d.label,
+  variant: d.tone,
+  role: d.role,
+}));
 
 function isLightHex(hex: string): boolean {
   const clean = hex.replace('#', '');
@@ -459,6 +457,10 @@ type Props = {
   onDownloadLogo?: (logo: MockBrand['logos'][number]) => void;
   /** Reassign a logo to another role (primary / wordmark / mark / …). */
   onChangeLogoRole?: (id: string, roleId: string) => void;
+  /** Promote a variant to Primary. The two tiles trade roles. */
+  onSetPrimaryLogo?: (id: string) => void;
+  /** Open the "which variant is this?" flow. */
+  onAddLogoVariant?: () => void;
   onPreviewLogo?: (logo: MockBrand['logos'][number]) => void;
   onDeletePhoto?: (id: string) => void;
   onReplacePhoto?: (id: string) => void;
@@ -479,6 +481,8 @@ type Props = {
   onEditStrategy?: (key: StrategyKey) => void;
   /** Remove one of the brand's other addresses. */
   onDeleteLink?: (id: string) => void;
+  /** Raise the preview drawer for a link. */
+  onOpenLink?: (url: string, preview: SitePreview | null) => void;
   onDeleteAbout?: (id: string) => void;
   onDownloadAbout?: (entry: MockBrand['about'][number]) => void;
   /** Drag-drop passthrough — lets the empty logo / photo tiles accept
@@ -503,6 +507,8 @@ export function SetupBoard({
   onReplaceLogo,
   onDownloadLogo,
   onChangeLogoRole,
+  onSetPrimaryLogo,
+  onAddLogoVariant,
   onPreviewLogo,
   onDeletePhoto,
   onReplacePhoto,
@@ -521,6 +527,7 @@ export function SetupBoard({
   onEditAbout,
   onEditStrategy,
   onDeleteLink,
+  onOpenLink,
   onDeleteAbout,
   onDownloadAbout,
   onDropFiles,
@@ -721,6 +728,17 @@ export function SetupBoard({
         ),
       });
     }
+    if (onSetPrimaryLogo && logo.role !== 'primary' && logo.id !== 'primary') {
+      items.push({
+        label: 'Set as Primary',
+        onSelect: () => onSetPrimaryLogo(logo.id),
+        icon: (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m12 3 2.6 5.6 6.4.8-4.7 4.3 1.3 6.3L12 17l-5.6 3 1.3-6.3L3 9.4l6.4-.8Z" />
+          </svg>
+        ),
+      });
+    }
     if (onChangeLogoRole) {
       items.push({
         label: 'Change logo type',
@@ -875,53 +893,6 @@ export function SetupBoard({
       });
     }
     if (items.length === 0) return;
-    setCtxMenu({ x: e.clientX, y: e.clientY, items });
-  };
-
-  const openWebsiteMenu = (
-    e: React.MouseEvent,
-    website: MockBrand['websites'][number],
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    markAnchor(e.currentTarget as HTMLElement);
-    const items: ContextMenuState['items'] = [];
-    items.push({
-      label: 'Open in new tab',
-      onSelect: () => window.open(website.url, '_blank', 'noopener,noreferrer'),
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-          <polyline points="15 3 21 3 21 9" />
-          <line x1="10" y1="14" x2="21" y2="3" />
-        </svg>
-      ),
-    });
-    if (onAddWebsite && canAddWebsite) {
-      items.push({
-        label: 'New tab',
-        onSelect: () => onAddWebsite(),
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 5v14" />
-            <path d="M5 12h14" />
-          </svg>
-        ),
-      });
-    }
-    if (onDeleteWebsite) {
-      items.push({
-        label: 'Close tab',
-        destructive: true,
-        onSelect: () => onDeleteWebsite(website.id),
-        icon: (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" />
-            <path d="m6 6 12 12" />
-          </svg>
-        ),
-      });
-    }
     setCtxMenu({ x: e.clientX, y: e.clientY, items });
   };
 
@@ -1234,7 +1205,7 @@ export function SetupBoard({
           <button
             type="button"
             className="logo-tile is-empty"
-            onClick={() => onEdit('logo')}
+            onClick={() => (onAddLogoVariant ? onAddLogoVariant() : onEdit('logo'))}
             aria-label="Add logo variant"
             onDragOver={(e) => {
               if (!onDropFiles) return;
@@ -1256,8 +1227,15 @@ export function SetupBoard({
             <svg className="logo-tile-dash" aria-hidden="true">
               <rect />
             </svg>
-            <span className="logo-tile-plus" aria-hidden="true">
-              +
+            {/* Named, not a bare `+`. The old plus opened a file picker and
+                produced a tile called "Logo" holding no role — which no slot
+                can persist, and which hid the fact that roles exist at all. */}
+            <span className="logo-tile-add" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add logo variant</span>
             </span>
           </button>
         </div>
@@ -1429,48 +1407,51 @@ export function SetupBoard({
         onEdit={() => onEdit('website')}
         onExport={exportFor('website')}
       >
-        <WebsiteFrame
-          brandName={brand.name}
-          websites={brand.websites}
-          canAdd={canAddWebsite}
-          onAdd={onAddWebsite}
-          onReplace={onReplaceWebsite}
-          onDelete={onDeleteWebsite}
-          onTabContextMenu={(e, website) => openWebsiteMenu(e, website)}
-        />
         {/*
-          The brand's other addresses. Onboarding collects social profiles
-          alongside the website and Setup had nowhere to show them, so they
-          were on the record and invisible — and a save that only knew about
-          the website would have dropped them.
+          A link is shown as a CARD, not as a browser.
+
+          This used to render one fake browser window — chrome, tab strip and a
+          body that showed either a screenshot or a giant letter on grey. A
+          brand with three links saw one of them at monitor size and the others
+          as tabs. `LinkCard` reads the site's own Open Graph metadata, which is
+          published for exactly this purpose, and the full-size render moves to
+          the preview drawer where it belongs.
         */}
-        {brand.links.length > 0 && (
-          <div className="brand-links" aria-label="Links">
+        {brand.websites.length === 0 && brand.links.length === 0 ? (
+          <button type="button" className="website-empty" onClick={onAddWebsite}>
+            <svg className="empty-tile-dash" aria-hidden="true">
+              <rect />
+            </svg>
+            <span className="empty-tile-content">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <path d="M12 5 L12 19" />
+                <path d="M5 12 L19 12" />
+              </svg>
+              <span>Add a website</span>
+            </span>
+          </button>
+        ) : (
+          <div className="link-cards">
+            {brand.websites.map((w) => (
+              <LinkCard
+                key={w.id}
+                url={w.url}
+                fallbackTitle={w.title ?? undefined}
+                onOpen={(p) => onOpenLink?.(w.url, p)}
+                onReplace={onReplaceWebsite ? () => onReplaceWebsite(w.id) : undefined}
+                onRemove={onDeleteWebsite ? () => onDeleteWebsite(w.id) : undefined}
+              />
+            ))}
+            {/* The brand's other addresses — social profiles and anything else
+                it brought. Same card, same behaviour. */}
             {brand.links.map((link) => (
-              <a
+              <LinkCard
                 key={link.id}
-                className="brand-link"
-                href={link.url}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <span className="brand-link-kind">{link.kind}</span>
-                <span className="brand-link-url">{link.label ?? link.url}</span>
-                {onDeleteLink && (
-                  <button
-                    type="button"
-                    className="brand-link-remove"
-                    aria-label={`Remove ${link.label ?? link.url}`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onDeleteLink(link.id);
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </a>
+                url={link.url}
+                fallbackTitle={link.label ?? undefined}
+                onOpen={(p) => onOpenLink?.(link.url, p)}
+                onRemove={onDeleteLink ? () => onDeleteLink(link.id) : undefined}
+              />
             ))}
           </div>
         )}
@@ -2074,181 +2055,6 @@ const SPECIMEN_SENTENCE = 'The professional standard';
 
 function resolveWeights(family: string): FontWeight[] {
   return FONT_WEIGHTS[family] ?? DEFAULT_WEIGHTS;
-}
-
-function WebsiteFrame({
-  brandName,
-  websites,
-  canAdd,
-  onAdd,
-  onReplace,
-  onDelete,
-  onTabContextMenu,
-}: {
-  brandName: string;
-  websites: MockBrand['websites'];
-  canAdd: boolean;
-  onAdd?: () => void;
-  onReplace?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onTabContextMenu?: (
-    e: React.MouseEvent,
-    website: MockBrand['websites'][number],
-  ) => void;
-}) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const active = useMemo(
-    () => websites.find((w) => w.id === activeId) ?? websites[0] ?? null,
-    [websites, activeId],
-  );
-
-  // When the active website is removed, fall back to the first remaining one.
-  useEffect(() => {
-    if (!active && websites.length > 0) setActiveId(websites[0].id);
-  }, [active, websites]);
-
-  if (websites.length === 0) {
-    return (
-      <button
-        type="button"
-        className="website-empty"
-        onClick={onAdd}
-      >
-        <svg className="empty-tile-dash" aria-hidden="true">
-          <rect />
-        </svg>
-        <span className="empty-tile-content">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-            <path d="M12 5 L12 19" />
-            <path d="M5 12 L19 12" />
-          </svg>
-          <span>Add a website</span>
-        </span>
-      </button>
-    );
-  }
-
-  const pretty = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-  return (
-    <div
-      className="website-frame"
-      onContextMenu={
-        onTabContextMenu && active
-          ? (e) => {
-              // Scope the frame-level right-click to the active tab. If
-              // the target was a specific tab or the +/close button,
-              // those have their own handlers and stopPropagation — this
-              // only fires for "empty" areas of the frame (chrome +
-              // body).
-              onTabContextMenu(e, active);
-            }
-          : undefined
-      }
-    >
-      <div className="website-tabs" role="tablist">
-        {websites.map((w) => {
-          const isActive = (active?.id ?? websites[0].id) === w.id;
-          return (
-            <div
-              key={w.id}
-              className={`website-tab${isActive ? ' is-active' : ''}`}
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setActiveId(w.id)}
-              onContextMenu={onTabContextMenu ? (e) => onTabContextMenu(e, w) : undefined}
-            >
-              <span className="website-tab-favicon" aria-hidden>
-                {w.favicon ? (
-                  <img
-                    src={w.favicon}
-                    alt=""
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M3 12h18" />
-                    <path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18" />
-                  </svg>
-                )}
-              </span>
-              <span className="website-tab-label">{w.title || pretty(w.url)}</span>
-              {onDelete && (
-                <button
-                  type="button"
-                  className="website-tab-close"
-                  aria-label={`Remove ${pretty(w.url)}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(w.id);
-                  }}
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="M18 6 6 18" />
-                    <path d="m6 6 12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          );
-        })}
-        {canAdd && onAdd && (
-          <button
-            type="button"
-            className="website-tab-add"
-            aria-label="Add a new website"
-            onClick={onAdd}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
-              <path d="M12 5 L12 19" />
-              <path d="M5 12 L19 12" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div className="website-chrome">
-        <span className="chrome-dot" />
-        <span className="chrome-dot" />
-        <span className="chrome-dot" />
-        <span className="chrome-url">{active ? pretty(active.url) : ''}</span>
-        {active && onReplace && (
-          <button
-            type="button"
-            className="chrome-edit"
-            aria-label="Change URL"
-            onClick={() => onReplace(active.id)}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </button>
-        )}
-      </div>
-      <div className="website-body">
-        {active?.loading ? (
-          <div className="website-loading" aria-live="polite">
-            <DsSkeleton radius={0} style={{ position: 'absolute', inset: 0, height: 'auto' }} />
-            <div className="website-loading-label">Fetching preview…</div>
-          </div>
-        ) : active?.preview ? (
-          <img
-            className="website-preview-img"
-            src={active.preview}
-            alt={active.title ? `${active.title} preview` : pretty(active.url)}
-          />
-        ) : (
-          <div className="website-fallback">
-            <div className="website-fallback-mark">{brandName.charAt(0)}</div>
-            <div className="website-fallback-url">{active ? pretty(active.url) : ''}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 type Font = { id: string; family: string; role: string; fallback?: string };

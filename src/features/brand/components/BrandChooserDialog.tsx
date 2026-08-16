@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { logoUrl, hasLogo } from '@/shared/brand/logoUrl';
 import type { Brand } from '@/shared/types/brand';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
 import {
   Search,
   PenTool,
@@ -124,20 +125,7 @@ export function BrandChooserDialog({
                   onClick={() => pick({ kind: 'brand', brand: b })}
                   className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted/60 transition-colors group"
                 >
-                  {hasLogo(b) ? (
-                    <img
-                      src={logoUrl(b)}
-                      alt=""
-                      className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-1 ring-1 ring-border/60 shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold text-white ring-1 ring-border/60 shrink-0"
-                      style={{ backgroundColor: b.primaryColor }}
-                    >
-                      {b.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
+                  <BrandAvatar brand={b} size={40} radius={8} className="ring-1 ring-border/60" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold truncate">{b.name}</p>
                     {b.tone && (

@@ -89,7 +89,21 @@ export async function storeMaterial(
       return null;
     }
 
-    const isLogo = Boolean(item.isLogo || item.logoSlot);
+    /*
+     * A logo is a file holding a logo ROLE. Nothing else.
+     *
+     * This used to accept `item.isLogo` too — a hint from the filename and,
+     * before that, from whether the format had an alpha channel. So an
+     * illustration called `mark-2.svg` was stored as `type: 'logo'`, which the
+     * Library projection turns into `kind: 'logo'`, which Setup's Photography
+     * excludes and Setup's Logo section cannot show either (it renders roles).
+     * The file went in and was never seen again.
+     *
+     * A role is a decision — the classifier's, confirmed by the user, or the
+     * user's outright. Everything without one is brand material, and lands in
+     * the Library as what it is.
+     */
+    const isLogo = Boolean(item.logoSlot);
     // `stageAsset` is used for its IDENTITY derivation only — content-hash id,
     // version, name — exactly as `useAssetUpload` uses it. Its `brandAssets[]`
     // output is discarded: that array is a read-only projection of the Library.
@@ -106,7 +120,14 @@ export async function storeMaterial(
     const payload = {
       name: asset.name,
       type: (isLogo ? 'logo' : item.kind === 'image' ? 'image' : 'document') as Asset['type'],
-      category: (isLogo ? 'logo' : 'photo') as Asset['category'],
+      // `reference` is the Library's word for "brand material with no other
+      // home" — a document, a design file, a font. Calling a PDF a photo made
+      // it a candidate for Photography, which reads the same category.
+      category: (isLogo
+        ? 'logo'
+        : item.kind === 'image'
+          ? 'photo'
+          : 'reference') as Asset['category'],
       source: 'upload' as const,
       url,
       size: item._file?.size ?? 0,

@@ -62,6 +62,24 @@ export interface OnboardingAsset {
   aiLogoSlot?: LogoSlot;
   /** Whether this logo was generated from another asset (auto B&W from SVG). */
   generated?: boolean;
+  /**
+   * Where the USER put this, when they said.
+   *
+   * Set only by an upload made from inside a specific section. It outranks
+   * every classifier: an item added under Brand Assets stays under Brand
+   * Assets, however much its filename or its artwork looks like a mark.
+   * Absent means nobody has said, and the flow is free to work it out.
+   */
+  placement?: 'assets';
+  /**
+   * Whether the image has a transparent background.
+   *
+   * A FACT about the picture, never a verdict on its own. Logos are usually
+   * cut out and photographs never are, so this is real evidence — but so are
+   * cut-out product shots, icon sheets and watermarks, which is why it only
+   * counts alongside artwork that actually reads as a mark.
+   */
+  hasTransparency?: boolean;
   /** Where classification placed this upload. `'colors'` marks a recognized
    *  palette image — its swatches went to Colours, so the image itself must NOT
    *  also land in the catch-all group. */

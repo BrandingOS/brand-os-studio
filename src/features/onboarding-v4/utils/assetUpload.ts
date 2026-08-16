@@ -8,10 +8,19 @@ export function genId(): string {
   return typeof crypto?.randomUUID === 'function' ? `a-${crypto.randomUUID()}` : `a-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+/**
+ * Whether the USER's own naming says this file is a logo.
+ *
+ * The filename is evidence because a person wrote it. The FORMAT is not: this
+ * used to return true for every `.svg`, on the theory that vector artwork is
+ * rarely a photograph — but an illustration, a pattern, a diagram and an icon
+ * set are all SVG and none of them is the brand's logo. Every vector a user
+ * dropped into Brand Assets left it immediately for the logo board.
+ *
+ * Format tells you how to draw a file, never what it is for.
+ */
 export function looksLikeLogo(file: File): boolean {
-  if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) return true;
-  if (LOGO_FILENAME.test(file.name)) return true;
-  return false;
+  return LOGO_FILENAME.test(file.name);
 }
 
 /** Async logo signal for images whose filename doesn't say "logo": a raster
@@ -237,8 +246,21 @@ export function filterFolderPick(list: FileList): File[] {
 // palette image could beat the logo and the slot auto-router keyed off
 // that order. Chain the calls so files enter in the order they were given.
 let enqueueChain: Promise<unknown> = Promise.resolve();
-export function enqueueFile(file: File, deps: QueueDeps): Promise<string | null> {
-  const run = enqueueChain.then(() => enqueueFileInner(file, deps));
+/**
+ * `destination` is where the USER put the file, when they said.
+ *
+ * A drop on the main dropzone says nothing — the flow is about to work out what
+ * everything is. A drop inside Brand Assets is an instruction, and the item
+ * stays there whatever any classifier would have made of it.
+ */
+export type UploadDestination = 'assets';
+
+export function enqueueFile(
+  file: File,
+  deps: QueueDeps,
+  destination?: UploadDestination,
+): Promise<string | null> {
+  const run = enqueueChain.then(() => enqueueFileInner(file, deps, destination));
   enqueueChain = run.catch(() => null);
   return run;
 }
@@ -246,7 +268,11 @@ export function enqueueFile(file: File, deps: QueueDeps): Promise<string | null>
 /** Per-image upload cap (brand-asset images). */
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | null> {
+async function enqueueFileInner(
+  file: File,
+  deps: QueueDeps,
+  destination?: UploadDestination,
+): Promise<string | null> {
   if (deps.getCount() >= deps.max) return null;
 
   const isImageFile =
@@ -267,18 +293,36 @@ async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | n
 
   const isZip = /zip/.test(file.type) || /\.zip$/i.test(file.name);
   if (isZip) {
-    return enqueueZip(file, deps, contentHash);
+    return enqueueZip(file, deps, contentHash, destination);
   }
 
   const asset = buildAsset(file);
   asset.contentHash = contentHash;
-  // Filename-based detection misses logos named "Frame 1.png" etc. — a
-  // transparent background is a much stronger signal, so check it too.
-  if (asset.kind === 'image' && !asset.isLogo) {
+  /*
+   * Transparency is NOT evidence of a logo.
+   *
+   * This used to promote any raster with a transparent background, on the
+   * theory that photographs are opaque. So are cut-out product shots, icon
+   * sheets, textures, watermarks and every PNG anyone has ever exported from
+   * Figma — all of which left Brand Assets the moment they were dropped in.
+   *
+   * What a file IS gets decided by the artwork detector during the
+   * understanding pass (`understanding/artwork.ts`), which looks at the
+   * picture, and finally by the user, who can say. An alpha channel says only
+   * that the format has one.
+   */
+  if (destination === 'assets') {
+    // The user chose the section. Nothing may move it out of there.
+    asset.placement = 'assets';
+    asset.isLogo = false;
+  } else if (asset.kind === 'image') {
+    // Recorded as a FACT, not acted on here. `logoClassify` weighs it against
+    // what the artwork turns out to be; on its own it says only that the image
+    // is cut out, which is true of plenty of things that are not logos.
     try {
-      if (await imageFileHasAlpha(file)) asset.isLogo = true;
+      asset.hasTransparency = await imageFileHasAlpha(file);
     } catch {
-      /* keep as plain image */
+      /* unreadable — the artwork detector still gets its turn */
     }
   }
   let previewUrl: string | null = null;
@@ -306,7 +350,12 @@ async function enqueueFileInner(file: File, deps: QueueDeps): Promise<string | n
   return asset.id;
 }
 
-async function enqueueZip(zipFile: File, deps: QueueDeps, contentHash?: string): Promise<string | null> {
+async function enqueueZip(
+  zipFile: File,
+  deps: QueueDeps,
+  contentHash?: string,
+  destination?: UploadDestination,
+): Promise<string | null> {
   const parent = buildAsset(zipFile);
   parent.contentHash = contentHash;
   deps.addAsset(parent);
@@ -336,7 +385,7 @@ async function enqueueZip(zipFile: File, deps: QueueDeps, contentHash?: string):
       const asFile = new File([blob], name, { type: guessedType });
       // Direct inner call — the zip itself already sits in the chain, so
       // routing entries through the public wrapper would deadlock.
-      await enqueueFileInner(asFile, deps);
+      await enqueueFileInner(asFile, deps, destination);
     }
   } catch (err) {
     console.warn('ZIP extraction failed', err);

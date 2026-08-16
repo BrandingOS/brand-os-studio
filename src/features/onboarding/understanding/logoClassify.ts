@@ -137,17 +137,40 @@ function sameMark(
  * that fails this stays an ordinary image and lands in Brand Assets, which is
  * where the user will look for it.
  */
-export function looksLikeLogo(a: OnboardingAsset): boolean {
+export function looksLikeLogo(a: OnboardingAsset, art?: Artwork | null): boolean {
+  // The USER's own placement wins over everything. An item they put in Brand
+  // Assets is a brand asset, and no amount of evidence may move it.
+  if (a.placement === 'assets') return false;
   if (a.isLogo || a.logoSlot || a.aiLogoSlot) return true;
   if (a.aiPlacement === 'logos') return true;
   // The classifier has spoken and did not say logos, so this is not a mark.
   // A truthiness check, not a second comparison — the line above already
   // narrowed 'logos' out of the type.
   if (a.aiPlacement) return false;
-  const n = a.name.toLowerCase();
-  // Vector artwork is almost never a photograph.
-  if (/\.svg$/.test(n)) return true;
-  return /logo|wordmark|logotype|monogram|brandmark|icon|mark|symbol|favicon|lockup/.test(n);
+  // The filename is what a person actually wrote, so it is evidence.
+  if (
+    /logo|wordmark|logotype|monogram|brandmark|icon|mark|symbol|favicon|lockup/.test(
+      a.name.toLowerCase(),
+    )
+  ) {
+    return true;
+  }
+
+  /*
+   * Two weak signals, and only together.
+   *
+   * The FORMAT is not evidence: `.svg` used to qualify on its own, on the
+   * theory that vector artwork is rarely a photograph — but illustrations,
+   * patterns, diagrams and icon sheets are all SVG, and every one of them was
+   * arriving on the logo board out of Brand Assets. Transparency alone is no
+   * better: cut-out product shots and watermarks have it too.
+   *
+   * What neither of them has is a logo's STRUCTURE. So a picture with no
+   * logo-ish name qualifies when it is cut out AND the artwork reads as a
+   * mark, a wordmark or a lockup — a photograph satisfies the first and fails
+   * the second, which is exactly the pair we needed to tell apart.
+   */
+  return Boolean(a.hasTransparency) && roleFromArtwork(art) !== null;
 }
 
 /**
@@ -212,7 +235,9 @@ export function classifyLogos(
   /** What each picture turned out to be. Absent falls back to filenames. */
   art?: Artworks,
 ): ClassifyResult {
-  const images = items.filter((a) => a.kind === 'image' && !a.generated && looksLikeLogo(a));
+  const images = items.filter(
+    (a) => a.kind === 'image' && !a.generated && looksLikeLogo(a, art?.get(a.id)),
+  );
 
   // ── 1. exact duplicates ──────────────────────────────────────────────────
   const seenHash = new Set<string>();

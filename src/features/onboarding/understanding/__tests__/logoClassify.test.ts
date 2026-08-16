@@ -122,7 +122,7 @@ describe('roles come from evidence, never from a free slot', () => {
   });
 
   it('names the first unroled logo primary, and says why', () => {
-    const out = classifyLogos([img('artwork.svg', { contentHash: '1' })]);
+    const out = classifyLogos([img('acme-logo.svg', { contentHash: '1' })]);
     expect(out.groups[0].slot).toBe('primary');
     expect(out.groups[0].evidence).toBe('the first logo you brought');
   });
@@ -159,10 +159,48 @@ describe('an image that is not a logo is not treated as one', () => {
     ).toHaveLength(0);
   });
 
-  it('treats vector artwork and logo-ish filenames as logos', () => {
+  it('treats a logo-ish filename as a logo', () => {
     for (const name of ['mark.svg', 'acme-logo.png', 'wordmark.png', 'monogram.png']) {
       expect(classifyLogos([img(name, { contentHash: name })]).groups).toHaveLength(1);
     }
+  });
+
+  it('does NOT treat a file as a logo because it is a vector', () => {
+    // `.svg` used to qualify on its own. An illustration, a pattern, a diagram
+    // and an icon sheet are all SVG, and every one of them was landing on the
+    // logo board — out of Brand Assets, where the user had put it.
+    for (const name of ['illustration.svg', 'pattern-tile.svg', 'hero-artwork.svg']) {
+      expect(classifyLogos([img(name, { contentHash: name })]).groups).toHaveLength(0);
+    }
+  });
+
+  it('takes a cut-out picture that READS as a mark, name or no name', () => {
+    // Neither signal is enough alone; together they separate a logo from a
+    // photograph, which is the pair that actually needed telling apart.
+    const item = img('Frame 12.png', { contentHash: '1', hasTransparency: true });
+    const art = new Map([[item.id, seen({ parts: 'shape' })]]);
+    expect(classifyLogos([item], art).groups).toHaveLength(1);
+  });
+
+  it('refuses a cut-out picture whose artwork says nothing', () => {
+    const item = img('Frame 12.png', { contentHash: '1', hasTransparency: true });
+    const art = new Map([[item.id, seen({ parts: 'unclear', arrangement: null })]]);
+    expect(classifyLogos([item], art).groups).toHaveLength(0);
+  });
+
+  it('refuses an opaque picture even when the artwork is legible', () => {
+    const item = img('Frame 12.png', { contentHash: '1' });
+    const art = new Map([[item.id, seen({ parts: 'shape' })]]);
+    expect(classifyLogos([item], art).groups).toHaveLength(0);
+  });
+
+  it('never moves something the user placed in Brand Assets', () => {
+    // Named like a logo, shaped like a logo — and put in Brand Assets by a
+    // person, which outranks both.
+    const out = classifyLogos([
+      img('acme-logo.svg', { contentHash: '1', placement: 'assets', isLogo: true }),
+    ]);
+    expect(out.groups).toHaveLength(0);
   });
 });
 

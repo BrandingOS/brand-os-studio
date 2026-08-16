@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
 import type { Brand } from '@/shared/types/brand';
 
 /**
@@ -49,8 +50,6 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
 
   const displayBrand = current?.slug === currentSlug ? current : list.find((b) => b.slug === currentSlug);
   const displayName = displayBrand?.name ?? 'BrandOS';
-  const markChar = displayName.slice(0, 1).toUpperCase();
-  const markBg = displayBrand?.primaryColor ?? '#111113';
 
   const handlePick = (brand: Brand) => {
     setOpen(false);
@@ -67,13 +66,10 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <span
-          className="brand-switcher-mark"
-          style={{ background: markBg, color: readableOn(markBg) }}
-          aria-hidden="true"
-        >
-          {markChar}
-        </span>
+        {/* The brand's own mark, not its initial — `BrandAvatar` reaches for
+            the Brand Icon, then the Primary logo, and only falls back to a
+            letter when the brand truly has neither. */}
+        <BrandAvatar brand={displayBrand} size={24} className="brand-switcher-mark" />
         <span className="brand-switcher-name">{displayName}</span>
         <svg
           className="brand-switcher-chevron"
@@ -120,13 +116,7 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
                 onClick={() => handlePick(brand)}
                 role="menuitem"
               >
-                <span
-                  className="brand-switcher-row-mark"
-                  style={{ background: brand.primaryColor, color: readableOn(brand.primaryColor) }}
-                  aria-hidden="true"
-                >
-                  {brand.name.slice(0, 1).toUpperCase()}
-                </span>
+                <BrandAvatar brand={brand} size={22} className="brand-switcher-row-mark" />
                 <span className="brand-switcher-row-name">{brand.name}</span>
                 {active && (
                   <svg
@@ -164,20 +154,6 @@ export function BrandSwitcher({ currentSlug }: { currentSlug?: string }) {
       )}
     </div>
   );
-}
-
-/**
- * Pick a readable text color (near-black vs near-white) for the given
- * background. Uses a quick relative-luminance approximation.
- */
-function readableOn(hex: string): string {
-  const normalized = hex.replace('#', '');
-  if (normalized.length !== 6) return '#F4F1EC';
-  const r = parseInt(normalized.slice(0, 2), 16) / 255;
-  const g = parseInt(normalized.slice(2, 4), 16) / 255;
-  const b = parseInt(normalized.slice(4, 6), 16) / 255;
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.6 ? '#141414' : '#F4F1EC';
 }
 
 export default BrandSwitcher;

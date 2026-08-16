@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Clock } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
 
 interface ContinueSurfaceProps {
   brands: Brand[];
@@ -65,22 +66,7 @@ export function ContinueSurface({ brands }: ContinueSurfaceProps) {
       <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
 
       <div className="flex items-center gap-5">
-        {mostRecent.logo ? (
-          <div className="w-16 h-16 rounded-xl bg-muted/30 flex items-center justify-center p-2 overflow-hidden shrink-0">
-            <img
-              src={mostRecent.logo}
-              alt={mostRecent.name}
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-        ) : (
-          <div
-            className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white shrink-0"
-            style={{ backgroundColor: mostRecent.primaryColor }}
-          >
-            {mostRecent.name.charAt(0)}
-          </div>
-        )}
+        <BrandAvatar brand={mostRecent} size={64} radius={12} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground mb-1">

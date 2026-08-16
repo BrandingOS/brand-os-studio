@@ -1098,6 +1098,36 @@ It resolves through `resolveBrandLogo` now. And the dropzone's URL pill records
 no `socialPlatform`, so `=== 'website'` matched nothing and the address the user
 typed never became `publicUrl`; `linkKindOf` reads the host instead.
 
+### Brand assets — the rules that bind everywhere
+
+- **The brand's face is `@/shared/brand/BrandAvatar`.** Brand Icon
+  (`iconmark`) → Primary logo → letter, in that order, contained (never
+  cropped or stretched) on a neutral tile. Every chrome surface uses it —
+  Studio switcher, Classic rail, brand chooser, editor picker, dashboard.
+  Do not draw `name.charAt(0)` for a brand again.
+- **A logo is a file holding a logo ROLE. Nothing else.** `category: 'logo'`
+  is written only when the item has one. Format is never evidence: `.svg`
+  used to qualify on its own, so every vector left Brand Assets for the logo
+  board. Transparency alone is not evidence either — it counts only alongside
+  artwork that reads as a mark (`logoClassify.looksLikeLogo`).
+- **`placement: 'assets'` outranks every classifier.** Set by an upload made
+  from inside Brand Assets; nothing may move that item out.
+- **One variant vocabulary: `@/shared/brand/logoRoles`.** The review board and
+  Setup both read it, so a variant has one name everywhere (Primary ·
+  Secondary · Brand Icon · Wordmark · On dark · Horizontal · Vertical).
+  "On light" is described but never offered.
+- **Setup's logo board rules live in `setup/data/logoBoard.ts`** — add into a
+  named role, promote to Primary (the two tiles TRADE, never drop one),
+  change role, and remove with the primary protected (promote an heir, or
+  refuse when there is none). Adding asks the role FIRST
+  (`AddLogoVariantModal`); a tile with no role has no slot and cannot persist.
+- **Links are cards, not browsers.** `@/shared/brand/LinkCard` reads Open
+  Graph via `sitePreview.ts` (cached); `LinkPreviewModal` renders the site in
+  a `sandbox="allow-scripts"` iframe. Embedding refusal is NOT detectable — a
+  refused frame fires `load` like any other and `contentDocument` is null for
+  refused and healthy cross-origin frames alike. The modal uses load TIMING as
+  a heuristic to choose which view to offer, and every branch is overridable.
+
 ### Setup shows the same brand the review does
 
 `/b/:slug/setup` is the surface onboarding hands off to, and the two must agree

@@ -11,6 +11,18 @@ import { UploadModal, type UploadKind, type CommittedAsset } from './components/
 import { AboutEditorModal, type AboutEditorInitial } from './components/AboutEditorModal';
 import { placeLogo, readLogoRole } from './data/classifySetupLogo';
 import {
+  addVariant,
+  changeRole,
+  logoTileSvg,
+  removeVariant,
+  setPrimary,
+} from './data/logoBoard';
+import { AddLogoVariantModal } from './components/AddLogoVariantModal';
+import type { LogoRoleDef } from '@/shared/brand/logoRoles';
+import type { LogoRole } from '@/shared/types/brandAssets';
+import { LinkPreviewModal } from '@/shared/brand/LinkPreviewModal';
+import type { SitePreview } from '@/shared/brand/sitePreview';
+import {
   StrategyEditorModal,
   type StrategyEditTarget,
 } from './components/StrategyEditorModal';
@@ -267,6 +279,16 @@ export function SetupPage({
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);
+  /** Open when the user is choosing WHICH variant they are about to add. */
+  const [addingVariant, setAddingVariant] = useState(false);
+  /**
+   * The variant the next logo upload belongs to.
+   *
+   * Set by the "Add logo variant" flow before the file picker opens, so the
+   * upload lands in a named slot instead of becoming an untitled tile with no
+   * role — which was unpersistable, since a tile with no role has no slot.
+   */
+  const [pendingLogoRole, setPendingLogoRole] = useState<LogoRoleDef | null>(null);
   // Same idea for photos.
   const [replacePhotoId, setReplacePhotoId] = useState<string | null>(null);
   // Same idea for fonts — URL-input in the modal replaces this font.
@@ -276,6 +298,10 @@ export function SetupPage({
   // About-section editor — either a new entry (no id) or an existing one.
   const [aboutEditing, setAboutEditing] = useState<AboutEditorInitial | null>(null);
   const [strategyEditing, setStrategyEditing] = useState<StrategyEditTarget | null>(null);
+  /** The link whose preview drawer is open, with whatever its card had read. */
+  const [linkPreview, setLinkPreview] = useState<{ url: string; preview: SitePreview | null } | null>(
+    null,
+  );
   // Lightbox preview for logos / photos. Null when nothing is open.
   const [preview, setPreview] = useState<PreviewData | null>(null);
 
@@ -448,6 +474,12 @@ export function SetupPage({
 
   const handleEdit = useCallback((key: SectionKey) => {
     setActiveKey(key);
+    // Adding a logo asks WHICH variant before it asks for a file. A bare file
+    // picker produced tiles with no role, which no slot can hold.
+    if (key === 'logo') {
+      setAddingVariant(true);
+      return;
+    }
     if (UPLOAD_KINDS.has(key)) {
       setUploadKind(key as UploadKind);
       return;
@@ -480,6 +512,10 @@ export function SetupPage({
       }
       if (key === 'voice') {
         setAboutEditing({ title: '', content: '' });
+        return;
+      }
+      if (key === 'logo') {
+        setAddingVariant(true);
         return;
       }
       if (UPLOAD_KINDS.has(key)) {
@@ -801,40 +837,59 @@ export function SetupPage({
    * The tile is drawn on the ground the variant was made for; the artwork is
    * never touched.
    */
-  const handleAddLogoFromUrl = useCallback((src: string) => {
-    const id = `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const svg = (bg: string) =>
-      `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="${bg}"/><image href="${src}" x="20" y="20" width="160" height="160" preserveAspectRatio="xMidYMid meet"/></svg>`;
-    // Placed immediately so the tile appears the moment the file is chosen;
-    // the reading is a canvas render and takes a beat.
-    setBrand((prev) => ({
-      ...prev,
-      logos: [...prev.logos, { id, label: 'Logo', variant: 'light', svg: svg('#F5F4EF') }],
-    }));
-    void readLogoRole(src).then((wanted) => {
-      setBrand((prev) => {
-        // Which slots are free is only knowable HERE — the board may have moved
-        // on while the picture was being read.
-        const taken = new Set(prev.logos.filter((l) => l.id !== id).map((l) => l.id));
-        const named = placeLogo(wanted, taken);
-        return {
-          ...prev,
-          logos: prev.logos.map((l) =>
-            l.id === id
-              ? {
-                  ...l,
-                  id: named.id,
-                  label: named.label,
-                  variant: named.variant,
-                  role: named.role,
-                  svg: svg(named.variant === 'dark' ? '#111113' : '#F5F4EF'),
-                }
-              : l,
-          ),
-        };
+  /**
+   * A logo arrives into a KNOWN variant when the user chose one, and is
+   * classified when they did not.
+   *
+   * `pendingLogoRole` is set by the "Add logo variant" flow, which asks first.
+   * A drag-and-drop onto the section skips that question, so the artwork
+   * detector answers it — the same detector the onboarding review uses.
+   */
+  const handleAddLogoFromUrl = useCallback(
+    (src: string) => {
+      const chosen = pendingLogoRole;
+      setPendingLogoRole(null);
+      if (chosen) {
+        setBrand((prev) => ({ ...prev, logos: addVariant(prev.logos, chosen, src) }));
+        return;
+      }
+
+      // Placed immediately so the tile appears the moment the file is chosen;
+      // reading the picture is a canvas render and takes a beat.
+      const id = `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setBrand((prev) => ({
+        ...prev,
+        logos: [
+          ...prev.logos,
+          { id, label: 'Logo', variant: 'light', svg: logoTileSvg(src, 'light') },
+        ],
+      }));
+      void readLogoRole(src).then((wanted) => {
+        setBrand((prev) => {
+          // Which slots are free is only knowable HERE — the board may have
+          // moved on while the picture was being read.
+          const taken = new Set(prev.logos.filter((l) => l.id !== id).map((l) => l.id));
+          const named = placeLogo(wanted, taken);
+          return {
+            ...prev,
+            logos: prev.logos.map((l) =>
+              l.id === id
+                ? {
+                    ...l,
+                    id: named.id,
+                    label: named.label,
+                    variant: named.variant,
+                    role: named.role,
+                    svg: logoTileSvg(src, named.variant),
+                  }
+                : l,
+            ),
+          };
+        });
       });
-    });
-  }, []);
+    },
+    [pendingLogoRole],
+  );
 
   const handleReplaceLogoFromUrl = useCallback((id: string, src: string) => {
     setBrand((prev) => ({
@@ -1333,70 +1388,40 @@ export function SetupPage({
     [brand],
   );
 
+  /** Removing a variant. The board rules decide whether it is allowed. */
   const handleDeleteLogo = useCallback((id: string) => {
-    setBrand((prev) => ({
-      ...prev,
-      logos: prev.logos.filter((l) => l.id !== id),
-    }));
+    setBrand((prev) => {
+      const outcome = removeVariant(prev.logos, id);
+      if (!outcome.ok) {
+        toast.error('This is your only logo', {
+          description: 'Add another variant before removing it.',
+        });
+        return prev;
+      }
+      if (outcome.promoted) {
+        toast.info(`“${outcome.promoted.label}” is now your primary logo`, {
+          description: 'It took the place of the one you removed.',
+        });
+      }
+      return { ...prev, logos: outcome.logos };
+    });
   }, []);
 
-  /** Right-click → Change logo type. Reassigns the tile's role; if another
-   *  logo already holds that role the two swap. Primary always renders (and
-   *  persists) first, and the tile bg re-tints for light/dark variants. */
+  const handleSetPrimaryLogo = useCallback((id: string) => {
+    setBrand((prev) => ({ ...prev, logos: setPrimary(prev.logos, id) }));
+  }, []);
+
+  /** The roles the board already holds, so the picker can say "replaces". */
+  const takenLogoRoles = useMemo(
+    () => new Set(brand.logos.map((l) => l.role).filter(Boolean) as LogoRole[]),
+    [brand.logos],
+  );
+
+  /** Right-click → Change logo type. The board rules own the swap. */
   const handleChangeLogoRole = useCallback((id: string, roleId: string) => {
-    const role = LOGO_ROLES.find((r) => r.id === roleId);
-    if (!role) return;
-    /*
-     * Re-ground, never recolour.
-     *
-     * Only the tile's own background rect changes — the `<image>` inside it is
-     * the artwork the user uploaded and is never touched. Moving a logo into
-     * the On-dark slot previews it on black; it does not make a light logo out
-     * of a dark one.
-     */
-    const retint = (svg: string, variant: 'light' | 'dark') => {
-      const bg = variant === 'dark' ? '#111113' : '#F5F4EF';
-      return /<rect[^>]*fill="/.test(svg)
-        ? svg.replace(/(<rect[^>]*fill=")[^"]*(")/, `$1${bg}$2`)
-        : // A tile with no ground of its own (an uploaded SVG document) gets
-          // one, so the dark slot is dark rather than transparent.
-          svg.replace(/(<svg[^>]*>)/, `$1<rect width="200" height="200" fill="${bg}"/>`);
-    };
-    setBrand((prev) => {
-      const logos = prev.logos.slice();
-      const idx = logos.findIndex((l) => l.id === id);
-      if (idx < 0 || logos[idx].id === role.id) return prev;
-      const current = logos[idx];
-      const currentRole = {
-        id: current.id,
-        label: current.label,
-        variant: current.variant,
-        role: current.role,
-      };
-      const occupiedIdx = logos.findIndex((l, i) => i !== idx && l.id === role.id);
-      logos[idx] = {
-        ...current,
-        id: role.id,
-        label: role.label,
-        variant: role.variant,
-        role: role.role,
-        svg: retint(current.svg, role.variant),
-      };
-      if (occupiedIdx >= 0) {
-        const other = logos[occupiedIdx];
-        logos[occupiedIdx] = {
-          ...other,
-          ...currentRole,
-          svg: retint(other.svg, currentRole.variant),
-        };
-      }
-      const pIdx = logos.findIndex((l) => l.id === 'primary');
-      if (pIdx > 0) {
-        const [p] = logos.splice(pIdx, 1);
-        logos.unshift(p);
-      }
-      return { ...prev, logos };
-    });
+    const target = LOGO_ROLES.find((r) => r.id === roleId);
+    if (!target) return;
+    setBrand((prev) => ({ ...prev, logos: changeRole(prev.logos, id, target) }));
   }, []);
 
   const handleDownloadLogo = useCallback(
@@ -1504,6 +1529,8 @@ export function SetupPage({
           onDownloadColor={handleDownloadColor}
           onCopyText={handleCopyText}
           onDeleteLogo={handleDeleteLogo}
+        onSetPrimaryLogo={handleSetPrimaryLogo}
+        onAddLogoVariant={() => setAddingVariant(true)}
           onReplaceLogo={handleReplaceLogo}
           onDownloadLogo={handleDownloadLogo}
           onChangeLogoRole={handleChangeLogoRole}
@@ -1525,6 +1552,7 @@ export function SetupPage({
           onEditAbout={handleEditAbout}
         onEditStrategy={handleEditStrategy}
         onDeleteLink={handleDeleteLink}
+        onOpenLink={(url, preview) => setLinkPreview({ url, preview })}
           onDeleteAbout={handleDeleteAbout}
           onDownloadAbout={handleDownloadAbout}
           onDropFiles={handleDropFiles}
@@ -1559,6 +1587,22 @@ export function SetupPage({
         onClose={() => setAboutEditing(null)}
         onSave={handleSaveAbout}
         onDelete={handleDeleteAbout}
+      />
+      <AddLogoVariantModal
+        open={addingVariant}
+        taken={takenLogoRoles}
+        onClose={() => setAddingVariant(false)}
+        onPick={(def) => {
+          setAddingVariant(false);
+          setPendingLogoRole(def);
+          setReplaceLogoId(null);
+          setUploadKind('logo');
+        }}
+      />
+      <LinkPreviewModal
+        url={linkPreview?.url ?? null}
+        preview={linkPreview?.preview ?? null}
+        onClose={() => setLinkPreview(null)}
       />
       <StrategyEditorModal
         target={strategyEditing}

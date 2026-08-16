@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { rewriteBrandPath } from '@/shared/brand/brandPathRewrite';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
 import { getBrandHomeUrl } from '@/shared/hooks/useUiPreference';
 import { cn } from '@/lib/utils';
 
@@ -311,20 +312,16 @@ export function AppRail({ brandSlug }: AppRailProps) {
             >
               <div className="relative">
                 {currentBrand ? (
-                  currentBrand.logo ? (
-                    <img
-                      src={currentBrand.logo}
-                      alt=""
-                      className="h-10 w-10 rounded-lg object-contain bg-muted/40 p-1 ring-1 ring-border/60"
-                    />
-                  ) : (
-                    <div
-                      className="h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold text-white ring-1 ring-border/60"
-                      style={{ backgroundColor: currentBrand.primaryColor }}
-                    >
-                      {currentBrand.name.charAt(0).toUpperCase()}
-                    </div>
-                  )
+                  // `brand.logo` is a legacy scalar most brands no longer set;
+                  // BrandAvatar resolves the logo SYSTEM — Brand Icon, then
+                  // Primary — and only falls back to a letter when there is
+                  // genuinely no artwork.
+                  <BrandAvatar
+                    brand={currentBrand}
+                    size={40}
+                    radius={8}
+                    className="ring-1 ring-border/60"
+                  />
                 ) : (
                   <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-gradient-to-br from-primary to-primary/70 text-white ring-1 ring-border/60">
                     <Sparkles className="h-5 w-5" />
@@ -386,20 +383,7 @@ export function AppRail({ brandSlug }: AppRailProps) {
                       onSelect={() => handleSwitchBrand(b.slug)}
                       className="flex items-center gap-2.5 cursor-pointer"
                     >
-                      {b.logo ? (
-                        <img
-                          src={b.logo}
-                          alt=""
-                          className="w-7 h-7 object-contain rounded shrink-0 bg-muted/30 p-0.5"
-                        />
-                      ) : (
-                        <div
-                          className="w-7 h-7 rounded shrink-0 flex items-center justify-center text-xs font-bold text-white"
-                          style={{ backgroundColor: b.primaryColor }}
-                        >
-                          {b.name.charAt(0)}
-                        </div>
-                      )}
+                      <BrandAvatar brand={b} size={28} radius={4} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{b.name}</p>
                         {b.tone && (

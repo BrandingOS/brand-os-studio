@@ -100,6 +100,9 @@ const BRAND_ASSETS_GROUP: Group = {
   noun: 'asset',
   empty: "Nothing here yet — uploads we can't place anywhere else land in your brand assets.",
   match: (a) =>
+    // The user's own placement outranks every classifier. An item they added
+    // here stays here, whatever its filename or its artwork suggests.
+    a.placement === 'assets' ||
     (a.kind === 'image' &&
       !a.isLogo &&
       !a.logoSlot &&
@@ -637,6 +640,11 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
   );
 
   const queueFile = useCallback((file: File) => enqueueFile(file, deps), [deps]);
+  /** An upload made from inside Brand Assets — it belongs there, and stays. */
+  const queueBrandAsset = useCallback(
+    (file: File) => enqueueFile(file, deps, 'assets'),
+    [deps],
+  );
 
   const handleMove = useCallback(
     async (id: string, target: MoveTarget) => {
@@ -1167,7 +1175,7 @@ export function UploadsReviewPanel({ brandId, projection, actor, onChanged }: Up
         <GroupCard
           group={BRAND_ASSETS_GROUP}
           items={assets.filter(BRAND_ASSETS_GROUP.match)}
-          onUploadFile={queueFile}
+          onUploadFile={queueBrandAsset}
           onAddColor={(hex) => addColor(hex, 'manual')}
           onAddGoogleFont={addGoogleFont}
           onAddLink={addLink}

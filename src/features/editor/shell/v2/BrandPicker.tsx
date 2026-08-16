@@ -18,6 +18,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useService, SERVICE_KEYS } from '@/core';
 import type { IBrandsService } from '@/core';
 import type { Brand } from '@/shared/types/brand';
+import { BrandAvatar } from '@/shared/brand/BrandAvatar';
 
 interface Props {
   /** Current brand. Optional — when undefined, the picker shows a
@@ -38,12 +39,6 @@ interface Props {
 }
 
 export function BrandPicker({ brand, onBrandSwitch, onReapplyBrand }: Props) {
-  const initial = useMemo(() => {
-    if (!brand?.name) return '?';
-    return brand.name.charAt(0).toUpperCase();
-  }, [brand?.name]);
-
-  const markBg = brand?.colorSystem?.primary?.hex ?? brand?.primaryColor ?? '#0d0d0d';
   const displayName = brand?.name ?? 'Untitled brand';
 
   return (
@@ -62,13 +57,7 @@ export function BrandPicker({ brand, onBrandSwitch, onReapplyBrand }: Props) {
             cursor: 'pointer',
           }}
         >
-          <span
-            className="top-nav-brand-mark"
-            aria-hidden="true"
-            style={{ background: markBg, color: '#fff' }}
-          >
-            {initial}
-          </span>
+          <BrandAvatar brand={brand} size={24} className="top-nav-brand-mark" />
           <span>{displayName}</span>
           <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
         </button>
@@ -212,7 +201,6 @@ function BrandList({
       <div data-brand-list="ready">
         {state.brands.map((b) => {
           const isCurrent = b.id === currentBrandId;
-          const markBg = b.colorSystem?.primary?.hex ?? b.primaryColor ?? '#0d0d0d';
           return (
             <DropdownMenu.Item
               key={b.id}
@@ -231,13 +219,7 @@ function BrandList({
                 if (!isCurrent) e.currentTarget.style.background = 'transparent';
               }}
             >
-              <span
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-white"
-                style={{ background: markBg, fontSize: 13, fontWeight: 600 }}
-                aria-hidden
-              >
-                {b.name.charAt(0).toUpperCase()}
-              </span>
+              <BrandAvatar brand={b} size={28} radius={8} />
               <span className="flex-1 text-sm">{b.name}</span>
               {isCurrent ? (
                 <span
