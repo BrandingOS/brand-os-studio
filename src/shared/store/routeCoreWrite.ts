@@ -21,6 +21,8 @@ import { changeBrandColors, type BrandColorChanges } from '@/application/brand/c
 import { changeBrandTypography } from '@/application/brand/changeBrandTypography';
 import { changeBrandVoiceTone } from '@/application/brand/changeBrandVoice';
 import { changeBrandStrategy } from '@/application/brand/changeBrandStrategy';
+import { changeBrandVisualStyle } from '@/application/brand/changeBrandVisualStyle';
+import type { StyleDescriptor } from '@/domain/brand/identity';
 import type { CoreWriteOptions } from '@/application/brand/coreWrite';
 
 /** Core fields with a canonical op — these are rerouted. */
@@ -34,6 +36,7 @@ export const ROUTED_CORE_KEYS = [
   'typography',
   'tone',
   'strategy',
+  'visualStyle',
 ] as const satisfies readonly (keyof Brand)[];
 
 /** Core fields with NO canonical op yet — reported, not rerouted. */
@@ -177,6 +180,7 @@ export async function applyCorePatch(
   const strategyChange: Parameters<typeof changeBrandStrategy>[2] = {};
 
   if (typeof core.strategy === 'string') strategyChange.mission = core.strategy;
+  if (gStrategy?.summary !== undefined) strategyChange.summary = gStrategy.summary;
   if (gStrategy?.mission !== undefined) strategyChange.mission = gStrategy.mission;
   if (gStrategy?.vision !== undefined) strategyChange.vision = gStrategy.vision;
   if (gStrategy?.positioning !== undefined) strategyChange.positioning = gStrategy.positioning;
@@ -189,6 +193,19 @@ export async function applyCorePatch(
 
   if (Object.keys(strategyChange).length) {
     latest = await changeBrandStrategy(repo, brandId, strategyChange, opts);
+  }
+
+  // Style words. A CLOSED union in the schema, so anything the caller could not
+  // resolve to a member must already have been dropped — writing a free word
+  // here fails validation and costs the whole save.
+  const descriptors = core.visualStyle?.descriptors;
+  if (descriptors) {
+    latest = await changeBrandVisualStyle(
+      repo,
+      brandId,
+      { descriptors: descriptors as StyleDescriptor[] },
+      opts,
+    );
   }
 
   return latest;

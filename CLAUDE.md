@@ -1098,6 +1098,43 @@ It resolves through `resolveBrandLogo` now. And the dropzone's URL pill records
 no `socialPlatform`, so `=== 'website'` matched nothing and the address the user
 typed never became `publicUrl`; `linkKindOf` reads the host instead.
 
+### Setup shows the same brand the review does
+
+`/b/:slug/setup` is the surface onboarding hands off to, and the two must agree
+field for field. They had drifted badly — Setup carried five free-form About
+cards and nothing else — so the rules that keep them together:
+
+- **`brandToMockBrand` reads the CANONICAL brand** (`fromLegacyBrand`), not
+  `guidelines.strategy` / `guidelines.aboutSections`. Nothing has written that
+  mirror since the canonical ops took over.
+- **`MockBrand.strategy` holds the same eleven answers as the review**, defined
+  once in `setup/data/strategyCards.ts` and rendered as cards in the section now
+  called **Brand Strategy**. Seven are Core and write back under
+  `guidelines.strategy` + `tone` + `visualStyle` (all routed by
+  `splitCorePatch`); industry, products/services and slogan are Business Info.
+  `about[]` keeps only the free-form headings the eleven cannot hold.
+- **Two new write carriers** exist for canonical-only values with no legacy
+  column: `guidelines.strategy.summary` and `Brand.visualStyle`. Both are ROUTED
+  keys — they reach `changeBrandStrategy` / `changeBrandVisualStyle` and never
+  the service as stored fields.
+- **`businessInfo` is merged, never assigned.** One stored value; a patch
+  replaces it.
+- **A logo tile carries its `role`** (`BrandLogo.role`). The write-back is
+  role-driven, and a board whose tiles all have roles is AUTHORITATIVE: the
+  dict is built from roles alone and vacated slots are cleared. Label/position
+  heuristics remain only for legacy tiles. Setup's `LOGO_ROLES` mirror
+  onboarding's variants (Primary · Wordmark · Icon · On dark · Horizontal ·
+  Vertical); "On light" renders for old brands but is never offered.
+- **A logo uploaded in Setup is classified** by the same detector onboarding
+  uses (`classifySetupLogo` → `readArtwork` + `roleFromArtwork`).
+- **The On-dark tile is a dark GROUND, never a filter.** The `invert(1)` that
+  used to sit on `.logo-tile.is-dark .logo-svg` is gone: the variant already IS
+  the light artwork, so inverting showed a colour the brand does not own.
+- **The Neutral ladder is generated and must never be written back.** It is 32
+  pure greys drawn for every brand (`setup/data/neutralRamp.ts`); sending it
+  back as `brand.neutrals` replaced the brand's own colours on the first save.
+  `neutrals` = Core past primary/secondary + any grey that is not a ramp step.
+
 ### Migration 022 (`brands.onboarding`)
 
 Its absence is tolerated on create and update. Two things make that real, and

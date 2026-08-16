@@ -1,14 +1,18 @@
 import type { Brand } from '@/shared/types/brand';
+import { fromLegacyBrand, type CanonicalBrand } from '@/domain/brand';
 import type {
   AboutEntry,
   BrandColor,
   BrandFont,
+  BrandLink,
   BrandLogo,
   BrandPhoto,
+  BrandStrategyFields,
   BrandWebsite,
   MockBrand,
 } from './mockBrand';
 import { hexToName } from './colorNames';
+import { NEUTRAL_RAMP } from './neutralRamp';
 import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import type { LogoRole } from '@/shared/types/brandAssets';
@@ -28,6 +32,17 @@ import type { LogoRole } from '@/shared/types/brandAssets';
  * separate follow-up.
  */
 export function brandToMockBrand(brand: Brand): MockBrand {
+  /*
+   * The CANONICAL brand, read once and shared by the mappers that need it.
+   *
+   * Setup used to read `guidelines.strategy` and `guidelines.aboutSections`
+   * directly. Nothing writes those any more — the canonical ops write the
+   * identity blob, and `toLegacyBrandPatch` deliberately skips the guidelines
+   * mirror — so everything a user answered during onboarding was on the record
+   * and invisible here. `fromLegacyBrand` is the one reader that resolves both
+   * homes in the right order.
+   */
+  const canonical = fromLegacyBrand(brand);
   return {
     name: brand.name,
     logos: mapLogos(brand),
@@ -35,10 +50,52 @@ export function brandToMockBrand(brand: Brand): MockBrand {
     fonts: mapFonts(brand),
     icons: mapIcons(brand),
     photos: mapPhotos(brand),
-    websites: mapWebsites(brand),
+    websites: mapWebsites(brand, canonical),
     voice: mapVoice(brand),
-    about: mapAbout(brand),
+    about: mapAbout(canonical),
+    strategy: mapStrategy(canonical),
+    links: mapLinks(canonical),
   };
+}
+
+/**
+ * The eleven answers, read out of the canonical brand.
+ *
+ * Core values (summary, audience, positioning, mission, personality, tone,
+ * style) come from the identity; the three that are FACTS about the business
+ * (industry, products/services, slogan) come from Business Info — the same
+ * split the review uses, and the same reason: an industry is not a brand
+ * decision with an authority, it is a fact that saves on edit.
+ */
+function mapStrategy(c: CanonicalBrand): BrandStrategyFields {
+  const s = c.identity?.strategy;
+  const b = c.businessInfo ?? {};
+  return {
+    summary: s?.summary ?? '',
+    industry: b.industry ?? '',
+    products: b.description ?? '',
+    audience: s?.targetAudience ?? '',
+    positioning: s?.positioning ?? '',
+    mission: s?.mission ?? '',
+    personality: s?.personality ?? [],
+    tone: c.identity?.voice?.tone ?? '',
+    style: (c.identity?.visualStyle?.descriptors ?? []) as string[],
+    values: s?.values ?? [],
+    slogan: b.tagline ?? '',
+  };
+}
+
+/** The brand's other addresses. The website itself lives in `websites`. */
+function mapLinks(c: CanonicalBrand): BrandLink[] {
+  const website = c.businessInfo?.contact?.website;
+  return (c.businessInfo?.links ?? [])
+    .filter((l) => l.url && l.url !== website)
+    .map((l, i) => ({
+      id: `link-${i}`,
+      kind: l.kind,
+      url: l.url,
+      ...(l.label ? { label: l.label } : {}),
+    }));
 }
 
 // Neutral surface tones used for logo tiles. We never pull from the
@@ -75,6 +132,11 @@ function mapLogos(brand: Brand): BrandLogo[] {
   const lightLogoUrl = bySlot('mono.white') ?? brand.logoAssets?.light; // for dark backgrounds
   const darkLogoUrl = bySlot('mono.black') ?? brand.logoAssets?.dark; // for light backgrounds
   const alternateUrl = bySlot('secondary') ?? brand.logoAssets?.alternate;
+  // The two orientation lockups. Onboarding places both and Setup had no tile
+  // for either, so a brand that arrived with a horizontal and a stacked lockup
+  // showed neither and lost them on the next save.
+  const horizontalUrl = bySlot('horizontal');
+  const stackedUrl = bySlot('stacked');
 
   const seen = new Set<string>();
   const pushOnce = (url: string | undefined, entry: BrandLogo) => {
@@ -96,6 +158,7 @@ function mapLogos(brand: Brand): BrandLogo[] {
       id: 'primary',
       label: 'Primary',
       variant: 'light',
+      role: 'primary',
       svg: buildLogoSvg(primaryUrl, brand.name, LIGHT_BG, '#111113'),
     });
   }
@@ -104,6 +167,7 @@ function mapLogos(brand: Brand): BrandLogo[] {
     id: 'on-dark',
     label: 'On dark',
     variant: 'dark',
+    role: 'mono.white',
     svg: buildLogoSvg(lightLogoUrl!, brand.name, DARK_BG, '#F5F4EF'),
   });
   // Dark-colored logo (designed to sit on a light surface) — always light bg.
@@ -111,24 +175,42 @@ function mapLogos(brand: Brand): BrandLogo[] {
     id: 'on-light',
     label: 'On light',
     variant: 'light',
+    role: 'mono.black',
     svg: buildLogoSvg(darkLogoUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(iconUrl, {
     id: 'mark',
     label: 'Icon',
     variant: 'light',
+    role: 'iconmark',
     svg: buildLogoSvg(iconUrl!, brand.name.slice(0, 1), LIGHT_BG, '#111113'),
   });
   pushOnce(wordmarkUrl, {
     id: 'wordmark',
     label: 'Wordmark',
     variant: 'light',
+    role: 'wordmark',
     svg: buildLogoSvg(wordmarkUrl!, brand.name, LIGHT_BG, '#111113'),
+  });
+  pushOnce(horizontalUrl, {
+    id: 'horizontal',
+    label: 'Horizontal',
+    variant: 'light',
+    role: 'horizontal',
+    svg: buildLogoSvg(horizontalUrl!, brand.name, LIGHT_BG, '#111113'),
+  });
+  pushOnce(stackedUrl, {
+    id: 'vertical',
+    label: 'Vertical',
+    variant: 'light',
+    role: 'stacked',
+    svg: buildLogoSvg(stackedUrl!, brand.name, LIGHT_BG, '#111113'),
   });
   pushOnce(alternateUrl, {
     id: 'alternate',
     label: 'Alternate',
     variant: 'light',
+    role: 'secondary',
     svg: buildLogoSvg(alternateUrl!, brand.name, LIGHT_BG, '#111113'),
   });
 
@@ -204,15 +286,27 @@ function mapColors(brand: Brand): MockBrand['colors'] {
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
     return Math.max(r, g, b) - Math.min(r, g, b) < 14;
   };
-  const extraColors = [
+  const stored = [
     ...(brand.colorSystem?.neutrals ?? []).map((n) => n.hex),
     ...(brand.neutrals ?? []),
-  ]
-    .filter(Boolean)
-    // Greys belong to the Neutral ramp, never to Core. A brand black or white
-    // that genuinely matters already arrives as primary/secondary.
-    .filter((hex) => !isGreyscale(hex))
-    .slice(0, EXTRA_CORE_LIMIT);
+  ].filter(Boolean);
+  /*
+   * A SHORT list is a palette; a long one is a generated ramp.
+   *
+   * Greys used to be filtered out of Core unconditionally, on the grounds that
+   * they belong to the Neutral ladder. That is right for the 30-step ramps some
+   * brands carry — and wrong for the third colour of a three-colour palette,
+   * which is very often an off-white. A brand that chose #F5F5F0 saw it on the
+   * onboarding review and then could not find it in Setup at all: too grey for
+   * Core, not on the canonical ladder either.
+   *
+   * The length is the tell. Nobody hand-picks more than a handful.
+   */
+  const looksGenerated = stored.length > EXTRA_CORE_LIMIT;
+  const extraColors = (looksGenerated ? stored.filter((hex) => !isGreyscale(hex)) : stored).slice(
+    0,
+    EXTRA_CORE_LIMIT,
+  );
 
   // Shared dedupe state across ALL color groups (core / accent / grey).
   // - usedNames keeps every label unique across the whole palette so
@@ -269,37 +363,13 @@ function mapColors(brand: Brand): MockBrand['colors'] {
   // user-stored `brand.neutrals` that's actually grayscale is merged
   // in so genuine custom neutrals still surface; tinted entries are
   // dropped so the section stays a true black-to-white spectrum.
-  // 32 distinct shade names for the 32-step ramp — `hexToName` would
-  // only resolve a dozen grayscale words from its dictionary, so most
-  // steps would collide and get suffixed "Black 2 / Black 3 / …" which
-  // reads as duplicates. Hand-mapping gives each step its own word.
-  const NEUTRAL_NAMES = [
-    'Black',     'Jet',        'Onyx',     'Obsidian',
-    'Coal',      'Charcoal',   'Iron',     'Graphite',
-    'Anthracite','Slate',      'Lead',     'Pewter',
-    'Steel',     'Storm',      'Smoke',    'Granite',
-    'Stone',     'Ash',        'Dove',     'Silver',
-    'Fog',       'Mist',       'Cloud',    'Platinum',
-    'Pearl',     'Linen',      'Bone',     'Ivory',
-    'Eggshell',  'Snow',       'Chalk',    'White',
-  ];
   const greys: BrandColor[] = [];
-  const ramp: Array<{ hex: string; name: string }> = (() => {
-    const steps = NEUTRAL_NAMES.length;
-    const out: Array<{ hex: string; name: string }> = [];
-    for (let i = 0; i < steps; i++) {
-      const v = Math.round((i / (steps - 1)) * 255);
-      const h = v.toString(16).padStart(2, '0').toUpperCase();
-      out.push({ hex: `#${h}${h}${h}`, name: NEUTRAL_NAMES[i] });
-    }
-    return out;
-  })();
   // The ramp is canonical and always renders in full. It deliberately does
   // NOT go through `pushUnique`'s shared hex set: a brand whose stored colors
   // happen to include ramp values (e.g. #000000 / #FFFFFF as brand colors)
   // would otherwise have those steps silently swallowed — and a brand storing
   // the whole ramp emptied this section completely.
-  for (const { hex, name } of ramp) {
+  for (const { hex, name } of NEUTRAL_RAMP) {
     let label = name;
     let n = 2;
     while (usedNames.has(label)) {
@@ -396,14 +466,20 @@ function mapPhotos(brand: Brand): BrandPhoto[] {
     .filter((p) => p.src);
 }
 
-function mapWebsites(brand: Brand): BrandWebsite[] {
+function mapWebsites(brand: Brand, c: CanonicalBrand): BrandWebsite[] {
   const out: BrandWebsite[] = [];
-  if (brand.publicUrl) {
-    out.push({ id: 'public', url: brand.publicUrl, live: true });
-  }
-  if (brand.customDomain && brand.customDomain !== brand.publicUrl) {
-    out.push({ id: 'custom', url: brand.customDomain, live: true });
-  }
+  const seen = new Set<string>();
+  const push = (id: string, url: string | undefined) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    out.push({ id, url, live: true });
+  };
+  push('public', brand.publicUrl);
+  // Business Info holds the address too, and it is the one onboarding's
+  // review edits. A brand whose website was typed on the review and not at
+  // create time had it here and nowhere Setup looked.
+  push('business', c.businessInfo?.contact?.website);
+  push('custom', brand.customDomain);
   return out;
 }
 
@@ -430,11 +506,18 @@ const ABOUT_CANONICAL_ID: Record<string, string> = {
   'tone of voice': 'voice',
 };
 
-function mapAbout(brand: Brand): AboutEntry[] {
-  // Preferred source: the full section list captured at onboarding —
-  // includes custom headings ("Brand Promise") the fixed strategy
-  // fields can't represent.
-  const stored = brand.guidelines?.aboutSections;
+/**
+ * The FREE-FORM sections only — headings the eleven fixed fields cannot hold.
+ *
+ * Read from the canonical strategy rather than `guidelines.aboutSections`,
+ * which nothing has written since the canonical ops took over: a section the
+ * user wrote during onboarding lived in the identity blob and this looked in
+ * the mirror. The fixed fields no longer come through here at all; they have
+ * their own cards now, so a mission was appearing as a free-form section AND
+ * as a strategy field, each editing a different place.
+ */
+function mapAbout(c: CanonicalBrand): AboutEntry[] {
+  const stored = c.identity?.strategy?.aboutSections;
   if (stored && stored.length > 0) {
     const seen = new Set<string>();
     return stored.map((s, i) => {
@@ -450,12 +533,9 @@ function mapAbout(brand: Brand): AboutEntry[] {
     });
   }
 
-  const g = brand.guidelines?.strategy;
-  return [
-    { id: 'audience', title: 'Audience', content: brand.audience ?? '' },
-    { id: 'messaging', title: 'Messaging', content: g?.positioning ?? '' },
-    { id: 'vision', title: 'Vision', content: g?.vision ?? '' },
-    { id: 'mission', title: 'Mission', content: g?.mission ?? '' },
-    { id: 'voice', title: 'Voice & Tone', content: brand.tone ?? '' },
-  ];
+  // Vision has no card of its own in the eleven, so it is offered here — the
+  // one fixed field that stays free-form. Everything else the old fallback
+  // listed (audience, positioning, mission, tone) is a strategy card now.
+  const vision = c.identity?.strategy?.vision;
+  return vision ? [{ id: 'vision', title: 'Vision', content: vision }] : [];
 }

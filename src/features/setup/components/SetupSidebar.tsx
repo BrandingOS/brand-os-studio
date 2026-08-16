@@ -1,6 +1,7 @@
 import { useRef, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { DsEyebrow, DsProgress } from '@/shared/ds';
 import type { MockBrand } from '../data/mockBrand';
+import { STRATEGY_CARDS, contentOf } from '../data/strategyCards';
 import { Check, Plus } from './SetupIcons';
 import {
   PenOrganicIconV2,
@@ -69,12 +70,21 @@ export function SetupSidebar({ brand, activeKey, completed, total, onJump, onAdd
     { key: 'website', name: 'Website', sub: websiteSummary, added: brand.websites.length > 0 },
     {
       key: 'voice',
-      name: 'About',
+      // The section is Brand Strategy now — the same name the review uses, and
+      // the same eleven answers behind it.
+      name: 'Brand Strategy',
       sub: (() => {
-        const filled = brand.about.filter((a) => a.content.trim()).length;
-        return filled === 0 ? 'Not set' : `${filled} / ${brand.about.length} sections`;
+        const answered = STRATEGY_CARDS.filter((c) => contentOf(c, brand.strategy).trim()).length;
+        const sections = brand.about.filter((a) => a.content.trim()).length;
+        if (answered === 0 && sections === 0) return 'Not set';
+        // What is answered out of what a strategy HAS. The old count said how
+        // many cards were on screen, which the user could already see.
+        const base = `${answered} / ${STRATEGY_CARDS.length} answered`;
+        return sections ? `${base} · ${sections} section${sections === 1 ? '' : 's'}` : base;
       })(),
-      added: brand.about.some((a) => a.content.trim().length > 0),
+      added:
+        STRATEGY_CARDS.some((c) => contentOf(c, brand.strategy).trim()) ||
+        brand.about.some((a) => a.content.trim().length > 0),
     },
   ];
 

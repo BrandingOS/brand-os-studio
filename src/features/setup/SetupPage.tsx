@@ -9,6 +9,17 @@ import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupB
 import { ArrowRight, ICON_MAP } from './components/SetupIcons';
 import { UploadModal, type UploadKind, type CommittedAsset } from './components/UploadModal';
 import { AboutEditorModal, type AboutEditorInitial } from './components/AboutEditorModal';
+import { placeLogo, readLogoRole } from './data/classifySetupLogo';
+import {
+  StrategyEditorModal,
+  type StrategyEditTarget,
+} from './components/StrategyEditorModal';
+import {
+  STRATEGY_CARDS,
+  contentOf,
+  selectionOf,
+  type StrategyKey,
+} from './data/strategyCards';
 import { PreviewModal, type PreviewData } from './components/PreviewModal';
 import { hexToName } from './data/colorNames';
 import { loadFontFamily, registerUploadedFontFamily } from '@/shared/design-system/fonts';
@@ -264,6 +275,7 @@ export function SetupPage({
   const [replaceWebsiteId, setReplaceWebsiteId] = useState<string | null>(null);
   // About-section editor — either a new entry (no id) or an existing one.
   const [aboutEditing, setAboutEditing] = useState<AboutEditorInitial | null>(null);
+  const [strategyEditing, setStrategyEditing] = useState<StrategyEditTarget | null>(null);
   // Lightbox preview for logos / photos. Null when nothing is open.
   const [preview, setPreview] = useState<PreviewData | null>(null);
 
@@ -415,7 +427,14 @@ export function SetupPage({
     if (brand.fonts.length) n += 1;
     if (brand.icons.length) n += 1;
     if (brand.websites.length) n += 1;
-    if (brand.about.some((a) => a.content.trim().length > 0)) n += 1;
+    // Brand Strategy counts as done when the brand has said ANYTHING about
+    // itself — one of the eleven answers or a section of its own.
+    if (
+      STRATEGY_CARDS.some((c) => contentOf(c, brand.strategy).trim()) ||
+      brand.about.some((a) => a.content.trim().length > 0)
+    ) {
+      n += 1;
+    }
     return n;
   }, [brand]);
 
@@ -772,20 +791,66 @@ export function SetupPage({
     setUploadKind('website');
   }, []);
 
+  /**
+   * A logo dropped into Setup is CLASSIFIED, exactly as it would be in
+   * onboarding.
+   *
+   * It used to land as "Logo" on a light tile with no role at all, so the same
+   * file that the review would have called the wordmark became an unnamed tile
+   * here — and, having no role, it could not be persisted to a slot either.
+   * The tile is drawn on the ground the variant was made for; the artwork is
+   * never touched.
+   */
   const handleAddLogoFromUrl = useCallback((src: string) => {
     const id = `u-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const svg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><image href="${src}" x="0" y="0" width="200" height="200" preserveAspectRatio="xMidYMid meet"/></svg>`;
+    const svg = (bg: string) =>
+      `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="${bg}"/><image href="${src}" x="20" y="20" width="160" height="160" preserveAspectRatio="xMidYMid meet"/></svg>`;
+    // Placed immediately so the tile appears the moment the file is chosen;
+    // the reading is a canvas render and takes a beat.
     setBrand((prev) => ({
       ...prev,
-      logos: [...prev.logos, { id, label: 'Logo', variant: 'light', svg }],
+      logos: [...prev.logos, { id, label: 'Logo', variant: 'light', svg: svg('#F5F4EF') }],
     }));
+    void readLogoRole(src).then((wanted) => {
+      setBrand((prev) => {
+        // Which slots are free is only knowable HERE — the board may have moved
+        // on while the picture was being read.
+        const taken = new Set(prev.logos.filter((l) => l.id !== id).map((l) => l.id));
+        const named = placeLogo(wanted, taken);
+        return {
+          ...prev,
+          logos: prev.logos.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  id: named.id,
+                  label: named.label,
+                  variant: named.variant,
+                  role: named.role,
+                  svg: svg(named.variant === 'dark' ? '#111113' : '#F5F4EF'),
+                }
+              : l,
+          ),
+        };
+      });
+    });
   }, []);
 
   const handleReplaceLogoFromUrl = useCallback((id: string, src: string) => {
-    const svg = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><image href="${src}" x="0" y="0" width="200" height="200" preserveAspectRatio="xMidYMid meet"/></svg>`;
     setBrand((prev) => ({
       ...prev,
-      logos: prev.logos.map((l) => (l.id === id ? { ...l, svg } : l)),
+      logos: prev.logos.map((l) =>
+        l.id === id
+          ? {
+              ...l,
+              // The tile keeps its ground — replacing the artwork in the
+              // On-dark slot does not make it an on-light slot.
+              svg: `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="200" fill="${
+                l.variant === 'dark' ? '#111113' : '#F5F4EF'
+              }"/><image href="${src}" x="20" y="20" width="160" height="160" preserveAspectRatio="xMidYMid meet"/></svg>`,
+            }
+          : l,
+      ),
     }));
   }, []);
 
@@ -988,6 +1053,44 @@ export function SetupPage({
         return { ...prev, about: [...prev.about, { id: newId, title, content }] };
       });
       setAboutEditing(null);
+    },
+    [],
+  );
+
+  /**
+   * The strategy answers this brand has NOT given.
+   *
+   * Offered as the add flow's chips, which is where the review puts them too —
+   * an unanswered field is a question waiting, not a card saying nothing.
+   */
+  const unansweredStrategy = STRATEGY_CARDS.filter(
+    (card) => !contentOf(card, brand.strategy).trim(),
+  );
+
+  const handleEditStrategy = useCallback(
+    (key: StrategyKey) => {
+      const card = STRATEGY_CARDS.find((c) => c.key === key);
+      if (!card) return;
+      setStrategyEditing({
+        card,
+        selected: selectionOf(card, brand.strategy),
+        text: card.vocab ? '' : String(brand.strategy[key] ?? ''),
+      });
+    },
+    [brand.strategy],
+  );
+
+  const handleDeleteLink = useCallback((id: string) => {
+    setBrand((prev) => ({ ...prev, links: prev.links.filter((l) => l.id !== id) }));
+  }, []);
+
+  const handleSaveStrategy = useCallback(
+    ({ key, value }: { key: StrategyKey; value: string | string[] }) => {
+      setStrategyEditing(null);
+      setBrand((prev) => ({
+        ...prev,
+        strategy: { ...prev.strategy, [key]: value } as typeof prev.strategy,
+      }));
     },
     [],
   );
@@ -1243,23 +1346,40 @@ export function SetupPage({
   const handleChangeLogoRole = useCallback((id: string, roleId: string) => {
     const role = LOGO_ROLES.find((r) => r.id === roleId);
     if (!role) return;
-    const retint = (svg: string, variant: 'light' | 'dark') =>
-      svg.replace(
-        /(<rect[^>]*fill=")[^"]*(")/,
-        `$1${variant === 'dark' ? '#111113' : '#F5F4EF'}$2`,
-      );
+    /*
+     * Re-ground, never recolour.
+     *
+     * Only the tile's own background rect changes — the `<image>` inside it is
+     * the artwork the user uploaded and is never touched. Moving a logo into
+     * the On-dark slot previews it on black; it does not make a light logo out
+     * of a dark one.
+     */
+    const retint = (svg: string, variant: 'light' | 'dark') => {
+      const bg = variant === 'dark' ? '#111113' : '#F5F4EF';
+      return /<rect[^>]*fill="/.test(svg)
+        ? svg.replace(/(<rect[^>]*fill=")[^"]*(")/, `$1${bg}$2`)
+        : // A tile with no ground of its own (an uploaded SVG document) gets
+          // one, so the dark slot is dark rather than transparent.
+          svg.replace(/(<svg[^>]*>)/, `$1<rect width="200" height="200" fill="${bg}"/>`);
+    };
     setBrand((prev) => {
       const logos = prev.logos.slice();
       const idx = logos.findIndex((l) => l.id === id);
       if (idx < 0 || logos[idx].id === role.id) return prev;
       const current = logos[idx];
-      const currentRole = { id: current.id, label: current.label, variant: current.variant };
+      const currentRole = {
+        id: current.id,
+        label: current.label,
+        variant: current.variant,
+        role: current.role,
+      };
       const occupiedIdx = logos.findIndex((l, i) => i !== idx && l.id === role.id);
       logos[idx] = {
         ...current,
         id: role.id,
         label: role.label,
         variant: role.variant,
+        role: role.role,
         svg: retint(current.svg, role.variant),
       };
       if (occupiedIdx >= 0) {
@@ -1403,6 +1523,8 @@ export function SetupPage({
           onAddWebsite={handleOpenWebsiteAdd}
           canAddWebsite={brand.websites.length < MAX_WEBSITES}
           onEditAbout={handleEditAbout}
+        onEditStrategy={handleEditStrategy}
+        onDeleteLink={handleDeleteLink}
           onDeleteAbout={handleDeleteAbout}
           onDownloadAbout={handleDownloadAbout}
           onDropFiles={handleDropFiles}
@@ -1423,9 +1545,25 @@ export function SetupPage({
         takenTitles={brand.about
           .filter((a) => a.content.trim().length > 0)
           .map((a) => a.title)}
+        /* The questions this brand has not answered, exactly as the review
+           offers them. A structured one opens its own picker; anything else
+           fills in the title and stays a free-form section. */
+        suggestions={unansweredStrategy.map((c) => c.name)}
+        onPickSuggestion={(name) => {
+          const card = unansweredStrategy.find((c) => c.name === name);
+          if (!card) return false;
+          setAboutEditing(null);
+          handleEditStrategy(card.key);
+          return true;
+        }}
         onClose={() => setAboutEditing(null)}
         onSave={handleSaveAbout}
         onDelete={handleDeleteAbout}
+      />
+      <StrategyEditorModal
+        target={strategyEditing}
+        onClose={() => setStrategyEditing(null)}
+        onSave={handleSaveStrategy}
       />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
       {resolvedBrandId && (

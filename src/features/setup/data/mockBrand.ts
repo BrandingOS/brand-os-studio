@@ -1,3 +1,5 @@
+import type { LogoRole } from '@/shared/types/brandAssets';
+
 /**
  * Seed data for the Setup page. Mirrors the `Nuworld` brand embedded in the
  * source HTML (new-version/brandos/brandOS brand board.html) so the page
@@ -15,8 +17,26 @@ export type BrandColor = {
 export type BrandLogo = {
   id: string;
   label: string;
+  /**
+   * Which GROUND this tile is drawn on — never a claim about the artwork.
+   *
+   * `dark` means "preview this on a dark tile", because that is the ground the
+   * variant was drawn for. The artwork itself is shown exactly as uploaded.
+   */
   variant: 'light' | 'dark';
   svg: string;
+  /**
+   * The canonical logo role this tile holds.
+   *
+   * The label used to be the only record of which slot a tile was, so the
+   * write-back re-derived roles by matching label text — and `variant` doubled
+   * as evidence, which put the primary logo in the mono-white slot (the first
+   * light-VARIANT tile is Primary, not the light-coloured artwork). Carrying
+   * the role means a tile knows what it is, and a swap is exact.
+   *
+   * Absent on a tile that came from a legacy scalar with no role behind it.
+   */
+  role?: LogoRole;
 };
 
 /** A single font file uploaded by the user — kept as a data URL so
@@ -79,6 +99,64 @@ export type AboutEntry = {
   content: string;
 };
 
+/**
+ * A link the brand has, beside its website.
+ *
+ * `kind` is `BusinessInfo.links`' own closed set; anything it does not name is
+ * `other` and keeps its handle as the label.
+ */
+export type BrandLink = {
+  id: string;
+  kind: string;
+  url: string;
+  label?: string;
+};
+
+/**
+ * What the brand SAYS about itself — the same eleven answers the onboarding
+ * review collects, in the same order.
+ *
+ * They exist on the Setup model whether or not they were answered, for the
+ * reason the review's own list is fixed: an empty field is a question waiting,
+ * not a field that does not exist. Setup used to carry none of them, so a user
+ * who filled in eleven answers during onboarding opened their brand and found
+ * five free-form About cards, none of which held any of it.
+ *
+ * Choices are VOCABULARY IDS (`strategy.personality` etc. persist ids, not
+ * labels); prose is the user's own wording.
+ */
+export type BrandStrategyFields = {
+  summary: string;
+  /** Business Info, not Core — a fact about the company. */
+  industry: string;
+  /** Business Info: `description`, which is products and services. */
+  products: string;
+  audience: string;
+  positioning: string;
+  mission: string;
+  personality: string[];
+  tone: string;
+  /** `visualStyle.descriptors` — a CLOSED union; free words cannot go here. */
+  style: string[];
+  values: string[];
+  /** Business Info: `tagline`. */
+  slogan: string;
+};
+
+export const EMPTY_STRATEGY: BrandStrategyFields = {
+  summary: '',
+  industry: '',
+  products: '',
+  audience: '',
+  positioning: '',
+  mission: '',
+  personality: [],
+  tone: '',
+  style: [],
+  values: [],
+  slogan: '',
+};
+
 export type MockBrand = {
   name: string;
   logos: BrandLogo[];
@@ -95,7 +173,12 @@ export type MockBrand = {
     essay: string;
     pillars: string[];
   };
+  /** Free-form sections — headings the fixed fields cannot represent. */
   about: AboutEntry[];
+  /** The eleven structured answers. Always present; often partly empty. */
+  strategy: BrandStrategyFields;
+  /** Social and other addresses. The website itself stays in `websites`. */
+  links: BrandLink[];
 };
 
 const nuworldLogoSVG = `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -204,6 +287,8 @@ export const mockBrand: MockBrand = {
       'We speak plainly. We make complex things feel simple. We respect our readers’ time — and their intelligence.',
     pillars: ['Clear', 'Warm', 'Precise', 'Confident'],
   },
+  strategy: { ...EMPTY_STRATEGY },
+  links: [],
   about: [
     { id: 'audience', title: 'Audience', content: '' },
     { id: 'messaging', title: 'Messaging', content: '' },

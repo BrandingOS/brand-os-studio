@@ -89,6 +89,15 @@ export interface Brand {
    * entry here and the editor falls back to defaults.
    */
   uiStyle?: BrandUIStyle;
+  /**
+   * WRITE CARRIER for `visualStyle.descriptors` — the brand's style words.
+   *
+   * Same arrangement as `guidelines.strategy.summary`: the value is canonical
+   * (`identity.visualStyle`) with no legacy column, and this lets a surface
+   * that patches through `brandStore.update` reach `changeBrandVisualStyle`.
+   * Routed, so it never reaches the service as a stored field.
+   */
+  visualStyle?: { descriptors?: string[] };
   /** Extra brand colors chosen in Brand Board beyond primary/secondary. */
   accentColor?: string;
   /** Six neutral shades (lightest → darkest) generated from primary hue. */
@@ -157,6 +166,17 @@ export interface BrandStrategy {
   positioning: string;
   personality: string[];
   targetAudience: string;
+  /**
+   * WRITE CARRIER for `strategy.summary`, which has no legacy home.
+   *
+   * `summary` is canonical-only — it lives in the identity blob and is read
+   * from there. This field exists so a surface that patches through
+   * `brandStore.update` can carry it to `changeBrandStrategy`, the same way
+   * mission and the rest travel under `guidelines.strategy`. Never persisted
+   * as part of the mirror: `splitCorePatch` routes the whole key and it never
+   * reaches the service.
+   */
+  summary?: string;
 }
 
 export interface LogoSystem {

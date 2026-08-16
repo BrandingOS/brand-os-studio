@@ -903,12 +903,19 @@
   height: 100%;
   display: block;
 }
+/*
+ * The On-dark tile is a dark GROUND. It is not a filter.
+ *
+ * This used to `invert(1) brightness(1.2)` the artwork, which is the one thing
+ * a logo preview must never do: the variant already IS the light-coloured
+ * drawing the brand made for dark surfaces, so inverting it showed the user a
+ * colour their brand does not own — and on a full-colour logo it produced a
+ * photographic negative. The tile supplies the dark background and nothing
+ * else; the artwork renders exactly as uploaded.
+ */
 [data-workspace] .logo-tile.is-dark {
   background: var(--ds-text);
   border-color: var(--ds-text);
-}
-[data-workspace] .logo-tile.is-dark .logo-svg {
-  filter: invert(1) brightness(1.2);
 }
 [data-workspace] .logo-tile.is-empty {
   background: transparent;
@@ -2614,6 +2621,61 @@
   }
 }
 
+/* ============================================================
+ * BRAND LINKS — the addresses beside the website
+ * ============================================================ */
+[data-workspace] .brand-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+[data-workspace] .brand-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--ds-radius-sm, 8px);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface);
+  text-decoration: none;
+  color: var(--ds-text);
+  font-size: 13px;
+  transition: background 180ms var(--ds-ease), border-color 180ms var(--ds-ease);
+}
+[data-workspace] .brand-link:hover {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+}
+[data-workspace] .brand-link-kind {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .brand-link-url {
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .brand-link-remove {
+  border: none;
+  background: none;
+  padding: 0 0 0 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--ds-ease), color 150ms var(--ds-ease);
+}
+[data-workspace] .brand-link:hover .brand-link-remove,
+[data-workspace] .brand-link:focus-within .brand-link-remove {
+  opacity: 1;
+}
+[data-workspace] .brand-link-remove:hover { color: var(--ds-text); }
+
 [data-workspace] .about-suggestions {
   display: flex;
   flex-wrap: wrap;
@@ -2636,6 +2698,19 @@
   background: var(--ds-surface-hover);
   color: var(--ds-text);
   border-color: var(--ds-border-strong);
+}
+/* Chosen. The same chip doing double duty as a selection control in the
+ * strategy editor, so a picked value reads as picked rather than merely
+ * hovered. Charcoal fill, never a colour — chrome does not wear the brand. */
+[data-workspace] .about-suggestion-chip.is-on {
+  background: var(--ds-text);
+  border-color: var(--ds-text);
+  color: var(--ds-surface);
+}
+[data-workspace] .about-suggestion-chip.is-on:hover {
+  background: var(--ds-text);
+  border-color: var(--ds-text);
+  color: var(--ds-surface);
 }
 
 /* ============================================================

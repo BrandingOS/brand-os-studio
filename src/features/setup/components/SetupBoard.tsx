@@ -8,6 +8,8 @@ import type { SectionKey } from './SetupSidebar';
 import { CopyIcon, type OrganicIconHandle } from './organic-icons';
 import { ContextMenu, type ContextMenuState } from './ContextMenu';
 import { hexToName } from '../data/colorNames';
+import { STRATEGY_CARDS, contentOf, type StrategyKey } from '../data/strategyCards';
+import type { LogoRole } from '@/shared/types/brandAssets';
 
 type ColorGroupKey = 'core' | 'accent' | 'grey';
 
@@ -283,17 +285,31 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 /** Relative luminance check — swatches with light bg get dark text. */
-/** The logo roles a tile can be reassigned to (right-click → Change logo
- *  type). Ids/labels/variants mirror what `brandToMockBrand.mapLogos`
- *  produces so persistence keeps working (`logosToAssetsDict` keys off
- *  the label + variant + position). */
-export const LOGO_ROLES: Array<{ id: string; label: string; variant: 'light' | 'dark' }> = [
-  { id: 'primary', label: 'Primary', variant: 'light' },
-  { id: 'wordmark', label: 'Wordmark', variant: 'light' },
-  { id: 'mark', label: 'Icon', variant: 'light' },
-  { id: 'on-dark', label: 'On dark', variant: 'dark' },
-  { id: 'on-light', label: 'On light', variant: 'light' },
-  { id: 'alternate', label: 'Alternate', variant: 'light' },
+/**
+ * The logo roles a tile can be reassigned to (right-click → Change logo type).
+ *
+ * The SAME set onboarding offers, in the same order and under the same names,
+ * so a variant named on the review is the variant named here. Each carries its
+ * canonical role, which is what the tile persists — the ids and labels are for
+ * the person reading them.
+ *
+ * `On light` is deliberately absent, as it is in onboarding: a logo on a light
+ * background is the ordinary case, not a variant. A brand that already holds
+ * one still renders it (`mapLogos` builds the tile); nothing offers it.
+ */
+export const LOGO_ROLES: Array<{
+  id: string;
+  label: string;
+  variant: 'light' | 'dark';
+  role: LogoRole;
+}> = [
+  { id: 'primary', label: 'Primary', variant: 'light', role: 'primary' },
+  { id: 'wordmark', label: 'Wordmark', variant: 'light', role: 'wordmark' },
+  { id: 'mark', label: 'Icon', variant: 'light', role: 'iconmark' },
+  { id: 'on-dark', label: 'On dark', variant: 'dark', role: 'mono.white' },
+  { id: 'horizontal', label: 'Horizontal', variant: 'light', role: 'horizontal' },
+  { id: 'vertical', label: 'Vertical', variant: 'light', role: 'stacked' },
+  { id: 'alternate', label: 'Alternate', variant: 'light', role: 'secondary' },
 ];
 
 function isLightHex(hex: string): boolean {
@@ -459,6 +475,10 @@ type Props = {
   onAddWebsite?: () => void;
   canAddWebsite?: boolean;
   onEditAbout?: (id: string) => void;
+  /** Change one of the eleven structured strategy answers. */
+  onEditStrategy?: (key: StrategyKey) => void;
+  /** Remove one of the brand's other addresses. */
+  onDeleteLink?: (id: string) => void;
   onDeleteAbout?: (id: string) => void;
   onDownloadAbout?: (entry: MockBrand['about'][number]) => void;
   /** Drag-drop passthrough — lets the empty logo / photo tiles accept
@@ -499,6 +519,8 @@ export function SetupBoard({
   onAddWebsite,
   canAddWebsite = true,
   onEditAbout,
+  onEditStrategy,
+  onDeleteLink,
   onDeleteAbout,
   onDownloadAbout,
   onDropFiles,
@@ -1114,7 +1136,19 @@ export function SetupBoard({
   const emptyFonts = brand.fonts.length === 0;
   const emptyIcons = brand.icons.length === 0;
   const emptyWebsite = brand.websites.length === 0;
-  const emptyAbout = brand.about.every((a) => !a.content.trim());
+  /**
+   * The strategy answers this brand has actually given.
+   *
+   * Derived rather than stored: the eleven fields always exist on the model, so
+   * "answered" is a property of their content and cannot drift out of step with
+   * what the cards render.
+   */
+  const answeredStrategy = STRATEGY_CARDS.map((card) => ({
+    card,
+    content: contentOf(card, brand.strategy),
+  })).filter((c) => c.content.trim());
+  const emptyAbout =
+    brand.about.every((a) => !a.content.trim()) && answeredStrategy.length === 0;
 
   return (
     <main className="board-wrap" id="board">
@@ -1404,21 +1438,57 @@ export function SetupBoard({
           onDelete={onDeleteWebsite}
           onTabContextMenu={(e, website) => openWebsiteMenu(e, website)}
         />
+        {/*
+          The brand's other addresses. Onboarding collects social profiles
+          alongside the website and Setup had nowhere to show them, so they
+          were on the record and invisible — and a save that only knew about
+          the website would have dropped them.
+        */}
+        {brand.links.length > 0 && (
+          <div className="brand-links" aria-label="Links">
+            {brand.links.map((link) => (
+              <a
+                key={link.id}
+                className="brand-link"
+                href={link.url}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <span className="brand-link-kind">{link.kind}</span>
+                <span className="brand-link-url">{link.label ?? link.url}</span>
+                {onDeleteLink && (
+                  <button
+                    type="button"
+                    className="brand-link-remove"
+                    aria-label={`Remove ${link.label ?? link.url}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onDeleteLink(link.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
       </Section>
 
-      {/* ─── About ─── */}
+      {/* ─── Brand Strategy ─── */}
       <Section
         sectionRef={setRef('voice')}
         dataKey="voice"
         collapsed={emptyAbout}
-        title={`About ${brand.name}`}
-        spec="A narrative of your brand"
+        title="Brand Strategy"
+        spec={`${answeredStrategy.length} of ${STRATEGY_CARDS.length} answered`}
         onEdit={() => onEdit('voice')}
         onExport={exportFor('voice')}
       >
         {(() => {
           const filled = brand.about.filter((a) => a.content.trim().length > 0);
-          if (filled.length === 0) {
+          if (filled.length === 0 && answeredStrategy.length === 0) {
             return (
               <button
                 type="button"
@@ -1440,6 +1510,25 @@ export function SetupBoard({
           }
           return (
             <div className="about-grid">
+              {/*
+                The structured answers first, in the review's order, then the
+                free-form sections. A card is something the brand SAYS — an
+                unanswered field says nothing and would only fill the section
+                with placeholders, so it waits inside the add flow instead,
+                exactly as it does on the review.
+              */}
+              {answeredStrategy.map(({ card, content }) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  className="about-card"
+                  onClick={() => onEditStrategy?.(card.key)}
+                  title="Click to change"
+                >
+                  <h3 className="about-card-title">{card.name}</h3>
+                  <p className="about-card-body">{content}</p>
+                </button>
+              ))}
               {filled.map((entry) => (
                 <button
                   key={entry.id}
