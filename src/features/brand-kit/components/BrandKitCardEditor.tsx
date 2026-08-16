@@ -27,6 +27,7 @@ import {
 import type { KitSectionKey } from './BrandKitSidebar';
 import type { BusinessCardContent, TemplateOverrides } from '../types';
 import type { SavedCardCustomization } from '../data/cardCustomizations';
+import { ScalingStage } from '@/shared/brand/ScalingStage';
 import {
   aspectForType,
   contentFieldsForType,
@@ -1537,75 +1538,9 @@ function LivePreviewFrame({
 
   return (
     <div ref={ref} className="bk-editor-preview-frame">
-      <ScalingStage aspect={aspect} fontFamily={fontFamily} showLogo={showLogo}>
+      <ScalingStage aspect={aspect} fontFamily={fontFamily} hideLogo={!showLogo}>
         {children}
       </ScalingStage>
-    </div>
-  );
-}
-
-/**
- * Renders children at a fixed canonical width (360px) and scales
- * the whole subtree to fill the host. Renderers in this codebase
- * use absolute pixel sizes (`text-[4.5px]`, `text-[18px]`) sized for
- * a small drilldown card — without this stage the editor's much
- * larger preview makes every glyph look starved. Scaling preserves
- * the designer's pixel ratios at any preview size.
- */
-function ScalingStage({
-  aspect,
-  fontFamily,
-  showLogo,
-  children,
-}: {
-  aspect: number;
-  fontFamily: string | null;
-  showLogo: boolean;
-  children: React.ReactNode;
-}) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  // 260 ≈ the drilldown card width the renderers were designed for.
-  // At a 720px-wide editor preview the scale becomes ≈2.77×, so a
-  // hardcoded text-[4.5px] glyph reads at ≈12.5px — comfortably
-  // legible without losing the designer's intended pixel ratios.
-  const BASE_WIDTH = 260;
-  const baseHeight = BASE_WIDTH / aspect;
-
-  useLayoutEffect(() => {
-    const host = hostRef.current;
-    const stage = stageRef.current;
-    if (!host || !stage) return;
-    const update = () => {
-      const w = host.clientWidth;
-      stage.style.transform = `scale(${w / BASE_WIDTH})`;
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(host);
-    return () => ro.disconnect();
-  }, []);
-
-  const hostStyle: React.CSSProperties = { aspectRatio: `${aspect} / 1` };
-  if (fontFamily) {
-    (hostStyle as Record<string, string>)['--bk-preview-font'] = fontFamily;
-  }
-
-  return (
-    <div
-      ref={hostRef}
-      className="bk-preview-host"
-      data-font-override={fontFamily ? '' : undefined}
-      data-hide-logo={!showLogo ? '' : undefined}
-      style={hostStyle}
-    >
-      <div
-        ref={stageRef}
-        className="bk-preview-stage"
-        style={{ width: BASE_WIDTH, height: baseHeight }}
-      >
-        {children}
-      </div>
     </div>
   );
 }
