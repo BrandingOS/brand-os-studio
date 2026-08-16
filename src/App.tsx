@@ -32,6 +32,7 @@ const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create")
 // v2 brand-scoped tabs — the 5 tabs always live inside a brand under /b/:slug/*.
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
+const BrandIdentityRoute = lazy(() => import("./pages/b/[slug]/identity"));
 const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandBrandKitNextPage = lazy(() => import("./pages/b/[slug]/brand-kit-next"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
@@ -444,6 +445,11 @@ const App = () => (
               while it's iterated on (owner decision 2026-08-10). */}
           <Route path="/b/:slug/brand-kit-next" element={
             <ProtectedRoute><BrandBrandKitNextPage /></ProtectedRoute>
+          } />
+          {/* The Brand Identity presentation — a read-only page over the
+              canonical brand. Mounted publicly too, from one component. */}
+          <Route path="/b/:slug/identity" element={
+            <ProtectedRoute><BrandIdentityRoute /></ProtectedRoute>
           } />
           <Route path="/b/:slug/guideline" element={
             <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>

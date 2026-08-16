@@ -1,20 +1,47 @@
-// Phase B port — Identity page mounted at /b/:slug/identity (Studio).
-//
-// Reuses the same IdentityPage component as /a/:slug/identity (Classic).
-// The page is shell-agnostic — its `useBrandPageConfig` calls become
-// no-ops without BrandRouteLayout as a parent (no inner-nav rail
-// renders, but the page's own Tabs (Logo/Colors/Typography/Voice/Strategy)
-// remain the primary section navigation). PageHeader provides the title.
-//
-// Studio chrome via WorkspaceShell. Classic chrome (AppRail + InnerNavRail)
-// stays at /a/:slug/identity, untouched.
-import { StudioBrandShell } from './_studioBrandShell';
-import IdentityPage from '@/pages/dashboard/brand/[slug]/identity';
+/**
+ * Brand Identity at /b/:slug/identity — the owner's view.
+ *
+ * Loads the brand and its Library, then hands both to the one page component.
+ * The Library is fetched HERE rather than inside the page because the page is
+ * also mounted publicly, where the material arrives from a published snapshot
+ * instead of a live query — keeping the fetch at the route means the page never
+ * has to know which world it is in.
+ */
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useBrandFromSlug } from '@/shared/hooks/useBrandFromSlug';
+import { useService } from '@/core';
+import { SERVICE_KEYS, type IAssetsService } from '@/core/types/services';
+import { BrandNotFoundPanel } from '@/shared/components/BrandNotFoundPanel';
+import { BrandIdentityPage } from '@/features/brand-identity/BrandIdentityPage';
+import { loadIdentityMaterial, type IdentityMaterial } from '@/features/brand-identity/identityMaterial';
 
-export default function StudioIdentityPage() {
+export default function BrandIdentityRoute() {
+  const { slug } = useParams<{ slug: string }>();
+  const { brand, isLoading } = useBrandFromSlug(slug);
+  const assets = useService<IAssetsService>(SERVICE_KEYS.ASSETS);
+  const [material, setMaterial] = useState<IdentityMaterial>({ images: [], assetGroups: [] });
+
+  useEffect(() => {
+    if (!brand?.id) return;
+    let alive = true;
+    void loadIdentityMaterial(assets, brand.id).then((m) => {
+      if (alive) setMaterial(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [assets, brand?.id]);
+
+  if (!brand) return <BrandNotFoundPanel slug={slug} isLoading={isLoading} />;
+
   return (
-    <StudioBrandShell>
-      <IdentityPage />
-    </StudioBrandShell>
+    <BrandIdentityPage
+      key={brand.id}
+      brand={brand}
+      images={material.images}
+      assetGroups={material.assetGroups}
+      mode="studio"
+    />
   );
 }
