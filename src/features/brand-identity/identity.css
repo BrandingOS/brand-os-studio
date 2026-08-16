@@ -464,6 +464,169 @@
   }
 }
 
+/* ── Specification sections ────────────────────────────────────────────── */
+
+[data-identity] .bi-spec-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 64px;
+  padding-bottom: 40px;
+}
+[data-identity] .bi-spec-pair {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-identity] .bi-spec-pair .bi-quiet {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+[data-identity] .bi-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+[data-identity] .bi-usage-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  border-radius: var(--bi-r-sm);
+  background: var(--bi-page);
+}
+[data-identity] .bi-usage-do,
+[data-identity] .bi-usage-dont {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+  padding-left: 22px;
+  position: relative;
+}
+/* A tick and a cross drawn in type, so the rule reads as a pair at a glance
+   without an icon set. */
+[data-identity] .bi-usage-do::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--bi-accent);
+  font-weight: 600;
+}
+[data-identity] .bi-usage-dont::before {
+  content: '✕';
+  position: absolute;
+  left: 0;
+  opacity: 0.35;
+}
+[data-identity] .bi-usage-dont {
+  color: var(--bi-ink-3);
+}
+
+/* ── Colour ────────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+[data-identity] .bi-swatch {
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px;
+  border-radius: var(--bi-r-lg);
+  box-shadow: var(--bi-shadow-md);
+  overflow: hidden;
+}
+/* The colour the brand leads with gets the room it deserves. */
+[data-identity] .bi-swatch[data-lead] {
+  grid-column: span 2;
+  min-height: 360px;
+}
+@media (max-width: 860px) {
+  [data-identity] .bi-swatch[data-lead] {
+    grid-column: span 1;
+  }
+}
+[data-identity] .bi-swatch-role {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+[data-identity] .bi-swatch-meta {
+  display: flex;
+  flex-direction: column;
+}
+[data-identity] .bi-swatch .bi-copyable {
+  color: inherit;
+}
+[data-identity] .bi-swatch-download {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--bi-r-pill);
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--bi-ease);
+}
+[data-identity] .bi-swatch:hover .bi-swatch-download,
+[data-identity] .bi-swatch:focus-within .bi-swatch-download {
+  opacity: 1;
+}
+
+/* ── Typography ────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-type-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-identity] .bi-type-spec .bi-quiet {
+  display: inline-block;
+  min-width: 74px;
+}
+[data-identity] .bi-type-sample {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+}
+[data-identity] .bi-type-line {
+  margin: 0;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  word-break: break-word;
+}
+[data-identity] .bi-type-alphabet {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: var(--bi-ink-2);
+  word-break: break-word;
+}
+
+[data-identity] .bi-section-bundle {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+}
+
 /* ── Nav ───────────────────────────────────────────────────────────────── */
 
 [data-identity] .bi-nav {

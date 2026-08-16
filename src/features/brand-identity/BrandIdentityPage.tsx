@@ -16,6 +16,7 @@ import { bgTone } from '@/shared/brand/logoOnBackground';
 import { buildIdentityModel, presentSections, type BuildIdentityInput } from './identityModel';
 import { IdentityNav } from './components/IdentityNav';
 import { IdentityHero, Introduction, Personality, Purpose } from './sections/Narrative';
+import { Colour, LogoSystem, LogoUsage, Typography } from './sections/System';
 import './identity.css';
 
 export interface BrandIdentityPageProps extends BuildIdentityInput {
@@ -76,6 +77,10 @@ export function BrandIdentityPage({
         {model.introduction.present && <Introduction model={model} />}
         {model.purpose.present && <Purpose model={model} />}
         {model.personality.present && <Personality model={model} />}
+        {model.logo.present && <LogoSystem model={model} />}
+        {model.logoUsage.present && <LogoUsage model={model} />}
+        {model.colour.present && <Colour model={model} />}
+        {model.typography.present && <Typography model={model} />}
       </main>
     </div>
   );

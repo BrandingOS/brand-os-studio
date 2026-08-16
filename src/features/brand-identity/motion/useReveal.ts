@@ -60,9 +60,19 @@ export function useReveal({ delay = 0, threshold = 0.15 }: RevealOptions = {}) {
     return () => io.disconnect();
   }, [shown, threshold]);
 
+  /*
+   * `style` is ALWAYS an object, never undefined.
+   *
+   * These props are spread onto an element, and a caller that also sets its own
+   * `style` will usually spread this last. `style: undefined` then silently
+   * erases the caller's — which is how a grid of colour swatches rendered as a
+   * grid of white rectangles, with the right hex printed inside each one.
+   * Returning an object means the worst a careless spread can do is drop the
+   * delay.
+   */
   return {
     ref: ref as React.RefObject<never>,
     'data-reveal': shown ? 'in' : '',
-    style: delay ? ({ '--bi-delay': `${delay}ms` } as React.CSSProperties) : undefined,
+    style: { ...(delay ? { '--bi-delay': `${delay}ms` } : {}) } as React.CSSProperties,
   };
 }
