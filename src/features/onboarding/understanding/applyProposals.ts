@@ -220,6 +220,7 @@ export async function applyBusinessFacts(
   if (facts.tagline !== undefined) change.tagline = facts.tagline;
   if (facts.description !== undefined) change.description = facts.description;
   if (facts.audienceSummary !== undefined) change.audienceSummary = facts.audienceSummary;
+  if (facts.links !== undefined) change.links = facts.links;
   if (facts.website) change.contact = { website: facts.website };
   if (!Object.keys(change).length) return [];
 

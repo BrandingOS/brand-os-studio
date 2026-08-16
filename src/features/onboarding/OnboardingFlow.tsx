@@ -358,7 +358,6 @@ export default function OnboardingFlow() {
     try {
       const report = await finishOnboarding({
         brand,
-        ...(brand.publicUrl ? { businessInfo: { contact: { website: brand.publicUrl } } } : {}),
         updateBrand: async (id, patch) => {
           await updateBrand(id, patch);
         },

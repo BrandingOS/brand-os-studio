@@ -12,6 +12,7 @@
  */
 import type { CoreFieldPath } from '@/domain/brand/coreFieldPaths';
 import type { Provenance } from '@/domain/brand/coreMeta';
+import type { BusinessInfo } from '@/domain/brand/identity';
 
 /** Provenances a machine may claim. `user-entered` is not one of them. */
 export type ProposalProvenance = Extract<Provenance, 'ai-suggested' | 'inferred'>;
@@ -50,6 +51,13 @@ export interface BusinessFacts {
   description?: string;
   audienceSummary?: string;
   website?: string;
+  /**
+   * The brand's other addresses — social profiles and any URL that is not the
+   * website. `contact.website` holds one url; a brand has more than one, and
+   * the ones it brought to onboarding were being listed in the review and then
+   * thrown away with the transient store.
+   */
+  links?: BusinessInfo['links'];
 }
 
 /**

@@ -34,6 +34,7 @@ import { interpret, type Understanding } from '../understanding/interpret';
 import { applyBusinessFacts, applyProposals, sentinelsRetiredBy } from '../understanding/applyProposals';
 import { acceptAll, acceptProposal, editValue } from '../understanding/acceptance';
 import { classifyLogos, type Artworks } from '../understanding/logoClassify';
+import { storeMaterial } from '../understanding/material';
 import { groupFontFamilies } from '../understanding/fonts';
 import { VOCABULARIES, type VocabularyName } from '../vocabulary/vocabularies';
 
@@ -76,29 +77,22 @@ export async function createBrand(
   return brand;
 }
 
-/** Puts one supplied item in the Library. Never throws; marks the item instead. */
+/**
+ * Puts one supplied item in the Library. Never throws; marks the item instead.
+ *
+ * Delegates to `storeMaterial`, which stores the BYTES. This used to store
+ * `item.previewUrl` — an object URL, alive only for as long as the page that
+ * minted it — so every uploaded file became a Library row pointing at nothing
+ * the moment the user reloaded.
+ */
 export async function toLibrary(
-  brandId: string,
+  brand: Brand,
   item: OnboardingAsset,
   onError?: (id: string, reason: string) => void,
-): Promise<void> {
-  try {
-    const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
-    await assets.create({
-      brandId,
-      name: item.name,
-      type: item.kind === 'image' ? 'image' : 'document',
-      category: item.isLogo || item.logoSlot ? 'logo' : 'photo',
-      source: 'upload',
-      url: item.previewUrl ?? '',
-      size: item._file?.size ?? 0,
-      tags: [],
-      metadata: { originalName: item.name, contentHash: item.contentHash },
-      origin: 'uploaded',
-    } as never);
-  } catch {
-    onError?.(item.id, "Couldn't store this one. Everything else is fine.");
-  }
+): Promise<string | null> {
+  const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
+  const result = await storeMaterial(assets, brand, item, onError);
+  return result?.assetId ?? null;
 }
 
 /**

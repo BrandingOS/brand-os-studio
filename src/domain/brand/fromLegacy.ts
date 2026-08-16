@@ -228,14 +228,25 @@ function resolveVoice(b: Brand): Voice {
  * Board's accent/neutrals scalars, Classic's guidelines voice, onboarding's
  * guidelines typography), that value wins and the blob is ignored. This makes a
  * lagging blob incapable of reverting any writer; it can only recover data the
- * transport dropped. Primary/secondary color, logos, font families, tone, and
- * strategy are never touched here — they keep their own legacy precedence.
+ * transport dropped. Primary/secondary color, logos, font families and tone are
+ * never touched here — they keep their own legacy precedence.
+ *
+ * STRATEGY IS BACKFILLED, and it has to be. `resolveStrategy` reads only
+ * `guidelines.strategy` plus two legacy scalars, while `toLegacyBrandPatch`
+ * deliberately does not write the `guidelines.*` mirror — so every canonical
+ * strategy write was durable in the blob and invisible on the very next read.
+ * Summary, values, positioning, personality, target audience and the free-form
+ * About sections all vanished between a save and the reload after it; only
+ * `mission` survived, on the `brand.strategy` scalar. The same legacy-first rule
+ * applies: anything `guidelines.strategy` still carries wins, so Setup and
+ * Classic keep their precedence and this can only recover what was dropped.
  */
 function overlayStoredIdentity(base: BrandIdentity, stored: BrandIdentity): BrandIdentity {
   const st = stored ?? ({} as BrandIdentity);
   const sc = st.colors ?? ({} as BrandIdentity['colors']);
   const stypo = st.typography ?? ({} as BrandIdentity['typography']);
   const sv = st.voice ?? ({} as BrandIdentity['voice']);
+  const ss = st.strategy ?? ({} as BrandIdentity['strategy']);
 
   const backfillFont = (baseFont: FontToken | undefined, storedFont: FontToken | undefined) => {
     if (!baseFont || !storedFont) return baseFont;
@@ -258,6 +269,25 @@ function overlayStoredIdentity(base: BrandIdentity, stored: BrandIdentity): Bran
     typography: {
       primary: backfillFont(base.typography.primary, stypo.primary) ?? base.typography.primary,
       secondary: backfillFont(base.typography.secondary, stypo.secondary) ?? base.typography.secondary,
+    },
+    strategy: {
+      ...base.strategy,
+      // `summary` has no legacy home at all — the blob is the only place it
+      // has ever lived, so it is a pure recovery.
+      summary: base.strategy.summary ?? ss.summary,
+      mission: base.strategy.mission ?? ss.mission,
+      vision: base.strategy.vision ?? ss.vision,
+      positioning: base.strategy.positioning ?? ss.positioning,
+      targetAudience: base.strategy.targetAudience ?? ss.targetAudience,
+      // Empty is what "the transport dropped it" looks like for a list: the
+      // legacy resolver defaults each of these to `[]`, never to undefined.
+      values: base.strategy.values?.length ? base.strategy.values : ss.values ?? [],
+      personality: base.strategy.personality?.length
+        ? base.strategy.personality
+        : ss.personality ?? [],
+      aboutSections: base.strategy.aboutSections?.length
+        ? base.strategy.aboutSections
+        : ss.aboutSections ?? [],
     },
     voice: {
       ...base.voice,

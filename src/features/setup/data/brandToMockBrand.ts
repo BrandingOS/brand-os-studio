@@ -10,6 +10,8 @@ import type {
 } from './mockBrand';
 import { hexToName } from './colorNames';
 import { suggestIconsForBrand } from '@/features/brand-kit/data/suggestIcons';
+import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
+import type { LogoRole } from '@/shared/types/brandAssets';
 
 /**
  * Best-effort mapper from the canonical `Brand` shape (store / Supabase)
@@ -47,17 +49,32 @@ const DARK_BG = '#111113';
 function mapLogos(brand: Brand): BrandLogo[] {
   const logos: BrandLogo[] = [];
 
-  const primaryUrl =
-    brand.logoSystem?.primary?.url ?? brand.logoAssets?.full ?? brand.logo;
-  const wordmarkUrl = brand.logoSystem?.wordmark?.url ?? brand.logoAssets?.wordmark;
-  const iconUrl = brand.logoSystem?.iconmark?.url ?? brand.logoAssets?.icon;
+  /*
+   * A logo slot is a REFERENCE, so it has to be resolved.
+   *
+   * `logoSystem.primary.url` was read here as though a slot carried its own
+   * url. It does not and never did — `LogoRef` is `{ assetId }` — so the whole
+   * v3 path was dead and this fell through to the legacy scalars every time.
+   * A brand whose logos went through the canonical upload (onboarding, the
+   * Brand Kit, LogoUploader) had a complete logo system and Setup showed it a
+   * lettermark placeholder.
+   *
+   * `resolveBrandLogo` is the one reader that knows how: ref → the Library
+   * projection on `brandAssets` → the best file for that format. The legacy
+   * scalars stay as the fallback for brands that predate the refs.
+   */
+  const bySlot = (role: LogoRole) => resolveBrandLogo(brand, role)?.url;
+
+  const primaryUrl = bySlot('primary') ?? brand.logoAssets?.full ?? brand.logo;
+  const wordmarkUrl = bySlot('wordmark') ?? brand.logoAssets?.wordmark;
+  const iconUrl = bySlot('iconmark') ?? brand.logoAssets?.icon;
   // `BrandLogoAssets.light` is the LIGHT-colored logo (for use ON a dark
   // surface), and `.dark` is the DARK-colored logo (for use ON a light
   // surface). The naming flipped between the legacy field and the
   // onboarding slot, so be careful here.
-  const lightLogoUrl = brand.logoAssets?.light; // for dark backgrounds
-  const darkLogoUrl = brand.logoAssets?.dark; // for light backgrounds
-  const alternateUrl = brand.logoAssets?.alternate;
+  const lightLogoUrl = bySlot('mono.white') ?? brand.logoAssets?.light; // for dark backgrounds
+  const darkLogoUrl = bySlot('mono.black') ?? brand.logoAssets?.dark; // for light backgrounds
+  const alternateUrl = bySlot('secondary') ?? brand.logoAssets?.alternate;
 
   const seen = new Set<string>();
   const pushOnce = (url: string | undefined, entry: BrandLogo) => {

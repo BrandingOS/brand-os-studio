@@ -57,6 +57,9 @@ describe('FR-026 — no brand material on the brand record', () => {
         read(f)
           // The Library service call legitimately mentions `assets` as a local.
           .replace(/const assets = container[^;]+;/g, '')
+          // …and legitimately names it as a PARAMETER. The rule is about
+          // writing an array onto a brand record, not about the word.
+          .replace(/\bassets\s*:\s*IAssetsService/g, '')
           .replace(/brandAssets\?\.\w+/g, ''),
       ),
     );

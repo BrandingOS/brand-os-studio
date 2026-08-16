@@ -62,7 +62,7 @@ const MAX_COLORS = 5;
  * looks decided is worse, because the user inherits a choice they never made.
  * So the field is never empty and the row says plainly whose choice it is.
  */
-const SUGGESTED_FONT_SUB = ORIGIN_LABEL.suggested;
+export const SUGGESTED_FONT_SUB = ORIGIN_LABEL.suggested;
 
 interface Group {
   id: 'fonts' | 'links' | 'assets';

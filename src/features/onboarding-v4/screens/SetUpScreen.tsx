@@ -49,11 +49,16 @@ import {
   createBrand as createTheBrand,
   labelOf,
   project,
-  toLibrary,
   understand,
   type Projection,
 } from '@/features/onboarding/bridge/v4Bridge';
 import { destinationAfterFinish, finishOnboarding } from '@/features/onboarding/understanding/finish';
+import {
+  createReviewWriter,
+  websiteOf,
+  type ReviewWriter,
+} from '@/features/onboarding/bridge/reviewWriteThrough';
+import { SUGGESTED_FONT_SUB } from '../panels/UploadsReviewPanel';
 
 const PANEL_META: Record<1 | 2 | 3, { caption?: string; label: string }> = {
   1: { label: 'Continue' },
@@ -182,6 +187,38 @@ export function SetUpScreen() {
   );
 
   /**
+   * The review's write-through.
+   *
+   * `project()` reads the brand into the panel; this reads the panel back out.
+   * Both halves are needed or the review is a one-way mirror: everything the
+   * user did to a colour, a typeface, a logo slot, a link, an uploaded file or
+   * a strategy section lived only in the transient store, which Finish resets.
+   *
+   * Subscribing to the STORE rather than calling from each control is
+   * deliberate — the panel is frozen, and a write threaded through two dozen
+   * mutation sites is a write the next control silently will not have.
+   */
+  const writerRef = useRef<ReviewWriter | null>(null);
+  const writerBrandRef = useRef<string | null>(null);
+  const writerFor = useCallback(
+    (b: Brand): ReviewWriter => {
+      if (writerRef.current && writerBrandRef.current === b.id) return writerRef.current;
+      writerBrandRef.current = b.id;
+      writerRef.current = createReviewWriter({
+        brandId: b.id,
+        // The store's copy is the live one, but it is not populated the instant
+        // a brand is created — and the very first reconcile runs then.
+        brand: () => useBrandStore.getState().list.find((x) => x.id === b.id) ?? b,
+        updateBrand: (id, patch) => updateBrand(id, patch as never),
+        actor: { kind: 'human', userId: userId ?? 'unattributed' },
+        onItemError: (id, reason) => updateAsset(id, { uploadStatus: 'error', sub: reason }),
+      });
+      return writerRef.current;
+    },
+    [updateBrand, updateAsset, userId],
+  );
+
+  /**
    * Reads the brand back and re-projects it onto the review.
    *
    * The sentinel list is read from the STORE, not from the `b` passed in: `b` is
@@ -198,6 +235,65 @@ export function SetUpScreen() {
       project(canonical, useV4Store.getState().assets, placeholderPaths(live), artworkRef.current),
     );
   }, []);
+
+  /**
+   * Writes whatever the review currently says, and re-reads the brand after.
+   *
+   * The re-read is what keeps the projection honest: a value written here comes
+   * back through `project()` on the next pass, so the two can never disagree
+   * about what the brand holds.
+   */
+  const persistReview = useCallback(async () => {
+    const b = brand;
+    if (!b) return;
+    const store = useV4Store.getState();
+    const notSaved = await writerFor(b).persist({
+      items: store.assets,
+      aboutSections: store.aboutSections,
+      primaryColorId: store.primaryColorId,
+      // The panel offers a pairing when the brand brought no typeface. That is
+      // the product's suggestion, not the user's choice, and it must not be
+      // written as one.
+      suggestedFonts: store.assets
+        .filter((a) => a.kind === 'font' && a.sub === SUGGESTED_FONT_SUB)
+        .map((a) => a.name),
+    });
+    if (notSaved.length) {
+      toast.warning(`Couldn't save ${notSaved.slice(0, 2).join(' and ')}.`, {
+        description: 'Everything else is here.',
+      });
+    }
+    await refresh(b);
+  }, [brand, writerFor, refresh]);
+
+  /**
+   * Every change in the review is a write.
+   *
+   * Debounced, because a colour picker emits a change per drag frame and a
+   * palette shuffle replaces five swatches in five store actions — one write per
+   * frame would be dozens of round trips for a single decision. The delay is
+   * short enough that leaving the panel cannot outrun it, and Finish waits for
+   * the queue regardless, so nothing depends on the timing.
+   */
+  useEffect(() => {
+    if (setupPanel !== 3 || !brand) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void persistReview(), 400);
+    };
+    const unsubscribe = useV4Store.subscribe(schedule);
+    // Once on arrival, not only on change. The projection effect that places
+    // the classifier's logo slots lives in the CHILD panel, and a child's
+    // effects run before the parent's — so those writes happen before this
+    // subscription exists. Waiting for the next change meant a user who
+    // touched nothing finished with an empty logo system.
+    schedule();
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [setupPanel, brand, persistReview]);
 
   /**
    * Resume: `/onboard-brand/:slug?step=review` after a reload.
@@ -234,10 +330,11 @@ export function SetUpScreen() {
     setBusy(true);
     try {
       // The website is whatever the dropzone's URL pill captured — it is
-      // optional and stays optional.
-      const website = useV4Store
-        .getState()
-        .assets.find((a) => a.kind === 'link' && a.socialPlatform === 'website')?.sourceUrl;
+      // optional and stays optional. Recognised from the URL rather than from a
+      // `socialPlatform` marker: the pill does not set one, so asking for
+      // `=== 'website'` found nothing and the address the user typed never
+      // became the brand's.
+      const website = websiteOf(useV4Store.getState().assets);
       const created = await createTheBrand(
         createBrand as never,
         updateBrand as never,
@@ -251,13 +348,13 @@ export function SetUpScreen() {
 
       // Material was held while there was no brand to attach it to. It goes to
       // the Library now — before the review, so what the review shows is what
-      // the Library holds.
-      const held = useV4Store.getState().assets.filter((a) => a.kind !== 'color');
-      for (const item of held) {
-        await toLibrary(created.id, item, (id, reason) =>
-          updateAsset(id, { uploadStatus: 'error', sub: reason }),
-        );
-      }
+      // the Library holds. Through the SAME writer the review uses, so there is
+      // one path that stores a file and one memory of what it stored.
+      const store = useV4Store.getState();
+      await writerFor(created).persist({
+        items: store.assets,
+        aboutSections: store.aboutSections,
+      });
 
       setProcessing(true);
     } catch (err) {
@@ -402,10 +499,21 @@ export function SetUpScreen() {
     busyRef.current = true;
     setBusy(true);
     try {
+      /*
+       * Flush before finishing.
+       *
+       * Not a commit pass — every one of these values was already written when
+       * the user changed it, and re-running the reconciler against an unchanged
+       * brand writes nothing at all. It exists for the last four hundred
+       * milliseconds: a user who edits a colour and immediately presses the
+       * button would otherwise have the debounce cancelled by `reset()` below,
+       * losing exactly the edit they made last.
+       */
+      await persistReview();
+
       const report = await finishOnboarding({
         brand,
         live: (id) => useBrandStore.getState().list.find((b) => b.id === id),
-        ...(brand.publicUrl ? { businessInfo: { contact: { website: brand.publicUrl } } } : {}),
         updateBrand: async (id, patch) => {
           await updateBrand(id, patch);
         },
@@ -416,13 +524,18 @@ export function SetUpScreen() {
         toast.warning(`Couldn't save ${report.notSaved.join(' and ')}.`);
       }
       useV4Store.getState().reset();
+      // The brand list is what Setup renders from, and every write above went
+      // through the repository or the store's own update. Re-read so the page
+      // being navigated to opens on the finished brand rather than the copy the
+      // store happened to be holding.
+      await useBrandStore.getState().loadAll();
       navigate(destinationAfterFinish(brand.slug, then));
     } catch {
       busyRef.current = false;
       setBusy(false);
       toast.error("Couldn't finish just now. Nothing was lost — try again.");
     }
-  }, [brand, updateBrand, navigate, then]);
+  }, [brand, updateBrand, navigate, then, persistReview]);
 
   const goNext = () => {
     if (setupPanel === 1) goToPanel(2);

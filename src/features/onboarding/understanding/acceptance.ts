@@ -83,18 +83,46 @@ export async function editValue(
   value: unknown,
   actor: HumanActor,
 ): Promise<void> {
+  await editValues(repo, brandId, [{ path, value }], actor);
+}
+
+/**
+ * Change several values as ONE act.
+ *
+ * A palette is one decision, not three. Writing primary, secondary and the
+ * neutrals through three separate `editValue` calls means three load-mutate-save
+ * cycles against the same record, and the middle one reads what the first wrote
+ * only because they happen to be awaited in order — a fragile way to save a
+ * single edit. `applyProposals` already batches by the op that owns each path,
+ * so handing it the whole set is both correct and one round trip per subsystem.
+ *
+ * The promotion still happens per value, through the same `acceptAll` loop, so
+ * this introduces no group authority: it is the identical record, written once.
+ */
+export async function editValues(
+  repo: BrandRepository,
+  brandId: string,
+  values: ReadonlyArray<{ path: CoreFieldPath; value: unknown }>,
+  actor: HumanActor,
+): Promise<void> {
+  if (!values.length) return;
   // Shares `applyProposals` rather than duplicating its op-batching, so the
   // edit path cannot drift from the suggestion path in how it shapes a colour
   // or a typeface. Only the actor and provenance differ.
   const report = await applyProposals(
     repo,
     brandId,
-    [{ corePath: path, value, provenance: 'inferred', evidence: 'you' }],
+    values.map(({ path, value }) => ({
+      corePath: path,
+      value,
+      provenance: 'inferred' as const,
+      evidence: 'you',
+    })),
     { actor, provenance: 'user-entered' },
   );
   if (report.failed.length) throw new Error(report.failed[0].reason);
 
   // The write alone records `provisional`. This is what makes an edit count as
   // a decision (FR-025).
-  await acceptProposal(repo, brandId, path, actor);
+  await acceptAll(repo, brandId, report.applied, actor);
 }

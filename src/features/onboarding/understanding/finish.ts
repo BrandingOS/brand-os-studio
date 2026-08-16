@@ -10,12 +10,9 @@
 import type { Brand } from '@/shared/types/brand';
 import type { IBrandContextService } from '@/core/services/IBrandContextService';
 import { completedState, readOnboardingState } from '@/shared/onboarding/onboardingState';
-import type { BusinessInfo } from '@/domain/brand/identity';
 
 export interface FinishInput {
   brand: Brand;
-  /** Business facts gathered during the flow, or nothing. */
-  businessInfo?: BusinessInfo;
   updateBrand(id: string, patch: Partial<Brand>): Promise<void>;
   /** Optional — Context is additive and never blocks finishing. */
   context?: IBrandContextService;
@@ -43,18 +40,24 @@ export interface FinishReport {
  * second call reads the brand as already finished and does nothing.
  */
 export async function finishOnboarding(input: FinishInput): Promise<FinishReport> {
-  const { brand, businessInfo, updateBrand, context, rejectedPaths = [], live } = input;
+  const { brand, updateBrand, context, rejectedPaths = [], live } = input;
   const notSaved: string[] = [];
 
-  // Business facts first — if the marker write fails the user can resume and
-  // try again, but a lost fact would need re-typing.
-  if (businessInfo && Object.keys(businessInfo).length > 0) {
-    try {
-      await updateBrand(brand.id, { businessInfo });
-    } catch {
-      notSaved.push('your business details');
-    }
-  }
+  /*
+   * NOTHING about the brand's content is written here, and that is now a rule
+   * rather than an observation.
+   *
+   * This used to take a `businessInfo` and patch it in — the website, in
+   * practice. `businessInfo` is a single stored value, so a patch REPLACES it:
+   * the last act of onboarding deleted the industry, the slogan, the products
+   * and the audience summary that the understanding pass had already saved, and
+   * the user opened a brand that had lost most of what they told it. The website
+   * was never missing — `applyBusinessFacts` merges it in at the moment it is
+   * supplied, which is where every other fact is written too.
+   *
+   * Finishing marks the brand done. If it needs to save a value, that value was
+   * saved in the wrong place.
+   */
 
   // Context is fire-and-forget by contract. A failure is swallowed: a dropped
   // signal is acceptable, a dialog about one is not.

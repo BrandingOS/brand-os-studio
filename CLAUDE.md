@@ -1051,6 +1051,53 @@ where a free word would fail validation and cost the whole save.
 `strategy.summary` is its own Core path: the brief asks for a summary AND a
 mission, and filing the summary as the mission kept only one of the two.
 
+### Persistence — where each thing lands, and when
+
+**Every onboarding action writes to the canonical brand as it happens. Finish
+marks the brand done and navigates; it writes nothing else.** Four rules make
+that true, each of them a bug that shipped once:
+
+- **Finish must never patch `businessInfo`.** It is a single stored value, so a
+  patch REPLACES it — writing `{ contact: { website } }` at the end deleted the
+  industry, slogan, products and audience summary the understanding pass had
+  already saved. The website is written by `applyBusinessFacts` when it is
+  supplied, like every other fact. `FinishInput` no longer accepts business
+  info at all.
+- **A canonical write must survive its own read.** `toLegacyBrandPatch`
+  deliberately does not write the `guidelines.*` mirror, and `resolveStrategy`
+  reads only that mirror plus two legacy scalars — so summary, values,
+  positioning, personality, target audience and the free-form About sections
+  were durable in the `identity` blob and invisible on the next read. Only
+  `mission` survived, on `brand.strategy`. `overlayStoredIdentity` now backfills
+  strategy from the blob, legacy-first, so Setup and Classic keep precedence and
+  the blob can only recover what the transport dropped.
+- **The review is written back, not only read from.**
+  `bridge/reviewWriteThrough.ts` is the inverse of `project()`. The frozen panel
+  keeps mutating its transient store; `SetUpScreen` subscribes to that store and
+  reconciles (debounced 400ms, and once on arrival — the panel's own projection
+  effect runs BEFORE the parent's subscription, so change-only meant a user who
+  touched nothing finished with an empty logo system). Finish awaits one last
+  flush before `reset()`. A value that differs from what the brand holds is
+  written as the user and confirmed; the typeface pairing the panel offers when
+  a brand brought none is written as the interpreter so it stays `suggested` —
+  but it IS written, because the review showed it.
+- **Material is stored as BYTES.** `understanding/material.ts` reads `_file`
+  (or fetches the object URL while the page is alive) into a data url and puts
+  that in the Library, reusing `stageAsset`'s content-hash identity and the
+  "use the id the Library returned" rule from `useAssetUpload`. Storing
+  `previewUrl` made every upload a `blob:` row that resolved to nothing after a
+  reload. Logos then get `logoSystem` REFS via `stageLogoRef` — never a url on
+  the brand record. `SLOT_TO_ROLE` maps onboarding's owner-facing slot names to
+  the model's artwork-facing roles (`dark` → `mono.white`, `mark` → `iconmark`,
+  `vertical` → `stacked`); `custom:<name>` has no role and claims no slot.
+
+Two readers were wrong in the same way and are fixed: `brandToMockBrand.mapLogos`
+read `logoSystem.primary.url`, but a `LogoRef` is `{ assetId }` and never had a
+url — so Setup showed a lettermark for every brand with a complete logo system.
+It resolves through `resolveBrandLogo` now. And the dropzone's URL pill records
+no `socialPlatform`, so `=== 'website'` matched nothing and the address the user
+typed never became `publicUrl`; `linkKindOf` reads the host instead.
+
 ### Migration 022 (`brands.onboarding`)
 
 Its absence is tolerated on create and update. Two things make that real, and
