@@ -1,49 +1,57 @@
-// useImageGeneration — the Generate panel's Image-mode state machine.
+// useImageGeneration — the editor Generate panel's image state machine.
 //
 //   idle ──start(text)──▶ compiling ──▶ generating ──▶ idle
-//   any ──error──▶ error (inline, never a spinner left behind)
+//   any  ──error──▶ error        any ──cancel()──▶ idle
 //
-// The compile step is invisible to the user (owner decision 2026-08-17):
-// the panel shows one "processing" state; the compiled prompt is still
-// recorded in metadata.ai for Variations / Refine.
+// The compile step is invisible: the panel shows one processing state and the
+// compiled prompt is recorded on the job, not put in front of the user.
 //
-// Owns: compile (brand-aware), reference building
-// (logo / palette / previous), the vendor call, page insertion (ONE
-// undo step per batch) and the doc's `metadata.ai` record. Variations /
-// Refine / Regenerate reuse the same `generate()` core with a plan.
+// What this owns: the brand-aware compile, reference building, one server call
+// per submit, insertion of results as pages in a single undo step, and the
+// doc's `metadata.ai` record. What it deliberately does NOT own: cost, credit
+// checks, durable storage, provider retries — those are the server's. Asking
+// twice can never charge twice because every submit carries a stable
+// idempotency key that is reused on retry.
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, Page, ImageLayer } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import {
-  generateImage, GenerateImageError,
-  type GenerateImageResult, type ImageReference,
+  generateImage,
+  newIdempotencyKey,
+  ImageGenerationError,
+  type GenerateImageResult,
 } from '@/features/editor/ai/generateImage';
-import { AUTO_MODEL_ID, capsFor, findImageModelInfo } from '@/features/editor/ai/imageModels';
+import { cancelGeneration, type AspectRatio, type ImageModelCaps } from '@/features/image-generation';
+import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
 import { compileImagePrompt, type CompiledPrompt } from '@/features/editor/ai/imagePrompt/compileImagePrompt';
 import { buildBrandReferences } from '@/features/editor/ai/imagePrompt/brandReferences';
-import { findFormat, formatLabel, type FormatPreset } from './formats';
+import { findFormat, formatLabel, ratioForSize } from './formats';
 import { appendGenerations, generationForPage, type GenerationRecord } from './aiMetadata';
 
 export type GenStatus = 'idle' | 'compiling' | 'generating' | 'error';
 
 export interface GenerationSettings {
-  model: string;           // registry id or 'auto'
-  count: number;           // 1–4
+  model: string;
+  count: number;
   formatId: string;
   negativePrompt: string;
   brandAware: boolean;
-  userReferenceUrl?: string;
+  caps: ImageModelCaps;
+  /** Storage paths of user-attached references. */
+  referencePaths?: string[];
 }
 
 interface Pending {
   kind: GenerationRecord['kind'];
   original: string;
   parentPageId?: string;
-  previousUrl?: string;
-  /** Count override (Variations = 4). */
+  previousPath?: string;
+  previousDataUrl?: string;
   count?: number;
+  /** Stable across retries of the same logical request. */
+  idempotencyKey: string;
 }
 
 export interface UseImageGenerationArgs {
@@ -52,7 +60,6 @@ export interface UseImageGenerationArgs {
   brand?: Brand;
   settings: GenerationSettings;
   onActivePageChange?: (pageId: string) => void;
-  /** Test hooks. */
   deps?: {
     compile?: typeof compileImagePrompt;
     buildRefs?: typeof buildBrandReferences;
@@ -67,214 +74,347 @@ export interface UseImageGeneration {
   busy: boolean;
   error: string | null;
   errorHint: string | null;
-  /** Last compiled prompt (recorded, not shown as an editing step). */
+  errorCode: string | null;
+  /** True when the same request can simply be sent again. */
+  canRetry: boolean;
   compiled: CompiledPrompt | null;
   pendingKind: GenerationRecord['kind'] | null;
-  lastResult: { pageIds: string[]; model?: string; warnings?: string[]; mock: boolean } | null;
+  lastResult: {
+    pageIds: string[]; model?: string; warnings?: string[];
+    charged: number; balance: number;
+  } | null;
   start: (text: string) => Promise<void>;
+  retry: () => Promise<void>;
+  cancel: () => Promise<void>;
   variations: (pageId: string) => Promise<void>;
   refine: (pageId: string, instruction: string) => Promise<void>;
   regenerate: (pageId: string) => Promise<void>;
   clearError: () => void;
 }
 
-function firstImageSrc(page: Page | undefined): string | undefined {
-  const layer = page?.layers.find((l) => l.kind === 'image') as ImageLayer | undefined;
-  const src = layer?.src;
-  return typeof src === 'string' ? src : undefined;
+function firstImageLayer(page: Page | undefined): ImageLayer | undefined {
+  return page?.layers.find((l) => l.kind === 'image') as ImageLayer | undefined;
 }
 
 export function useImageGeneration(args: UseImageGenerationArgs): UseImageGeneration {
   const { adapter, activePageId, brand, settings, onActivePageChange, deps } = args;
-  const compileFn = deps?.compile ?? compileImagePrompt;
-  const buildRefsFn = deps?.buildRefs ?? buildBrandReferences;
-  const generateFn = deps?.generate ?? generateImage;
+
   const depsRef = useRef(deps);
   depsRef.current = deps;
+  const compileFn: typeof compileImagePrompt = useCallback(
+    (...a) => (depsRef.current?.compile ?? compileImagePrompt)(...a), []);
+  const buildRefsFn: typeof buildBrandReferences = useCallback(
+    (...a) => (depsRef.current?.buildRefs ?? buildBrandReferences)(...a), []);
+  const generateFn: typeof generateImage = useCallback(
+    (...a) => (depsRef.current?.generate ?? generateImage)(...a), []);
   const now = useCallback(() => (depsRef.current?.now ?? (() => new Date().toISOString()))(), []);
   const uuid = useCallback(() => (depsRef.current?.uuid ?? (() => crypto.randomUUID()))(), []);
 
   const [status, setStatus] = useState<GenStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [canRetry, setCanRetry] = useState(false);
   const [compiled, setCompiled] = useState<CompiledPrompt | null>(null);
   const [lastResult, setLastResult] = useState<UseImageGeneration['lastResult']>(null);
+
   const pendingRef = useRef<Pending | null>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  // Guarded IN THE HOOK, not just by a disabled button: a hero auto-start and a
+  // manual submit could otherwise race into two concurrent paid runs.
+  const inFlightRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; abortRef.current?.abort(); }, []);
 
   const fail = useCallback((err: unknown) => {
-    let msg = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err);
     let hint: string | null = null;
-    if (err instanceof GenerateImageError) {
-      if (err.code === 'model-unavailable') {
-        const info = findImageModelInfo(err.model);
-        msg = `${info?.label ?? err.model} isn't enabled yet.`;
-        hint = err.keyEnv ? `Set ${err.keyEnv} as a Supabase secret, then redeploy ai-generate-image.` : null;
-      } else if (err.status === 429) {
-        msg = 'Rate limit reached — try again in a few minutes.';
+    let code: string | null = null;
+    let retryable = true;
+
+    if (err instanceof ImageGenerationError) {
+      code = err.code;
+      retryable = err.retryable;
+      if (err.code === 'insufficient_credits') {
+        hint = err.requiredCredits != null
+          ? `This needs ${err.requiredCredits} credits; you have ${err.balance ?? 0}.`
+          : null;
+      } else if (err.code === 'unsupported_setting' || err.code === 'invalid_input') {
+        hint = 'Adjust the settings and try again.';
+      } else if (err.code === 'safety_rejection') {
+        hint = 'Rewording the subject usually resolves it.';
       }
     }
-    setError(msg);
+    if (!mountedRef.current) return;
+    setError(message);
     setErrorHint(hint);
+    setErrorCode(code);
+    setCanRetry(retryable);
     setStatus('error');
   }, []);
 
-  const resolveTarget = useCallback((): { format: FormatPreset; width: number; height: number } => {
+  /** Resolve the target shape from the active page + the chosen format. */
+  const resolveTarget = useCallback((): { aspectRatio: AspectRatio; label: string } => {
     const doc = adapter.getDocument();
     const page = doc.pages.find((p) => p.id === activePageId) ?? doc.pages[0];
     const format = findFormat(settingsRef.current.formatId);
-    const isAuto = format.id === 'auto';
-    return {
-      format,
-      width: isAuto ? (page?.width ?? 1024) : format.width,
-      height: isAuto ? (page?.height ?? 1024) : format.height,
-    };
+    const allowed = settingsRef.current.caps.supportedAspectRatios;
+    const aspectRatio = format.ratio === 'auto'
+      ? ratioForSize(page?.width ?? 1024, page?.height ?? 1024, allowed)
+      : (format.ratio as AspectRatio);
+    return { aspectRatio, label: formatLabel(format, aspectRatio) };
   }, [adapter, activePageId]);
 
-  /** Core: build refs → call the vendor → insert pages (one undo step) → record metadata. */
-  const generateWith = useCallback(async (
-    prompt: string, negativePrompt: string | undefined, plan: Pending,
-    logo: boolean, palette: boolean, paletteHexes: string[],
+  /** Build refs → call the server → insert pages in ONE undo step → record. */
+  const run = useCallback(async (
+    prompt: string,
+    negativePrompt: string | undefined,
+    plan: Pending,
+    logo: boolean,
+    palette: boolean,
+    paletteHexes: string[],
   ) => {
-    setCompiled((c) => c ? { ...c, paletteHexes } : c);
-    setStatus('generating');
+    if (!brand?.id) { fail(new Error('Open a brand to generate images.')); return; }
     const s = settingsRef.current;
-    const { format, width, height } = resolveTarget();
-    const count = Math.min(4, Math.max(1, plan.count ?? s.count));
-    const caps = capsFor(s.model);
+    const format = findFormat(s.formatId);
+    const { aspectRatio } = resolveTarget();
+    const count = Math.min(s.caps.maxOutputs, Math.max(1, plan.count ?? s.count));
+
+    if (mountedRef.current) setStatus('generating');
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const refs = await buildRefsFn({
-        brand, caps,
-        plan: { logo, palette, previousUrl: plan.previousUrl },
+        brand,
+        caps: s.caps,
+        plan: { logo, palette, previousPath: plan.previousPath, previousDataUrl: plan.previousDataUrl },
         paletteHexes,
-        userReferenceUrl: s.userReferenceUrl,
+        userReferencePaths: s.referencePaths,
       });
-      const result = await generateFn({
-        prompt: `${prompt}${format.promptSuffix}`,
-        negativePrompt, width, height, count,
-        model: s.model === AUTO_MODEL_ID ? 'auto' : s.model,
+
+      const result: GenerateImageResult = await generateFn({
+        brandId: brand.id,
+        designId: adapter.getDocument().id,
+        operation: plan.kind,
+        userPrompt: plan.original,
+        compiledPrompt: `${prompt}${format.promptSuffix}`,
+        negativePrompt,
+        model: s.model === AUTO_MODEL_ID ? undefined : s.model,
+        aspectRatio,
+        count,
         references: refs.references,
-      });
+        idempotencyKey: plan.idempotencyKey,
+      }, { signal: controller.signal });
+
+      jobIdRef.current = result.jobId;
+      if (!mountedRef.current) return;
+
+      // One page per output, inserted right after the active page.
       const docNow = adapter.getDocument();
       const activeIdx = docNow.pages.findIndex((p) => p.id === activePageId);
       const insertAt = activeIdx >= 0 ? activeIdx + 1 : docNow.pages.length;
       const batchId = uuid();
       const pages: Page[] = [];
       const records: GenerationRecord[] = [];
+
       result.images.forEach((img, i) => {
-        const w = img.width ?? width;
-        const h = img.height ?? height;
+        const w = img.width ?? 1024;
+        const h = img.height ?? 1024;
         const pageId = uuid();
         pages.push({
           id: pageId,
           name: `${plan.original.slice(0, 28) || 'AI image'}${count > 1 ? ` ${i + 1}` : ''}`,
           width: w, height: h, background: '#ffffff', masterPageId: null,
           layers: [{
-            id: uuid(), kind: 'image', name: 'AI image', src: img.imageUrl, fit: 'cover',
+            id: uuid(), kind: 'image', name: 'AI image', src: img.url, fit: 'cover',
             transform: { x: 0, y: 0, width: w, height: h, rotation: 0, scaleX: 1, scaleY: 1 },
             opacity: 1, visible: true, locked: false, brandLocked: false,
           } as ImageLayer],
         });
         records.push({
-          id: uuid(), pageId, batchId, original: plan.original, compiled: prompt, negativePrompt,
-          model: result.model ?? s.model, count, seed: img.seed, refs: refs.roles, kind: plan.kind,
-          parentPageId: plan.parentPageId, createdAt: now(), width: w, height: h, formatId: format.id,
+          id: uuid(), pageId, batchId,
+          original: plan.original, compiled: prompt, negativePrompt,
+          model: result.model, count, seed: img.seed,
+          refs: refs.roles, kind: plan.kind, parentPageId: plan.parentPageId,
+          createdAt: now(), width: w, height: h, formatId: format.id,
+          jobId: result.jobId, storagePath: img.storagePath,
         });
       });
+
       const nextPages = [...docNow.pages.slice(0, insertAt), ...pages, ...docNow.pages.slice(insertAt)];
       const nextDoc: BrandOSDocument = appendGenerations({ ...docNow, pages: nextPages }, records);
-      adapter.batch(`AI: ${plan.kind} ×${pages.length}`, () => { void adapter.replaceDocument(nextDoc); });
+
+      // replaceDocument is async inside a synchronous batch (history requires
+      // that shape). Catch its rejection explicitly — reporting success for a
+      // document that never changed is worse than reporting the failure.
+      let replaceFailed: unknown = null;
+      adapter.batch(`AI: ${plan.kind} ×${pages.length}`, () => {
+        void adapter.replaceDocument(nextDoc).catch((e) => { replaceFailed = e; });
+      });
+      await Promise.resolve();
+      if (replaceFailed) throw replaceFailed;
+
       onActivePageChange?.(pages[0].id);
-      setLastResult({ pageIds: pages.map((p) => p.id), model: result.model, warnings: result.warnings, mock: result.mock });
-      setStatus('idle');
+      if (mountedRef.current) {
+        setLastResult({
+          pageIds: pages.map((p) => p.id),
+          model: result.model,
+          warnings: result.warnings,
+          charged: result.chargedCredits,
+          balance: result.balance,
+        });
+        setStatus('idle');
+      }
       pendingRef.current = null;
     } catch (err) {
       fail(err);
+    } finally {
+      inFlightRef.current = false;
+      abortRef.current = null;
     }
   }, [adapter, activePageId, brand, buildRefsFn, fail, generateFn, now, onActivePageChange, resolveTarget, uuid]);
 
-  const compileAndMaybeRun = useCallback(async (plan: Pending, refineOf?: { previousPrompt: string }) => {
+  const compileAndRun = useCallback(async (
+    plan: Pending,
+    refineOf?: { previousPrompt: string },
+  ) => {
+    if (inFlightRef.current) return;      // hook-level double-submit guard
+    inFlightRef.current = true;
     pendingRef.current = plan;
-    setError(null);
-    setErrorHint(null);
-    setStatus('compiling');
+    if (mountedRef.current) {
+      setError(null); setErrorHint(null); setErrorCode(null);
+      setStatus('compiling');
+    }
+
     const s = settingsRef.current;
-    const { format, width, height } = resolveTarget();
     try {
+      const { label } = resolveTarget();
       const out = await compileFn(
-        {
-          userPrompt: plan.original, brand,
-          formatLabel: formatLabel(format, width, height),
-          modelCaps: capsFor(s.model),
-          refineOf,
-        },
+        { userPrompt: plan.original, brand, formatLabel: label, modelCaps: s.caps, refineOf },
         { deterministicOnly: !s.brandAware },
       );
       if (!s.brandAware) {
-        // Raw mode: the user's words, untouched.
         out.prompt = plan.original;
         out.useLogo = false;
         out.paletteHexes = [];
         out.notes = 'Raw prompt — brand context off.';
       }
-      setCompiled(out);
-      // Fire with the compiled values directly — state may not have flushed.
-      await generateWith(out.prompt, out.negativePrompt, plan, out.useLogo, out.paletteHexes.length > 0, out.paletteHexes);
+      if (mountedRef.current) setCompiled(out);
+      await run(
+        out.prompt,
+        out.negativePrompt ?? (s.negativePrompt || undefined),
+        plan, out.useLogo, out.paletteHexes.length > 0, out.paletteHexes,
+      );
     } catch (err) {
+      inFlightRef.current = false;
       fail(err);
     }
-  }, [brand, compileFn, fail, generateWith, resolveTarget]);
+  }, [brand, compileFn, fail, resolveTarget, run]);
 
   const start = useCallback(async (text: string) => {
     const original = text.trim();
     if (!original) return;
-    await compileAndMaybeRun({ kind: 'generate', original });
-  }, [compileAndMaybeRun]);
+    await compileAndRun({ kind: 'generate', original, idempotencyKey: newIdempotencyKey() });
+  }, [compileAndRun]);
 
-  const variations = useCallback(async (pageId: string) => {
+  /** Re-send the SAME request. The idempotency key is reused, so a run that
+   *  did succeed server-side returns that job instead of being paid for twice. */
+  const retry = useCallback(async () => {
+    const plan = pendingRef.current;
+    if (!plan || inFlightRef.current) return;
+    if (mountedRef.current) { setError(null); setErrorCode(null); }
+    await compileAndRun(plan);
+  }, [compileAndRun]);
+
+  const cancel = useCallback(async () => {
+    abortRef.current?.abort();
+    const jobId = jobIdRef.current;
+    inFlightRef.current = false;
+    if (mountedRef.current) setStatus('idle');
+    if (jobId) {
+      // Best effort: releases the reservation so a cancel costs nothing.
+      try { await cancelGeneration(jobId); } catch { /* already settled */ }
+      jobIdRef.current = null;
+    }
+  }, []);
+
+  const previousOf = useCallback((pageId: string) => {
     const doc = adapter.getDocument();
     const page = doc.pages.find((p) => p.id === pageId);
     const rec = generationForPage(doc, pageId);
-    const previousUrl = firstImageSrc(page);
-    const prompt = rec?.compiled ?? rec?.original ?? page?.name ?? '';
+    const layer = firstImageLayer(page);
+    const src = typeof layer?.src === 'string' ? layer.src : undefined;
+    return {
+      rec,
+      previousPath: rec?.storagePath,
+      previousDataUrl: src?.startsWith('data:') ? src : undefined,
+      name: page?.name,
+    };
+  }, [adapter]);
+
+  const variations = useCallback(async (pageId: string) => {
+    if (inFlightRef.current) return;
+    const { rec, previousPath, previousDataUrl, name } = previousOf(pageId);
+    const prompt = rec?.compiled ?? rec?.original ?? name ?? '';
     if (!prompt) return;
-    await generateWith(prompt, rec?.negativePrompt, {
-      kind: 'variation', original: rec?.original ?? prompt, parentPageId: pageId, previousUrl, count: 4,
-    }, (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'), compiled?.paletteHexes ?? []);
-  }, [adapter, compiled?.paletteHexes, generateWith]);
+    inFlightRef.current = true;
+    pendingRef.current = {
+      kind: 'variation', original: rec?.original ?? prompt, parentPageId: pageId,
+      previousPath, previousDataUrl, count: 4, idempotencyKey: newIdempotencyKey(),
+    };
+    await run(prompt, rec?.negativePrompt, pendingRef.current,
+      (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'),
+      compiled?.paletteHexes ?? []);
+  }, [compiled?.paletteHexes, previousOf, run]);
 
   const regenerate = useCallback(async (pageId: string) => {
-    const doc = adapter.getDocument();
-    const rec = generationForPage(doc, pageId);
-    const prompt = rec?.compiled ?? rec?.original;
+    if (inFlightRef.current) return;
+    const { rec, name } = previousOf(pageId);
+    const prompt = rec?.compiled ?? rec?.original ?? name;
     if (!prompt) return;
-    await generateWith(prompt, rec?.negativePrompt, {
-      kind: 'regenerate', original: rec?.original ?? prompt, parentPageId: pageId, count: 1,
-    }, (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'), compiled?.paletteHexes ?? []);
-  }, [adapter, compiled?.paletteHexes, generateWith]);
+    inFlightRef.current = true;
+    pendingRef.current = {
+      kind: 'regenerate', original: rec?.original ?? prompt, parentPageId: pageId,
+      count: 1, idempotencyKey: newIdempotencyKey(),
+    };
+    await run(prompt, rec?.negativePrompt, pendingRef.current,
+      (rec?.refs ?? []).includes('logo'), (rec?.refs ?? []).includes('palette'),
+      compiled?.paletteHexes ?? []);
+  }, [compiled?.paletteHexes, previousOf, run]);
 
   const refine = useCallback(async (pageId: string, instruction: string) => {
     const text = instruction.trim();
     if (!text) return;
-    const doc = adapter.getDocument();
-    const page = doc.pages.find((p) => p.id === pageId);
-    const rec = generationForPage(doc, pageId);
-    const previousUrl = firstImageSrc(page);
-    await compileAndMaybeRun(
-      { kind: 'refine', original: text, parentPageId: pageId, previousUrl, count: 1 },
-      { previousPrompt: rec?.compiled ?? rec?.original ?? page?.name ?? '' },
+    const { rec, previousPath, previousDataUrl, name } = previousOf(pageId);
+    await compileAndRun(
+      {
+        kind: 'refine', original: text, parentPageId: pageId,
+        previousPath, previousDataUrl, count: 1, idempotencyKey: newIdempotencyKey(),
+      },
+      { previousPrompt: rec?.compiled ?? rec?.original ?? name ?? '' },
     );
-  }, [adapter, compileAndMaybeRun]);
+  }, [compileAndRun, previousOf]);
 
-  const clearError = useCallback(() => { setError(null); setErrorHint(null); if (status === 'error') setStatus('idle'); }, [status]);
+  const clearError = useCallback(() => {
+    setError(null); setErrorHint(null); setErrorCode(null);
+    setStatus((s) => (s === 'error' ? 'idle' : s));
+  }, []);
+
+  const pendingKind = pendingRef.current?.kind ?? null;
 
   return useMemo(() => ({
     status,
     busy: status === 'compiling' || status === 'generating',
-    error, errorHint, compiled,
-    pendingKind: pendingRef.current?.kind ?? null,
+    error, errorHint, errorCode, canRetry, compiled,
+    pendingKind,
     lastResult,
-    start, variations, refine, regenerate, clearError,
-  }), [status, error, errorHint, compiled, lastResult, start, variations, refine, regenerate, clearError]);
+    start, retry, cancel, variations, refine, regenerate, clearError,
+  }), [status, error, errorHint, errorCode, canRetry, compiled, pendingKind, lastResult,
+       start, retry, cancel, variations, refine, regenerate, clearError]);
 }
+
+export { modelLabel };

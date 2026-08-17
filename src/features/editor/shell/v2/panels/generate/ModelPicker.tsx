@@ -1,57 +1,59 @@
-// ModelPicker — registry-driven model dropdown with server availability.
-// Unavailable (missing key) models stay visible, dimmed, with the exact
-// secret to add in the tooltip — the owner sees how to unlock, the user
-// sees the roadmap.
+// ModelPicker — text-first model selection driven entirely by the server's
+// capability response.
+//
+// Deliberately plain: no provider logos, no roadmap of models that do not work.
+// A model the deployment has not enabled is simply not offered, so the list is
+// always honest. Under Advanced, because "Auto" is the right answer for almost
+// everyone.
 
-import { AUTO_MODEL_ID, IMAGE_MODEL_INFOS, findImageModelInfo } from '@/features/editor/ai/imageModels';
-import { isModelSelectable, useImageModelAvailability } from './useImageModelAvailability';
-import { AutoBadge, badgeFor } from './modelBadges';
+import { Sparkles } from 'lucide-react';
+import { AUTO_MODEL_ID, displayFor } from '@/features/editor/ai/imageModels';
 import { TallSelect } from './TallSelect';
+import { pickerModels, type CapabilityState } from './useImageModelAvailability';
 
 export function ModelPicker({
-  value, onChange, disabled,
-}: { value: string; onChange: (id: string) => void; disabled?: boolean }) {
-  const { byId, auto, loaded } = useImageModelAvailability();
-  const active = value === AUTO_MODEL_ID ? undefined : findImageModelInfo(value);
-  const autoInfo = findImageModelInfo(auto);
-  const Badge = active ? badgeFor(active.vendor, active.id) : AutoBadge;
-  const listed = IMAGE_MODEL_INFOS.filter((m) => m.listed || m.id === value);
+  state, value, onChange, disabled,
+}: {
+  state: CapabilityState;
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+}) {
+  const models = pickerModels(state, value);
+  const active = value === AUTO_MODEL_ID ? undefined : displayFor(value);
+  const autoTarget = displayFor(state.auto);
+  const anyAvailable = models.some((m) => m.available);
 
   return (
     <TallSelect
       caption="Model"
-      icon={<Badge className="h-3.5 w-3.5" />}
+      icon={<Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} aria-hidden />}
       value={value}
       valueLabel={active ? active.short : 'Auto'}
-      valueHint={active ? active.hint : `Auto → ${autoInfo?.label ?? auto}`}
+      valueHint={active ? active.hint : autoTarget ? `Auto picks ${autoTarget.label}` : 'Picks the best available model'}
       onChange={(v) => {
         if (v === AUTO_MODEL_ID) { onChange(v); return; }
-        const info = findImageModelInfo(v);
-        if (info && isModelSelectable(info, byId, loaded)) onChange(v);
+        if (models.find((m) => m.id === v)?.available) onChange(v);
       }}
-      disabled={disabled}
+      disabled={disabled || !state.loaded}
       title="Model"
-      unavailableLabel="Add key"
+      unavailableLabel="Off"
       items={[
         {
           value: AUTO_MODEL_ID,
-          label: `Auto${autoInfo ? ` · ${autoInfo.label}` : ''}`,
-          trailing: undefined,
-          renderIcon: (cn) => <AutoBadge className={cn} />,
-          available: true,
+          label: autoTarget ? `Auto · ${autoTarget.label}` : 'Auto',
+          trailing: 'Recommended',
+          renderIcon: (cn) => <Sparkles className={cn} style={{ color: 'var(--accent)' }} aria-hidden />,
+          available: anyAvailable || !state.loaded,
         },
-        ...listed.map((m) => {
-          const B = badgeFor(m.vendor, m.id);
-          const ok = isModelSelectable(m, byId, loaded);
-          return {
-            value: m.id,
-            label: m.label,
-            trailing: ok ? (m.tier === 'free' ? 'Free' : m.hint) : undefined,
-            renderIcon: (cn: string) => <B className={cn} />,
-            available: ok,
-            unavailableHint: m.keyEnv ? `Set ${m.keyEnv} as a Supabase secret to enable` : 'Not configured',
-          };
-        }),
+        ...models.map((m) => ({
+          value: m.id,
+          label: m.label,
+          trailing: m.available ? (m.tier === 'free' ? 'Free' : undefined) : undefined,
+          renderIcon: () => null,
+          available: m.available,
+          unavailableHint: 'Not enabled on this deployment',
+        })),
       ]}
     />
   );

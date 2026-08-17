@@ -10,7 +10,7 @@
 // after a reload, and what the Design page's Recent row can show later.
 
 import type { BrandOSDocument } from '@/features/editor/schema';
-import type { ReferenceRole } from '@/features/editor/ai/generateImage';
+import type { ImageReferenceInput } from '@/features/image-generation';
 
 export interface GenerationRecord {
   id: string;
@@ -27,7 +27,7 @@ export interface GenerationRecord {
   /** Batch id — pages generated together share it. */
   batchId: string;
   seed?: number;
-  refs: ReferenceRole[];
+  refs: Array<ImageReferenceInput['role']>;
   /** 'generate' | 'variation' | 'refine' | 'regenerate' */
   kind: 'generate' | 'variation' | 'refine' | 'regenerate';
   /** Page this one was derived from (variation / refine). */
@@ -36,6 +36,10 @@ export interface GenerationRecord {
   width?: number;
   height?: number;
   formatId?: string;
+  /** Server job this page came from — the audit trail for cost and prompt. */
+  jobId?: string;
+  /** Durable location of the image; re-signable when the URL expires. */
+  storagePath?: string;
 }
 
 export interface AiMetadata {

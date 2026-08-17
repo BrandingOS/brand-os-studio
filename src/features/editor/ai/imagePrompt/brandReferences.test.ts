@@ -1,13 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Brand } from '@/shared/types/brand';
 import { buildBrandReferences, renderPaletteSwatch, pickLogoUrlForReference } from './brandReferences';
+import type { ImageModelCaps } from '@/features/image-generation';
 
 const brand = {
   id: 'b', slug: 'b', name: 'B', primaryColor: '#123456', fonts: { primary: 'Inter' }, assets: [],
   logo: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
 } as unknown as Brand;
 
-const caps = { maxRefs: 5, text: 'strong', aspect: 'free', nMax: 1, img2img: true } as const;
+const caps = {
+  supportsReferenceImages: true, maxReferenceImages: 5,
+  supportedAspectRatios: ['1:1'], supportedSizes: [1024], supportedQualities: [],
+  supportsMultipleOutputs: true, maxOutputs: 4, nPerCall: 1,
+  supportsCancellation: true, supportsSeed: false, supportsNegativePrompt: true,
+  supportsImageToImage: true, textRendering: 'strong',
+} satisfies ImageModelCaps;
 
 describe('brandReferences', () => {
   it('finds the primary logo url', () => {
@@ -16,7 +23,7 @@ describe('brandReferences', () => {
   });
 
   it('builds nothing for a text-only model', async () => {
-    const out = await buildBrandReferences({ brand, caps: { ...caps, maxRefs: 0 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] });
+    const out = await buildBrandReferences({ brand, caps: { ...caps, supportsReferenceImages: false, maxReferenceImages: 0 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] });
     expect(out.references).toEqual([]);
   });
 
@@ -24,16 +31,16 @@ describe('brandReferences', () => {
     const rasterize = vi.fn(async () => 'data:image/png;base64,LOGO');
     const swatch = vi.fn(() => 'data:image/png;base64,PAL');
     const out = await buildBrandReferences(
-      { brand, caps, plan: { logo: true, palette: true, previousUrl: 'data:image/png;base64,PREV' }, paletteHexes: ['#123456'], userReferenceUrl: 'https://x/ref.png' },
+      { brand, caps, plan: { logo: true, palette: true, previousDataUrl: 'data:image/png;base64,PREV' }, paletteHexes: ['#123456'], userReferencePaths: ['ai-refs/u/ref.png'] },
       { rasterize, swatch },
     );
     expect(out.roles).toEqual(['previous', 'logo', 'palette', 'image']);
     expect(out.references[1].dataUrl).toBe('data:image/png;base64,LOGO');
-    expect(out.references[3].url).toBe('https://x/ref.png');
+    expect(out.references[3].path).toBe('ai-refs/u/ref.png');
     expect(rasterize).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/svg/), expect.objectContaining({ size: 1024 }));
 
     const capped = await buildBrandReferences(
-      { brand, caps: { ...caps, maxRefs: 1 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] },
+      { brand, caps: { ...caps, maxReferenceImages: 1 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] },
       { rasterize, swatch },
     );
     expect(capped.roles).toEqual(['logo']);

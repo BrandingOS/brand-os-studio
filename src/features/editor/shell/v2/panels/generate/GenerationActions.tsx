@@ -4,7 +4,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { Download, RefreshCw, Shuffle, Wand2 } from 'lucide-react';
 import type { GenerationRecord } from './aiMetadata';
-import { findImageModelInfo } from '@/features/editor/ai/imageModels';
+import { displayFor } from '@/features/editor/ai/imageModels';
 
 interface Props {
   record: GenerationRecord;
@@ -17,7 +17,7 @@ interface Props {
 
 export function GenerationActions({ record, imageSrc, busy, onVariations, onRefine, onRegenerate }: Props) {
   const [instruction, setInstruction] = useState('');
-  const model = findImageModelInfo(record.model);
+  const model = displayFor(record.model);
   const submitRefine = () => {
     const t = instruction.trim();
     if (!t || busy) return;

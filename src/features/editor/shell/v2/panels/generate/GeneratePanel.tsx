@@ -23,10 +23,11 @@ import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
-import { AUTO_MODEL_ID, findImageModelInfo } from '@/features/editor/ai/imageModels';
+import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
 import { FORMAT_PRESETS, findFormat, formatLabel, type PromptPreset } from './formats';
 import { TallSelect } from './TallSelect';
 import { ModelPicker } from './ModelPicker';
+import { capsForSelection, useImageCapabilities } from './useImageModelAvailability';
 import { CountChip } from './CountChip';
 import { ProcessingCard } from './ProcessingCard';
 import { GenerationActions } from './GenerationActions';
@@ -56,7 +57,7 @@ export interface GeneratePanelProps {
   onActivePageChange?: (pageId: string) => void;
 }
 
-interface ReferenceImageState { url: string; fileName: string }
+interface ReferenceImageState { url: string; path: string; fileName: string }
 
 export function GeneratePanel({
   adapter, activePageId, doc, brand, agent, getContext,
@@ -83,6 +84,9 @@ export function GeneratePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const capabilities = useImageCapabilities();
+  const caps = capsForSelection(capabilities, prefs.model || AUTO_MODEL_ID);
+
   const gen = useImageGeneration({
     adapter, activePageId, brand, onActivePageChange,
     settings: {
@@ -91,7 +95,8 @@ export function GeneratePanel({
       formatId,
       negativePrompt,
       brandAware: prefs.brandAware,
-      userReferenceUrl: reference?.url,
+      caps,
+      referencePaths: reference?.path ? [reference.path] : undefined,
     },
   });
 
@@ -129,10 +134,14 @@ export function GeneratePanel({
     const key = r.pageIds.join(',');
     if (lastToastFor.current === key) return;
     lastToastFor.current = key;
-    if (r.mock) toast.message('Generated in mock mode — set a vendor key to get real images.');
-    else if (r.warnings?.includes('refs-unsupported')) toast.message('This model ignores reference images — brand context was sent as text only.');
+    if (r.warnings?.includes('refs-unsupported')) toast.message('This model ignores reference images — brand context was sent as text only.');
     else if (r.warnings?.length) toast.message(r.warnings[0]);
-    else toast.success(r.pageIds.length > 1 ? `${r.pageIds.length} images added.` : 'Image added.');
+    else {
+      toast.success(
+        `${r.pageIds.length > 1 ? `${r.pageIds.length} images added` : 'Image added'}`
+        + (r.charged > 0 ? ` · ${r.charged} credits` : ''),
+      );
+    }
     setPrompt('');
   }, [gen.lastResult]);
 
@@ -160,8 +169,8 @@ export function GeneratePanel({
         const text = await res.text().catch(() => '');
         throw new Error(`${res.status} ${text.slice(0, 140)}`);
       }
-      const { url } = await res.json() as { url: string };
-      setReference({ url, fileName: file.name });
+      const { url, path } = await res.json() as { url: string; path: string };
+      setReference({ url, path, fileName: file.name });
       toast.success('Reference attached.');
     } catch (err) {
       console.error('[GeneratePanel] reference upload failed:', err);
@@ -234,7 +243,7 @@ export function GeneratePanel({
     return typeof l?.src === 'string' ? l.src : undefined;
   })();
   const inReview = mode === 'image' && (gen.status === 'compiling' || gen.status === 'generating');
-  const modelLabel = prefs.model === AUTO_MODEL_ID ? 'the best available model' : (findImageModelInfo(prefs.model)?.label ?? prefs.model);
+  const activeModelLabel = modelLabel(prefs.model || AUTO_MODEL_ID, capabilities.auto);
   const aiDoc = readAiMetadata(doc).origin === 'ai-image';
 
   const placeholder = mode === 'image'
@@ -298,12 +307,25 @@ export function GeneratePanel({
       {error ? (
         <div
           data-generate-error
+          role="alert"
           className="rounded-md px-2 py-1 text-[11px]"
           style={{ background: 'color-mix(in oklab, var(--accent-red, #ef4444) 8%, transparent)', color: 'var(--accent-red, #ef4444)' }}
         >
           {error}
           {mode === 'image' && gen.errorHint ? (
             <div className="mt-0.5 text-[10.5px]" style={{ color: 'var(--text-secondary)' }}>{gen.errorHint}</div>
+          ) : null}
+          {mode === 'image' && gen.canRetry ? (
+            <button
+              type="button"
+              data-generate-retry
+              onClick={() => void gen.retry()}
+              disabled={busy}
+              className="mt-1 rounded-md border px-1.5 py-0.5 text-[10.5px] font-medium transition-colors hover:bg-muted disabled:opacity-50"
+              style={{ borderColor: 'currentColor' }}
+            >
+              Try again
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -327,7 +349,7 @@ export function GeneratePanel({
               icon={<activeFormat.Icon className="h-3.5 w-3.5" aria-hidden />}
               value={formatId}
               valueLabel={activeFormat.id === 'auto' ? 'Auto' : `${activeFormat.ratio} ${activeFormat.name}`}
-              valueHint={formatLabel(activeFormat, activePage?.width, activePage?.height)}
+              valueHint={activeFormat.name}
               onChange={setFormatId}
               disabled={busy}
               title="Format"
@@ -336,7 +358,7 @@ export function GeneratePanel({
                 renderIcon: (cn) => <f.Icon className={cn} aria-hidden />,
               }))}
             />
-            <ModelPicker value={prefs.model || AUTO_MODEL_ID} onChange={prefs.setModel} disabled={busy} />
+            <ModelPicker state={capabilities} value={prefs.model || AUTO_MODEL_ID} onChange={prefs.setModel} disabled={busy} />
           </div>
           <div className="flex items-center justify-between gap-1.5">
             <CountChip value={prefs.count} onChange={prefs.setCount} disabled={busy} />
@@ -385,9 +407,10 @@ export function GeneratePanel({
         <ProcessingCard
           status={gen.status}
           brandName={brand?.name}
-          modelLabel={modelLabel}
+          modelLabel={activeModelLabel}
           count={gen.pendingKind === 'variation' ? 4 : prefs.count}
           kind={gen.pendingKind}
+          onCancel={mode === 'image' ? () => void gen.cancel() : undefined}
         />
       ) : null}
 

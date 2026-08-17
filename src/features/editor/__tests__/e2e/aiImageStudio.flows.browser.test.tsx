@@ -16,7 +16,7 @@ import { BrandOSDocumentSchema, type BrandOSDocument } from '@/features/editor/s
 import socialPostFixture from '@/features/editor/schema/__fixtures__/social-post.sample.json';
 import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { Brand } from '@/shared/types/brand';
-import { GenerateImageError, type GenerateImageRequest } from '@/features/editor/ai/generateImage';
+import { ImageGenerationError, type GenerateImageArgs } from '@/features/editor/ai/generateImage';
 import { readAiMetadata, withAiMetadata } from '@/features/editor/shell/v2/panels/generate/aiMetadata';
 import { useGeneratePrefs } from '@/features/editor/shell/v2/panels/generate/generatePrefs';
 
@@ -32,13 +32,45 @@ vi.mock('@/features/editor/ai/generateImage', async (orig) => {
   return {
     ...actual,
     generateImage: (...a: unknown[]) => generateMock(...a),
-    fetchImageModelAvailability: async () => ({
+    fetchImageCapabilities: async () => ({
       models: [
-        { id: 'pollinations:flux', available: true },
-        { id: 'openai:gpt-image', available: false, reason: 'missing-key', keyEnv: 'OPENAI_API_KEY' },
+        {
+          id: 'pollinations:flux', vendor: 'pollinations', tier: 'free', available: true,
+          caps: {
+            supportsReferenceImages: true, maxReferenceImages: 4,
+            supportedAspectRatios: ['1:1', '4:5', '16:9'], supportedSizes: [1024],
+            supportedQualities: [], supportsMultipleOutputs: true, maxOutputs: 4, nPerCall: 1,
+            supportsCancellation: true, supportsSeed: true, supportsNegativePrompt: true,
+            supportsImageToImage: true, textRendering: 'weak',
+          },
+        },
       ],
       auto: 'pollinations:flux',
+      pricingVersion: 'test',
+      usdPerCredit: 0.01,
     }),
+  };
+});
+// The capability fetch lives in the domain layer; without this the suite would
+// call the REAL deployed function and render whatever it happens to return.
+vi.mock('@/features/image-generation', async (orig) => {
+  const actual = await orig<typeof import('@/features/image-generation')>();
+  return {
+    ...actual,
+    fetchImageCapabilities: async () => ({
+      models: [{
+        id: 'pollinations:flux', vendor: 'pollinations', tier: 'free', available: true,
+        caps: {
+          supportsReferenceImages: true, maxReferenceImages: 4,
+          supportedAspectRatios: ['1:1', '4:5', '16:9'], supportedSizes: [1024],
+          supportedQualities: [], supportsMultipleOutputs: true, maxOutputs: 4, nPerCall: 1,
+          supportsCancellation: true, supportsSeed: true, supportsNegativePrompt: true,
+          supportsImageToImage: true, textRendering: 'weak',
+        },
+      }],
+      auto: 'pollinations:flux', pricingVersion: 'test', usdPerCredit: 0.01,
+    }),
+    cancelGeneration: async () => ({ job: {}, credits: { balance: 500, reserved: 0 } }),
   };
 });
 vi.mock('@/features/editor/ai/imagePrompt/compileImagePrompt', async (orig) => {
@@ -65,16 +97,22 @@ beforeEach(() => {
     source: 'claude',
     original: input.userPrompt,
   }));
-  buildRefsMock.mockImplementation(async (input: { plan: { logo: boolean; palette: boolean; previousUrl?: string } }) => {
-    const roles: string[] = [];
-    if (input.plan.previousUrl) roles.push('previous');
-    if (input.plan.logo) roles.push('logo');
-    if (input.plan.palette) roles.push('palette');
-    return { references: roles.map((role) => ({ role, dataUrl: PNG_1x1 })), roles };
+  buildRefsMock.mockImplementation(async (input: {
+    plan: { logo: boolean; palette: boolean; previousPath?: string };
+  }) => {
+    const references: Array<{ role: string; dataUrl?: string; path?: string }> = [];
+    // Order matters and mirrors the real builder: previous → logo → palette.
+    if (input.plan.previousPath) references.push({ role: 'previous', path: input.plan.previousPath });
+    if (input.plan.logo) references.push({ role: 'logo', dataUrl: PNG_1x1 });
+    if (input.plan.palette) references.push({ role: 'palette', dataUrl: PNG_1x1 });
+    return { references, roles: references.map((r) => r.role) };
   });
-  generateMock.mockImplementation(async (req: GenerateImageRequest) => ({
-    images: Array.from({ length: req.count ?? 1 }, (_, i) => ({ imageUrl: PNG_1x1, width: 64, height: 64, seed: i })),
-    imageUrl: PNG_1x1, mock: false, prompt: req.prompt, model: 'pollinations:flux',
+  generateMock.mockImplementation(async (req: GenerateImageArgs) => ({
+    images: Array.from({ length: req.count ?? 1 }, (_, i) => ({
+      storagePath: `b/generated/job-x/${i + 1}.png`, url: PNG_1x1,
+      width: 64, height: 64, mime: 'image/png', bytes: 100, seed: i,
+    })),
+    jobId: 'job-x', model: 'pollinations:flux', chargedCredits: 0, balance: 500,
   }));
 });
 
@@ -123,11 +161,14 @@ describe('AI Studio — image generation flow', () => {
   it('prompt → silent compile → processing state → count pages inserted with metadata, one undo step', async () => {
     let releaseGenerate!: () => void;
     const gate = new Promise<void>((r) => { releaseGenerate = r; });
-    generateMock.mockImplementation(async (req: GenerateImageRequest) => {
+    generateMock.mockImplementation(async (req: GenerateImageArgs) => {
       await gate;
       return {
-        images: Array.from({ length: req.count ?? 1 }, (_, i) => ({ imageUrl: PNG_1x1, width: 64, height: 64, seed: i })),
-        imageUrl: PNG_1x1, mock: false, prompt: req.prompt, model: 'pollinations:flux',
+        images: Array.from({ length: req.count ?? 1 }, (_, i) => ({
+          storagePath: `b/generated/job-x/${i + 1}.png`, url: PNG_1x1,
+          width: 64, height: 64, mime: 'image/png', bytes: 100, seed: i,
+        })),
+        jobId: 'job-x', model: 'pollinations:flux', chargedCredits: 0, balance: 500,
       };
     });
     const { adapter, container } = await mount();
@@ -151,11 +192,14 @@ describe('AI Studio — image generation flow', () => {
     });
     expect(compileMock).toHaveBeenCalledTimes(1);
     // vendor got the COMPILED prompt + count + palette ref (compiler said useLogo=false)
-    const req = generateMock.mock.calls[0][0] as GenerateImageRequest;
-    expect(req.prompt).toMatch(/^COMPILED: a cat on a sofa/);
+    const req = generateMock.mock.calls[0][0] as GenerateImageArgs;
+    expect(req.compiledPrompt).toMatch(/^COMPILED: a cat on a sofa/);
+    expect(req.userPrompt).toBe('a cat on a sofa');
     expect(req.count).toBe(2);
     expect(req.negativePrompt).toBe('text');
     expect(req.references?.map((r) => r.role)).toEqual(['palette']);
+    // A stable key means a retry of this exact request cannot be charged twice.
+    expect(req.idempotencyKey).toMatch(/^gen_/);
     const meta = readAiMetadata(adapter.getDocument());
     expect(meta.origin).toBe('ai-image');
     expect(meta.generations).toHaveLength(2);
@@ -180,10 +224,13 @@ describe('AI Studio — image generation flow', () => {
 
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-variations]')!);
     await waitFor(() => { if (adapter.getDocument().pages.length !== after1 + 4) throw new Error('variations not inserted'); });
-    const req = generateMock.mock.calls[1][0] as GenerateImageRequest;
+    const req = generateMock.mock.calls[1][0] as GenerateImageArgs;
     expect(req.count).toBe(4);
     expect(req.references?.[0].role).toBe('previous');
-    expect(req.prompt).toMatch(/COMPILED: sunset harbour/);
+    // The previous image travels as a STORAGE PATH, never a URL the server
+    // would have to fetch on our behalf.
+    expect(req.references?.[0].path).toBe('b/generated/job-x/1.png');
+    expect(req.compiledPrompt).toMatch(/COMPILED: sunset harbour/);
     const meta = readAiMetadata(adapter.getDocument());
     expect(meta.generations.filter((g) => g.kind === 'variation')).toHaveLength(4);
     expect(meta.generations.at(-1)?.parentPageId).toBe(meta.generations[0].pageId);
@@ -197,14 +244,18 @@ describe('AI Studio — image generation flow', () => {
     fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'exact words' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
     await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
-    const req = generateMock.mock.calls[0][0] as GenerateImageRequest;
-    expect(req.prompt).toBe('exact words');
+    const req = generateMock.mock.calls[0][0] as GenerateImageArgs;
+    expect(req.compiledPrompt).toBe('exact words');
     expect(req.references ?? []).toEqual([]);
   });
 
-  it('unavailable model → inline error with the secret to set, no spinner left, no page added', async () => {
+  it('a rejected generation → inline error, no spinner left, no page added', async () => {
     generateMock.mockImplementation(async () => {
-      throw new GenerateImageError('AI image service 409', { status: 409, code: 'model-unavailable', model: 'openai:gpt-image', keyEnv: 'OPENAI_API_KEY' });
+      throw new ImageGenerationError({
+        code: 'insufficient_credits',
+        message: 'This needs 14 credits and you have 2.',
+        requiredCredits: 14, balance: 2, status: 402,
+      });
     });
     const { adapter, container } = await mount();
     await openGenerate(container);
@@ -212,8 +263,9 @@ describe('AI Studio — image generation flow', () => {
     fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'anything' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
     await waitFor(() => { if (!container.querySelector('[data-generate-error]')) throw new Error('no error'); });
-    expect(container.querySelector('[data-generate-error]')?.textContent).toMatch(/GPT Image isn't enabled yet/);
-    expect(container.querySelector('[data-generate-error]')?.textContent).toMatch(/OPENAI_API_KEY/);
+    expect(container.querySelector('[data-generate-error]')?.textContent).toMatch(/needs 14 credits/);
+    // The hint explains the shortfall in the product's own unit.
+    expect(container.querySelector('[data-generate-error]')?.textContent).toMatch(/you have 2/);
     expect(adapter.getDocument().pages.length).toBe(before);
     expect(container.querySelector('[data-generate-status="generating"]')).toBeNull();
   });
@@ -224,7 +276,7 @@ describe('AI Studio — image generation flow', () => {
     await waitFor(() => { if (adapter.getDocument().pages.length !== 4) throw new Error('not generated'); });
     expect(compileMock).toHaveBeenCalledTimes(1);
     expect((compileMock.mock.calls[0][0] as { userPrompt: string }).userPrompt).toBe('hero prompt');
-    expect((generateMock.mock.calls[0][0] as GenerateImageRequest).count).toBe(3);
+    expect((generateMock.mock.calls[0][0] as GenerateImageArgs).count).toBe(3);
     // the pending prompt is consumed so a reload can't fire again
     expect(readAiMetadata(adapter.getDocument()).pendingPrompt).toBeUndefined();
     expect(container.querySelector('[data-generate-actions]')).toBeTruthy();

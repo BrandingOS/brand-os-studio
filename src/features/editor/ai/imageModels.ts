@@ -1,134 +1,114 @@
-// Image model registry — BROWSER mirror of
-// `supabase/functions/_shared/imageModels.ts`.
+// Image model DISPLAY registry.
 //
-// The server owns which models exist, their vendor, capabilities and
-// unlocking secret. This file owns only what the UI needs to DRAW a
-// model: label, short label, hint, badge, and a local copy of the caps
-// so the panel can decide (before any network call) whether brand
-// reference images are worth building. `imageModels.test.ts` pins that
-// every id here exists on the server and that caps agree.
+// Capabilities are NOT duplicated here. The server declares what each model can
+// do and `fetchImageCapabilities()` delivers it at runtime, so the UI can never
+// offer a control the active model cannot honour and the two lists can never
+// drift. This file owns only what a human sees: a name, a short name for the
+// toolbar, a one-line hint, and whether the model is offered at all.
 //
-// Availability (is the key set?) is NOT known here — ask the server via
-// `fetchImageModelAvailability()` in `generateImage.ts`.
+// `imageModels.test.ts` pins that every server model id has an entry here.
 
-export type ImageVendor =
-  | 'openai' | 'google' | 'fal' | 'pollinations' | 'cloudflare' | 'huggingface' | 'mock';
+import type { ImageModelCaps, ImageModelAvailability } from '@/features/image-generation';
 
-export interface ImageModelCaps {
-  maxRefs: number;
-  text: 'strong' | 'ok' | 'weak';
-  aspect: 'free' | 'enum';
-  nMax: number;
-  img2img: boolean;
-}
+export const AUTO_MODEL_ID = 'auto';
 
-export interface ImageModelInfo {
+export interface ImageModelDisplay {
   id: string;
-  vendor: ImageVendor;
-  tier: 'free' | 'paid';
-  /** Secret that unlocks it (owner-facing hint when unavailable). */
-  keyEnv?: string;
   label: string;
   /** ≤ 7 chars — toolbar trigger. */
   short: string;
   hint: string;
-  caps: ImageModelCaps;
-  /** Show in the picker. Hidden entries still resolve if a doc recorded them. */
+  /** Offered in the picker. Hidden entries still resolve for old jobs. */
   listed: boolean;
 }
 
-export const AUTO_MODEL_ID = 'auto';
-
-export const IMAGE_MODEL_INFOS: ImageModelInfo[] = [
-  {
-    id: 'google:nano-banana', vendor: 'google', tier: 'paid', keyEnv: 'GEMINI_API_KEY',
-    label: 'Nano Banana', short: 'Nano', hint: 'Best with brand refs',
-    caps: { maxRefs: 5, text: 'strong', aspect: 'enum', nMax: 1, img2img: true }, listed: true,
-  },
-  {
-    id: 'google:nano-banana-pro', vendor: 'google', tier: 'paid', keyEnv: 'GEMINI_API_KEY',
-    label: 'Nano Banana Pro', short: 'Nano+', hint: 'Highest fidelity',
-    caps: { maxRefs: 8, text: 'strong', aspect: 'enum', nMax: 1, img2img: true }, listed: true,
-  },
-  {
-    id: 'openai:gpt-image', vendor: 'openai', tier: 'paid', keyEnv: 'OPENAI_API_KEY',
-    label: 'GPT Image', short: 'GPT', hint: 'Text + logo faithful',
-    caps: { maxRefs: 8, text: 'strong', aspect: 'free', nMax: 4, img2img: true }, listed: true,
-  },
-  {
-    id: 'openai:gpt-image-mini', vendor: 'openai', tier: 'paid', keyEnv: 'OPENAI_API_KEY',
-    label: 'GPT Image Mini', short: 'GPT-m', hint: 'Cheaper, faster',
-    caps: { maxRefs: 8, text: 'ok', aspect: 'free', nMax: 4, img2img: true }, listed: true,
-  },
-  {
-    id: 'fal:flux-schnell', vendor: 'fal', tier: 'paid', keyEnv: 'FAL_API_KEY',
-    label: 'Flux Schnell (fal)', short: 'Flux+', hint: 'Fast, sharp',
-    caps: { maxRefs: 1, text: 'weak', aspect: 'free', nMax: 4, img2img: true }, listed: true,
-  },
-  {
-    id: 'pollinations:flux', vendor: 'pollinations', tier: 'free',
-    label: 'Flux (free)', short: 'Flux', hint: 'Free · no key',
-    caps: { maxRefs: 1, text: 'weak', aspect: 'free', nMax: 1, img2img: true }, listed: true,
-  },
-  {
-    id: 'pollinations:turbo', vendor: 'pollinations', tier: 'free',
-    label: 'Flux Turbo (free)', short: 'Turbo', hint: 'Fastest',
-    caps: { maxRefs: 0, text: 'weak', aspect: 'free', nMax: 1, img2img: false }, listed: true,
-  },
-  {
-    id: 'pollinations:gptimage', vendor: 'pollinations', tier: 'free',
-    label: 'GPT Image (free)', short: 'GPT-f', hint: 'Text-aware, free',
-    caps: { maxRefs: 0, text: 'ok', aspect: 'free', nMax: 1, img2img: false }, listed: true,
-  },
-  {
-    id: 'pollinations:kontext', vendor: 'pollinations', tier: 'free',
-    label: 'Flux Kontext (free)', short: 'Kontxt', hint: 'Image-to-image',
-    caps: { maxRefs: 1, text: 'weak', aspect: 'free', nMax: 1, img2img: true }, listed: false,
-  },
-  {
-    id: 'cloudflare:flux-schnell', vendor: 'cloudflare', tier: 'free', keyEnv: 'CLOUDFLARE_API_TOKEN',
-    label: 'Flux (Cloudflare)', short: 'CF', hint: 'Workers AI',
-    caps: { maxRefs: 0, text: 'weak', aspect: 'free', nMax: 1, img2img: false }, listed: false,
-  },
-  {
-    id: 'huggingface:flux-schnell', vendor: 'huggingface', tier: 'free', keyEnv: 'HUGGINGFACE_API_KEY',
-    label: 'Flux (Hugging Face)', short: 'HF', hint: 'Inference API',
-    caps: { maxRefs: 0, text: 'weak', aspect: 'free', nMax: 1, img2img: false }, listed: false,
-  },
-  {
-    id: 'mock:svg', vendor: 'mock', tier: 'free',
-    label: 'Mock', short: 'Mock', hint: 'No network',
-    caps: { maxRefs: 8, text: 'weak', aspect: 'free', nMax: 4, img2img: true }, listed: false,
-  },
+export const IMAGE_MODEL_DISPLAY: ImageModelDisplay[] = [
+  { id: 'google:nano-banana-pro', label: 'Nano Banana Pro', short: 'Nano+', hint: 'Highest fidelity, best with brand references', listed: true },
+  { id: 'google:nano-banana',     label: 'Nano Banana',     short: 'Nano',  hint: 'Fast, strong with references',                  listed: true },
+  { id: 'openai:gpt-image',       label: 'GPT Image',       short: 'GPT',   hint: 'Best text and logo fidelity',                    listed: true },
+  { id: 'openai:gpt-image-mini',  label: 'GPT Image Mini',  short: 'GPT-m', hint: 'Cheaper, quicker',                               listed: true },
+  { id: 'fal:flux-schnell',       label: 'Flux Schnell',    short: 'Flux+', hint: 'Very fast, no references',                       listed: true },
+  { id: 'pollinations:flux',      label: 'Flux (free)',     short: 'Flux',  hint: 'Free — no references, softer results',           listed: true },
+  { id: 'pollinations:turbo',     label: 'Flux Turbo (free)', short: 'Turbo', hint: 'Free and fastest',                             listed: true },
+  { id: 'cloudflare:flux-schnell',  label: 'Flux (Cloudflare)',   short: 'CF',   hint: 'Workers AI',      listed: false },
+  { id: 'huggingface:flux-schnell', label: 'Flux (Hugging Face)', short: 'HF',   hint: 'Inference API',   listed: false },
+  { id: 'mock:svg',                 label: 'Mock',                short: 'Mock', hint: 'No network',      listed: false },
 ];
 
-/** Legacy ids older docs / callers used (`'flux'`) → registry ids. */
+/** Ids older documents and callers may still carry. */
 export const LEGACY_MODEL_ALIASES: Record<string, string> = {
   flux: 'pollinations:flux',
   turbo: 'pollinations:turbo',
-  gptimage: 'pollinations:gptimage',
-  kontext: 'pollinations:kontext',
+  gptimage: 'pollinations:flux',
+  kontext: 'pollinations:flux',
+  'pollinations:gptimage': 'pollinations:flux',
+  'pollinations:kontext': 'pollinations:flux',
 };
 
-export function findImageModelInfo(id: string | undefined | null): ImageModelInfo | undefined {
+export function resolveModelId(id: string | null | undefined): string | undefined {
   if (!id) return undefined;
-  const resolved = LEGACY_MODEL_ALIASES[id] ?? id;
-  return IMAGE_MODEL_INFOS.find((m) => m.id === resolved);
+  return LEGACY_MODEL_ALIASES[id] ?? id;
 }
 
-/** Caps used when the model is 'auto' (unknown until the server picks) —
- *  assume refs are welcome so the brand refs get built; the server drops
- *  them for vendors that can't take them and warns. */
-export const AUTO_CAPS: ImageModelCaps = { maxRefs: 8, text: 'strong', aspect: 'free', nMax: 4, img2img: true };
-
-export function capsFor(id: string | undefined | null): ImageModelCaps {
-  if (!id || id === AUTO_MODEL_ID) return AUTO_CAPS;
-  return findImageModelInfo(id)?.caps ?? AUTO_CAPS;
+export function displayFor(id: string | null | undefined): ImageModelDisplay | undefined {
+  const resolved = resolveModelId(id);
+  return IMAGE_MODEL_DISPLAY.find((m) => m.id === resolved);
 }
 
-export interface ImageModelAvailability {
-  id: string;
-  available: boolean;
-  reason?: 'missing-key' | 'disabled';
-  keyEnv?: string;
+export function modelLabel(id: string | null | undefined, autoTarget?: string): string {
+  if (!id || id === AUTO_MODEL_ID) {
+    const target = displayFor(autoTarget);
+    return target ? `Auto · ${target.label}` : 'Auto';
+  }
+  return displayFor(id)?.label ?? id;
 }
+
+/**
+ * Conservative capabilities used only before the server has answered. It claims
+ * nothing optional, so no control is offered on a promise we can't keep.
+ */
+export const PENDING_CAPS: ImageModelCaps = {
+  supportsReferenceImages: false,
+  maxReferenceImages: 0,
+  supportedAspectRatios: ['1:1', '4:5', '9:16', '16:9'],
+  supportedSizes: [1024],
+  supportedQualities: [],
+  supportsMultipleOutputs: true,
+  maxOutputs: 4,
+  nPerCall: 1,
+  supportsCancellation: true,
+  supportsSeed: false,
+  supportsNegativePrompt: true,
+  supportsImageToImage: false,
+  textRendering: 'ok',
+};
+
+/**
+ * Caps for a model from a fetched capability set; `auto` resolves first.
+ *
+ * A response from an older deployment (mid rolling deploy, or a stale cache)
+ * can carry a capability block this build does not understand. Rather than
+ * hand the UI a half-shaped object, fall back to PENDING_CAPS — offering no
+ * optional control is always safe; reading `undefined.supportedAspectRatios`
+ * is not.
+ */
+export function isUsableCaps(caps: unknown): caps is ImageModelCaps {
+  const c = caps as Partial<ImageModelCaps> | undefined;
+  return !!c
+    && Array.isArray(c.supportedAspectRatios) && c.supportedAspectRatios.length > 0
+    && typeof c.maxOutputs === 'number'
+    && typeof c.maxReferenceImages === 'number';
+}
+
+export function capsFrom(
+  models: ImageModelAvailability[] | undefined,
+  modelId: string,
+  autoTarget?: string,
+): ImageModelCaps {
+  if (!models?.length) return PENDING_CAPS;
+  const wanted = modelId === AUTO_MODEL_ID ? (autoTarget ?? '') : (resolveModelId(modelId) ?? '');
+  const caps = models.find((m) => m.id === wanted)?.caps;
+  return isUsableCaps(caps) ? caps : PENDING_CAPS;
+}
+
+export type { ImageModelCaps, ImageModelAvailability };

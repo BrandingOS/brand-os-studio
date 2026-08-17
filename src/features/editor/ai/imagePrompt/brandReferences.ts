@@ -17,13 +17,16 @@ import type { LogoRole } from '@/shared/types/brandAssets';
 import { resolveBrandLogo } from '@/shared/hooks/useBrandLogo';
 import { rasterizeLogo } from '@/shared/brand/rasterizeLogo';
 import { pickFgOnBackground } from '@/shared/brand/logoOnBackground';
-import type { ImageReference } from '@/features/editor/ai/generateImage';
-import type { ImageModelCaps } from '@/features/editor/ai/imageModels';
+import type { ImageReferenceInput } from '@/features/image-generation';
+import type { ImageModelCaps } from '@/features/image-generation';
 
 export interface BrandRefPlan {
   logo: boolean;
   palette: boolean;
-  previousUrl?: string;
+  /** Storage path of the image being varied / refined (never a bare URL). */
+  previousPath?: string;
+  /** Inline bytes when the previous image isn't in storage yet. */
+  previousDataUrl?: string;
 }
 
 const LOGO_ROLE_ORDER: LogoRole[] = ['primary', 'iconmark', 'wordmark', 'mono.black', 'mono.white'];
@@ -78,25 +81,31 @@ export interface BuildRefsInput {
   caps: ImageModelCaps;
   plan: BrandRefPlan;
   paletteHexes: string[];
-  /** User-attached reference (already a public URL from upload-ai-reference). */
-  userReferenceUrl?: string;
+  /** Storage paths of user-attached references (from upload-ai-reference). */
+  userReferencePaths?: string[];
 }
 
 export interface BuiltRefs {
-  references: ImageReference[];
+  references: ImageReferenceInput[];
   /** Which roles actually made it (for the doc's generation record + UI). */
-  roles: Array<ImageReference['role']>;
+  roles: Array<ImageReferenceInput['role']>;
 }
 
 export async function buildBrandReferences(
   input: BuildRefsInput,
   hooks: { rasterize?: typeof rasterizeLogo; swatch?: typeof renderPaletteSwatch } = {},
 ): Promise<BuiltRefs> {
-  const references: ImageReference[] = [];
-  if (input.caps.maxRefs <= 0) return { references, roles: [] };
+  const references: ImageReferenceInput[] = [];
+  if (!input.caps.supportsReferenceImages || input.caps.maxReferenceImages <= 0) {
+    return { references, roles: [] };
+  }
 
-  if (input.plan.previousUrl) {
-    references.push({ role: 'previous', dataUrl: input.plan.previousUrl.startsWith('data:') ? input.plan.previousUrl : undefined, url: input.plan.previousUrl.startsWith('http') ? input.plan.previousUrl : undefined });
+  // A reference is a path in our own storage or inline bytes — never a URL the
+  // server would have to fetch on our behalf (that was an SSRF).
+  if (input.plan.previousPath) {
+    references.push({ role: 'previous', path: input.plan.previousPath, label: 'This image' });
+  } else if (input.plan.previousDataUrl?.startsWith('data:')) {
+    references.push({ role: 'previous', dataUrl: input.plan.previousDataUrl, label: 'This image' });
   }
   if (input.plan.logo) {
     const url = pickLogoUrlForReference(input.brand);
@@ -109,9 +118,9 @@ export async function buildBrandReferences(
     const png = (hooks.swatch ?? renderPaletteSwatch)(input.paletteHexes);
     if (png) references.push({ role: 'palette', dataUrl: png });
   }
-  if (input.userReferenceUrl) {
-    references.push({ role: 'image', url: input.userReferenceUrl });
+  for (const path of input.userReferencePaths ?? []) {
+    references.push({ role: 'image', path });
   }
-  const capped = references.slice(0, input.caps.maxRefs);
+  const capped = references.slice(0, input.caps.maxReferenceImages);
   return { references: capped, roles: capped.map((r) => r.role) };
 }

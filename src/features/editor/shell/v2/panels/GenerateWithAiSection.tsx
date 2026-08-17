@@ -97,22 +97,21 @@ export function GenerateWithAiSection({
         const cfg = CONTENT_TYPES[contentTypeId];
         const w = cfg?.defaultDimensions.width ?? 1024;
         const h = cfg?.defaultDimensions.height ?? 1024;
-        const result = await generateImage({ prompt: trimmed, width: w, height: h });
-        if (result.mock) {
-          toast.message('AI image (mock mode). Unset AI_IMAGE_VENDOR (or set to "pollinations") for real images.');
-        } else {
-          toast.success('AI image generated.');
-        }
-        // Phase 5 — keep the result around so the user can "Place
-        // on canvas" via the button below the form. Also copy the
-        // URL to clipboard as a fallback (older flow).
-        setLastImage({ url: result.imageUrl, width: w, height: h });
-        try {
-          await navigator.clipboard.writeText(result.imageUrl);
-          toast.success('Image URL copied to clipboard.');
-        } catch {
-          toast.message(`Image URL: ${result.imageUrl.slice(0, 80)}…`);
-        }
+        const ratio = w === h ? '1:1' : w > h ? '16:9' : '4:5';
+        const result = await generateImage({
+          brandId: brand.id,
+          userPrompt: trimmed,
+          aspectRatio: ratio,
+          count: 1,
+        });
+        const first = result.images[0];
+        toast.success(
+          result.chargedCredits > 0
+            ? `Image generated · ${result.chargedCredits} credits`
+            : 'Image generated.',
+        );
+        // Keep the result around so the user can "Place on canvas" below.
+        setLastImage({ url: first.url, width: first.width ?? w, height: first.height ?? h });
       }
     } catch (err) {
       console.error('[GenerateWithAi] failed:', err);

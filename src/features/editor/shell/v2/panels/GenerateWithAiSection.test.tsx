@@ -70,7 +70,8 @@ function mount(opts: { onPlaceImage?: (url: string, dims: { width: number; heigh
 
 async function generateImageFlow(container: HTMLElement, url = 'data:image/svg+xml;base64,abc') {
   generateImageMock.mockResolvedValueOnce({
-    imageUrl: url, mock: true, prompt: 'p',
+    images: [{ storagePath: 'b/generated/j/1.png', url, width: 1024, height: 1024, mime: 'image/png', bytes: 10 }],
+    jobId: 'job-1', model: 'pollinations:flux', chargedCredits: 0, balance: 500,
   });
 
   fireEvent.click(container.querySelector<HTMLInputElement>('[data-generate-with-ai-output="image"]')!);
@@ -114,8 +115,9 @@ describe('GenerateWithAiSection — place-on-canvas (Phase 5)', () => {
     expect(onPlaceImage).toHaveBeenCalledTimes(1);
     const [calledUrl, calledDims] = onPlaceImage.mock.calls[0];
     expect(calledUrl).toBe('data:image/svg+xml;base64,XYZ');
-    // social-post is the default content type — 1080×1080.
-    expect(calledDims).toEqual({ width: 1080, height: 1080 });
+    // The dimensions come from the image that was PRODUCED, not from what the
+    // content type asked for — the provider is free to return another size.
+    expect(calledDims).toEqual({ width: 1024, height: 1024 });
 
     // Button hides because lastImage is cleared.
     expect(container.querySelector('[data-generate-with-ai-place-image]')).toBeFalsy();

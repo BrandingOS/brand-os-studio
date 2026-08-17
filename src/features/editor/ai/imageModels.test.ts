@@ -1,74 +1,71 @@
-// Pins the browser model registry to the server one.
-// The server file is a pure TS module (no Deno imports), so we read it
-// as text and evaluate the exported array — no runtime coupling, but a
-// drift in ids or caps fails CI.
+// Pins the browser DISPLAY registry to the server model registry.
+//
+// Capabilities are no longer mirrored (the server ships them at runtime), so
+// the only thing that can drift is the set of ids — which is exactly what this
+// asserts, in both directions.
 
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  IMAGE_MODEL_INFOS,
-  LEGACY_MODEL_ALIASES,
-  capsFor,
-  findImageModelInfo,
-  AUTO_CAPS,
+  IMAGE_MODEL_DISPLAY, LEGACY_MODEL_ALIASES,
+  displayFor, resolveModelId, modelLabel, capsFrom, PENDING_CAPS, AUTO_MODEL_ID,
 } from './imageModels';
 
-interface ServerDef {
-  id: string;
-  vendor: string;
-  tier: string;
-  keyEnv?: string;
-  caps: { maxRefs: number; text: string; aspect: string; nMax: number; img2img: boolean };
+function serverModelIds(): string[] {
+  const src = readFileSync(
+    resolve(process.cwd(), 'supabase/functions/_shared/imageModels.ts'), 'utf8',
+  );
+  const body = src.slice(src.indexOf('export const IMAGE_MODELS'));
+  return [...body.matchAll(/^\s{4}id: '([^']+)',$/gm)].map((m) => m[1]);
 }
 
-function loadServerRegistry(): { models: ServerDef[]; aliases: Record<string, string> } {
-  const file = resolve(process.cwd(), 'supabase/functions/_shared/imageModels.ts');
-  const src = readFileSync(file, 'utf8');
-  // Strip type-only syntax the runtime can't evaluate; keep object literals.
-  const body = src
-    .replace(/^export type [\s\S]*?;$/gm, '')
-    .replace(/^export interface [\s\S]*?^}$/gm, '')
-    .replace(/export const IMAGE_MODELS: ImageModelDef\[\] =/, 'const IMAGE_MODELS =')
-    .replace(/export const LEGACY_MODEL_ALIASES: Record<string, string> =/, 'const LEGACY_MODEL_ALIASES =')
-    .replace(/export const AUTO_ORDER: string\[\] =/, 'const AUTO_ORDER =')
-    .replace(/^export function [\s\S]*?^}$/gm, '');
-  const fn = new Function(`${body}\nreturn { models: IMAGE_MODELS, aliases: LEGACY_MODEL_ALIASES };`);
-  return fn() as { models: ServerDef[]; aliases: Record<string, string> };
-}
+describe('image model display registry', () => {
+  const ids = serverModelIds();
 
-describe('image model registry — client mirrors server', () => {
-  const server = loadServerRegistry();
+  it('found the server registry', () => {
+    expect(ids.length).toBeGreaterThan(5);
+    expect(ids).toContain('google:nano-banana-pro');
+  });
 
-  it('every client id exists on the server with identical vendor / tier / keyEnv / caps', () => {
-    for (const info of IMAGE_MODEL_INFOS) {
-      const s = server.models.find((m) => m.id === info.id);
-      expect(s, `server missing ${info.id}`).toBeDefined();
-      expect(s!.vendor).toBe(info.vendor);
-      expect(s!.tier).toBe(info.tier);
-      expect(s!.keyEnv).toBe(info.keyEnv);
-      expect(s!.caps).toEqual(info.caps);
+  it('every server model has a display entry', () => {
+    for (const id of ids) expect(displayFor(id), `missing display for ${id}`).toBeDefined();
+  });
+
+  it('every display entry names a real server model', () => {
+    for (const d of IMAGE_MODEL_DISPLAY) expect(ids, `stale display entry ${d.id}`).toContain(d.id);
+  });
+
+  it('short labels fit the toolbar', () => {
+    for (const d of IMAGE_MODEL_DISPLAY) expect(d.short.length).toBeLessThanOrEqual(7);
+  });
+
+  it('legacy ids resolve to a live model', () => {
+    for (const [legacy, target] of Object.entries(LEGACY_MODEL_ALIASES)) {
+      expect(ids, `${legacy} → ${target}`).toContain(target);
+      expect(resolveModelId(legacy)).toBe(target);
     }
   });
 
-  it('every server id has a client display entry', () => {
-    for (const s of server.models) {
-      expect(findImageModelInfo(s.id), `client missing ${s.id}`).toBeDefined();
-    }
+  it('labels auto with its resolved target', () => {
+    expect(modelLabel(AUTO_MODEL_ID, 'google:nano-banana')).toBe('Auto · Nano Banana');
+    expect(modelLabel(AUTO_MODEL_ID)).toBe('Auto');
+    expect(modelLabel('openai:gpt-image')).toBe('GPT Image');
+    expect(modelLabel('who:knows')).toBe('who:knows');
   });
 
-  it('legacy aliases agree', () => {
-    expect(LEGACY_MODEL_ALIASES).toEqual(server.aliases);
-    expect(findImageModelInfo('flux')?.id).toBe('pollinations:flux');
+  it('capsFrom falls back to the conservative set until the server answers', () => {
+    expect(capsFrom(undefined, 'openai:gpt-image')).toBe(PENDING_CAPS);
+    expect(capsFrom([], 'openai:gpt-image')).toBe(PENDING_CAPS);
+    const models = [{ id: 'openai:gpt-image', caps: { ...PENDING_CAPS, maxReferenceImages: 8 } }] as never;
+    expect(capsFrom(models, 'openai:gpt-image').maxReferenceImages).toBe(8);
+    expect(capsFrom(models, AUTO_MODEL_ID, 'openai:gpt-image').maxReferenceImages).toBe(8);
+    expect(capsFrom(models, 'unknown:model')).toBe(PENDING_CAPS);
   });
 
-  it('capsFor: auto and unknown ids get the permissive AUTO_CAPS', () => {
-    expect(capsFor('auto')).toEqual(AUTO_CAPS);
-    expect(capsFor('nope:model')).toEqual(AUTO_CAPS);
-    expect(capsFor('pollinations:turbo').maxRefs).toBe(0);
-  });
-
-  it('short labels fit the toolbar trigger', () => {
-    for (const info of IMAGE_MODEL_INFOS) expect(info.short.length).toBeLessThanOrEqual(7);
+  it('PENDING_CAPS promises nothing optional', () => {
+    expect(PENDING_CAPS.supportsReferenceImages).toBe(false);
+    expect(PENDING_CAPS.maxReferenceImages).toBe(0);
+    expect(PENDING_CAPS.supportedQualities).toEqual([]);
   });
 });

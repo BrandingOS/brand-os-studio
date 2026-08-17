@@ -22,7 +22,7 @@
 import { z } from 'zod';
 import type { Brand } from '@/shared/types/brand';
 import { callAnthropic, firstText } from '@/shared/ai/anthropicProxy';
-import type { ImageModelCaps } from '@/features/editor/ai/imageModels';
+import type { ImageModelCaps } from '@/features/image-generation';
 import {
   buildBrandImageContext,
   describeBrandForPrompt,
@@ -158,7 +158,7 @@ export async function compileImagePrompt(
     `BRAND: ${describeBrandForPrompt(ctx)}`,
     input.formatLabel ? `FORMAT: ${input.formatLabel}` : '',
     input.styleLabel && input.styleLabel !== 'No style' ? `STYLE PRESET CHOSEN BY USER: ${input.styleLabel}` : '',
-    input.modelCaps ? `MODEL: text rendering ${input.modelCaps.text}; accepts ${input.modelCaps.maxRefs} reference images (a logo reference will be attached only if useLogo=true).` : '',
+    input.modelCaps ? `MODEL: text rendering ${input.modelCaps.textRendering}; accepts ${input.modelCaps.maxReferenceImages} reference images (a logo reference will be attached only if useLogo=true).` : '',
     `HINTS: explicit logo words=${h.wantsLogoExplicit}; branded subject=${h.brandedSubject}; user color direction=${h.colorOverride}.`,
   ].filter(Boolean).join('\n');
 
