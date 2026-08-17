@@ -7,7 +7,7 @@
 // normalizes the response so `images[]` is ALWAYS present (older
 // responses only carried `imageUrl`).
 
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
 import type { ImageModelAvailability } from './imageModels';
 
 /** Kept for older call sites — the Model dropdown now reads the registry. */
@@ -100,8 +100,16 @@ function endpointUrl(override?: string): string {
   return override ?? `${baseUrl}${ENDPOINT_PATH}`;
 }
 
+// The Edge Function gateway verifies a JWT on every call (Supabase
+// default), so ALWAYS send one: the user's session token when signed in,
+// the anon key otherwise (dev bypass / guests). `apikey` rides along like
+// supabase-js does.
 async function authHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    apikey: SUPABASE_PUBLISHABLE_KEY,
+    Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+  };
   try {
     const { data } = await supabase.auth.getSession();
     if (data?.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;

@@ -11,6 +11,7 @@ const getUserMock = vi.fn(async () => ({ data: { user: null as unknown } }));
 
 vi.mock('@/integrations/supabase/client', () => ({
   SUPABASE_URL: 'https://mock.supabase.co',
+  SUPABASE_PUBLISHABLE_KEY: 'anon-key',
   supabase: {
     auth: {
       getSession: () => getSessionMock(),
@@ -81,7 +82,9 @@ describe('generateImage', () => {
     await generateImage({ prompt: 'p' }, { fetchImpl, endpoint: 'https://x' });
 
     const headers = fetchImpl.mock.calls[0][1]?.headers as Record<string, string>;
-    expect(headers.Authorization).toBeUndefined();
+    // No session → the anon key is the bearer (the gateway verifies JWTs).
+    expect(headers.Authorization).toBe('Bearer anon-key');
+    expect(headers.apikey).toBe('anon-key');
     expect(headers['Content-Type']).toBe('application/json');
   });
 
