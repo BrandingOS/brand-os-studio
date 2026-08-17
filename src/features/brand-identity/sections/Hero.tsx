@@ -26,9 +26,11 @@
  * artwork gets no mark here and its name carries the screen — which is correct,
  * and far better than a black logo invisible on a black ground.
  */
+import type { ReactNode } from 'react';
 import type { IdentityModel } from '../identityModel';
 import type { IdentityRegister } from '../identityRegister';
 import { saysName, useArtworkShape } from '../artworkShape';
+import { CountUp } from '../motion/CountUp';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
 import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
@@ -56,6 +58,24 @@ export function IdentityHero({
   // has to be the same everywhere or the page contradicts itself.
   const speaksName = saysName(useArtworkShape(heroMark));
 
+  /*
+   * The ghost is a DIFFERENT mark, and by preference the icon.
+   *
+   * Printing the same artwork twice — once at reading size, once enormous
+   * behind it — is not a composition, it is the same picture at two scales. The
+   * brand icon is what belongs back there: it is the part of the identity built
+   * to work as a shape rather than as a word, which is exactly what a
+   * background wants. Falling back in order: the icon, then any other variant
+   * that is not the mark already on screen, and only then the mark again —
+   * because a hero with one repeated logo still beats a hero with a hole in it.
+   */
+  const ghost =
+    model.logo.variants.find((v) => v.def.role === 'iconmark')?.url ??
+    model.logo.variants.find((v) => v.url !== heroMark)?.url ??
+    heroMark;
+  // A symbol and a logotype want different room back there.
+  const ghostShape = useArtworkShape(ghost);
+
   const descriptors = model.introduction.descriptors;
   const industry = model.introduction.industry;
 
@@ -78,15 +98,17 @@ export function IdentityHero({
         </div>
 
         {/*
-          The mark again, enormous, bleeding off the right edge.
+          A mark, enormous, bleeding off the right edge.
 
           The name sits bottom-left and a brand without a tagline leaves two
           thirds of the screen empty — and the only thing allowed to fill it is
-          something the brand already owns. So it is the same artwork at scale,
-          held back to a whisper and drifting as the hero unpins. Decoration,
-          hence `aria-hidden`; the readable mark is the one beside the name.
+          something the brand already owns. Held back to a whisper and drifting
+          as the hero unpins. Decoration, hence `aria-hidden`; the readable mark
+          is the one beside the name.
         */}
-        {heroMark && <img className="bi-hero-ghost" src={heroMark} alt="" aria-hidden />}
+        {ghost && (
+          <img className="bi-hero-ghost" data-shape={ghostShape} src={ghost} alt="" aria-hidden />
+        )}
 
         <div className="bi-container bi-hero-inner">
           <div className="bi-hero-body">
@@ -163,25 +185,33 @@ export function IdentityHero({
  * contain.
  */
 /**
- * How wide each tile sits, in a six-column grid.
+ * Where each tile sits, in a six-column grid.
  *
  * The tile COUNT belongs to the brand, and every layout that does not divide
- * leaves a hole — or, with flex, one orphan tile stretched across the whole
- * page, which is worse because it looks deliberate. So the spans are chosen per
- * count, and every row sums to six at every count the grid can have.
+ * leaves a hole — or, with flex, one orphan stretched across the whole page,
+ * which is worse because it looks deliberate. So the shape is chosen per count
+ * and every row sums to six at every count the grid can have.
+ *
+ * The first tile is the mark, and from four tiles up it takes two rows: a brand
+ * shown at postage-stamp size next to five siblings is not an opening, and this
+ * band is the first thing after the hero.
  */
-function spans(count: number): number[] {
+function layout(count: number): Array<{ col: number; row: number }> {
+  const wide = (col: number) => ({ col, row: 1 });
   switch (count) {
     case 2:
-      return [3, 3];
+      return [wide(3), wide(3)];
     case 3:
-      return [2, 2, 2];
+      return [wide(2), wide(2), wide(2)];
     case 4:
-      return [3, 3, 3, 3];
+      // mark 2×2 | t2 2 | t3 2 / (mark) | t4 4
+      return [{ col: 2, row: 2 }, wide(2), wide(2), wide(4)];
     case 5:
-      return [4, 2, 2, 2, 2];
+      // mark 2×2 | t2 2 | t3 2 / (mark) | t4 2 | t5 2
+      return [{ col: 2, row: 2 }, wide(2), wide(2), wide(2), wide(2)];
     default:
-      return [2, 2, 2, 2, 2, 2];
+      // …and the sixth takes the full width beneath.
+      return [{ col: 2, row: 2 }, wide(2), wide(2), wide(2), wide(2), wide(6)];
   }
 }
 
@@ -197,60 +227,125 @@ export function Glance({ model, register }: { model: IdentityModel; register: Id
   // primary artwork is white would otherwise get an empty tile.
   const mark = pickLogoOnBackground(model.brand, '#FFFFFF')?.url;
 
-  const tiles: React.ReactNode[] = [];
+  const traits = model.personality.traits.length
+    ? model.personality.traits
+    : model.personality.values;
+  const deep = (register.tokens as Record<string, string>)['--bi-deep'] ?? '#0B0B0C';
+  const p = register.scale.shades;
+
+  /*
+   * One descriptor per tile, and each carries its own GROUND.
+   *
+   * The band used to be six white cards with a hairline round each, and it read
+   * as a form rather than as a brand: the one screen that should say "this is
+   * what this brand looks like" said "here are some fields". Every tile now
+   * stands on a different surface from the brand's own ramp, and each shows its
+   * content in the shape that content actually has — a mark centred, colours
+   * full-bleed, a typeface at display size.
+   */
+  const tiles: Array<{
+    kind: string;
+    target: string;
+    ground: 'deep' | 'brand' | 'tint' | 'surface';
+    label: string;
+    body: ReactNode;
+  }> = [];
+
   if (mark) {
-    tiles.push(
-      <>
-        <img src={mark} alt="" />
-        <span className="bi-tile-label">The mark</span>
-      </>,
-    );
+    tiles.push({
+      kind: 'mark',
+      target: 'logo',
+      ground: 'deep',
+      label: 'The mark',
+      // Chosen for the ground it lands on, like every other placement here.
+      body: (
+        <>
+          <span
+            className="bi-tile-glow"
+            aria-hidden
+            style={{
+              background: `radial-gradient(circle at 50% 45%, ${p[500].hex}, ${p[800].hex} 55%, transparent 72%)`,
+            }}
+          />
+          <img
+            className="bi-tile-mark"
+            src={pickLogoOnBackground(model.brand, deep)?.url ?? mark}
+            alt=""
+          />
+        </>
+      ),
+    });
   }
+
   if (register.chips.length > 0) {
-    tiles.push(
-      <>
-        <span className="bi-tile-swatches">
+    tiles.push({
+      kind: 'colour',
+      target: 'colour',
+      ground: 'surface',
+      label: `${register.chips.length} ${register.chips.length === 1 ? 'colour' : 'colours'}`,
+      // Edge to edge. A colour in a box with a margin round it is a sample of a
+      // colour; a colour filling its tile is the colour.
+      body: (
+        <span className="bi-tile-bars" aria-hidden>
           {register.chips.slice(0, 6).map((c) => (
             <span key={c.hex} style={{ background: c.hex }} />
           ))}
         </span>
-        <span className="bi-tile-label">
-          {register.chips.length} {register.chips.length === 1 ? 'colour' : 'colours'}
-        </span>
-      </>,
-    );
+      ),
+    });
   }
+
   if (font) {
-    tiles.push(
-      <>
-        <span className="bi-tile-aa">Aa</span>
-        <span className="bi-tile-label">{font.token.family}</span>
-      </>,
-    );
+    tiles.push({
+      kind: 'type',
+      target: 'typography',
+      ground: 'tint',
+      label: font.token.family,
+      body: (
+        <span
+          className="bi-tile-aa"
+          style={{ fontFamily: `'${font.token.family}', var(--bi-font-display, sans-serif)` }}
+        >
+          Aa
+        </span>
+      ),
+    });
   }
-  if (model.personality.traits.length > 0) {
-    tiles.push(
-      <>
-        <span className="bi-tile-words">{model.personality.traits.slice(0, 3).join(' · ')}</span>
-        <span className="bi-tile-label">Personality</span>
-      </>,
-    );
+
+  if (traits.length > 0) {
+    tiles.push({
+      kind: 'words',
+      target: 'personality',
+      ground: 'surface',
+      label: 'Personality',
+      body: (
+        <span className="bi-tile-stack">
+          {traits.slice(0, 3).map((t) => (
+            <span key={t}>{t}</span>
+          ))}
+        </span>
+      ),
+    });
   }
+
   if (model.logo.variants.length > 1) {
-    tiles.push(
-      <>
-        <span className="bi-tile-number">{model.logo.variants.length}</span>
-        <span className="bi-tile-label">Logo variants</span>
-      </>,
-    );
+    tiles.push({
+      kind: 'count',
+      target: 'logo',
+      ground: 'brand',
+      label: 'Logo variants',
+      body: <CountUp className="bi-tile-number" value={model.logo.variants.length} />,
+    });
   }
+
   if (model.voice.tone) {
-    tiles.push(
-      <>
-        <span className="bi-tile-words bi-tile-words--accent">{model.voice.tone}</span>
-        <span className="bi-tile-label">Voice</span>
-      </>,
-    );
+    tiles.push({
+      kind: 'voice',
+      target: 'voice',
+      ground: 'tint',
+      label: 'Voice',
+      body: <span className="bi-tile-tone">{model.voice.tone}</span>,
+    });
   }
 
   /*
@@ -261,34 +356,30 @@ export function Glance({ model, register }: { model: IdentityModel; register: Id
    * that has not decided yet.
    */
   if (tiles.length < 2) return null;
-
-  const targets = ['logo', 'colour', 'typography', 'personality', 'logo', 'voice'];
-  const kinds = ['mark', 'colour', 'type', 'words', 'count', 'voice'];
-  // The target and kind lists are parallel to the PUSH ORDER above, so they are
-  // filtered by the same conditions in the same sequence.
-  const present = [
-    Boolean(mark),
-    register.chips.length > 0,
-    Boolean(font),
-    model.personality.traits.length > 0,
-    model.logo.variants.length > 1,
-    Boolean(model.voice.tone),
-  ];
-  const chosen = present.map((yes, i) => (yes ? i : -1)).filter((i) => i >= 0);
-  const width = spans(tiles.length);
+  const shape = layout(tiles.length);
 
   return (
     <div className="bi-glance">
       <div className="bi-glance-grid" {...head}>
-        {tiles.map((content, i) => (
+        {tiles.map((tile, i) => (
           <button
-            key={kinds[chosen[i]]}
+            key={tile.kind}
             type="button"
-            className={`bi-tile bi-tile--${kinds[chosen[i]]}`}
-            style={{ gridColumn: `span ${width[i]}` }}
-            onClick={() => jump(targets[chosen[i]])}
+            className={`bi-tile bi-tile--${tile.kind}`}
+            data-ground={tile.ground}
+            // A tile the full width of the grid is a different shape of tile:
+            // label and content sit side by side rather than stacked, or the
+            // content floats in a metre of empty space.
+            data-wide={shape[i].col >= 5 ? '' : undefined}
+            style={{
+              gridColumn: `span ${shape[i].col}`,
+              gridRow: `span ${shape[i].row}`,
+              '--bi-tile-delay': `${i * 70}ms`,
+            } as React.CSSProperties}
+            onClick={() => jump(tile.target)}
           >
-            {content}
+            <span className="bi-tile-body">{tile.body}</span>
+            <span className="bi-tile-label">{tile.label}</span>
           </button>
         ))}
       </div>
