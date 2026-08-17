@@ -6,6 +6,8 @@
 --   supabase db reset
 --   psql "$LOCAL_DB_URL" -f supabase/tests/025_image_generation_isolation.test.sql
 --
+-- Requires 026 as well (can_view_brand / can_edit_brand).
+--
 -- What this proves:
 --   A. a brand member sees their own projects and jobs, and NOT another
 --      account's — the whole feature is scoped by brand membership;
@@ -134,6 +136,45 @@ BEGIN
     ok := true;
   END;
   IF NOT ok THEN RAISE EXCEPTION 'A5: a client could INSERT a generation job'; END IF;
+  PERFORM pg_temp.back_to_super();
+END $$;
+
+-- ── A2. A directly-owned brand (no workspace) is still the owner's ──────────
+-- This is the case that failed in QA: `is_brand_member` only knows the
+-- workspace path, so the owner of a legacy brand was locked out of their own
+-- projects. `can_edit_brand` (026) mirrors how `brands` itself is scoped.
+
+DO $$
+DECLARE
+  user_a UUID := '11111111-1111-1111-1111-111111111111';
+  user_b UUID := '22222222-2222-2222-2222-222222222222';
+  legacy_brand UUID;
+  n INT;
+BEGIN
+  INSERT INTO public.brands (name, user_id, workspace_id)
+  VALUES ('Legacy Brand 025', user_a, NULL) RETURNING id INTO legacy_brand;
+  PERFORM set_config('test025.legacy_brand', legacy_brand::text, true);
+
+  PERFORM pg_temp.act_as(user_a);
+  INSERT INTO public.image_projects (brand_id, user_id, title)
+  VALUES (legacy_brand, user_a, 'legacy project');
+  SELECT count(*) INTO n FROM public.image_projects WHERE brand_id = legacy_brand;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'A6: the owner of a workspace-less brand cannot create a project';
+  END IF;
+  PERFORM pg_temp.back_to_super();
+
+  -- …and it is still nobody else's.
+  PERFORM pg_temp.act_as(user_b);
+  SELECT count(*) INTO n FROM public.image_projects WHERE brand_id = legacy_brand;
+  IF n <> 0 THEN RAISE EXCEPTION 'A7: another account can read a legacy brand''s project'; END IF;
+
+  BEGIN
+    INSERT INTO public.image_projects (brand_id, user_id, title)
+    VALUES (legacy_brand, user_b, 'intruder');
+    RAISE EXCEPTION 'A8: another account could create a project on a legacy brand';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
   PERFORM pg_temp.back_to_super();
 END $$;
 
