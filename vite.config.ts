@@ -304,7 +304,6 @@ export default defineConfig(({ mode }) => ({
           include: [
             'src/**/*.{test,spec}.{ts,tsx}',
             'supabase/functions/**/*.{test,spec}.ts',
-            'functions/**/*.{test,spec}.ts',
           ],
           exclude: [
             'node_modules/**',
