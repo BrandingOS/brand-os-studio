@@ -14,6 +14,7 @@ import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import { DownloadPill, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
+import { Letters } from '../motion/Letters';
 import { SocialApplications } from './Applied';
 import { downloadAllColours, downloadAllLogos, fetchAsBlob } from '../download/identityDownloads';
 import { downloadCompleteIdentity } from '../download/identityBundle';
@@ -275,8 +276,15 @@ export function Closing({
     <Section id="closing">
       <div className="bi-closing" {...reveal}>
         {mark && <img className="bi-closing-mark" src={mark} alt="" />}
-        {/* The brand's own words, or just its name. Never a slogan we wrote. */}
-        <p className="bi-statement">{model.closing.statement ?? model.name}</p>
+        {/* The brand's own words, or just its name. Never a slogan we wrote.
+            The last line on the page arrives a word at a time. */}
+        <Letters
+          as="p"
+          className="bi-statement"
+          text={model.closing.statement ?? model.name}
+          mode="word"
+          stagger={56}
+        />
       </div>
     </Section>
   );

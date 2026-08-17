@@ -24,6 +24,7 @@ import type { IdentityModel } from '../identityModel';
 import type { IdentityRegister } from '../identityRegister';
 import { saysName, useArtworkShape } from '../artworkShape';
 import { lines } from '../brandCopy';
+import { CountUp } from '../motion/CountUp';
 import { useReveal } from '../motion/useReveal';
 
 type Shades = ColorScale['shades'];
@@ -126,9 +127,13 @@ export function BentoWall({ model, register }: SurfaceProps) {
     span: '2 / span 1',
     node: (
       <div className="bi-bento-stat" style={{ background: n[50].hex, borderColor: n[200].hex }}>
-        <span className="bi-bento-num" style={{ color: p[600].hex }}>
-          {model.logo.variants.length}
-        </span>
+        {/* The tile IS the number, which is the only place counting earns its
+            keep — a number inside a sentence counting up is a distraction. */}
+        <CountUp
+          value={model.logo.variants.length}
+          className="bi-bento-num"
+          style={{ color: p[600].hex }}
+        />
         <span className="bi-bento-cap" style={{ color: n[600].hex }}>
           {model.logo.variants.length === 1 ? 'logo variant' : 'logo variants'}
         </span>

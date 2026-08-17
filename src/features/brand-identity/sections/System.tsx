@@ -16,6 +16,7 @@ import type { IdentityRegister } from '../identityRegister';
 import { CopyableValue, DownloadPill, RuleCard, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
+import { FontCards } from './FontCards';
 import { GradientField } from './GradientField';
 import { TypeSpecimen } from './TypeSpecimen';
 import { bgTone } from '@/shared/brand/logoOnBackground';
@@ -178,6 +179,16 @@ export function Colour({
   model: IdentityModel;
   register: IdentityRegister;
 }) {
+  /*
+   * ONE scroll target for the whole grid, not one per swatch.
+   *
+   * `--bi-p` is a custom property, so every swatch inherits the grid's value
+   * and alternates direction from its own `data-drift`. Spreading the scroll
+   * hook onto each swatch would also have overwritten the reveal hook's `ref`
+   * — two spreads, one `ref` key, and the reveal observer silently never
+   * attaches, leaving the whole palette at opacity 0.
+   */
+  const drift = useScrollVar('travel');
   return (
     <Section id="colour">
       <SplitHeader
@@ -193,7 +204,7 @@ export function Colour({
         hue and nothing about how the colour behaves when it covers something.
         `data-count` lets the layout stay composed at two colours and at nine.
       */}
-      <div className="bi-swatch-grid" data-count={model.colour.colours.length}>
+      <div className="bi-swatch-grid" data-count={model.colour.colours.length} {...drift}>
         {model.colour.colours.map((colour, i) => (
           <Swatch key={colour.hex} colour={colour} brandName={model.name} delay={i * 70} />
         ))}
@@ -230,6 +241,7 @@ function Swatch({
     <article
       className="bi-swatch"
       data-lead={colour.lead ? '' : undefined}
+      data-drift={delay % 140 === 0 ? 'up' : 'down'}
       {...reveal}
       // Merged, not spread after — the colour IS the swatch.
       style={{ ...reveal.style, background: colour.hex, color: ink }}
@@ -270,7 +282,12 @@ export function Typography({
         title="Typography"
         body="Set in the brand's own faces below. What you are reading in each specimen is the real thing, not a picture of it."
       />
-      {/* The faces doing their job, before the list of what they are. */}
+      {/*
+        The face, then the face applied, then the specification.
+        You cannot judge how a typeface performs in a layout until you have
+        seen the typeface.
+      */}
+      <FontCards model={model} register={register} />
       <TypeSpecimen model={model} register={register} />
       {model.typography.fonts.map((font, i) => (
         <FontCard key={font.token.family} font={font} model={model} delay={i * 80} />

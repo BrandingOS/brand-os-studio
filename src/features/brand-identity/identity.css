@@ -991,6 +991,27 @@
   box-shadow: 0 0 0 1px var(--bi-line);
   transition: transform 320ms var(--bi-ease);
 }
+/*
+ * Drift, inherited.
+ *
+ * `--bi-p` is written once on the grid and every swatch inherits it, so a
+ * palette of nine costs one scroll target. Alternating the sign by index turns
+ * a flat row into a field with depth in it.
+ */
+/*
+ * `translate`, not `transform`.
+ *
+ * A swatch is ALSO a reveal target, and the reveal owns `transform` — writing
+ * the drift there means `[data-reveal='in'] { transform: none }` wins on
+ * source order and the drift never happens. `translate` is its own property and
+ * composes with the reveal instead of fighting it.
+ */
+[data-identity] .bi-swatch[data-drift='up'] {
+  translate: 0 calc((var(--bi-p, 0.5) - 0.5) * -18px);
+}
+[data-identity] .bi-swatch[data-drift='down'] {
+  translate: 0 calc((var(--bi-p, 0.5) - 0.5) * 10px);
+}
 [data-identity] .bi-swatch:hover {
   transform: translateY(-4px);
 }
@@ -1033,6 +1054,87 @@
 [data-identity] .bi-swatch:hover .bi-swatch-download,
 [data-identity] .bi-swatch:focus-within .bi-swatch-download {
   opacity: 1;
+}
+
+/* ── Font specimen cards ───────────────────────────────────────────────── */
+
+/*
+ * Nothing leaves the card.
+ *
+ * Every size is a clamp against the viewport, the card clips, and the name
+ * breaks at any character — a brand may name a face "IBM Plex Sans Arabic",
+ * and no letter of it may push past the edge.
+ */
+[data-identity] .bi-fonts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+[data-identity] .bi-font {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 2vw, 28px);
+  padding: clamp(24px, 3.4vw, 52px);
+  border-radius: var(--bi-r-lg);
+  overflow: hidden;
+  min-height: clamp(320px, 42vw, 560px);
+}
+[data-identity] .bi-font[data-ground='tint'] {
+  border: 1px solid var(--bi-line);
+}
+[data-identity] .bi-font-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  opacity: 0.72;
+}
+[data-identity] .bi-font-name {
+  margin: 0;
+  font-family: var(--bi-face, inherit);
+  font-size: clamp(38px, 8vw, 124px);
+  font-weight: 700;
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  /* The last guard, for a single word longer than the card: "Bricolage
+     Grotesque" wraps between its words, and a hypothetical one-word family
+     longer than the line breaks inside itself rather than spilling. */
+  overflow-wrap: anywhere;
+}
+[data-identity] .bi-font-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  /* Drifts a little against the scroll. Small on purpose — the card is a
+     specimen, and a specimen that swims is not one. */
+  transform: translate3d(0, calc((var(--bi-p, 0.5) - 0.5) * -14px), 0);
+}
+[data-identity] .bi-font-run {
+  margin: 0;
+  font-family: var(--bi-face, inherit);
+  font-size: clamp(15px, 3.1vw, 42px);
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+[data-identity] .bi-font-run--small {
+  font-size: clamp(13px, 2.1vw, 28px);
+  opacity: 0.78;
+}
+[data-identity] .bi-font-pangram {
+  margin: 0;
+  font-family: var(--bi-face, inherit);
+  font-size: clamp(16px, 2.2vw, 30px);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  opacity: 0.88;
+  max-width: 34ch;
 }
 
 /* ── Typography ────────────────────────────────────────────────────────── */
@@ -2684,6 +2786,58 @@
   transform: none;
 }
 
+/*
+ * Text that arrives a piece at a time.
+ *
+ * The pieces stay ORDINARY INLINE TEXT — `display: inline-block` and nothing
+ * else — so the line still breaks, hyphenates, selects and reads aloud exactly
+ * as the plain string would. The container is the reveal target; the pieces
+ * only carry their own delay, which is why a title of forty characters costs
+ * one observer rather than forty.
+ */
+[data-identity] .bi-letters {
+  /* The container itself must not fade — the pieces do the arriving. */
+  opacity: 1;
+  transform: none;
+}
+/* One word, kept whole. The line breaks BETWEEN these, never inside one — see
+   `Letters` for why the characters cannot be loose in the line. */
+[data-identity] .bi-letter-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+[data-identity] .bi-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.32em) rotate(1.5deg);
+  transition:
+    opacity 520ms var(--bi-ease),
+    transform 620ms var(--bi-ease);
+  transition-delay: var(--bi-letter-delay, 0ms);
+}
+[data-identity] [data-reveal='in'] .bi-letter {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+ * The rule under a section title, drawn by the scroll.
+ *
+ * Scroll-LINKED rather than fired once: it tracks the reader down the page, so
+ * the section reads as being opened rather than as having opened. `0.18` is the
+ * point in a section's travel where its header sits at a comfortable reading
+ * height; before that the rule is a dot.
+ */
+[data-identity] .bi-title-rule {
+  display: block;
+  height: 2px;
+  margin-top: 18px;
+  background: var(--bi-mark);
+  transform-origin: left center;
+  transform: scaleX(clamp(0.02, calc((var(--bi-p, 0) - 0.18) * 2.4), 1));
+  transition: transform 120ms linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /*
    * Not a gentler animation — none. The content is simply there, the reveal
@@ -2693,10 +2847,18 @@
    * resting value, which is the designed state rather than a degraded one.
    */
   [data-identity] [data-reveal],
-  [data-identity] [data-reveal='in'] {
+  [data-identity] [data-reveal='in'],
+  [data-identity] .bi-letter {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+  [data-identity] .bi-title-rule,
+  [data-identity] .bi-font-runs {
+    transform: none;
+  }
+  [data-identity] .bi-swatch[data-drift] {
+    translate: none;
   }
   [data-identity] .bi-hero-stage {
     height: auto;

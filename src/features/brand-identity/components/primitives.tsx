@@ -17,6 +17,7 @@
 import { useState, type ReactNode } from 'react';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
+import { Letters } from '../motion/Letters';
 import { useGround } from '../identityContext';
 
 export function Eyebrow({ children }: { children: ReactNode }) {
@@ -34,11 +35,24 @@ export function SplitHeader({
 }) {
   const head = useReveal();
   const aside = useReveal({ delay: 80 });
+  // A section rule that draws itself as the section arrives. Scroll-linked, so
+  // it tracks the reader rather than firing once and being over.
+  const rule = useScrollVar('travel');
   return (
     <div className="bi-split-header">
       <div {...head}>
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-        <h2 className="bi-title">{title}</h2>
+        {/*
+          Titles arrive a word at a time. Per WORD, never per character — a
+          section title can run six words, and sixty animated characters is a
+          novelty rather than craft.
+        */}
+        {typeof title === 'string' ? (
+          <Letters as="h2" className="bi-title" text={title} mode="word" stagger={70} />
+        ) : (
+          <h2 className="bi-title">{title}</h2>
+        )}
+        <span className="bi-title-rule" {...rule} aria-hidden />
       </div>
       {body && (
         <div {...aside}>

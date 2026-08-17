@@ -12,17 +12,18 @@
 import type { IdentityModel } from '../identityModel';
 import { Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
+import { Letters } from '../motion/Letters';
 
 export function Introduction({ model }: { model: IdentityModel }) {
   const { summary } = model.introduction;
-  const statement = useReveal();
 
   return (
     <Section id="introduction">
       {summary && (
-        <p className="bi-statement bi-intro-statement" {...statement}>
-          {summary}
-        </p>
+        // The brand's own opening sentence, arriving a word at a time. The
+        // section's single most important line earns the treatment; the body
+        // copy around it does not.
+        <Letters as="p" className="bi-statement bi-intro-statement" text={summary} mode="word" stagger={44} />
       )}
       {/* Industry and style used to be printed here as a meta row. They are on
           the hero now, beside the name, where someone reads them. */}
@@ -83,9 +84,14 @@ function PurposeCard({ label, value, delay }: { label: string; value: string; de
     <article className="bi-purpose-card" {...reveal}>
       <span className="bi-eyebrow">{label}</span>
       {/* Bottom-aligned: the statement is the card, the label is the caption. */}
-      <p className="bi-statement-text" data-size={statementSize(value)}>
-        {value}
-      </p>
+      <Letters
+        as="p"
+        className="bi-statement-text"
+        text={value}
+        mode="word"
+        stagger={38}
+        data-size={statementSize(value)}
+      />
     </article>
   );
 }
