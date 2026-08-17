@@ -4,6 +4,7 @@
 // The anon JWT below is a public client key — safe to commit; RLS protects data.
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { quarantineAuthErrorParams } from './callbackError';
 
 // Exported so direct-fetch Edge Function callers (e.g.
 // `features/editor/ai/applyCommand.ts`) share the same hard-coded URL
@@ -52,6 +53,9 @@ const safeStorage: Storage = {
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
+
+// Must run BEFORE the client reads the URL — see callbackError.ts.
+quarantineAuthErrorParams();
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { safeNext } from '@/features/auth/session/safeNext';
+import { takeAuthCallbackError, describeAuthCallbackError } from '@/integrations/supabase/callbackError';
 
 /** How long we give the PKCE code exchange before calling the link dead. */
 const EXCHANGE_TIMEOUT_MS = 8000;
@@ -23,12 +24,16 @@ export default function AuthCallbackPage() {
   const [timedOut, setTimedOut] = useState(false);
 
   const next = safeNext(params.get('next'));
-  const error = useMemo(() => {
+  // Errors were moved out of the URL before the Supabase client booted
+  // (callbackError.ts); read them once. Fall back to raw params for safety.
+  const [error] = useState<string | null>(() => {
+    const quarantined = takeAuthCallbackError();
+    if (quarantined) return describeAuthCallbackError(quarantined);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const code = params.get('error') ?? hash.get('error');
     const description = params.get('error_description') ?? hash.get('error_description');
     return code ? (description ?? code).replace(/\+/g, ' ') : null;
-  }, [params]);
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setTimedOut(true), EXCHANGE_TIMEOUT_MS);

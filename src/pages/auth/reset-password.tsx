@@ -8,6 +8,7 @@ import { Lock, Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { updatePassword } from '@/features/auth/session/authController';
+import { takeAuthCallbackError, describeAuthCallbackError } from '@/integrations/supabase/callbackError';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -15,6 +16,12 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // An expired/used link arrives as ?error=…&error_code=otp_expired (moved
+  // out of the URL before the Supabase client booted — see callbackError.ts).
+  const [linkError] = useState<string | null>(() => {
+    const e = takeAuthCallbackError();
+    return e ? describeAuthCallbackError(e) : null;
+  });
   const isAuthenticated = useSessionStore((st) => st.isAuthenticated);
   const isLoading = useSessionStore((st) => st.isLoading);
   const recovery = useSessionStore((st) => st.recovery);
@@ -25,13 +32,13 @@ export default function ResetPasswordPage() {
   // Otherwise (a stale link, or someone typing the URL) it's invalid.
   const cameFromLink =
     window.location.hash.includes('type=recovery') || new URLSearchParams(window.location.search).has('code');
-  const isValidLink = recovery || (cameFromLink && isAuthenticated);
+  const isValidLink = !linkError && (recovery || (cameFromLink && isAuthenticated));
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setTimedOut(true), 6000);
     return () => clearTimeout(t);
   }, []);
-  const checking = !isValidLink && !timedOut && (isLoading || cameFromLink);
+  const checking = !linkError && !isValidLink && !timedOut && (isLoading || cameFromLink);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +87,7 @@ export default function ResetPasswordPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-xl font-display">Invalid Reset Link</CardTitle>
             <CardDescription>
-              This password reset link has expired or is invalid. Please request a new one.
+              {linkError ?? 'This password reset link has expired or is invalid. Please request a new one.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
