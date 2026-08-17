@@ -70,7 +70,8 @@ const RULES: GroupRule[] = [
   {
     group: 'Public',
     test: (p) =>
-      under('/brand', '/p', '/d')(p) || exact('/', '/*', '/privacy', '/account-deletion')(p),
+      under('/brand', '/p', '/d', '/i')(p) ||
+      exact('/', '/*', '/privacy', '/account-deletion')(p),
   },
 ];
 

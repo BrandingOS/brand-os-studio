@@ -963,6 +963,123 @@
   }
 }
 
+/* ── Share ─────────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-share {
+  position: relative;
+}
+[data-identity] .bi-share-trigger {
+  border: none;
+  background: var(--bi-ink);
+  color: var(--bi-page);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  padding: 6px 12px;
+  border-radius: var(--bi-r-pill);
+  cursor: pointer;
+}
+[data-identity] .bi-share-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(340px, 86vw);
+  padding: 14px;
+  border-radius: var(--bi-r-md);
+  background: #fff;
+  box-shadow: var(--bi-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+/* The reach is STATED, never implied. A link that does not leave this browser
+   must not look like one that does. */
+[data-identity] .bi-share-reach {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: var(--bi-r-xs);
+  background: var(--bi-panel);
+  color: var(--bi-ink-2);
+}
+[data-identity] .bi-share-reach[data-reach='this-browser'] {
+  background: #fff4e5;
+  color: #7a4b00;
+}
+[data-identity] .bi-share-url {
+  width: 100%;
+  font: inherit;
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--bi-hairline);
+  border-radius: var(--bi-r-xs);
+  background: var(--bi-panel);
+  color: var(--bi-ink);
+}
+[data-identity] .bi-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+[data-identity] .bi-share-actions button {
+  border: 1px solid var(--bi-hairline);
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: var(--bi-r-pill);
+  cursor: pointer;
+  color: var(--bi-ink);
+}
+[data-identity] .bi-share-actions button:hover {
+  background: var(--bi-panel);
+}
+[data-identity] .bi-share-actions button[data-danger] {
+  color: #a4231f;
+}
+[data-identity] .bi-share-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+[data-identity] .bi-share-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--bi-ink-3);
+}
+
+/* The page a revoked or unknown link lands on. Outside `[data-identity]`
+   because no brand is available to theme it. */
+.bi-public-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+  background: #fff;
+  color: #111113;
+  font-family: 'Inter Display', Inter, system-ui, sans-serif;
+}
+.bi-public-state h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.bi-public-state p {
+  margin: 0;
+  font-size: 15px;
+  color: rgba(0, 0, 0, 0.55);
+}
+
 /* ── Motion ────────────────────────────────────────────────────────────── */
 
 /*

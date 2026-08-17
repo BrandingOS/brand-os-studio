@@ -41,6 +41,8 @@ import { SupabaseCommentsService } from './adapters/database/SupabaseCommentsSer
 import { SupabaseApprovalsService } from './adapters/database/SupabaseApprovalsService';
 import { SupabaseNotificationsService } from './adapters/database/SupabaseNotificationsService';
 import { SupabaseActivityService } from './adapters/database/SupabaseActivityService';
+import { LocalPublicationRepository } from '@/features/brand-identity/publish/publicationRepository';
+import { SupabasePublicationRepository } from '@/features/brand-identity/publish/publicationRepository.supabase';
 
 export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
@@ -54,6 +56,14 @@ export function bootServices(): void {
   container.register(
     SERVICE_KEYS.BRAND_REPOSITORY,
     () => new BrandServiceRepository(container.get<IBrandsService>(SERVICE_KEYS.BRANDS)),
+  );
+
+  // ─── Brand Identity publications ───────────────────────────
+  // Browser-local until auth swaps in the server-backed one below. A guest's
+  // share link works on their own machine and says so.
+  container.register(
+    SERVICE_KEYS.IDENTITY_PUBLICATIONS,
+    () => new LocalPublicationRepository(),
   );
 
   // ─── Design Storage ────────────────────────────────────────
@@ -149,6 +159,12 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
   );
   // Designs → server (migration 015; tolerant of a pre-015 env, falls back to local).
   container.register(SERVICE_KEYS.DESIGN_STORAGE, () => new SupabaseDesignStorage());
+  // Publications → server (migration 023; falls back to local when absent, so
+  // the Publish control works either way and reports its real reach).
+  container.register(
+    SERVICE_KEYS.IDENTITY_PUBLICATIONS,
+    () => new SupabasePublicationRepository(),
+  );
   // Authed-only server services (no local guest equivalent — guest never gets these).
   container.register(SERVICE_KEYS.WORKSPACES, () => new SupabaseWorkspaceService());
   container.register(

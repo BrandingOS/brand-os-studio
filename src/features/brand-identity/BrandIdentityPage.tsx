@@ -14,6 +14,7 @@ import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
 import { bgTone } from '@/shared/brand/logoOnBackground';
 import { buildIdentityModel, presentSections, type BuildIdentityInput } from './identityModel';
+import { IdentityModelContext } from './identityContext';
 import { IdentityNav } from './components/IdentityNav';
 import { IdentityHero, Introduction, Personality, Purpose } from './sections/Narrative';
 import { Colour, LogoSystem, LogoUsage, Typography } from './sections/System';
@@ -77,6 +78,7 @@ export function BrandIdentityPage({
   }, [mode, model.name]);
 
   return (
+    <IdentityModelContext.Provider value={model}>
     <div data-identity data-mode={mode} style={style}>
       <IdentityNav brandName={model.name} sections={sections} actions={actions} />
 
@@ -97,6 +99,7 @@ export function BrandIdentityPage({
         <Closing model={model} />
       </main>
     </div>
+    </IdentityModelContext.Provider>
   );
 }
 

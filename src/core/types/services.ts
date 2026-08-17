@@ -434,6 +434,8 @@ export const SERVICE_KEYS = {
   DESIGN_STORAGE: 'designStorage',
   /** Brand Consistency engine — generated outputs persistence. */
   BRAND_CONSISTENCY: 'brandConsistency',
+  /** Published Brand Identity snapshots (migration 023). */
+  IDENTITY_PUBLICATIONS: 'identityPublications',
   /** Mockup Studio — template catalogue (local bundle for V1). */
   MOCKUP_TEMPLATES: 'mockupTemplates',
   /** Phase 4 — Content Universe (templates + categories). */

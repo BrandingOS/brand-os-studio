@@ -33,6 +33,7 @@ const OnboardBrandCreatePage = lazy(() => import("./pages/onboard-brand/create")
 // See docs/ux-v2/PLAN.md for the full restructure plan.
 const BrandSetupPageV2 = lazy(() => import("./pages/b/[slug]/setup"));
 const BrandIdentityRoute = lazy(() => import("./pages/b/[slug]/identity"));
+const PublishedIdentityRoute = lazy(() => import("./pages/i/[token]"));
 const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandBrandKitNextPage = lazy(() => import("./pages/b/[slug]/brand-kit-next"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
@@ -752,6 +753,9 @@ const App = () => (
           </Route>
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />
+          {/* A published Brand Identity. Public by design: the snapshot carries
+              its own material, so this reads one row and nothing else. */}
+          <Route path="/i/:token" element={<PublishedIdentityRoute />} />
           <Route path="/p/:slug" element={<BrandPortalV2Page />} />
           <Route path="/d/:brandSlug/:designSlug" element={<PublicDesignPage />} />
           <Route path="/login" element={<LoginPage />} />
