@@ -287,8 +287,8 @@ export default defineConfig(({ mode }) => ({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['src/**/*.test.*', 'src/test/**'],
+      include: ['src/**/*.{ts,tsx}', 'supabase/functions/_shared/*.ts'],
+      exclude: ['src/**/*.test.*', 'src/test/**', 'supabase/functions/**/*.test.ts'],
     },
     projects: [
       {
@@ -298,7 +298,13 @@ export default defineConfig(({ mode }) => ({
           environment: 'jsdom',
           globals: true,
           setupFiles: ['./src/test/setup.ts'],
-          include: ['src/**/*.{test,spec}.{ts,tsx}'],
+          // Edge Function logic lives outside src/ but is plain TypeScript
+          // (no Deno globals in the modules under test), so it runs on the
+          // same single gate rather than needing a second runner.
+          include: [
+            'src/**/*.{test,spec}.{ts,tsx}',
+            'supabase/functions/**/*.{test,spec}.ts',
+          ],
           exclude: [
             'node_modules/**',
             'src/**/*.browser.{test,spec}.{ts,tsx}',

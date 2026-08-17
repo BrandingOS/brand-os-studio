@@ -1,679 +1,611 @@
-// Edge Function: ai-generate-image.
+// Edge Function: ai-generate-image — the image generation job runner.
 //
-// ─── Model-routed, multi-reference, multi-candidate ───────────────────
+// ─── What this owns ──────────────────────────────────────────────────────────
 //
-// The browser sends a registry model id (`google:nano-banana`,
-// `openai:gpt-image`, `pollinations:flux`, … — see
-// `_shared/imageModels.ts`) plus optional reference images (brand logo,
-// palette swatch, a previous generation, a user upload) and a candidate
-// count (1–4). This function routes to the vendor, fans the count out,
-// and always answers the SAME shape:
+//   authenticate → authorize (brand ⇒ workspace) → idempotency → estimate cost
+//   → RESERVE credits → create job → call provider → store outputs durably
+//   → SETTLE credits against real usage → return the job
 //
-//   { images: [{ imageUrl, width, height, seed? }], imageUrl /*legacy*/,
-//     mock, prompt, model, warnings? }
+// Everything that can cost money or leak data is decided here, on the server.
+// The browser sends intent; it never sends a price, a balance, a model the
+// registry doesn't know, or a URL we will fetch.
 //
-// Every vendor's bytes are fetched server-side and returned as data URIs
-// so Fabric can export without tainting the canvas (Pollinations 403s
-// browser fetches that carry an Origin header).
+// ─── Actions ─────────────────────────────────────────────────────────────────
 //
-// Two actions:
-//   { action: 'models' }  → { models: [{ id, available, reason? }] }
-//   default               → generate
+//   { action: 'models'  }                       capability + availability
+//   { action: 'estimate', model, settings }     credits this would cost
+//   { action: 'generate', … }                   run a job (default)
+//   { action: 'cancel', jobId }                 release the reservation
 //
-// Secrets (set with `supabase secrets set …`): OPENAI_API_KEY,
-// GEMINI_API_KEY, FAL_API_KEY, CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN,
-// HUGGINGFACE_API_KEY. A model whose key is missing reports
-// `available:false` and refuses with 409 — never silently falls back to a
-// different vendor than the one the user chose. `model:'auto'` picks the
-// best AVAILABLE model (AUTO_ORDER). AI_IMAGE_VENDOR=mock forces the
-// deterministic mock for every request (dev / CI).
+// ─── Rules ───────────────────────────────────────────────────────────────────
+//
+//   • A real Supabase user is required. The anon key alone is not enough:
+//     provider spend must always be attributable to an account.
+//   • `brandId` must be a uuid the caller is an editor of; the workspace is
+//     derived from the brand, never taken from the request.
+//   • `idempotencyKey` makes a retry free: the same key returns the same job
+//     instead of calling the provider (and charging) twice.
+//   • Provider error bodies never reach the response. They go to
+//     image_generation_job_diagnostics, which no client role can read.
 
 import { corsHeaders } from '../_shared/cors.ts';
-import {
-  enforceRateLimit,
-  getClientIp,
-  logCall,
-  requireSession,
-  withCors,
-} from '../_shared/ai.ts';
+import { withCors } from '../_shared/rate_limit.ts';
+import { createServiceClient, createUserClient } from '../_shared/supabase.ts';
 import {
   IMAGE_MODELS,
+  coerceSettings,
   findImageModel,
   isModelAvailable,
   resolveAutoModel,
   vendorModelFor,
   type ImageModelDef,
 } from '../_shared/imageModels.ts';
+import { providerFor } from '../_shared/imageProviders.ts';
+import {
+  ImageGenerationError,
+  imageError,
+  normalizeThrown,
+  type NormalizedError,
+} from '../_shared/imageErrors.ts';
+import {
+  computeCost,
+  creditsToUsd,
+  settleCost,
+  PRICING_VERSION,
+  USD_PER_CREDIT,
+} from '../_shared/pricing.ts';
+import {
+  resolveReferences,
+  storeOutputs,
+  type ReferenceInput,
+} from '../_shared/imageRefs.ts';
 
 const FUNCTION_NAME = 'ai-generate-image';
-const MAX_COUNT = 4;
-const MAX_REFS_BYTES = 6 * 1024 * 1024;
+/** Hard ceiling for one provider call chain. */
+const PROVIDER_DEADLINE_MS = 170_000;
+/** Concurrent in-flight jobs per workspace — stops a runaway loop. */
+const MAX_CONCURRENT_JOBS = 6;
 
-const cors = {
-  ...corsHeaders,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
+const cors = { ...corsHeaders, 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const getEnv = (k: string) => Deno.env.get(k);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// ─── Contract ────────────────────────────────────────────────────────
+// ─── Contract ────────────────────────────────────────────────────────────────
 
-export type ReferenceRole = 'logo' | 'palette' | 'style' | 'image' | 'previous';
-
-interface ReferenceInput {
-  role?: ReferenceRole;
-  /** Inline image (preferred — reaches every vendor that accepts refs). */
-  dataUrl?: string;
-  /** Public URL (only Pollinations / fal consume URLs directly). */
-  url?: string;
-}
-
-interface GenerateImageBody {
-  action?: 'models' | 'generate';
-  sessionId?: string;
-  prompt?: string;
-  negativePrompt?: string;
-  width?: number;
-  height?: number;
-  /** Registry id, legacy alias ('flux'), or 'auto'. */
+interface GenerateBody {
+  action?: 'models' | 'estimate' | 'generate' | 'cancel';
+  brandId?: string;
+  projectId?: string;
+  designId?: string;
+  jobId?: string;
+  idempotencyKey?: string;
+  operation?: string;
   model?: string;
+  userPrompt?: string;
+  compiledPrompt?: string;
+  negativePrompt?: string;
+  aspectRatio?: string;
+  size?: number;
+  quality?: string;
   count?: number;
   seed?: number;
   references?: ReferenceInput[];
-  /** Legacy single public reference URL — still honoured. */
-  referenceImageUrl?: string;
-}
-
-interface GeneratedImage {
-  imageUrl: string;
+  /** Legacy fields kept so an old client still gets a clear answer. */
+  prompt?: string;
   width?: number;
   height?: number;
-  seed?: number;
 }
 
-interface GenerateImageResult {
-  images: GeneratedImage[];
-  /** = images[0].imageUrl — kept for older callers. */
-  imageUrl: string;
-  width?: number;
-  height?: number;
-  mock: boolean;
-  prompt: string;
-  model: string;
+interface JobResponse {
+  job: {
+    id: string;
+    status: string;
+    operation: string;
+    provider: string;
+    model: string;
+    userPrompt: string;
+    compiledPrompt: string | null;
+    settings: Record<string, unknown>;
+    outputs: unknown[];
+    estimatedCredits: number;
+    chargedCredits: number;
+    costUsd: number | null;
+    costSource: string | null;
+    latencyMs: number | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+    completedAt: string | null;
+  };
+  credits: { balance: number; reserved: number };
   warnings?: string[];
 }
 
-interface Ref {
-  role: ReferenceRole;
-  bytes?: Uint8Array;
-  mime?: string;
-  url?: string;
+function json(body: unknown, status = 200): Response {
+  return Response.json(body, { status, headers: cors });
 }
 
-interface VendorOut { dataUrl: string; width?: number; height?: number; seed?: number }
-
-interface DispatchArgs {
-  def: ImageModelDef;
-  prompt: string;
-  negativePrompt?: string;
-  width: number;
-  height: number;
-  count: number;
-  seed?: number;
-  refs: Ref[];
-  warnings: string[];
+function errorResponse(e: NormalizedError, extra: Record<string, unknown> = {}): Response {
+  return json({ error: e.code, message: e.message, retryable: e.retryable, ...extra }, e.status);
 }
 
-// ─── Byte helpers ────────────────────────────────────────────────────
+// ─── Auth + tenancy ──────────────────────────────────────────────────────────
 
-function readImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
-  if (
-    bytes.length >= 24 &&
-    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
-  ) {
-    const w = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
-    const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
-    if (w > 0 && h > 0) return { width: w, height: h };
+interface Caller { userId: string; authHeader: string }
+
+async function requireCaller(req: Request): Promise<Caller> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    throw imageError('authentication', { message: 'Sign in to generate images.' });
   }
-  if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
-    let i = 2;
-    while (i + 9 < bytes.length) {
-      if (bytes[i] !== 0xff) { i++; continue; }
-      const marker = bytes[i + 1];
-      if (marker === 0xd8 || marker === 0x01) { i += 2; continue; }
-      if (marker === 0xd9 || marker === 0xda) break;
-      const segLen = (bytes[i + 2] << 8) | bytes[i + 3];
-      if (segLen < 2) break;
-      const isSof =
-        marker >= 0xc0 && marker <= 0xcf &&
-        marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
-      if (isSof) {
-        const h = (bytes[i + 5] << 8) | bytes[i + 6];
-        const w = (bytes[i + 7] << 8) | bytes[i + 8];
-        if (w > 0 && h > 0) return { width: w, height: h };
-        break;
-      }
-      i += 2 + segLen;
-    }
+  const userClient = createUserClient(authHeader);
+  const { data, error } = await userClient.auth.getUser();
+  if (error || !data?.user?.id) {
+    throw imageError('authentication', { message: 'Sign in to generate images.' });
   }
-  // WebP (VP8X / VP8 / VP8L) — RIFF....WEBP
-  if (
-    bytes.length >= 30 &&
-    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-  ) {
-    const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
-    if (chunk === 'VP8X') {
-      const w = 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16));
-      const h = 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16));
-      return { width: w, height: h };
-    }
-    if (chunk === 'VP8 ') {
-      const w = (bytes[26] | (bytes[27] << 8)) & 0x3fff;
-      const h = (bytes[28] | (bytes[29] << 8)) & 0x3fff;
-      if (w > 0 && h > 0) return { width: w, height: h };
-    }
-    if (chunk === 'VP8L') {
-      const b0 = bytes[21], b1 = bytes[22], b2 = bytes[23], b3 = bytes[24];
-      const w = 1 + (((b1 & 0x3f) << 8) | b0);
-      const h = 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6));
-      return { width: w, height: h };
-    }
-  }
-  return null;
+  return { userId: data.user.id, authHeader };
 }
 
-function base64Encode(bytes: Uint8Array): string {
-  let bin = '';
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(bin);
-}
-
-function base64Decode(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | null {
-  const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl);
-  if (!m) return null;
-  const mime = m[1] || 'application/octet-stream';
-  if (!m[2]) return { mime, bytes: new TextEncoder().encode(decodeURIComponent(m[3])) };
-  try {
-    return { mime, bytes: base64Decode(m[3]) };
-  } catch {
-    return null;
-  }
-}
-
-function toOut(bytes: Uint8Array, mime: string, seed?: number): VendorOut {
-  const dims = readImageDimensions(bytes);
-  return {
-    dataUrl: `data:${mime};base64,${base64Encode(bytes)}`,
-    width: dims?.width,
-    height: dims?.height,
-    seed,
-  };
-}
-
-async function fetchBytes(url: string, init?: RequestInit): Promise<{ bytes: Uint8Array; mime: string }> {
-  const res = await fetch(url, init);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Response(`upstream ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
-  }
-  const mime = res.headers.get('content-type')?.split(';')[0] ?? 'image/png';
-  return { bytes: new Uint8Array(await res.arrayBuffer()), mime };
-}
-
-/** Bytes for refs that arrived as URLs (vendors that need inline data). */
-async function inlineRefs(refs: Ref[]): Promise<Ref[]> {
-  const out: Ref[] = [];
-  for (const r of refs) {
-    if (r.bytes) { out.push(r); continue; }
-    if (r.url) {
-      try {
-        const { bytes, mime } = await fetchBytes(r.url);
-        out.push({ ...r, bytes, mime });
-      } catch { /* skip an unreachable ref rather than fail the run */ }
-    }
-  }
-  return out;
-}
-
-/** Nearest vendor aspect label from a W×H. */
-function aspectLabel(width: number, height: number, allowed: string[]): string {
-  const target = width / height;
-  let best = allowed[0];
-  let bestDiff = Infinity;
-  for (const a of allowed) {
-    const [w, h] = a.split(':').map(Number);
-    const diff = Math.abs(w / h - target);
-    if (diff < bestDiff) { bestDiff = diff; best = a; }
-  }
-  return best;
-}
-
-async function fanOut(count: number, one: (i: number) => Promise<VendorOut>, warnings: string[]): Promise<VendorOut[]> {
-  const settled = await Promise.allSettled(Array.from({ length: count }, (_, i) => one(i)));
-  const ok: VendorOut[] = [];
-  let firstErr: unknown = null;
-  for (const s of settled) {
-    if (s.status === 'fulfilled') ok.push(s.value);
-    else if (!firstErr) firstErr = s.reason;
-  }
-  if (ok.length === 0) throw firstErr ?? new Response('vendor returned no image', { status: 502 });
-  if (ok.length < count) warnings.push(`${count - ok.length} of ${count} candidates failed`);
-  return ok;
-}
-
-// ─── Mock ────────────────────────────────────────────────────────────
-
-function buildMockSvg(prompt: string, width: number, height: number, i: number): string {
-  const safePrompt = prompt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 120);
-  const hues = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b'];
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}' preserveAspectRatio='xMidYMid slice'>
-    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#1a1a2e'/><stop offset='1' stop-color='${hues[i % hues.length]}'/></linearGradient></defs>
-    <rect width='100%' height='100%' fill='url(#g)'/>
-    <text x='50%' y='40%' text-anchor='middle' fill='#ffffff' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.04)}' font-weight='600'>AI image (mock ${i + 1})</text>
-    <text x='50%' y='52%' text-anchor='middle' fill='#ffffffcc' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.025)}'>${safePrompt}</text>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function dispatchMock(a: DispatchArgs): VendorOut[] {
-  return Array.from({ length: a.count }, (_, i) => ({
-    dataUrl: buildMockSvg(a.prompt, a.width, a.height, i),
-    width: a.width,
-    height: a.height,
-    seed: (a.seed ?? 0) + i,
-  }));
-}
-
-// ─── Vendor: Pollinations.ai (free) ──────────────────────────────────
-
-async function dispatchPollinations(a: DispatchArgs): Promise<VendorOut[]> {
-  const model = vendorModelFor(a.def, getEnv);
-  const publicRef = a.refs.find((r) => r.url)?.url;
-  if (a.refs.length > 0 && !publicRef) a.warnings.push('refs-unsupported');
-  const encodedPrompt = encodeURIComponent(
-    a.negativePrompt ? `${a.prompt} --no ${a.negativePrompt}` : a.prompt,
-  ).slice(0, 1500);
-  const one = async (i: number): Promise<VendorOut> => {
-    const seed = typeof a.seed === 'number' ? Math.trunc(a.seed) + i : Math.floor(Math.random() * 1e9);
-    const params = new URLSearchParams({
-      width: String(a.width), height: String(a.height),
-      nologo: 'true', enhance: 'true', model, referrer: 'brandos', seed: String(seed),
+/**
+ * The workspace is derived from the brand and the caller's membership is
+ * checked against it — a client-supplied workspace id is never trusted.
+ */
+async function requireBrandAccess(
+  caller: Caller,
+  brandId: string | undefined,
+): Promise<{ brandId: string; workspaceId: string }> {
+  if (!brandId || !UUID_RE.test(brandId)) {
+    throw imageError('invalid_input', {
+      message: 'Open a saved brand to generate images. Local demo brands cannot be used.',
+      providerError: `bad brandId: ${brandId}`,
     });
-    if (publicRef) params.set('image', publicRef);
-    const { bytes, mime } = await fetchBytes(
-      `https://image.pollinations.ai/prompt/${encodedPrompt}?${params}`,
-      { headers: { 'User-Agent': 'brandos-edge/1.0' } },
-    );
-    return toOut(bytes, mime, seed);
-  };
-  return fanOut(a.count, one, a.warnings);
-}
-
-// ─── Vendor: Google Gemini (Nano Banana) ─────────────────────────────
-
-const GEMINI_ASPECTS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
-
-async function dispatchGemini(a: DispatchArgs): Promise<VendorOut[]> {
-  const key = getEnv('GEMINI_API_KEY');
-  if (!key) throw new Response('GEMINI_API_KEY missing', { status: 409 });
-  const model = vendorModelFor(a.def, getEnv);
-  const refs = (await inlineRefs(a.refs)).slice(0, a.def.caps.maxRefs);
-  const parts: Record<string, unknown>[] = [];
-  for (const r of refs) {
-    parts.push({ inline_data: { mime_type: r.mime ?? 'image/png', data: base64Encode(r.bytes!) } });
   }
-  const text = a.negativePrompt ? `${a.prompt}\n\nAvoid: ${a.negativePrompt}` : a.prompt;
-  parts.push({ text });
-  const body = {
-    contents: [{ role: 'user', parts }],
-    generationConfig: {
-      responseModalities: ['IMAGE'],
-      imageConfig: { aspectRatio: aspectLabel(a.width, a.height, GEMINI_ASPECTS) },
-    },
-  };
-  const one = async (): Promise<VendorOut> => {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        body: JSON.stringify(body),
-      },
-    );
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      throw new Response(`gemini ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
-    }
-    const out = await res.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string }; text?: string }> } }>;
-      promptFeedback?: { blockReason?: string };
-    };
-    const img = out.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
-    if (!img?.data) {
-      const reason = out.promptFeedback?.blockReason
-        ?? out.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text?.slice(0, 200)
-        ?? 'no image part';
-      throw new Response(`gemini returned no image (${reason})`, { status: 502 });
-    }
-    return toOut(base64Decode(img.data), img.mimeType ?? 'image/png');
-  };
-  return fanOut(a.count, one, a.warnings);
-}
+  const userClient = createUserClient(caller.authHeader);
+  // RLS decides: a brand the caller cannot see simply is not returned.
+  const { data: brand, error } = await userClient
+    .from('brands')
+    .select('id, workspace_id, user_id')
+    .eq('id', brandId)
+    .maybeSingle();
 
-// ─── Vendor: OpenAI GPT Image ────────────────────────────────────────
-
-/** GPT-image accepts arbitrary WxH divisible by 16 within 1:3..3:1. */
-function openAiSize(width: number, height: number): string {
-  const snap = (n: number) => Math.max(256, Math.min(2560, Math.round(n / 16) * 16));
-  let w = snap(width), h = snap(height);
-  const ratio = w / h;
-  if (ratio > 3) w = snap(h * 3);
-  if (ratio < 1 / 3) h = snap(w * 3);
-  return `${w}x${h}`;
-}
-
-async function dispatchOpenAi(a: DispatchArgs): Promise<VendorOut[]> {
-  const key = getEnv('OPENAI_API_KEY');
-  if (!key) throw new Response('OPENAI_API_KEY missing', { status: 409 });
-  const model = vendorModelFor(a.def, getEnv);
-  const quality = getEnv('OPENAI_IMAGE_QUALITY') || 'medium';
-  const size = openAiSize(a.width, a.height);
-  const prompt = a.negativePrompt ? `${a.prompt}\n\nDo not include: ${a.negativePrompt}` : a.prompt;
-  const refs = (await inlineRefs(a.refs)).slice(0, a.def.caps.maxRefs);
-
-  const parse = async (res: Response): Promise<VendorOut[]> => {
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      throw new Response(`openai ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
-    }
-    const out = await res.json() as { data?: Array<{ b64_json?: string; url?: string }> };
-    const items = out.data ?? [];
-    if (items.length === 0) throw new Response('openai returned no image', { status: 502 });
-    const results: VendorOut[] = [];
-    for (const it of items) {
-      if (it.b64_json) results.push(toOut(base64Decode(it.b64_json), 'image/png'));
-      else if (it.url) {
-        const { bytes, mime } = await fetchBytes(it.url);
-        results.push(toOut(bytes, mime));
-      }
-    }
-    return results;
-  };
-
-  const n = Math.min(a.count, a.def.caps.nMax);
-  if (refs.length > 0) {
-    const form = new FormData();
-    form.set('model', model);
-    form.set('prompt', prompt);
-    form.set('size', size);
-    form.set('quality', quality);
-    form.set('n', String(n));
-    form.set('input_fidelity', 'high');
-    refs.forEach((r, i) => {
-      const ext = (r.mime ?? 'image/png').split('/')[1] ?? 'png';
-      form.append('image[]', new Blob([r.bytes!], { type: r.mime ?? 'image/png' }), `ref-${i}.${ext}`);
+  if (error || !brand) {
+    throw imageError('invalid_input', {
+      message: 'That brand is not available to your account.',
+      providerError: `brand lookup failed: ${error?.message ?? 'not found'}`,
     });
-    const res = await fetch('https://api.openai.com/v1/images/edits', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}` },
-      body: form,
-    });
-    return parse(res);
   }
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model, prompt, size, quality, n }),
-  });
-  return parse(res);
-}
 
-// ─── Vendor: fal.ai ──────────────────────────────────────────────────
-
-async function dispatchFal(a: DispatchArgs): Promise<VendorOut[]> {
-  const key = getEnv('FAL_API_KEY');
-  if (!key) throw new Response('FAL_API_KEY missing', { status: 409 });
-  const clamp = (n: number) => Math.max(256, Math.min(2048, Math.round(n / 64) * 64));
-  const publicRef = a.refs.find((r) => r.url)?.url;
-  if (a.refs.length > 0 && !publicRef) a.warnings.push('refs-unsupported');
-  const body: Record<string, unknown> = {
-    prompt: a.prompt,
-    image_size: { width: clamp(a.width), height: clamp(a.height) },
-    num_inference_steps: 4,
-    num_images: Math.min(a.count, a.def.caps.nMax),
-    enable_safety_checker: false,
-  };
-  if (typeof a.seed === 'number') body.seed = Math.trunc(a.seed);
-  if (publicRef) body.image_url = publicRef;
-  const res = await fetch(`https://fal.run/${vendorModelFor(a.def, getEnv)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Key ${key}` },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '');
-    throw new Response(`fal ${res.status}: ${errBody.slice(0, 200)}`, { status: 502 });
+  let workspaceId = (brand as { workspace_id?: string }).workspace_id;
+  if (!workspaceId) {
+    // Legacy brand with no workspace — fall back to the caller's own workspace.
+    const { data: ws } = await userClient
+      .from('workspaces').select('id').eq('owner_id', caller.userId).limit(1).maybeSingle();
+    workspaceId = (ws as { id?: string } | null)?.id;
   }
-  const out = await res.json() as {
-    images?: Array<{ url: string; width?: number; height?: number; content_type?: string }>;
-    seed?: number;
-  };
-  const items = out.images ?? [];
-  if (items.length === 0) throw new Response('fal returned no image', { status: 502 });
-  const results: VendorOut[] = [];
-  for (const it of items) {
-    const { bytes, mime } = await fetchBytes(it.url);
-    const o = toOut(bytes, mime, out.seed);
-    results.push({ ...o, width: o.width ?? it.width, height: o.height ?? it.height });
+  if (!workspaceId) {
+    throw imageError('invalid_input', { message: 'No workspace is associated with this brand.' });
   }
-  return results;
+  return { brandId, workspaceId };
 }
 
-// ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
+// ─── Actions ─────────────────────────────────────────────────────────────────
 
-async function dispatchCloudflare(a: DispatchArgs): Promise<VendorOut[]> {
-  const accountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
-  const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
-  if (!accountId || !apiToken) throw new Response('CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing', { status: 409 });
-  if (a.refs.length > 0) a.warnings.push('refs-unsupported');
-  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${vendorModelFor(a.def, getEnv)}`;
-  const one = async (): Promise<VendorOut> => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
-      body: JSON.stringify({ prompt: a.prompt, width: a.width, height: a.height }),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Response(`cloudflare ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
-    }
-    const ct = res.headers.get('content-type') ?? '';
-    if (ct.startsWith('image/')) return toOut(new Uint8Array(await res.arrayBuffer()), ct.split(';')[0]);
-    const j = await res.json() as { result?: { image?: string } };
-    if (!j?.result?.image) throw new Response('cloudflare returned no image', { status: 502 });
-    return toOut(base64Decode(j.result.image), 'image/png');
-  };
-  return fanOut(a.count, one, a.warnings);
-}
-
-// ─── Vendor: Hugging Face Inference ──────────────────────────────────
-
-async function dispatchHuggingFace(a: DispatchArgs): Promise<VendorOut[]> {
-  const key = getEnv('HUGGINGFACE_API_KEY');
-  if (!key) throw new Response('HUGGINGFACE_API_KEY missing', { status: 409 });
-  if (a.refs.length > 0) a.warnings.push('refs-unsupported');
-  const one = async (): Promise<VendorOut> => {
-    const { bytes, mime } = await fetchBytes(
-      `https://api-inference.huggingface.co/models/${vendorModelFor(a.def, getEnv)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ inputs: a.prompt, parameters: { width: a.width, height: a.height } }),
-      },
-    );
-    return toOut(bytes, mime);
-  };
-  return fanOut(a.count, one, a.warnings);
-}
-
-// ─── Router ──────────────────────────────────────────────────────────
-
-async function dispatchVendor(a: DispatchArgs): Promise<VendorOut[]> {
-  switch (a.def.vendor) {
-    case 'mock': return dispatchMock(a);
-    case 'pollinations': return dispatchPollinations(a);
-    case 'google': return dispatchGemini(a);
-    case 'openai': return dispatchOpenAi(a);
-    case 'fal': return dispatchFal(a);
-    case 'cloudflare': return dispatchCloudflare(a);
-    case 'huggingface': return dispatchHuggingFace(a);
-    default: throw new Response(`unknown vendor for ${a.def.id}`, { status: 500 });
-  }
-}
-
-function modelsResponse() {
+function modelsAction() {
   const forceMock = (getEnv('AI_IMAGE_VENDOR') ?? '').toLowerCase() === 'mock';
   return {
     models: IMAGE_MODELS.map((m) => {
       const available = forceMock ? m.vendor === 'mock' : isModelAvailable(m, getEnv);
       return {
         id: m.id,
-        available,
-        reason: available ? undefined : (m.keyEnv ? 'missing-key' : 'disabled'),
-        keyEnv: m.keyEnv,
-        caps: m.caps,
+        vendor: m.vendor,
         tier: m.tier,
+        available,
+        reason: available ? undefined : 'unavailable',
+        caps: m.caps,
       };
     }),
     auto: forceMock ? 'mock:svg' : resolveAutoModel(getEnv).id,
+    pricingVersion: PRICING_VERSION,
+    usdPerCredit: USD_PER_CREDIT,
   };
 }
 
-function normalizeRefs(body: GenerateImageBody): Ref[] {
-  const refs: Ref[] = [];
-  let bytesTotal = 0;
-  for (const r of body.references ?? []) {
-    const role: ReferenceRole = r.role ?? 'image';
-    if (typeof r.dataUrl === 'string' && r.dataUrl.startsWith('data:')) {
-      const parsed = parseDataUrl(r.dataUrl);
-      if (!parsed) continue;
-      bytesTotal += parsed.bytes.length;
-      if (bytesTotal > MAX_REFS_BYTES) throw new Response('references exceed 6 MB', { status: 413 });
-      refs.push({ role, bytes: parsed.bytes, mime: parsed.mime });
-    } else if (typeof r.url === 'string' && /^https?:\/\//.test(r.url)) {
-      refs.push({ role, url: r.url });
+function resolveModel(requested: string | undefined): ImageModelDef {
+  const forceMock = (getEnv('AI_IMAGE_VENDOR') ?? '').toLowerCase() === 'mock';
+  if (forceMock) return findImageModel('mock:svg')!;
+  if (!requested || requested === 'auto') return resolveAutoModel(getEnv);
+  const def = findImageModel(requested);
+  if (!def) {
+    throw imageError('invalid_input', { message: `Unknown model: ${requested}` });
+  }
+  if (!isModelAvailable(def, getEnv)) {
+    throw imageError('unsupported_setting', {
+      message: `${def.id} is not enabled on this deployment.`,
+      providerError: `model unavailable: ${def.id} (${def.keyEnv ?? 'n/a'})`,
+    });
+  }
+  return def;
+}
+
+function estimateFor(body: GenerateBody) {
+  const def = resolveModel(body.model);
+  const settings = coerceSettings(def, {
+    aspectRatio: body.aspectRatio,
+    size: body.size,
+    quality: body.quality,
+    count: body.count,
+    seed: body.seed,
+    negativePrompt: body.negativePrompt,
+    referenceCount: body.references?.length ?? 0,
+  });
+  const cost = computeCost({
+    model: def.id,
+    imageCount: settings.count,
+    longEdge: settings.size,
+    quality: settings.quality,
+  });
+  return { def, settings, cost };
+}
+
+// ─── Generate ────────────────────────────────────────────────────────────────
+
+async function generateAction(req: Request, body: GenerateBody): Promise<Response> {
+  const caller = await requireCaller(req);
+  const { brandId, workspaceId } = await requireBrandAccess(caller, body.brandId);
+  const service = createServiceClient();
+
+  const userPrompt = (body.userPrompt ?? body.prompt ?? '').trim();
+  if (!userPrompt) {
+    throw imageError('invalid_input', { message: 'Describe the image you want.' });
+  }
+  if (userPrompt.length > 4000) {
+    throw imageError('invalid_input', { message: 'That prompt is too long (4000 characters max).' });
+  }
+
+  // ── Idempotency: the same key returns the same job, never a second charge.
+  const idempotencyKey = typeof body.idempotencyKey === 'string' && body.idempotencyKey.length <= 200
+    ? body.idempotencyKey
+    : null;
+  if (idempotencyKey) {
+    const { data: existing } = await service
+      .from('image_generation_jobs')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+    if (existing) {
+      return json(await shapeJobResponse(service, existing, workspaceId, ['duplicate request — returning the original job']));
     }
   }
-  if (typeof body.referenceImageUrl === 'string' && /^https?:\/\//.test(body.referenceImageUrl)) {
-    refs.push({ role: 'image', url: body.referenceImageUrl });
+
+  // ── Runaway guard.
+  const { count: activeCount } = await service
+    .from('image_generation_jobs')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .in('status', ['queued', 'running']);
+  if ((activeCount ?? 0) >= MAX_CONCURRENT_JOBS) {
+    throw imageError('rate_limited', {
+      message: 'Too many generations running. Wait for one to finish.',
+    });
   }
-  return refs;
+
+  const { def, settings, cost } = estimateFor(body);
+  const warnings = [...settings.adjustments];
+
+  // ── References: inline bytes or our own storage only. Never a caller URL.
+  const { resolved: references, warnings: refWarnings } = await resolveReferences(
+    body.references ?? [],
+    { brandId, userId: caller.userId, maxCount: settings.maxReferences, client: service },
+  );
+  warnings.push(...refWarnings);
+
+  // ── Create the job row FIRST so the work is durable before money moves.
+  const jobInsert = {
+    workspace_id: workspaceId,
+    brand_id: brandId,
+    user_id: caller.userId,
+    project_id: body.projectId && UUID_RE.test(body.projectId) ? body.projectId : null,
+    design_id: typeof body.designId === 'string' ? body.designId.slice(0, 200) : null,
+    status: 'queued',
+    operation: ['generate', 'variation', 'refine', 'regenerate'].includes(body.operation ?? '')
+      ? body.operation
+      : 'generate',
+    provider: def.vendor,
+    model: def.id,
+    user_prompt: userPrompt,
+    compiled_prompt: (body.compiledPrompt ?? '').trim() || null,
+    negative_prompt: settings.negativePrompt ?? null,
+    settings: {
+      aspectRatio: settings.aspectRatio,
+      size: settings.size,
+      quality: settings.quality ?? null,
+      count: settings.count,
+      seed: settings.seed ?? null,
+      vendorModel: vendorModelFor(def, getEnv),
+    },
+    input_assets: references.map((r) => r.descriptor),
+    estimated_credits: cost.credits,
+    pricing_version: cost.pricingVersion,
+    pricing_snapshot: cost.snapshot,
+    idempotency_key: idempotencyKey,
+  };
+
+  const { data: job, error: jobErr } = await service
+    .from('image_generation_jobs').insert(jobInsert).select('*').single();
+  if (jobErr || !job) {
+    // A unique violation means a concurrent request with the same key won.
+    if (idempotencyKey && jobErr?.code === '23505') {
+      const { data: winner } = await service
+        .from('image_generation_jobs').select('*')
+        .eq('workspace_id', workspaceId).eq('idempotency_key', idempotencyKey).maybeSingle();
+      if (winner) {
+        return json(await shapeJobResponse(service, winner, workspaceId, ['duplicate request']));
+      }
+    }
+    throw imageError('storage_failure', { providerError: `job insert: ${jobErr?.message}` });
+  }
+
+  const jobId = job.id as string;
+
+  // ── Reserve credits. Atomic; a shortfall never reaches the provider.
+  const { data: reservation, error: reserveErr } = await service.rpc('reserve_credits', {
+    _workspace_id: workspaceId,
+    _job_id: jobId,
+    _amount: cost.credits,
+    _idem_key: `reserve:${jobId}`,
+  });
+  if (reserveErr) {
+    await failJob(service, jobId, imageError('storage_failure', {
+      providerError: `reserve: ${reserveErr.message}`,
+    }));
+    throw imageError('storage_failure', { providerError: `reserve: ${reserveErr.message}` });
+  }
+  const reserved = reservation as { ok: boolean; error?: string; balance?: number; required?: number };
+  if (!reserved?.ok) {
+    const e = imageError('insufficient_credits', {
+      message: `This needs ${cost.credits} credits and you have ${reserved?.balance ?? 0}.`,
+    });
+    await failJob(service, jobId, e);
+    return errorResponse(e.normalized, {
+      jobId,
+      requiredCredits: cost.credits,
+      balance: reserved?.balance ?? 0,
+    });
+  }
+
+  // ── Run the provider under a deadline.
+  const startedAt = Date.now();
+  await service.from('image_generation_jobs')
+    .update({ status: 'running', started_at: new Date().toISOString() }).eq('id', jobId);
+
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), PROVIDER_DEADLINE_MS);
+
+  try {
+    const provider = providerFor(def);
+    const result = await provider({
+      def,
+      prompt: (body.compiledPrompt ?? '').trim() || userPrompt,
+      negativePrompt: settings.negativePrompt,
+      aspectRatio: settings.aspectRatio,
+      size: settings.size,
+      count: settings.count,
+      seed: settings.seed,
+      quality: settings.quality,
+      references: references.map((r) => ({ role: r.role, bytes: r.bytes, mime: r.mime })),
+      getEnv,
+      signal: controller.signal,
+    });
+    warnings.push(...result.warnings);
+
+    // ── Durable storage. Bytes outlive the request and any provider CDN.
+    const outputs = await storeOutputs(result.images, { brandId, jobId, client: service });
+
+    // ── Settle against what was actually delivered, refund the difference.
+    const settled = settleCost(
+      { model: def.id, imageCount: outputs.length, longEdge: settings.size, quality: settings.quality },
+      result.usage,
+    );
+    const { data: settlement } = await service.rpc('settle_credits', {
+      _workspace_id: workspaceId,
+      _job_id: jobId,
+      _reserved: cost.credits,
+      _actual: settled.credits,
+      _idem_key: `settle:${jobId}`,
+    });
+
+    const latencyMs = Date.now() - startedAt;
+    const { data: finished } = await service
+      .from('image_generation_jobs')
+      .update({
+        status: 'succeeded',
+        output_assets: outputs,
+        usage: result.usage ?? null,
+        provider_request_id: result.providerRequestId ?? null,
+        cost_usd: settled.usd,
+        cost_source: settled.source,
+        pricing_version: settled.pricingVersion,
+        pricing_snapshot: settled.snapshot,
+        charged_credits: (settlement as { charged?: number } | null)?.charged ?? settled.credits,
+        latency_ms: latencyMs,
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', jobId)
+      .select('*')
+      .single();
+
+    return json(await shapeJobResponse(service, finished ?? job, workspaceId, warnings));
+  } catch (err) {
+    const e = err instanceof ImageGenerationError ? err : normalizeThrown(def.vendor, err);
+    // The whole reservation goes back: a failed job costs nothing.
+    await service.rpc('release_credits', {
+      _workspace_id: workspaceId,
+      _job_id: jobId,
+      _reserved: cost.credits,
+      _reason: `job ${e.normalized.code}`,
+      _idem_key: `release:${jobId}`,
+    });
+    await failJob(service, jobId, e, Date.now() - startedAt);
+    return errorResponse(e.normalized, { jobId, warnings: warnings.length ? warnings : undefined });
+  } finally {
+    clearTimeout(deadline);
+  }
 }
+
+async function failJob(
+  service: ReturnType<typeof createServiceClient>,
+  jobId: string,
+  err: ImageGenerationError,
+  latencyMs?: number,
+): Promise<void> {
+  await service.from('image_generation_jobs').update({
+    status: 'failed',
+    error_code: err.normalized.code,
+    error_message: err.normalized.message,
+    latency_ms: latencyMs ?? null,
+    completed_at: new Date().toISOString(),
+  }).eq('id', jobId);
+
+  // Raw provider material — private table, no client role can read it.
+  if (err.normalized.providerError || err.normalized.providerStatus) {
+    await service.from('image_generation_job_diagnostics').upsert({
+      job_id: jobId,
+      provider_status: err.normalized.providerStatus ?? null,
+      provider_error: err.normalized.providerError ?? null,
+      detail: { code: err.normalized.code },
+    });
+  }
+}
+
+async function cancelAction(req: Request, body: GenerateBody): Promise<Response> {
+  const caller = await requireCaller(req);
+  const jobId = body.jobId;
+  if (!jobId || !UUID_RE.test(jobId)) {
+    throw imageError('invalid_input', { message: 'A job id is required to cancel.' });
+  }
+  const service = createServiceClient();
+  const { data: job } = await service
+    .from('image_generation_jobs').select('*').eq('id', jobId).maybeSingle();
+  if (!job) throw imageError('invalid_input', { message: 'That job no longer exists.' });
+  if (job.user_id !== caller.userId) {
+    throw imageError('authentication', { message: 'That job belongs to another account.' });
+  }
+  if (!['queued', 'running'].includes(job.status)) {
+    return json(await shapeJobResponse(service, job, job.workspace_id, ['job had already finished']));
+  }
+
+  await service.rpc('release_credits', {
+    _workspace_id: job.workspace_id,
+    _job_id: jobId,
+    _reserved: job.estimated_credits ?? 0,
+    _reason: 'cancelled by user',
+    _idem_key: `release:${jobId}`,
+  });
+  const { data: cancelled } = await service
+    .from('image_generation_jobs')
+    .update({ status: 'cancelled', error_code: 'cancelled', completed_at: new Date().toISOString() })
+    .eq('id', jobId).select('*').single();
+
+  return json(await shapeJobResponse(service, cancelled ?? job, job.workspace_id, []));
+}
+
+// ─── Response shaping ────────────────────────────────────────────────────────
+
+async function shapeJobResponse(
+  service: ReturnType<typeof createServiceClient>,
+  job: Record<string, unknown>,
+  workspaceId: string,
+  warnings: string[],
+): Promise<JobResponse> {
+  const { data: account } = await service
+    .from('credit_accounts')
+    .select('balance_credits, reserved_credits')
+    .eq('workspace_id', workspaceId)
+    .maybeSingle();
+
+  return {
+    job: {
+      id: job.id as string,
+      status: job.status as string,
+      operation: job.operation as string,
+      provider: job.provider as string,
+      model: job.model as string,
+      userPrompt: job.user_prompt as string,
+      compiledPrompt: (job.compiled_prompt as string) ?? null,
+      settings: (job.settings as Record<string, unknown>) ?? {},
+      outputs: (job.output_assets as unknown[]) ?? [],
+      estimatedCredits: (job.estimated_credits as number) ?? 0,
+      chargedCredits: (job.charged_credits as number) ?? 0,
+      costUsd: (job.cost_usd as number) ?? null,
+      costSource: (job.cost_source as string) ?? null,
+      latencyMs: (job.latency_ms as number) ?? null,
+      errorCode: (job.error_code as string) ?? null,
+      errorMessage: (job.error_message as string) ?? null,
+      createdAt: job.created_at as string,
+      completedAt: (job.completed_at as string) ?? null,
+    },
+    credits: {
+      balance: (account as { balance_credits?: number } | null)?.balance_credits ?? 0,
+      reserved: (account as { reserved_credits?: number } | null)?.reserved_credits ?? 0,
+    },
+    warnings: warnings.length ? warnings : undefined,
+  };
+}
+
+// ─── Entry ───────────────────────────────────────────────────────────────────
 
 Deno.serve(withCors(cors, async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
-  let body: GenerateImageBody;
+  let body: GenerateBody;
   try {
-    body = (await req.json()) as GenerateImageBody;
+    body = (await req.json()) as GenerateBody;
   } catch {
-    return new Response('Bad JSON', { status: 400 });
+    return json({ error: 'invalid_input', message: 'Malformed request.' }, 400);
   }
 
-  if (body.action === 'models') {
-    return Response.json(modelsResponse(), { headers: cors });
-  }
-
-  const sessionId = requireSession(body as Record<string, unknown>);
-  const ipAddress = getClientIp(req);
-  const prompt = (body.prompt ?? '').trim();
-  if (prompt.length === 0) {
-    return Response.json({ error: 'prompt is required' }, { status: 400, headers: cors });
-  }
-  const width = Math.min(Math.max(body.width ?? 1024, 64), 4096);
-  const height = Math.min(Math.max(body.height ?? 1024, 64), 4096);
-  const count = Math.min(Math.max(Math.trunc(body.count ?? 1) || 1, 1), MAX_COUNT);
-
-  // Resolve the model BEFORE rate limiting so a misconfigured pick is a
-  // cheap 409, not a consumed quota slot.
-  const forceMock = (getEnv('AI_IMAGE_VENDOR') ?? '').toLowerCase() === 'mock';
-  let def: ImageModelDef | undefined;
-  if (forceMock) def = findImageModel('mock:svg');
-  else if (!body.model || body.model === 'auto') def = resolveAutoModel(getEnv);
-  else def = findImageModel(body.model);
-  if (!def) {
-    return Response.json({ error: `unknown model: ${body.model}` }, { status: 400, headers: cors });
-  }
-  if (!isModelAvailable(def, getEnv)) {
-    return Response.json(
-      { error: 'model-unavailable', model: def.id, keyEnv: def.keyEnv,
-        message: `${def.id} needs ${def.keyEnv ?? 'configuration'} set as a Supabase secret.` },
-      { status: 409, headers: cors },
-    );
-  }
-
-  let refs: Ref[];
   try {
-    refs = normalizeRefs(body);
-  } catch (e) {
-    if (e instanceof Response) return new Response(await e.text(), { status: e.status, headers: cors });
-    throw e;
-  }
-  if (def.caps.maxRefs === 0) refs = refs.filter((r) => r.url); // vendors read URLs only via legacy path
+    switch (body.action) {
+      case 'models':
+        return json(modelsAction());
 
-  await enforceRateLimit({
-    sessionId,
-    ipAddress,
-    functionName: FUNCTION_NAME,
-    windows: [{ windowMinutes: 60, maxCalls: 60 }],
-    ipWindow: { windowMinutes: 1440, maxCalls: 400 },
-  });
+      case 'estimate': {
+        await requireCaller(req);
+        const { def, settings, cost } = estimateFor(body);
+        return json({
+          model: def.id,
+          settings: {
+            aspectRatio: settings.aspectRatio, size: settings.size,
+            quality: settings.quality ?? null, count: settings.count,
+            maxReferences: settings.maxReferences,
+          },
+          credits: cost.credits,
+          usd: cost.usd,
+          usdPerCredit: USD_PER_CREDIT,
+          pricingVersion: cost.pricingVersion,
+          adjustments: settings.adjustments,
+        });
+      }
 
-  const warnings: string[] = [];
-  try {
-    const outs = await dispatchVendor({
-      def, prompt, negativePrompt: body.negativePrompt?.trim() || undefined,
-      width, height, count,
-      seed: typeof body.seed === 'number' && Number.isFinite(body.seed) ? body.seed : undefined,
-      refs, warnings,
-    });
-    // Charge one quota slot per delivered image.
-    await Promise.all(outs.map(() => logCall({
-      sessionId, ipAddress, functionName: FUNCTION_NAME, model: def!.id, inputTokens: 0, outputTokens: 0,
-    })));
-    const images: GeneratedImage[] = outs.map((o) => ({
-      imageUrl: o.dataUrl, width: o.width, height: o.height, seed: o.seed,
-    }));
-    const result: GenerateImageResult = {
-      images,
-      imageUrl: images[0].imageUrl,
-      width: images[0].width,
-      height: images[0].height,
-      mock: def.vendor === 'mock',
-      prompt,
-      model: def.id,
-      warnings: warnings.length ? warnings : undefined,
-    };
-    return Response.json(result, { headers: cors });
-  } catch (err) {
-    if (err instanceof Response) {
-      const text = await err.text().catch(() => 'vendor error');
-      return Response.json({ error: 'vendor-error', model: def.id, message: text }, { status: err.status, headers: cors });
+      case 'cancel':
+        return await cancelAction(req, body);
+
+      default:
+        return await generateAction(req, body);
     }
-    return Response.json(
-      { error: 'vendor-error', model: def.id, message: (err as Error).message },
-      { status: 502, headers: cors },
-    );
+  } catch (err) {
+    if (err instanceof ImageGenerationError) {
+      // Log the private half; return only the normalized half.
+      if (err.normalized.providerError) {
+        console.error(`[${FUNCTION_NAME}] ${err.normalized.code}: ${err.normalized.providerError}`);
+      }
+      return errorResponse(err.normalized);
+    }
+    console.error(`[${FUNCTION_NAME}] unhandled:`, err);
+    return json({ error: 'unknown', message: 'Image generation failed.' }, 500);
   }
 }));
+
+/** Exported for tests that import this module directly. */
+export { creditsToUsd };
