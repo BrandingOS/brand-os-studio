@@ -324,7 +324,29 @@ Deliberately built as seams, not as scaffolding:
 - **Billing**: the ledger is the substrate. Stripe becomes another `grant`
   source; nothing else moves.
 
-## 13. Known limitations
+## 13. Deployment state
+
+Applied to `ciojgoozobzbeglwdxcz` on 2026-08-18:
+
+| Migration | What |
+|---|---|
+| 025 | projects, jobs, diagnostics, credit accounts + ledger, money functions |
+| 026 | `can_view_brand` / `can_edit_brand`; 025's policies re-pointed |
+| 027 | trigger resolving a project's billing workspace |
+| 028 | `assets` + brand-assets storage policies re-pointed (pre-existing bug) |
+
+Edge Function `ai-generate-image` deployed the same day. Secrets in use:
+`GEMINI_API_KEY`, `OPENAI_API_KEY`. `FAL_API_KEY`, `CLOUDFLARE_*` and
+`HUGGINGFACE_API_KEY` are unset, so those models report `available: false` and
+are not offered.
+
+Top up a workspace:
+
+```sql
+select public.grant_credits('<workspace-uuid>', 5000, 'manual top-up');
+```
+
+## 14. Known limitations
 
 - Generation is **synchronous**: the request is held open for up to 170 s. A
   refresh mid-run loses the spinner (the job row and its outputs are still
@@ -335,3 +357,12 @@ Deliberately built as seams, not as scaffolding:
   audit); they accumulate in `brand-assets`.
 - Local/seed brands (non-uuid ids) cannot generate: no workspace, so no
   tenancy and no credit account. The Hub says so explicitly.
+- The free Pollinations tier rate-limits concurrent requests, so asking it for
+  4 images often yields fewer. That is now stated rather than silent, and only
+  what was delivered is charged.
+- The **insufficient-credit refusal** is verified at the client (pre-flight
+  block and server-refusal rendering, browser E2E) and in SQL
+  (`reserve_credits` refuses an unaffordable amount and never goes negative),
+  but not yet against the deployed stack — reaching a zero balance would mean
+  either ~$5 of unnecessary paid generations or direct DB access, and neither
+  was warranted for QA.
