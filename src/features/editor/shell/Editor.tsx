@@ -57,6 +57,7 @@ import type {
 } from '@/features/editor/ai/types';
 import { EditorAppRail, type RailItem } from './v2/EditorAppRail';
 import { EditorSecondaryPanel } from './v2/EditorSecondaryPanel';
+import { isAiImageDoc } from './v2/panels/generate/aiMetadata';
 import {
   EditorFloatingToolbar,
   type ToolbarScope,
@@ -147,6 +148,18 @@ interface EditorProps {
    * staged so they can tweak + send. Optional.
    */
   initialPrompt?: string;
+  /**
+   * AI Studio hand-off from the Design hero (`?mode=image&model=&format=&count=`).
+   * `autoStart` runs the Image flow with `initialPrompt` as soon as the
+   * panel mounts (compile → review → generate). Optional.
+   */
+  initialAi?: {
+    mode?: 'image' | 'editable';
+    model?: string;
+    formatId?: string;
+    count?: number;
+    autoStart?: boolean;
+  };
 }
 
 export function Editor({
@@ -159,6 +172,7 @@ export function Editor({
   aiAgent,
   onShare,
   initialPrompt,
+  initialAi,
 }: EditorProps) {
   const adapterRef = useRef<EditorAdapter | null>(null);
   const [doc, setDoc] = useState<BrandOSDocument>(initialDocument);
@@ -178,8 +192,10 @@ export function Editor({
   // staged prompt (user came from /b/:slug/design's hero with ?prompt=…),
   // open the Generate panel by default so the prompt is visible and
   // submit-ready.
+  // A doc born from AI (metadata.ai.origin === 'ai-image') also opens on
+  // Generate — that's the "AI Studio" mode: same editor, AI panel first.
   const [activeRail, setActiveRail] = useState<RailItem>(
-    initialPrompt ? 'generate' : 'insert',
+    initialPrompt || isAiImageDoc(initialDocument) ? 'generate' : 'insert',
   );
   const [secondaryOpen, setSecondaryOpen] = useState(true);
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -685,6 +701,13 @@ export function Editor({
                 onCollapse={() => setSecondaryOpen(false)}
                 agent={effectiveAgent ?? null}
                 initialPrompt={initialPrompt}
+                generateOptions={initialAi ? {
+                  initialMode: initialAi.mode,
+                  initialModel: initialAi.model,
+                  initialFormatId: initialAi.formatId,
+                  initialCount: initialAi.count,
+                  autoStart: initialAi.autoStart,
+                } : undefined}
                 getContext={(): AICommandContext => ({
                   activePageId,
                   selection: selection.layerIds,

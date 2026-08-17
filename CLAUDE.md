@@ -215,8 +215,8 @@ Phase 4 ships the BrandOS content universe in 4 sub-phases. Read
   prompt + content-type + Editable design / Image only radio,
   25 AI prompt presets distributed across categories (clicking a
   preset card prefills the generator), `ai-generate-image` Edge
-  Function (MOCK ONLY per Q-decision — vendor swap is a
-  1-function-body change once `AI_IMAGE_VENDOR` is configured).
+  Function (now a real, model-routed dispatcher — see "AI image
+  generation — AI Studio" below).
 - **4.4 Community Templates** — admin approval queue at
   `/admin/templates/queue` with Approve / Reject (with reason);
   `useIsAdmin()` hook reads `profiles.is_admin` (added in 4.1
@@ -275,7 +275,7 @@ checking if your change is the designated payoff.
 | 3 | Mockup family deferred from brandkit migration — `/b/:slug/brandkit/mockups` renders a "coming soon" placeholder, no template card | Step 9.3 commit 3b — mockup studio is its own feature, not a brandkit module | **Post-Phase-5 (mockup studio phase)** | Open |
 | 4 | `/_dev/editor` is still the primary manual-test surface for the unified editor; the production route exists but launchpad's "Design with AI" is the first user-visible entry | Pre-Phase-3.5; partially addressed by 3.5 commit 9's launchpad re-point | **Phase 4.5** (when Templates → editor links land) | Partial — launchpad now has 1 entry; templates browser still pending |
 | 5 | Mode 1 (zero-state generate) not yet wired — needs Phase 4's template library | Phase 3.5 spec §2 (out of scope) | **Phase 5** | Open |
-| 6 | AI image generation absent | Phase 3.5 spec §2 | **Phase 5+** | **Mostly closed (2026-05-04 in Phase 4.3 + Phase 5).** Mock-only Edge Function + browser wrapper + place-on-canvas flow + GenerateWithAi UI + 25 prompt presets all ship. Still open: pick a real vendor for `AI_IMAGE_VENDOR` (1-function-body Edge Function swap). |
+| 6 | AI image generation absent | Phase 3.5 spec §2 | **Phase 5+** | **Closed (2026-08-17 — AI Studio).** Real multi-vendor Edge Function (Pollinations free · GPT Image · Nano Banana · fal · Cloudflare · HF), model registry + picker, brand-aware prompt compiler, brand reference images (logo + palette), 1–4 candidates, Variations / Refine / Regenerate. Owner action left: set vendor secrets + deploy. |
 | 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
 | 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
 | 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
@@ -804,6 +804,60 @@ brand-kit-next only):**
 7. Kit state is local-only until a backend `KitStateRepository`
    implementation lands (interface ready in `kit/repository.ts`).
 
+## AI image generation — "AI Studio" on `/b/:slug/design` (2026-08-17)
+
+The Design page (`features/design-alt/DesignHero.tsx`) is an ENTRANCE, not a
+generator: Image mode seeds an empty doc tagged `metadata.ai.origin =
+'ai-image'` and navigates to `/b/:slug/design/:id?prompt=…&mode=image&model=…
+&format=…`. The editor opens on the Generate rail (any `metadata.ai` doc does)
+and `panels/generate/GeneratePanel.tsx` runs the flow ON the canvas:
+
+```
+prompt ─▶ compileImagePrompt (Claude haiku via anthropic-proxy; deterministic
+          fallback) ─▶ CompiledPromptCard (EDITABLE review; Logo / Palette chips)
+       ─▶ buildBrandReferences (logo PNG via rasterizeLogo · palette swatch ·
+          previous image) ─▶ generateImage({model, count 1–4, references})
+       ─▶ N pages inserted after the active page in ONE undo step
+       ─▶ metadata.ai.generations[] record per page (Variations / Refine /
+          Regenerate read it back — survives reload)
+```
+
+Rules that bind:
+- **The model registry is `supabase/functions/_shared/imageModels.ts`** (ids
+  like `google:nano-banana`, `openai:gpt-image`, `pollinations:flux`, vendor,
+  caps, unlocking secret). `src/features/editor/ai/imageModels.ts` is the
+  display mirror; `imageModels.test.ts` fails when they drift. Adding a model
+  = one entry in each (+ a `dispatchX` in `ai-generate-image` for a new vendor).
+  The browser sends registry ids (or `auto`); the server NEVER silently swaps
+  vendors — a missing key is a 409 `model-unavailable` the panel shows inline
+  with the exact secret name. `{action:'models'}` returns availability for the
+  picker. Legacy `model:'flux'` aliases still resolve.
+- **Secrets are Supabase Edge Function secrets, never `VITE_`:**
+  `OPENAI_API_KEY` (GPT Image, uses `/v1/images/edits` when references are
+  attached), `GEMINI_API_KEY` (Nano Banana via `generateContent` +
+  `responseModalities:['IMAGE']`), `FAL_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` +
+  `CLOUDFLARE_API_TOKEN`, `HUGGINGFACE_API_KEY`. `AI_IMAGE_VENDOR=mock` forces
+  the deterministic mock. Vendor model ids are env-overridable
+  (`OPENAI_IMAGE_MODEL`, `GEMINI_IMAGE_MODEL`, …). Deploy with
+  `supabase functions deploy ai-generate-image`.
+- **The compiler enriches, never replaces** (`ai/imagePrompt/compileImagePrompt.ts`
+  — the owner's rules are in its system prompt and tests): keep the user's
+  intent; only relevant brand info; NO logo unless the user asks or the subject
+  is clearly branded (packaging, signage, ads, merch…); don't force every color;
+  a user color direction ("black and white") empties the brand palette; the
+  compiled prompt is shown editable before generation ("Skip review" is a
+  per-user pref, `brandos:ai-image:prefs`). Raw mode sends the exact words.
+- **Brand context reaches the model as IMAGES, not just words**
+  (`ai/imagePrompt/brandReferences.ts`): logo → `@/shared/brand/rasterizeLogo`
+  (1024² PNG, transparent), palette → canvas swatch card, previous → the page's
+  image. Built only for models whose caps allow refs; the server warns
+  `refs-unsupported` for prompt-only vendors and the panel says so.
+- Pages are the history (`EditorGenerationsStrip`); never add a second history
+  store. All vendor bytes come back as data URIs so Fabric export stays untainted.
+- Tests: `ai/imagePrompt/*.test.ts`, `ai/imageModels.test.ts`,
+  `shared/brand/rasterizeLogo.test.ts`, `panels/generate/aiMetadata.test.ts`,
+  `__tests__/e2e/aiImageStudio.flows.browser.test.tsx`.
+
 ## Guideline page — scheduled for from-scratch rebuild
 
 The Studio Guideline tab (`/b/:slug/guideline`, Chronicle shell +
@@ -903,6 +957,9 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos-theme` — workspace light/dark (scoped to `[data-workspace]`;
   the app-level next-themes provider is separate and defaults light —
   the legacy editor mirrors `brandos-theme` into it on mount)
+- `brandos:design:<brandId>:<designId>` — LocalDesignStorage body; when it overflows the ~5 MB quota (AI images as data URIs) the value is the marker `{"__idb":1}` and the body lives in IndexedDB `brandos-editor/kv` under the same key
+- `brandos:ai-image:prefs` — Generate panel prefs (model, count, brand-aware, skip-review)
+- `brandos.ai-image.anon-session` — anon session id for ai-generate-image rate limiting
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen
 

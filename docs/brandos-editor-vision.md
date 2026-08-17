@@ -431,7 +431,7 @@ Tracked here so future phases don't accidentally re-create it.
 | Debt | Source | Owner phase |
 |---|---|---|
 | Mode 1 (zero-state generate) not yet wired — needs Phase 4's template library to work well | Spec §2 (out of scope, deferred) | Phase 5 |
-| AI image generation absent (the agent can reference existing brand assets but cannot generate new ones) | Spec §2 | Phase 5+ |
+| ~~AI image generation absent~~ — **Closed 2026-08-17 (AI Studio):** model-routed `ai-generate-image` (Pollinations · GPT Image · Nano Banana · fal · CF · HF), registry + picker, brand-aware prompt compiler, logo/palette reference images, 1–4 candidates, Variations/Refine/Regenerate; see CLAUDE.md "AI image generation — AI Studio" | Spec §2 | Closed |
 | AI for resize variants — Phase 6 (`generateResizeVariants`) owns the reflow pipeline; AI not yet integrated there | Spec §2 | Phase 6 |
 | Cross-document AI workflows (e.g. emit a "design family" of N linked docs) | Spec §2 | Phase 6 |
 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Spec Q7 | Phase 5 if user feedback demands it |

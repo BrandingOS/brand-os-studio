@@ -9,6 +9,38 @@ import type { DesignSummary, IDesignStorage } from '@/core/types/services';
  * `listDesigns` returns rich `DesignSummary[]` for the My Designs
  * grid without loading every doc body.
  */
+import { idbStringStorage } from '@/shared/editor/idbStorage';
+
+// Bodies that hold AI-generated images (data URIs, hundreds of KB each)
+// routinely blow localStorage's ~5 MB quota. On QuotaExceededError the
+// body overflows into IndexedDB and a tiny marker stays in localStorage
+// so reads stay synchronous-looking and old bodies keep working.
+const IDB_MARKER = '{"__idb":1}';
+
+function isQuotaError(err: unknown): boolean {
+  return err instanceof DOMException
+    ? err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22 || err.code === 1014
+    : /quota/i.test(String((err as Error)?.message ?? err));
+}
+
+async function writeBody(key: string, json: string): Promise<void> {
+  const prev = localStorage.getItem(key);
+  try {
+    localStorage.setItem(key, json);
+    if (prev === IDB_MARKER) void idbStringStorage.removeItem(key);
+  } catch (err) {
+    if (!isQuotaError(err)) throw err;
+    await idbStringStorage.setItem(key, json);
+    try { localStorage.setItem(key, IDB_MARKER); } catch { /* marker is tiny; if even that fails, IDB alone still serves reads */ }
+  }
+}
+
+async function readBody(key: string): Promise<string | null> {
+  const raw = localStorage.getItem(key);
+  if (raw !== IDB_MARKER) return raw;
+  return idbStringStorage.getItem(key);
+}
+
 export class LocalDesignStorage implements IDesignStorage {
   private bodyKey(brandId: string, designId: string): string {
     return `brandos:design:${brandId}:${designId}`;
@@ -24,7 +56,7 @@ export class LocalDesignStorage implements IDesignStorage {
     data: unknown,
     meta?: Partial<DesignSummary>,
   ): Promise<void> {
-    localStorage.setItem(this.bodyKey(brandId, designId), JSON.stringify(data));
+    await writeBody(this.bodyKey(brandId, designId), JSON.stringify(data));
 
     // Compose / update the sibling summary.
     const existingRaw = localStorage.getItem(this.summaryKey(brandId, designId));
@@ -44,7 +76,7 @@ export class LocalDesignStorage implements IDesignStorage {
   }
 
   async loadDesign(brandId: string, designId: string): Promise<unknown | null> {
-    const raw = localStorage.getItem(this.bodyKey(brandId, designId));
+    const raw = await readBody(this.bodyKey(brandId, designId));
     return raw ? JSON.parse(raw) : null;
   }
 
@@ -87,6 +119,9 @@ export class LocalDesignStorage implements IDesignStorage {
   }
 
   async deleteDesign(brandId: string, designId: string): Promise<void> {
+    if (localStorage.getItem(this.bodyKey(brandId, designId)) === IDB_MARKER) {
+      void idbStringStorage.removeItem(this.bodyKey(brandId, designId));
+    }
     localStorage.removeItem(this.bodyKey(brandId, designId));
     localStorage.removeItem(this.summaryKey(brandId, designId));
   }

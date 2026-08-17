@@ -33,6 +33,14 @@ function isMissingTable(error: { code?: string; message?: string } | null): bool
   );
 }
 
+// Seed / local brands carry ids like `raqm-brand-001` or `brand_1786…`,
+// which can never satisfy the `brand_id uuid` column (Postgres 22P02). Their
+// designs live locally — same rule as everywhere else in the app.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isLocalBrand(brandId: string): boolean {
+  return !UUID_RE.test(brandId);
+}
+
 function rowToSummary(row: Record<string, unknown>): DesignSummary {
   return {
     id: row.id as string,
@@ -58,6 +66,7 @@ export class SupabaseDesignStorage implements IDesignStorage {
     data: unknown,
     meta?: Partial<DesignSummary>,
   ): Promise<void> {
+    if (isLocalBrand(brandId)) return this.fallback.saveDesign(brandId, designId, data, meta);
     const row: Record<string, unknown> = {
       brand_id: brandId,
       id: designId,
@@ -82,6 +91,7 @@ export class SupabaseDesignStorage implements IDesignStorage {
   }
 
   async loadDesign(brandId: string, designId: string): Promise<unknown | null> {
+    if (isLocalBrand(brandId)) return this.fallback.loadDesign(brandId, designId);
     const { data, error } = await designsTable()
       .select('data')
       .eq('brand_id', brandId)
@@ -97,6 +107,7 @@ export class SupabaseDesignStorage implements IDesignStorage {
   }
 
   async listDesigns(brandId: string): Promise<DesignSummary[]> {
+    if (isLocalBrand(brandId)) return this.fallback.listDesigns(brandId);
     const { data, error } = await designsTable()
       .select(SUMMARY_COLUMNS)
       .eq('brand_id', brandId)
@@ -115,6 +126,7 @@ export class SupabaseDesignStorage implements IDesignStorage {
   }
 
   async deleteDesign(brandId: string, designId: string): Promise<void> {
+    if (isLocalBrand(brandId)) return this.fallback.deleteDesign(brandId, designId);
     const { error } = await designsTable()
       .delete()
       .eq('brand_id', brandId)

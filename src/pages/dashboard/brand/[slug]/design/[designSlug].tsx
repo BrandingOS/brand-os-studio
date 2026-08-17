@@ -58,6 +58,19 @@ export default function BrandDesignEditorPage() {
     const v = searchParams.get('prompt');
     return v && v.trim().length > 0 ? v : undefined;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // AI Studio hand-off params (frozen the same way): ?mode=image|editable
+  // &model=<registry id|auto>&format=<preset id>&count=1..4. `autoStart`
+  // is implied by mode=image + a prompt.
+  const initialAi = useMemo(() => {
+    const mode = searchParams.get('mode');
+    const model = searchParams.get('model') ?? undefined;
+    const formatId = searchParams.get('format') ?? undefined;
+    const countRaw = Number(searchParams.get('count'));
+    const count = Number.isFinite(countRaw) && countRaw >= 1 ? Math.min(4, Math.trunc(countRaw)) : undefined;
+    if (!mode && !model && !formatId && !count) return undefined;
+    const m: 'image' | 'editable' | undefined = mode === 'image' || mode === 'editable' ? mode : undefined;
+    return { mode: m, model, formatId, count, autoStart: m === 'image' && !!initialPrompt };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [doc, setDoc] = useState<BrandOSDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
@@ -157,6 +170,7 @@ export default function BrandDesignEditorPage() {
         initialDocument={doc}
         brand={brand}
         initialPrompt={initialPrompt}
+        initialAi={initialAi}
         onBrandSwitch={onBrandSwitch}
         save={async (next) => {
           await designStorage.saveDesign(brand.id, doc.id, next);

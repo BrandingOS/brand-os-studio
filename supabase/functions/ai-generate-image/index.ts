@@ -1,31 +1,32 @@
 // Edge Function: ai-generate-image.
 //
-// ─── Status: pollinations default, mock fallback ──────────────────────
+// ─── Model-routed, multi-reference, multi-candidate ───────────────────
 //
-// Real image generation via Pollinations.ai (free, no key) by default.
-// Swap to any other vendor by setting AI_IMAGE_VENDOR (see vendors
-// table below). The browser contract is unchanged across vendors.
+// The browser sends a registry model id (`google:nano-banana`,
+// `openai:gpt-image`, `pollinations:flux`, … — see
+// `_shared/imageModels.ts`) plus optional reference images (brand logo,
+// palette swatch, a previous generation, a user upload) and a candidate
+// count (1–4). This function routes to the vendor, fans the count out,
+// and always answers the SAME shape:
 //
-// ─── Vendor dispatch ──────────────────────────────────────────────────
+//   { images: [{ imageUrl, width, height, seed? }], imageUrl /*legacy*/,
+//     mock, prompt, model, warnings? }
 //
-// AI_IMAGE_VENDOR=…    Behavior
-//   (unset)            → openai if OPENAI_API_KEY is set
-//                        else fal if FAL_API_KEY is set
-//                        else pollinations (free fallback; stretches)
-//   openai             → OpenAI gpt-image-1 (needs OPENAI_API_KEY,
-//                        ~$0.04/image medium quality, respects aspect)
-//   fal                → Fal.ai Flux Schnell (needs FAL_API_KEY,
-//                        $0.003/image, respects aspect)
-//   pollinations       → Pollinations.ai (free, no key; SANA model
-//                        silently stretches non-square aspects)
-//   cloudflare         → Cloudflare Workers AI (Flux schnell; needs
-//                        CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN)
-//   huggingface        → HF Inference API (needs HUGGINGFACE_API_KEY)
-//   mock               → deterministic SVG mock (no network)
+// Every vendor's bytes are fetched server-side and returned as data URIs
+// so Fabric can export without tainting the canvas (Pollinations 403s
+// browser fetches that carry an Origin header).
 //
-// To add a paid/better vendor (Replicate, Fal, Stability, OpenAI),
-// add a `dispatchX` function below and a case in `dispatchVendor`.
-// Everything else stays the same.
+// Two actions:
+//   { action: 'models' }  → { models: [{ id, available, reason? }] }
+//   default               → generate
+//
+// Secrets (set with `supabase secrets set …`): OPENAI_API_KEY,
+// GEMINI_API_KEY, FAL_API_KEY, CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN,
+// HUGGINGFACE_API_KEY. A model whose key is missing reports
+// `available:false` and refuses with 409 — never silently falls back to a
+// different vendor than the one the user chose. `model:'auto'` picks the
+// best AVAILABLE model (AUTO_ORDER). AI_IMAGE_VENDOR=mock forces the
+// deterministic mock for every request (dev / CI).
 
 import { corsHeaders } from '../_shared/cors.ts';
 import {
@@ -35,54 +36,97 @@ import {
   requireSession,
   withCors,
 } from '../_shared/ai.ts';
+import {
+  IMAGE_MODELS,
+  findImageModel,
+  isModelAvailable,
+  resolveAutoModel,
+  vendorModelFor,
+  type ImageModelDef,
+} from '../_shared/imageModels.ts';
 
 const FUNCTION_NAME = 'ai-generate-image';
+const MAX_COUNT = 4;
+const MAX_REFS_BYTES = 6 * 1024 * 1024;
 
 const cors = {
   ...corsHeaders,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const getEnv = (k: string) => Deno.env.get(k);
+
+// ─── Contract ────────────────────────────────────────────────────────
+
+export type ReferenceRole = 'logo' | 'palette' | 'style' | 'image' | 'previous';
+
+interface ReferenceInput {
+  role?: ReferenceRole;
+  /** Inline image (preferred — reaches every vendor that accepts refs). */
+  dataUrl?: string;
+  /** Public URL (only Pollinations / fal consume URLs directly). */
+  url?: string;
+}
+
 interface GenerateImageBody {
+  action?: 'models' | 'generate';
   sessionId?: string;
   prompt?: string;
-  /** width × height — defaults to 1024×1024. */
+  negativePrompt?: string;
   width?: number;
   height?: number;
-  /** Vendor model. Pollinations: 'flux' | 'turbo' | 'gptimage' | 'kontext'. */
+  /** Registry id, legacy alias ('flux'), or 'auto'. */
   model?: string;
-  /** Optional seed for reproducibility — random when omitted. */
+  count?: number;
   seed?: number;
-  /** Optional reference image URL — when set, dispatches the image-to-
-   *  image model (Pollinations Kontext) and passes the URL as the
-   *  `image` param. The URL must be publicly fetchable from
-   *  Pollinations' servers. */
+  references?: ReferenceInput[];
+  /** Legacy single public reference URL — still honoured. */
   referenceImageUrl?: string;
 }
 
-interface GenerateImageResult {
-  /** SVG (mock) or PNG (real vendor) data URI or absolute URL. */
+interface GeneratedImage {
   imageUrl: string;
-  /** True when the response came from the mock fallback (no real vendor configured). */
-  mock: boolean;
-  /** Echo of the prompt for client-side captioning. */
-  prompt: string;
-  /** Actual pixel dimensions of the generated image. Pollinations often
-   *  returns at a smaller size than requested; the browser uses these
-   *  to size the page exactly so there's never any stretch / crop. */
   width?: number;
   height?: number;
+  seed?: number;
 }
 
-// ─── Image header parsing ───────────────────────────────────────────
-// Read native dimensions out of the raw bytes so the browser gets
-// reliable W×H without having to load + measure the image. Supports
-// PNG (IHDR) and JPEG (SOF markers). Returns null on unrecognized
-// formats — the caller falls back to the requested size.
+interface GenerateImageResult {
+  images: GeneratedImage[];
+  /** = images[0].imageUrl — kept for older callers. */
+  imageUrl: string;
+  width?: number;
+  height?: number;
+  mock: boolean;
+  prompt: string;
+  model: string;
+  warnings?: string[];
+}
+
+interface Ref {
+  role: ReferenceRole;
+  bytes?: Uint8Array;
+  mime?: string;
+  url?: string;
+}
+
+interface VendorOut { dataUrl: string; width?: number; height?: number; seed?: number }
+
+interface DispatchArgs {
+  def: ImageModelDef;
+  prompt: string;
+  negativePrompt?: string;
+  width: number;
+  height: number;
+  count: number;
+  seed?: number;
+  refs: Ref[];
+  warnings: string[];
+}
+
+// ─── Byte helpers ────────────────────────────────────────────────────
 
 function readImageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
-  // PNG: 89 50 4E 47 0D 0A 1A 0A signature; IHDR starts at byte 8.
-  // width = big-endian uint32 at offset 16, height at offset 20.
   if (
     bytes.length >= 24 &&
     bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
@@ -91,16 +135,13 @@ function readImageDimensions(bytes: Uint8Array): { width: number; height: number
     const h = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
     if (w > 0 && h > 0) return { width: w, height: h };
   }
-  // JPEG: starts with 0xFF 0xD8. Scan for SOF markers (FFC0..FFCF
-  // except FFC4/C8/CC). The two bytes after marker + length give
-  // precision then height (BE16) then width (BE16).
   if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     let i = 2;
     while (i + 9 < bytes.length) {
       if (bytes[i] !== 0xff) { i++; continue; }
       const marker = bytes[i + 1];
       if (marker === 0xd8 || marker === 0x01) { i += 2; continue; }
-      if (marker === 0xd9 || marker === 0xda) break; // EOI / SOS
+      if (marker === 0xd9 || marker === 0xda) break;
       const segLen = (bytes[i + 2] << 8) | bytes[i + 3];
       if (segLen < 2) break;
       const isSof =
@@ -115,270 +156,309 @@ function readImageDimensions(bytes: Uint8Array): { width: number; height: number
       i += 2 + segLen;
     }
   }
+  // WebP (VP8X / VP8 / VP8L) — RIFF....WEBP
+  if (
+    bytes.length >= 30 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    const chunk = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+    if (chunk === 'VP8X') {
+      const w = 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16));
+      const h = 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16));
+      return { width: w, height: h };
+    }
+    if (chunk === 'VP8 ') {
+      const w = (bytes[26] | (bytes[27] << 8)) & 0x3fff;
+      const h = (bytes[28] | (bytes[29] << 8)) & 0x3fff;
+      if (w > 0 && h > 0) return { width: w, height: h };
+    }
+    if (chunk === 'VP8L') {
+      const b0 = bytes[21], b1 = bytes[22], b2 = bytes[23], b3 = bytes[24];
+      const w = 1 + (((b1 & 0x3f) << 8) | b0);
+      const h = 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6));
+      return { width: w, height: h };
+    }
+  }
   return null;
-}
-
-function buildMockSvg(prompt: string, width: number, height: number): string {
-  const safePrompt = prompt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 120);
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}' preserveAspectRatio='xMidYMid slice'>
-    <defs>
-      <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
-        <stop offset='0' stop-color='#1a1a2e'/>
-        <stop offset='1' stop-color='#6366f1'/>
-      </linearGradient>
-    </defs>
-    <rect width='100%' height='100%' fill='url(#g)'/>
-    <text x='50%' y='40%' text-anchor='middle' fill='#ffffff' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.04)}' font-weight='600'>AI image (mock)</text>
-    <text x='50%' y='52%' text-anchor='middle' fill='#ffffffcc' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.025)}'>${safePrompt}</text>
-    <text x='50%' y='62%' text-anchor='middle' fill='#ffffff88' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.018)}'>Set AI_IMAGE_VENDOR to swap to a real vendor.</text>
-  </svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-// ─── Vendor: Pollinations.ai ─────────────────────────────────────────
-// Free, no API key, no signup.
-//
-// IMPORTANT: Pollinations returns 403 to browser requests that include
-// an `Origin` header (i.e. `<img crossOrigin="anonymous">` or fetch
-// from JS). To make the response usable in both <img> tags AND on a
-// Fabric canvas (which needs CORS for untainted export), we fetch the
-// PNG bytes server-side here and return a data URI. The browser then
-// gets a same-origin-equivalent payload, no CORS handshake needed.
-async function dispatchPollinations(
-  prompt: string,
-  width: number,
-  height: number,
-  opts: { model?: string; seed?: number; referenceImageUrl?: string } = {},
-): Promise<string> {
-  const encoded = encodeURIComponent(prompt).slice(0, 1500);
-  const allowedModels = new Set(['flux', 'turbo', 'gptimage', 'kontext']);
-  // Kontext is paid (enter.pollinations.ai). For the free tier we use
-  // the requested model (default flux) and pass `image` for img2img
-  // when a reference is provided — Pollinations Flux accepts the
-  // image= param on the free endpoint.
-  const model = opts.model && allowedModels.has(opts.model) ? opts.model : 'flux';
-  const params = new URLSearchParams({
-    width: String(width),
-    height: String(height),
-    nologo: 'true',
-    enhance: 'true',
-    model,
-    referrer: 'brandos',
-  });
-  if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) {
-    params.set('seed', String(Math.trunc(opts.seed)));
-  }
-  if (opts.referenceImageUrl) {
-    params.set('image', opts.referenceImageUrl);
-  }
-  const url = `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
-  const res = await fetch(url, { headers: { 'User-Agent': 'brandos-edge/1.0' } });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Response(`pollinations ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
-  }
-  const ct = res.headers.get('content-type') ?? 'image/jpeg';
-  const buf = new Uint8Array(await res.arrayBuffer());
-  const dims = readImageDimensions(buf);
-  return {
-    dataUrl: `data:${ct};base64,${base64Encode(buf)}`,
-    width: dims?.width,
-    height: dims?.height,
-  };
-}
-
-// ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
-// Free tier (10k neurons/day). Real Flux schnell. Returns the image
-// bytes; we re-encode to a data URI so the browser contract is the
-// same (`imageUrl` is renderable directly).
-async function dispatchCloudflare(prompt: string, width: number, height: number): Promise<string> {
-  const accountId = Deno.env.get('CLOUDFLARE_ACCOUNT_ID');
-  const apiToken = Deno.env.get('CLOUDFLARE_API_TOKEN');
-  if (!accountId || !apiToken) {
-    throw new Response('cloudflare vendor selected but CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing', { status: 500 });
-  }
-  const model = '@cf/black-forest-labs/flux-1-schnell';
-  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
-    body: JSON.stringify({ prompt, width, height }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Response(`cloudflare ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
-  }
-  // Workers AI returns either binary image/png or { result: { image: <base64> } } depending on model.
-  const ct = res.headers.get('content-type') ?? '';
-  if (ct.startsWith('image/')) {
-    const buf = new Uint8Array(await res.arrayBuffer());
-    return `data:${ct};base64,${base64Encode(buf)}`;
-  }
-  const j = await res.json() as { result?: { image?: string } };
-  const b64 = j?.result?.image;
-  if (!b64) throw new Response('cloudflare returned no image', { status: 502 });
-  return `data:image/png;base64,${b64}`;
-}
-
-// ─── Vendor: Hugging Face Inference API ──────────────────────────────
-async function dispatchHuggingFace(prompt: string, _width: number, _height: number): Promise<string> {
-  const key = Deno.env.get('HUGGINGFACE_API_KEY');
-  if (!key) throw new Response('huggingface vendor selected but HUGGINGFACE_API_KEY missing', { status: 500 });
-  const model = Deno.env.get('HUGGINGFACE_MODEL') ?? 'black-forest-labs/FLUX.1-schnell';
-  const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ inputs: prompt }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Response(`huggingface ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
-  }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  const ct = res.headers.get('content-type') ?? 'image/png';
-  return `data:${ct};base64,${base64Encode(buf)}`;
 }
 
 function base64Encode(bytes: Uint8Array): string {
   let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
   return btoa(bin);
 }
 
-// ─── Vendor: OpenAI ──────────────────────────────────────────────────
-// gpt-image-1 (preferred) and dall-e-3 both honour aspect ratio via
-// their fixed `size` enum — output content is properly composed, not
-// stretched. gpt-image-1 always returns base64; dall-e-3 returns a
-// URL by default but we request b64_json for a consistent path.
-//
-// Sizes:
-//   gpt-image-1 → 1024x1024 | 1024x1536 | 1536x1024 | auto
-//   dall-e-3    → 1024x1024 | 1024x1792 | 1792x1024
-async function dispatchOpenAi(
-  prompt: string,
-  width: number,
-  height: number,
-  opts: { referenceImageUrl?: string } = {},
-): Promise<{ dataUrl: string; width?: number; height?: number }> {
-  const key = Deno.env.get('OPENAI_API_KEY');
-  if (!key) throw new Response('OPENAI vendor selected but OPENAI_API_KEY missing', { status: 500 });
+function base64Decode(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
 
-  const model = Deno.env.get('OPENAI_IMAGE_MODEL') || 'gpt-image-1';
-  const quality = Deno.env.get('OPENAI_IMAGE_QUALITY') || (model === 'gpt-image-1' ? 'medium' : 'standard');
+function parseDataUrl(dataUrl: string): { mime: string; bytes: Uint8Array } | null {
+  const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(dataUrl);
+  if (!m) return null;
+  const mime = m[1] || 'application/octet-stream';
+  if (!m[2]) return { mime, bytes: new TextEncoder().encode(decodeURIComponent(m[3])) };
+  try {
+    return { mime, bytes: base64Decode(m[3]) };
+  } catch {
+    return null;
+  }
+}
 
-  // Snap our requested aspect to the nearest OpenAI-supported size.
-  // OpenAI is strict about the `size` value — it errors on anything
-  // not in its enum.
-  const aspect = width / height;
-  const isGpt = model === 'gpt-image-1';
-  let size: string;
-  if (Math.abs(aspect - 1) < 0.2) {
-    size = '1024x1024';
-  } else if (aspect > 1) {
-    size = isGpt ? '1536x1024' : '1792x1024';
-  } else {
-    size = isGpt ? '1024x1536' : '1024x1792';
-  }
-
-  const body: Record<string, unknown> = {
-    model,
-    prompt,
-    size,
-    n: 1,
-  };
-  if (isGpt) {
-    body.quality = quality;          // 'low' | 'medium' | 'high' | 'auto'
-    // gpt-image-1 always returns b64_json; no response_format field.
-  } else {
-    body.response_format = 'b64_json';
-    if (quality === 'hd') body.quality = 'hd';
-  }
-  // Reference image: gpt-image-1 supports it via the dedicated /edits
-  // endpoint, not /generations. Keep this commit scoped to text-to-
-  // image; img2img can land as a follow-up.
-  void opts.referenceImageUrl;
-
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errBody = await res.text().catch(() => '');
-    throw new Response(`openai ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
-  }
-  const out = await res.json() as {
-    data?: Array<{ b64_json?: string; url?: string }>;
-  };
-  const first = out.data?.[0];
-  if (!first?.b64_json && !first?.url) {
-    throw new Response('openai returned no image', { status: 502 });
-  }
-
-  let bytes: Uint8Array;
-  let contentType = 'image/png'; // OpenAI returns PNG
-  if (first.b64_json) {
-    const bin = atob(first.b64_json);
-    bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  } else {
-    // dall-e-3 URL fallback (shouldn't hit since we requested b64).
-    const imgRes = await fetch(first.url!);
-    if (!imgRes.ok) throw new Response(`openai image fetch ${imgRes.status}`, { status: 502 });
-    contentType = imgRes.headers.get('content-type') ?? 'image/png';
-    bytes = new Uint8Array(await imgRes.arrayBuffer());
-  }
-  const parsed = readImageDimensions(bytes);
+function toOut(bytes: Uint8Array, mime: string, seed?: number): VendorOut {
+  const dims = readImageDimensions(bytes);
   return {
-    dataUrl: `data:${contentType};base64,${base64Encode(bytes)}`,
-    width: parsed?.width,
-    height: parsed?.height,
+    dataUrl: `data:${mime};base64,${base64Encode(bytes)}`,
+    width: dims?.width,
+    height: dims?.height,
+    seed,
   };
 }
 
-// ─── Vendor: Fal.ai ──────────────────────────────────────────────────
-// Flux Schnell at $0.003 / image; honours custom width × height
-// natively so the output is never stretched. We submit and
-// synchronously wait for the result (Schnell averages ~2-4 s).
-async function dispatchFal(
-  prompt: string,
-  width: number,
-  height: number,
-  opts: { seed?: number; referenceImageUrl?: string } = {},
-): Promise<{ dataUrl: string; width?: number; height?: number }> {
-  const key = Deno.env.get('FAL_API_KEY');
-  if (!key) throw new Response('FAL vendor selected but FAL_API_KEY missing', { status: 500 });
+async function fetchBytes(url: string, init?: RequestInit): Promise<{ bytes: Uint8Array; mime: string }> {
+  const res = await fetch(url, init);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Response(`upstream ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
+  }
+  const mime = res.headers.get('content-type')?.split(';')[0] ?? 'image/png';
+  return { bytes: new Uint8Array(await res.arrayBuffer()), mime };
+}
 
-  // Schnell accepts custom dimensions clamped to 256–2048 in steps
-  // of 64. Pin to the closest valid bucket so the request never gets
-  // rejected for a fractional value.
-  const clamp = (n: number) => {
-    const lo = 256;
-    const hi = 2048;
-    const step = 64;
-    const r = Math.round(n / step) * step;
-    return Math.max(lo, Math.min(hi, r));
+/** Bytes for refs that arrived as URLs (vendors that need inline data). */
+async function inlineRefs(refs: Ref[]): Promise<Ref[]> {
+  const out: Ref[] = [];
+  for (const r of refs) {
+    if (r.bytes) { out.push(r); continue; }
+    if (r.url) {
+      try {
+        const { bytes, mime } = await fetchBytes(r.url);
+        out.push({ ...r, bytes, mime });
+      } catch { /* skip an unreachable ref rather than fail the run */ }
+    }
+  }
+  return out;
+}
+
+/** Nearest vendor aspect label from a W×H. */
+function aspectLabel(width: number, height: number, allowed: string[]): string {
+  const target = width / height;
+  let best = allowed[0];
+  let bestDiff = Infinity;
+  for (const a of allowed) {
+    const [w, h] = a.split(':').map(Number);
+    const diff = Math.abs(w / h - target);
+    if (diff < bestDiff) { bestDiff = diff; best = a; }
+  }
+  return best;
+}
+
+async function fanOut(count: number, one: (i: number) => Promise<VendorOut>, warnings: string[]): Promise<VendorOut[]> {
+  const settled = await Promise.allSettled(Array.from({ length: count }, (_, i) => one(i)));
+  const ok: VendorOut[] = [];
+  let firstErr: unknown = null;
+  for (const s of settled) {
+    if (s.status === 'fulfilled') ok.push(s.value);
+    else if (!firstErr) firstErr = s.reason;
+  }
+  if (ok.length === 0) throw firstErr ?? new Response('vendor returned no image', { status: 502 });
+  if (ok.length < count) warnings.push(`${count - ok.length} of ${count} candidates failed`);
+  return ok;
+}
+
+// ─── Mock ────────────────────────────────────────────────────────────
+
+function buildMockSvg(prompt: string, width: number, height: number, i: number): string {
+  const safePrompt = prompt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 120);
+  const hues = ['#6366f1', '#ec4899', '#22c55e', '#f59e0b'];
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${width} ${height}' preserveAspectRatio='xMidYMid slice'>
+    <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#1a1a2e'/><stop offset='1' stop-color='${hues[i % hues.length]}'/></linearGradient></defs>
+    <rect width='100%' height='100%' fill='url(#g)'/>
+    <text x='50%' y='40%' text-anchor='middle' fill='#ffffff' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.04)}' font-weight='600'>AI image (mock ${i + 1})</text>
+    <text x='50%' y='52%' text-anchor='middle' fill='#ffffffcc' font-family='-apple-system, sans-serif' font-size='${Math.round(height * 0.025)}'>${safePrompt}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function dispatchMock(a: DispatchArgs): VendorOut[] {
+  return Array.from({ length: a.count }, (_, i) => ({
+    dataUrl: buildMockSvg(a.prompt, a.width, a.height, i),
+    width: a.width,
+    height: a.height,
+    seed: (a.seed ?? 0) + i,
+  }));
+}
+
+// ─── Vendor: Pollinations.ai (free) ──────────────────────────────────
+
+async function dispatchPollinations(a: DispatchArgs): Promise<VendorOut[]> {
+  const model = vendorModelFor(a.def, getEnv);
+  const publicRef = a.refs.find((r) => r.url)?.url;
+  if (a.refs.length > 0 && !publicRef) a.warnings.push('refs-unsupported');
+  const encodedPrompt = encodeURIComponent(
+    a.negativePrompt ? `${a.prompt} --no ${a.negativePrompt}` : a.prompt,
+  ).slice(0, 1500);
+  const one = async (i: number): Promise<VendorOut> => {
+    const seed = typeof a.seed === 'number' ? Math.trunc(a.seed) + i : Math.floor(Math.random() * 1e9);
+    const params = new URLSearchParams({
+      width: String(a.width), height: String(a.height),
+      nologo: 'true', enhance: 'true', model, referrer: 'brandos', seed: String(seed),
+    });
+    if (publicRef) params.set('image', publicRef);
+    const { bytes, mime } = await fetchBytes(
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?${params}`,
+      { headers: { 'User-Agent': 'brandos-edge/1.0' } },
+    );
+    return toOut(bytes, mime, seed);
   };
+  return fanOut(a.count, one, a.warnings);
+}
+
+// ─── Vendor: Google Gemini (Nano Banana) ─────────────────────────────
+
+const GEMINI_ASPECTS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];
+
+async function dispatchGemini(a: DispatchArgs): Promise<VendorOut[]> {
+  const key = getEnv('GEMINI_API_KEY');
+  if (!key) throw new Response('GEMINI_API_KEY missing', { status: 409 });
+  const model = vendorModelFor(a.def, getEnv);
+  const refs = (await inlineRefs(a.refs)).slice(0, a.def.caps.maxRefs);
+  const parts: Record<string, unknown>[] = [];
+  for (const r of refs) {
+    parts.push({ inline_data: { mime_type: r.mime ?? 'image/png', data: base64Encode(r.bytes!) } });
+  }
+  const text = a.negativePrompt ? `${a.prompt}\n\nAvoid: ${a.negativePrompt}` : a.prompt;
+  parts.push({ text });
+  const body = {
+    contents: [{ role: 'user', parts }],
+    generationConfig: {
+      responseModalities: ['IMAGE'],
+      imageConfig: { aspectRatio: aspectLabel(a.width, a.height, GEMINI_ASPECTS) },
+    },
+  };
+  const one = async (): Promise<VendorOut> => {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Response(`gemini ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
+    }
+    const out = await res.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string }; text?: string }> } }>;
+      promptFeedback?: { blockReason?: string };
+    };
+    const img = out.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData;
+    if (!img?.data) {
+      const reason = out.promptFeedback?.blockReason
+        ?? out.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text?.slice(0, 200)
+        ?? 'no image part';
+      throw new Response(`gemini returned no image (${reason})`, { status: 502 });
+    }
+    return toOut(base64Decode(img.data), img.mimeType ?? 'image/png');
+  };
+  return fanOut(a.count, one, a.warnings);
+}
+
+// ─── Vendor: OpenAI GPT Image ────────────────────────────────────────
+
+/** GPT-image accepts arbitrary WxH divisible by 16 within 1:3..3:1. */
+function openAiSize(width: number, height: number): string {
+  const snap = (n: number) => Math.max(256, Math.min(2560, Math.round(n / 16) * 16));
+  let w = snap(width), h = snap(height);
+  const ratio = w / h;
+  if (ratio > 3) w = snap(h * 3);
+  if (ratio < 1 / 3) h = snap(w * 3);
+  return `${w}x${h}`;
+}
+
+async function dispatchOpenAi(a: DispatchArgs): Promise<VendorOut[]> {
+  const key = getEnv('OPENAI_API_KEY');
+  if (!key) throw new Response('OPENAI_API_KEY missing', { status: 409 });
+  const model = vendorModelFor(a.def, getEnv);
+  const quality = getEnv('OPENAI_IMAGE_QUALITY') || 'medium';
+  const size = openAiSize(a.width, a.height);
+  const prompt = a.negativePrompt ? `${a.prompt}\n\nDo not include: ${a.negativePrompt}` : a.prompt;
+  const refs = (await inlineRefs(a.refs)).slice(0, a.def.caps.maxRefs);
+
+  const parse = async (res: Response): Promise<VendorOut[]> => {
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Response(`openai ${res.status}: ${errBody.slice(0, 300)}`, { status: 502 });
+    }
+    const out = await res.json() as { data?: Array<{ b64_json?: string; url?: string }> };
+    const items = out.data ?? [];
+    if (items.length === 0) throw new Response('openai returned no image', { status: 502 });
+    const results: VendorOut[] = [];
+    for (const it of items) {
+      if (it.b64_json) results.push(toOut(base64Decode(it.b64_json), 'image/png'));
+      else if (it.url) {
+        const { bytes, mime } = await fetchBytes(it.url);
+        results.push(toOut(bytes, mime));
+      }
+    }
+    return results;
+  };
+
+  const n = Math.min(a.count, a.def.caps.nMax);
+  if (refs.length > 0) {
+    const form = new FormData();
+    form.set('model', model);
+    form.set('prompt', prompt);
+    form.set('size', size);
+    form.set('quality', quality);
+    form.set('n', String(n));
+    form.set('input_fidelity', 'high');
+    refs.forEach((r, i) => {
+      const ext = (r.mime ?? 'image/png').split('/')[1] ?? 'png';
+      form.append('image[]', new Blob([r.bytes!], { type: r.mime ?? 'image/png' }), `ref-${i}.${ext}`);
+    });
+    const res = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+    });
+    return parse(res);
+  }
+  const res = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model, prompt, size, quality, n }),
+  });
+  return parse(res);
+}
+
+// ─── Vendor: fal.ai ──────────────────────────────────────────────────
+
+async function dispatchFal(a: DispatchArgs): Promise<VendorOut[]> {
+  const key = getEnv('FAL_API_KEY');
+  if (!key) throw new Response('FAL_API_KEY missing', { status: 409 });
+  const clamp = (n: number) => Math.max(256, Math.min(2048, Math.round(n / 64) * 64));
+  const publicRef = a.refs.find((r) => r.url)?.url;
+  if (a.refs.length > 0 && !publicRef) a.warnings.push('refs-unsupported');
   const body: Record<string, unknown> = {
-    prompt,
-    image_size: { width: clamp(width), height: clamp(height) },
+    prompt: a.prompt,
+    image_size: { width: clamp(a.width), height: clamp(a.height) },
     num_inference_steps: 4,
+    num_images: Math.min(a.count, a.def.caps.nMax),
     enable_safety_checker: false,
   };
-  if (typeof opts.seed === 'number' && Number.isFinite(opts.seed)) body.seed = Math.trunc(opts.seed);
-  if (opts.referenceImageUrl) body.image_url = opts.referenceImageUrl;
-
-  // Use the synchronous run endpoint so we don't have to poll. Falls
-  // back to flux-dev if the user picked a richer model in opts later.
-  const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+  if (typeof a.seed === 'number') body.seed = Math.trunc(a.seed);
+  if (publicRef) body.image_url = publicRef;
+  const res = await fetch(`https://fal.run/${vendorModelFor(a.def, getEnv)}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Key ${key}`,
-    },
+    headers: { 'Content-Type': 'application/json', Authorization: `Key ${key}` },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -387,73 +467,118 @@ async function dispatchFal(
   }
   const out = await res.json() as {
     images?: Array<{ url: string; width?: number; height?: number; content_type?: string }>;
+    seed?: number;
   };
-  const first = out.images?.[0];
-  if (!first?.url) throw new Response('fal returned no image', { status: 502 });
+  const items = out.images ?? [];
+  if (items.length === 0) throw new Response('fal returned no image', { status: 502 });
+  const results: VendorOut[] = [];
+  for (const it of items) {
+    const { bytes, mime } = await fetchBytes(it.url);
+    const o = toOut(bytes, mime, out.seed);
+    results.push({ ...o, width: o.width ?? it.width, height: o.height ?? it.height });
+  }
+  return results;
+}
 
-  // Fetch the actual bytes so we can return a data URI (browser-side
-  // contract is unchanged). Fal CDN allows direct GETs.
-  const imgRes = await fetch(first.url);
-  if (!imgRes.ok) throw new Response(`fal image fetch ${imgRes.status}`, { status: 502 });
-  const ct = imgRes.headers.get('content-type') ?? first.content_type ?? 'image/jpeg';
-  const buf = new Uint8Array(await imgRes.arrayBuffer());
-  const parsed = readImageDimensions(buf);
+// ─── Vendor: Cloudflare Workers AI ───────────────────────────────────
+
+async function dispatchCloudflare(a: DispatchArgs): Promise<VendorOut[]> {
+  const accountId = getEnv('CLOUDFLARE_ACCOUNT_ID');
+  const apiToken = getEnv('CLOUDFLARE_API_TOKEN');
+  if (!accountId || !apiToken) throw new Response('CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing', { status: 409 });
+  if (a.refs.length > 0) a.warnings.push('refs-unsupported');
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${vendorModelFor(a.def, getEnv)}`;
+  const one = async (): Promise<VendorOut> => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiToken}` },
+      body: JSON.stringify({ prompt: a.prompt, width: a.width, height: a.height }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Response(`cloudflare ${res.status}: ${body.slice(0, 200)}`, { status: 502 });
+    }
+    const ct = res.headers.get('content-type') ?? '';
+    if (ct.startsWith('image/')) return toOut(new Uint8Array(await res.arrayBuffer()), ct.split(';')[0]);
+    const j = await res.json() as { result?: { image?: string } };
+    if (!j?.result?.image) throw new Response('cloudflare returned no image', { status: 502 });
+    return toOut(base64Decode(j.result.image), 'image/png');
+  };
+  return fanOut(a.count, one, a.warnings);
+}
+
+// ─── Vendor: Hugging Face Inference ──────────────────────────────────
+
+async function dispatchHuggingFace(a: DispatchArgs): Promise<VendorOut[]> {
+  const key = getEnv('HUGGINGFACE_API_KEY');
+  if (!key) throw new Response('HUGGINGFACE_API_KEY missing', { status: 409 });
+  if (a.refs.length > 0) a.warnings.push('refs-unsupported');
+  const one = async (): Promise<VendorOut> => {
+    const { bytes, mime } = await fetchBytes(
+      `https://api-inference.huggingface.co/models/${vendorModelFor(a.def, getEnv)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ inputs: a.prompt, parameters: { width: a.width, height: a.height } }),
+      },
+    );
+    return toOut(bytes, mime);
+  };
+  return fanOut(a.count, one, a.warnings);
+}
+
+// ─── Router ──────────────────────────────────────────────────────────
+
+async function dispatchVendor(a: DispatchArgs): Promise<VendorOut[]> {
+  switch (a.def.vendor) {
+    case 'mock': return dispatchMock(a);
+    case 'pollinations': return dispatchPollinations(a);
+    case 'google': return dispatchGemini(a);
+    case 'openai': return dispatchOpenAi(a);
+    case 'fal': return dispatchFal(a);
+    case 'cloudflare': return dispatchCloudflare(a);
+    case 'huggingface': return dispatchHuggingFace(a);
+    default: throw new Response(`unknown vendor for ${a.def.id}`, { status: 500 });
+  }
+}
+
+function modelsResponse() {
+  const forceMock = (getEnv('AI_IMAGE_VENDOR') ?? '').toLowerCase() === 'mock';
   return {
-    dataUrl: `data:${ct};base64,${base64Encode(buf)}`,
-    width: parsed?.width ?? first.width,
-    height: parsed?.height ?? first.height,
+    models: IMAGE_MODELS.map((m) => {
+      const available = forceMock ? m.vendor === 'mock' : isModelAvailable(m, getEnv);
+      return {
+        id: m.id,
+        available,
+        reason: available ? undefined : (m.keyEnv ? 'missing-key' : 'disabled'),
+        keyEnv: m.keyEnv,
+        caps: m.caps,
+        tier: m.tier,
+      };
+    }),
+    auto: forceMock ? 'mock:svg' : resolveAutoModel(getEnv).id,
   };
 }
 
-async function dispatchVendor(
-  vendor: string,
-  prompt: string,
-  width: number,
-  height: number,
-  opts: { model?: string; seed?: number; referenceImageUrl?: string },
-): Promise<{ imageUrl: string; model: string; width?: number; height?: number }> {
-  switch (vendor) {
-    case 'openai': {
-      const out = await dispatchOpenAi(prompt, width, height, {
-        referenceImageUrl: opts.referenceImageUrl,
-      });
-      const m = Deno.env.get('OPENAI_IMAGE_MODEL') || 'gpt-image-1';
-      return {
-        imageUrl: out.dataUrl,
-        model: `openai:${m}`,
-        width: out.width,
-        height: out.height,
-      };
+function normalizeRefs(body: GenerateImageBody): Ref[] {
+  const refs: Ref[] = [];
+  let bytesTotal = 0;
+  for (const r of body.references ?? []) {
+    const role: ReferenceRole = r.role ?? 'image';
+    if (typeof r.dataUrl === 'string' && r.dataUrl.startsWith('data:')) {
+      const parsed = parseDataUrl(r.dataUrl);
+      if (!parsed) continue;
+      bytesTotal += parsed.bytes.length;
+      if (bytesTotal > MAX_REFS_BYTES) throw new Response('references exceed 6 MB', { status: 413 });
+      refs.push({ role, bytes: parsed.bytes, mime: parsed.mime });
+    } else if (typeof r.url === 'string' && /^https?:\/\//.test(r.url)) {
+      refs.push({ role, url: r.url });
     }
-    case 'fal': {
-      const out = await dispatchFal(prompt, width, height, {
-        seed: opts.seed,
-        referenceImageUrl: opts.referenceImageUrl,
-      });
-      return {
-        imageUrl: out.dataUrl,
-        model: 'fal:flux-schnell',
-        width: out.width,
-        height: out.height,
-      };
-    }
-    case 'pollinations': {
-      const out = await dispatchPollinations(prompt, width, height, opts);
-      const effectiveModel = opts.referenceImageUrl ? 'kontext' : (opts.model ?? 'flux');
-      return {
-        imageUrl: out.dataUrl,
-        model: `pollinations:${effectiveModel}`,
-        width: out.width,
-        height: out.height,
-      };
-    }
-    case 'cloudflare':
-      return { imageUrl: await dispatchCloudflare(prompt, width, height), model: 'cf:flux-1-schnell' };
-    case 'huggingface':
-      return { imageUrl: await dispatchHuggingFace(prompt, width, height), model: 'hf:flux-schnell' };
-    default:
-      throw new Response(`unknown AI_IMAGE_VENDOR: ${vendor}`, { status: 500 });
   }
+  if (typeof body.referenceImageUrl === 'string' && /^https?:\/\//.test(body.referenceImageUrl)) {
+    refs.push({ role: 'image', url: body.referenceImageUrl });
+  }
+  return refs;
 }
 
 Deno.serve(withCors(cors, async (req) => {
@@ -466,6 +591,10 @@ Deno.serve(withCors(cors, async (req) => {
     return new Response('Bad JSON', { status: 400 });
   }
 
+  if (body.action === 'models') {
+    return Response.json(modelsResponse(), { headers: cors });
+  }
+
   const sessionId = requireSession(body as Record<string, unknown>);
   const ipAddress = getClientIp(req);
   const prompt = (body.prompt ?? '').trim();
@@ -474,61 +603,77 @@ Deno.serve(withCors(cors, async (req) => {
   }
   const width = Math.min(Math.max(body.width ?? 1024, 64), 4096);
   const height = Math.min(Math.max(body.height ?? 1024, 64), 4096);
+  const count = Math.min(Math.max(Math.trunc(body.count ?? 1) || 1, 1), MAX_COUNT);
+
+  // Resolve the model BEFORE rate limiting so a misconfigured pick is a
+  // cheap 409, not a consumed quota slot.
+  const forceMock = (getEnv('AI_IMAGE_VENDOR') ?? '').toLowerCase() === 'mock';
+  let def: ImageModelDef | undefined;
+  if (forceMock) def = findImageModel('mock:svg');
+  else if (!body.model || body.model === 'auto') def = resolveAutoModel(getEnv);
+  else def = findImageModel(body.model);
+  if (!def) {
+    return Response.json({ error: `unknown model: ${body.model}` }, { status: 400, headers: cors });
+  }
+  if (!isModelAvailable(def, getEnv)) {
+    return Response.json(
+      { error: 'model-unavailable', model: def.id, keyEnv: def.keyEnv,
+        message: `${def.id} needs ${def.keyEnv ?? 'configuration'} set as a Supabase secret.` },
+      { status: 409, headers: cors },
+    );
+  }
+
+  let refs: Ref[];
+  try {
+    refs = normalizeRefs(body);
+  } catch (e) {
+    if (e instanceof Response) return new Response(await e.text(), { status: e.status, headers: cors });
+    throw e;
+  }
+  if (def.caps.maxRefs === 0) refs = refs.filter((r) => r.url); // vendors read URLs only via legacy path
 
   await enforceRateLimit({
     sessionId,
     ipAddress,
     functionName: FUNCTION_NAME,
-    windows: [{ windowMinutes: 60, maxCalls: 30 }],
-    ipWindow: { windowMinutes: 1440, maxCalls: 200 },
+    windows: [{ windowMinutes: 60, maxCalls: 60 }],
+    ipWindow: { windowMinutes: 1440, maxCalls: 400 },
   });
 
-  // ─── Vendor dispatch ────────────────────────────────────────────────
-  // Auto-pick the best wired vendor when AI_IMAGE_VENDOR is unset:
-  //   1. OpenAI gpt-image-1 when OPENAI_API_KEY is set
-  //   2. Fal Flux Schnell when FAL_API_KEY is set
-  //   3. Pollinations as the no-cost fallback (note: free tier
-  //      silently uses NVIDIA SANA which stretches non-square)
-  // An explicit AI_IMAGE_VENDOR always wins.
-  const explicitVendor = Deno.env.get('AI_IMAGE_VENDOR');
-  const hasOpenAiKey = !!Deno.env.get('OPENAI_API_KEY');
-  const hasFalKey = !!Deno.env.get('FAL_API_KEY');
-  const vendor = (
-    explicitVendor ?? (hasOpenAiKey ? 'openai' : (hasFalKey ? 'fal' : 'pollinations'))
-  ).toLowerCase();
-
-  if (vendor === 'mock') {
-    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: 'mock', inputTokens: 0, outputTokens: 0 });
-    const result: GenerateImageResult = {
-      imageUrl: buildMockSvg(prompt, width, height),
-      mock: true,
-      prompt,
-    };
-    return Response.json(result, { headers: cors });
-  }
-
+  const warnings: string[] = [];
   try {
-    const dispatch = await dispatchVendor(vendor, prompt, width, height, {
-      model: typeof body.model === 'string' ? body.model : undefined,
-      seed: typeof body.seed === 'number' ? body.seed : undefined,
-      referenceImageUrl: typeof body.referenceImageUrl === 'string' ? body.referenceImageUrl : undefined,
+    const outs = await dispatchVendor({
+      def, prompt, negativePrompt: body.negativePrompt?.trim() || undefined,
+      width, height, count,
+      seed: typeof body.seed === 'number' && Number.isFinite(body.seed) ? body.seed : undefined,
+      refs, warnings,
     });
-    await logCall({ sessionId, ipAddress, functionName: FUNCTION_NAME, model: dispatch.model, inputTokens: 0, outputTokens: 0 });
+    // Charge one quota slot per delivered image.
+    await Promise.all(outs.map(() => logCall({
+      sessionId, ipAddress, functionName: FUNCTION_NAME, model: def!.id, inputTokens: 0, outputTokens: 0,
+    })));
+    const images: GeneratedImage[] = outs.map((o) => ({
+      imageUrl: o.dataUrl, width: o.width, height: o.height, seed: o.seed,
+    }));
     const result: GenerateImageResult = {
-      imageUrl: dispatch.imageUrl,
-      mock: false,
+      images,
+      imageUrl: images[0].imageUrl,
+      width: images[0].width,
+      height: images[0].height,
+      mock: def.vendor === 'mock',
       prompt,
-      width: dispatch.width,
-      height: dispatch.height,
+      model: def.id,
+      warnings: warnings.length ? warnings : undefined,
     };
     return Response.json(result, { headers: cors });
   } catch (err) {
-    // dispatchVendor throws a Response on misconfig / upstream failure;
-    // re-emit with CORS so the browser sees a proper error body.
     if (err instanceof Response) {
-      const body = await err.text().catch(() => 'vendor error');
-      return new Response(body, { status: err.status, headers: cors });
+      const text = await err.text().catch(() => 'vendor error');
+      return Response.json({ error: 'vendor-error', model: def.id, message: text }, { status: err.status, headers: cors });
     }
-    return new Response(`vendor error: ${(err as Error).message}`, { status: 502, headers: cors });
+    return Response.json(
+      { error: 'vendor-error', model: def.id, message: (err as Error).message },
+      { status: 502, headers: cors },
+    );
   }
 }));

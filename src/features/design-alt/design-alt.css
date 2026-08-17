@@ -225,6 +225,43 @@
   cursor: not-allowed;
 }
 
+/* Model / format options inside the prompt bar (Image mode) */
+[data-workspace] .dh-prompt-opts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+[data-workspace] .dh-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+[data-workspace] .dh-opt-label {
+  display: none;
+}
+[data-workspace] .dh-opt-select {
+  height: 26px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+[data-workspace] .dh-opt-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  [data-workspace] .dh-prompt-opts { display: none; }
+}
+
 /* Image-mode loading + result card */
 [data-workspace] .dh-image-loading {
   display: inline-flex;

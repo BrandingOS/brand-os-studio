@@ -23,7 +23,7 @@ import type { BrandOSDocument } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import type { RailItem } from './EditorAppRail';
-import { GeneratePanel } from './panels/GeneratePanel';
+import { GeneratePanel, type GeneratePanelProps } from './panels/generate/GeneratePanel';
 import { TemplatesPanel } from './panels/TemplatesPanel';
 import { InsertPanel } from './panels/InsertPanel';
 import { BrandPanel } from './panels/BrandPanel';
@@ -66,6 +66,8 @@ interface Props {
   /** Staged prompt from the Design hero (?prompt=…). Pre-fills the
    *  Generate panel on mount. */
   initialPrompt?: string;
+  /** Hero hand-off options — see GeneratePanelProps. */
+  generateOptions?: Pick<GeneratePanelProps, 'initialMode' | 'initialModel' | 'initialFormatId' | 'initialCount' | 'autoStart'>;
   /** Wires the Generate panel's "Editable" output to the editor's
    *  applyAICommandResult path. */
   onAIApply?: (result: AICommandResult) => void;
@@ -84,6 +86,7 @@ export function EditorSecondaryPanel({
   agent,
   getContext,
   initialPrompt,
+  generateOptions,
   onAIApply,
   onActivePageChange,
 }: Props) {
@@ -168,6 +171,7 @@ export function EditorSecondaryPanel({
               agent={agent ?? null}
               getContext={getContext ?? (() => ({ activePageId, selection: [], brand: brand as Brand }))}
               initialPrompt={initialPrompt}
+              {...generateOptions}
               onApply={onAIApply ?? (() => undefined)}
               onActivePageChange={onActivePageChange}
             />

@@ -4,11 +4,13 @@
 // new design page when the user submits — the hero never renders the
 // result inline. The user always lands inside the editor.
 //
-//   • Image (default) — flat ChatGPT/Nano-Banana-style output via
-//     ai-generate-image (Pollinations → Flux). The bar seeds a fresh
-//     BrandOSDocument with one full-bleed image layer, saves it, and
-//     navigates to /b/:slug/design/:newId. The user can keep editing
-//     in the unified editor.
+//   • Image (default) — AI Studio hand-off. The hero does NOT generate
+//     here: it seeds an EMPTY 1080² doc tagged `metadata.ai.origin =
+//     'ai-image'`, saves it, and navigates to
+//     /b/:slug/design/:newId?prompt=…&mode=image&model=…&format=… — the
+//     editor opens on the Generate panel and runs the brand-aware
+//     compile → review → generate flow on the canvas (Lovart-style: the
+//     busy state lives where the result lands, the hero never blocks).
 //   • Editable design — seeds a brand-bound social-post template
 //     (text/shape/logo slot-refs) and navigates to the editor with
 //     the prompt staged on the AI prompt bar so Claude can mutate the
@@ -22,7 +24,9 @@ import type { Brand } from '@/shared/types/brand';
 import type { IDesignStorage } from '@/core/types/services';
 import type { BrandOSDocument } from '@/features/editor/schema';
 import { seedInstagramPostTemplate } from '@/features/brandkit/templateSeeds';
-import { generateImage } from '@/features/editor/ai/generateImage';
+import { withAiMetadata } from '@/features/editor/shell/v2/panels/generate/aiMetadata';
+import { FORMAT_PRESETS } from '@/features/editor/shell/v2/panels/generate/formats';
+import { AUTO_MODEL_ID, IMAGE_MODEL_INFOS } from '@/features/editor/ai/imageModels';
 
 interface DesignHeroProps {
   brand: Brand;
@@ -52,11 +56,9 @@ const FORMAT_CHIPS: FormatChip[] = [
 
 type Mode = 'image' | 'editable';
 
-const IMAGE_DOC_W = 1080;
-const IMAGE_DOC_H = 1080;
 
-function buildImageDoc(brand: Brand, imageUrl: string, docId: string): BrandOSDocument {
-  return {
+function buildAiStudioDoc(brand: Brand, docId: string, pendingPrompt: string, w: number, h: number): BrandOSDocument {
+  const doc: BrandOSDocument = {
     schemaVersion: 1,
     id: docId,
     contentType: 'social-post',
@@ -66,64 +68,53 @@ function buildImageDoc(brand: Brand, imageUrl: string, docId: string): BrandOSDo
       {
         id: crypto.randomUUID(),
         name: 'Page 1',
-        width: IMAGE_DOC_W,
-        height: IMAGE_DOC_H,
+        width: w,
+        height: h,
         background: '#ffffff',
         masterPageId: null,
-        layers: [
-          {
-            id: crypto.randomUUID(),
-            kind: 'image',
-            name: 'AI image',
-            src: imageUrl,
-            fit: 'cover',
-            transform: {
-              x: 0, y: 0,
-              width: IMAGE_DOC_W, height: IMAGE_DOC_H,
-              rotation: 0, scaleX: 1, scaleY: 1,
-            },
-            opacity: 1, visible: true, locked: false, brandLocked: false,
-          },
-        ],
+        layers: [],
       },
     ],
     metadata: {},
   };
+  return withAiMetadata(doc, { origin: 'ai-image', pendingPrompt });
 }
+
+const HERO_MODELS = [
+  { id: AUTO_MODEL_ID, label: 'Auto' },
+  ...IMAGE_MODEL_INFOS.filter((m) => m.listed).map((m) => ({ id: m.id, label: m.label })),
+];
+const HERO_FORMATS = FORMAT_PRESETS.filter((f) => f.id !== 'auto');
 
 export function DesignHero({ brand, designStorage }: DesignHeroProps) {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<Mode>('image');
   const [busy, setBusy] = useState(false);
+  const [model, setModel] = useState<string>(AUTO_MODEL_ID);
+  const [formatId, setFormatId] = useState<string>('square');
 
   const runImage = useCallback(async (text: string) => {
     setBusy(true);
     try {
-      const result = await generateImage({
-        prompt: text,
-        width: IMAGE_DOC_W,
-        height: IMAGE_DOC_H,
-      });
+      const format = HERO_FORMATS.find((f) => f.id === formatId) ?? HERO_FORMATS[0];
       const newDocId = crypto.randomUUID();
-      const doc = buildImageDoc(brand, result.imageUrl, newDocId);
+      const doc = buildAiStudioDoc(brand, newDocId, text, format.width, format.height);
       await designStorage.saveDesign(brand.id, newDocId, doc, {
         id: newDocId,
         name: text.slice(0, 60) || 'AI image',
         contentType: 'social-post',
-        width: IMAGE_DOC_W,
-        height: IMAGE_DOC_H,
+        width: format.width,
+        height: format.height,
       });
-      if (result.mock) {
-        toast.message('Image generated in mock mode.');
-      }
-      navigate(`/b/${brand.slug}/design/${newDocId}`);
+      const q = new URLSearchParams({ prompt: text, mode: 'image', model, format: format.id }).toString();
+      navigate(`/b/${brand.slug}/design/${newDocId}?${q}`);
     } catch (err) {
-      console.error('[DesignHero] image generation failed:', err);
-      toast.error('Could not generate image. Please try again.');
+      console.error('[DesignHero] failed to open AI studio:', err);
+      toast.error('Could not start a new design. Please try again.');
       setBusy(false);
     }
-  }, [brand, designStorage, navigate]);
+  }, [brand, designStorage, navigate, model, formatId]);
 
   const runEditable = useCallback(async (text: string) => {
     setBusy(true);
@@ -170,8 +161,8 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
           Design with {brand.name}'s <span className="dh-hero-title-accent">AI</span>
         </h1>
         <p className="dh-hero-sub">
-          Generate a finished image, or build an editable layered design — both
-          tuned to your brand.
+          Generate an on-brand image with the model you choose, or build an
+          editable layered design — then keep working on the canvas.
         </p>
 
         <form
@@ -221,6 +212,40 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
                 <Layers size={13} aria-hidden /> Editable design
               </button>
             </div>
+            {mode === 'image' ? (
+              <div className="dh-prompt-opts">
+                <label className="dh-opt">
+                  <span className="dh-opt-label">Model</span>
+                  <select
+                    className="dh-opt-select"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    disabled={busy}
+                    aria-label="Image model"
+                    data-hero-model
+                  >
+                    {HERO_MODELS.map((m) => (
+                      <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dh-opt">
+                  <span className="dh-opt-label">Format</span>
+                  <select
+                    className="dh-opt-select"
+                    value={formatId}
+                    onChange={(e) => setFormatId(e.target.value)}
+                    disabled={busy}
+                    aria-label="Image format"
+                    data-hero-format
+                  >
+                    {HERO_FORMATS.map((f) => (
+                      <option key={f.id} value={f.id}>{f.ratio} {f.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
             <button
               type="submit"
               className="dh-prompt-send"
@@ -235,13 +260,6 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
             </button>
           </div>
         </form>
-
-        {busy && mode === 'image' ? (
-          <div className="dh-image-loading" role="status" aria-live="polite">
-            <span className="dh-image-loading-spinner" aria-hidden />
-            <span>Generating image and opening editor…</span>
-          </div>
-        ) : null}
 
         <div className="dh-chips" role="list" aria-label="Quick formats">
           {FORMAT_CHIPS.map((c) => (

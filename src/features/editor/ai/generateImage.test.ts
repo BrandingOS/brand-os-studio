@@ -41,8 +41,9 @@ describe('generateImage', () => {
       { fetchImpl, endpoint: 'https://x/test' },
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       imageUrl: 'data:image/svg+xml;base64,abc',
+      images: [{ imageUrl: 'data:image/svg+xml;base64,abc' }],
       mock: true,
       prompt: 'cat',
     });

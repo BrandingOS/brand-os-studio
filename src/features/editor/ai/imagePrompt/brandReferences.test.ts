@@ -1,0 +1,59 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Brand } from '@/shared/types/brand';
+import { buildBrandReferences, renderPaletteSwatch, pickLogoUrlForReference } from './brandReferences';
+
+const brand = {
+  id: 'b', slug: 'b', name: 'B', primaryColor: '#123456', fonts: { primary: 'Inter' }, assets: [],
+  logo: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
+} as unknown as Brand;
+
+const caps = { maxRefs: 5, text: 'strong', aspect: 'free', nMax: 1, img2img: true } as const;
+
+describe('brandReferences', () => {
+  it('finds the primary logo url', () => {
+    expect(pickLogoUrlForReference(brand)).toMatch(/^data:image\/svg/);
+    expect(pickLogoUrlForReference(null)).toBeUndefined();
+  });
+
+  it('builds nothing for a text-only model', async () => {
+    const out = await buildBrandReferences({ brand, caps: { ...caps, maxRefs: 0 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] });
+    expect(out.references).toEqual([]);
+  });
+
+  it('attaches previous → logo → palette → user image, in that order, capped by maxRefs', async () => {
+    const rasterize = vi.fn(async () => 'data:image/png;base64,LOGO');
+    const swatch = vi.fn(() => 'data:image/png;base64,PAL');
+    const out = await buildBrandReferences(
+      { brand, caps, plan: { logo: true, palette: true, previousUrl: 'data:image/png;base64,PREV' }, paletteHexes: ['#123456'], userReferenceUrl: 'https://x/ref.png' },
+      { rasterize, swatch },
+    );
+    expect(out.roles).toEqual(['previous', 'logo', 'palette', 'image']);
+    expect(out.references[1].dataUrl).toBe('data:image/png;base64,LOGO');
+    expect(out.references[3].url).toBe('https://x/ref.png');
+    expect(rasterize).toHaveBeenCalledWith(expect.stringMatching(/^data:image\/svg/), expect.objectContaining({ size: 1024 }));
+
+    const capped = await buildBrandReferences(
+      { brand, caps: { ...caps, maxRefs: 1 }, plan: { logo: true, palette: true }, paletteHexes: ['#123456'] },
+      { rasterize, swatch },
+    );
+    expect(capped.roles).toEqual(['logo']);
+  });
+
+  it('skips the logo when the plan says no, and the palette when there are no hexes', async () => {
+    const rasterize = vi.fn(async () => 'x');
+    const out = await buildBrandReferences({ brand, caps, plan: { logo: false, palette: true }, paletteHexes: [] }, { rasterize });
+    expect(rasterize).not.toHaveBeenCalled();
+    expect(out.references).toEqual([]);
+  });
+
+  it('renderPaletteSwatch draws one block per hex with a readable label', () => {
+    const ctx = { fillStyle: '', font: '', textAlign: '', textBaseline: '', fillRect: vi.fn(), fillText: vi.fn() };
+    const canvas = { width: 0, height: 0, getContext: () => ctx, toDataURL: () => 'data:image/png;base64,S' } as unknown as HTMLCanvasElement;
+    const out = renderPaletteSwatch(['#000000', '#FFFFFF', 'nope'], { createCanvas: () => canvas, width: 200, height: 100 });
+    expect(out).toBe('data:image/png;base64,S');
+    // 1 background + 2 blocks
+    expect(ctx.fillRect).toHaveBeenCalledTimes(3);
+    expect(ctx.fillText).toHaveBeenCalledWith('#000000', 50, 88);
+    expect(renderPaletteSwatch([])).toBeNull();
+  });
+});
