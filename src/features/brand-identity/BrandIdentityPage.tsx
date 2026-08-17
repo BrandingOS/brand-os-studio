@@ -12,11 +12,13 @@
  */
 import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Brand } from '@/shared/types/brand';
-import { bgTone } from '@/shared/brand/logoOnBackground';
+import { loadBrandFonts } from '@/shared/design-system/fonts';
 import { buildIdentityModel, presentSections, type BuildIdentityInput } from './identityModel';
-import { IdentityModelContext } from './identityContext';
+import { buildRegister } from './identityRegister';
+import { IdentityModelContext, IdentityRegisterContext } from './identityContext';
 import { IdentityNav } from './components/IdentityNav';
-import { IdentityHero, Introduction, Personality, Purpose } from './sections/Narrative';
+import { Glance, IdentityHero } from './sections/Hero';
+import { Introduction, Personality, Purpose } from './sections/Narrative';
 import { Colour, LogoSystem, LogoUsage, Typography } from './sections/System';
 import {
   Assets,
@@ -50,22 +52,27 @@ export function BrandIdentityPage({
   const sections = useMemo(() => presentSections(model), [model]);
 
   /*
-   * The brand's colour, injected as a token rather than threaded through props.
+   * The register: the brand's colours, typefaces and section rhythm as one set
+   * of custom properties on the root.
    *
-   * Everything that wants the accent — a dot, an emphasised word, a pill, the
-   * two full-ground sections — reads `--bi-accent`, so the takeover is one
-   * declaration instead of forty. The lead colour is the brand's OWN primary,
-   * and `bgTone` picks the ink that reads on it; guessing white would put white
-   * on a pale yellow brand.
+   * Every rule on the page reads `--bi-*`, so making a page look like THIS
+   * brand is one object rather than forty props. See `identityRegister` for why
+   * the colours go through the palette builder instead of straight from the
+   * primary hex.
    */
-  const lead = model.colour.colours.find((c) => c.lead)?.hex;
-  const style = useMemo(() => {
-    if (!lead) return undefined;
-    return {
-      '--bi-accent': lead,
-      '--bi-on-accent': bgTone(lead) === 'dark' ? '#FFFFFF' : '#111113',
-    } as React.CSSProperties;
-  }, [lead]);
+  const register = useMemo(() => buildRegister(model, sections), [model, sections]);
+
+  /*
+   * The brand's own typefaces, actually loaded.
+   *
+   * The page sets its headings in them, and the typography section claims the
+   * specimens are "the real thing, not a picture of it" — which is only true if
+   * something asked for the font. Cached, so calling it on every render of
+   * every brand is free.
+   */
+  useEffect(() => {
+    loadBrandFonts(brand);
+  }, [brand]);
 
   // The document belongs to the brand while this page is open.
   useEffect(() => {
@@ -79,26 +86,31 @@ export function BrandIdentityPage({
 
   return (
     <IdentityModelContext.Provider value={model}>
-    <div data-identity data-mode={mode} style={style}>
-      <IdentityNav brandName={model.name} sections={sections} actions={actions} />
+      <IdentityRegisterContext.Provider value={register}>
+        <div data-identity data-mode={mode} data-branded={register.branded ? '' : undefined} style={register.tokens}>
+          <IdentityNav brandName={model.name} sections={sections} actions={actions} />
 
-      <main>
-        <IdentityHero model={model} />
-        {model.introduction.present && <Introduction model={model} />}
-        {model.purpose.present && <Purpose model={model} />}
-        {model.personality.present && <Personality model={model} />}
-        {model.logo.present && <LogoSystem model={model} />}
-        {model.logoUsage.present && <LogoUsage model={model} />}
-        {model.colour.present && <Colour model={model} />}
-        {model.typography.present && <Typography model={model} />}
-        {model.voice.present && <Voice model={model} />}
-        {model.photography.present && <Photography model={model} />}
-        {model.assets.present && <Assets model={model} />}
-        {model.social.present && <SocialApplications model={model} />}
-        <Downloads model={model} />
-        <Closing model={model} />
-      </main>
-    </div>
+          <main>
+            <IdentityHero model={model} register={register} />
+            {/* Not a section: it has no heading, no nav entry and nothing of
+                its own — every tile is another section's headline. */}
+            <Glance model={model} register={register} />
+            {model.introduction.present && <Introduction model={model} />}
+            {model.purpose.present && <Purpose model={model} />}
+            {model.personality.present && <Personality model={model} />}
+            {model.logo.present && <LogoSystem model={model} register={register} />}
+            {model.logoUsage.present && <LogoUsage model={model} />}
+            {model.colour.present && <Colour model={model} />}
+            {model.typography.present && <Typography model={model} />}
+            {model.voice.present && <Voice model={model} />}
+            {model.photography.present && <Photography model={model} />}
+            {model.assets.present && <Assets model={model} />}
+            {model.social.present && <SocialApplications model={model} />}
+            <Downloads model={model} />
+            <Closing model={model} register={register} />
+          </main>
+        </div>
+      </IdentityRegisterContext.Provider>
     </IdentityModelContext.Provider>
   );
 }

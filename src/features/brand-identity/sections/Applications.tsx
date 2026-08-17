@@ -8,8 +8,12 @@
  * and here it is the stage. That restraint is what makes the moment land.
  */
 import type { IdentityImage, IdentityModel } from '../identityModel';
+import type { IdentityRegister } from '../identityRegister';
+import { useGround } from '../identityContext';
+import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import { DownloadPill, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
+import { useScrollVar } from '../motion/useScrollVar';
 import { SocialApplications } from './Social';
 import { downloadAllColours, downloadAllLogos, fetchAsBlob } from '../download/identityDownloads';
 import { downloadCompleteIdentity } from '../download/identityBundle';
@@ -20,7 +24,7 @@ export function Voice({ model }: { model: IdentityModel }) {
   const head = useReveal();
 
   return (
-    <Section id="voice" ground="brand">
+    <Section id="voice">
       {/*
         The tone words ARE the headline.
 
@@ -115,9 +119,20 @@ export function Photography({ model }: { model: IdentityModel }) {
         title="Photography"
         body="The imagery this brand has published. Use these, or shoot to match them."
       />
+      {/*
+        An editorial grid, not a contact sheet. Every fourth frame takes two
+        columns and every third is tall, so the eye moves through the set
+        instead of scanning a uniform wall of thumbnails.
+      */}
       <div className="bi-photo-grid">
         {model.photography.images.map((image, i) => (
-          <PhotoTile key={image.id} image={image} brandName={model.name} delay={i * 60} />
+          <PhotoTile
+            key={image.id}
+            image={image}
+            brandName={model.name}
+            delay={i * 60}
+            shape={i % 4 === 0 ? 'wide' : i % 3 === 0 ? 'tall' : 'plain'}
+          />
         ))}
       </div>
     </Section>
@@ -128,19 +143,24 @@ function PhotoTile({
   image,
   brandName,
   delay,
+  shape,
 }: {
   image: IdentityImage;
   brandName: string;
   delay: number;
+  shape: 'wide' | 'tall' | 'plain';
 }) {
   const reveal = useReveal({ delay });
+  // The frame holds still; the picture inside it drifts. Overscaled by design
+  // so the drift never exposes an edge.
+  const drift = useScrollVar('travel');
   const grab = async () => {
     const blob = await fetchAsBlob(image.url);
     if (blob) downloadBlob(blob, `${slugify(brandName)}-${slugify(image.name)}`);
   };
   return (
-    <figure className="bi-photo" {...reveal}>
-      <img src={image.url} alt={image.name} loading="lazy" />
+    <figure className="bi-photo" data-shape={shape} {...reveal}>
+      <img src={image.url} alt={image.name} loading="lazy" {...drift} />
       <button type="button" className="bi-photo-grab" onClick={() => void grab()} aria-label={`Download ${image.name}`}>
         ⤓
       </button>
@@ -150,7 +170,7 @@ function PhotoTile({
 
 export function Assets({ model }: { model: IdentityModel }) {
   return (
-    <Section id="assets" ground="panel">
+    <Section id="assets">
       <SplitHeader
         eyebrow="Everything else"
         title="Brand assets"
@@ -227,14 +247,34 @@ export function Downloads({ model }: { model: IdentityModel }) {
   );
 }
 
-export function Closing({ model }: { model: IdentityModel }) {
+export function Closing({
+  model,
+  register,
+}: {
+  model: IdentityModel;
+  register: IdentityRegister;
+}) {
   const reveal = useReveal();
+  const ground = useGround('closing');
+  /*
+   * The mark chosen for the ground this section actually stands on.
+   *
+   * Printing `hero.logo` here put SKAM's red mark on SKAM's red section, where
+   * it was simply not there — a brand's own colour on its own colour is the
+   * exact collision `logoOnBackground` exists to catch, and the section
+   * bypassed it. Nothing readable means no mark; the statement carries the
+   * close on its own.
+   */
+  const groundHex =
+    (register.tokens as Record<string, string>)[
+      ground === 'brand-2' ? '--bi-brand-2' : ground === 'deep' ? '--bi-deep' : '--bi-brand'
+    ] ?? '#FFFFFF';
+  const mark = pickLogoOnBackground(model.brand, groundHex)?.url;
+
   return (
-    <Section id="closing" ground="brand">
+    <Section id="closing">
       <div className="bi-closing" {...reveal}>
-        {model.hero.logo && (
-          <img className="bi-closing-mark" src={model.hero.logo.url} alt="" />
-        )}
+        {mark && <img className="bi-closing-mark" src={mark} alt="" />}
         {/* The brand's own words, or just its name. Never a slogan we wrote. */}
         <p className="bi-statement">{model.closing.statement ?? model.name}</p>
       </div>

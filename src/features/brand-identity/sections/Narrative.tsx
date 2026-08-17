@@ -1,54 +1,21 @@
 /**
  * The opening movement: who this brand is, and what it believes.
  *
- * Four sections before a single specification. A brand guideline that opens on
+ * Three sections before a single specification. A brand guideline that opens on
  * a colour swatch is a parts list; the reader needs to know what they are
  * looking at before being told how to use it.
  *
- * The hero is deliberately near-empty — a mark, a name, and a screenful of air.
- * Whitespace is the only luxury signal that cannot be faked, and it also does
- * something practical: it hands the whole first impression to the brand's own
- * artwork rather than to our layout.
+ * The hero itself has moved to `Hero.tsx` — it grew a pinned stage, a colour
+ * field and a palette strip, and a screen that ambitious is no longer the same
+ * kind of thing as the sections that follow it.
  */
 import type { IdentityModel } from '../identityModel';
 import { Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
 
-export function IdentityHero({ model }: { model: IdentityModel }) {
-  const mark = useReveal();
-  const name = useReveal({ delay: 120 });
-  const sub = useReveal({ delay: 200 });
-  // Last, and after everything has settled — an invitation, not a loading state.
-  const cue = useReveal({ delay: 900 });
-
-  return (
-    <section className="bi-section bi-hero" id="hero">
-      <div className="bi-container bi-hero-inner">
-        {model.hero.logo && (
-          <div className="bi-hero-mark" {...mark}>
-            <img src={model.hero.logo.url} alt={`${model.name} logo`} />
-          </div>
-        )}
-        <h1 className="bi-display bi-hero-name" {...name}>
-          {model.name}
-        </h1>
-        {(model.tagline || model.introduction.industry) && (
-          <p className="bi-hero-sub" {...sub}>
-            {model.tagline ?? model.introduction.industry}
-          </p>
-        )}
-        <span className="bi-hero-cue bi-quiet" {...cue}>
-          Scroll ↓
-        </span>
-      </div>
-    </section>
-  );
-}
-
 export function Introduction({ model }: { model: IdentityModel }) {
-  const { summary, industry, descriptors } = model.introduction;
+  const { summary } = model.introduction;
   const statement = useReveal();
-  const meta = useReveal({ delay: 120 });
 
   return (
     <Section id="introduction">
@@ -57,20 +24,8 @@ export function Introduction({ model }: { model: IdentityModel }) {
           {summary}
         </p>
       )}
-      {(industry || descriptors.length > 0) && (
-        <div className="bi-intro-meta" {...meta}>
-          {industry && (
-            <span>
-              <span className="bi-quiet">Industry</span> {industry}
-            </span>
-          )}
-          {descriptors.length > 0 && (
-            <span>
-              <span className="bi-quiet">Style</span> {descriptors.join(' · ')}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Industry and style used to be printed here as a meta row. They are on
+          the hero now, beside the name, where someone reads them. */}
     </Section>
   );
 }
@@ -139,7 +94,7 @@ export function Personality({ model }: { model: IdentityModel }) {
   const { traits, values } = model.personality;
 
   return (
-    <Section id="personality" ground="panel">
+    <Section id="personality">
       <SplitHeader
         eyebrow="How this brand behaves"
         title="Personality & values"

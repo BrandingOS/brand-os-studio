@@ -16,6 +16,8 @@
  */
 import { useState, type ReactNode } from 'react';
 import { useReveal } from '../motion/useReveal';
+import { useScrollVar } from '../motion/useScrollVar';
+import { useGround } from '../identityContext';
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return <span className="bi-eyebrow">{children}</span>;
@@ -64,6 +66,10 @@ export function RuleCard({
   delay?: number;
 }) {
   const reveal = useReveal({ delay });
+  // The specimen drifts against the scroll. Only the artwork moves — the panel
+  // it sits in stays put, so the effect reads as depth rather than as the page
+  // coming apart.
+  const drift = useScrollVar('travel');
   return (
     <div className="bi-rule" {...reveal}>
       <div className="bi-rule-text">
@@ -71,7 +77,7 @@ export function RuleCard({
         {body && <p className="bi-body">{body}</p>}
         {action}
       </div>
-      <div className="bi-specimen" data-ground={specimenGround}>
+      <div className="bi-specimen" data-ground={specimenGround} {...drift}>
         {specimen}
       </div>
     </div>
@@ -161,19 +167,28 @@ export function DownloadPill({
   );
 }
 
-/** One section of the page. `ground` is what makes the two crescendos land. */
+/**
+ * One section of the page.
+ *
+ * The ground is READ, never passed. Which colour a section stands on depends on
+ * what its neighbours stand on, and its neighbours depend on which sections the
+ * brand has — so the decision belongs to the register, which can see all of
+ * them, and not to a call site that can see one.
+ */
 export function Section({
   id,
-  ground,
+  full,
   children,
 }: {
   id: string;
-  ground?: 'panel' | 'brand';
+  /** Let the content run to the page edges. For grids that read as fields. */
+  full?: boolean;
   children: ReactNode;
 }) {
+  const ground = useGround(id);
   return (
     <section className="bi-section" id={id} data-ground={ground}>
-      <div className="bi-container">{children}</div>
+      <div className={full ? 'bi-container bi-container--full' : 'bi-container'}>{children}</div>
     </section>
   );
 }

@@ -12,8 +12,10 @@
  * document about itself.
  */
 import type { IdentityColour, IdentityFont, IdentityModel } from '../identityModel';
+import type { IdentityRegister } from '../identityRegister';
 import { CopyableValue, DownloadPill, RuleCard, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
+import { useScrollVar } from '../motion/useScrollVar';
 import { bgTone } from '@/shared/brand/logoOnBackground';
 import {
   downloadAllColours,
@@ -23,7 +25,60 @@ import {
   downloadLogo,
 } from '../download/identityDownloads';
 
-export function LogoSystem({ model }: { model: IdentityModel }) {
+/**
+ * The mark, placed on every ground the brand owns.
+ *
+ * This is the section that PROVES a logo system rather than listing one, and it
+ * is only honest because the variant on each ground was chosen by
+ * `pickLogoOnBackground` — the single place in this codebase that decides which
+ * artwork reads on which colour. A ground where nothing reaches the readability
+ * floor is dropped instead of filled, which is why a brand with one dark mark
+ * gets a short wall rather than a wall with an invisible square in it.
+ */
+function LogoWall({ model, register }: { model: IdentityModel; register: IdentityRegister }) {
+  const reveal = useReveal();
+  if (register.wall.length < 2) return null;
+  return (
+    <div
+      className="bi-logo-wall"
+      {...reveal}
+      style={{ ...reveal.style, '--bi-wall-cols': register.wall.length } as React.CSSProperties}
+    >
+      {register.wall.map((cell, i) => (
+        <WallCell key={cell.hex} cell={cell} name={model.name} delay={i * 70} />
+      ))}
+    </div>
+  );
+}
+
+function WallCell({
+  cell,
+  name,
+  delay,
+}: {
+  cell: { hex: string; url: string; label: string };
+  name: string;
+  delay: number;
+}) {
+  const reveal = useReveal({ delay });
+  return (
+    <div
+      className="bi-wall-cell"
+      {...reveal}
+      style={{ ...reveal.style, background: cell.hex }}
+    >
+      <img src={cell.url} alt={`${name} logo on ${cell.label}`} />
+    </div>
+  );
+}
+
+export function LogoSystem({
+  model,
+  register,
+}: {
+  model: IdentityModel;
+  register: IdentityRegister;
+}) {
   return (
     <Section id="logo">
       <SplitHeader
@@ -31,6 +86,7 @@ export function LogoSystem({ model }: { model: IdentityModel }) {
         title="Logo"
         body="Every version of the mark, and where each one belongs. Use the file, never a screenshot or a redraw."
       />
+      <LogoWall model={model} register={register} />
       {model.logo.variants.map((logo, i) => (
         <RuleCard
           key={logo.def.role}
@@ -62,7 +118,7 @@ export function LogoUsage({ model }: { model: IdentityModel }) {
   const specs = useReveal();
 
   return (
-    <Section id="logoUsage" ground="panel">
+    <Section id="logoUsage">
       <SplitHeader
         eyebrow="Rules that protect the mark"
         title="Logo usage"
@@ -121,7 +177,15 @@ export function Colour({ model }: { model: IdentityModel }) {
         title="Colour"
         body="Every value the brand owns, in the formats you will actually paste. Click any of them to copy."
       />
-      <div className="bi-swatch-grid">
+      {/*
+        A field, not a row of chips.
+
+        Colour is the one thing on this page that cannot be described, only
+        shown, and it needs area to be shown in — a 60px swatch tells you the
+        hue and nothing about how the colour behaves when it covers something.
+        `data-count` lets the layout stay composed at two colours and at nine.
+      */}
+      <div className="bi-swatch-grid" data-count={model.colour.colours.length}>
         {model.colour.colours.map((colour, i) => (
           <Swatch key={colour.hex} colour={colour} brandName={model.name} delay={i * 70} />
         ))}

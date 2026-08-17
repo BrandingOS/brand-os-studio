@@ -7,86 +7,181 @@
  * happens to be served by us. It follows the `--pres-*` precedent, where
  * customer-brand content tokens are deliberately a separate job.
  *
- * ── The shell stays neutral, and that is the whole trick ──────────────────
+ * ── The brand is the material, not the highlight ──────────────────────────
  *
- * White page, #FAFAFA panels, three opacities of black for text. The brand's
- * colour appears as a POINTER — a dot beside a label, one word inside a black
- * headline, the action pills — and takes the ground exactly twice, at the two
- * moments that are statements rather than specifications: the voice section and
- * the closing. A guidelines page that wears the brand everywhere cannot show
- * the brand anywhere; when the ground finally turns, it has to land.
+ * An earlier version of this page kept a neutral shell and let the brand's
+ * colour appear as a pointer. It was defensible and it produced a page that
+ * looked identical for every brand, which is the wrong outcome for a document
+ * whose whole job is to make ONE brand unmistakable. So the colour is on the
+ * ground now: five section grounds — page, tint, brand, brand-2, deep — and
+ * even the two "neutral" ones are tinted with the brand's own hue.
+ *
+ * What keeps that from becoming a monotone mess is that no colour here is
+ * hand-paired. `identityRegister` builds the whole set through
+ * `brandPalette`, whose foregrounds are picked off the surface ramp by
+ * contrast — so a pale-yellow brand and a near-black brand both come out
+ * legible with no per-brand fussing.
+ *
+ * ── Ground tokens: the one idea worth understanding ──────────────────────
+ *
+ * Every section redefines `--bi-fg`, `--bi-line`, `--bi-inset` and friends for
+ * the ground it stands on, and every rule inside reads those rather than a
+ * page-level colour. That is why there is no `[data-ground='brand'] .bi-body`
+ * rule, and no combinatorial explosion of them: a component written once is
+ * correct on all five grounds, including grounds added later.
  *
  * ── Type ─────────────────────────────────────────────────────────────────
  *
- * Two weights (600 structural, 500 everything else) and a deliberately GAPPY
- * scale — 72 / 44 / 35 / 30 / 24 / 16, with nothing between 44 and 72 — so
- * hierarchy is unmistakable at a glance rather than inferred from a 4px
- * difference. Tracking is a function of size, never guessed: −0.03em at
- * display, −0.02em at text, and positive ONLY when uppercase. Line-height
- * tightens as size grows, to 1.0 solid at display.
+ * Set in the BRAND's own typefaces when it has them (`--bi-font-display` /
+ * `--bi-font-text`, injected by the register), falling back to Inter. A
+ * guideline set in someone else's face while telling you which face to use
+ * undercuts itself. The scale is deliberately gappy — nothing between the
+ * section title and the hero — so hierarchy is unmistakable at a glance.
  */
 
 [data-identity] {
-  /* Neutral shell. */
+  /* Neutral shell defaults. The register overwrites all of these with the
+     brand's tinted ramp; they are what a brand with no decided colour gets. */
   --bi-page: #ffffff;
-  --bi-panel: #fafafa;
-  --bi-ink: #000000;
-  --bi-ink-2: rgba(0, 0, 0, 0.8);
-  --bi-ink-3: rgba(0, 0, 0, 0.4);
-  --bi-hairline: rgba(0, 0, 0, 0.08);
-
-  /* The brand, injected at runtime. Fallbacks keep the page legible if a
-     brand somehow arrives with nothing — it will simply read as monochrome. */
-  --bi-accent: #111113;
-  --bi-on-accent: #ffffff;
+  --bi-surface: #ffffff;
+  --bi-panel: #f7f7f7;
+  --bi-deep: #0b0b0c;
+  --bi-on-deep: #ffffff;
+  --bi-ink: #0b0b0c;
+  --bi-ink-2: rgba(11, 11, 12, 0.78);
+  --bi-ink-3: rgba(11, 11, 12, 0.45);
+  --bi-brand: #111113;
+  --bi-brand-2: #444448;
+  --bi-brand-3: #111113;
+  --bi-on-brand: #ffffff;
+  --bi-on-brand-2: #ffffff;
+  --bi-accent: var(--bi-brand);
 
   /* Layout. */
-  --bi-container: 1280px;
-  --bi-gutter: 80px;
+  --bi-container: 1360px;
+  --bi-gutter: 72px;
   --bi-measure: 344px;
 
   /* Radii, used as a semantic ladder rather than a preference. */
   --bi-r-flat: 0;
   --bi-r-xs: 4px;
-  --bi-r-sm: 8px;
-  --bi-r-md: 12px;
-  --bi-r-lg: 24px;
+  --bi-r-sm: 10px;
+  --bi-r-md: 14px;
+  --bi-r-lg: 26px;
   --bi-r-pill: 999px;
 
-  /* Shadows: near-invisible, wide blur. Lift without a visible edge. */
   --bi-shadow-sm: 0 2px 13px rgba(0, 0, 0, 0.04);
   --bi-shadow-md: 0 4px 42px rgba(0, 0, 0, 0.06);
-  --bi-shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.05);
+  --bi-shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
 
   --bi-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
+  /* ── Ground tokens ──────────────────────────────────────────────────
+     Redefined per section below. Everything inside a section reads THESE,
+     never the page-level colours, which is what makes one component rule
+     correct on every ground. */
+  --bi-ground: var(--bi-page);
+  --bi-fg: var(--bi-ink);
+  --bi-fg-2: var(--bi-ink-2);
+  --bi-fg-3: var(--bi-ink-3);
+  --bi-line: color-mix(in srgb, var(--bi-fg) 12%, transparent);
+  --bi-inset: color-mix(in srgb, var(--bi-fg) 4%, transparent);
+  --bi-mark: var(--bi-brand);
+  --bi-pill-bg: var(--bi-brand);
+  --bi-pill-fg: var(--bi-on-brand);
+
   background: var(--bi-page);
   color: var(--bi-ink);
-  font-family: 'Inter Display', Inter, system-ui, -apple-system, sans-serif;
+  font-family: var(--bi-font-text, 'Inter Display', Inter, system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* ── Grounds ───────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-section {
+  background: var(--bi-ground);
+  color: var(--bi-fg);
+  padding-block: clamp(88px, 11vh, 148px);
+  scroll-margin-top: 88px;
+  /* Above the pinned hero, and opaque, so the hero disappears behind the
+     document rather than showing through it. */
+  position: relative;
+  z-index: 1;
+}
+
+[data-identity] .bi-section[data-ground='tint'] {
+  --bi-ground: var(--bi-panel);
+  --bi-inset: var(--bi-surface);
+}
+[data-identity] .bi-section[data-ground='deep'] {
+  --bi-ground: var(--bi-deep);
+  --bi-fg: var(--bi-on-deep);
+  --bi-fg-2: color-mix(in srgb, var(--bi-on-deep) 74%, transparent);
+  --bi-fg-3: color-mix(in srgb, var(--bi-on-deep) 46%, transparent);
+  --bi-inset: color-mix(in srgb, var(--bi-on-deep) 7%, transparent);
+  /* The brand's colour still reads on near-black, so the marks stay branded
+     here — this ground is dark, not neutral. */
+  --bi-mark: var(--bi-brand);
+}
+[data-identity] .bi-section[data-ground='brand'] {
+  --bi-ground: var(--bi-brand);
+  --bi-fg: var(--bi-on-brand);
+  --bi-fg-2: color-mix(in srgb, var(--bi-on-brand) 76%, transparent);
+  --bi-fg-3: color-mix(in srgb, var(--bi-on-brand) 52%, transparent);
+  --bi-inset: color-mix(in srgb, var(--bi-on-brand) 12%, transparent);
+  /* On the brand's own ground the brand colour is invisible — the ink is the
+     accent. This is the whole reason the mark is a token. */
+  --bi-mark: var(--bi-on-brand);
+  --bi-pill-bg: var(--bi-on-brand);
+  --bi-pill-fg: var(--bi-brand);
+}
+[data-identity] .bi-section[data-ground='brand-2'] {
+  --bi-ground: var(--bi-brand-2);
+  --bi-fg: var(--bi-on-brand-2);
+  --bi-fg-2: color-mix(in srgb, var(--bi-on-brand-2) 76%, transparent);
+  --bi-fg-3: color-mix(in srgb, var(--bi-on-brand-2) 52%, transparent);
+  --bi-inset: color-mix(in srgb, var(--bi-on-brand-2) 12%, transparent);
+  --bi-mark: var(--bi-on-brand-2);
+  --bi-pill-bg: var(--bi-on-brand-2);
+  --bi-pill-fg: var(--bi-brand-2);
 }
 
 /* ── Type ──────────────────────────────────────────────────────────────── */
 
+[data-identity] .bi-display,
+[data-identity] .bi-statement,
+[data-identity] .bi-title,
+[data-identity] .bi-subhead,
+[data-identity] .bi-card-title,
+[data-identity] .bi-word,
+[data-identity] .bi-hero-name,
+[data-identity] .bi-tile-number,
+[data-identity] .bi-tile-aa,
+[data-identity] .bi-statement-text {
+  font-family: var(--bi-font-display, 'Inter Display', Inter, system-ui, sans-serif);
+}
+
 [data-identity] .bi-display {
-  font-size: clamp(46px, 5vw, 72px);
+  font-size: clamp(46px, 5vw, 76px);
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.03em;
   margin: 0;
 }
 [data-identity] .bi-statement {
-  font-size: clamp(28px, 3vw, 44px);
+  font-size: clamp(28px, 3.1vw, 46px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin: 0;
+  text-wrap: balance;
+}
+[data-identity] .bi-title {
+  font-size: clamp(30px, 2.6vw, 40px);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.025em;
-  margin: 0;
-}
-[data-identity] .bi-title {
-  font-size: clamp(28px, 2.4vw, 35px);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
   margin: 0;
 }
 [data-identity] .bi-subhead {
@@ -106,14 +201,14 @@
 [data-identity] .bi-body {
   font-size: 16px;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.35;
   letter-spacing: -0.02em;
-  color: var(--bi-ink-2);
+  color: var(--bi-fg-2);
   margin: 0;
   max-width: var(--bi-measure);
 }
 [data-identity] .bi-quiet {
-  color: var(--bi-ink-3);
+  color: var(--bi-fg-3);
 }
 /*
  * Uppercase is for the brand's VOICE, never for labels.
@@ -128,10 +223,8 @@
   letter-spacing: 0.02em;
   line-height: 0.95;
 }
-/* The one place the brand's colour touches type: a single word, in a black
-   sentence. Emphasis, not decoration. */
 [data-identity] .bi-accent-word {
-  color: var(--bi-accent);
+  color: var(--bi-mark);
 }
 
 /* ── Layout ────────────────────────────────────────────────────────────── */
@@ -142,49 +235,28 @@
   margin-inline: auto;
   padding-inline: var(--bi-gutter);
 }
-
-[data-identity] .bi-section {
-  padding-block: 120px;
-  scroll-margin-top: 96px;
-  position: relative;
-}
-/* The two crescendos. Everything else keeps the neutral ground. */
-[data-identity] .bi-section[data-ground='brand'] {
-  background: var(--bi-accent);
-  color: var(--bi-on-accent);
-}
-[data-identity] .bi-section[data-ground='brand'] .bi-body,
-[data-identity] .bi-section[data-ground='brand'] .bi-quiet {
-  color: color-mix(in srgb, var(--bi-on-accent) 78%, transparent);
-}
-[data-identity] .bi-section[data-ground='panel'] {
-  background: var(--bi-panel);
+[data-identity] .bi-container--full {
+  max-width: none;
 }
 
-/* Eyebrow: an accent dot and a sentence-case label. */
+/* Eyebrow: a mark and a sentence-case label. */
 [data-identity] .bi-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: 9px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--bi-ink-3);
+  color: var(--bi-fg-3);
   margin-bottom: 14px;
 }
 [data-identity] .bi-eyebrow::before {
   content: '';
-  width: 14px;
+  width: 16px;
   height: 7px;
   border-radius: var(--bi-r-pill);
-  background: var(--bi-accent);
+  background: var(--bi-mark);
   flex: 0 0 auto;
-}
-[data-identity] [data-ground='brand'] .bi-eyebrow {
-  color: color-mix(in srgb, var(--bi-on-accent) 70%, transparent);
-}
-[data-identity] [data-ground='brand'] .bi-eyebrow::before {
-  background: var(--bi-on-accent);
 }
 
 /* Heading left, explanation right. The section-opening pattern. */
@@ -192,7 +264,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 48px;
-  align-items: start;
+  align-items: end;
   margin-bottom: 56px;
 }
 [data-identity] .bi-split-header .bi-body {
@@ -212,7 +284,7 @@
   gap: 48px;
   align-items: stretch;
   padding-block: 40px;
-  border-top: 1px solid var(--bi-hairline);
+  border-top: 1px solid var(--bi-line);
 }
 [data-identity] .bi-rule-text {
   display: flex;
@@ -224,9 +296,9 @@
   align-self: flex-start;
 }
 [data-identity] .bi-specimen {
-  background: var(--bi-panel);
-  border-radius: var(--bi-r-sm);
-  min-height: 280px;
+  background: var(--bi-inset);
+  border-radius: var(--bi-r-md);
+  min-height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,12 +306,16 @@
   overflow: hidden;
 }
 [data-identity] .bi-specimen[data-ground='dark'] {
-  background: #111113;
+  background: var(--bi-deep);
 }
 [data-identity] .bi-specimen img {
   max-width: 100%;
   max-height: 320px;
   object-fit: contain;
+  /* Drifts against the scroll — depth, not decoration. `--bi-p` is written on
+     the panel by the scroll driver; 0.5 is the resting value. */
+  transform: translate3d(0, calc((var(--bi-p, 0.5) - 0.5) * -26px), 0);
+  will-change: transform;
 }
 
 /* ── Actions ───────────────────────────────────────────────────────────── */
@@ -248,39 +324,38 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 38px;
-  padding-inline: 18px;
+  height: 42px;
+  padding-inline: 20px;
   border: none;
   border-radius: var(--bi-r-pill);
-  background: var(--bi-accent);
-  color: var(--bi-on-accent);
+  background: var(--bi-pill-bg);
+  color: var(--bi-pill-fg);
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.02em;
   cursor: pointer;
   text-decoration: none;
-  transition: filter 150ms var(--bi-ease);
+  transition:
+    transform 220ms var(--bi-ease),
+    filter 150ms var(--bi-ease);
 }
 [data-identity] .bi-download:hover {
   filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 [data-identity] .bi-download:disabled {
   opacity: 0.4;
   cursor: default;
 }
-[data-identity] [data-ground='brand'] .bi-download {
-  background: var(--bi-on-accent);
-  color: var(--bi-accent);
-}
 [data-identity] .bi-download--ghost {
   background: transparent;
-  color: var(--bi-ink);
-  border: 1px solid var(--bi-hairline);
+  color: var(--bi-fg);
+  border: 1px solid var(--bi-line);
 }
 
 [data-identity] :focus-visible {
-  outline: 3px solid var(--bi-ink);
+  outline: 3px solid var(--bi-fg);
   outline-offset: 2px;
   border-radius: var(--bi-r-xs);
 }
@@ -295,7 +370,7 @@
   border: none;
   background: none;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: inherit;
@@ -308,7 +383,7 @@
   text-underline-offset: 3px;
 }
 [data-identity] .bi-copyable-label {
-  flex: 0 0 62px;
+  flex: 0 0 58px;
   opacity: 0.65;
 }
 [data-identity] .bi-copyable-value {
@@ -318,68 +393,368 @@
 /* ── Hero ──────────────────────────────────────────────────────────────── */
 
 /*
- * A screenful of air, and the brand's own mark in it.
+ * A stage taller than the viewport, with the hero pinned inside it.
  *
- * Whitespace is the one luxury signal that cannot be faked, and here it is also
- * practical: the first impression is made by the brand's artwork rather than by
- * our layout.
+ * Scrolling drives the opening away rather than simply moving past it: the
+ * mark and name lift and fade while the colour field opens out, and the first
+ * section of the document arrives over the top. `position: sticky` and one
+ * custom property buy the whole effect — no scroll hijacking, and the
+ * scrollbar keeps telling the truth about the document's length.
  */
-[data-identity] .bi-hero {
-  min-height: min(92vh, 900px);
-  display: flex;
-  align-items: center;
-  padding-block: 0;
+[data-identity] .bi-hero-stage {
+  position: relative;
+  height: 175vh;
 }
+[data-identity] .bi-hero {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 620px;
+  padding-block: 0;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* The brand's own colours as slow blooms. A gradient we invented would be
+   decoration; these are the palette. */
+[data-identity] .bi-hero-field {
+  position: absolute;
+  inset: -25%;
+  filter: blur(90px) saturate(1.25);
+  opacity: 0.6;
+  /* Spreads as the hero leaves — the colour outlives the type. */
+  transform: scale(calc(1 + var(--bi-p, 0) * 0.45));
+  pointer-events: none;
+}
+[data-identity] .bi-hero-bloom {
+  position: absolute;
+  width: 52vmax;
+  height: 52vmax;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+[data-identity] .bi-hero-bloom[data-i='0'] {
+  left: 4%;
+  top: -6%;
+  animation: bi-drift-a 26s ease-in-out infinite alternate;
+}
+[data-identity] .bi-hero-bloom[data-i='1'] {
+  right: 2%;
+  top: 18%;
+  opacity: 0.85;
+  animation: bi-drift-b 32s ease-in-out infinite alternate;
+}
+[data-identity] .bi-hero-bloom[data-i='2'] {
+  left: 32%;
+  bottom: -18%;
+  opacity: 0.7;
+  animation: bi-drift-c 38s ease-in-out infinite alternate;
+}
+@keyframes bi-drift-a {
+  to {
+    transform: translate3d(14%, 10%, 0) scale(1.15);
+  }
+}
+@keyframes bi-drift-b {
+  to {
+    transform: translate3d(-16%, 6%, 0) scale(1.2);
+  }
+}
+@keyframes bi-drift-c {
+  to {
+    transform: translate3d(10%, -12%, 0) scale(1.1);
+  }
+}
+
+[data-identity] .bi-hero-ghost {
+  position: absolute;
+  right: -8vw;
+  top: 50%;
+  width: min(58vw, 780px);
+  opacity: 0.07;
+  pointer-events: none;
+  /* Rises against the scroll, so the field has depth rather than a flat
+     backdrop with a picture on it. */
+  transform: translate3d(0, calc(-50% - var(--bi-p, 0) * 14vh), 0)
+    rotate(calc(var(--bi-p, 0) * 8deg));
+  will-change: transform;
+}
+
 [data-identity] .bi-hero-inner {
+  position: relative;
+  z-index: 1;
+  padding-bottom: clamp(84px, 12vh, 132px);
+}
+[data-identity] .bi-hero-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 28px;
-  position: relative;
+  align-items: flex-start;
+  gap: 22px;
+  /* Driven by the pin. Left-aligned and bottom-set: a centred stack of mark
+     over name is the single most templated hero on the internet. */
+  transform: translate3d(0, calc(var(--bi-p, 0) * -12vh), 0)
+    scale(calc(1 - var(--bi-p, 0) * 0.06));
+  transform-origin: left bottom;
+  opacity: calc(1 - var(--bi-p, 0) * 1.4);
+  will-change: transform, opacity;
 }
 [data-identity] .bi-hero-mark {
-  max-width: min(420px, 60vw);
+  /*
+   * `width`, not `max-width`.
+   *
+   * The column's `align-items: flex-start` shrink-wraps its children, so a box
+   * with only a max-width takes the artwork's INTRINSIC size — a 300px SVG
+   * stayed 300px however much room it was offered. The image inside is
+   * `object-fit: contain`, so an over-wide box never stretches anything.
+   */
+  width: min(300px, 44vw);
 }
 [data-identity] .bi-hero-mark img {
   width: 100%;
   height: auto;
-  max-height: 180px;
+  max-height: 130px;
   object-fit: contain;
+  object-position: left center;
+}
+/* The artwork carries the name, so it takes the scale the name would have. */
+[data-identity] .bi-hero[data-mark='name'] .bi-hero-mark {
+  width: min(820px, 72vw);
+}
+[data-identity] .bi-hero[data-mark='name'] .bi-hero-mark img {
+  max-height: min(230px, 26vh);
+}
+
+/* Present to the document and to assistive technology, absent from the page. */
+[data-identity] .bi-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 [data-identity] .bi-hero-name {
-  max-width: 18ch;
+  margin: 0;
+  font-size: clamp(58px, 12vw, 190px);
+  font-weight: 700;
+  line-height: 0.86;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+  max-width: 14ch;
 }
 [data-identity] .bi-hero-sub {
-  font-size: 20px;
+  font-size: clamp(18px, 1.6vw, 24px);
   font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--bi-ink-3);
+  color: var(--bi-fg-2);
   margin: 0;
-  max-width: 44ch;
+  max-width: 40ch;
 }
-[data-identity] .bi-hero-cue {
-  font-size: 14px;
+[data-identity] .bi-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+[data-identity] .bi-hero-meta span {
+  font-size: 13px;
   font-weight: 500;
-  margin-top: 40px;
+  letter-spacing: -0.01em;
+  padding: 6px 13px;
+  border-radius: var(--bi-r-pill);
+  border: 1px solid color-mix(in srgb, var(--bi-fg) 22%, transparent);
+  color: var(--bi-fg-2);
+}
+
+/*
+ * The palette across the foot of the screen, the lead colour widest.
+ *
+ * A brand's proportions are part of its identity — an equal-width strip would
+ * claim all five colours matter equally, which is never true.
+ */
+[data-identity] .bi-hero-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 12px;
+  display: flex;
+  z-index: 2;
+  transform-origin: left center;
+  animation: bi-strip 1100ms var(--bi-ease) 420ms both;
+}
+[data-identity] .bi-hero-strip > span {
+  flex: 1 1 0;
+  min-width: 0;
+}
+@keyframes bi-strip {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+[data-identity] .bi-hero-cue {
+  position: absolute;
+  right: var(--bi-gutter);
+  bottom: clamp(84px, 12vh, 132px);
+  z-index: 2;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bi-fg-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: calc(1 - var(--bi-p, 0) * 2.2);
+}
+[data-identity] .bi-hero-cue::after {
+  content: '';
+  width: 1px;
+  height: 46px;
+  background: linear-gradient(var(--bi-fg-3), transparent);
+  animation: bi-cue 2.4s var(--bi-ease) infinite;
+  transform-origin: top center;
+}
+@keyframes bi-cue {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+/* ── Glance ────────────────────────────────────────────────────────────── */
+
+/*
+ * The whole brand in one frame, before the document begins.
+ *
+ * Six columns, with each tile's span chosen from the tile COUNT (see `spans`)
+ * so every row sums to six however many tiles the brand earns. The obvious
+ * alternatives both fail on real data: an auto-fit grid leaves a hole in the
+ * last row, and a flex row stretches a lone final tile across the whole page —
+ * which is worse, because it looks like a decision.
+ */
+[data-identity] .bi-glance {
+  background: var(--bi-page);
+  position: relative;
+  z-index: 1;
+  padding-block: clamp(48px, 6vh, 76px) clamp(24px, 3vh, 40px);
+}
+[data-identity] .bi-glance-grid {
+  width: 100%;
+  max-width: var(--bi-container);
+  margin-inline: auto;
+  padding-inline: var(--bi-gutter);
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+[data-identity] .bi-tile {
+  min-height: 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--bi-line);
+  border-radius: var(--bi-r-md);
+  background: var(--bi-surface);
+  color: var(--bi-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    transform 260ms var(--bi-ease),
+    border-color 260ms var(--bi-ease);
+}
+[data-identity] .bi-tile:hover {
+  transform: translateY(-3px);
+  border-color: var(--bi-brand);
+}
+[data-identity] .bi-tile-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--bi-ink-3);
+}
+[data-identity] .bi-tile--mark img {
+  max-height: 76px;
+  max-width: 70%;
+  object-fit: contain;
+  object-position: left center;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+[data-identity] .bi-tile-swatches {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  align-items: stretch;
+}
+[data-identity] .bi-tile-swatches > span {
+  flex: 1;
+  border-radius: var(--bi-r-xs);
+  min-height: 62px;
+}
+[data-identity] .bi-tile-aa {
+  font-size: 62px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin-top: auto;
+}
+[data-identity] .bi-tile-number {
+  font-size: 62px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--bi-brand);
+  margin-top: auto;
+  font-variant-numeric: tabular-nums;
+}
+[data-identity] .bi-tile-words {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-top: auto;
+}
+[data-identity] .bi-tile-words--accent {
+  color: var(--bi-brand);
+}
+
+@media (max-width: 900px) {
+  /* Below three columns the spans stop dividing anything. Two up, and the
+     first tile takes the full width so the mark keeps its scale. */
+  [data-identity] .bi-glance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  [data-identity] .bi-tile {
+    grid-column: span 1 !important;
+  }
+  [data-identity] .bi-tile--mark {
+    grid-column: span 2 !important;
+  }
 }
 
 /* ── Introduction ──────────────────────────────────────────────────────── */
 
 [data-identity] .bi-intro-statement {
-  max-width: 22ch;
-}
-[data-identity] .bi-intro-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 40px;
-  margin-top: 48px;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-[data-identity] .bi-intro-meta .bi-quiet {
-  margin-right: 8px;
+  max-width: 20ch;
 }
 
 /* ── Purpose ───────────────────────────────────────────────────────────── */
@@ -394,7 +769,7 @@
 [data-identity] .bi-purpose-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 @media (max-width: 860px) {
   [data-identity] .bi-purpose-grid {
@@ -405,25 +780,39 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 260px;
-  padding: 28px;
-  border-radius: var(--bi-r-sm);
-  background: var(--bi-panel);
+  min-height: 230px;
+  padding: 30px;
+  border-radius: var(--bi-r-md);
+  background: var(--bi-inset);
+  /* On the tinted ground the card is white on near-white, so the edge has to be
+     drawn — without it the accent rule above reads as a line floating in space
+     rather than as the top of a card. */
+  border: 1px solid var(--bi-line);
+  position: relative;
+  overflow: hidden;
 }
-/* The label sits at the top, the statement at the bottom — the card reads as
-   an answer, not as a form field. */
+/* A rule in the brand's colour along the top edge — the card is answering a
+   question the brand asked. */
+[data-identity] .bi-purpose-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 3px;
+  background: var(--bi-mark);
+}
 [data-identity] .bi-statement-text {
   margin: auto 0 0;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 [data-identity] .bi-statement-text[data-size='lg'] {
-  font-size: 30px;
-  line-height: 1.2;
+  font-size: 32px;
+  line-height: 1.15;
 }
 [data-identity] .bi-statement-text[data-size='md'] {
-  font-size: 24px;
-  line-height: 1.25;
+  font-size: 25px;
+  line-height: 1.22;
 }
 [data-identity] .bi-statement-text[data-size='sm'] {
   font-size: 19px;
@@ -436,25 +825,25 @@
   display: grid;
   grid-template-columns: var(--bi-measure) minmax(0, 1fr);
   gap: 48px;
-  padding-block: 32px;
-  border-top: 1px solid var(--bi-hairline);
+  padding-block: 36px;
+  border-top: 1px solid var(--bi-line);
   align-items: baseline;
 }
 [data-identity] .bi-word-caption {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.02em;
 }
 [data-identity] .bi-word-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 32px;
+  gap: 10px 34px;
 }
 [data-identity] .bi-word {
-  font-size: clamp(24px, 2.4vw, 35px);
+  font-size: clamp(26px, 3vw, 46px);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 @media (max-width: 1100px) {
@@ -464,7 +853,55 @@
   }
 }
 
-/* ── Specification sections ────────────────────────────────────────────── */
+/* ── Logo ──────────────────────────────────────────────────────────────── */
+
+/*
+ * The wall: the mark on every ground the brand owns.
+ *
+ * The variant in each cell was chosen by `pickLogoOnBackground`, and a ground
+ * where nothing reaches the readability floor is not rendered at all — which
+ * is why this can be a flush field with no captions. Every cell is a true
+ * statement.
+ */
+[data-identity] .bi-logo-wall {
+  display: grid;
+  /*
+   * One row, always full.
+   *
+   * `auto-fit` fits as many as it can and then leaves the remainder alone — six
+   * cells on a 1216px page came out five and one, with a quarter of the wall
+   * empty. The column count is the CELL COUNT (capped at six by the register),
+   * so the wall is a band whatever the brand has.
+   */
+  grid-template-columns: repeat(var(--bi-wall-cols, 3), minmax(0, 1fr));
+  border: 1px solid var(--bi-line);
+  border-radius: var(--bi-r-lg);
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+[data-identity] .bi-wall-cell {
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  padding: 13%;
+}
+[data-identity] .bi-wall-cell img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+@media (max-width: 1100px) {
+  [data-identity] .bi-logo-wall {
+    grid-template-columns: repeat(min(var(--bi-wall-cols, 3), 3), minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  [data-identity] .bi-logo-wall {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Logo usage ────────────────────────────────────────────────────────── */
 
 [data-identity] .bi-spec-row {
   display: flex;
@@ -478,22 +915,22 @@
   gap: 6px;
 }
 [data-identity] .bi-spec-pair .bi-quiet {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
 }
 
 [data-identity] .bi-rules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 [data-identity] .bi-usage-rule {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 24px;
-  border-radius: var(--bi-r-sm);
-  background: var(--bi-page);
+  padding: 26px;
+  border-radius: var(--bi-r-md);
+  background: var(--bi-inset);
 }
 [data-identity] .bi-usage-do,
 [data-identity] .bi-usage-dont {
@@ -511,7 +948,7 @@
   content: '✓';
   position: absolute;
   left: 0;
-  color: var(--bi-accent);
+  color: var(--bi-mark);
   font-weight: 600;
 }
 [data-identity] .bi-usage-dont::before {
@@ -521,43 +958,53 @@
   opacity: 0.35;
 }
 [data-identity] .bi-usage-dont {
-  color: var(--bi-ink-3);
+  color: var(--bi-fg-3);
 }
 
 /* ── Colour ────────────────────────────────────────────────────────────── */
 
+/*
+ * A field, not a row of chips.
+ *
+ * Colour is the one thing on this page that cannot be described, only shown,
+ * and it needs area to be shown in. Flex rather than grid for the same reason
+ * as the glance tiles: the count is the brand's, not ours, and flex-grow fills
+ * the last row at any count instead of leaving a hole.
+ */
 [data-identity] .bi-swatch-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 [data-identity] .bi-swatch {
   position: relative;
-  min-height: 300px;
+  flex: 1 1 250px;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 24px;
+  padding: 26px;
   border-radius: var(--bi-r-lg);
-  box-shadow: var(--bi-shadow-md);
   overflow: hidden;
+  /* A swatch close to the ground it sits on still needs an edge — the black in
+     a palette all but vanishes on the deep section without one. */
+  box-shadow: 0 0 0 1px var(--bi-line);
+  transition: transform 320ms var(--bi-ease);
+}
+[data-identity] .bi-swatch:hover {
+  transform: translateY(-4px);
 }
 /* The colour the brand leads with gets the room it deserves. */
 [data-identity] .bi-swatch[data-lead] {
-  grid-column: span 2;
-  min-height: 360px;
-}
-@media (max-width: 860px) {
-  [data-identity] .bi-swatch[data-lead] {
-    grid-column: span 1;
-  }
+  flex: 2.4 1 520px;
+  min-height: 400px;
 }
 [data-identity] .bi-swatch-role {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 10px;
-  opacity: 0.8;
+  opacity: 0.75;
 }
 [data-identity] .bi-swatch-meta {
   display: flex;
@@ -570,14 +1017,14 @@
   position: absolute;
   top: 16px;
   right: 16px;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
   border-radius: var(--bi-r-pill);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
   color: inherit;
   cursor: pointer;
   opacity: 0;
@@ -617,7 +1064,7 @@
   font-size: 18px;
   line-height: 1.5;
   letter-spacing: -0.01em;
-  color: var(--bi-ink-2);
+  color: var(--bi-fg-2);
   word-break: break-word;
 }
 
@@ -627,10 +1074,10 @@
   padding-top: 48px;
 }
 
-/* ── Voice — the first crescendo ───────────────────────────────────────── */
+/* ── Voice ─────────────────────────────────────────────────────────────── */
 
 [data-identity] .bi-voice-lead {
-  max-width: 20ch;
+  max-width: 18ch;
 }
 [data-identity] .bi-voice-word {
   /* Set apart by weight and case, not by a second colour — the ground is
@@ -641,18 +1088,18 @@
 [data-identity] .bi-voice-examples {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: 20px;
+  gap: 18px;
   margin-top: 64px;
 }
 [data-identity] .bi-voice-example {
   margin: 0;
-  padding: 28px;
-  border-radius: var(--bi-r-flat);
-  background: color-mix(in srgb, var(--bi-on-accent) 12%, transparent);
+  padding: 30px;
+  border-radius: var(--bi-r-md);
+  background: var(--bi-inset);
   display: flex;
   flex-direction: column;
   gap: 14px;
-  min-height: 200px;
+  min-height: 210px;
 }
 [data-identity] .bi-voice-example blockquote {
   margin: 0;
@@ -690,31 +1137,45 @@
 
 /* ── Photography ───────────────────────────────────────────────────────── */
 
+/*
+ * An editorial grid, not a contact sheet. `dense` lets the wide and tall
+ * frames slot in without leaving gaps behind them.
+ */
 [data-identity] .bi-photo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+  grid-auto-rows: 230px;
+  grid-auto-flow: dense;
   gap: 12px;
 }
 [data-identity] .bi-photo {
   position: relative;
   margin: 0;
-  aspect-ratio: 4 / 3;
-  border-radius: var(--bi-r-sm);
+  border-radius: var(--bi-r-md);
   overflow: hidden;
-  background: var(--bi-panel);
+  background: var(--bi-inset);
+}
+[data-identity] .bi-photo[data-shape='wide'] {
+  grid-column: span 2;
+}
+[data-identity] .bi-photo[data-shape='tall'] {
+  grid-row: span 2;
 }
 [data-identity] .bi-photo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  /* Overscaled so the drift never exposes an edge. */
+  transform: translate3d(0, calc((var(--bi-p, 0.5) - 0.5) * -40px), 0) scale(1.14);
+  will-change: transform;
 }
 [data-identity] .bi-photo-grab {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: var(--bi-r-pill);
   background: rgba(17, 17, 20, 0.7);
@@ -744,12 +1205,17 @@
   flex-direction: column;
   gap: 8px;
   padding: 16px;
-  border: none;
-  border-radius: var(--bi-r-sm);
-  background: var(--bi-page);
+  border: 1px solid var(--bi-line);
+  border-radius: var(--bi-r-md);
+  background: var(--bi-inset);
+  color: var(--bi-fg);
   cursor: pointer;
   font: inherit;
   text-align: left;
+  transition: transform 220ms var(--bi-ease);
+}
+[data-identity] .bi-asset:hover {
+  transform: translateY(-2px);
 }
 [data-identity] .bi-asset img {
   width: 100%;
@@ -759,7 +1225,7 @@
 [data-identity] .bi-asset-name {
   font-size: 12px;
   font-weight: 500;
-  color: var(--bi-ink-3);
+  color: var(--bi-fg-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -771,9 +1237,10 @@
   margin-top: 56px;
 }
 [data-identity] .bi-social-label {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 500;
   margin: 0 0 16px;
+  color: var(--bi-fg-2);
 }
 [data-identity] .bi-social-grid {
   display: grid;
@@ -795,9 +1262,9 @@
   grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
 }
 [data-identity] .bi-social-item {
-  border-radius: var(--bi-r-sm);
+  border-radius: var(--bi-r-md);
   overflow: hidden;
-  box-shadow: var(--bi-shadow-md);
+  box-shadow: var(--bi-shadow-lg);
 }
 
 /* ── Downloads + closing ───────────────────────────────────────────────── */
@@ -812,16 +1279,16 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 32px;
-  padding-block: 40px;
+  gap: 34px;
+  padding-block: 48px;
 }
 [data-identity] .bi-closing-mark {
-  max-height: 96px;
-  max-width: 260px;
+  max-height: 104px;
+  max-width: 280px;
   object-fit: contain;
 }
 [data-identity] .bi-closing .bi-statement {
-  max-width: 20ch;
+  max-width: 18ch;
 }
 
 /* ── Nav ───────────────────────────────────────────────────────────────── */
@@ -838,18 +1305,21 @@
   gap: 10px;
   padding: 8px 10px;
   border-radius: var(--bi-r-md);
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(14px);
   box-shadow: var(--bi-shadow-sm);
   position: relative;
   overflow: hidden;
+  /* The nav floats over five different grounds, so it keeps its own light
+     scheme rather than inheriting whichever section is behind it. */
+  color: #0b0b0c;
 }
 [data-identity] .bi-nav-brand {
   display: flex;
   flex-direction: column;
   line-height: 1.15;
   padding-right: 10px;
-  border-right: 1px solid var(--bi-hairline);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
 [data-identity] .bi-nav-brand-name {
   font-size: 14px;
@@ -863,7 +1333,7 @@
 [data-identity] .bi-nav-brand-sub {
   font-size: 11px;
   font-weight: 500;
-  color: var(--bi-ink-3);
+  color: rgba(0, 0, 0, 0.45);
 }
 [data-identity] .bi-nav-current {
   display: inline-flex;
@@ -875,11 +1345,11 @@
   font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--bi-ink);
+  color: #0b0b0c;
   cursor: pointer;
   padding: 4px 2px;
 }
-/* Progress. A document that can run six thousand pixels should say how far
+/* Progress. A document that can run twelve thousand pixels should say how far
    through it you are. */
 [data-identity] .bi-nav-progress {
   position: absolute;
@@ -887,12 +1357,12 @@
   right: 0;
   bottom: 0;
   height: 2px;
-  background: var(--bi-hairline);
+  background: rgba(0, 0, 0, 0.08);
 }
 [data-identity] .bi-nav-progress > span {
   display: block;
   height: 100%;
-  background: var(--bi-accent);
+  background: var(--bi-brand);
   transform-origin: left center;
   transition: transform 120ms linear;
 }
@@ -901,7 +1371,7 @@
   align-items: center;
   gap: 6px;
   padding-left: 8px;
-  border-left: 1px solid var(--bi-hairline);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
 }
 [data-identity] .bi-nav-menu {
   margin-top: 8px;
@@ -909,6 +1379,7 @@
   min-width: 210px;
   border-radius: var(--bi-r-md);
   background: #fff;
+  color: #0b0b0c;
   box-shadow: var(--bi-shadow-lg);
   display: flex;
   flex-direction: column;
@@ -923,24 +1394,21 @@
   font-size: 14px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--bi-ink-2);
+  color: rgba(0, 0, 0, 0.7);
   padding: 8px 10px;
   border-radius: var(--bi-r-xs);
   cursor: pointer;
 }
 [data-identity] .bi-nav-item:hover {
-  background: var(--bi-panel);
-  color: var(--bi-ink);
+  background: rgba(0, 0, 0, 0.05);
+  color: #0b0b0c;
 }
 [data-identity] .bi-nav-item.is-active {
-  color: var(--bi-ink);
+  color: #0b0b0c;
   font-weight: 600;
 }
 
 @media (max-width: 720px) {
-  /* The reference keeps a 252px card on a 390px phone — 65% of the screen,
-     permanently over the content. Here the identity collapses away and only
-     the section switcher remains. */
   [data-identity] .bi-nav {
     top: 12px;
     left: 12px;
@@ -970,8 +1438,8 @@
 }
 [data-identity] .bi-share-trigger {
   border: none;
-  background: var(--bi-ink);
-  color: var(--bi-page);
+  background: #0b0b0c;
+  color: #fff;
   font: inherit;
   font-size: 13px;
   font-weight: 500;
@@ -988,6 +1456,7 @@
   padding: 14px;
   border-radius: var(--bi-r-md);
   background: #fff;
+  color: #0b0b0c;
   box-shadow: var(--bi-shadow-lg);
   display: flex;
   flex-direction: column;
@@ -1003,8 +1472,8 @@
   font-weight: 500;
   padding: 8px 10px;
   border-radius: var(--bi-r-xs);
-  background: var(--bi-panel);
-  color: var(--bi-ink-2);
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.72);
 }
 [data-identity] .bi-share-reach[data-reach='this-browser'] {
   background: #fff4e5;
@@ -1015,10 +1484,10 @@
   font: inherit;
   font-size: 12px;
   padding: 8px 10px;
-  border: 1px solid var(--bi-hairline);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: var(--bi-r-xs);
-  background: var(--bi-panel);
-  color: var(--bi-ink);
+  background: #f7f7f7;
+  color: #0b0b0c;
 }
 [data-identity] .bi-share-actions {
   display: flex;
@@ -1026,7 +1495,7 @@
   gap: 6px;
 }
 [data-identity] .bi-share-actions button {
-  border: 1px solid var(--bi-hairline);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: #fff;
   font: inherit;
   font-size: 12px;
@@ -1034,10 +1503,10 @@
   padding: 6px 10px;
   border-radius: var(--bi-r-pill);
   cursor: pointer;
-  color: var(--bi-ink);
+  color: #0b0b0c;
 }
 [data-identity] .bi-share-actions button:hover {
-  background: var(--bi-panel);
+  background: #f5f5f5;
 }
 [data-identity] .bi-share-actions button[data-danger] {
   color: #a4231f;
@@ -1050,7 +1519,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--bi-ink-3);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 /* The page a revoked or unknown link lands on. Outside `[data-identity]`
@@ -1083,7 +1552,7 @@
 /* ── Motion ────────────────────────────────────────────────────────────── */
 
 /*
- * Text travels SIX pixels.
+ * Text travels EIGHT pixels.
  *
  * Not twenty-four, not forty. The reveal should be felt rather than watched —
  * large travel is for images and cards, where the movement is the point.
@@ -1091,10 +1560,10 @@
  */
 [data-identity] [data-reveal] {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(8px);
   transition:
-    opacity 620ms var(--bi-ease),
-    transform 620ms var(--bi-ease);
+    opacity 700ms var(--bi-ease),
+    transform 700ms var(--bi-ease);
   transition-delay: var(--bi-delay, 0ms);
 }
 [data-identity] [data-reveal='in'] {
@@ -1104,9 +1573,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   /*
-   * Not a gentler animation — none. The content is simply there, and the
-   * observers are never attached (see `useReveal`), so nothing depends on
-   * a scroll event that will not come.
+   * Not a gentler animation — none. The content is simply there, the reveal
+   * observers are never attached and the scroll driver is never registered
+   * with (see `useReveal` / `useScrollVar`), so nothing depends on a scroll
+   * event that will not come. Every `var(--bi-p, …)` falls back to its
+   * resting value, which is the designed state rather than a degraded one.
    */
   [data-identity] [data-reveal],
   [data-identity] [data-reveal='in'] {
@@ -1114,15 +1585,46 @@
     transform: none;
     transition: none;
   }
+  [data-identity] .bi-hero-stage {
+    height: auto;
+  }
+  [data-identity] .bi-hero {
+    position: relative;
+    height: auto;
+    min-height: 88vh;
+  }
+  [data-identity] .bi-hero-body,
+  [data-identity] .bi-hero-ghost,
+  [data-identity] .bi-hero-field,
+  [data-identity] .bi-hero-strip,
+  [data-identity] .bi-hero-cue::after,
+  [data-identity] .bi-hero-bloom,
+  [data-identity] .bi-specimen img,
+  [data-identity] .bi-photo img {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  [data-identity] .bi-photo img {
+    /* The overscale was only there to hide the parallax edge. */
+    transform: none;
+  }
+  [data-identity] .bi-hero-ghost {
+    /* Not `none`: the centring half-translate is layout, not motion. */
+    transform: translateY(-50%);
+  }
+  [data-identity] .bi-hero-field {
+    opacity: 0.6;
+  }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 
 @media (max-width: 1100px) {
   [data-identity] {
-    --bi-gutter: 48px;
+    --bi-gutter: 44px;
   }
-  /* The tablet stage the reference skipped: two columns before one. */
+  /* The tablet stage: two columns before one. */
   [data-identity] .bi-rule {
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
@@ -1130,20 +1632,40 @@
   [data-identity] .bi-split-header {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
+    align-items: start;
   }
 }
 
 @media (max-width: 720px) {
   [data-identity] {
-    --bi-gutter: 24px;
+    --bi-gutter: 22px;
   }
   [data-identity] .bi-section {
-    padding-block: 72px;
+    padding-block: 76px;
   }
   [data-identity] .bi-subhead {
     font-size: 24px;
   }
   [data-identity] .bi-body {
     max-width: none;
+  }
+  /* A 175vh stage is a long way to scroll past a hero on a phone. */
+  [data-identity] .bi-hero-stage {
+    height: 130vh;
+  }
+  [data-identity] .bi-hero-name {
+    max-width: none;
+  }
+  [data-identity] .bi-hero-cue {
+    display: none;
+  }
+  /* Wide and tall frames need every column there is at this width. */
+  [data-identity] .bi-photo[data-shape='wide'],
+  [data-identity] .bi-photo[data-shape='tall'] {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  [data-identity] .bi-swatch[data-lead] {
+    min-height: 320px;
   }
 }
