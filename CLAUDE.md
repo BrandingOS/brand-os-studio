@@ -57,6 +57,30 @@ Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/*
 
 There are also legacy landing page versions at `src/domains/landing` (v1) and `src/features/landing-v2` (v2) — these are dead code kept for reference. The live landing page is `landingpage/`.
 
+### Demo environment
+
+**The canonical demo URL is https://demo-25t.pages.dev** (Cloudflare Pages
+project `demo`). It builds its production from the **`demo` branch**, so a
+release is a fast-forward of that branch — never a merge, and `main` is not
+involved:
+
+```bash
+git push origin origin/<release-branch>:refs/heads/demo
+```
+
+Notes that will save you an hour:
+- A second project, `demo-b` (demo-b.pages.dev), is wired to the same repo and
+  the same `demo` branch, so it rebuilds too. It is NOT canonical — leave it
+  alone unless asked.
+- Neither project has Pages secrets or env vars, and none are needed: the
+  Supabase URL is hardcoded in `src/integrations/supabase/client.ts`, and every
+  `VITE_*` the app reads is optional.
+- Cloudflare creates the production deployment record within *seconds* of the
+  push and `wrangler pages deployment list` reports it `Active` while the build
+  is still running. During that window the deployment alias 404s and the apex
+  still serves the previous bundle. Wait for the status column to show a deploy
+  time before concluding anything is wrong.
+
 > **Read this first if you're planning UX or IA work**: `docs/ux-redesign/`
 > contains the canonical IA, page templates, user flows, and the
 > append-only execution log. The five-section brand IA, the page-shell

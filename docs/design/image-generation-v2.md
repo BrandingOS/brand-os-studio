@@ -326,6 +326,9 @@ Deliberately built as seams, not as scaffolding:
 
 ## 13. Deployment state
 
+Live at **https://demo-25t.pages.dev** (the canonical demo URL) from commit
+`4814275`, tagged `checkpoint/ai-image-generation-v2-live`.
+
 Applied to `ciojgoozobzbeglwdxcz` on 2026-08-18:
 
 | Migration | What |
