@@ -257,6 +257,15 @@ export function ImageStudioPage({ brand, project, initialPrompt }: ImageStudioPa
         </DsBanner>
       ) : null}
 
+      {gen.warnings.length > 0 ? (
+        <div className="is-warning" role="status" data-studio-warnings>
+          <div>
+            {gen.warnings.map((w) => <p key={w}>{w}</p>)}
+          </div>
+          <DsButton tone="tertiary" size="sm" onClick={gen.dismissWarnings}>Dismiss</DsButton>
+        </div>
+      ) : null}
+
       {gen.error && !insufficient ? (
         <div className="is-error" role="alert" data-studio-error>
           <div>

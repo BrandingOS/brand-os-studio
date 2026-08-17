@@ -67,6 +67,9 @@ export interface UseStudioGeneration {
   historyLoading: boolean;
   /** Credits reported by the last completed job. */
   lastBalance: number | null;
+  /** Server warnings from the last job — a partial result must never be silent. */
+  warnings: string[];
+  dismissWarnings: () => void;
   elapsedSeconds: number;
   generate: (prompt: string) => Promise<void>;
   retry: () => Promise<void>;
@@ -112,6 +115,7 @@ export function useStudioGeneration(args: UseStudioGenerationArgs): UseStudioGen
   const [jobs, setJobs] = useState<GenerationJob[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [lastBalance, setLastBalance] = useState<number | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [elapsedSeconds, setElapsed] = useState(0);
 
   const settingsRef = useRef(settings);
@@ -140,6 +144,33 @@ export function useStudioGeneration(args: UseStudioGenerationArgs): UseStudioGen
   }, [listJobsFn, projectId]);
 
   useEffect(() => { void reloadHistory(); }, [reloadHistory]);
+
+  // Reconcile abandoned runs.
+  //
+  // An Edge Function dies when its caller disconnects, so closing the tab
+  // mid-generation can leave a job stuck in `running` with its credits still
+  // reserved. Nothing else would ever release them. On load, any of MY jobs
+  // that is still open past the server's own deadline is cancelled — which is
+  // the one client-writable transition, and it refunds the reservation.
+  const reconciledRef = useRef(false);
+  useEffect(() => {
+    if (reconciledRef.current || jobs.length === 0) return;
+    reconciledRef.current = true;
+    const deadlineMs = 4 * 60 * 1000;   // comfortably past the 170s server cap
+    const stale = jobs.filter((j) =>
+      (j.status === 'running' || j.status === 'queued')
+      && Date.now() - new Date(j.createdAt).getTime() > deadlineMs);
+    if (stale.length === 0) return;
+    void (async () => {
+      for (const j of stale) {
+        try {
+          const res = await cancelGeneration(j.id);
+          if (mountedRef.current) { setLastBalance(res.credits.balance); onBalance?.(res.credits.balance); }
+        } catch { /* already settled by someone else */ }
+      }
+      await reloadHistory();
+    })();
+  }, [jobs, onBalance, reloadHistory]);
 
   // Elapsed timer — the only honest progress signal a vendor gives us.
   useEffect(() => {
@@ -184,7 +215,7 @@ export function useStudioGeneration(args: UseStudioGenerationArgs): UseStudioGen
     if (inFlightRef.current) return;
     inFlightRef.current = true;
     pendingRef.current = plan;
-    if (mountedRef.current) { setError(null); setStatus('preparing'); }
+    if (mountedRef.current) { setError(null); setWarnings([]); setStatus('preparing'); }
 
     const s = settingsRef.current;
     const c = capsRef.current;
@@ -249,6 +280,14 @@ export function useStudioGeneration(args: UseStudioGenerationArgs): UseStudioGen
 
       // Newest first; a duplicate id (idempotent replay) replaces rather than duplicates.
       setJobs((prev) => [result.job, ...prev.filter((j) => j.id !== result.job.id)]);
+
+      // A vendor that returns fewer images than asked for, or ignores the
+      // references, must say so. Charging is already correct (settlement prices
+      // what was DELIVERED) but silence would read as "this is what you get".
+      const asked = plan.count;
+      const got = result.job.outputs.length;
+      const shortfall = asked > got ? [`${got} of ${asked} images came back — you were charged for ${got}.`] : [];
+      setWarnings([...shortfall, ...(result.warnings ?? [])]);
       setLastBalance(result.credits.balance);
       onBalance?.(result.credits.balance);
       setStatus('idle');
@@ -347,11 +386,14 @@ export function useStudioGeneration(args: UseStudioGenerationArgs): UseStudioGen
     setStatus((s) => (s === 'error' ? 'idle' : s));
   }, []);
 
+  const dismissWarnings = useCallback(() => setWarnings([]), []);
+
   return useMemo(() => ({
     status,
     busy: status === 'preparing' || status === 'generating',
     error, jobs, historyLoading, lastBalance, elapsedSeconds,
+    warnings, dismissWarnings,
     generate, retry, cancel, variations, refine, regenerate, clearError, reloadHistory,
-  }), [status, error, jobs, historyLoading, lastBalance, elapsedSeconds,
+  }), [status, error, jobs, historyLoading, lastBalance, elapsedSeconds, warnings, dismissWarnings,
        generate, retry, cancel, variations, refine, regenerate, clearError, reloadHistory]);
 }

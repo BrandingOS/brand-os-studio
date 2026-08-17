@@ -345,6 +345,42 @@ describe('Image Studio — results and history', () => {
     expect((runGeneration.mock.calls[2][0] as Record<string, unknown>).operation).toBe('regenerate');
   });
 
+  it('a partial result is never silent — fewer images than asked for is stated', async () => {
+    // Pollinations returned 1 of 4 in real QA with no message at all. Charging
+    // was already correct (settlement prices what was delivered); the silence
+    // was the bug.
+    runGeneration.mockResolvedValue({
+      job: job({ chargedCredits: 4 }),          // one output
+      credits: { balance: 496, reserved: 0 },
+      warnings: ['3 of 4 images failed'],
+    });
+    const { container } = await mount();
+    fireEvent.click($(container, '[data-composer-count="4"]')!);
+    fireEvent.change($(container, '[data-composer-prompt]')!, { target: { value: 'a cup' } });
+    fireEvent.click($(container, '[data-composer-submit]')!);
+
+    await waitFor(() => {
+      if (!container.querySelector('[data-studio-warnings]')) throw new Error('no warning');
+    });
+    const text = $(container, '[data-studio-warnings]')!.textContent ?? '';
+    expect(text).toMatch(/1 of 4 images came back/);
+    expect(text).toMatch(/charged for 1/);
+    expect(text).toMatch(/3 of 4 images failed/);
+  });
+
+  it('reports when the model ignored the reference images', async () => {
+    runGeneration.mockResolvedValue({
+      job: job(), credits: { balance: 486, reserved: 0 }, warnings: ['refs-unsupported'],
+    });
+    const { container } = await mount();
+    fireEvent.change($(container, '[data-composer-prompt]')!, { target: { value: 'a cup' } });
+    fireEvent.click($(container, '[data-composer-submit]')!);
+    await waitFor(() => {
+      if (!container.querySelector('[data-studio-warnings]')) throw new Error('no warning');
+    });
+    expect($(container, '[data-studio-warnings]')!.textContent).toMatch(/refs-unsupported/);
+  });
+
   it('a failed job stays in the list with its reason and says nothing was charged', async () => {
     listProjectJobs.mockResolvedValue([job({
       status: 'failed', errorCode: 'provider_unavailable',
@@ -358,6 +394,35 @@ describe('Image Studio — results and history', () => {
     expect(container.textContent).toMatch(/unavailable right now/);
     expect(container.textContent).toMatch(/No credits were charged/);
     expect(container.querySelector('[data-job-retry]')).toBeTruthy();
+  });
+
+  it('releases an abandoned run: a stale in-flight job is cancelled on load', async () => {
+    // An Edge Function dies with its caller, so closing the tab mid-generation
+    // could otherwise leave credits reserved forever.
+    const stale = job({
+      id: 'job-stuck', status: 'running', outputs: [], chargedCredits: 0,
+      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(), completedAt: null,
+    });
+    listProjectJobs.mockResolvedValue([stale]);
+    cancelGeneration.mockResolvedValue({
+      job: { ...stale, status: 'cancelled' }, credits: { balance: 500, reserved: 0 },
+    });
+    const { container } = await mount();
+    await waitFor(() => {
+      if (!cancelGeneration.mock.calls.length) throw new Error('stale job not reconciled');
+    });
+    expect(cancelGeneration).toHaveBeenCalledWith('job-stuck');
+    expect(container).toBeTruthy();
+  });
+
+  it('leaves a RECENT in-flight job alone — it may still be running', async () => {
+    listProjectJobs.mockResolvedValue([job({
+      id: 'job-live', status: 'running', outputs: [],
+      createdAt: new Date().toISOString(), completedAt: null,
+    })]);
+    await mount();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(cancelGeneration).not.toHaveBeenCalled();
   });
 
   it('reuses a prompt back into the composer without generating', async () => {

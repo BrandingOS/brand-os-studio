@@ -130,7 +130,10 @@ export default function BrandDesignEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [brand?.id, designSlug, designStorage]);
+    // `projectChecked` and `imageProject` MUST be dependencies: the project
+    // lookup resolves after the first render, and without them this effect
+    // never re-runs — the editor would spin forever on a real design.
+  }, [brand?.id, designSlug, designStorage, projectChecked, imageProject]);
 
   // Phase 4.5 — brand-picker URL nav. When the user picks a
   // different brand from inside the editor, the design id no longer
