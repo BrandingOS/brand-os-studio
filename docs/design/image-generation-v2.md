@@ -360,9 +360,18 @@ select public.grant_credits('<workspace-uuid>', 5000, 'manual top-up');
 - The free Pollinations tier rate-limits concurrent requests, so asking it for
   4 images often yields fewer. That is now stated rather than silent, and only
   what was delivered is charged.
-- The **insufficient-credit refusal** is verified at the client (pre-flight
-  block and server-refusal rendering, browser E2E) and in SQL
-  (`reserve_credits` refuses an unaffordable amount and never goes negative),
-  but not yet against the deployed stack — reaching a zero balance would mean
-  either ~$5 of unnecessary paid generations or direct DB access, and neither
-  was warranted for QA.
+- The **insufficient-credit refusal** is verified end to end against the
+  deployed stack (2026-08-18). Method: an isolated throwaway workspace held 495
+  of its 500 credits through the real `reserve_credits`, leaving 5 — less than
+  the 14 one Nano Banana Pro image costs. See
+  `supabase/tests/qa/insufficient-credits-probe.sql`. Result:
+
+  | check | evidence |
+  |---|---|
+  | refused | HTTP **402 `insufficient_credits`**, "This needs 14 credits and you have 5", `requiredCredits: 14`, `balance: 5` |
+  | before contacting a provider | **469–600 ms** round trip (a real Nano Banana Pro call takes 18–27 s) and the job row has **`started_at IS NULL`** — that column is only set immediately before the provider call |
+  | no paid job | job row is `failed` with `charged_credits 0`, `cost_usd NULL`, `output_assets []`; the ledger gained **no entry** for the refused attempt |
+  | balance never negative | probe account unchanged at 5 / reserved 495, before and after |
+  | not a broken fixture | the same brand at the same 5-credit balance generated fine on a free model (`started_at` set, 0 charged) |
+  | replay is safe | re-sending the same idempotency key returned **the same job id**, not a second job |
+  | real workspace untouched | `e800cf4e…` stayed 486 / reserved 0 / lifetime_spent 14 throughout |
