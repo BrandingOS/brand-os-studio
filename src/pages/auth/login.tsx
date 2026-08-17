@@ -1,26 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthModal } from '@/features/auth/components/AuthModal';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { Sparkles } from 'lucide-react';
+import { safeNext } from '@/features/auth/session/safeNext';
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const defaultMode = searchParams.get('mode') === 'register' ? 'register' : 'login';
+  const location = useLocation();
+  const defaultMode =
+    searchParams.get('mode') === 'register' || location.pathname === '/signup' ? 'register' : 'login';
   const [showModal, setShowModal] = useState(true);
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useSessionStore();
+  const isAuthenticated = useSessionStore((s) => s.isAuthenticated);
+  const isLoading = useSessionStore((s) => s.isLoading);
 
-  // Redirect to dashboard if already authenticated
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [isAuthenticated, isLoading, navigate]);
+  // Where to go after signing in: the guarded page that sent us here, or
+  // an explicit ?next=, else the dashboard.
+  const from = safeNext((location.state as { from?: string } | null)?.from ?? searchParams.get('next'));
+
+  if (!isLoading && isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
 
   const handleClose = () => {
     setShowModal(false);
-    navigate('/');
+    // After a successful sign-in the modal has already navigated to `from`;
+    // only an explicit dismissal goes home.
+    if (!useSessionStore.getState().isAuthenticated) navigate('/');
   };
 
   return (
@@ -37,7 +44,8 @@ export default function LoginPage() {
       <AuthModal
         isOpen={showModal}
         onClose={handleClose}
-        defaultMode={defaultMode as 'login' | 'register'}
+        defaultMode={defaultMode}
+        next={from}
       />
     </div>
   );

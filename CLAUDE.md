@@ -1181,30 +1181,61 @@ While the column is absent the marker lives in `onboardingMarkerFallback.ts`
 (localStorage, per browser) and is merged back in `mapFromDatabase`, so an
 unfinished brand still reads as unfinished. The row always wins when it has one.
 
-## Auth flow gotchas
+## Auth — one controller, one login, one guard (rebuilt 2026-08-17)
 
-`src/features/auth/components/AuthModal.tsx` + `src/features/auth/hooks/useAuth.ts` + `src/shared/store/sessionStore.ts`:
+The auth session layer was rebuilt after twenty stacked `fix(auth)` patches
+(each racing the previous one). The rules that now bind:
 
-- `sessionStore.signIn()` sets `isAuthenticated: true` AND `isLoading: false`
-  atomically. Don't split these — `DashboardRoute` / `ProtectedRoute` guards
-  redirect on the `(!isLoading && !isAuthenticated)` combo and will bounce
-  real users back to `/login` if a split shows up.
-- `AuthModal` seeds the session store synchronously on a successful
-  `signInWithPassword` BEFORE navigating. Otherwise `onAuthStateChange` races
-  the navigate and the guard redirects.
-- `useAuth` calls `signIn()` BEFORE `checkAccountStatus` in both the
-  initial-session and OAuth paths. Keep that order.
-- The safety timeout in `useAuth` (15s) only releases loading when the user
-  is NOT authenticated — never over-write a live session.
-- **DI service swaps must fan out to data stores.** `reconfigureForAuth(true)`
-  swaps `BRANDS` from `LocalBrandsService` → `SupabaseBrandsService`. Any
-  store that already populated against the local service holds stale data
-  until the next manual `loadAll()`. `useAuth` calls
-  `useBrandStore.getState().loadAll()` immediately after each
-  `reconfigureForAuth` (initial-session, SIGNED_IN, SIGNED_OUT) — when you
-  add a new auth-aware store, wire it into the same three call sites.
-  Caught us on 2026-04-25 where `/dashboard` showed "No brands yet" until
-  manual refresh after sign-in.
+- **`src/features/auth/session/authController.ts` is the ONLY owner of the
+  Supabase auth lifecycle.** `AuthProvider` calls `startAuthController()` once
+  (idempotent, StrictMode/HMR-safe). It subscribes ONLY to
+  `supabase.auth.onAuthStateChange` — supabase-js v2 always emits
+  `INITIAL_SESSION` (session or null) — with one bounded fallback: no
+  `INITIAL_SESSION` within 6s (a hung navigator.locks lock) marks the visitor
+  a guest, and a later event still upgrades. Do NOT add `getSession()` races,
+  extra timers, or a second store writer anywhere.
+- **`becomeAuthenticated(user)` is idempotent BY USER ID.** The DI swap
+  (`reconfigureForAuth(true)`), `sessionStore.signIn`, and the store reloads
+  (`workspaceStore.loadAll`, `useBrandStore.loadAll`, onboarding sync→load,
+  `migrateLocalStorageToSupabase`) run once per signed-in user; a
+  `TOKEN_REFRESHED` for the same user only refreshes the user object. When you
+  add a new auth-aware store, wire it into `runSignedInSideEffects` /
+  `becomeGuest` — nowhere else.
+- **Never clear `brandos:brands` on sign-in** — `migrateLocalStorageToSupabase`
+  reads that key (the old P0 wipe, R-03, is closed).
+- **Every action resolves AFTER the store is updated** (`signInWithPassword`,
+  `signUp`, `signOut`, …), so a caller may `navigate()` the moment the promise
+  settles. `AuthModal` uses only these actions — never `supabase.auth.*`
+  directly, and never seeds the store itself.
+- **`useAuth()` is a thin selector** (same public API: user/isAuthenticated/
+  isLoading/roles + login/register/loginWithGoogle/logout/resetPassword). It
+  owns no effects and no `useNavigate`. `logout` does not navigate — the
+  caller does (`UserMenu` → `/`).
+- **`ProtectedRoute` is the only guard.** It redirects at RENDER time with
+  `<Navigate state={{from}}>`; `/login` returns the user to `from` (via
+  `safeNext` — same-origin paths only). `role="moderator|admin|super_admin"`
+  waits for `sessionStore.roleResolved` before admitting or bouncing, so a real
+  admin is not bounced on first paint. Don't add a second guard inside pages.
+- **OAuth + email links use PKCE and land on `/auth/callback?next=…`**
+  (`flowType: 'pkce'` in `integrations/supabase/client.ts`). The page waits for
+  the controller to flip the store, then forwards to `next`; `?error=` /
+  `error_description` are shown. **Supabase → Authentication → URL
+  Configuration → Redirect URLs must list** `<origin>/auth/callback` and
+  `<origin>/auth/reset-password` for every origin (localhost:8080 + prod).
+- **Sign-up with a session** (email confirmation OFF, today's setting) signs
+  in immediately; without one the modal shows "Confirm your email" and does NOT
+  navigate to a guarded page.
+- **Password reset:** `sessionStore.recovery` is set by `PASSWORD_RECOVERY`;
+  the reset page is valid when that flag is set or the link carried a recovery
+  hash / PKCE code and a session now exists.
+- **Dev bypass** (`VITE_DEV_BYPASS_AUTH=true`, DEV builds only) lives in the
+  controller; it seeds `DEV_BYPASS_USER` + `super_admin` and never subscribes
+  to Supabase.
+- Tests: `session/authController.test.ts` (event → store contract),
+  `components/ProtectedRoute.test.tsx`, `components/AuthModal.test.tsx`.
+- Backend gotcha found the same day: `wm_select_fellow` /
+  `workspaces_select_member` recursed (`42P17`) for every user — migration 024
+  routes both through the SECURITY DEFINER `is_workspace_member`.
 
 ## Measuring layout inside an animated ancestor
 

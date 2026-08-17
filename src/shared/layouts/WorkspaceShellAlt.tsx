@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import '@/shared/styles/workspace.css';
@@ -55,6 +55,7 @@ export function WorkspaceShell({
 }) {
   const user = useSessionStore((s) => s.user);
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [theme, setTheme] = useState<'light' | 'dark'>(readInitialTheme);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +174,7 @@ export function WorkspaceShell({
                   className="ws-profile-menu-item"
                   onClick={() => {
                     setMenuOpen(false);
-                    void logout();
+                    void logout().then(() => navigate('/'));
                   }}
                 >
                   Sign out

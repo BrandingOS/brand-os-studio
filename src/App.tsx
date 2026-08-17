@@ -97,6 +97,7 @@ const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
 const LoginPage = lazy(() => import("./pages/auth/login"));
+const AuthCallbackPage = lazy(() => import("./pages/auth/callback"));
 const PrivacyPage = lazy(() => import("./pages/legal/PrivacyPage"));
 const AccountDeletionPage = lazy(() => import("./pages/legal/AccountDeletionPage"));
 
@@ -393,12 +394,12 @@ const App = () => (
             </ProtectedRoute>
           } />
           <Route path="/dashboard/admin/brands" element={
-            <ProtectedRoute>
+            <ProtectedRoute role="moderator">
               <AdminBrandsPage />
             </ProtectedRoute>
           } />
           <Route path="/dashboard/admin/analytics" element={
-            <ProtectedRoute>
+            <ProtectedRoute role="moderator">
               <AdminAnalyticsPage />
             </ProtectedRoute>
           } />
@@ -761,10 +762,11 @@ const App = () => (
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<LoginPage />} />
           <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
           {/* ─── Admin Dashboard ─────────────────────────────────────── */}
           <Route path="/admin" element={
-            <ProtectedRoute>
+            <ProtectedRoute role="moderator">
               <AdminLayout />
             </ProtectedRoute>
           }>

@@ -5,51 +5,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Lock, Eye, EyeOff, Loader2, Mail } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useSessionStore } from '@/shared/store/sessionStore';
+import { updatePassword } from '@/features/auth/session/authController';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isValidLink, setIsValidLink] = useState(false);
-  const [checking, setChecking] = useState(true);
-  const [userEmail, setUserEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const isAuthenticated = useSessionStore((st) => st.isAuthenticated);
+  const isLoading = useSessionStore((st) => st.isLoading);
+  const recovery = useSessionStore((st) => st.recovery);
+  const userEmail = useSessionStore((st) => st.user?.email ?? '');
 
+  // A reset link is valid when the auth controller saw PASSWORD_RECOVERY, or
+  // the link carried a recovery hash / PKCE code and we now hold a session.
+  // Otherwise (a stale link, or someone typing the URL) it's invalid.
+  const cameFromLink =
+    window.location.hash.includes('type=recovery') || new URLSearchParams(window.location.search).has('code');
+  const isValidLink = recovery || (cameFromLink && isAuthenticated);
+  const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsValidLink(true);
-        setChecking(false);
-        if (session?.user?.email) setUserEmail(session.user.email);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setIsValidLink(true);
-        if (session.user?.email) setUserEmail(session.user.email);
-      }
-      setChecking(false);
-    });
-
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setIsValidLink(true);
-      setChecking(false);
-    }
-
-    const timeout = setTimeout(() => {
-      setChecking(false);
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    const t = setTimeout(() => setTimedOut(true), 6000);
+    return () => clearTimeout(t);
   }, []);
+  const checking = !isValidLink && !timedOut && (isLoading || cameFromLink);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,28 +46,22 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setIsLoading(true);
-
+    setSubmitting(true);
     try {
-      // Verify we have a valid session before attempting update
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error('Session expired. Please request a new reset link.');
+      if (!useSessionStore.getState().isAuthenticated) {
+        toast.error('This reset link has expired. Please request a new one.');
         navigate('/login');
         return;
       }
-
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-
+      const result = await updatePassword(password);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
       toast.success('Password updated successfully!');
-      // Full reload to cleanly reset auth state after password change
-      window.location.href = '/dashboard';
-    } catch (error: any) {
-      console.error('[ResetPassword] Error:', error);
-      toast.error(error.message || 'Failed to update password');
+      navigate('/dashboard', { replace: true });
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -201,9 +177,9 @@ export default function ResetPasswordPage() {
             <Button
               type="submit"
               className="w-full h-11 mt-6"
-              disabled={isLoading}
+              disabled={submitting}
             >
-              {isLoading ? (
+              {submitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Updating...</>
               ) : 'Update Password'}
             </Button>

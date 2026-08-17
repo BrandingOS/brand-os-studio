@@ -17,6 +17,7 @@ export const SURFACE_REGISTRY: SurfaceEntry[] = [
   // ═══ AUTH ═══════════════════════════════════════════════════════════
   { id: 'auth-login', name: 'Login', route: '/login', type: 'PAGE', status: 'CURRENT', reachability: 'NAVIGATION', namespace: 'Public', source: 'src/pages/auth/login.tsx', description: 'Email/password + OAuth sign-in.', area: 'AUTH' },
   { id: 'auth-signup', name: 'Sign up', route: '/signup', type: 'PAGE', status: 'CURRENT', reachability: 'NAVIGATION', namespace: 'Public', source: 'src/pages/auth/login.tsx', description: 'Registration — same component as /login in signup mode.', area: 'AUTH' },
+  { id: 'auth-callback', name: 'Auth callback', route: '/auth/callback', type: 'PAGE', status: 'CURRENT', reachability: 'INTERNAL LINK', namespace: 'Public', source: 'src/pages/auth/callback.tsx', description: 'Where Google OAuth and email links land (PKCE code exchange), then forwards to ?next.', area: 'AUTH' },
   { id: 'auth-reset', name: 'Reset password', route: '/auth/reset-password', type: 'PAGE', status: 'CURRENT', reachability: 'INTERNAL LINK', namespace: 'Public', source: 'src/pages/auth/reset-password.tsx', description: 'Password-recovery landing from the reset email.', area: 'AUTH' },
 
   // ═══ DASHBOARD / WORKSPACE ══════════════════════════════════════════

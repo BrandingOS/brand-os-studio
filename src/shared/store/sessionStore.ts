@@ -18,6 +18,11 @@ interface SessionStore extends AuthState {
   switchToGuest: () => void;
   switchToAuthenticated: () => void;
   previousMode?: 'user' | 'guest';
+  /** True between a PASSWORD_RECOVERY event and the password being updated. */
+  recovery: boolean;
+  setRecovery: (recovery: boolean) => void;
+  /** False from signIn until the platform role has been looked up. */
+  roleResolved: boolean;
 }
 
 export const useSessionStore = create<SessionStore>()(
@@ -31,6 +36,11 @@ export const useSessionStore = create<SessionStore>()(
       isSuperAdmin: false,
       isModerator: false,
       isLoading: true,
+      recovery: false,
+      roleResolved: false,
+
+      setRecovery: (recovery: boolean) =>
+        set({ recovery }, false, 'setRecovery'),
 
       signIn: (user: User) =>
         set((state) => ({
@@ -43,6 +53,7 @@ export const useSessionStore = create<SessionStore>()(
           // (DashboardRoute, ProtectedRoute) will briefly redirect on the
           // false→false transition if the safety timeout fires before signIn.
           isLoading: false,
+          roleResolved: state.isAuthenticated && state.user?.id === user.id ? state.roleResolved : false,
           previousMode: state.mode
         }), false, 'signIn'),
 
@@ -56,6 +67,7 @@ export const useSessionStore = create<SessionStore>()(
           isSuperAdmin: false,
           isModerator: false,
           isLoading: false,
+          roleResolved: false,
           previousMode: state.mode
         }), false, 'signOut'),
 
@@ -68,6 +80,7 @@ export const useSessionStore = create<SessionStore>()(
           isAdmin: isPlatformRoleAtLeast(role, 'admin'),
           isSuperAdmin: role === 'super_admin',
           isModerator: isPlatformRoleAtLeast(role, 'moderator'),
+          roleResolved: true,
         }, false, 'setPlatformRole'),
 
       /** @deprecated */

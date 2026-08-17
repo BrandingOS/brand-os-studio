@@ -40,8 +40,10 @@ const safeStorage: Storage = {
       try {
         localStorage.setItem(key, value);
       } catch {
-        // Still full — clear everything and retry
+        // Still full — keep the Supabase session, drop everything else, retry.
+        const keep = authKeys.map((k) => [k, localStorage.getItem(k)] as const);
         localStorage.clear();
+        keep.forEach(([k, v]) => { if (v !== null && k !== key) localStorage.setItem(k, v); });
         localStorage.setItem(key, value);
       }
     }
@@ -56,5 +58,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: safeStorage,
     persistSession: true,
     autoRefreshToken: true,
+    // PKCE: OAuth + magic/confirm links come back as `?code=…` on
+    // /auth/callback and the client exchanges it for a session on load
+    // (detectSessionInUrl). The auth controller then sees SIGNED_IN.
+    flowType: 'pkce',
+    detectSessionInUrl: true,
   }
 });
