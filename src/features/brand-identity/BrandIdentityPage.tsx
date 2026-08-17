@@ -105,7 +105,7 @@ export function BrandIdentityPage({
             {model.voice.present && <Voice model={model} />}
             {model.photography.present && <Photography model={model} />}
             {model.assets.present && <Assets model={model} />}
-            {model.social.present && <SocialApplications model={model} />}
+            {model.social.present && <SocialApplications model={model} register={register} />}
             <Downloads model={model} />
             <Closing model={model} register={register} />
           </main>

@@ -26,9 +26,9 @@
  * artwork gets no mark here and its name carries the screen — which is correct,
  * and far better than a black logo invisible on a black ground.
  */
-import { useState } from 'react';
 import type { IdentityModel } from '../identityModel';
 import type { IdentityRegister } from '../identityRegister';
+import { saysName, useArtworkShape } from '../artworkShape';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
 import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
@@ -41,16 +41,6 @@ export function IdentityHero({
   register: IdentityRegister;
 }) {
   const stage = useScrollVar('pin');
-  /*
-   * Does the artwork already say the name?
-   *
-   * Answered from the artwork's own proportions once it has loaded, because
-   * nothing stored says it: a "primary" logo is a symbol for one brand and a
-   * logotype for the next. A run much wider than it is tall is letters — the
-   * same reasoning the onboarding classifier uses, at a fraction of the cost,
-   * because here it only has to decide whether to print a heading.
-   */
-  const [speaksName, setSpeaksName] = useState(false);
   const mark = useReveal();
   const name = useReveal({ delay: 90 });
   const sub = useReveal({ delay: 180 });
@@ -62,6 +52,9 @@ export function IdentityHero({
   // a white page. Falls back to nothing rather than to something invisible.
   const onDeep = pickLogoOnBackground(model.brand, deep);
   const heroMark = onDeep?.url ?? undefined;
+  // Shared with the mockups, the site nav and the product header — the answer
+  // has to be the same everywhere or the page contradicts itself.
+  const speaksName = saysName(useArtworkShape(heroMark));
 
   const descriptors = model.introduction.descriptors;
   const industry = model.introduction.industry;
@@ -99,16 +92,7 @@ export function IdentityHero({
           <div className="bi-hero-body">
             {heroMark && (
               <div className="bi-hero-mark" {...mark}>
-                <img
-                  src={heroMark}
-                  alt={`${model.name} logo`}
-                  onLoad={(e) => {
-                    const img = e.currentTarget;
-                    if (img.naturalWidth && img.naturalHeight) {
-                      setSpeaksName(img.naturalWidth / img.naturalHeight > 2.6);
-                    }
-                  }}
-                />
+                <img src={heroMark} alt={`${model.name} logo`} />
               </div>
             )}
             {/*

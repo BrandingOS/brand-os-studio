@@ -34,6 +34,7 @@ import type { Brand } from '@/shared/types/brand';
 import { buildBrandPalette, type BrandPalette } from '@/shared/brand/brandPalette';
 import { pickFgOnBackground, pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import { hexToHsl, hslToHex } from '@/shared/color/colorEngine';
+import { generateShades, suggestNeutralScale, type ColorScale } from '@/lib/color-engine';
 import { visuallyClose } from '@/features/brand-kit/data/recolorLogo';
 import type { IdentityModel, IdentitySectionId } from './identityModel';
 
@@ -65,6 +66,20 @@ export interface IdentityRegister {
   blooms: string[];
   /** The grounds the logo wall places the mark on, with the mark to use. */
   wall: Array<{ hex: string; url: string; label: string }>;
+  /**
+   * The brand's colour as a full 50–950 ramp, plus a neutral ramp carrying its
+   * hue.
+   *
+   * The applied mockups need far more than three colours: a card wants a 100
+   * for its ground and a 700 for its ink, a chart wants five steps that read as
+   * one family. `generateShades` is the product's own ramp generator — the same
+   * one the UI colour system tool builds its showcases from — so a mockup here
+   * and a mockup there are the same colours.
+   */
+  scale: ColorScale;
+  neutral: ColorScale;
+  /** Present only when the brand owns a real second colour. */
+  secondScale?: ColorScale;
   /** Set when the brand has decided a colour. False keeps the page monochrome. */
   branded: boolean;
   palette: BrandPalette;
@@ -327,10 +342,22 @@ export function buildRegister(model: IdentityModel, present: IdentitySectionId[]
       shade(palette.brand.primary, 18),
   ];
 
+  /*
+   * The ramps. Built from the ground the page is actually played in, so a
+   * mockup's card ground and the section behind it come from one hue.
+   */
+  const seed = branded ? palette.brand.primary : '#111113';
+  const scale = generateShades(seed);
+  const neutral = suggestNeutralScale(seed);
+  const realSecond = expressive.find((hex) => !visuallyClose(hex, palette.brand.primary));
+
   return {
     tokens,
     grounds: rhythm(present),
     chips,
+    scale,
+    neutral,
+    ...(realSecond ? { secondScale: generateShades(realSecond) } : {}),
     blooms: branded ? blooms : [],
     wall: branded ? logoWall(model.brand, palette, chips, deep) : [],
     branded,

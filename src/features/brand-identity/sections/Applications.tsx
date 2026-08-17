@@ -14,7 +14,7 @@ import { pickLogoOnBackground } from '@/shared/brand/logoOnBackground';
 import { DownloadPill, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
-import { SocialApplications } from './Social';
+import { SocialApplications } from './Applied';
 import { downloadAllColours, downloadAllLogos, fetchAsBlob } from '../download/identityDownloads';
 import { downloadCompleteIdentity } from '../download/identityBundle';
 import { downloadBlob, slugify } from '@/features/setup/utils/downloads';
