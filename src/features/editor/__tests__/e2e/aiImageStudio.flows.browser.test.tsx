@@ -2,10 +2,10 @@
 //
 // Real editor + real adapter + real Fabric; the vendor call and the
 // Claude compile are stubbed at the module boundary so the flow under
-// test is the PANEL's: prompt → compile → review card (editable) →
-// confirm → N pages inserted (one undo step) + metadata.ai record →
-// Variations from the active page → inline error for an unavailable
-// model → hero hand-off auto-start.
+// test is the PANEL's: prompt → silent compile → processing state →
+// N pages inserted (one undo step) + metadata.ai record → Variations
+// from the active page → inline error for an unavailable model → hero
+// hand-off auto-start. (No review step — owner decision 2026-08-17.)
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react';
@@ -55,7 +55,7 @@ beforeEach(() => {
   generateMock.mockReset();
   compileMock.mockReset();
   buildRefsMock.mockReset();
-  useGeneratePrefs.setState({ review: 'review', brandAware: true, model: 'auto', count: 1 });
+  useGeneratePrefs.setState({ brandAware: true, model: 'auto', count: 1 });
   compileMock.mockImplementation(async (input: { userPrompt: string }) => ({
     prompt: `COMPILED: ${input.userPrompt}`,
     negativePrompt: 'text',
@@ -120,52 +120,54 @@ async function openGenerate(container: HTMLElement) {
 }
 
 describe('AI Studio — image generation flow', () => {
-  it('prompt → compiled review card (editable) → confirm → count pages inserted with metadata, one undo step', async () => {
+  it('prompt → silent compile → processing state → count pages inserted with metadata, one undo step', async () => {
+    let releaseGenerate!: () => void;
+    const gate = new Promise<void>((r) => { releaseGenerate = r; });
+    generateMock.mockImplementation(async (req: GenerateImageRequest) => {
+      await gate;
+      return {
+        images: Array.from({ length: req.count ?? 1 }, (_, i) => ({ imageUrl: PNG_1x1, width: 64, height: 64, seed: i })),
+        imageUrl: PNG_1x1, mock: false, prompt: req.prompt, model: 'pollinations:flux',
+      };
+    });
     const { adapter, container } = await mount();
     await openGenerate(container);
     const before = adapter.getDocument().pages.length;
 
-    // pick 2 candidates
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-count-value="2"]')!);
     fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'a cat on a sofa' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
 
-    // review card shows the compiled text, editable
-    await waitFor(() => {
-      const ta = container.querySelector<HTMLTextAreaElement>('[data-generate-compiled]');
-      if (!ta || !ta.value.startsWith('COMPILED:')) throw new Error('no compiled prompt yet');
-    });
-    expect(compileMock).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-generate-notes]')?.textContent).toMatch(/no logo/);
-    expect(container.querySelector('[data-generate-ref="logo"]')?.getAttribute('aria-pressed') ?? container.querySelector('[data-generate-ref="logo"]')?.className).toBeDefined();
-    fireEvent.change(container.querySelector('[data-generate-compiled]')!, { target: { value: 'COMPILED: a cat on a sofa, EDITED' } });
-    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-confirm]')!);
+    // One processing card; NO editable compiled prompt / confirm step.
+    await waitFor(() => { if (!container.querySelector('[data-generate-processing]')) throw new Error('no processing card'); });
+    expect(container.querySelector('[data-generate-compiled]')).toBeNull();
+    expect(container.querySelector('[data-generate-confirm]')).toBeNull();
+    await waitFor(() => { if (generateMock.mock.calls.length !== 1) throw new Error('vendor not called yet'); });
+    expect(container.querySelector('[data-generate-processing]')?.getAttribute('data-generate-status')).toBe('generating');
+    releaseGenerate();
 
     await waitFor(() => {
       if (adapter.getDocument().pages.length !== before + 2) throw new Error('pages not inserted');
     });
-    // vendor got the EDITED compiled prompt + count + palette ref
+    expect(compileMock).toHaveBeenCalledTimes(1);
+    // vendor got the COMPILED prompt + count + palette ref (compiler said useLogo=false)
     const req = generateMock.mock.calls[0][0] as GenerateImageRequest;
-    expect(req.prompt).toMatch(/EDITED/);
+    expect(req.prompt).toMatch(/^COMPILED: a cat on a sofa/);
     expect(req.count).toBe(2);
     expect(req.negativePrompt).toBe('text');
     expect(req.references?.map((r) => r.role)).toEqual(['palette']);
-    // metadata records both pages
     const meta = readAiMetadata(adapter.getDocument());
     expect(meta.origin).toBe('ai-image');
     expect(meta.generations).toHaveLength(2);
-    expect(meta.generations[0].compiled).toMatch(/EDITED/);
+    expect(meta.generations[0].compiled).toMatch(/^COMPILED:/);
     expect(meta.generations[0].original).toBe('a cat on a sofa');
     expect(meta.generations[0].refs).toEqual(['palette']);
-    // pages carry the image layer sized to the vendor's dims
     const newPage = adapter.getDocument().pages.find((p) => p.id === meta.generations[0].pageId)!;
     expect(newPage.width).toBe(64);
     expect(newPage.layers[0].kind).toBe('image');
-    // one undo step reverts the whole batch
     adapter.undo();
     await waitFor(() => { if (adapter.getDocument().pages.length !== before) throw new Error('undo did not revert'); });
-    // panel is back to idle with the actions hidden
-    expect(container.querySelector('[data-generate-review]')).toBeNull();
+    expect(container.querySelector('[data-generate-processing]')).toBeNull();
   });
 
   it('active AI page shows actions; Variations sends the previous image as a reference and adds 4 pages', async () => {
@@ -173,8 +175,6 @@ describe('AI Studio — image generation flow', () => {
     await openGenerate(container);
     fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'sunset harbour' } });
     fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
-    await waitFor(() => { if (!container.querySelector('[data-generate-confirm]')) throw new Error('no review'); });
-    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-confirm]')!);
     await waitFor(() => { if (!container.querySelector('[data-generate-actions]')) throw new Error('no actions'); });
     const after1 = adapter.getDocument().pages.length;
 
@@ -206,7 +206,6 @@ describe('AI Studio — image generation flow', () => {
     generateMock.mockImplementation(async () => {
       throw new GenerateImageError('AI image service 409', { status: 409, code: 'model-unavailable', model: 'openai:gpt-image', keyEnv: 'OPENAI_API_KEY' });
     });
-    useGeneratePrefs.setState({ review: 'auto' });
     const { adapter, container } = await mount();
     await openGenerate(container);
     const before = adapter.getDocument().pages.length;
@@ -219,16 +218,15 @@ describe('AI Studio — image generation flow', () => {
     expect(container.querySelector('[data-generate-status="generating"]')).toBeNull();
   });
 
-  it('hero hand-off: an ai-image doc + ?prompt auto-opens Generate and starts compiling', async () => {
+  it('hero hand-off: an ai-image doc + ?prompt auto-opens Generate and generates without any confirmation', async () => {
     const doc = withAiMetadata({ ...SOCIAL_FIXTURE, pages: [{ ...SOCIAL_FIXTURE.pages[0], layers: [] }] }, { pendingPrompt: 'hero prompt' });
-    const { container } = await mount({ doc, initialPrompt: 'hero prompt', initialAi: { mode: 'image', autoStart: true, count: 3 } });
-    await waitFor(() => { if (!container.querySelector('[data-generate-review]')) throw new Error('no review'); });
+    const { adapter, container } = await mount({ doc, initialPrompt: 'hero prompt', initialAi: { mode: 'image', autoStart: true, count: 3 } });
+    await waitFor(() => { if (adapter.getDocument().pages.length !== 4) throw new Error('not generated'); });
     expect(compileMock).toHaveBeenCalledTimes(1);
     expect((compileMock.mock.calls[0][0] as { userPrompt: string }).userPrompt).toBe('hero prompt');
-    await waitFor(() => {
-      const ta = container.querySelector<HTMLTextAreaElement>('[data-generate-compiled]');
-      if (!ta) throw new Error('compiling');
-    });
-    expect(container.querySelector('[data-generate-confirm]')?.textContent).toMatch(/×3/);
+    expect((generateMock.mock.calls[0][0] as GenerateImageRequest).count).toBe(3);
+    // the pending prompt is consumed so a reload can't fire again
+    expect(readAiMetadata(adapter.getDocument()).pendingPrompt).toBeUndefined();
+    expect(container.querySelector('[data-generate-actions]')).toBeTruthy();
   });
 });

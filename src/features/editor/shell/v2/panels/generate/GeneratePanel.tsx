@@ -5,7 +5,8 @@
 //   • Prompt textarea — paperclip attaches a user reference inline
 //   • Image toolbar: Format ▾ · Model ▾ · Count 1–4 · Brand-aware / Raw
 //   • Advanced (collapsed): negative prompt
-//   • Generate → (Image) compile → CompiledPromptCard review → pages
+//   • Generate → (Image) silent brand-aware compile → vendor → pages,
+//                one ProcessingCard the whole way (owner: no review step)
 //                (Editable) agent.applyCommand → onApply
 //   • GenerationActions when the active page is an AI generation
 //   • Presets gallery
@@ -22,12 +23,12 @@ import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
-import { AUTO_MODEL_ID, capsFor } from '@/features/editor/ai/imageModels';
+import { AUTO_MODEL_ID, findImageModelInfo } from '@/features/editor/ai/imageModels';
 import { FORMAT_PRESETS, findFormat, formatLabel, type PromptPreset } from './formats';
 import { TallSelect } from './TallSelect';
 import { ModelPicker } from './ModelPicker';
 import { CountChip } from './CountChip';
-import { CompiledPromptCard } from './CompiledPromptCard';
+import { ProcessingCard } from './ProcessingCard';
 import { GenerationActions } from './GenerationActions';
 import { PresetsGallery } from './PresetsGallery';
 import { useGeneratePrefs } from './generatePrefs';
@@ -90,7 +91,6 @@ export function GeneratePanel({
       formatId,
       negativePrompt,
       brandAware: prefs.brandAware,
-      review: prefs.review,
       userReferenceUrl: reference?.url,
     },
   });
@@ -233,8 +233,8 @@ export function GeneratePanel({
     const l = activePage?.layers.find((x) => x.kind === 'image') as ImageLayer | undefined;
     return typeof l?.src === 'string' ? l.src : undefined;
   })();
-  const refsSupported = capsFor(prefs.model).maxRefs > 0;
-  const inReview = mode === 'image' && (gen.status === 'compiling' || gen.status === 'review' || gen.status === 'generating');
+  const inReview = mode === 'image' && (gen.status === 'compiling' || gen.status === 'generating');
+  const modelLabel = prefs.model === AUTO_MODEL_ID ? 'the best available model' : (findImageModelInfo(prefs.model)?.label ?? prefs.model);
   const aiDoc = readAiMetadata(doc).origin === 'ai-image';
 
   const placeholder = mode === 'image'
@@ -364,18 +364,6 @@ export function GeneratePanel({
               <Settings2 className="h-3 w-3" aria-hidden />
               {advancedOpen ? 'Hide options' : 'Options'}
             </button>
-            {prefs.brandAware ? (
-              <label className="inline-flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }} title="Skip the review step and generate right after compiling">
-                <input
-                  type="checkbox"
-                  data-generate-skip-review
-                  checked={prefs.review === 'auto'}
-                  onChange={(e) => prefs.setReview(e.target.checked ? 'auto' : 'review')}
-                  className="h-3 w-3"
-                />
-                Skip review
-              </label>
-            ) : null}
           </div>
           {advancedOpen ? (
             <textarea
@@ -392,24 +380,14 @@ export function GeneratePanel({
         </>
       ) : null}
 
-      {/* Review / generating card */}
+      {/* Processing state — compile + generate shown as one step */}
       {inReview ? (
-        <CompiledPromptCard
+        <ProcessingCard
           status={gen.status}
           brandName={brand?.name}
-          compiled={gen.compiled}
-          draft={gen.draft}
-          onDraft={gen.setDraft}
-          includeLogo={gen.includeLogo}
-          onIncludeLogo={gen.setIncludeLogo}
-          includePalette={gen.includePalette}
-          onIncludePalette={gen.setIncludePalette}
-          refsSupported={refsSupported}
+          modelLabel={modelLabel}
           count={gen.pendingKind === 'variation' ? 4 : prefs.count}
-          onConfirm={() => void gen.confirm()}
-          onUseRaw={() => void gen.useRaw()}
-          onBack={gen.back}
-          kindLabel={gen.pendingKind === 'refine' ? 'Refinement' : gen.pendingKind === 'variation' ? 'Variations' : undefined}
+          kind={gen.pendingKind}
         />
       ) : null}
 
@@ -432,7 +410,7 @@ export function GeneratePanel({
           ) : (
             <>
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              {mode === 'image' ? (prefs.brandAware ? 'Compile & generate' : `Generate${prefs.count > 1 ? ` ×${prefs.count}` : ''}`) : 'Apply'}
+              {mode === 'image' ? `Generate${prefs.count > 1 ? ` ×${prefs.count}` : ''}` : 'Apply'}
             </>
           )}
         </button>

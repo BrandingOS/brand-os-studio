@@ -814,7 +814,7 @@ and `panels/generate/GeneratePanel.tsx` runs the flow ON the canvas:
 
 ```
 prompt ─▶ compileImagePrompt (Claude haiku via anthropic-proxy; deterministic
-          fallback) ─▶ CompiledPromptCard (EDITABLE review; Logo / Palette chips)
+          fallback — SILENT: the user sees one ProcessingCard, never a review step)
        ─▶ buildBrandReferences (logo PNG via rasterizeLogo · palette swatch ·
           previous image) ─▶ generateImage({model, count 1–4, references})
        ─▶ N pages inserted after the active page in ONE undo step
@@ -844,9 +844,10 @@ Rules that bind:
   — the owner's rules are in its system prompt and tests): keep the user's
   intent; only relevant brand info; NO logo unless the user asks or the subject
   is clearly branded (packaging, signage, ads, merch…); don't force every color;
-  a user color direction ("black and white") empties the brand palette; the
-  compiled prompt is shown editable before generation ("Skip review" is a
-  per-user pref, `brandos:ai-image:prefs`). Raw mode sends the exact words.
+  a user color direction ("black and white") empties the brand palette. The
+  compile is invisible (owner decision 2026-08-17: "do it in the back end, just
+  show processing") — the compiled prompt is only recorded in `metadata.ai`.
+  Raw mode (`brandos:ai-image:prefs`) sends the exact words.
 - **Brand context reaches the model as IMAGES, not just words**
   (`ai/imagePrompt/brandReferences.ts`): logo → `@/shared/brand/rasterizeLogo`
   (1024² PNG, transparent), palette → canvas swatch card, previous → the page's
@@ -958,7 +959,7 @@ items rendered as unstyled run-on text until the scope prefix was removed.
   the app-level next-themes provider is separate and defaults light —
   the legacy editor mirrors `brandos-theme` into it on mount)
 - `brandos:design:<brandId>:<designId>` — LocalDesignStorage body; when it overflows the ~5 MB quota (AI images as data URIs) the value is the marker `{"__idb":1}` and the body lives in IndexedDB `brandos-editor/kv` under the same key
-- `brandos:ai-image:prefs` — Generate panel prefs (model, count, brand-aware, skip-review)
+- `brandos:ai-image:prefs` — Generate panel prefs (model, count, on-brand/raw)
 - `brandos.ai-image.anon-session` — anon session id for ai-generate-image rate limiting
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen

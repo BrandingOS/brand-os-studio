@@ -1,12 +1,13 @@
 // useImageGeneration — the Generate panel's Image-mode state machine.
 //
-//   idle ──start(text)──▶ compiling ──▶ review ──confirm()──▶ generating ──▶ idle
-//                                          │  (prefs.review==='auto' skips
-//                                          │   the wait but still shows it)
-//                                          └──back()──▶ idle
+//   idle ──start(text)──▶ compiling ──▶ generating ──▶ idle
 //   any ──error──▶ error (inline, never a spinner left behind)
 //
-// Owns: compile (brand-aware, editable result), reference building
+// The compile step is invisible to the user (owner decision 2026-08-17):
+// the panel shows one "processing" state; the compiled prompt is still
+// recorded in metadata.ai for Variations / Refine.
+//
+// Owns: compile (brand-aware), reference building
 // (logo / palette / previous), the vendor call, page insertion (ONE
 // undo step per batch) and the doc's `metadata.ai` record. Variations /
 // Refine / Regenerate reuse the same `generate()` core with a plan.
@@ -25,7 +26,7 @@ import { buildBrandReferences } from '@/features/editor/ai/imagePrompt/brandRefe
 import { findFormat, formatLabel, type FormatPreset } from './formats';
 import { appendGenerations, generationForPage, type GenerationRecord } from './aiMetadata';
 
-export type GenStatus = 'idle' | 'compiling' | 'review' | 'generating' | 'error';
+export type GenStatus = 'idle' | 'compiling' | 'generating' | 'error';
 
 export interface GenerationSettings {
   model: string;           // registry id or 'auto'
@@ -33,8 +34,6 @@ export interface GenerationSettings {
   formatId: string;
   negativePrompt: string;
   brandAware: boolean;
-  /** 'review' waits for confirm; 'auto' generates right after compile. */
-  review: 'review' | 'auto';
   userReferenceUrl?: string;
 }
 
@@ -68,20 +67,11 @@ export interface UseImageGeneration {
   busy: boolean;
   error: string | null;
   errorHint: string | null;
+  /** Last compiled prompt (recorded, not shown as an editing step). */
   compiled: CompiledPrompt | null;
-  /** The editable text the user will actually send. */
-  draft: string;
-  setDraft: (s: string) => void;
-  includeLogo: boolean;
-  setIncludeLogo: (b: boolean) => void;
-  includePalette: boolean;
-  setIncludePalette: (b: boolean) => void;
   pendingKind: GenerationRecord['kind'] | null;
   lastResult: { pageIds: string[]; model?: string; warnings?: string[]; mock: boolean } | null;
   start: (text: string) => Promise<void>;
-  confirm: () => Promise<void>;
-  useRaw: () => Promise<void>;
-  back: () => void;
   variations: (pageId: string) => Promise<void>;
   refine: (pageId: string, instruction: string) => Promise<void>;
   regenerate: (pageId: string) => Promise<void>;
@@ -108,9 +98,6 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
   const [error, setError] = useState<string | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [compiled, setCompiled] = useState<CompiledPrompt | null>(null);
-  const [draft, setDraft] = useState('');
-  const [includeLogo, setIncludeLogo] = useState(false);
-  const [includePalette, setIncludePalette] = useState(true);
   const [lastResult, setLastResult] = useState<UseImageGeneration['lastResult']>(null);
   const pendingRef = useRef<Pending | null>(null);
   const settingsRef = useRef(settings);
@@ -150,10 +137,7 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     prompt: string, negativePrompt: string | undefined, plan: Pending,
     logo: boolean, palette: boolean, paletteHexes: string[],
   ) => {
-    setIncludeLogo(logo);
-    setIncludePalette(palette);
     setCompiled((c) => c ? { ...c, paletteHexes } : c);
-    // Delegate to the shared core with the flags baked into a temporary closure.
     setStatus('generating');
     const s = settingsRef.current;
     const { format, width, height } = resolveTarget();
@@ -235,49 +219,18 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
         out.notes = 'Raw prompt — brand context off.';
       }
       setCompiled(out);
-      setDraft(out.prompt);
-      setIncludeLogo(out.useLogo);
-      setIncludePalette(out.paletteHexes.length > 0);
-      if (s.review === 'auto' || !s.brandAware) {
-        // Fire with the compiled values directly — state may not have flushed.
-        await generateWith(out.prompt, out.negativePrompt, plan, out.useLogo, out.paletteHexes.length > 0, out.paletteHexes);
-      } else {
-        setStatus('review');
-      }
+      // Fire with the compiled values directly — state may not have flushed.
+      await generateWith(out.prompt, out.negativePrompt, plan, out.useLogo, out.paletteHexes.length > 0, out.paletteHexes);
     } catch (err) {
       fail(err);
     }
   }, [brand, compileFn, fail, generateWith, resolveTarget]);
-
-  /** Core with the CURRENT chip state (review → confirm path). */
-  const generate = useCallback(async (prompt: string, negativePrompt: string | undefined, plan: Pending) => {
-    await generateWith(prompt, negativePrompt, plan, includeLogo, includePalette, compiled?.paletteHexes ?? []);
-  }, [compiled?.paletteHexes, generateWith, includeLogo, includePalette]);
 
   const start = useCallback(async (text: string) => {
     const original = text.trim();
     if (!original) return;
     await compileAndMaybeRun({ kind: 'generate', original });
   }, [compileAndMaybeRun]);
-
-  const confirm = useCallback(async () => {
-    const plan = pendingRef.current;
-    if (!plan || !draft.trim()) return;
-    await generate(draft.trim(), compiled?.negativePrompt, plan);
-  }, [compiled?.negativePrompt, draft, generate]);
-
-  const useRaw = useCallback(async () => {
-    const plan = pendingRef.current;
-    if (!plan) return;
-    await generateWith(plan.original, settingsRef.current.negativePrompt || undefined, plan, false, false, []);
-  }, [generateWith]);
-
-  const back = useCallback(() => {
-    pendingRef.current = null;
-    setStatus('idle');
-    setCompiled(null);
-    setDraft('');
-  }, []);
 
   const variations = useCallback(async (pageId: string) => {
     const doc = adapter.getDocument();
@@ -319,10 +272,9 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
   return useMemo(() => ({
     status,
     busy: status === 'compiling' || status === 'generating',
-    error, errorHint, compiled, draft, setDraft,
-    includeLogo, setIncludeLogo, includePalette, setIncludePalette,
+    error, errorHint, compiled,
     pendingKind: pendingRef.current?.kind ?? null,
     lastResult,
-    start, confirm, useRaw, back, variations, refine, regenerate, clearError,
-  }), [status, error, errorHint, compiled, draft, includeLogo, includePalette, lastResult, start, confirm, useRaw, back, variations, refine, regenerate, clearError]);
+    start, variations, refine, regenerate, clearError,
+  }), [status, error, errorHint, compiled, lastResult, start, variations, refine, regenerate, clearError]);
 }
