@@ -34,43 +34,15 @@ import { pickFgOnBackground } from '@/shared/brand/logoOnBackground';
 import type { IdentityModel } from '../identityModel';
 import type { IdentityRegister } from '../identityRegister';
 import { saysName, useArtworkShape } from '../artworkShape';
+import { lines } from '../brandCopy';
 import { Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
+import { BentoWall, CardRow, DataRamp, InterfaceKit } from './Surfaces';
 
 type Shades = ColorScale['shades'];
 
 /** Readable ink for a ground, through the one helper that decides that. */
 const on = (bg: string, light: string, dark: string) => pickFgOnBackground(bg, [light, dark]);
-
-/**
- * Every line the brand has written that could carry a headline, shortest first.
- *
- * A headline is a line you take in at a glance, and of the things a brand
- * records only a tagline is written to be one. Where there is no tagline the
- * candidates are a positioning statement, a mission and a summary — all written
- * to be READ — so the shortest is the closest thing to a headline the brand
- * owns. Taking them in field order instead gave SKAM a 150-character
- * positioning statement as a hero, set as a twelve-line wall of 60px type.
- *
- * Returned as a LIST, because two surfaces sitting on the same screen must not
- * print the same sentence: the site hero and its own supporting paragraph did
- * exactly that, and it reads as a page that lost track of itself.
- *
- * Nothing is ever truncated. A long line is set smaller; it is not cut, because
- * half a sentence attributed to a brand is a sentence the brand did not write.
- */
-function lines(model: IdentityModel): string[] {
-  const seen = new Set<string>();
-  return [
-    model.tagline,
-    model.purpose.positioning,
-    model.purpose.mission,
-    model.introduction.summary,
-  ]
-    .filter((v): v is string => Boolean(v))
-    .filter((v) => (seen.has(v) ? false : (seen.add(v), true)))
-    .sort((a, b) => a.length - b.length);
-}
 
 export function SocialApplications({
   model,
@@ -127,7 +99,11 @@ export function SocialApplications({
         ))}
       </div>
 
+      <BentoWall model={model} register={register} />
+      <CardRow model={model} register={register} />
       <SiteMock model={model} register={register} />
+      <InterfaceKit model={model} register={register} />
+      <DataRamp model={model} register={register} />
       <PhoneMock model={model} register={register} />
     </Section>
   );

@@ -16,6 +16,8 @@ import type { IdentityRegister } from '../identityRegister';
 import { CopyableValue, DownloadPill, RuleCard, Section, SplitHeader } from '../components/primitives';
 import { useReveal } from '../motion/useReveal';
 import { useScrollVar } from '../motion/useScrollVar';
+import { GradientField } from './GradientField';
+import { TypeSpecimen } from './TypeSpecimen';
 import { bgTone } from '@/shared/brand/logoOnBackground';
 import {
   downloadAllColours,
@@ -169,7 +171,13 @@ function UsageRule({
   );
 }
 
-export function Colour({ model }: { model: IdentityModel }) {
+export function Colour({
+  model,
+  register,
+}: {
+  model: IdentityModel;
+  register: IdentityRegister;
+}) {
   return (
     <Section id="colour">
       <SplitHeader
@@ -190,6 +198,10 @@ export function Colour({ model }: { model: IdentityModel }) {
           <Swatch key={colour.hex} colour={colour} brandName={model.name} delay={i * 70} />
         ))}
       </div>
+      {/* Derived, never owned — see `GradientField`. Inside this section
+          because they are colour, below the swatches because they are not
+          values the brand decided. */}
+      <GradientField register={register} />
       <SectionBundle onClick={() => void downloadAllColours(model)} label="Download palette" />
     </Section>
   );
@@ -244,7 +256,13 @@ function Swatch({
   );
 }
 
-export function Typography({ model }: { model: IdentityModel }) {
+export function Typography({
+  model,
+  register,
+}: {
+  model: IdentityModel;
+  register: IdentityRegister;
+}) {
   return (
     <Section id="typography">
       <SplitHeader
@@ -252,14 +270,17 @@ export function Typography({ model }: { model: IdentityModel }) {
         title="Typography"
         body="Set in the brand's own faces below. What you are reading in each specimen is the real thing, not a picture of it."
       />
+      {/* The faces doing their job, before the list of what they are. */}
+      <TypeSpecimen model={model} register={register} />
       {model.typography.fonts.map((font, i) => (
-        <TypeSpecimen key={font.token.family} font={font} model={model} delay={i * 80} />
+        <FontCard key={font.token.family} font={font} model={model} delay={i * 80} />
       ))}
     </Section>
   );
 }
 
-function TypeSpecimen({
+/** One face, as a specification: role, weights, fallbacks, files, download. */
+function FontCard({
   font,
   model,
   delay,

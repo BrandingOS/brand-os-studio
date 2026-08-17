@@ -100,8 +100,8 @@ export function BrandIdentityPage({
             {model.personality.present && <Personality model={model} />}
             {model.logo.present && <LogoSystem model={model} register={register} />}
             {model.logoUsage.present && <LogoUsage model={model} />}
-            {model.colour.present && <Colour model={model} />}
-            {model.typography.present && <Typography model={model} />}
+            {model.colour.present && <Colour model={model} register={register} />}
+            {model.typography.present && <Typography model={model} register={register} />}
             {model.voice.present && <Voice model={model} />}
             {model.photography.present && <Photography model={model} />}
             {model.assets.present && <Assets model={model} />}

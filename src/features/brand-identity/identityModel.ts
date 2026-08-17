@@ -76,7 +76,9 @@ export const SECTION_LABEL: Record<IdentitySectionId, string> = {
   voice: 'Tone of voice',
   photography: 'Photography',
   assets: 'Assets',
-  social: 'Social',
+  // The section grew past social: it now carries the bento, the cards, the
+  // interface kit, the data ramp, the site and the product screen too.
+  social: 'Applied',
   downloads: 'Downloads',
   closing: 'Closing',
 };
