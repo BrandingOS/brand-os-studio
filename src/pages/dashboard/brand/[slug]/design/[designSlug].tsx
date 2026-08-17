@@ -40,7 +40,19 @@ import { useService, SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { PageSpinner } from '@/components/PageSpinner';
 import { activityService } from '@/shared/services/activityService';
+import { getImageProject, type ImageProject } from '@/features/image-generation';
 
+const ImageStudioPage = lazy(() => import('@/features/image-studio/ImageStudioPage'));
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One route, two kinds of project.
+ *
+ * `/b/:slug/design/:projectId` resolves to an IMAGE project (the Studio) when
+ * the id names one, and to a layered DESIGN (the editor) otherwise. Splitting
+ * them into different URLs would have made "open the thing I was working on"
+ * depend on remembering which kind it was.
+ */
 export default function BrandDesignEditorPage() {
   const { slug, designSlug } = useParams<{
     slug: string;
@@ -75,10 +87,24 @@ export default function BrandDesignEditorPage() {
   const [doc, setDoc] = useState<BrandOSDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
   const [docError, setDocError] = useState<'not-found' | 'parse-failed' | null>(null);
+  const [imageProject, setImageProject] = useState<ImageProject | null>(null);
+  const [projectChecked, setProjectChecked] = useState(false);
+
+  // Look for an image project first — it is the newer, cheaper lookup, and a
+  // hit means the document load never has to happen at all.
+  useEffect(() => {
+    if (!designSlug || !UUID_RE.test(designSlug)) { setProjectChecked(true); return; }
+    let cancelled = false;
+    getImageProject(designSlug)
+      .then((p) => { if (!cancelled) { setImageProject(p); setProjectChecked(true); } })
+      .catch(() => { if (!cancelled) setProjectChecked(true); });
+    return () => { cancelled = true; };
+  }, [designSlug]);
 
   // Load the document once we have a brand id + design slug.
   useEffect(() => {
     if (!brand?.id || !designSlug) return;
+    if (!projectChecked || imageProject) return;   // the Studio owns this id
     let cancelled = false;
     setDocLoading(true);
     setDocError(null);
@@ -133,6 +159,18 @@ export default function BrandDesignEditorPage() {
       primaryHref="/dashboard"
       primaryLabel="Back to dashboard"
     />;
+  }
+
+  // An image project short-circuits everything below: the Studio owns this id.
+  if (!projectChecked) {
+    return <PageSpinner />;
+  }
+  if (imageProject) {
+    return (
+      <Suspense fallback={<PageSpinner />}>
+        <ImageStudioPage brand={brand} project={imageProject} initialPrompt={initialPrompt} />
+      </Suspense>
+    );
   }
 
   if (docLoading) {
