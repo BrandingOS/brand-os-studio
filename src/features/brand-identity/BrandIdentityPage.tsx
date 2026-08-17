@@ -17,6 +17,14 @@ import { buildIdentityModel, presentSections, type BuildIdentityInput } from './
 import { IdentityNav } from './components/IdentityNav';
 import { IdentityHero, Introduction, Personality, Purpose } from './sections/Narrative';
 import { Colour, LogoSystem, LogoUsage, Typography } from './sections/System';
+import {
+  Assets,
+  Closing,
+  Downloads,
+  Photography,
+  SocialApplications,
+  Voice,
+} from './sections/Applications';
 import './identity.css';
 
 export interface BrandIdentityPageProps extends BuildIdentityInput {
@@ -81,6 +89,12 @@ export function BrandIdentityPage({
         {model.logoUsage.present && <LogoUsage model={model} />}
         {model.colour.present && <Colour model={model} />}
         {model.typography.present && <Typography model={model} />}
+        {model.voice.present && <Voice model={model} />}
+        {model.photography.present && <Photography model={model} />}
+        {model.assets.present && <Assets model={model} />}
+        {model.social.present && <SocialApplications model={model} />}
+        <Downloads model={model} />
+        <Closing model={model} />
       </main>
     </div>
   );

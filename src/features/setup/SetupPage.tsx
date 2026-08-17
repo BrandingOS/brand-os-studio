@@ -1,4 +1,5 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -276,6 +277,12 @@ export function SetupPage({
     return match?.id;
   });
   const resolvedBrandId = brandIdProp ?? fallbackBrandId;
+  /* The slug the Brand Identity page lives under. Read from the store rather
+     than the URL because this page is also mounted outside a brand route. */
+  const brandSlug = useBrandStore(
+    (s) => s.list.find((b) => b.id === resolvedBrandId)?.slug ?? s.current?.slug,
+  );
+  const navigate = useNavigate();
   const [uploadKind, setUploadKind] = useState<UploadKind | null>(null);
   // When set, the next committed upload replaces this logo in place.
   const [replaceLogoId, setReplaceLogoId] = useState<string | null>(null);
@@ -1501,8 +1508,22 @@ export function SetupPage({
               Open typescale editor
             </button>
           )}
-          <button type="button" className="pill-btn pill-btn--primary">
-            <span>Export brand</span>
+          {/*
+            Brand Identity, replacing "Export brand".
+            
+            That button had no `onClick` and never had one — it has been
+            rendering as a primary action and doing nothing. Exporting still
+            exists where it always worked, on the Brand Kit page; this opens
+            the presentation, which is what someone reaching for a big primary
+            action beside their brand actually wants.
+          */}
+          <button
+            type="button"
+            className="pill-btn pill-btn--primary"
+            onClick={() => navigate(`/b/${brandSlug}/identity`)}
+            disabled={!brandSlug}
+          >
+            <span>Brand Identity</span>
             <ArrowRight size={14} className="pill-btn-arrow" />
           </button>
         </>

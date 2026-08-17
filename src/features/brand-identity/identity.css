@@ -484,7 +484,7 @@
 
 [data-identity] .bi-rules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 16px;
 }
 [data-identity] .bi-usage-rule {
@@ -528,7 +528,7 @@
 
 [data-identity] .bi-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   gap: 12px;
 }
 [data-identity] .bi-swatch {
@@ -625,6 +625,203 @@
   display: flex;
   justify-content: center;
   padding-top: 48px;
+}
+
+/* ── Voice — the first crescendo ───────────────────────────────────────── */
+
+[data-identity] .bi-voice-lead {
+  max-width: 20ch;
+}
+[data-identity] .bi-voice-word {
+  /* Set apart by weight and case, not by a second colour — the ground is
+     already the brand's. */
+  text-transform: lowercase;
+  opacity: 0.72;
+}
+[data-identity] .bi-voice-examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 20px;
+  margin-top: 64px;
+}
+[data-identity] .bi-voice-example {
+  margin: 0;
+  padding: 28px;
+  border-radius: var(--bi-r-flat);
+  background: color-mix(in srgb, var(--bi-on-accent) 12%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 200px;
+}
+[data-identity] .bi-voice-example blockquote {
+  margin: 0;
+}
+[data-identity] .bi-voice-example figcaption {
+  margin-top: auto;
+  font-size: 14px;
+  font-weight: 500;
+}
+[data-identity] .bi-voice-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 40px;
+  margin-top: 64px;
+}
+[data-identity] .bi-voice-list ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-identity] .bi-voice-list li {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+[data-identity] .bi-voice-list[data-muted] li {
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* ── Photography ───────────────────────────────────────────────────────── */
+
+[data-identity] .bi-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 12px;
+}
+[data-identity] .bi-photo {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--bi-r-sm);
+  overflow: hidden;
+  background: var(--bi-panel);
+}
+[data-identity] .bi-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+[data-identity] .bi-photo-grab {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--bi-r-pill);
+  background: rgba(17, 17, 20, 0.7);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms var(--bi-ease);
+}
+[data-identity] .bi-photo:hover .bi-photo-grab,
+[data-identity] .bi-photo:focus-within .bi-photo-grab {
+  opacity: 1;
+}
+
+/* ── Assets ────────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-asset-group + .bi-asset-group {
+  margin-top: 48px;
+}
+[data-identity] .bi-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+[data-identity] .bi-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: none;
+  border-radius: var(--bi-r-sm);
+  background: var(--bi-page);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+[data-identity] .bi-asset img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+[data-identity] .bi-asset-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--bi-ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Social ────────────────────────────────────────────────────────────── */
+
+[data-identity] .bi-social-group + .bi-social-group {
+  margin-top: 56px;
+}
+[data-identity] .bi-social-label {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 16px;
+}
+[data-identity] .bi-social-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+/*
+ * A cover is wide; two per row is already generous. A story is tall; four fit.
+ *
+ * `min()` rather than a bare minimum — `minmax(420px, …)` cannot shrink below
+ * 420 whatever the viewport, so on a phone the track simply overflowed the
+ * page. The floor has to be the smaller of what the design wants and what the
+ * screen has.
+ */
+[data-identity] .bi-social-grid[data-format='cover'] {
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+}
+[data-identity] .bi-social-grid[data-format='story'] {
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+}
+[data-identity] .bi-social-item {
+  border-radius: var(--bi-r-sm);
+  overflow: hidden;
+  box-shadow: var(--bi-shadow-md);
+}
+
+/* ── Downloads + closing ───────────────────────────────────────────────── */
+
+[data-identity] .bi-download-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+[data-identity] .bi-closing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 32px;
+  padding-block: 40px;
+}
+[data-identity] .bi-closing-mark {
+  max-height: 96px;
+  max-width: 260px;
+  object-fit: contain;
+}
+[data-identity] .bi-closing .bi-statement {
+  max-width: 20ch;
 }
 
 /* ── Nav ───────────────────────────────────────────────────────────────── */
@@ -748,6 +945,12 @@
     top: 12px;
     left: 12px;
     right: 12px;
+  }
+  /* Shrink to what it needs. `right` is a CEILING so the card cannot run off
+     the screen — not an instruction to fill the width. */
+  [data-identity] .bi-nav-card {
+    width: fit-content;
+    max-width: 100%;
   }
   [data-identity] .bi-nav-brand-sub {
     display: none;
