@@ -261,6 +261,8 @@ const friendly = (err: { message?: string; code?: string; status?: number } | nu
     return { code, error: 'An account with this email already exists. Try signing in instead.' };
   if (code === 'over_request_rate_limit' || code === 'over_email_send_rate_limit' || has('rate limit') || has('too many'))
     return { code, error: 'Too many attempts. Please wait a moment and try again.' };
+  if (code === 'email_address_invalid')
+    return { code, error: "We couldn't send a code to that address. Check the spelling or try another email." };
   if (code === 'weak_password' || has('password should'))
     return { code, error: msg || 'Password is too weak.' };
   if (code === 'validation_failed' && has('provider'))
@@ -303,6 +305,36 @@ export async function signUp(
     return { error: 'An account with this email already exists. Try signing in instead.', code: 'user_already_exists' };
   }
   return { error: null, needsEmailConfirmation: true };
+}
+
+/** Digits in the e-mail confirmation code. Supabase enforces 6–10 (`mailer_otp_length`). */
+export const SIGNUP_CODE_LENGTH = 6;
+
+/**
+ * Confirm a fresh sign-up with the code from the e-mail. On success Supabase
+ * returns a session — the user is signed in and may enter the app.
+ */
+export async function verifySignupCode(email: string, token: string): Promise<AuthActionResult> {
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: token.trim(), type: 'signup' });
+  if (error) {
+    const code = error.code ?? '';
+    if (code === 'otp_expired' || /expired|invalid/i.test(error.message ?? ''))
+      return { code, error: 'That code is wrong or has expired. Check the digits or request a new one.' };
+    return friendly(error);
+  }
+  if (!data.session || !data.user) return { error: 'The code was accepted but no session was created. Please sign in.' };
+  becomeAuthenticated(data.user);
+  return { error: null };
+}
+
+/** Send a fresh confirmation code to an unconfirmed address. */
+export async function resendSignupCode(email: string): Promise<AuthActionResult> {
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent('/dashboard')}` },
+  });
+  return friendly(error);
 }
 
 export async function signInWithGoogle(next = '/dashboard'): Promise<AuthActionResult> {

@@ -7,6 +7,8 @@ const H = vi.hoisted(() => ({
   signUp: vi.fn(),
   signInWithGoogle: vi.fn(),
   sendPasswordReset: vi.fn(),
+  verifySignupCode: vi.fn(),
+  resendSignupCode: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
 }));
@@ -18,10 +20,18 @@ vi.mock('../session/authController', () => ({
   signUp: H.signUp,
   signInWithGoogle: H.signInWithGoogle,
   sendPasswordReset: H.sendPasswordReset,
+  verifySignupCode: H.verifySignupCode,
+  resendSignupCode: H.resendSignupCode,
+  SIGNUP_CODE_LENGTH: 6,
 }));
 vi.mock('sonner', () => ({ toast: { error: H.toastError, success: H.toastSuccess } }));
 
 import { AuthModal } from './AuthModal';
+
+// input-otp measures its slots; jsdom has no ResizeObserver.
+class RO { observe() {} unobserve() {} disconnect() {} }
+(globalThis as any).ResizeObserver ??= RO;
+(document as any).elementFromPoint ??= () => null;
 
 const Where = () => <div data-testid="where">{useLocation().pathname}</div>;
 
@@ -68,15 +78,45 @@ describe('AuthModal', () => {
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/dashboard'));
   });
 
-  it('after sign-up that needs confirmation, shows the inbox panel instead of navigating', async () => {
+  it('sign-up without a session shows the code panel (no confirm-password field), and the code signs the user in', async () => {
     H.signUp.mockResolvedValueOnce({ error: null, needsEmailConfirmation: true });
+    H.verifySignupCode.mockResolvedValueOnce({ error: null });
+    mount({ defaultMode: 'register' }, '/b/acme/setup');
+    expect(screen.queryByLabelText('Confirm Password')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'New Person' } });
+    fill('new@b.co', 'password1');
+    fireEvent.click(screen.getByRole('button', { name: /create account/i }));
+    await waitFor(() => expect(screen.getByTestId('auth-code-panel')).toBeInTheDocument());
+    expect(screen.getByTestId('where')).toHaveTextContent('/login');
+    // typing the full code verifies and navigates to the destination
+    const otp = screen.getByLabelText('Confirmation code');
+    fireEvent.change(otp, { target: { value: '123456' } });
+    await waitFor(() => expect(H.verifySignupCode).toHaveBeenCalledWith('new@b.co', '123456'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/b/acme/setup'));
+  });
+
+  it('a wrong code shows the error and stays on the code panel', async () => {
+    H.signUp.mockResolvedValueOnce({ error: null, needsEmailConfirmation: true });
+    H.verifySignupCode.mockResolvedValueOnce({ error: 'That code is wrong or has expired. Check the digits or request a new one.' });
     mount({ defaultMode: 'register' });
     fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'New Person' } });
     fill('new@b.co', 'password1');
-    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password1' } });
     fireEvent.click(screen.getByRole('button', { name: /create account/i }));
-    await waitFor(() => expect(screen.getByTestId('auth-sent-panel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('auth-code-panel')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Confirmation code'), { target: { value: '000000' } });
+    await waitFor(() => expect(H.toastError).toHaveBeenCalledWith(expect.stringMatching(/wrong or has expired/)));
+    expect(screen.getByTestId('auth-code-panel')).toBeInTheDocument();
     expect(screen.getByTestId('where')).toHaveTextContent('/login');
+  });
+
+  it('logging in with an unconfirmed email re-sends the code and opens the code panel', async () => {
+    H.signInWithPassword.mockResolvedValueOnce({ error: 'Please verify your email…', code: 'email_not_confirmed' });
+    H.resendSignupCode.mockResolvedValueOnce({ error: null });
+    mount();
+    fill('old@b.co', 'pw');
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
+    await waitFor(() => expect(H.resendSignupCode).toHaveBeenCalledWith('old@b.co'));
+    expect(screen.getByTestId('auth-code-panel')).toBeInTheDocument();
   });
 
   it('Google sends the same-origin destination along', async () => {

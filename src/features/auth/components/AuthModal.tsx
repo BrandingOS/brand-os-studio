@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
-import { Mail, Lock, User, Eye, EyeOff, Loader2, MailCheck } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Loader2, MailCheck, KeyRound } from 'lucide-react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { FaGoogle } from 'react-icons/fa';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { toast } from 'sonner';
@@ -18,6 +19,9 @@ import {
   signUp,
   signInWithGoogle,
   sendPasswordReset,
+  verifySignupCode,
+  resendSignupCode,
+  SIGNUP_CODE_LENGTH,
 } from '../session/authController';
 import { safeNext } from '../session/safeNext';
 
@@ -34,12 +38,18 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(defaultMode);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [sentTo, setSentTo] = useState<{ kind: 'confirm' | 'reset'; email: string } | null>(null);
+  const [sentTo, setSentTo] = useState<{ kind: 'reset'; email: string } | null>(null);
+  // Sign-up must be confirmed with the code e-mailed to the address before
+  // the user may enter the app. While this is set the modal shows the code
+  // panel instead of the form.
+  const [pendingCode, setPendingCode] = useState<{ email: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
-    confirmPassword: ''
   });
 
   // Sync internal mode with prop when modal opens
@@ -48,8 +58,17 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
       setMode(defaultMode);
       setSubmitting(false);
       setSentTo(null);
+      setPendingCode(null);
+      setCode('');
     }
   }, [isOpen, defaultMode]);
+
+  // Resend cooldown ticker (Supabase also rate-limits sends server-side).
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   const { signIn: storeSignIn, setPlatformRole } = useSessionStore();
   const navigate = useNavigate();
@@ -80,6 +99,17 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
         }
         const result = await signInWithPassword(formData.email.trim(), formData.password);
         if (result.error) {
+          if (result.code === 'email_not_confirmed') {
+            // The account exists but was never confirmed — send a fresh code
+            // and let them finish here instead of dead-ending on an error.
+            const email = formData.email.trim();
+            const sent = await resendSignupCode(email);
+            if (sent.error) { toast.error(sent.error); return; }
+            setPendingCode({ email });
+            setCode('');
+            setResendIn(60);
+            return;
+          }
           toast.error(result.error);
           return;
         }
@@ -97,20 +127,18 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
           toast.error('Password must be at least 6 characters');
           return;
         }
-        if (formData.password !== formData.confirmPassword) {
-          toast.error('Passwords do not match');
-          return;
-        }
         const result = await signUp(formData.email.trim(), formData.password, formData.name);
         if (result.error) {
           toast.error(result.error);
           return;
         }
         if (result.needsEmailConfirmation) {
-          // No session yet — the account exists but must be confirmed by
-          // the link we just sent. Stay here and say so; do NOT navigate
-          // to a guarded page that would only bounce back.
-          setSentTo({ kind: 'confirm', email: formData.email.trim() });
+          // No session yet — the account exists but must be confirmed with
+          // the code we just e-mailed. Stay here; do NOT navigate to a
+          // guarded page that would only bounce back.
+          setPendingCode({ email: formData.email.trim() });
+          setCode('');
+          setResendIn(60);
           return;
         }
         toast.success('Welcome to BrandOS!');
@@ -135,6 +163,35 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
     }
   };
 
+  const handleVerifyCode = async (value = code) => {
+    if (!pendingCode || verifying || value.length !== SIGNUP_CODE_LENGTH) return;
+    setVerifying(true);
+    try {
+      const result = await verifySignupCode(pendingCode.email, value);
+      if (result.error) {
+        toast.error(result.error);
+        setCode('');
+        return;
+      }
+      toast.success('Email confirmed — welcome to BrandOS!');
+      onClose();
+      navigate(destination, { replace: true });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!pendingCode || resendIn > 0) return;
+    const result = await resendSignupCode(pendingCode.email);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success('A new code is on its way.');
+    setResendIn(60);
+  };
+
   const handleGoogleLogin = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -147,7 +204,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
   };
 
   const resetForm = () => {
-    setFormData({ email: '', password: '', name: '', confirmPassword: '' });
+    setFormData({ email: '', password: '', name: '' });
   };
 
   const switchMode = (newMode: 'login' | 'register' | 'forgot') => {
@@ -160,29 +217,91 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-display">
-            {mode === 'login' && 'Welcome back'}
-            {mode === 'register' && 'Create your account'}
-            {mode === 'forgot' && 'Reset password'}
+            {pendingCode ? 'Confirm your email' : (
+              <>
+                {mode === 'login' && 'Welcome back'}
+                {mode === 'register' && 'Create your account'}
+                {mode === 'forgot' && 'Reset password'}
+              </>
+            )}
           </DialogTitle>
         </DialogHeader>
 
         <Card className="border-0 shadow-none">
           <div className="p-6 pt-0">
-            {sentTo ? (
+            {pendingCode ? (
+              <div className="text-center space-y-5 py-2" data-testid="auth-code-panel">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <KeyRound className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    We sent a {SIGNUP_CODE_LENGTH}-digit code to{' '}
+                    <span className="font-medium text-foreground">{pendingCode.email}</span>.
+                    Enter it below to finish creating your account.
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={SIGNUP_CODE_LENGTH}
+                    value={code}
+                    onChange={(v) => {
+                      const digits = v.replace(/\D/g, '');
+                      setCode(digits);
+                      if (digits.length === SIGNUP_CODE_LENGTH) void handleVerifyCode(digits);
+                    }}
+                    inputMode="numeric"
+                    autoFocus
+                    disabled={verifying}
+                    aria-label="Confirmation code"
+                    containerClassName="gap-2"
+                  >
+                    <InputOTPGroup>
+                      {Array.from({ length: SIGNUP_CODE_LENGTH }, (_, i) => (
+                        <InputOTPSlot key={i} index={i} className="h-12 w-11 text-lg" />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full h-11"
+                  disabled={verifying || code.length !== SIGNUP_CODE_LENGTH}
+                  onClick={() => void handleVerifyCode()}
+                >
+                  {verifying ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Confirming...</>) : 'Confirm'}
+                </Button>
+                <div className="text-sm text-muted-foreground">
+                  Didn't get it?{' '}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                    disabled={resendIn > 0}
+                    onClick={() => void handleResendCode()}
+                  >
+                    {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+                  </button>
+                  <span className="mx-2">·</span>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => { setPendingCode(null); setCode(''); switchMode('login'); }}
+                  >
+                    Use a different email
+                  </button>
+                </div>
+              </div>
+            ) : sentTo ? (
               <div className="text-center space-y-4 py-2" data-testid="auth-sent-panel">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
                   <MailCheck className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium">
-                    {sentTo.kind === 'confirm' ? 'Confirm your email' : 'Check your inbox'}
-                  </p>
+                  <p className="font-medium">Check your inbox</p>
                   <p className="text-sm text-muted-foreground">
-                    We sent a {sentTo.kind === 'confirm' ? 'confirmation' : 'password reset'} link to{' '}
+                    We sent a password reset link to{' '}
                     <span className="font-medium text-foreground">{sentTo.email}</span>.
-                    {sentTo.kind === 'confirm'
-                      ? ' Open it to finish creating your account.'
-                      : ' Open it to choose a new password.'}
+                    Open it to choose a new password.
                   </p>
                 </div>
                 <Button
@@ -301,24 +420,6 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </Button>
-                  </div>
-                </div>
-              )}
-
-              {mode === 'register' && (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="confirmPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="pl-10"
-                      required
-                    />
                   </div>
                 </div>
               )}
