@@ -104,7 +104,11 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
             // and let them finish here instead of dead-ending on an error.
             const email = formData.email.trim();
             const sent = await resendSignupCode(email);
-            if (sent.error) { toast.error(sent.error); return; }
+            if (sent.error && sent.code !== 'over_email_send_rate_limit') { toast.error(sent.error); return; }
+            if (sent.error) {
+              // Rate-limited: the earlier code may still be valid — let them use it.
+              toast.error("We couldn't send a new code right now. Use the code from the earlier email, or try again in a while.");
+            }
             setPendingCode({ email });
             setCode('');
             setResendIn(60);
