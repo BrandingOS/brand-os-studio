@@ -1,27 +1,776 @@
 /*
- * Brand Guidelines workspace — /b/:slug/guideline.
+ * Brand Guidelines builder — /b/:slug/guideline.
  *
- * Scoped under [data-workspace] like every other Studio surface. Values come
- * from --ds-* directly (NOT the older workspace aliases, which are a temporary
- * bridge per docs/ds-token-convergence.md). The only colour that is allowed to
- * be dynamic here is the customer's own brand, and it arrives as an inline
- * custom property from the component — never hard-coded.
+ * Scoped under [data-workspace] like every Studio surface, and reads --ds-*
+ * directly rather than the older workspace aliases (those are the temporary
+ * bridge in docs/ds-token-convergence.md). The only colours allowed to be
+ * dynamic here belong to the customer's brand, and they arrive as inline
+ * custom properties from the component — never hard-coded.
  *
  * `gl-` prefix = guideline.
+ *
+ * Layout note: the DOCUMENT scrolls with the page, under the Studio top bar.
+ * The rail and the sidebar are sticky beside it. An inner scroll container
+ * would have to know the top bar's exact height to size itself, and the top
+ * bar's height is padding + content — not a number this file should own.
  */
 
-/* ─── Page ──────────────────────────────────────────────────── */
+/* ─── Shell ─────────────────────────────────────────────────── */
 
-[data-workspace] .gl-page {
-  --gl-pad-x: clamp(20px, 4vw, 48px);
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 28px var(--gl-pad-x) 96px;
+[data-workspace] .gl-builder {
+  --gl-sticky-top: 84px;
+  --gl-rail-w: 64px;
+  --gl-sidebar-w: 306px;
+  display: grid;
+  grid-template-columns: var(--gl-rail-w) var(--gl-sidebar-w) minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  padding: 4px 20px 120px;
+}
+[data-workspace] .gl-builder[data-sidebar='closed'] {
+  grid-template-columns: var(--gl-rail-w) minmax(0, 1fr);
+}
+[data-workspace] .gl-builder.is-empty {
+  display: block;
+  padding: 0 20px 120px;
+}
+/* ─── Floating rail ─────────────────────────────────────────── */
+
+[data-workspace] .gl-rail {
+  position: sticky;
+  top: var(--gl-sticky-top);
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
 }
+[data-workspace] .gl-rail-card {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-tile);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background-color 150ms var(--ds-ease), color 150ms var(--ds-ease),
+    border-color 150ms var(--ds-ease);
+}
+[data-workspace] .gl-rail-card:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .gl-rail-card[data-active] {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+[data-workspace] .gl-rail-card:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+[data-workspace] .gl-rail-label {
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ─── Floating sidebar ──────────────────────────────────────── */
+
+[data-workspace] .gl-sidebar {
+  position: sticky;
+  top: var(--gl-sticky-top);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--gl-sticky-top) - 28px);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  overflow: hidden;
+}
+[data-workspace] .gl-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 10px 14px;
+  border-bottom: 1px solid var(--ds-border);
+  flex-shrink: 0;
+}
+[data-workspace] .gl-sidebar-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .gl-sidebar-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+[data-workspace] .gl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--ds-radius-tile);
+  background: transparent;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+[data-workspace] .gl-icon-btn:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .gl-icon-btn:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ─── Panels ────────────────────────────────────────────────── */
+
+[data-workspace] .gl-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 14px;
+}
+[data-workspace] .gl-panel-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .gl-panel-rule {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--ds-border);
+}
+[data-workspace] .gl-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+[data-workspace] .gl-field-group-title {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .gl-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+[data-workspace] .gl-field-hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-field-hint a,
+[data-workspace] .gl-doc-foot a {
+  color: var(--ds-text-secondary);
+  text-underline-offset: 2px;
+}
+
+[data-workspace] .gl-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+[data-workspace] .gl-color-chip {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: none;
+  cursor: pointer;
+}
+[data-workspace] .gl-color-chip::-webkit-color-swatch-wrapper { padding: 3px; }
+[data-workspace] .gl-color-chip::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+[data-workspace] .gl-font-sample {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--ds-text-secondary);
+}
+
+[data-workspace] .gl-field-scope {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 2px;
+}
+[data-workspace] .gl-field-scope-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+[data-workspace] .gl-field-scope-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-warning-fg);
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-warning-border);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+[data-workspace] .gl-link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--ds-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+[data-workspace] .gl-link-btn:hover { color: var(--ds-text); }
+
+[data-workspace] .gl-logo-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: #ffffff;
+}
+[data-workspace] .gl-logo-preview img {
+  max-height: 40px;
+  max-width: 80%;
+  object-fit: contain;
+}
+[data-workspace] .gl-logo-letter {
+  font-size: 22px;
+  font-weight: 600;
+  color: #0d0d0d;
+}
+
+/* ─── Outline ───────────────────────────────────────────────── */
+
+[data-workspace] .gl-outline { padding: 8px; }
+[data-workspace] .gl-outline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+[data-workspace] .gl-outline-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-tile);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .gl-outline-item:hover { background: var(--ds-surface-hover); }
+[data-workspace] .gl-outline-item[data-active] { color: var(--ds-text); }
+[data-workspace] .gl-outline-item[data-selected] {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+  color: var(--ds-text);
+}
+[data-workspace] .gl-outline-item:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+[data-workspace] .gl-outline-item.is-section {
+  margin-top: 10px;
+  color: var(--ds-text);
+}
+[data-workspace] .gl-outline-item.is-section .gl-outline-name {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+[data-workspace] .gl-outline-num {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-muted);
+  min-width: 16px;
+  flex-shrink: 0;
+}
+[data-workspace] .gl-outline-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+[data-workspace] .gl-outline-name {
+  font-size: 12.5px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .gl-outline-type {
+  font-size: 10.5px;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .gl-outline-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ds-accent);
+  flex-shrink: 0;
+}
+
+/* ─── Page panel ────────────────────────────────────────────── */
+
+[data-workspace] .gl-page-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+[data-workspace] .gl-page-meta-type {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+[data-workspace] .gl-page-meta-pos {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-bg);
+}
+[data-workspace] .gl-source-label {
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+  flex-shrink: 0;
+}
+[data-workspace] .gl-source-value {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+[data-workspace] .gl-source-text {
+  font-size: 11.5px;
+  color: var(--ds-text);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .gl-source-swatches {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+[data-workspace] .gl-source-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--ds-border);
+  flex-shrink: 0;
+}
+[data-workspace] .gl-source-logo { max-height: 20px; max-width: 100px; object-fit: contain; }
+
+[data-workspace] .gl-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+[data-workspace] .gl-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+[data-workspace] .gl-action:hover:not(:disabled) { background: var(--ds-surface-hover); }
+[data-workspace] .gl-action:disabled { opacity: 0.4; cursor: not-allowed; }
+[data-workspace] .gl-danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-danger-border, var(--ds-border));
+  border-radius: var(--ds-radius-tile);
+  background: transparent;
+  color: var(--ds-danger);
+  font-size: 12px;
+  cursor: pointer;
+}
+[data-workspace] .gl-danger-btn:hover { background: var(--ds-danger-bg); }
+
+/* ─── Page library ──────────────────────────────────────────── */
+
+[data-workspace] .gl-lib-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .gl-lib-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+[data-workspace] .gl-lib-desc {
+  margin: 0 0 2px;
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-lib-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+[data-workspace] .gl-lib-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+  text-align: left;
+  cursor: pointer;
+}
+[data-workspace] .gl-lib-item:hover {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+}
+[data-workspace] .gl-lib-item:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+[data-workspace] .gl-lib-item-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+[data-workspace] .gl-lib-item-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ds-text-muted);
+}
+
+/* ─── The document ──────────────────────────────────────────── */
+
+[data-workspace] .gl-doc-scroll {
+  min-width: 0;
+  max-width: 1040px;
+  margin: 0 auto;
+  width: 100%;
+}
+[data-workspace] .gl-doc-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 12px 0 22px;
+}
+[data-workspace] .gl-doc-eyebrow {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  margin-bottom: 4px;
+}
+[data-workspace] .gl-doc-title {
+  font-family: 'Instrument Serif', 'DM Serif Display', 'Playfair Display', serif;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-doc-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+[data-workspace] .gl-save.is-ok { color: var(--ds-success); }
+[data-workspace] .gl-save.is-error { color: var(--ds-danger); }
+
+[data-workspace] .gl-doc {
+  display: flex;
+  flex-direction: column;
+}
+[data-workspace] .gl-doc-slot { display: flex; flex-direction: column; }
+[data-workspace] .gl-doc-foot {
+  padding: 28px 0 0;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  text-align: center;
+}
+
+/* ─── A page ────────────────────────────────────────────────── */
+
+[data-workspace] .gl-page {
+  scroll-margin-top: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+[data-workspace] .gl-page-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-page-num { font-variant-numeric: tabular-nums; }
+[data-workspace] .gl-page-name { color: var(--ds-text-secondary); }
+[data-workspace] .gl-page[data-selected] .gl-page-name { color: var(--ds-text); font-weight: 500; }
+[data-workspace] .gl-page-edited {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+[data-workspace] .gl-page-frame {
+  position: relative;
+  border-radius: var(--ds-radius-card);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 200ms var(--ds-ease), border-color 200ms var(--ds-ease);
+}
+[data-workspace] .gl-page[data-selected] .gl-page-frame {
+  border-color: var(--ds-border-strong);
+  box-shadow: var(--ds-shadow-md, var(--ds-shadow-sm)), 0 0 0 3px var(--ds-focus-ring);
+}
+
+/*
+ * The page canvas is the SIZE CONTAINER the guideline renderers are written
+ * against — they scale their type with cqi/cqb, so the box must declare
+ * `container-type` and a font-size in container units or every page renders at
+ * browser-default 16px and overflows.
+ */
+[data-workspace] .gl-page-canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--ds-surface);
+  container-type: inline-size;
+  font-size: min(1.2cqi, 1.2cqb);
+}
+[data-workspace] .gl-page-static {
+  position: absolute;
+  inset: 0;
+}
+[data-workspace] .gl-page-hit {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 5;
+}
+[data-workspace] .gl-page-hit:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: -3px;
+}
+
+/* ─── Insert affordance ─────────────────────────────────────── */
+
+[data-workspace] .gl-insert {
+  position: relative;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+[data-workspace] .gl-insert.is-last { height: 40px; }
+[data-workspace] .gl-insert::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--ds-border-strong);
+  opacity: 0;
+  transition: opacity 150ms var(--ds-ease);
+}
+[data-workspace] .gl-insert:hover::before,
+[data-workspace] .gl-insert:focus-within::before { opacity: 1; }
+[data-workspace] .gl-insert-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--ds-border);
+  border-radius: 50%;
+  background: var(--ds-surface);
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 150ms var(--ds-ease), transform 150ms var(--ds-ease),
+    background-color 150ms var(--ds-ease);
+}
+[data-workspace] .gl-insert:hover .gl-insert-btn,
+[data-workspace] .gl-insert-btn:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+[data-workspace] .gl-insert-btn:hover {
+  background: var(--ds-surface-hover);
+  color: var(--ds-text);
+}
+[data-workspace] .gl-insert-btn:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ─── Empty state ───────────────────────────────────────────── */
+
+[data-workspace] .gl-empty {
+  max-width: 560px;
+  margin: clamp(48px, 12vh, 120px) auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+}
+[data-workspace] .gl-empty-cover {
+  width: 132px;
+  height: 172px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ds-radius-card);
+  background: var(--gl-cover-bg);
+  color: var(--gl-cover-fg);
+  box-shadow: var(--ds-shadow-sm);
+  margin-bottom: 8px;
+}
+[data-workspace] .gl-empty-cover img {
+  max-width: 62%;
+  max-height: 34%;
+  object-fit: contain;
+}
+[data-workspace] .gl-empty-letter {
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  opacity: 0.92;
+}
+[data-workspace] .gl-empty-title {
+  font-family: 'Instrument Serif', 'DM Serif Display', 'Playfair Display', serif;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-empty-sub {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
+  max-width: 46ch;
+}
+[data-workspace] .gl-empty-gaps {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-warning-fg);
+  background: var(--ds-warning-bg);
+  border: 1px solid var(--ds-warning-border);
+  border-radius: var(--ds-radius-card);
+  padding: 10px 14px;
+  max-width: 46ch;
+}
+[data-workspace] .gl-empty-gaps a { color: inherit; font-weight: 600; text-underline-offset: 2px; }
+[data-workspace] .gl-empty-meta {
+  font-size: 11.5px;
+  color: var(--ds-text-muted);
+}
+
+/* ─── Brand-not-found / loading states ──────────────────────── */
 
 [data-workspace] .gl-state {
   max-width: 640px;
@@ -45,233 +794,36 @@
   margin: 0;
 }
 
-/* ─── Hero ──────────────────────────────────────────────────── */
-
-[data-workspace] .gl-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-[data-workspace] .gl-hero-eyebrow {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-weight: 500;
-  color: var(--ds-text-muted);
-  margin-bottom: 4px;
-}
-[data-workspace] .gl-hero-title {
-  font-family: 'Instrument Serif', 'DM Serif Display', 'Playfair Display', serif;
-  font-size: clamp(34px, 4.4vw, 48px);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
-  font-weight: 400;
-  color: var(--ds-text);
-  margin: 0;
-}
-[data-workspace] .gl-hero-sub {
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--ds-text-secondary);
-  margin: 0;
-  max-width: 60ch;
-}
-
-/* ─── The template card ─────────────────────────────────────── */
-
-[data-workspace] .gl-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-  gap: 0;
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-panel);
-  background: var(--ds-surface);
-  overflow: hidden;
-  box-shadow: var(--ds-shadow-sm);
-}
-@media (max-width: 880px) {
-  [data-workspace] .gl-card { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* Left half — a real, brand-coloured cover, not a stock thumbnail. */
-[data-workspace] .gl-cover {
-  position: relative;
-  aspect-ratio: 16 / 11;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: clamp(20px, 3vw, 34px);
-  /* --gl-cover-bg / --gl-cover-fg are set inline from the brand palette. */
-  background: var(--gl-cover-bg);
-  color: var(--gl-cover-fg);
-  overflow: hidden;
-}
-[data-workspace] .gl-cover::after {
-  /* A soft vignette so a flat brand colour still reads as a printed cover. */
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120% 90% at 15% 0%, rgba(255, 255, 255, 0.14), transparent 62%);
-  pointer-events: none;
-}
-[data-workspace] .gl-cover-mark {
-  position: relative;
-  z-index: 1;
-  height: 34px;
-  display: flex;
-  align-items: center;
-}
-[data-workspace] .gl-cover-mark img {
-  max-height: 100%;
-  max-width: 160px;
-  object-fit: contain;
-}
-[data-workspace] .gl-cover-letter {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  opacity: 0.9;
-}
-[data-workspace] .gl-cover-body { position: relative; z-index: 1; }
-[data-workspace] .gl-cover-eyebrow {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  opacity: 0.6;
-}
-[data-workspace] .gl-cover-title {
-  font-family: 'Instrument Serif', 'DM Serif Display', serif;
-  font-size: clamp(26px, 3.4vw, 40px);
-  line-height: 1.04;
-  letter-spacing: -0.02em;
-  font-weight: 400;
-  margin: 8px 0 0;
-}
-[data-workspace] .gl-cover-rule {
-  margin-top: 14px;
-  width: 46px;
-  height: 2px;
-  background: currentColor;
-  opacity: 0.45;
-}
-
-/* Right half — what it is, and how to open it. */
-[data-workspace] .gl-card-body {
-  padding: clamp(20px, 3vw, 32px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 14px;
-  min-width: 0;
-}
-[data-workspace] .gl-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-[data-workspace] .gl-card-title {
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ds-text);
-  margin: 0;
-}
-[data-workspace] .gl-card-desc {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--ds-text-secondary);
-  margin: 0;
-}
-[data-workspace] .gl-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: var(--ds-text-muted);
-}
-[data-workspace] .gl-card-meta-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.5;
-}
-[data-workspace] .gl-card-actions {
-  /* Deliberately NOT pushed to the bottom with margin-top:auto — the cover sets
-   * the card's height, so pinning the button left a hole in the middle of the
-   * body. Top-aligned, the text and its action read as one group. */
-  padding-top: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-/* ─── Chapters ──────────────────────────────────────────────── */
-
-[data-workspace] .gl-section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-[data-workspace] .gl-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ds-text);
-  margin: 0;
-}
-[data-workspace] .gl-section-sub {
-  font-size: 12px;
-  color: var(--ds-text-muted);
-}
-
-[data-workspace] .gl-chapters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  gap: 8px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-[data-workspace] .gl-chapter {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--ds-border);
-  border-radius: var(--ds-radius-tile);
-  background: var(--ds-surface);
-  padding: 11px 13px;
-  font-size: 12.5px;
-  color: var(--ds-text-secondary);
-}
-[data-workspace] .gl-chapter-num {
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-text-muted);
-  min-width: 14px;
-}
-
-/* ─── Missing-data notice ───────────────────────────────────── */
-
-[data-workspace] .gl-gaps {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  border: 1px solid var(--ds-warning-border);
-  background: var(--ds-warning-bg);
-  color: var(--ds-warning-fg);
-  border-radius: var(--ds-radius-card);
-  padding: 12px 14px;
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-[data-workspace] .gl-gaps a {
-  color: inherit;
-  font-weight: 600;
-  text-underline-offset: 2px;
+/* ─── Narrow viewports ──────────────────────────────────────
+ *
+ * Last in the file deliberately: these override the desktop rules above, and
+ * a media query does not add specificity — placed earlier it would silently
+ * lose to every rule it is meant to replace.
+ *
+ * Below ~900px a 64px rail plus a 306px panel leaves the page nothing. The
+ * document is the point, so the tools become a horizontal strip above it and
+ * the panel is capped so the first page is always within one scroll.
+ */
+@media (max-width: 900px) {
+  [data-workspace] .gl-builder,
+  [data-workspace] .gl-builder[data-sidebar='closed'] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  [data-workspace] .gl-rail {
+    position: static;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  [data-workspace] .gl-sidebar {
+    position: static;
+    max-height: 46vh;
+  }
+  [data-workspace] .gl-lib-item,
+  [data-workspace] .gl-outline-item {
+    /* The panel is full-width here; left-aligned rows read better than
+       edge-to-edge ones. */
+    max-width: 640px;
+  }
 }

@@ -646,6 +646,12 @@ export function EditableSlide({ children, frozenHtml, onSelectionChange }: Edita
           dispatcher.addEventListener('pointerup', onUp);
           dispatcher.addEventListener('pointercancel', onUp);
         }}
+        // Stable content boundary. This element's innerHTML is exactly what
+        // `frozenHtml` is fed back in as, so a host that captures HERE gets a
+        // lossless round trip. (EditorWorkspace captures the outer slide
+        // canvas instead, which nests one wrapper per save — harmless there
+        // because it saves on an explicit click, not on every keystroke.)
+        data-slide-content=""
         className="w-full h-full"
         {...innerProps}
       />

@@ -319,7 +319,7 @@ checking if your change is the designated payoff.
 | 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
 | 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
 | 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
-| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Mostly closed (2026-08-19).** The owner's direction was: keep the deck, fix everything around it. `/b/:slug/guideline` is now a Studio workspace over `shared/editor/EditorWorkspace`, and `/b/:slug/brand-guides` was consolidated into it — one guideline surface, DS-native, no `/a` chrome. The legacy family is now purely a CONTENT library (`features/guidelines/pages/templates/*` + `editor/buildSlides`), which is reuse rather than debt. Still open: the Classic hub `/a/:slug/guideline`, and the two frozen editors `/b/:slug/guidelines/{canvas,blocks}`. |
+| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Mostly closed (2026-08-19).** Keep the artwork, rebuild everything around it. `/b/:slug/guideline` is now the Brand Guidelines BUILDER — build-from-brand empty state, vertical document, floating rail + sidebar, inline page editing, page CRUD, guideline-scoped brand overrides — and `/b/:slug/brand-guides` plus the old `/guideline/:templateId` deck editor were consolidated into it. One guideline surface, DS-native, no `/a` chrome. The legacy family is now purely a CONTENT library (`features/guidelines/pages/templates/*`), which is reuse rather than debt. Still open: export/present on the builder, the Classic hub `/a/:slug/guideline`, and the two frozen editors `/b/:slug/guidelines/{canvas,blocks}`. |
 
 Closed during 3.5: ~~"4 carve-outs remain"~~ — went 4 → 2; the
 remaining 2 (`logo-maker/flow`, `editor/components`) are documented
@@ -930,47 +930,80 @@ Rules that bind:
   over `@/features/image-generation` and `…/credits` — otherwise it calls the
   REAL deployed Edge Function and the REAL ledger.
 
-## Guideline — rebuilt 2026-08-19 (`features/guideline/`)
+## Guideline — the Brand Guidelines builder (rebuilt 2026-08-19)
 
-The from-scratch rebuild the 2026-08-10 review called for is **done**. Two
-surfaces, and that split is the whole design:
+**One route, one surface: `/b/:slug/guideline`.** It is a BUILDER, not a
+landing and not a deck viewer. Before there is a guideline the page is nearly
+empty with one action — **Build Brand Guidelines** — which writes a complete
+30-page brand book from the brand's own logo, palette, typography, imagery,
+motion and voice. After that it is a vertical document with a floating rail
+and a floating sidebar beside it, in `WorkspaceShell` like every Studio tab.
 
-- **`/b/:slug/guideline`** — the Brand Guidelines **workspace**, in
-  `WorkspaceShell` like every other Studio tab. A landing, not an editor:
-  brand-coloured cover, what the deck contains, real progress, one button.
-  `features/guideline/GuidelineWorkspace.tsx` + `guideline.css` (`--ds-*`
-  tokens only, `gl-` prefix).
-- **`/b/:slug/guideline/:templateId`** — the deck editor, fullscreen and
-  shell-less like every other canvas. A THIN host over
-  `shared/editor/EditorWorkspace` (tagged `stable/editable-export-v1`), which
-  already owns the slide navigator, inline editing, the selection inspector,
-  insert, the theme/size/spacing customizer, undo/redo, present mode and
-  export. Do not rebuild any of that.
+There is deliberately no separate fullscreen editor, no template gallery and
+no blank-document path. `/b/:slug/guideline/:templateId` and
+`/b/:slug/brand-guides` both redirect here.
+
+**Layout.** Grid: rail (64px) · sidebar (306px, collapsible) · document. Both
+panels are `position: sticky` and the DOCUMENT scrolls with the page under the
+Studio top bar — an inner scroll container would have to hard-code the top
+bar's height, which is padding plus content. The rail has three entries:
+Content · Brand · Add page.
+
+**State lives in three places, and the split is load-bearing:**
+
+| what | where | why |
+|---|---|---|
+| the page list + guideline-scoped brand overrides | `model/guidelineDocStore.ts` (localStorage, per brand) | kilobytes, and it must be readable SYNCHRONOUSLY — it decides empty-state vs builder on first paint |
+| a page's edited HTML | IndexedDB via `builder/useGuidelineSnapshots.ts` | megabytes; keyed so pre-builder edits still load |
+| selection, scroll, open panel | component state | session-scoped; persisting a selection is noise |
 
 **Rules that bind:**
-- **`editorKeyPrefix` is `'brand-guides'` and must not change.** Slide edits
-  live in the IDB snapshot store under `${prefix}-${brandId}`, and that is the
-  key `/b/:slug/brand-guides` used before it was consolidated away. Changing it
-  silently reverts every deck anyone has edited. A test pins it.
-- **Adding a template = one entry in `templates/registry.ts`.** Nothing
-  downstream names the editorial deck. `EditorWorkspace` already accepts
-  `templates` / `onTemplateChange` / `onOpenTemplatePicker`, so a picker lands
-  against an existing seam — it is deliberately not built yet.
-- **The slide CONTENT still lives in `features/guidelines/`** (the legacy
-  8.8k-LOC family): `editor/buildSlides.tsx` plus the `pages/templates/*` page
-  components. That is reuse, not debt to unwind — the registry imports it.
-- `/b/:slug/brand-guides` now redirects here. The Chronicle document editor,
-  its `ChronicleGuidelineEditor` / `GuidelineDocument` / `buildGuidelineDocument`,
-  and the already-dead `GuidelineBoard` / `GuidelineSidebar` were deleted.
-  `ChronicleShell` itself stays — `/_dev/chronicle` still previews it.
-- **Orphaned data, deliberately:** the old editor autosaved an opaque HTML blob
-  through `IDesignStorage` under design slug `brand-guideline`. Nothing reads it
-  now. It was a frozen document snapshot with no sane mapping onto slides, so it
-  is left in place rather than migrated or deleted.
 
-The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
-is no longer linked from the guideline surface — present mode lives inside the
-deck editor. It keeps its local-brand fallback (see the uuid gotcha below).
+- **`guidelineEditorKey(brandId)` is `brand-guides-${brandId}` and must not
+  change.** Every edit anyone has made — including at the retired
+  `/b/:slug/brand-guides` — is filed under it. A rename is not an error anyone
+  sees; it is everyone's work quietly disappearing. Pinned by a test.
+- **A page type id IS a persistence key.** The first instance of a type takes
+  the type id verbatim as its instance id, and those ids are exactly the slide
+  ids the old deck used (`cover`, `logo-grid`, `color-ratio`, …). A test lists
+  them. Later instances are suffixed (`motion-2`).
+- **Snapshots round-trip through `[data-slide-content]`** — the inner div of
+  `shared/editor/blocks/EditableSlide`. Capturing the outer canvas (which
+  `EditorWorkspace` does) nests one wrapper per save; harmless there because it
+  saves on a click, fatal here because the builder autosaves. Legacy
+  outer-canvas snapshots still render, and a browser test pins that.
+- **Editing a brand value in the guideline does NOT touch the brand.**
+  `model/document.ts`'s `GuidelineOverrides` holds the guideline's own
+  primary/secondary colour and heading/body typeface; `applyGuidelineOverrides`
+  merges them for rendering only. Pushing one onto the brand is a separate,
+  confirmed action that names both values and what it affects. Override keys
+  must stay exactly the brand fields the renderers read — an override the pages
+  ignore reads as a broken control.
+- **The confirmation renders in `GuidelineBuilder`, never in a panel.**
+  `.gl-sidebar` is `position: sticky`, which creates a stacking context, so a
+  modal scrim mounted inside it paints under the document.
+- **Adding a page type = one entry in `model/pageLibrary.tsx`.** The renderers
+  are NOT ours — they live in the legacy `features/guidelines/` family
+  (`pages/templates/{TemplatePages,FancyPages,FancyPages2}`), which is the
+  strongest guideline artwork in the repo. This is a catalogue over them.
+  Multiple layouts per type is the obvious next step and is deliberately not
+  built: a `variant` field on the instance plus a `variants` map here, with no
+  change to the document, the store or any panel.
+- **Chapter numbers are derived from order**, never stored — moving a chapter
+  renumbers it. The outline numbers every row by document position, dividers
+  included.
+- Only the SELECTED page is wrapped in the inline editor; the rest render
+  inert, and pages far from the viewport are deferred until first approach.
+- Tests: `__tests__/{document,guidelineDocStore,effectiveBrand}.test.ts` and
+  `__tests__/guidelineBuilder.browser.test.tsx`.
+
+**Not built, and known:** export and present. The retired deck editor had both
+via `EditorWorkspace`; the builder does not, because its export path is coupled
+to that component's own DOM refs. A guideline you cannot hand to anyone is
+half a product — this is the next thing to add, over `shared/editor/exportCapture.ts`.
+
+The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen**
+and unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
 
 ## Canonical brand model — storage round-trip gotcha
 
@@ -1055,7 +1088,8 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `brandos:brand-kit:state` — per-brand deliverable lifecycle (kit items + customizations)
 - `brandos:brand-kit:customizations` — per brand+variant card-editor saves (non-kit edits; migration source)
 - `design_<brandId>` — legacy design editor autosave (Fabric JSON)
-- `brandos:guideline-theme:<brandId>` — Guideline theme preset pick
+- `brandos:guideline-theme:<brandId>` — Guideline theme preset pick (legacy canvas editor)
+- `brandos:guideline:docs` — the Brand Guidelines builder's documents, keyed by brand id (page list + guideline-scoped brand overrides). The page BODIES are not here — edited pages live in IndexedDB `brandos-snapshots/slides` under `brand-guides-<brandId>::<pageId>`
 - `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal
 - `brandos-theme` — light/dark, and the ONLY theme key. It is `next-themes`'
   `storageKey` as well as what `[data-workspace] data-theme` reads, via

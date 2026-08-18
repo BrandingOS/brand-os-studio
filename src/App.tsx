@@ -38,7 +38,6 @@ const PublishedIdentityRoute = lazy(() => import("./pages/i/[token]"));
 const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandBrandKitNextPage = lazy(() => import("./pages/b/[slug]/brand-kit-next"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
-const GuidelineEditorRoute = lazy(() => import("./features/guideline/GuidelineEditorRoute"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
 const BrandTemplatesStudioPage = lazy(() => import("./pages/b/[slug]/templates"));
@@ -233,6 +232,17 @@ function ClassicGuidelinesToGuidelineRedirect() {
  * the day the default changes, and the workspace is one click from the deck.
  */
 function BrandGuidesToGuidelineRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/b/${slug}/guideline${search}`} replace />;
+}
+
+/**
+ * `/b/:slug/guideline/:templateId` was the fullscreen deck editor the old
+ * guideline landing opened. The builder is one surface — document, outline and
+ * page editor together — so there is no second route to send anyone to.
+ */
+function GuidelineTemplateRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
   return <Navigate to={`/b/${slug}/guideline${search}`} replace />;
@@ -477,12 +487,11 @@ const App = () => (
           <Route path="/b/:slug/guideline" element={
             <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>
           } />
-          {/* The guideline deck editor. Fullscreen and shell-less, like every
-              other canvas in the product. The :templateId segment is the
-              multi-template seam — one template exists today. */}
-          <Route path="/b/:slug/guideline/:templateId" element={
-            <ProtectedRoute><GuidelineEditorRoute /></ProtectedRoute>
-          } />
+          {/* The guideline used to be a landing that opened a separate
+              fullscreen deck editor at /guideline/:templateId. The builder
+              replaced both with one surface, so any bookmark or link to a
+              template lands on it. */}
+          <Route path="/b/:slug/guideline/:templateId" element={<GuidelineTemplateRedirect />} />
           <Route path="/b/:slug/design" element={
             <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
           } />

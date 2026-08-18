@@ -45,21 +45,23 @@ describe('activityService (localStorage fallback)', () => {
     expect(limited).toHaveLength(3);
   });
 
-  it('trims events beyond 200 in localStorage', () => {
-    // Directly seed localStorage with 210 events then verify log() trims
+  // `log()` is awaited, and the assertion is made directly rather than inside a
+  // setTimeout: a callback scheduled after the test body never runs before the
+  // test ends, so it asserted nothing — and the un-awaited promise landed after
+  // the environment was torn down, which surfaced as an unhandled
+  // "localStorage is not defined" rejection attributed to whichever file
+  // happened to be running.
+  it('trims events beyond 200 in localStorage', async () => {
     const events = Array.from({ length: 210 }, (_, i) => ({
       id: `e${i}`, brandId: 'b1', eventType: 'brand_updated', title: `E${i}`, createdAt: Date.now() - i,
     }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    // Verify trim happens on next read
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    expect(raw.length).toBe(210); // before trim
-    // After a log call, it should trim
-    activityService.log({ brandId: 'b1', eventType: 'brand_updated', title: 'New' });
-    // Give it a tick to complete
-    setTimeout(() => {
-      const after = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      expect(after.length).toBeLessThanOrEqual(201); // 200 + 1 new
-    }, 100);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').length).toBe(210);
+
+    await activityService.log({ brandId: 'b1', eventType: 'brand_updated', title: 'New' });
+
+    const after = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    expect(after.length).toBe(200);
+    expect(after[0].title).toBe('New');
   });
 });
