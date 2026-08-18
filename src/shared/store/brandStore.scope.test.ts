@@ -11,7 +11,7 @@ const H = vi.hoisted(() => {
       get: (key: string) =>
         key === 'brands'
           ? { list }
-          : { listLibrary: async () => [] },
+          : { listLibrary: async () => [], listLibraryForBrands: async () => new Map() },
     },
   };
 });

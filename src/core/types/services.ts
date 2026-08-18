@@ -173,6 +173,14 @@ export interface IAssetsService {
   // ── Library surface ──
   /** Excludes archived and tombstoned items unless the query says otherwise. */
   listLibrary(brandId: string, q?: LibraryQuery): Promise<Asset[]>;
+  /**
+   * Batched form of `listLibrary` for callers that hydrate MANY brands at
+   * once (the brand list). One round trip instead of one per brand — the
+   * dashboard's 40-brand load was paying 40 sequential-ish requests before
+   * this existed. Returns the assets grouped by brand id; brands with no
+   * assets are simply absent from the map.
+   */
+  listLibraryForBrands(brandIds: string[], q?: LibraryQuery): Promise<Map<string, Asset[]>>;
   setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset>;
   moveToFolder(id: string, folderId: string | null): Promise<Asset>;
   archive(id: string): Promise<Asset>;

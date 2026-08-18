@@ -57,7 +57,22 @@ async function withLibraryProjection<T extends Brand | undefined | null>(brand: 
 }
 
 async function projectAll(brands: Brand[]): Promise<Brand[]> {
-  return Promise.all(brands.map((b) => withLibraryProjection(b)));
+  if (!brands.length) return brands;
+  // ONE batched Library read for the whole list — per-brand reads here were
+  // an N+1 (42 brands = 42 requests) and the dashboard sat on its skeleton
+  // until the slowest one answered. Same enhancement-never-a-gate contract
+  // as withLibraryProjection: if the Library cannot be read, the brands
+  // still load with whatever stored assets they have.
+  try {
+    const assets = container.get<IAssetsService>(SERVICE_KEYS.ASSETS);
+    const grouped = await assets.listLibraryForBrands(
+      brands.map((b) => b.id),
+      { includeArchived: true, includeDeleted: true },
+    );
+    return brands.map((b) => projectLibraryOntoBrand(b, grouped.get(b.id) ?? []));
+  } catch {
+    return brands;
+  }
 }
 
 interface BrandStore {

@@ -203,6 +203,15 @@ export class LocalAssetsService implements IAssetsService {
       .sort(byNewestFirst);
   }
 
+  async listLibraryForBrands(brandIds: string[], q: LibraryQuery = {}): Promise<Map<string, Asset[]>> {
+    const grouped = new Map<string, Asset[]>();
+    for (const id of brandIds) {
+      const items = await this.listLibrary(id, q);
+      if (items.length) grouped.set(id, items);
+    }
+    return grouped;
+  }
+
   async setFlags(id: string, flags: Partial<LibraryFlags>): Promise<Asset> {
     const hit = this.mustLocate(id, 'setFlags');
     const current = hit.assets[hit.index];
