@@ -1,5 +1,16 @@
 import type { Config } from 'tailwindcss';
 
+/**
+ * BrandingOS landing — identity tokens.
+ *
+ * The identity is strictly neutral: ink (#0B0B0B) on paper (#F7F6F3),
+ * plus pure white for elevated surfaces. No colour, ever — the only
+ * colour on screen should be the user's brand, inside product imagery.
+ *
+ * Type: Funnel Display (display, 700, tight) · Funnel Sans (body/UI)
+ *       Doto (technical microlabels — echoes the 9-dot logomark)
+ *       Newsreader italic (rare editorial accent)
+ */
 export default {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
@@ -16,6 +27,9 @@ export default {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        // Semantic aliases used across sections
+        ink: 'hsl(var(--ink))',
+        paper: 'hsl(var(--paper))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
@@ -45,9 +59,10 @@ export default {
           foreground: 'hsl(var(--card-foreground))',
         },
         panel: {
-          DEFAULT: 'hsl(var(--panel))',
-          foreground: 'hsl(var(--panel-foreground))',
+          DEFAULT: 'hsl(var(--panel) / <alpha-value>)',
+          foreground: 'hsl(var(--panel-foreground) / <alpha-value>)',
         },
+        // Legacy alias kept for MultiStepEarlyAccess — now maps to ink.
         'accent-pop': {
           DEFAULT: 'hsl(var(--accent-pop))',
           foreground: 'hsl(var(--accent-pop-fg))',
@@ -56,42 +71,19 @@ export default {
       },
       fontFamily: {
         display: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', '"SF Mono"', 'SFMono-Regular', 'Menlo', 'monospace'],
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       borderRadius: {
         lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        md: 'calc(var(--radius) - 4px)',
+        sm: 'calc(var(--radius) - 8px)',
       },
-      keyframes: {
-        'fade-up': {
-          '0%': { opacity: '0', transform: 'translateY(28px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
-        },
-        'float-tile': {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-12px)' },
-        },
-        ripple: {
-          '0%': { transform: 'scale(0.85)', opacity: '0.4' },
-          '100%': { transform: 'scale(1.8)', opacity: '0' },
-        },
-        marquee: {
-          from: { transform: 'translateX(0)' },
-          to: { transform: 'translateX(-50%)' },
-        },
-        'bg-pan': {
-          '0%': { backgroundPosition: '0 0' },
-          '100%': { backgroundPosition: '40px 40px' },
-        },
-      },
-      animation: {
-        'fade-up': 'fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both',
-        'float-tile': 'float-tile 6s ease-in-out infinite',
-        'ripple-slow': 'ripple 7s ease-out infinite',
-        'marquee-left': 'marquee 38s linear infinite',
-        'bg-pan': 'bg-pan 24s linear infinite',
+      transitionTimingFunction: {
+        // --ds-ease: the system's one easing
+        'out-expo': 'cubic-bezier(0.22, 1, 0.36, 1)',
+        'in-out-soft': 'cubic-bezier(0.65, 0, 0.35, 1)',
       },
     },
   },
