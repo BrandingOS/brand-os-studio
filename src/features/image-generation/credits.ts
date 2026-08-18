@@ -72,3 +72,37 @@ export function formatCredits(credits: number): string {
 export function creditsToUsdLabel(credits: number): string {
   return `$${(credits * USD_PER_CREDIT).toFixed(2)}`;
 }
+
+/**
+ * Which workspace a brand's generations bill to.
+ *
+ * Mirrors migration 027's trigger exactly — the brand's workspace, else the
+ * oldest workspace the user owns — so the balance shown in the editor is the
+ * account the server will actually charge. Read-only.
+ */
+export async function resolveBillingWorkspace(brandId: string): Promise<string | null> {
+  if (!brandId || !UUID_RE.test(brandId)) return null;
+
+  const { data: brand } = await supabase
+    .from('brands')
+    .select('workspace_id')
+    .eq('id', brandId)
+    .maybeSingle();
+  const fromBrand = (brand as { workspace_id?: string | null } | null)?.workspace_id;
+  if (fromBrand) return fromBrand;
+
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session?.session?.user?.id;
+  if (!userId) return null;
+
+  const { data: own } = await supabase
+    .from('workspaces')
+    .select('id')
+    .eq('owner_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (own as { id?: string } | null)?.id ?? null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

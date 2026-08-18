@@ -22,8 +22,13 @@ import type { EditorAdapter } from '@/features/editor/adapter/EditorAdapter';
 import type { BrandOSDocument, ImageLayer } from '@/features/editor/schema';
 import type { Brand } from '@/shared/types/brand';
 import type { AIAgent, AICommandContext, AICommandResult } from '@/features/editor/ai/types';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
+import {
+  estimateGeneration, uploadReference, useCreditsForBrand, saveGeneratedImageToBrand,
+  formatCredits, type AttachedReference,
+} from '@/features/image-generation';
+import { container, SERVICE_KEYS } from '@/core';
+import type { IAssetsService } from '@/core/types/services';
 import { FORMAT_PRESETS, findFormat, formatLabel, type PromptPreset } from './formats';
 import { TallSelect } from './TallSelect';
 import { ModelPicker } from './ModelPicker';
@@ -34,6 +39,8 @@ import { GenerationActions } from './GenerationActions';
 import { PresetsGallery } from './PresetsGallery';
 import { useGeneratePrefs } from './generatePrefs';
 import { useImageGeneration } from './useImageGeneration';
+import { ReferenceStrip } from './ReferenceStrip';
+import { CreditsPill } from './CreditsPill';
 import { generationForPage, readAiMetadata } from './aiMetadata';
 
 type Mode = 'image' | 'editable';
@@ -57,8 +64,6 @@ export interface GeneratePanelProps {
   onActivePageChange?: (pageId: string) => void;
 }
 
-interface ReferenceImageState { url: string; path: string; fileName: string }
-
 export function GeneratePanel({
   adapter, activePageId, doc, brand, agent, getContext,
   initialPrompt, initialMode, initialModel, initialFormatId, initialCount, autoStart,
@@ -72,7 +77,7 @@ export function GeneratePanel({
   const [editableError, setEditableError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [formatId, setFormatId] = useState<string>(initialFormatId && FORMAT_PRESETS.some((f) => f.id === initialFormatId) ? initialFormatId : 'auto');
-  const [reference, setReference] = useState<ReferenceImageState | null>(null);
+  const [references, setReferences] = useState<AttachedReference[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -86,6 +91,18 @@ export function GeneratePanel({
 
   const capabilities = useImageCapabilities();
   const caps = capsForSelection(capabilities, prefs.model || AUTO_MODEL_ID);
+  const maxRefs = caps?.maxReferenceImages ?? 0;
+
+  // The balance is the server's, always. It is shown BEFORE the button that
+  // spends it — a generation that fails for want of credits after the fact is
+  // a worse experience than one that was never offered.
+  const credits = useCreditsForBrand(brand?.id);
+  // Resolved at click time, not at mount: the panel renders in surfaces (and
+  // tests) where the Library is not part of the container, and a missing
+  // service should hide one button, never fail the whole panel.
+  const assets = container.has(SERVICE_KEYS.ASSETS)
+    ? container.get<IAssetsService>(SERVICE_KEYS.ASSETS)
+    : null;
 
   const gen = useImageGeneration({
     adapter, activePageId, brand, onActivePageChange,
@@ -96,9 +113,32 @@ export function GeneratePanel({
       negativePrompt,
       brandAware: prefs.brandAware,
       caps,
-      referencePaths: reference?.path ? [reference.path] : undefined,
+      referencePaths: references.length ? references.map((r) => r.path) : undefined,
     },
   });
+
+  // Pre-flight cost. The server prices the request; the panel only displays
+  // it. Re-asked whenever anything that moves the price changes, so the number
+  // beside the button is the number that will be charged.
+  const [estimate, setEstimate] = useState<number | null>(null);
+  const refCount = Math.min(references.length, maxRefs);
+  useEffect(() => {
+    if (mode !== 'image') { setEstimate(null); return; }
+    let cancelled = false;
+    setEstimate(null);
+    estimateGeneration({
+      model: prefs.model || AUTO_MODEL_ID,
+      aspectRatio: findFormat(formatId).ratio === 'auto' ? undefined : findFormat(formatId).ratio as never,
+      count: prefs.count,
+      referenceCount: refCount,
+    })
+      .then((r) => { if (!cancelled) setEstimate(r.credits ?? null); })
+      .catch(() => { if (!cancelled) setEstimate(null); });
+    return () => { cancelled = true; };
+  }, [mode, prefs.model, prefs.count, formatId, refCount]);
+
+  const balance = credits.account?.balance ?? null;
+  const cannotAfford = estimate != null && balance != null && balance < estimate;
 
   // Hero hand-off: the prompt arrives via URL, we start immediately.
   // The panel can mount before the adapter has loaded the document, so
@@ -134,59 +174,69 @@ export function GeneratePanel({
     const key = r.pageIds.join(',');
     if (lastToastFor.current === key) return;
     lastToastFor.current = key;
-    if (r.warnings?.includes('refs-unsupported')) toast.message('This model ignores reference images — brand context was sent as text only.');
-    else if (r.warnings?.length) toast.message(r.warnings[0]);
-    else {
+    if (typeof r.balance === 'number') credits.applyBalance(r.balance);
+
+    const asked = r.requested ?? r.pageIds.length;
+    if (r.pageIds.length < asked) {
+      // A partial delivery must never be silent — the user paid for what
+      // arrived, and needs to know the rest did not.
+      toast.warning(
+        `${r.pageIds.length} of ${asked} images came back`
+        + (r.charged > 0 ? ` — you were charged for ${r.charged} credits.` : '.'),
+      );
+    } else if (r.warnings?.includes('refs-unsupported')) {
+      toast.message('This model ignores reference images — brand context was sent as text only.');
+    } else if (r.warnings?.length) {
+      toast.message(r.warnings[0]);
+    } else {
       toast.success(
         `${r.pageIds.length > 1 ? `${r.pageIds.length} images added` : 'Image added'}`
         + (r.charged > 0 ? ` · ${r.charged} credits` : ''),
       );
     }
     setPrompt('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen.lastResult]);
 
-  // ─── Reference image upload (unchanged: upload-ai-reference) ─────
-  const handleFileChosen = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) { toast.error('Reference must be an image.'); return; }
-    if (file.size > 8 * 1024 * 1024) { toast.error('Reference must be smaller than 8 MB.'); return; }
+  // ─── Reference images ────────────────────────────────────────────
+  // The strip keeps every image the user attached, in send order. The server
+  // truncates to what the model accepts and says so; the strip shows which
+  // ones that leaves out BEFORE the credits are spent.
+  const handleFilesChosen = useCallback(async (files: File[]) => {
     setUploading(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) { toast.error('Sign in to upload reference images.'); return; }
-      const fileBase64 = await fileToBase64(file);
-      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-      const baseUrl = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL;
-      const res = await fetch(`${baseUrl}/functions/v1/upload-ai-reference`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          sessionId: sessionData?.session?.user?.id ?? `anon-${crypto.randomUUID()}`,
-          fileBase64, contentType: file.type, ext,
-        }),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`${res.status} ${text.slice(0, 140)}`);
+      for (const file of files) {
+        try {
+          const ref = await uploadReference(file);
+          setReferences((prev) => [...prev, ref]);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          toast.error(msg.slice(0, 120));
+        }
       }
-      const { url, path } = await res.json() as { url: string; path: string };
-      setReference({ url, path, fileName: file.name });
-      toast.success('Reference attached.');
-    } catch (err) {
-      console.error('[GeneratePanel] reference upload failed:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`Could not upload reference: ${msg.slice(0, 80)}`);
     } finally {
       setUploading(false);
     }
   }, []);
   const onPickFile = useCallback(() => fileInputRef.current?.click(), []);
   const onFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (f) void handleFileChosen(f);
-  }, [handleFileChosen]);
-  const clearReference = useCallback(() => setReference(null), []);
+    if (files.length) void handleFilesChosen(files);
+  }, [handleFilesChosen]);
+  const removeReference = useCallback((id: string) => {
+    setReferences((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+  const moveReference = useCallback((id: string, direction: -1 | 1) => {
+    setReferences((prev) => {
+      const i = prev.findIndex((r) => r.id === id);
+      const j = i + direction;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = prev.slice();
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }, []);
 
   // ─── Editable path (unchanged) ───────────────────────────────────
   const runEditable = useCallback(async (text: string) => {
@@ -247,31 +297,32 @@ export function GeneratePanel({
   const aiDoc = readAiMetadata(doc).origin === 'ai-image';
 
   const placeholder = mode === 'image'
-    ? reference ? 'Describe what to generate using this reference as guidance…'
+    ? references.length ? 'Describe what to generate using these references as guidance…'
       : brand ? `Describe — "${brand.name} hero shot at dusk"` : 'Describe the image…'
     : brand ? 'Edit — "make headline bigger and brand-red"' : 'Describe the edit…';
 
   return (
     <div className="flex flex-col gap-2.5 px-2.5 py-2.5 text-[12px]" style={{ color: 'var(--text-primary)' }} data-generate-panel data-ai-doc={aiDoc || undefined}>
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileInputChange} className="hidden" />
+      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={onFileInputChange} className="hidden" />
 
-      <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
+      <div className="flex items-center justify-between gap-2">
+        <ModeToggle mode={mode} busy={busy} agentAvailable={!!agent} onChange={setMode} />
+        {mode === 'image' && balance != null ? (
+          <CreditsPill balance={balance} reserved={credits.account?.reserved} loading={credits.loading} />
+        ) : null}
+      </div>
 
       {/* Prompt block */}
       {!inReview ? (
         <section className="flex flex-col gap-1.5">
           <div className="rounded-lg border transition-colors" style={{ borderColor: error ? 'var(--accent-red, #ef4444)' : 'var(--border)', background: 'var(--surface)' }}>
-            {reference ? (
-              <div className="px-2 pt-2">
-                <div className="inline-flex items-center gap-1.5 rounded-md border px-1.5 py-1 text-[10.5px]" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken, transparent)' }}>
-                  <img src={reference.url} alt="Reference" className="h-5 w-5 rounded object-cover" />
-                  <span className="max-w-[120px] truncate" title={reference.fileName}>{reference.fileName}</span>
-                  <button type="button" onClick={clearReference} aria-label="Remove reference" className="rounded p-0.5 hover:bg-muted" style={{ color: 'var(--text-secondary)' }}>
-                    <XIcon className="h-2.5 w-2.5" aria-hidden />
-                  </button>
-                </div>
-              </div>
-            ) : null}
+            <ReferenceStrip
+              references={references}
+              maxReferences={maxRefs}
+              onRemove={removeReference}
+              onMove={moveReference}
+              disabled={busy}
+            />
             <textarea
               data-generate-prompt
               value={prompt}
@@ -287,14 +338,14 @@ export function GeneratePanel({
                 <button
                   type="button"
                   onClick={onPickFile}
-                  disabled={busy || uploading || !!reference}
-                  title={reference ? 'Reference attached' : 'Attach reference image'}
+                  disabled={busy || uploading}
+                  title={maxRefs === 0 ? 'This model is prompt-only' : 'Attach reference images'}
                   aria-label="Attach reference"
                   className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition-colors hover:bg-muted disabled:opacity-40"
                   style={{ color: 'var(--text-secondary)' }}
                 >
                   <Paperclip className="h-3 w-3" aria-hidden />
-                  {uploading ? 'Uploading…' : reference ? 'Attached' : 'Reference'}
+                  {uploading ? 'Uploading…' : references.length ? `${references.length} attached` : 'Reference'}
                 </button>
               ) : <span />}
               <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>⌘/Ctrl + Enter</span>
@@ -420,7 +471,9 @@ export function GeneratePanel({
           type="button"
           data-generate-submit
           onClick={() => void submit()}
-          disabled={busy || !prompt.trim() || (mode === 'editable' && !agent)}
+          disabled={busy || !prompt.trim() || (mode === 'editable' && !agent) || cannotAfford}
+          title={cannotAfford ? `This needs ${estimate} credits; you have ${formatCredits(balance ?? 0)}.` : undefined}
+          data-generate-estimate={mode === 'image' && estimate != null ? estimate : undefined}
           className="mt-0.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-medium transition-all disabled:opacity-50"
           style={{ background: 'var(--accent)', color: 'var(--accent-contrast)', boxShadow: busy ? 'none' : '0 1px 0 color-mix(in oklab, var(--accent) 20%, transparent)' }}
         >
@@ -434,6 +487,11 @@ export function GeneratePanel({
             <>
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
               {mode === 'image' ? `Generate${prefs.count > 1 ? ` ×${prefs.count}` : ''}` : 'Apply'}
+              {mode === 'image' && estimate != null ? (
+                <span className="text-[11px] font-normal" style={{ opacity: 0.75 }}>
+                  · {estimate} credits
+                </span>
+              ) : null}
             </>
           )}
         </button>
@@ -448,6 +506,16 @@ export function GeneratePanel({
           onVariations={() => void gen.variations(activePageId)}
           onRefine={(t) => void gen.refine(activePageId, t)}
           onRegenerate={() => void gen.regenerate(activePageId)}
+          onSaveToBrand={brand && assets && activeImageSrc ? async () => {
+            await saveGeneratedImageToBrand({
+              assets, brand,
+              url: activeImageSrc,
+              storagePath: activeRecord.storagePath,
+              prompt: activeRecord.compiled || activeRecord.original,
+              model: activeRecord.model,
+              name: activeRecord.original,
+            });
+          } : undefined}
         />
       ) : null}
 
@@ -480,13 +548,3 @@ function ModeButton({ active, disabled, onClick, icon, label, value }: { active:
   );
 }
 
-async function fileToBase64(file: File): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let bin = '';
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
-  }
-  return btoa(bin);
-}

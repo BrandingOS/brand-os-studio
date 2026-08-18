@@ -82,6 +82,8 @@ export interface UseImageGeneration {
   lastResult: {
     pageIds: string[]; model?: string; warnings?: string[];
     charged: number; balance: number;
+    /** How many images were ASKED for — `pageIds` is what arrived. */
+    requested: number;
   } | null;
   start: (text: string) => Promise<void>;
   retry: () => Promise<void>;
@@ -262,6 +264,7 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
       if (mountedRef.current) {
         setLastResult({
           pageIds: pages.map((p) => p.id),
+          requested: count,
           model: result.model,
           warnings: result.warnings,
           charged: result.chargedCredits,

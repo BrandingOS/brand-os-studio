@@ -7,10 +7,18 @@
 // is ever fetched on the server's behalf.
 
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/client';
-import type { AttachedReference } from './components/ReferenceStrip';
+
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp'];
+
+export interface AttachedReference {
+  id: string;
+  /** Storage path inside the brand's own folder — what travels to the server. */
+  path: string;
+  previewUrl: string;
+  fileName: string;
+}
 
 export async function uploadReference(file: File): Promise<AttachedReference> {
   if (!ACCEPTED.includes(file.type)) {

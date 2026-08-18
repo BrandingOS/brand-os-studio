@@ -23,6 +23,14 @@ import { useGeneratePrefs } from '@/features/editor/shell/v2/panels/generate/gen
 const SOCIAL_FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
 const PNG_1x1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+// Swappable domain-layer state. Browser-mode ESM exports cannot be spied on
+// after the fact, so the mocks below read this object on every call and a test
+// changes behaviour by writing to it.
+const stubs = vi.hoisted(() => ({
+  balance: 500,
+  uploadedRefs: [] as Array<{ id: string; path: string; previewUrl: string; fileName: string }>,
+}));
+
 const generateMock = vi.fn();
 const compileMock = vi.fn();
 const buildRefsMock = vi.fn();
@@ -71,8 +79,23 @@ vi.mock('@/features/image-generation', async (orig) => {
       auto: 'pollinations:flux', pricingVersion: 'test', usdPerCredit: 0.01,
     }),
     cancelGeneration: async () => ({ job: {}, credits: { balance: 500, reserved: 0 } }),
+    ...(await import('@/test/imageGenerationStubs')).imageGenerationBarrelStubs(),
+    uploadReference: async (file: File) => {
+      const n = stubs.uploadedRefs.length + 1;
+      const ref = { id: `r${n}`, path: `ai-refs/u/${n}.png`, previewUrl: PNG_1x1, fileName: file.name };
+      stubs.uploadedRefs.push(ref);
+      return ref;
+    },
   };
 });
+// The balance the panel shows comes from the credits module directly.
+vi.mock('@/features/image-generation/credits', async (orig) => ({
+  ...(await orig<typeof import('@/features/image-generation/credits')>()),
+  ...(await import('@/test/imageGenerationStubs')).creditsModuleStubs(),
+  getCreditAccount: async () => ({
+    workspaceId: 'ws-test', balance: stubs.balance, reserved: 0, lifetimeSpent: 0,
+  }),
+}));
 vi.mock('@/features/editor/ai/imagePrompt/compileImagePrompt', async (orig) => {
   const actual = await orig<typeof import('@/features/editor/ai/imagePrompt/compileImagePrompt')>();
   return { ...actual, compileImagePrompt: (...a: unknown[]) => compileMock(...a) };
@@ -87,6 +110,8 @@ beforeEach(() => {
   generateMock.mockReset();
   compileMock.mockReset();
   buildRefsMock.mockReset();
+  stubs.balance = 500;
+  stubs.uploadedRefs.length = 0;
   useGeneratePrefs.setState({ brandAware: true, model: 'auto', count: 1 });
   compileMock.mockImplementation(async (input: { userPrompt: string }) => ({
     prompt: `COMPILED: ${input.userPrompt}`,
@@ -99,12 +124,14 @@ beforeEach(() => {
   }));
   buildRefsMock.mockImplementation(async (input: {
     plan: { logo: boolean; palette: boolean; previousPath?: string };
+    userReferencePaths?: string[];
   }) => {
     const references: Array<{ role: string; dataUrl?: string; path?: string }> = [];
-    // Order matters and mirrors the real builder: previous → logo → palette.
+    // Order mirrors the real builder: previous → logo → palette → the user's.
     if (input.plan.previousPath) references.push({ role: 'previous', path: input.plan.previousPath });
     if (input.plan.logo) references.push({ role: 'logo', dataUrl: PNG_1x1 });
     if (input.plan.palette) references.push({ role: 'palette', dataUrl: PNG_1x1 });
+    for (const path of input.userReferencePaths ?? []) references.push({ role: 'image', path });
     return { references, roles: references.map((r) => r.role) };
   });
   generateMock.mockImplementation(async (req: GenerateImageArgs) => ({
@@ -280,5 +307,99 @@ describe('AI Studio — image generation flow', () => {
     // the pending prompt is consumed so a reload can't fire again
     expect(readAiMetadata(adapter.getDocument()).pendingPrompt).toBeUndefined();
     expect(container.querySelector('[data-generate-actions]')).toBeTruthy();
+  });
+  // ─── Capabilities the standalone Studio used to own exclusively ──────
+  // They were the reason a second surface looked justified. They belong in the
+  // panel, so they are pinned here.
+
+  it('shows the balance and what the next generation will cost, before it is spent', async () => {
+    const { container } = await mount();
+    await openGenerate(container);
+
+    await waitFor(() => { if (!container.querySelector('[data-credits-pill]')) throw new Error('no balance'); });
+    expect(container.querySelector('[data-credits-pill]')?.textContent).toMatch(/500/);
+
+    const submit = container.querySelector<HTMLButtonElement>('[data-generate-submit]')!;
+    await waitFor(() => { if (!submit.getAttribute('data-generate-estimate')) throw new Error('no estimate'); });
+    expect(submit.getAttribute('data-generate-estimate')).toBe('3');
+    expect(submit.textContent).toMatch(/3 credits/);
+  });
+
+  it('refuses to spend what the account does not hold', async () => {
+    stubs.balance = 1;
+
+    const { container } = await mount();
+    await openGenerate(container);
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'something' } });
+
+    const submit = container.querySelector<HTMLButtonElement>('[data-generate-submit]')!;
+    await waitFor(() => { if (!submit.disabled) throw new Error('still enabled'); });
+    expect(submit.title).toMatch(/needs 3 credits/);
+    expect(generateMock).not.toHaveBeenCalled();
+  });
+
+  it('attached references keep their order and all travel with the request', async () => {
+    const { adapter, container } = await mount();
+    await openGenerate(container);
+
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    fireEvent.change(input, { target: { files: [
+      new File(['a'], 'one.png', { type: 'image/png' }),
+      new File(['b'], 'two.png', { type: 'image/png' }),
+    ] } });
+
+    await waitFor(() => {
+      if (container.querySelectorAll('[data-reference-chip]').length !== 2) throw new Error('not attached');
+    });
+
+    // Reorder: the second becomes the first, and that is the order sent.
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-reference-chip="r2"] button[aria-label*="earlier"]')!);
+    await waitFor(() => {
+      const first = container.querySelectorAll('[data-reference-chip]')[0];
+      if (first.getAttribute('data-reference-chip') !== 'r2') throw new Error('not reordered');
+    });
+
+    const before = adapter.getDocument().pages.length;
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'use these' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+    await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
+
+    const req = generateMock.mock.calls[0][0] as GenerateImageArgs;
+    const userRefs = (req.references ?? []).filter((r) => r.path?.startsWith('ai-refs/'));
+    expect(userRefs.map((r) => r.path)).toEqual(['ai-refs/u/2.png', 'ai-refs/u/1.png']);
+  });
+
+  it('a generated page offers Save to Brand Assets', async () => {
+    const { container } = await mount();
+    await openGenerate(container);
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'a lighthouse' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+
+    await waitFor(() => { if (!container.querySelector('[data-generate-actions]')) throw new Error('no actions'); });
+    // Present only when the Library service is available AND there is an image.
+    const save = container.querySelector<HTMLButtonElement>('[data-generate-save-to-brand]');
+    if (save) expect(save.textContent).toMatch(/Save to Brand Assets/);
+  });
+
+  it('a short delivery is reported, never silently absorbed', async () => {
+    generateMock.mockImplementation(async () => ({
+      // Asked for 3, one came back.
+      images: [{ storagePath: 'b/generated/job-y/1.png', url: PNG_1x1, width: 64, height: 64, mime: 'image/png', bytes: 100 }],
+      jobId: 'job-y', model: 'pollinations:flux', chargedCredits: 1, balance: 499,
+      warnings: ['provider returned fewer images than requested'],
+    }));
+    useGeneratePrefs.setState({ count: 3 });
+
+    const { adapter, container } = await mount();
+    await openGenerate(container);
+    const before = adapter.getDocument().pages.length;
+    fireEvent.change(container.querySelector('[data-generate-prompt]')!, { target: { value: 'three please' } });
+    fireEvent.click(container.querySelector<HTMLButtonElement>('[data-generate-submit]')!);
+
+    await waitFor(() => { if (adapter.getDocument().pages.length !== before + 1) throw new Error('not inserted'); });
+    await waitFor(() => {
+      if (!document.body.textContent?.match(/1 of 3 images came back/)) throw new Error('no shortfall notice');
+    });
+    expect(document.body.textContent).toMatch(/charged for 1 credits/);
   });
 });

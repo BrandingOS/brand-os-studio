@@ -22,6 +22,17 @@ import type { IBrandsService, IDesignStorage } from '@/core';
 import { container as serviceContainer } from '@/core/container/ServiceContainer';
 import { SERVICE_KEYS } from '@/core';
 
+// Domain-layer stubs — see src/test/imageGenerationStubs.ts. Without these the
+// suite calls the REAL deployed Edge Function and the REAL credits tables.
+vi.mock('@/features/image-generation', async (orig) => ({
+  ...(await orig<typeof import('@/features/image-generation')>()),
+  ...(await import('@/test/imageGenerationStubs')).imageGenerationBarrelStubs(),
+}));
+vi.mock('@/features/image-generation/credits', async (orig) => ({
+  ...(await orig<typeof import('@/features/image-generation/credits')>()),
+  ...(await import('@/test/imageGenerationStubs')).creditsModuleStubs(),
+}));
+
 const FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
 
 afterEach(() => {

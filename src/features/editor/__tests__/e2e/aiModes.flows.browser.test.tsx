@@ -28,6 +28,17 @@ import type {
   AICommandResult,
 } from '@/features/editor/ai/types';
 
+// Domain-layer stubs — see src/test/imageGenerationStubs.ts. Without these the
+// suite calls the REAL deployed Edge Function and the REAL credits tables.
+vi.mock('@/features/image-generation', async (orig) => ({
+  ...(await orig<typeof import('@/features/image-generation')>()),
+  ...(await import('@/test/imageGenerationStubs')).imageGenerationBarrelStubs(),
+}));
+vi.mock('@/features/image-generation/credits', async (orig) => ({
+  ...(await orig<typeof import('@/features/image-generation/credits')>()),
+  ...(await import('@/test/imageGenerationStubs')).creditsModuleStubs(),
+}));
+
 const SOCIAL_FIXTURE: BrandOSDocument = BrandOSDocumentSchema.parse(socialPostFixture);
 
 afterEach(() => cleanup());

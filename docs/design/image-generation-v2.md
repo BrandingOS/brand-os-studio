@@ -37,24 +37,30 @@ v2 moves every decision that costs money or leaks data to the server.
 ```
 Browser                                   Edge Function (service role)
 ────────────────────────────────────      ─────────────────────────────────────
-image-studio/  ImageStudioPage            ai-generate-image
-  PromptComposer                            requireCaller()        auth
-  ResultsGrid                               requireBrandAccess()   tenancy
-  useStudioGeneration                        idempotency lookup
+editor/shell/v2/panels/generate/         ai-generate-image
+  GeneratePanel                             requireCaller()        auth
+  useImageGeneration                        requireBrandAccess()   tenancy
+  ReferenceStrip · CreditsPill               idempotency lookup
         │                                    estimate → RESERVE credits
         ▼                                    insert job row (queued)
 image-generation/  (domain layer)            providerFor(model)    ─┐
   client.ts     estimate/generate/cancel      ↳ imageProviders.ts   │ vendor
-  projects.ts   projects + job history        ↳ imageRefs.ts        │
-  credits.ts    balance + ledger (read)       storeOutputs()       ─┘ storage
-  types.ts      the shared contract            SETTLE credits
-                                               update job (succeeded)
+  credits.ts    balance + ledger (read)       ↳ imageRefs.ts        │
+  useCredits.ts balance for a brand           storeOutputs()       ─┘ storage
+  saveToBrand.ts  generation → Library         SETTLE credits
+  types.ts      the shared contract            update job (succeeded)
 editor/ai/generateImage.ts  ── thin adapter for the design editor
 ```
 
-Two UI surfaces, one pipeline: the **Image Studio** (this phase) and the design
-editor's **Generate panel** both call the same domain layer, so a security or
-metering fix lands in both at once.
+**One UI surface.** Generation happens inside the design editor's Generate
+panel; there is no second full-page generator. An earlier build of this phase
+shipped a standalone Image Studio alongside it, which meant two places to learn,
+two places to fix, and a hand-off button between them. It was retired
+2026-08-18 and its capabilities — the credits pill, the pre-flight estimate,
+the multi-reference strip, Save to Brand Assets — moved into the panel.
+
+`image_projects` remains in the database, unread by the UI. The Edge Function,
+the credit ledger and the job table are unchanged.
 
 ---
 
@@ -62,17 +68,28 @@ metering fix lands in both at once.
 
 | URL | What it is |
 |---|---|
-| `/b/:slug/design` | Creation Hub. A prompt here creates a project and opens it. Generates nothing itself. |
-| `/b/:slug/design/:projectId` | **Image Studio** when the id names an `image_projects` row. |
-| `/b/:slug/design/:designSlug` | The layered **design editor** when the id names a design. |
+| `/b/:slug/design` | Creation Hub. A prompt here creates a DESIGN and opens the editor on it. Generates nothing itself. |
+| `/b/:slug/design/:designSlug` | The **design editor** — the one generation surface. |
 
-One route resolves both because "open the thing I was working on" should not
-depend on remembering which kind of thing it was
-(`src/pages/dashboard/brand/[slug]/design/[designSlug].tsx` does the lookup).
+Every entry point creates a design document and lands on the same route:
 
-**Project ids are immutable** — the id is the URL, minted with
-`crypto.randomUUID()` and never rewritten. **Titles are mutable**: click the
-title in the Studio header to rename (`renameImageProject`).
+| Entry | Starting document |
+|---|---|
+| Hub → **Image** | `seedAiImageCanvas` — one empty page, `metadata.ai.origin = 'ai-image'`, prompt staged in `pendingPrompt` |
+| Hub → **Editable design** | `seedInstagramPostTemplate` — a layered starting point |
+| A template card | `applyBrandToDocument(template, brand)` |
+
+The URL carries `?prompt=…&mode=image|editable`; `[designSlug].tsx` freezes both
+at mount and `Editor` forwards them to the panel, which opens the Generate rail
+and (for `mode=image` with a pending prompt) starts immediately.
+
+**Design ids are immutable** — the id is the URL, minted with
+`crypto.randomUUID()` and never rewritten.
+
+An id that names one of the retired `image_projects` rows redirects to
+`/b/:slug/design` rather than rendering "design not found". That lookup happens
+only after the document load has already failed, so the ordinary path costs no
+extra round trip.
 
 ---
 
@@ -295,8 +312,9 @@ arithmetic, overdraw refusal, idempotent replay).
 | Domain wrapper | `src/features/editor/ai/generateImage.test.ts` | job request shape, style suffix on the compiled prompt only, idempotency key reuse, failure propagation |
 | Registry | `src/features/editor/ai/imageModels.test.ts` | display ↔ server id parity in both directions |
 | Prompt compiler | `src/features/editor/ai/imagePrompt/*.test.ts` | the brand rules, fallbacks, reference ordering |
-| Studio E2E | `src/features/image-studio/__tests__/imageStudio.browser.test.tsx` | capability-driven controls, cost before commit, insufficient credits, deliberate brand context, one-in-flight, retry reusing the key, cancel, history, failure cards, rename |
-| Editor E2E | `src/features/editor/__tests__/e2e/aiImageStudio.flows.browser.test.tsx` | pages inserted in one undo step, variations via storage path, raw mode, error state, hero hand-off |
+| Entry points E2E | `src/features/design-alt/__tests__/generationEntryPoints.browser.test.tsx` | every hub mode saves a design and lands on the editor route; the Image-mode doc is an empty AI canvas with the prompt staged |
+| Editor E2E | `src/features/editor/__tests__/e2e/aiImageStudio.flows.browser.test.tsx` | pages inserted in one undo step, variations via storage path, raw mode, error state, hero hand-off, balance + pre-flight estimate, refusal when the estimate exceeds the balance, reference order, Save to Brand Assets, short-delivery notice |
+| Seed | `src/features/editor/shell/v2/panels/generate/aiCanvasSeed.test.ts` | the starting page is EMPTY, AI-origin, sized from the format |
 | RLS + money | `supabase/tests/025_image_generation_isolation.test.sql` | see §10 (manual: `supabase db reset` then `psql -f`) |
 
 Edge Function tests run in the existing `unit` project — `vite.config.ts`

@@ -844,13 +844,28 @@ brand-kit-next only):**
 7. Kit state is local-only until a backend `KitStateRepository`
    implementation lands (interface ready in `kit/repository.ts`).
 
-## AI image generation — "AI Studio" on `/b/:slug/design` (2026-08-17)
+## AI image generation — inside the design editor (2026-08-17, single-surface 2026-08-18)
+
+**There is ONE generation surface: the design editor's Generate panel.** Every
+entry point creates a DESIGN and opens `/b/:slug/design/:designSlug` — the hub's
+Image mode, its Editable mode, template cards, all of them. Do not build a
+second generator page; a standalone "Image Studio" was built and retired on
+2026-08-18 because it split the experience in two (owner decision). Its
+capabilities live in the panel now: the credits pill, the pre-flight cost on the
+Generate button, the multi-reference strip, and Save to Brand Assets.
+
+`image_projects` still exists in the database, unread by the UI. An id that
+names one of those rows redirects to `/b/:slug/design` — checked only AFTER the
+document load fails, so the ordinary path costs no extra round trip.
 
 The Design page (`features/design-alt/DesignHero.tsx`) is an ENTRANCE, not a
-generator: Image mode seeds an empty doc tagged `metadata.ai.origin =
-'ai-image'` and navigates to `/b/:slug/design/:id?prompt=…&mode=image&model=…
-&format=…`. The editor opens on the Generate rail (any `metadata.ai` doc does)
-and `panels/generate/GeneratePanel.tsx` runs the flow ON the canvas:
+generator: Image mode seeds an empty doc via `panels/generate/aiCanvasSeed.ts`
+(`metadata.ai.origin = 'ai-image'`, prompt staged in `pendingPrompt`) and
+navigates to `/b/:slug/design/:id?prompt=…&mode=image`. The seed page must stay
+EMPTY — generated images arrive as pages AFTER the active one, so anything
+seeded there sits in front of every result. The editor opens on the Generate
+rail (any `metadata.ai` doc does) and `panels/generate/GeneratePanel.tsx` runs
+the flow ON the canvas:
 
 ```
 prompt ─▶ compileImagePrompt (Claude haiku via anthropic-proxy; deterministic
@@ -895,9 +910,25 @@ Rules that bind:
   `refs-unsupported` for prompt-only vendors and the panel says so.
 - Pages are the history (`EditorGenerationsStrip`); never add a second history
   store. All vendor bytes come back as data URIs so Fabric export stays untainted.
+- **Money is shown before it is spent.** `estimateGeneration` prices the exact
+  request server-side and the number sits on the Generate button; the button
+  disables when the balance cannot cover it. The balance comes from
+  `useCreditsForBrand`, which resolves the billing workspace the same way
+  migration 027's trigger does (brand's workspace, else the user's oldest).
+  Never compute a price in the browser.
+- **A short delivery is never silent.** When fewer images come back than were
+  asked for, the panel says how many arrived and what was charged.
+- **References are a LIST, in send order** (`ReferenceStrip`). The server
+  truncates to the model's `maxReferenceImages` and warns; the strip greys the
+  ones that will be dropped BEFORE the credits are spent.
 - Tests: `ai/imagePrompt/*.test.ts`, `ai/imageModels.test.ts`,
   `shared/brand/rasterizeLogo.test.ts`, `panels/generate/aiMetadata.test.ts`,
-  `__tests__/e2e/aiImageStudio.flows.browser.test.tsx`.
+  `panels/generate/aiCanvasSeed.test.ts`,
+  `__tests__/e2e/aiImageStudio.flows.browser.test.tsx`,
+  `features/design-alt/__tests__/generationEntryPoints.browser.test.tsx`.
+  Any suite that mounts the panel MUST spread `src/test/imageGenerationStubs.ts`
+  over `@/features/image-generation` and `…/credits` — otherwise it calls the
+  REAL deployed Edge Function and the REAL ledger.
 
 ## Guideline page — scheduled for from-scratch rebuild
 

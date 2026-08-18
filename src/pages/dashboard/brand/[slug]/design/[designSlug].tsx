@@ -22,7 +22,7 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, FileQuestion, Home } from 'lucide-react';
 // Phase 5 — lazy-load the unified Editor so the route's initial
@@ -40,18 +40,20 @@ import { useService, SERVICE_KEYS } from '@/core';
 import type { IDesignStorage } from '@/core/types/services';
 import { PageSpinner } from '@/components/PageSpinner';
 import { activityService } from '@/shared/services/activityService';
-import { getImageProject, type ImageProject } from '@/features/image-generation';
+import { getImageProject } from '@/features/image-generation';
 
-const ImageStudioPage = lazy(() => import('@/features/image-studio/ImageStudioPage'));
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * One route, two kinds of project.
+ * One route, one surface: the design editor.
  *
- * `/b/:slug/design/:projectId` resolves to an IMAGE project (the Studio) when
- * the id names one, and to a layered DESIGN (the editor) otherwise. Splitting
- * them into different URLs would have made "open the thing I was working on"
- * depend on remembering which kind it was.
+ * Generation happens INSIDE the editor (App Rail → Generate), so every entry
+ * point — a template, "Editable design", the hero's Image mode — lands here
+ * with the same controls. There is no second full-page generator.
+ *
+ * A short-lived experiment did create `image_projects` rows with their own
+ * page. Those ids are redirected back to the Design hub rather than 404ing;
+ * their jobs, outputs and saved assets are untouched in the database.
  */
 export default function BrandDesignEditorPage() {
   const { slug, designSlug } = useParams<{
@@ -87,24 +89,14 @@ export default function BrandDesignEditorPage() {
   const [doc, setDoc] = useState<BrandOSDocument | null>(null);
   const [docLoading, setDocLoading] = useState(true);
   const [docError, setDocError] = useState<'not-found' | 'parse-failed' | null>(null);
-  const [imageProject, setImageProject] = useState<ImageProject | null>(null);
-  const [projectChecked, setProjectChecked] = useState(false);
-
-  // Look for an image project first — it is the newer, cheaper lookup, and a
-  // hit means the document load never has to happen at all.
-  useEffect(() => {
-    if (!designSlug || !UUID_RE.test(designSlug)) { setProjectChecked(true); return; }
-    let cancelled = false;
-    getImageProject(designSlug)
-      .then((p) => { if (!cancelled) { setImageProject(p); setProjectChecked(true); } })
-      .catch(() => { if (!cancelled) setProjectChecked(true); });
-    return () => { cancelled = true; };
-  }, [designSlug]);
+  // Legacy: an id that names a retired image project is sent back to the hub
+  // instead of rendering "design not found". Only consulted once the document
+  // load has actually failed, so the happy path costs no extra round trip.
+  const [legacyProject, setLegacyProject] = useState(false);
 
   // Load the document once we have a brand id + design slug.
   useEffect(() => {
     if (!brand?.id || !designSlug) return;
-    if (!projectChecked || imageProject) return;   // the Studio owns this id
     let cancelled = false;
     setDocLoading(true);
     setDocError(null);
@@ -130,10 +122,18 @@ export default function BrandDesignEditorPage() {
     return () => {
       cancelled = true;
     };
-    // `projectChecked` and `imageProject` MUST be dependencies: the project
-    // lookup resolves after the first render, and without them this effect
-    // never re-runs — the editor would spin forever on a real design.
-  }, [brand?.id, designSlug, designStorage, projectChecked, imageProject]);
+  }, [brand?.id, designSlug, designStorage]);
+
+  // Only when the document is genuinely missing do we ask whether this id was
+  // one of the retired image projects.
+  useEffect(() => {
+    if (docError !== 'not-found' || !designSlug || !UUID_RE.test(designSlug)) return;
+    let cancelled = false;
+    getImageProject(designSlug)
+      .then((p) => { if (!cancelled && p) setLegacyProject(true); })
+      .catch(() => { /* stay on the not-found panel */ });
+    return () => { cancelled = true; };
+  }, [docError, designSlug]);
 
   // Phase 4.5 — brand-picker URL nav. When the user picks a
   // different brand from inside the editor, the design id no longer
@@ -164,16 +164,8 @@ export default function BrandDesignEditorPage() {
     />;
   }
 
-  // An image project short-circuits everything below: the Studio owns this id.
-  if (!projectChecked) {
-    return <PageSpinner />;
-  }
-  if (imageProject) {
-    return (
-      <Suspense fallback={<PageSpinner />}>
-        <ImageStudioPage brand={brand} project={imageProject} initialPrompt={initialPrompt} />
-      </Suspense>
-    );
+  if (legacyProject) {
+    return <Navigate to={`/b/${brand.slug}/design`} replace />;
   }
 
   if (docLoading) {

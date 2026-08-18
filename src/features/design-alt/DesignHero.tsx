@@ -1,9 +1,13 @@
 // DesignHero — the Creation Hub's entry point at /b/:slug/design.
 //
-// Typing a prompt here creates a PROJECT and opens it. The hub's job is to get
-// someone started with as little ceremony as possible; the project workspace is
-// where the composer, the settings and the history live. Nothing is generated
-// on this page, so nothing is lost if the user changes their mind on the way.
+// Typing a prompt here creates a DESIGN and opens the editor on it. Both modes
+// do the same thing and land in the same place; they differ only in what the
+// starting document holds — an empty AI canvas, or a layered template. The
+// editor's Generate rail then picks the prompt up from the URL.
+//
+// The hub's job is to get someone started with as little ceremony as possible.
+// Nothing is generated on this page, so nothing is lost if the user changes
+// their mind on the way.
 //
 // The quick-format chips deliberately no longer exist: every one of them
 // navigated away from the generation flow with no way back.
@@ -15,7 +19,7 @@ import { toast } from 'sonner';
 import type { Brand } from '@/shared/types/brand';
 import type { IDesignStorage } from '@/core/types/services';
 import { seedInstagramPostTemplate } from '@/features/brandkit/templateSeeds';
-import { createImageProject } from '@/features/image-generation';
+import { seedAiImageCanvas } from '@/features/editor/shell/v2/panels/generate/aiCanvasSeed';
 import { PROMPT_PRESETS } from '@/features/editor/shell/v2/panels/generate/formats';
 
 interface DesignHeroProps {
@@ -25,40 +29,34 @@ interface DesignHeroProps {
 
 type Mode = 'image' | 'editable';
 
-/** Seed and local demo brands have no workspace, so they cannot own a project. */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export function DesignHero({ brand, designStorage }: DesignHeroProps) {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState('');
   const [mode, setMode] = useState<Mode>('image');
   const [busy, setBusy] = useState(false);
 
-  const startImageProject = useCallback(async (text: string) => {
-    if (!UUID_RE.test(brand.id)) {
-      toast.error('This is a local demo brand. Create or open a saved brand to generate images.');
-      return;
-    }
+  // Image mode opens the editor on an EMPTY canvas with the prompt staged, so
+  // the Generate rail is the first thing the user sees. Same route, same shell
+  // and same panel as every other way into generation.
+  const startImageDesign = useCallback(async (text: string) => {
     setBusy(true);
     try {
-      const project = await createImageProject({
-        brandId: brand.id,
-        title: text.slice(0, 60),
-      });
-      navigate(`/b/${brand.slug}/design/${project.id}?prompt=${encodeURIComponent(text)}`);
+      const doc = seedAiImageCanvas(brand, { prompt: text });
+      await designStorage.saveDesign(brand.id, doc.id, doc);
+      navigate(`/b/${brand.slug}/design/${doc.id}?prompt=${encodeURIComponent(text)}&mode=image`);
     } catch (err) {
-      console.error('[DesignHero] could not create a project:', err);
-      toast.error('Could not start a project. Please try again.');
+      console.error('[DesignHero] failed to start an image design:', err);
+      toast.error('Could not start a new design. Please try again.');
       setBusy(false);
     }
-  }, [brand.id, brand.slug, navigate]);
+  }, [brand, designStorage, navigate]);
 
   const startEditableDesign = useCallback(async (text: string) => {
     setBusy(true);
     try {
       const doc = seedInstagramPostTemplate(brand);
       await designStorage.saveDesign(brand.id, doc.id, doc);
-      navigate(`/b/${brand.slug}/design/${doc.id}?prompt=${encodeURIComponent(text)}`);
+      navigate(`/b/${brand.slug}/design/${doc.id}?prompt=${encodeURIComponent(text)}&mode=editable`);
     } catch (err) {
       console.error('[DesignHero] failed to start a design:', err);
       toast.error('Could not start a new design. Please try again.');
@@ -69,9 +67,9 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
   const submit = useCallback(async () => {
     const text = prompt.trim();
     if (!text || busy) return;
-    if (mode === 'image') await startImageProject(text);
+    if (mode === 'image') await startImageDesign(text);
     else await startEditableDesign(text);
-  }, [prompt, busy, mode, startImageProject, startEditableDesign]);
+  }, [prompt, busy, mode, startImageDesign, startEditableDesign]);
 
   const onKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -91,8 +89,8 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
           Make something for <span className="dh-hero-title-accent">{brand.name}</span>
         </h1>
         <p className="dh-hero-sub">
-          Describe an image and we&rsquo;ll open a project where you can choose what the
-          brand contributes, generate, and iterate.
+          Describe an image and we&rsquo;ll open the design editor with the Generate
+          panel ready — choose what the brand contributes, generate, and keep editing.
         </p>
 
         <form
@@ -143,7 +141,7 @@ export function DesignHero({ brand, designStorage }: DesignHeroProps) {
               type="submit"
               className="dh-prompt-send"
               disabled={busy || !prompt.trim()}
-              aria-label={mode === 'image' ? 'Start an image project' : 'Start a design'}
+              aria-label={mode === 'image' ? 'Generate an image' : 'Start a design'}
               data-hero-submit
             >
               {busy ? <span className="dh-prompt-send-spinner" aria-hidden /> : <ArrowUp size={16} aria-hidden />}

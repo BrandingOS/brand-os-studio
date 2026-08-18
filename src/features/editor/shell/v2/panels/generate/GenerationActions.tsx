@@ -1,8 +1,9 @@
 // GenerationActions — shown when the ACTIVE page was AI-generated:
-// Variations ×4 · Refine (instruction) · Regenerate · Download.
+// Variations ×4 · Refine (instruction) · Regenerate · Download · Save to brand.
 
 import { useState, type KeyboardEvent } from 'react';
-import { Download, RefreshCw, Shuffle, Wand2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { BookmarkPlus, Check, Download, RefreshCw, Shuffle, Wand2 } from 'lucide-react';
 import type { GenerationRecord } from './aiMetadata';
 import { displayFor } from '@/features/editor/ai/imageModels';
 
@@ -13,10 +14,13 @@ interface Props {
   onVariations: () => void;
   onRefine: (instruction: string) => void;
   onRegenerate: () => void;
+  /** Absent when there is no brand to save into. */
+  onSaveToBrand?: () => Promise<void>;
 }
 
-export function GenerationActions({ record, imageSrc, busy, onVariations, onRefine, onRegenerate }: Props) {
+export function GenerationActions({ record, imageSrc, busy, onVariations, onRefine, onRegenerate, onSaveToBrand }: Props) {
   const [instruction, setInstruction] = useState('');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const model = displayFor(record.model);
   const submitRefine = () => {
     const t = instruction.trim();
@@ -27,6 +31,22 @@ export function GenerationActions({ record, imageSrc, busy, onVariations, onRefi
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') { e.preventDefault(); submitRefine(); }
   };
+  // Saving is an intent, not a copy — the bytes are already durable. It is
+  // one-way on purpose: a second click would file the same image twice.
+  const save = async () => {
+    if (!onSaveToBrand || saveState !== 'idle') return;
+    setSaveState('saving');
+    try {
+      await onSaveToBrand();
+      setSaveState('saved');
+      toast.success('Saved to Brand Assets.');
+    } catch (err) {
+      console.error('[GenerationActions] save to brand failed:', err);
+      setSaveState('idle');
+      toast.error('Could not save to Brand Assets.');
+    }
+  };
+
   const download = () => {
     if (!imageSrc) return;
     const a = document.createElement('a');
@@ -54,6 +74,19 @@ export function GenerationActions({ record, imageSrc, busy, onVariations, onRefi
         <ActionButton icon={<RefreshCw className="h-3 w-3" aria-hidden />} label="Regenerate" hint="Same prompt, new take" disabled={busy} onClick={onRegenerate} data-generate-regenerate />
         <ActionButton icon={<Download className="h-3 w-3" aria-hidden />} label="Download" hint="PNG" disabled={!imageSrc} onClick={download} data-generate-download />
       </div>
+      {onSaveToBrand ? (
+        <ActionButton
+          icon={saveState === 'saved'
+            ? <Check className="h-3 w-3" aria-hidden />
+            : <BookmarkPlus className="h-3 w-3" aria-hidden />}
+          label={saveState === 'saved' ? 'Saved to Brand Assets' : saveState === 'saving' ? 'Saving…' : 'Save to Brand Assets'}
+          hint="File this image in the brand's Library with its prompt and model"
+          disabled={busy || saveState !== 'idle'}
+          onClick={() => void save()}
+          data-generate-save-to-brand
+          data-saved={saveState === 'saved' || undefined}
+        />
+      ) : null}
       <div className="flex items-center gap-1 rounded-md border px-1.5" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken, transparent)' }}>
         <Wand2 className="h-3 w-3 shrink-0" style={{ color: 'var(--text-muted)' }} aria-hidden />
         <input
