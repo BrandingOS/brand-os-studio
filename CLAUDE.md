@@ -319,7 +319,7 @@ checking if your change is the designated payoff.
 | 7 | AI for resize variants — Phase 6 owns the reflow pipeline; AI not yet integrated | Phase 3.5 spec §2 | **Phase 6** | Open |
 | 8 | Streaming responses — request → wait → apply for now; "Thinking…" indicator only | Phase 3.5 spec Q7 | **Phase 5 if user feedback demands** | Open |
 | 9 | Skill chips deferred | Phase 3.5 spec Q4 | **Post-Phase-5 (data-driven)** | Open |
-| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Open — audited at 52 files / 10,469 LOC.** Has its own editor, slide navigator, customizer, AI content generator, multiple templates. Multi-week migration. Needs explicit user direction on full migration vs. content-type alias vs. defer further before scheduling. |
+| 10 | `brand-guides` family routes through legacy `/b/:slug/guidelines` instead of the unified editor | Step 9.3 commit 3b — intentional, the legacy guidelines editor is its own dedicated multi-page UI | **Post-Phase-5 dedicated phase** (re-scoped 2026-05-04) | **Mostly closed (2026-08-19).** The owner's direction was: keep the deck, fix everything around it. `/b/:slug/guideline` is now a Studio workspace over `shared/editor/EditorWorkspace`, and `/b/:slug/brand-guides` was consolidated into it — one guideline surface, DS-native, no `/a` chrome. The legacy family is now purely a CONTENT library (`features/guidelines/pages/templates/*` + `editor/buildSlides`), which is reuse rather than debt. Still open: the Classic hub `/a/:slug/guideline`, and the two frozen editors `/b/:slug/guidelines/{canvas,blocks}`. |
 
 Closed during 3.5: ~~"4 carve-outs remain"~~ — went 4 → 2; the
 remaining 2 (`logo-maker/flow`, `editor/components`) are documented
@@ -930,16 +930,47 @@ Rules that bind:
   over `@/features/image-generation` and `…/credits` — otherwise it calls the
   REAL deployed Edge Function and the REAL ledger.
 
-## Guideline page — scheduled for from-scratch rebuild
+## Guideline — rebuilt 2026-08-19 (`features/guideline/`)
 
-The Studio Guideline tab (`/b/:slug/guideline`, Chronicle shell +
-`ChronicleGuidelineEditor`) was reviewed 2026-08-10 and the owner's
-decision is: **it will be rebuilt from scratch**. Do not invest new
-feature work, UX polish, or refactors in the current Chronicle guideline
-surface — bug fixes only if something blocks another flow. The legacy
-slide editor at `/b/:slug/guidelines/canvas` ("Present") is equally
-frozen; it has a local-brand fallback (see the uuid gotcha below) so it
-at least loads everywhere.
+The from-scratch rebuild the 2026-08-10 review called for is **done**. Two
+surfaces, and that split is the whole design:
+
+- **`/b/:slug/guideline`** — the Brand Guidelines **workspace**, in
+  `WorkspaceShell` like every other Studio tab. A landing, not an editor:
+  brand-coloured cover, what the deck contains, real progress, one button.
+  `features/guideline/GuidelineWorkspace.tsx` + `guideline.css` (`--ds-*`
+  tokens only, `gl-` prefix).
+- **`/b/:slug/guideline/:templateId`** — the deck editor, fullscreen and
+  shell-less like every other canvas. A THIN host over
+  `shared/editor/EditorWorkspace` (tagged `stable/editable-export-v1`), which
+  already owns the slide navigator, inline editing, the selection inspector,
+  insert, the theme/size/spacing customizer, undo/redo, present mode and
+  export. Do not rebuild any of that.
+
+**Rules that bind:**
+- **`editorKeyPrefix` is `'brand-guides'` and must not change.** Slide edits
+  live in the IDB snapshot store under `${prefix}-${brandId}`, and that is the
+  key `/b/:slug/brand-guides` used before it was consolidated away. Changing it
+  silently reverts every deck anyone has edited. A test pins it.
+- **Adding a template = one entry in `templates/registry.ts`.** Nothing
+  downstream names the editorial deck. `EditorWorkspace` already accepts
+  `templates` / `onTemplateChange` / `onOpenTemplatePicker`, so a picker lands
+  against an existing seam — it is deliberately not built yet.
+- **The slide CONTENT still lives in `features/guidelines/`** (the legacy
+  8.8k-LOC family): `editor/buildSlides.tsx` plus the `pages/templates/*` page
+  components. That is reuse, not debt to unwind — the registry imports it.
+- `/b/:slug/brand-guides` now redirects here. The Chronicle document editor,
+  its `ChronicleGuidelineEditor` / `GuidelineDocument` / `buildGuidelineDocument`,
+  and the already-dead `GuidelineBoard` / `GuidelineSidebar` were deleted.
+  `ChronicleShell` itself stays — `/_dev/chronicle` still previews it.
+- **Orphaned data, deliberately:** the old editor autosaved an opaque HTML blob
+  through `IDesignStorage` under design slug `brand-guideline`. Nothing reads it
+  now. It was a frozen document snapshot with no sane mapping onto slides, so it
+  is left in place rather than migrated or deleted.
+
+The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
+is no longer linked from the guideline surface — present mode lives inside the
+deck editor. It keeps its local-brand fallback (see the uuid gotcha below).
 
 ## Canonical brand model — storage round-trip gotcha
 

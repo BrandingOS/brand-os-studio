@@ -38,6 +38,7 @@ const PublishedIdentityRoute = lazy(() => import("./pages/i/[token]"));
 const BrandBrandKitPageV2 = lazy(() => import("./pages/b/[slug]/brand-kit"));
 const BrandBrandKitNextPage = lazy(() => import("./pages/b/[slug]/brand-kit-next"));
 const BrandGuidelinePageV2 = lazy(() => import("./pages/b/[slug]/guideline"));
+const GuidelineEditorRoute = lazy(() => import("./features/guideline/GuidelineEditorRoute"));
 const BrandDesignPageV2 = lazy(() => import("./pages/b/[slug]/design"));
 const BrandToolsPageV2 = lazy(() => import("./pages/b/[slug]/tools"));
 const BrandTemplatesStudioPage = lazy(() => import("./pages/b/[slug]/templates"));
@@ -79,7 +80,6 @@ const AdminAnalyticsPage = lazy(() => import("./pages/dashboard/admin/analytics"
 const BrandHomePage = lazy(() => import("./pages/dashboard/brand/[slug]"));
 const BrandEditPage = lazy(() => import("./pages/dashboard/brand/[slug]/edit"));
 const BrandKitModulePage = lazy(() => import("./pages/dashboard/brand/[slug]/brandkit/[moduleId]"));
-const BrandGuidesPage = lazy(() => import("./pages/dashboard/brand/[slug]/brand-guides"));
 const LogoPresentationPage = lazy(() => import("./pages/dashboard/brand/[slug]/logo-presentation"));
 const PresentationsPage = lazy(() => import("./pages/dashboard/brand/[slug]/presentations"));
 const CaseStudyPage = lazy(() => import("./features/case-study-deck/pages/CaseStudyPage"));
@@ -219,6 +219,23 @@ function ClassicGuidelinesToGuidelineRedirect() {
   const { slug } = useParams<{ slug: string }>();
   const { search } = useLocation();
   return <Navigate to={`/a/${slug}/guideline${search}`} replace />;
+}
+
+/**
+ * `/b/:slug/brand-guides` was a second mount of the SAME slide deck the
+ * guideline editor now hosts — two names, one experience, and only one of them
+ * reachable from the nav. Consolidated so there is a single guideline surface.
+ * The editor's persistence key is unchanged, so anyone who edited their deck at
+ * the old URL finds their work waiting in the new one.
+ *
+ * Lands on the guideline WORKSPACE rather than deep-linking into the editor:
+ * naming a template here would duplicate DEFAULT_GUIDELINE_TEMPLATE_ID and rot
+ * the day the default changes, and the workspace is one click from the deck.
+ */
+function BrandGuidesToGuidelineRedirect() {
+  const { slug } = useParams<{ slug: string }>();
+  const { search } = useLocation();
+  return <Navigate to={`/b/${slug}/guideline${search}`} replace />;
 }
 
 /**
@@ -460,6 +477,12 @@ const App = () => (
           <Route path="/b/:slug/guideline" element={
             <ProtectedRoute><BrandGuidelinePageV2 /></ProtectedRoute>
           } />
+          {/* The guideline deck editor. Fullscreen and shell-less, like every
+              other canvas in the product. The :templateId segment is the
+              multi-template seam — one template exists today. */}
+          <Route path="/b/:slug/guideline/:templateId" element={
+            <ProtectedRoute><GuidelineEditorRoute /></ProtectedRoute>
+          } />
           <Route path="/b/:slug/design" element={
             <ProtectedRoute><BrandDesignPageV2 /></ProtectedRoute>
           } />
@@ -533,9 +556,10 @@ const App = () => (
           <Route path="/b/:slug/deck-v2" element={
             <ProtectedRoute><DeckV2Page /></ProtectedRoute>
           } />
-          <Route path="/b/:slug/brand-guides" element={
-            <ProtectedRoute><BrandGuidesPage /></ProtectedRoute>
-          } />
+          {/* Was a second mount of the same deck under a different name.
+              Consolidated into the guideline editor so there is ONE guideline
+              surface; the editorKey is unchanged, so existing edits open here. */}
+          <Route path="/b/:slug/brand-guides" element={<BrandGuidesToGuidelineRedirect />} />
           <Route path="/b/:slug/logo-presentation" element={
             <ProtectedRoute><LogoPresentationPage /></ProtectedRoute>
           } />

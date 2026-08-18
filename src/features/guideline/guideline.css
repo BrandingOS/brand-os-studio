@@ -1,0 +1,277 @@
+/*
+ * Brand Guidelines workspace — /b/:slug/guideline.
+ *
+ * Scoped under [data-workspace] like every other Studio surface. Values come
+ * from --ds-* directly (NOT the older workspace aliases, which are a temporary
+ * bridge per docs/ds-token-convergence.md). The only colour that is allowed to
+ * be dynamic here is the customer's own brand, and it arrives as an inline
+ * custom property from the component — never hard-coded.
+ *
+ * `gl-` prefix = guideline.
+ */
+
+/* ─── Page ──────────────────────────────────────────────────── */
+
+[data-workspace] .gl-page {
+  --gl-pad-x: clamp(20px, 4vw, 48px);
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px var(--gl-pad-x) 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+[data-workspace] .gl-state {
+  max-width: 640px;
+  margin: 96px auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-workspace] .gl-state h1 {
+  font-family: 'Instrument Serif', 'DM Serif Display', serif;
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-state p {
+  font-size: 13.5px;
+  color: var(--ds-text-secondary);
+  margin: 0;
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+[data-workspace] .gl-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .gl-hero-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  margin-bottom: 4px;
+}
+[data-workspace] .gl-hero-title {
+  font-family: 'Instrument Serif', 'DM Serif Display', 'Playfair Display', serif;
+  font-size: clamp(34px, 4.4vw, 48px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-hero-sub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ds-text-secondary);
+  margin: 0;
+  max-width: 60ch;
+}
+
+/* ─── The template card ─────────────────────────────────────── */
+
+[data-workspace] .gl-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-panel);
+  background: var(--ds-surface);
+  overflow: hidden;
+  box-shadow: var(--ds-shadow-sm);
+}
+@media (max-width: 880px) {
+  [data-workspace] .gl-card { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Left half — a real, brand-coloured cover, not a stock thumbnail. */
+[data-workspace] .gl-cover {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(20px, 3vw, 34px);
+  /* --gl-cover-bg / --gl-cover-fg are set inline from the brand palette. */
+  background: var(--gl-cover-bg);
+  color: var(--gl-cover-fg);
+  overflow: hidden;
+}
+[data-workspace] .gl-cover::after {
+  /* A soft vignette so a flat brand colour still reads as a printed cover. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 15% 0%, rgba(255, 255, 255, 0.14), transparent 62%);
+  pointer-events: none;
+}
+[data-workspace] .gl-cover-mark {
+  position: relative;
+  z-index: 1;
+  height: 34px;
+  display: flex;
+  align-items: center;
+}
+[data-workspace] .gl-cover-mark img {
+  max-height: 100%;
+  max-width: 160px;
+  object-fit: contain;
+}
+[data-workspace] .gl-cover-letter {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  opacity: 0.9;
+}
+[data-workspace] .gl-cover-body { position: relative; z-index: 1; }
+[data-workspace] .gl-cover-eyebrow {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  opacity: 0.6;
+}
+[data-workspace] .gl-cover-title {
+  font-family: 'Instrument Serif', 'DM Serif Display', serif;
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  margin: 8px 0 0;
+}
+[data-workspace] .gl-cover-rule {
+  margin-top: 14px;
+  width: 46px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.45;
+}
+
+/* Right half — what it is, and how to open it. */
+[data-workspace] .gl-card-body {
+  padding: clamp(20px, 3vw, 32px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  min-width: 0;
+}
+[data-workspace] .gl-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+[data-workspace] .gl-card-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-card-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
+  margin: 0;
+}
+[data-workspace] .gl-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .gl-card-meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+[data-workspace] .gl-card-actions {
+  /* Deliberately NOT pushed to the bottom with margin-top:auto — the cover sets
+   * the card's height, so pinning the button left a hole in the middle of the
+   * body. Top-aligned, the text and its action read as one group. */
+  padding-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ─── Chapters ──────────────────────────────────────────────── */
+
+[data-workspace] .gl-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+[data-workspace] .gl-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .gl-section-sub {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+
+[data-workspace] .gl-chapters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+[data-workspace] .gl-chapter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+  padding: 11px 13px;
+  font-size: 12.5px;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .gl-chapter-num {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-text-muted);
+  min-width: 14px;
+}
+
+/* ─── Missing-data notice ───────────────────────────────────── */
+
+[data-workspace] .gl-gaps {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--ds-warning-border);
+  background: var(--ds-warning-bg);
+  color: var(--ds-warning-fg);
+  border-radius: var(--ds-radius-card);
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+[data-workspace] .gl-gaps a {
+  color: inherit;
+  font-weight: 600;
+  text-underline-offset: 2px;
+}
