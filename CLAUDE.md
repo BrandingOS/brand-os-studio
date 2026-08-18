@@ -59,10 +59,13 @@ There are also legacy landing page versions at `src/domains/landing` (v1) and `s
 
 ### Demo environment
 
-**The canonical demo URL is https://demo-25t.pages.dev** (Cloudflare Pages
-project `demo`). It builds its production from the **`demo` branch**, so a
-release is a fast-forward of that branch — never a merge, and `main` is not
-involved:
+**The canonical demo URL is https://demo.brandingos.ai** — a custom domain on
+the Cloudflare Pages project `demo` (SSL active, Google CA, HTTP validation).
+`demo-25t.pages.dev` is that project's built-in subdomain and is kept as a
+**technical fallback**; it is deliberately NOT redirected.
+
+Production builds from the **`demo` branch**, so a release is a fast-forward of
+that branch — never a merge, and `main` is not involved:
 
 ```bash
 git push origin origin/<release-branch>:refs/heads/demo
@@ -80,6 +83,19 @@ Notes that will save you an hour:
   is still running. During that window the deployment alias 404s and the apex
   still serves the previous bundle. Wait for the status column to show a deploy
   time before concluding anything is wrong.
+- Adding a custom domain through the **API** attaches it but does NOT create the
+  DNS record (the dashboard does both). Wrangler's OAuth grant carries
+  `pages:write` + `zone:read` and no `dns_records:write`, so the CNAME
+  (`demo` → `demo-25t.pages.dev`, proxied) has to be added in the dashboard.
+- Supabase Auth redirect URLs must include `https://demo.brandingos.ai/**`
+  (already added). Do NOT reach for `supabase config push` to manage this: it
+  has no dry-run and cannot read the remote config first, so a minimal
+  `config.toml` would reset the project's other auth settings to CLI defaults.
+- A host-canonicalising redirect for `demo-25t.pages.dev` was written and then
+  reverted, because the fallback is wanted for now. The implementation (a
+  narrowly-scoped Pages Function that redirects only the bare project
+  subdomain, leaving preview aliases and `demo-b` alone) is preserved at commit
+  `50cf5a5` and can be cherry-picked when the fallback is retired.
 
 > **Read this first if you're planning UX or IA work**: `docs/ux-redesign/`
 > contains the canonical IA, page templates, user flows, and the

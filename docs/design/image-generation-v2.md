@@ -326,8 +326,10 @@ Deliberately built as seams, not as scaffolding:
 
 ## 13. Deployment state
 
-Live at **https://demo-25t.pages.dev** (the canonical demo URL) from commit
-`4814275`, tagged `checkpoint/ai-image-generation-v2-live`.
+Live at **https://demo.brandingos.ai** (the canonical demo URL) from commit
+`4814275`, tagged `checkpoint/ai-image-generation-v2-live`. The Pages project's
+own `demo-25t.pages.dev` subdomain is kept as a technical fallback and is not
+redirected.
 
 Applied to `ciojgoozobzbeglwdxcz` on 2026-08-18:
 
