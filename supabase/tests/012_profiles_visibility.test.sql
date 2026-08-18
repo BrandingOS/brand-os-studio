@@ -23,11 +23,23 @@ END;
 $$;
 
 -- Setup (superuser → RLS bypassed).
-INSERT INTO public.profiles (id, email, full_name) VALUES
-  ('11111111-1111-1111-1111-111111111111', 'a@example.com', 'User A'),
-  ('22222222-2222-2222-2222-222222222222', 'b@example.com', 'User B'),
-  ('33333333-3333-3333-3333-333333333333', 'c@example.com', 'User C')
+--
+-- These have to be real auth.users rows: profiles.id carries
+-- `REFERENCES auth.users(id) ON DELETE CASCADE` (profiles_id_fkey, added by the
+-- original 20250905213158 migration; 001 recreates the table with
+-- CREATE TABLE IF NOT EXISTS, so it never dropped the constraint). Inserting
+-- bare profiles rows raised 23503 and this whole file could not run.
+-- handle_new_user() then creates the profile — hence the UPDATE for full_name
+-- rather than an INSERT.
+INSERT INTO auth.users (id, email) VALUES
+  ('11111111-1111-1111-1111-111111111111', 'a@example.com'),
+  ('22222222-2222-2222-2222-222222222222', 'b@example.com'),
+  ('33333333-3333-3333-3333-333333333333', 'c@example.com')
 ON CONFLICT (id) DO NOTHING;
+
+UPDATE public.profiles SET full_name = 'User A' WHERE id = '11111111-1111-1111-1111-111111111111';
+UPDATE public.profiles SET full_name = 'User B' WHERE id = '22222222-2222-2222-2222-222222222222';
+UPDATE public.profiles SET full_name = 'User C' WHERE id = '33333333-3333-3333-3333-333333333333';
 
 INSERT INTO public.workspaces (id, name, slug, owner_id) VALUES
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Shared WS', 'shared-ws',

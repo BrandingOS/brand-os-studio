@@ -72,10 +72,12 @@ BEGIN
   VALUES (ws_a, user_a, 'owner'), (ws_b, user_b, 'owner')
   ON CONFLICT DO NOTHING;
 
-  INSERT INTO public.brands (name, user_id, workspace_id)
-  VALUES ('Brand A 025', user_a, ws_a) RETURNING id INTO brand_a;
-  INSERT INTO public.brands (name, user_id, workspace_id)
-  VALUES ('Brand B 025', user_b, ws_b) RETURNING id INTO brand_b;
+  -- primary_color is NOT NULL on brands; omitting it raised 23502 and this
+  -- whole file could not run.
+  INSERT INTO public.brands (name, user_id, workspace_id, primary_color)
+  VALUES ('Brand A 025', user_a, ws_a, '#123456') RETURNING id INTO brand_a;
+  INSERT INTO public.brands (name, user_id, workspace_id, primary_color)
+  VALUES ('Brand B 025', user_b, ws_b, '#123456') RETURNING id INTO brand_b;
 
   INSERT INTO public.image_projects (id, brand_id, workspace_id, user_id, title)
   VALUES ('aaaaaaaa-0000-4000-8000-000000000001', brand_a, ws_a, user_a, 'A project'),
@@ -151,8 +153,8 @@ DECLARE
   legacy_brand UUID;
   n INT;
 BEGIN
-  INSERT INTO public.brands (name, user_id, workspace_id)
-  VALUES ('Legacy Brand 025', user_a, NULL) RETURNING id INTO legacy_brand;
+  INSERT INTO public.brands (name, user_id, workspace_id, primary_color)
+  VALUES ('Legacy Brand 025', user_a, NULL, '#123456') RETURNING id INTO legacy_brand;
   PERFORM set_config('test025.legacy_brand', legacy_brand::text, true);
 
   PERFORM pg_temp.act_as(user_a);
