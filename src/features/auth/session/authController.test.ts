@@ -13,6 +13,8 @@ const H = vi.hoisted(() => {
     signInWithPassword: vi.fn(),
     signUp: vi.fn(),
     signInWithOAuth: vi.fn(),
+    verifyOtp: vi.fn(),
+    resend: vi.fn(async (_opts: unknown) => ({ error: null })),
     signOut: vi.fn(async () => ({ error: null })),
     resetPasswordForEmail: vi.fn(async () => ({ error: null })),
     updateUser: vi.fn(async () => ({ error: null })),
@@ -70,6 +72,8 @@ import {
   signUp,
   signOut,
   signInWithGoogle,
+  verifySignupCode,
+  resendSignupCode,
   handleAuthEvent,
   INITIAL_SESSION_FALLBACK_MS,
 } from './authController';
@@ -258,6 +262,27 @@ describe('actions', () => {
     authApi.signUp.mockResolvedValueOnce({ data: { session: null, user: u }, error: null });
     const result = await signUp('a@b.co', 'password1');
     expect(result.error).toMatch(/already exists/);
+  });
+
+  it('verifySignupCode confirms with type=signup and signs the user in', async () => {
+    authApi.verifyOtp.mockResolvedValueOnce({ data: { session: session(), user: user() }, error: null });
+    const r = await verifySignupCode('a@b.co', ' 123456 ');
+    expect(r.error).toBeNull();
+    expect(authApi.verifyOtp).toHaveBeenCalledWith({ email: 'a@b.co', token: '123456', type: 'signup' });
+    expect(useSessionStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it('verifySignupCode maps an expired/invalid code', async () => {
+    authApi.verifyOtp.mockResolvedValueOnce({ data: { session: null, user: null }, error: { code: 'otp_expired', message: 'Token has expired or is invalid' } });
+    const r = await verifySignupCode('a@b.co', '000000');
+    expect(r.error).toMatch(/wrong or has expired/);
+    expect(useSessionStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('resendSignupCode asks for a signup resend', async () => {
+    const r = await resendSignupCode('a@b.co');
+    expect(r.error).toBeNull();
+    expect(authApi.resend).toHaveBeenCalledWith(expect.objectContaining({ type: 'signup', email: 'a@b.co' }));
   });
 
   it('signInWithGoogle sends the browser to /auth/callback with a same-origin next', async () => {

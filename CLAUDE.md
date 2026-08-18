@@ -1370,9 +1370,18 @@ The auth session layer was rebuilt after twenty stacked `fix(auth)` patches
   `error_description` are shown. **Supabase → Authentication → URL
   Configuration → Redirect URLs must list** `<origin>/auth/callback` and
   `<origin>/auth/reset-password` for every origin (localhost:8080 + prod).
-- **Sign-up with a session** (email confirmation OFF, today's setting) signs
-  in immediately; without one the modal shows "Confirm your email" and does NOT
-  navigate to a guarded page.
+- **Sign-up is confirmed with an e-mailed CODE, not a link** (owner request
+  2026-08-18). Supabase auth config: `mailer_autoconfirm=false`,
+  `mailer_otp_length=6` (Supabase's minimum — 4 was refused by the API),
+  `mailer_otp_exp=900`, confirmation template renders `{{ .Token }}`. Flow:
+  `signUp` → no session → `AuthModal` code panel (`InputOTP`, auto-submits at
+  `SIGNUP_CODE_LENGTH`) → `verifySignupCode` (`verifyOtp type:'signup'`) →
+  session → `becomeAuthenticated`. Logging in with an unconfirmed address
+  re-sends the code and opens the same panel. There is no confirm-password
+  field. **Until custom SMTP is configured, Supabase's built-in mailer only
+  delivers to project team-member addresses and rejects others with
+  `email_address_invalid`** — real sign-ups need an SMTP provider set in the
+  Supabase dashboard (Authentication → SMTP).
 - **Password reset:** `sessionStore.recovery` is set by `PASSWORD_RECOVERY`;
   the reset page is valid when that flag is set or the link carried a recovery
   hash / PKCE code and a session now exists.
