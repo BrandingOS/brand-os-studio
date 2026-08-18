@@ -10,7 +10,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { bootServices, reconfigureForAuth } from '../boot';
 import { container } from '../container/ServiceContainer';
-import { SERVICE_KEYS } from '../types/services';
+import { SERVICE_KEYS, type IUserPreferencesService } from '../types/services';
 
 const LOCAL_ALWAYS = [
   SERVICE_KEYS.BRANDS,
@@ -27,6 +27,11 @@ const LOCAL_ALWAYS = [
   // one-line change here rather than a new registration site.
   SERVICE_KEYS.KIT_ADOPTIONS,
   SERVICE_KEYS.BRAND_CONTEXT,
+  // Preferences are registered in BOTH modes on purpose: guests, dev-bypass
+  // sessions and every pre-auth render read them synchronously, so there must
+  // never be a window where the key is absent. Auth swaps the implementation,
+  // not the presence.
+  SERVICE_KEYS.USER_PREFERENCES,
 ];
 
 const AUTHED_ONLY = [
@@ -55,6 +60,22 @@ describe('reconfigureForAuth', () => {
     expect(container.has(SERVICE_KEYS.BRAND_MEMORY)).toBe(true);
     for (const k of LOCAL_ALWAYS) expect(container.has(k)).toBe(true);
     for (const k of AUTHED_ONLY) expect(container.has(k)).toBe(true);
+  });
+
+  it('swaps the preferences implementation on auth without ever unregistering it', () => {
+    container.clear();
+    reconfigureForAuth(false);
+    const guest = container.get<IUserPreferencesService>(SERVICE_KEYS.USER_PREFERENCES);
+    expect(guest.isServerBacked()).toBe(false);
+
+    container.clear();
+    reconfigureForAuth(true);
+    // The authed impl extends the local one, so it is still a valid preferences
+    // service — what changes is that it can reach the server row.
+    expect(container.has(SERVICE_KEYS.USER_PREFERENCES)).toBe(true);
+    expect(
+      container.get(SERVICE_KEYS.USER_PREFERENCES).constructor.name,
+    ).toBe('SupabaseUserPreferencesService');
   });
 
   it('guest mode registers local defaults but NOT the authed-only server services', () => {

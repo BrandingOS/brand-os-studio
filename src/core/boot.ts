@@ -43,6 +43,8 @@ import { SupabaseNotificationsService } from './adapters/database/SupabaseNotifi
 import { SupabaseActivityService } from './adapters/database/SupabaseActivityService';
 import { LocalPublicationRepository } from '@/features/brand-identity/publish/publicationRepository';
 import { SupabasePublicationRepository } from '@/features/brand-identity/publish/publicationRepository.supabase';
+import { LocalUserPreferencesService } from './adapters/preferences/LocalUserPreferencesService';
+import { SupabaseUserPreferencesService } from './adapters/preferences/SupabaseUserPreferencesService';
 
 export function bootServices(): void {
   // ─── Brands Service ────────────────────────────────────────
@@ -129,6 +131,13 @@ export function bootServices(): void {
   // otherwise a sign-out would leave the Supabase impl in place.
   setKitStateRepository(new LocalKitStateRepository());
   container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new LocalBrandContextService());
+
+  // ─── User preferences ──────────────────────────────────────
+  // Local by default so guests, dev-bypass sessions and every pre-auth render
+  // have a real, SYNCHRONOUS store to read from. reconfigureForAuth swaps in
+  // the server-backed one, which keeps this exact localStorage mirror as its
+  // cache rather than replacing it.
+  container.register(SERVICE_KEYS.USER_PREFERENCES, () => new LocalUserPreferencesService());
 }
 
 /**
@@ -184,4 +193,11 @@ export function reconfigureForAuth(isAuthenticated: boolean): void {
   // to localStorage so nothing breaks before the deploy).
   setKitStateRepository(new SupabaseKitStateRepository());
   container.register(SERVICE_KEYS.BRAND_CONTEXT, () => new SupabaseBrandContextService());
+  // Preferences → server (migration 030). Tolerant of a pre-030 environment:
+  // it degrades to the same localStorage mirror, so shipping this ahead of the
+  // migration changes nothing for the user.
+  container.register(
+    SERVICE_KEYS.USER_PREFERENCES,
+    () => new SupabaseUserPreferencesService(),
+  );
 }

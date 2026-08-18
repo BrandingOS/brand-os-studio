@@ -416,6 +416,59 @@ export interface IActivityService {
   list(options?: { brandId?: string; limit?: number }): Promise<ActivityEventData[]>;
 }
 
+// ─── User Preferences ──────────────────────────────────────────
+//
+// Device-independent user settings. Persisted server-side in
+// `public.user_preferences` (migration 030) with localStorage as a
+// write-through cache, so every read stays SYNCHRONOUS — zustand `persist`
+// initialisers and `useState` initialisers cannot await.
+
+export interface AiGeneratePreferences {
+  /** Brand-aware prompt compiler on/off. */
+  brandAware?: boolean;
+  model?: string;
+  count?: number;
+}
+
+export interface DismissedPreferences {
+  /** id → ISO date. Mirrors `brandos:features-seen`. */
+  featuresSeen?: Record<string, string>;
+  hints?: Record<string, string>;
+  tours?: Record<string, string>;
+}
+
+export interface UserPreferences {
+  theme?: 'light' | 'dark';
+  uiPreference?: 'studio' | 'classic';
+  innerNavOpen?: boolean;
+  aiGenerate?: AiGeneratePreferences;
+  dismissed?: DismissedPreferences;
+  lastWorkspaceId?: string | null;
+}
+
+/**
+ * Every method is safe to call in guest mode and before migration 030 is
+ * deployed — the local implementation is always the floor.
+ */
+export interface IUserPreferencesService {
+  /** Synchronous. The cache, never the network. Use in store initialisers. */
+  getCached(): UserPreferences;
+  /** Server (or local) truth, merged into the cache. Called once on sign-in. */
+  hydrate(): Promise<UserPreferences>;
+  /**
+   * Deep-merged patch. Cache and subscribers update synchronously; the server
+   * write is debounced and read-modify-write, so two devices editing DIFFERENT
+   * keys both survive. Returns the merged result.
+   */
+  set(patch: UserPreferences): Promise<UserPreferences>;
+  /** Cross-tab and post-hydrate change notifications. Returns an unsubscribe. */
+  subscribe(fn: (prefs: UserPreferences) => void): () => void;
+  /** True when the server row is reachable. False in guest mode or pre-030. */
+  isServerBacked(): boolean;
+  /** Flush any pending debounced write. For tests and sign-out. */
+  flush(): Promise<void>;
+}
+
 // ─── Service Keys ──────────────────────────────────────────────
 // Type-safe keys for the ServiceContainer
 
@@ -463,6 +516,11 @@ export const SERVICE_KEYS = {
    *  (favourites, dislikes, references, approvals, usage). No memory engine,
    *  no embeddings; it can never write Brand Core. */
   BRAND_CONTEXT: 'brandContext',
+  /** Cross-device user preferences (migration 030). The local impl is a plain
+   *  localStorage mirror; the Supabase impl adds the server row and keeps that
+   *  mirror as its synchronous read cache. Degrades to local on a pre-030
+   *  environment, so it can ship ahead of the migration. */
+  USER_PREFERENCES: 'userPreferences',
 } as const;
 
 // ─── Mockup Templates Service ──────────────────────────────────

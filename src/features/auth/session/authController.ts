@@ -25,6 +25,8 @@ import { useOnboardingStore } from '@/shared/store/onboardingStore';
 import { useWorkspaceStore } from '@/shared/store/workspaceStore';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { reconfigureForAuth } from '@/core/boot';
+import { container } from '@/core/container/ServiceContainer';
+import { SERVICE_KEYS, type IUserPreferencesService } from '@/core/types/services';
 import { migrateLocalStorageToSupabase } from '@/shared/utils/localStorage-migration';
 import { toast } from 'sonner';
 import type { PlatformRole, User } from '@/shared/types/user';
@@ -124,10 +126,29 @@ const updateLastSignIn = async (userId: string) => {
   }
 };
 
+/**
+ * Pull the user's preferences down from `public.user_preferences` and reconcile
+ * them with this browser's mirror. Fire-and-forget like the rest: nothing in
+ * the UI waits on it, because every preference READ is served synchronously
+ * from the mirror. This is what makes a preference follow the user to a second
+ * device.
+ */
+const hydratePreferences = async () => {
+  try {
+    await container
+      .get<IUserPreferencesService>(SERVICE_KEYS.USER_PREFERENCES)
+      .hydrate();
+  } catch (err) {
+    // A preference is never worth failing a sign-in over.
+    console.warn('[auth] preference hydration failed:', err);
+  }
+};
+
 const runSignedInSideEffects = (userId: string) => {
   void checkPlatformRole(userId);
   void checkAccountStatus(userId);
   void updateLastSignIn(userId);
+  void hydratePreferences();
   useWorkspaceStore.getState().loadAll().catch(console.error);
   // Services were just swapped to Supabase — anything loaded against the
   // Local service is stale until re-fetched.
