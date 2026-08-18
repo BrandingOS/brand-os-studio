@@ -1,13 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { BrandSwitcher } from '@/features/brand/components/BrandSwitcher';
 import { SegmentedNav } from '@/shared/ui/SegmentedNav';
+import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import '@/shared/styles/workspace.css';
 
 /**
@@ -23,7 +18,8 @@ import '@/shared/styles/workspace.css';
  *   - Otherwise, if the current URL matches `/b/:slug/...`, brand-scoped tabs are built automatically.
  *   - Otherwise, falls back to the flat workspace tabs (legacy `/setup`, etc.).
  *
- * Theme: scoped to [data-workspace], persisted in localStorage key "brandos-theme".
+ * Theme: scoped to [data-workspace] via useWorkspaceTheme, which is the single
+ * owner of the light/dark choice (key "brandos-theme", shared with next-themes).
  */
 
 export type WorkspaceTab = {
@@ -61,19 +57,6 @@ function extractBrandSlug(pathname: string): string | null {
   return match ? match[1] : null;
 }
 
-const THEME_KEY = 'brandos-theme';
-
-function readInitialTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  try {
-    const stored = window.localStorage.getItem(THEME_KEY);
-    if (stored === 'dark' || stored === 'light') return stored;
-  } catch {
-    /* noop */
-  }
-  return 'light';
-}
-
 export function WorkspaceShell({
   tabs: explicitTabs,
   brandName = 'BrandOS',
@@ -107,19 +90,9 @@ export function WorkspaceShell({
 
   const resolvedBrandHome = brandHome ?? (slug ? `/b/${slug}/setup` : '/');
 
-  const [theme, setTheme] = useState<'light' | 'dark'>(readInitialTheme);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* noop */
-    }
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  }, []);
+  // One theme, one key, one writer — see useWorkspaceTheme. This used to be a
+  // local useState + a localStorage write that next-themes knew nothing about.
+  const { theme, toggleTheme } = useWorkspaceTheme();
 
   return (
     <div data-workspace data-theme={theme}>

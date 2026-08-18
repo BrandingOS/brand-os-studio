@@ -8,6 +8,7 @@ import {
   type PointerEvent as RPointerEvent,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import './NotFound.css';
 
 /**
@@ -90,29 +91,9 @@ export default function NotFound() {
   const [width, setWidth] = useState<number>(SIZES[1].width);
   const [stamps, setStamps] = useState<StampInstance[]>([]);
 
-  // Theme — seeded from the same `brandos-theme` localStorage key the
-  // Setup / Brand Kit pages use, so opening the 404 in a fresh tab still
-  // matches the user's last-set mode.
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    if (typeof window === 'undefined') return 'light';
-    try {
-      const stored = window.localStorage.getItem('brandos-theme');
-      if (stored === 'dark' || stored === 'light') return stored;
-    } catch {
-      /* noop */
-    }
-    return 'light';
-  });
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('brandos-theme', theme);
-    } catch {
-      /* noop */
-    }
-  }, [theme]);
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  }, []);
+  // Theme — the same choice the Setup / Brand Kit pages use, so opening the
+  // 404 in a fresh tab still matches the user's last-set mode.
+  const { theme, toggleTheme } = useWorkspaceTheme();
 
   // Picking a brush sets BOTH the active tool and the "currently
   // remembered" brush so the picker button keeps showing it after the

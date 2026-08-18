@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
 import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
@@ -19,22 +20,9 @@ import '@/shared/styles/workspace-home.css';
  * Shared with WorkspaceShell:
  *   - `[data-workspace]` scope → all workspace tokens
  *     (surface, text, shadow, ease) apply identically.
- *   - Theme toggle persists to the same `brandos-theme` localStorage
- *     key so a user's light/dark choice carries across shells.
+ *   - Theme goes through useWorkspaceTheme, so the choice carries across
+ *     shells AND across next-themes' <html> class.
  */
-
-const THEME_KEY = 'brandos-theme';
-
-function readInitialTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  try {
-    const stored = window.localStorage.getItem(THEME_KEY);
-    if (stored === 'dark' || stored === 'light') return stored;
-  } catch {
-    /* noop */
-  }
-  return 'light';
-}
 
 function initialsFromName(name?: string): string {
   if (!name) return 'JT';
@@ -56,7 +44,8 @@ export function WorkspaceShell({
   const user = useSessionStore((s) => s.user);
   const { logout } = useAuth();
   const navigate = useNavigate();
-  const [theme, setTheme] = useState<'light' | 'dark'>(readInitialTheme);
+  // Single owner of the light/dark choice — see useWorkspaceTheme.
+  const { theme, toggleTheme } = useWorkspaceTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -78,18 +67,6 @@ export function WorkspaceShell({
       document.removeEventListener('keydown', onKey);
     };
   }, [menuOpen]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* noop */
-    }
-  }, [theme]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
-  }, []);
 
   const initials = initialsFromName(user?.name);
   const displayName = user?.name ?? 'Guest';

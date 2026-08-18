@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import { OptimizedDesignEditor } from './OptimizedDesignEditor';
 import { WelcomeTutorial } from './WelcomeTutorial';
 import { useBrandStore } from '@/shared/store/brandStore';
@@ -13,28 +12,17 @@ interface EditorShellProps {
 export function EditorShell({ moduleId, brandId, brandSlug }: EditorShellProps) {
   const { current: brand, loadBySlug, loadAll, list, isLoading } = useBrandStore();
   const [showTutorial, setShowTutorial] = useState(false);
-  const { setTheme } = useTheme();
 
   const identifier = brandSlug || brandId;
 
-  // Theme continuity (SHL-02): the Studio workspace theme lives in
-  // `brandos-theme` and is scoped to [data-workspace] — this editor
-  // route has no workspace wrapper, so it rendered the app default
-  // (light) even inside a dark session, flashing full-brightness on
-  // entry. Mirror the workspace preference into next-themes while the
-  // editor is mounted; restore the app default on exit.
-  useEffect(() => {
-    let stored: string | null = null;
-    try {
-      stored = localStorage.getItem('brandos-theme');
-    } catch {
-      // Storage unavailable — keep the default.
-    }
-    if (stored === 'dark') setTheme('dark');
-    return () => {
-      if (stored === 'dark') setTheme('light');
-    };
-  }, [setTheme]);
+  // Theme continuity (SHL-02) used to be hand-rolled here: this route has no
+  // workspace wrapper, so it rendered the app default (light) inside a dark
+  // session and flashed full-brightness on entry. The fix was to mirror
+  // `brandos-theme` into next-themes on mount — and, on unmount, to call
+  // setTheme('light'), which dragged a dark-mode user back into light every
+  // time they left this editor. Both are gone: next-themes now reads
+  // `brandos-theme` as its own storageKey (App.tsx), so there is one value and
+  // nothing to mirror. See src/shared/theme/useWorkspaceTheme.ts.
 
   useEffect(() => {
     if (!identifier) return;

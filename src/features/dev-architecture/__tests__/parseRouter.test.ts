@@ -208,6 +208,35 @@ describe('route fragments', () => {
       </Routes>`);
     expect(fragments).toHaveLength(0);
   });
+
+  it('ignores an imported binding used as an ATTRIBUTE value', () => {
+    // A fragment is a CHILD of <Routes>. `ts.isJsxExpression` is also true for
+    // an attribute value, so without a parent check every
+    // `someProp={ImportedThing}` in the router was chased as a route fragment
+    // and then reported as a warning because the target has no <Route> in it.
+    // Adding `storageKey={THEME_STORAGE_KEY}` to <ThemeProvider> is exactly
+    // what tripped it.
+    const { fragments } = parse(`
+      import { THEME_STORAGE_KEY } from "@/shared/theme/useWorkspaceTheme";
+      <ThemeProvider storageKey={THEME_STORAGE_KEY}>
+        <Routes>
+          <Route path="/" element={<A />} />
+        </Routes>
+      </ThemeProvider>`);
+    expect(fragments).toHaveLength(0);
+  });
+
+  it('still finds a real fragment alongside an imported attribute value', () => {
+    const { fragments } = parse(`
+      import { THEME_STORAGE_KEY } from "@/shared/theme/useWorkspaceTheme";
+      import { logoMakerFlowRoutes } from "./features/logo-maker/flow";
+      <ThemeProvider storageKey={THEME_STORAGE_KEY}>
+        <Routes>
+          {logoMakerFlowRoutes}
+        </Routes>
+      </ThemeProvider>`);
+    expect(fragments.map((f) => f.name)).toEqual(['logoMakerFlowRoutes']);
+  });
 });
 
 describe('splats and pathless layouts', () => {

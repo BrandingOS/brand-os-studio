@@ -13,6 +13,7 @@ import { PageSpinner } from "@/components/PageSpinner";
 import { CommandPaletteProvider } from "@/shared/search/CommandPaletteProvider";
 import { BrandAssistantProvider } from "@/features/ai/v5/BrandAssistantProvider";
 import { BrandSettingsProvider } from "@/shared/brand-settings";
+import { THEME_STORAGE_KEY } from "@/shared/theme/useWorkspaceTheme";
 
 // Eager: only pages needed on first paint or critical to routing
 import IndexPage from "./pages/Index";
@@ -308,10 +309,15 @@ const App = () => (
   //   running CSS transitions on every color. Without this, every component
   //   with `transition-colors` slow-fades on theme change which looks like
   //   the whole page is "breathing" between dark and light.
+  // - storageKey: the SAME key the workspace shells read (`brandos-theme`).
+  //   Before this, next-themes kept its own key and the shells kept theirs,
+  //   so the <html> class and [data-workspace] data-theme could disagree —
+  //   see src/shared/theme/useWorkspaceTheme.ts.
   <ThemeProvider
     attribute="class"
     defaultTheme="light"
     enableSystem={false}
+    storageKey={THEME_STORAGE_KEY}
     disableTransitionOnChange
   >
   <StorageRepair />

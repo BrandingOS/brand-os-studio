@@ -387,10 +387,19 @@ export function parseRouterSource(text: string, file: string): ParsedRouter {
   const visit = (node: ts.Node, parentPath: string, devOnly: boolean) => {
     const nextDevOnly = devOnly || isDevGuard(node);
 
-    // A bare `{identifier}` in JSX position that resolves to an import is a
-    // route fragment — follow it rather than hardcoding router file paths.
+    // A bare `{identifier}` in JSX CHILD position that resolves to an import is
+    // a route fragment — follow it rather than hardcoding router file paths.
+    //
+    // The child check is load-bearing: `ts.isJsxExpression` is also true for an
+    // attribute VALUE, so without it any `someProp={ImportedThing}` in the
+    // router file is chased as a route fragment and then reported as a warning
+    // when the target has no <Route> in it. That is not hypothetical — it fired
+    // the moment `<ThemeProvider storageKey={THEME_STORAGE_KEY}>` was added.
+    // A fragment is always a child of <Routes>/<Route>, never an attribute.
     if (
       ts.isJsxExpression(node) &&
+      node.parent &&
+      (ts.isJsxElement(node.parent) || ts.isJsxFragment(node.parent)) &&
       node.expression &&
       ts.isIdentifier(node.expression) &&
       bindings.has(node.expression.getText())
