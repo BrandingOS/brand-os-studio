@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { CosmosShell } from '../components/CosmosShell';
@@ -30,6 +30,20 @@ export function CreateScreen() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
   const then = sp.get('then');
+
+  // Landing-page handoff: arriving with ?name=<brand> means the visitor
+  // already typed their brand name in the landing hero — prefill it and
+  // jump straight past the define step to "Pick the feel".
+  useEffect(() => {
+    const n = sp.get('name')?.trim();
+    if (n) {
+      const s = useV4Store.getState();
+      s.updateDefine({ name: n });
+      s.setStep(2);
+    }
+    // run once on mount — the param is a one-shot entry ticket
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const step = useV4Store((s) => s.step);
   const setStep = useV4Store((s) => s.setStep);
   const define = useV4Store((s) => s.define);

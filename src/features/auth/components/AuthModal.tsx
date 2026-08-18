@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,11 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
   const { switchToGuest, signIn: storeSignIn, setPlatformRole } = useSessionStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Where the visitor was headed before the auth wall (set by
+  // ProtectedRoute). Falls back to the dashboard.
+  const postAuthTarget =
+    (location.state as { from?: string } | null)?.from ?? '/dashboard';
 
   // Dev-only: signs in locally without touching Supabase at all (auth call,
   // getSession, everything). Only rendered when DEV_AUTH_BYPASS is true,
@@ -52,7 +57,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
     setPlatformRole('super_admin');
     toast.success('Signed in as local dev user — Supabase skipped');
     onClose();
-    navigate('/dashboard');
+    navigate(postAuthTarget);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +104,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
         toast.success('Welcome back!');
         onClose();
-        navigate('/dashboard');
+        navigate(postAuthTarget);
       } else if (mode === 'register') {
         if (!formData.email || !formData.password) {
           toast.error('Please fill in all required fields');
@@ -124,7 +129,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalP
 
         toast.success('Account created! Please check your email to verify your account.');
         onClose();
-        navigate('/dashboard');
+        navigate(postAuthTarget);
       } else if (mode === 'forgot') {
         if (!formData.email) {
           toast.error('Please enter your email address');

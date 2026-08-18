@@ -1,5 +1,5 @@
 import { ReactNode, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
@@ -11,12 +11,18 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, redirectTo = '/login' }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate(redirectTo);
+      // Remember the full intended destination (path + query) so the
+      // login flow can return here — e.g. the landing page's
+      // /onboard-brand/create?name=<brand> handoff survives the wall.
+      navigate(redirectTo, {
+        state: { from: location.pathname + location.search },
+      });
     }
-  }, [isAuthenticated, isLoading, navigate, redirectTo]);
+  }, [isAuthenticated, isLoading, navigate, redirectTo, location.pathname, location.search]);
 
   if (isLoading) {
     return (
