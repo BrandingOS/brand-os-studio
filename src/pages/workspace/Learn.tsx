@@ -21,7 +21,7 @@ const TUTORIALS: Tutorial[] = [
   {
     id: 'intro',
     eyebrow: 'Getting started',
-    title: 'What is BrandOS?',
+    title: 'What is BrandingOS?',
     sub: 'A 3-minute tour of the workspace, brand scope, and editor.',
     duration: '3 min',
     icon: '✦',
@@ -122,7 +122,7 @@ export default function WorkspaceLearn() {
       <main className="ws-outlet">
         <section className="ws-hero">
           <span className="ws-hero-eyebrow">Resources</span>
-          <h1 className="ws-hero-title">Learn BrandOS</h1>
+          <h1 className="ws-hero-title">Learn BrandingOS</h1>
           <p className="ws-hero-sub">
             Short, focused tutorials that take you from a blank workspace to a
             fully-expressed brand system.

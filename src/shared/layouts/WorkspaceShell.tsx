@@ -76,7 +76,7 @@ function readInitialTheme(): 'light' | 'dark' {
 
 export function WorkspaceShell({
   tabs: explicitTabs,
-  brandName = 'BrandOS',
+  brandName = 'BrandingOS',
   brandHome,
   rightActions,
   children,

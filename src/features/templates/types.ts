@@ -10,7 +10,7 @@ import { BrandOSDocumentSchema } from '@/features/editor/schema';
 // ─── Source discriminator ──────────────────────────────────────────────
 
 export const TemplateSourceSchema = z.enum([
-  'curated',          // BrandOS team-designed
+  'curated',          // BrandingOS team-designed
   'ai_editable',      // AI emitted a full BrandOSDocument
   'ai_rasterized',    // AI emitted a single image (PNG/SVG)
   'ai_prompt_preset', // pre-written prompt to seed an AI flow

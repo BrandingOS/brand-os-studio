@@ -2,7 +2,7 @@
  * AssetCard / AssetThumb — the canonical asset thumbnail components.
  *
  * SINGLE SOURCE OF TRUTH for rendering an asset (logo, photo, icon,
- * document) anywhere in BrandOS. Use these in ANY surface that shows brand
+ * document) anywhere in BrandingOS. Use these in ANY surface that shows brand
  * assets. Do NOT roll your own card with `<button class="aspect-square ...">
  * <img class="object-cover" .../></button>` — that pattern has been written
  * three different ways in three different files and broken three different

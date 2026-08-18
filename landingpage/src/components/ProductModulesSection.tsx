@@ -5,7 +5,7 @@ import { ArrowRight } from 'lucide-react';
 import { useEarlyAccess } from '@/components/EarlyAccessProvider';
 
 /**
- * ProductModulesSection — "Why Brand OS" + the all-in-one feature grid.
+ * ProductModulesSection — "Why BrandingOS" + the all-in-one feature grid.
  *
  * LIGHT surface — user explicitly asked for this NOT to be dark. Warm
  * cream bg matching the rest of the landing, with a subtle orange radial
@@ -18,12 +18,12 @@ export const ProductModulesSection = () => {
   return (
     <section className="section" id="features">
       <div className="container-tight">
-        {/* ── Why Brand OS intro ──────────────────────────────────── */}
+        {/* ── Why BrandingOS intro ──────────────────────────────────── */}
         <Reveal y={32} duration={0.55}>
           <div className="mx-auto max-w-3xl text-center mb-16 md:mb-20">
             <span className="eyebrow inline-flex items-center gap-2">
               <span className="h-1 w-1 rounded-full bg-accent-pop" />
-              Why Brand OS
+              Why BrandingOS
             </span>
             <h2 className="h-section mt-6">
               More than guidelines —

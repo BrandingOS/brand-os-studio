@@ -1,5 +1,5 @@
 /**
- * AppShell — The root layout wrapper for BrandOS.
+ * AppShell — The root layout wrapper for BrandingOS.
  *
  * Every page type composes from this shell. It provides:
  * - Consistent viewport management (overflow, height)

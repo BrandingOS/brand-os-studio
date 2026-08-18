@@ -274,7 +274,7 @@ export function ColophonPage({ brand, layout, pageNumber, totalPages }: FancyPag
         </div>
         <div className="mt-6 pt-3 border-t border-white/5">
           <p className="text-[8px] text-white/15">
-            This document is confidential. All brand assets, guidelines, and specifications are the property of {brand.name}. Generated with BrandOS.
+            This document is confidential. All brand assets, guidelines, and specifications are the property of {brand.name}. Generated with BrandingOS.
           </p>
         </div>
       </div>

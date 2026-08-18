@@ -4,7 +4,7 @@
  * Tracks the dirty state of a document, debounces saves, and reports a
  * normalized save state for UI display in EditorChrome's save indicator.
  *
- * Designed to be the SINGLE save model used by every editor in BrandOS,
+ * Designed to be the SINGLE save model used by every editor in BrandingOS,
  * killing the current zoo (localStorage debounce in Design Editor,
  * immediate per-change writes in Brand Edit, Supabase API in Guidelines,
  * none in Logo Maker, etc).

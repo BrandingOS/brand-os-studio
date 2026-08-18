@@ -91,7 +91,7 @@ export default function Footer() {
           {/* Bottom row */}
           <div className="relative mt-16 pt-8 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <p className="text-xs text-white/45">
-              © {new Date().getFullYear()} Brand OS. All rights reserved.
+              © {new Date().getFullYear()} BrandingOS. All rights reserved.
             </p>
             <div className="flex items-center gap-6 text-xs text-white/45">
               <span className="cursor-default">Privacy</span>

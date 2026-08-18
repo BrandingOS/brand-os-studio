@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* ──────────────────────────────────────────────────────────────────
-   Brand OS — Landing Page v5.1
-   v1 light editorial + Relume strong blocks + Brand OS accent orange.
+   BrandingOS — Landing Page v5.1
+   v1 light editorial + Relume strong blocks + BrandingOS accent orange.
    Refined type scale, wider container, color accents on key surfaces.
    ──────────────────────────────────────────────────────────────────
 */
@@ -46,8 +46,8 @@
     --panel: 0 0% 8%;
     --panel-foreground: 36 25% 96%;
 
-    /* ── Brand OS accent (the new color) ─────────────────────────── */
-    --accent-pop: 18 87% 54%;          /* #F36123 — Brand OS coral orange */
+    /* ── BrandingOS accent (the new color) ─────────────────────────── */
+    --accent-pop: 18 87% 54%;          /* #F36123 — BrandingOS coral orange */
     --accent-pop-fg: 0 0% 100%;
     --accent-pop-soft: 18 87% 95%;     /* very pale orange wash */
 
@@ -205,7 +205,7 @@
     box-shadow: var(--shadow-soft);
   }
 
-  /* The dark "strong block" used by Why Brand OS + Final CTA + Footer */
+  /* The dark "strong block" used by Why BrandingOS + Final CTA + Footer */
   .strong-block {
     background: hsl(var(--panel));
     color: hsl(var(--panel-foreground));

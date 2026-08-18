@@ -13,7 +13,7 @@ export default function ToolsDirectoryPage() {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = 'Free brand tools — BrandOS';
+    document.title = 'Free brand tools — BrandingOS';
     return () => {
       document.title = prev;
     };
@@ -25,7 +25,7 @@ export default function ToolsDirectoryPage() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <a href="/" className="flex items-center gap-2 text-sm font-semibold">
             <Sparkles className="h-4 w-4 text-primary" />
-            BrandOS
+            BrandingOS
           </a>
         </div>
       </header>
@@ -33,7 +33,7 @@ export default function ToolsDirectoryPage() {
       <section className="mx-auto max-w-5xl px-4 py-16">
         <h1 className="text-balance text-4xl font-bold tracking-tight">Free brand tools</h1>
         <p className="mt-2 max-w-2xl text-pretty text-muted-foreground">
-          Free, focused tools from the BrandOS suite. Use any of them
+          Free, focused tools from the BrandingOS suite. Use any of them
           without an account — sign up only when you want to save your
           work or unlock advanced exports.
         </p>

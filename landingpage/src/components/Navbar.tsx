@@ -11,7 +11,7 @@ const navItems = [
  * Navbar — v5 refined.
  *
  * Floating glass pill. Modern AI-tool-style logo (gradient sparkle
- * icon + "BrandOS" wordmark). Desktop: center nav + CTA. Mobile:
+ * icon + "BrandingOS" wordmark). Desktop: center nav + CTA. Mobile:
  * hide nav links + burger entirely — just logo + CTA. This avoids
  * the broken mobile hamburger and keeps the bar compact.
  */
@@ -24,12 +24,12 @@ export default function Navbar() {
         <div className="mx-auto max-w-5xl">
           <div className="nav-glass flex items-center justify-between rounded-full px-4 sm:px-5 py-2">
             {/* Logo — modern AI-tool style */}
-            <a href="#" className="flex items-center gap-2" aria-label="BrandOS">
+            <a href="#" className="flex items-center gap-2" aria-label="BrandingOS">
               <span className="navbar-logo-icon">
                 <Sparkles className="h-4 w-4" />
               </span>
               <span className="font-display text-base sm:text-lg font-bold tracking-tight">
-                BrandOS
+                BrandingOS
               </span>
             </a>
 

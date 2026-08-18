@@ -7,4 +7,4 @@ export const SLIDE_ASPECT = SLIDE_WIDTH / SLIDE_HEIGHT;
 export const DECK_STORAGE_KEY = 'brandos:case-study-deck:v1';
 
 /** Default designer credit, used when the brand has no author override. */
-export const DEFAULT_CREDIT = 'Designed with BrandOS';
+export const DEFAULT_CREDIT = 'Designed with BrandingOS';

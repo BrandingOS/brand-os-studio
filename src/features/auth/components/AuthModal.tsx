@@ -145,7 +145,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
           setResendIn(60);
           return;
         }
-        toast.success('Welcome to BrandOS!');
+        toast.success('Welcome to BrandingOS!');
         onClose();
         navigate(destination, { replace: true });
       } else if (mode === 'forgot') {
@@ -177,7 +177,7 @@ export function AuthModal({ isOpen, onClose, defaultMode = 'login', next }: Auth
         setCode('');
         return;
       }
-      toast.success('Email confirmed — welcome to BrandOS!');
+      toast.success('Email confirmed — welcome to BrandingOS!');
       onClose();
       navigate(destination, { replace: true });
     } finally {

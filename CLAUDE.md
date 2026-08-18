@@ -1359,10 +1359,18 @@ The auth session layer was rebuilt after twenty stacked `fix(auth)` patches
   `SIGNUP_CODE_LENGTH`) → `verifySignupCode` (`verifyOtp type:'signup'`) →
   session → `becomeAuthenticated`. Logging in with an unconfirmed address
   re-sends the code and opens the same panel. There is no confirm-password
-  field. **Until custom SMTP is configured, Supabase's built-in mailer only
-  delivers to project team-member addresses and rejects others with
-  `email_address_invalid`** — real sign-ups need an SMTP provider set in the
-  Supabase dashboard (Authentication → SMTP).
+  field.
+- **Transactional e-mail goes through Resend** (custom SMTP set 2026-08-18:
+  `smtp.resend.com:465`, user `resend`, sender `BrandingOS
+  <no-reply@brandingos.ai>`, domain verified, `rate_limit_email_sent=60`/h,
+  Site URL `https://demo.brandingos.ai`). The Resend key lives ONLY in
+  Supabase's auth config — never in the repo or `.env`. Before this, the
+  built-in mailer delivered only to team-member addresses (2/h) and rejected
+  everyone else with `email_address_invalid`. Logo PNGs for e-mails are in the
+  public Storage bucket `email-assets`. Templates are versioned under
+  `supabase/templates/auth/` and pushed with `scripts/push-auth-templates.mjs`.
+- **The product name is "BrandingOS"** (renamed from BrandOS/Brand OS in all
+  user-facing strings 2026-08-18; localStorage keys stay `brandos:*`).
 - **Password reset:** `sessionStore.recovery` is set by `PASSWORD_RECOVERY`;
   the reset page is valid when that flag is set or the link carried a recovery
   hash / PKCE code and a session now exists.

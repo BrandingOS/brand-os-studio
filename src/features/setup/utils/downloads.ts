@@ -277,7 +277,7 @@ function buildCombinedFontCss(
   }>,
   woff2Map: Map<string, string>,
 ): string {
-  const parts: string[] = [`/* ${family} — BrandOS export */`, ''];
+  const parts: string[] = [`/* ${family} — BrandingOS export */`, ''];
   for (const v of ttfVariants) {
     if (!v.ttfName) continue;
     const sources: string[] = [];

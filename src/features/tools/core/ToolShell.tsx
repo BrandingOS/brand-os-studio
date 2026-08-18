@@ -20,7 +20,7 @@
  *    can pass `left` + `center` + `right`.
  *
  * The chrome uses the canonical EditorChrome (`h-12`) so this matches
- * every other editor in BrandOS.
+ * every other editor in BrandingOS.
  */
 import type { ReactNode } from 'react';
 import { EditorChrome } from '@/features/editor/core';

@@ -2,7 +2,7 @@
  * Variable-Based Template System — Core Types
  *
  * A TemplateDefinition is the portable JSON format that describes any
- * design in BrandOS. Every visual property can be bound to a variable
+ * design in BrandingOS. Every visual property can be bound to a variable
  * (brand color, font, logo, user-editable text). The resolution engine
  * takes a template + brand → resolved design ready to render.
  */

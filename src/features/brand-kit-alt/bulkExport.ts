@@ -129,7 +129,7 @@ function buildFontsTxt(brand: Brand): string {
 
 function buildReadme(brand: Brand): string {
   return `${brand.name} — Brand Kit
-Generated ${new Date().toLocaleString()} by BrandOS
+Generated ${new Date().toLocaleString()} by BrandingOS
 
 Contents
 ========
@@ -139,7 +139,7 @@ colors/       Palette in JSON / CSS / SCSS / SVG / TXT (with HEX / RGB / CMYK)
 typography/   Font names + Google Fonts links
 favicons/     16, 32, 48, 64, 128, 256, 512 PNG + favicon.ico
 
-Need help? Open BrandOS at /b/${brand.slug}/kit
+Need help? Open BrandingOS at /b/${brand.slug}/kit
 `;
 }
 

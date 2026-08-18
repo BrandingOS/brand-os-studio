@@ -10,7 +10,7 @@
  *
  * Shares the exact same chrome as the standalone page (cosmos shell +
  * 3-col `ms-shell` grid). The cosmos shell auto-detects `/b/:slug/*` and
- * swaps the top-left BrandOS mark for a BrandSwitcher, so brand context
+ * swaps the top-left BrandingOS mark for a BrandSwitcher, so brand context
  * comes for free.
  */
 

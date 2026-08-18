@@ -1,5 +1,5 @@
 /**
- * Service contracts for BrandOS.
+ * Service contracts for BrandingOS.
  *
  * These interfaces define the API between the UI layer and the data layer.
  * Implementations can be:

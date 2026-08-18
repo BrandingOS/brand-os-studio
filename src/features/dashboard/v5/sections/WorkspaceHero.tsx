@@ -56,7 +56,7 @@ export function WorkspaceHero({ brandsCount, onCreateBrand, mode }: WorkspaceHer
           <div className="max-w-2xl">
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-background/40 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground backdrop-blur">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-              BrandOS · Workspace
+              BrandingOS · Workspace
             </p>
             <h1 className="font-display text-4xl font-bold tracking-[-0.03em] text-foreground md:text-5xl lg:text-6xl">
               {greeting}, {firstName}.

@@ -24,7 +24,7 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       'balanced shade ramps, semantic tokens, accessible pairings, live UI ' +
       'previews, and production-ready exports — all in one place.',
     seo: {
-      title: 'UI Color System Generator — BrandOS',
+      title: 'UI Color System Generator — BrandingOS',
       description:
         'Generate a complete UI color system from one brand color. Shades, ' +
         'semantic tokens, WCAG + APCA contrast testing, Tailwind/CSS/JSON exports.',
@@ -75,7 +75,7 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       'Pick a font pair, tune the scale for web, UI, presentations, and social — then export ' +
       'CSS, Tailwind v3/v4, SCSS, W3C design tokens, and Figma Tokens Studio. Free.',
     seo: {
-      title: 'Typescale Generator — Build a typography system — BrandOS',
+      title: 'Typescale Generator — Build a typography system — BrandingOS',
       description:
         'Free modern typescale tool. Pick Google Fonts, generate a fluid scale, export CSS, ' +
         'Tailwind, and W3C design tokens.',
@@ -95,7 +95,7 @@ export const TOOL_REGISTRY: Record<ToolSlug, ToolMeta> = {
       'Tint t-shirt / mug / card colors, swap backgrounds, and export studio-quality PNGs. ' +
       'Connect a brand to auto-fill every template with your logo and palette.',
     seo: {
-      title: 'Free Mockup Generator — T-shirts, mugs, cards & more — BrandOS',
+      title: 'Free Mockup Generator — T-shirts, mugs, cards & more — BrandingOS',
       description:
         'Free online mockup generator. Upload a logo or design and see it composited ' +
         'on t-shirts, mugs, business cards, and more. Export at up to 2x. Brand-aware.',

@@ -88,7 +88,7 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.24, ease }}
             className="text-center max-w-lg mx-auto mt-12 text-base md:text-lg text-muted-foreground leading-relaxed"
           >
-            BrandOS connects your strategy, identity, and outputs into{' '}
+            BrandingOS connects your strategy, identity, and outputs into{' '}
             <span className="text-accent-pop font-semibold">one source of truth</span>.
           </motion.p>
 

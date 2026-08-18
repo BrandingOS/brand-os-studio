@@ -65,7 +65,7 @@ export default function AccountSettingsPage() {
           Interface
         </h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Choose the BrandOS experience for new brand entry points. You
+          Choose the BrandingOS experience for new brand entry points. You
           can switch back any time.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

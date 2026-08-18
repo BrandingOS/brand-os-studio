@@ -1,7 +1,7 @@
 /**
  * ToolLanding — public landing template shared by every tool.
  *
- * Hero + value props + upload card + "made with BrandOS" footer.
+ * Hero + value props + upload card + "made with BrandingOS" footer.
  * Each tool passes its meta and an `onLaunch` handler that receives
  * the user's source asset (file or pasted SVG string) and routes
  * them into the studio.
@@ -105,7 +105,7 @@ export function ToolLanding({
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <a href="/" className="flex items-center gap-2 text-sm font-semibold">
             <Sparkles className="h-4 w-4 text-primary" />
-            BrandOS
+            BrandingOS
           </a>
           <nav className="flex items-center gap-2 text-sm">
             <a href="/tools" className="text-muted-foreground hover:text-foreground">
@@ -205,7 +205,7 @@ export function ToolLanding({
 
       <footer className="border-t bg-background py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-xs text-muted-foreground sm:flex-row">
-          <span>Made with BrandOS · A free tool from the BrandOS suite</span>
+          <span>Made with BrandingOS · A free tool from the BrandingOS suite</span>
           <a href="/tools" className="hover:text-foreground">
             See all tools →
           </a>

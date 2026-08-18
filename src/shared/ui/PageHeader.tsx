@@ -1,7 +1,7 @@
 /**
  * PageHeader — the canonical page-level header.
  *
- * Every `AppPage` template page in BrandOS uses this header. Don't roll your own
+ * Every `AppPage` template page in BrandingOS uses this header. Don't roll your own
  * `<div className="mb-8 flex items-center gap-4"><h1>...</h1></div>`. Use this.
  *
  * See docs/ux-redesign/ARCHITECTURE.md §5.5 for the spec.

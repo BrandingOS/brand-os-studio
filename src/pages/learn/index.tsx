@@ -2,7 +2,7 @@
  * Learn — workspace-level tutorials and brand education.
  *
  * 8 lessons covering brand fundamentals, color theory, typography,
- * and BrandOS product walkthrough. Progress tracked in localStorage.
+ * and BrandingOS product walkthrough. Progress tracked in localStorage.
  */
 import { useState } from 'react';
 import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
@@ -46,7 +46,7 @@ const LESSONS: Lesson[] = [
       'Color is the first thing people notice about your brand. Studies show that color increases brand recognition by up to 80%. Choose intentionally.',
       'Start with psychology: Blue conveys trust (finance, tech). Red signals energy and urgency (food, retail). Green suggests growth and nature. Purple implies creativity and luxury. Orange feels friendly and accessible.',
       'Build a palette with hierarchy: Primary (60% usage — your main brand color), Secondary (30% — complementary or neutral), Accent (10% — calls to action, highlights).',
-      'Contrast matters for accessibility. WCAG AA requires a 4.5:1 contrast ratio for normal text. Use BrandOS\'s built-in contrast checker on the Analytics page to verify your colors pass.',
+      'Contrast matters for accessibility. WCAG AA requires a 4.5:1 contrast ratio for normal text. Use BrandingOS\'s built-in contrast checker on the Analytics page to verify your colors pass.',
       'Test your palette in context: Will it work on a white website? A dark app? A printed business card? A social media post? Colors that look great on screen may need adjustment for print (RGB to CMYK).',
       'Limit your palette. The most iconic brands use 2-3 colors max. Coca-Cola is red and white. Spotify is green and black. Simplicity is memorable.',
     ],
@@ -82,7 +82,7 @@ const LESSONS: Lesson[] = [
     content: [
       'A great logo is simple enough to work at 16px (favicon) and beautiful enough to work at 16 feet (billboard). If your logo doesn\'t work in black and white, the color is doing all the work.',
       'The best logos are built on a concept — not decoration. The FedEx arrow, the Amazon smile, the Spartan Golf Club golfer. Meaning makes a logo memorable.',
-      'You need variants: Full logo (horizontal), stacked/vertical, icon-only, wordmark-only, dark-on-light, light-on-dark. BrandOS generates these automatically in the Logo Files module.',
+      'You need variants: Full logo (horizontal), stacked/vertical, icon-only, wordmark-only, dark-on-light, light-on-dark. BrandingOS generates these automatically in the Logo Files module.',
       'Clear space: Every logo needs breathing room. Define a minimum clear space (usually the height of one letter in your wordmark) and enforce it everywhere.',
       'Test at every size: Profile picture (32px), app icon (512px), business card, billboard, embroidery. A logo that only works at one size isn\'t finished.',
     ],
@@ -101,11 +101,11 @@ const LESSONS: Lesson[] = [
     ],
   },
   {
-    id: 'tour-brandos', title: 'Tour BrandOS',
+    id: 'tour-brandos', title: 'Tour BrandingOS',
     description: 'A guided walkthrough of the workspace, brand sections, and editors.',
     icon: GraduationCap, accent: 'from-cyan-500 to-blue-600', duration: '4 min',
     content: [
-      'BrandOS is organized in three scopes: Workspace (your home base, all brands), Brand (one brand\'s identity and assets), and Editor (focused creation tools).',
+      'BrandingOS is organized in three scopes: Workspace (your home base, all brands), Brand (one brand\'s identity and assets), and Editor (focused creation tools).',
       'The Brand scope has five sections: Overview (your brand at a glance), Identity (logo, colors, type, voice, strategy), Assets (categorized deliverables), Guidelines (the brand book), and Share (public links and exports).',
       'Identity is a tabbed page — Logo, Colors, Typography, Voice, Strategy. Each tab inline-mounts a module from the Brand Kit. Changes auto-save.',
       'The Brand Kit (/kit) is the power user\'s hub with 18 modules: from business cards to social media templates, from QR codes to brand guides. Every template can be customized and exported.',
@@ -118,10 +118,10 @@ const LESSONS: Lesson[] = [
     icon: BookOpen, accent: 'from-orange-500 to-red-600', duration: '5 min',
     content: [
       'Consistency doesn\'t mean repetition. It means every brand expression — however creative — is recognizably "you." Think of how Apple\'s product packaging, website, retail stores, and ads all feel unified without being identical.',
-      'Create a single source of truth. BrandOS\'s guidelines page is your canonical brand book. When anyone asks "what font do we use?" or "what\'s our primary color?" — point them there.',
+      'Create a single source of truth. BrandingOS\'s guidelines page is your canonical brand book. When anyone asks "what font do we use?" or "what\'s our primary color?" — point them there.',
       'Define rules for the common scenarios: email signatures, social media posts, presentation decks, print materials. Templates are your best friend — they encode decisions so people don\'t have to guess.',
       'Audit regularly. Set a monthly reminder to review your public-facing materials. Are colors drifting? Are old logos still in use? Are partner sites using outdated assets? Fix drift before it compounds.',
-      'Empower your team. Brand guidelines that sit in a PDF nobody reads are useless. Share your BrandOS showcase link with everyone — designers, marketers, partners, vendors. Make it easy to get it right.',
+      'Empower your team. Brand guidelines that sit in a PDF nobody reads are useless. Share your BrandingOS showcase link with everyone — designers, marketers, partners, vendors. Make it easy to get it right.',
     ],
   },
 ];
