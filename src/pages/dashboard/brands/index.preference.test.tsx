@@ -39,6 +39,7 @@ beforeEach(() => {
   useBrandStore.setState({
     list: [fakeBrand('raqm'), fakeBrand('skam')],
     isLoading: false,
+    listReady: true,
     loadAll: vi.fn(),
   } as never);
   lastPath = '';

@@ -15,7 +15,7 @@ import { BrandCardMenu } from '@/features/dashboard/components/BrandCardMenu';
 export default function BrandsPage() {
   const navigate = useNavigate();
   const [discarding, setDiscarding] = useState<{ id: string; name: string } | null>(null);
-  const { list: brands, loadAll, isLoading } = useBrandStore();
+  const { list: brands, loadAll, isLoading, listReady, error: loadError } = useBrandStore();
   const uiPreference = useUiPreference();
 
   // Brand-entry URLs respect the user's UI preference. Both namespaces
@@ -55,7 +55,9 @@ export default function BrandsPage() {
           }
         />
 
-        {isLoading ? (
+        {/* Loading until the current user's list is CONFIRMED — an empty
+            list before that is "not loaded", not "no brands". */}
+        {isLoading || (!listReady && !loadError) ? (
           <Card>
             <CardContent className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />

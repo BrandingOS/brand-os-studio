@@ -152,6 +152,11 @@ export function becomeAuthenticated(user: SupabaseUser): void {
   }
   activeUserId = user.id;
   reconfigureForAuth(true);
+  // A different identity owns the data from here on. Whatever the brand
+  // store holds (guest examples, or the previous user's brands) must never
+  // be shown to this user — drop it before the first paint, and let the
+  // reload below re-fill it. In-flight loads for the old scope are voided.
+  useBrandStore.getState().resetScope();
   store().signIn(mapped);
   runSignedInSideEffects(user.id);
 }
@@ -162,6 +167,8 @@ export function becomeGuest(): void {
   reconfigureForAuth(false);
   if (wasAuthed) {
     useWorkspaceStore.getState().reset();
+    // The signed-out user's brands must not linger for the next visitor.
+    useBrandStore.getState().resetScope();
     useBrandStore.getState().loadAll().catch(console.error);
   }
   store().signOut();
