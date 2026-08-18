@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { DsBanner, DsButton, DsInput } from '@/shared/ds';
 import { useSessionStore } from '@/shared/store/sessionStore';
+import { initialsFromName } from '@/shared/utils/initials';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   SettingsRow,
@@ -85,12 +86,7 @@ export default function AccountSettingsPage() {
     }
   }, [current, next]);
 
-  const initials = (user?.name ?? 'U')
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = initialsFromName(user?.name);
 
   const nameDirty = name.trim().length > 0 && name.trim() !== (user?.name ?? '');
   const emailDirty = email.trim().length > 0 && email.trim() !== (user?.email ?? '');

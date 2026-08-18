@@ -151,7 +151,7 @@ export default function PlansPage() {
   }, [workspace?.id]);
 
   return (
-    <SettingsSections>
+    <SettingsSections wide>
       <SettingsSection
         title="Your plan"
         description={loading ? undefined : statusLine(sub)}

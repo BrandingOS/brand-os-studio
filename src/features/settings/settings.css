@@ -17,6 +17,13 @@
   max-width: 720px;
 }
 
+/* A form reads best in one narrow column, but a three-up pricing grid does not
+ * fit in one — at 720px minus the section's padding, the third tier wrapped to
+ * its own row with dead space beside it. */
+[data-workspace] .settings-sections.is-wide {
+  max-width: 960px;
+}
+
 [data-workspace] .settings-section {
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-card);

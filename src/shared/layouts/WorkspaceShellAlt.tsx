@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useWorkspaceTheme } from '@/shared/theme/useWorkspaceTheme';
+import { initialsFromName } from '@/shared/utils/initials';
 import '@/shared/styles/workspace.css';
 import '@/shared/styles/workspace-home.css';
 
@@ -23,14 +24,6 @@ import '@/shared/styles/workspace-home.css';
  *   - Theme goes through useWorkspaceTheme, so the choice carries across
  *     shells AND across next-themes' <html> class.
  */
-
-function initialsFromName(name?: string): string {
-  if (!name) return 'JT';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'JT';
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 export function WorkspaceShell({
   brandName = 'BrandOS',
@@ -69,7 +62,7 @@ export function WorkspaceShell({
     };
   }, [menuOpen]);
 
-  const initials = initialsFromName(user?.name);
+  const initials = initialsFromName(user?.name, 'JT');
   const displayName = user?.name ?? 'Guest';
 
   return (
