@@ -1,10 +1,10 @@
 # Variable-Based Template System — Architecture & Study
 
-> Generated: 2026-04-11 | This is the blueprint for BrandOS's core differentiator.
+> Generated: 2026-04-11 | This is the blueprint for BrandingOS's core differentiator.
 
 ## The Vision
 
-Every design in BrandOS is built with **variables**. Colors, fonts, logos, text — all bound to brand data. When a brand selects a template, it instantly adapts to their identity. No manual work. A marketplace where anyone can create variable-bound templates. Applied everywhere: business cards, social media, brand guidelines, presentations, invoices, mockups.
+Every design in BrandingOS is built with **variables**. Colors, fonts, logos, text — all bound to brand data. When a brand selects a template, it instantly adapts to their identity. No manual work. A marketplace where anyone can create variable-bound templates. Applied everywhere: business cards, social media, brand guidelines, presentations, invoices, mockups.
 
 ## How It Works
 

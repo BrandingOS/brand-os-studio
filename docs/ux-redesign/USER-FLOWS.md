@@ -1,4 +1,4 @@
-# BrandOS User Flows
+# BrandingOS User Flows
 
 > Personas, user stories, and end-to-end flows. Every architectural decision in
 > `ARCHITECTURE.md` must serve at least one of these.
@@ -56,7 +56,7 @@
 - **US2** As Maya, after I make a logo, I see "Save to brand" and the next step is obvious.
 - **US3** As Priya, I can switch between brands from anywhere in two clicks max.
 - **US4** As Tomás, I can pick a template, answer minimal questions, and download.
-- **US5** As Riley, when I open BrandOS I see "Continue editing X" front and center.
+- **US5** As Riley, when I open BrandingOS I see "Continue editing X" front and center.
 - **US6** As any user, every link in the sidebar leads to a working page.
 
 ### Should-have (P1)

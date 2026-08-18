@@ -1,4 +1,4 @@
-# BrandOS — Feature Inventory
+# BrandingOS — Feature Inventory
 
 Tracks the status of user-facing features. One row per feature.
 

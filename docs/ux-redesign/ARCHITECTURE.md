@@ -1,13 +1,13 @@
-# BrandOS Architecture — Target State
+# BrandingOS Architecture — Target State
 
 > This document defines the new information architecture, navigation, page templates,
-> and feature placement for BrandOS. Decisions are justified, not just stated.
+> and feature placement for BrandingOS. Decisions are justified, not just stated.
 
 ---
 
 ## 1. Top-Level Information Architecture
 
-BrandOS has **three scopes**. Every screen belongs to exactly one.
+BrandingOS has **three scopes**. Every screen belongs to exactly one.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐

@@ -1,11 +1,11 @@
-# BrandOS Project Master Document
+# BrandingOS Project Master Document
 
 > **The Operating System for Modern Brands**
 > Single source of truth for development, strategy, and execution.
 
 | Field | Value |
 |---|---|
-| **Project** | BrandOS Studio |
+| **Project** | BrandingOS Studio |
 | **Version** | 2.0 |
 | **Date** | 2026-03-31 |
 | **Status** | Pre-Launch / Active Development |
@@ -34,7 +34,7 @@
 ## 1. Executive Summary
 
 ### Vision
-BrandOS is an AI-powered SaaS platform that enables designers, agencies, and startups to create, manage, and export complete brand systems from a single unified platform. It covers the full brand lifecycle: **Create -> Systemize -> Apply -> Maintain**.
+BrandingOS is an AI-powered SaaS platform that enables designers, agencies, and startups to create, manage, and export complete brand systems from a single unified platform. It covers the full brand lifecycle: **Create -> Systemize -> Apply -> Maintain**.
 
 ### Current State
 The project has solid UI foundations — a polished landing page, working auth (Supabase), a comprehensive 7-step onboarding wizard, a basic dashboard, and a slide-based guidelines editor. However, the core value-generating features (AI assistance, exports, collaboration, WCAG color logic, brand applications) are **entirely unbuilt**. Only ~25% of BRD features are implemented.
@@ -47,7 +47,7 @@ The project has solid UI foundations — a polished landing page, working auth (
 5. **No collaboration** — single-user only
 
 ### Strategic Position
-BrandOS occupies a genuine market gap: no existing tool covers the full brand lifecycle from AI-assisted creation through dynamic guidelines to ongoing management at accessible pricing. The competitive window is real but narrowing as Canva and Figma add AI branding features.
+BrandingOS occupies a genuine market gap: no existing tool covers the full brand lifecycle from AI-assisted creation through dynamic guidelines to ongoing management at accessible pricing. The competitive window is real but narrowing as Canva and Figma add AI branding features.
 
 | Competitor | Threat Level | Why |
 |---|---|---|
@@ -65,7 +65,7 @@ BrandOS occupies a genuine market gap: no existing tool covers the full brand li
 Enable anyone to build, systemize, and scale professional brand systems effortlessly — powered by AI, accessible by design.
 
 ### Value Proposition
-BrandOS is the **only platform** that combines:
+BrandingOS is the **only platform** that combines:
 - AI-assisted brand **creation** (not just logos — full strategy, voice, colors, typography)
 - Dynamic, rule-based **guidelines** (living systems, not static PDFs)
 - Instant brand **applications** (business cards, social kits, mockups)
@@ -93,7 +93,7 @@ BrandOS is the **only platform** that combines:
                         CREATION CAPABILITY
                               HIGH
                                |
-                    BrandOS*    |
+                    BrandingOS*    |
                    (target)     |
           Looka  *              |
         Brandmark *             |
@@ -280,7 +280,7 @@ BrandOS is the **only platform** that combines:
 
 ### Epic 2: AI Integration (P0 — Core Differentiator)
 
-**Business Value:** THE primary differentiator. AI transforms BrandOS from "another brand tool" to "the AI operating system for brands." Without this, the product has no competitive moat.
+**Business Value:** THE primary differentiator. AI transforms BrandingOS from "another brand tool" to "the AI operating system for brands." Without this, the product has no competitive moat.
 
 | ID | User Story | Acceptance Criteria | Size |
 |---|---|---|---|
@@ -298,7 +298,7 @@ BrandOS is the **only platform** that combines:
 
 ### Epic 3: Export Engine (P0 — Core Value Delivery)
 
-**Business Value:** Exports make the product tangible. Without exports, users cannot share or use their brand system outside BrandOS. Every competitor can produce output.
+**Business Value:** Exports make the product tangible. Without exports, users cannot share or use their brand system outside BrandingOS. Every competitor can produce output.
 
 | ID | User Story | Acceptance Criteria | Size |
 |---|---|---|---|
@@ -392,7 +392,7 @@ BrandOS is the **only platform** that combines:
 
 ### Epic 9: Templates & Content Library (P2)
 
-**Business Value:** Growth driver. More templates = more reasons to use BrandOS. Foundation for future marketplace.
+**Business Value:** Growth driver. More templates = more reasons to use BrandingOS. Foundation for future marketplace.
 
 | ID | User Story | Acceptance Criteria | Size |
 |---|---|---|---|
@@ -563,7 +563,7 @@ CREATE TABLE custom_domains (...);
 
 | # | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|---|
-| R1 | **Canva/Figma adds full brand creation features** before BrandOS launches | Medium | High | Speed to market. Focus on depth of brand system (lifecycle) vs breadth of design tools |
+| R1 | **Canva/Figma adds full brand creation features** before BrandingOS launches | Medium | High | Speed to market. Focus on depth of brand system (lifecycle) vs breadth of design tools |
 | R2 | **Security breach** due to committed credentials | High (if not fixed) | Critical | Epic 0 Sprint 1 — fix immediately before any public launch |
 | R3 | **AI costs exceed budget** at scale | Medium | Medium | Implement rate limiting, caching, and tiered access. Use smaller models for simple suggestions |
 | R4 | **Single developer bottleneck** | High | High | Document architecture decisions, keep code simple, prioritize ruthlessly |
@@ -578,7 +578,7 @@ CREATE TABLE custom_domains (...);
 
 ### 10.1 Competitive Feature Matrix (Detailed)
 
-| Capability | BrandOS (Target) | Canva | Figma | Frontify | Looka | Bynder |
+| Capability | BrandingOS (Target) | Canva | Figma | Frontify | Looka | Bynder |
 |---|---|---|---|---|---|---|
 | AI brand strategy generation | Yes | No | No | No | Logo only | No |
 | AI color suggestions | Yes | Limited | No | No | Basic | No |
@@ -628,7 +628,7 @@ CREATE TABLE custom_domains (...);
 | **Template** | A visual layout style applied to guidelines or brand applications |
 | **Public Showcase** | Publicly accessible brand guideline page with unique URL |
 | **Brand Application** | Tangible brand material generated from the brand system (business card, letterhead, social post) |
-| **Vibe Coding** | The development methodology used for building BrandOS (rapid, AI-assisted development) |
+| **Vibe Coding** | The development methodology used for building BrandingOS (rapid, AI-assisted development) |
 
 ---
 
@@ -636,7 +636,7 @@ CREATE TABLE custom_domains (...);
 
 ---
 
-*Generated 2026-03-31 by BrandOS Multi-Agent Analysis System*
+*Generated 2026-03-31 by BrandingOS Multi-Agent Analysis System*
 *Agents: Documentation Auditor, Codebase Auditor, Competitive Intelligence, Senior PM*
 
 ---

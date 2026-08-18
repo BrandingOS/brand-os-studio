@@ -1,8 +1,8 @@
-# Brand OS — Landing Page (standalone)
+# BrandingOS — Landing Page (standalone)
 
 A self-contained Vite + React + TypeScript + Tailwind project. Deploy this
 folder alone to publish the public landing page without shipping the rest
-of the BrandOS app.
+of the BrandingOS app.
 
 The only call-to-action is **early access** (email signup). No dashboard,
 no auth, no pricing.
@@ -138,7 +138,7 @@ landingpage/
         └── FinalCTASection.tsx
 ```
 
-## What's different from the version inside the main BrandOS app
+## What's different from the version inside the main BrandingOS app
 
 The main app's landing page (`src/pages/Index.tsx`) imports auth, the
 onboarding store, and a Pricing section, all of which only make sense

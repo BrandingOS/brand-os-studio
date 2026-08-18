@@ -1,4 +1,4 @@
-# BrandOS Studio — Product Roadmap
+# BrandingOS Studio — Product Roadmap
 
 > Generated: 2026-04-10 | Updated: 2026-04-10
 > All 11 phases completed in a single session. Phase 12 (Performance) is ongoing.
@@ -8,7 +8,7 @@
 
 ## Where We Are Now
 
-BrandOS has completed its **UX Foundation Redesign** — collapsing a fragmented 7-sidebar + 18-submenu architecture into a clean 3-scope / 5-section model. The v5 landing page is synced to the main app. The core brand workflow (create → identity → assets → guidelines → share) is functional end-to-end with local + Supabase persistence.
+BrandingOS has completed its **UX Foundation Redesign** — collapsing a fragmented 7-sidebar + 18-submenu architecture into a clean 3-scope / 5-section model. The v5 landing page is synced to the main app. The core brand workflow (create → identity → assets → guidelines → share) is functional end-to-end with local + Supabase persistence.
 
 ### Completed Phases
 
@@ -32,7 +32,7 @@ BrandOS has completed its **UX Foundation Redesign** — collapsing a fragmented
 
 ## Phase 1 — Editor Unification & Polish (Priority: HIGH)
 
-**Goal**: Every editor in BrandOS uses the same topbar, save pattern, and keyboard shortcuts.
+**Goal**: Every editor in BrandingOS uses the same topbar, save pattern, and keyboard shortcuts.
 
 | # | Task | Scope | Effort | Status |
 |---|------|-------|--------|--------|

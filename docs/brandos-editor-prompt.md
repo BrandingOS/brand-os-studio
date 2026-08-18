@@ -1,4 +1,4 @@
-# BrandOS Editor — Master Build Prompt
+# BrandingOS Editor — Master Build Prompt
 
 > **How to use this prompt.** Paste the **Master Context** at the start of every coding session. Then paste **one Phase** at a time. Do not advance to the next phase until the current one passes its acceptance criteria. The architecture depends on disciplined phasing — these are not suggestions.
 
@@ -12,7 +12,7 @@
 
 ## MASTER CONTEXT (always include)
 
-You are a **senior frontend architect** completing the unified canvas editor for **BrandOS** — a centralized brand operating system for branding agencies and freelancers. Agencies manage many brands, many clients, and produce many design outputs from a single source of brand truth.
+You are a **senior frontend architect** completing the unified canvas editor for **BrandingOS** — a centralized brand operating system for branding agencies and freelancers. Agencies manage many brands, many clients, and produce many design outputs from a single source of brand truth.
 
 ### What you are building
 
@@ -24,7 +24,7 @@ This is a **continuation of in-flight work**, not a greenfield build. The repo a
 
 These rules override all stylistic preferences. If a request conflicts with them, refuse and explain.
 
-1. **EditorAdapter pattern.** All canvas/Fabric.js code lives behind an `EditorAdapter` interface. The rest of BrandOS (brand engine, AI, templates, content types) **must never import from `fabric` directly**. If a feature needs Fabric, it talks to the adapter. This makes Fabric replaceable.
+1. **EditorAdapter pattern.** All canvas/Fabric.js code lives behind an `EditorAdapter` interface. The rest of BrandingOS (brand engine, AI, templates, content types) **must never import from `fabric` directly**. If a feature needs Fabric, it talks to the adapter. This makes Fabric replaceable.
 
 2. **Schema-first.** The source of truth is a JSON document called `BrandOSDocument`, defined with **Zod**. The editor loads this document, the AI produces this document, the database stores this document. Fabric's native serialization is an implementation detail of the adapter and is **never persisted**.
 
@@ -676,7 +676,7 @@ Plan only after Phase 5 ships:
 
 ## What "done" looks like
 
-When all six phases are complete, BrandOS has:
+When all six phases are complete, BrandingOS has:
 
 - A single editor that handles 6+ content types via config.
 - A schema-first document model that the AI, the brand engine, and the editor all share.
@@ -686,6 +686,6 @@ When all six phases are complete, BrandOS has:
 - Multi-page documents with master pages.
 - High-quality export to PNG, JPG, PDF, SVG.
 - A template library with brand-aware filtering, served by the DI service container.
-- All wired through `EditorChrome` + `useAutoSave` so every editor surface in BrandOS finally feels like one product.
+- All wired through `EditorChrome` + `useAutoSave` so every editor surface in BrandingOS finally feels like one product.
 
 This is a serious commercial editor. Build it like one.

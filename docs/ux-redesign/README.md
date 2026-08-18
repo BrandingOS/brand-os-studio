@@ -1,6 +1,6 @@
-# BrandOS UX Redesign — Planning & Execution Hub
+# BrandingOS UX Redesign — Planning & Execution Hub
 
-> Started 2026-04-07. This folder is the source of truth for the BrandOS structural overhaul:
+> Started 2026-04-07. This folder is the source of truth for the BrandingOS structural overhaul:
 > diagnosis, principles, target architecture, user flows, and the rolling execution log.
 
 ## Documents
@@ -16,7 +16,7 @@
 
 ## 1. The Brief
 
-BrandOS today is **a collection of features wired into routes, not a coherent product**. The
+BrandingOS today is **a collection of features wired into routes, not a coherent product**. The
 codebase has grown by addition: each feature (logo maker, logo presentation, brandkit, guidelines,
 design editor, brand edit) was built as its own island, with its own layout, its own toolbar
 language, its own save semantics, and its own relationship to the Brand object. The user lands in
@@ -126,7 +126,7 @@ imported by zero consumers.** Someone tried to start unifying and stopped.
 
 ---
 
-## 4. UX Principles for BrandOS
+## 4. UX Principles for BrandingOS
 
 These are the rules everything below follows.
 

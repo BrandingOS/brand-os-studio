@@ -1,9 +1,9 @@
-# BrandOS — UI/UX Redesign Brief
+# BrandingOS — UI/UX Redesign Brief
 
 > **Audience:** an AI UI/UX generator (v0, Lovable, Galileo, Figma AI, Bolt,
 > Cursor with a UI agent) **or** a senior product designer.
 >
-> **Mission:** redraw BrandOS from scratch as a coherent, premium creative
+> **Mission:** redraw BrandingOS from scratch as a coherent, premium creative
 > SaaS product. Use this brief as your source of truth. Don't invent
 > structure, vocabulary, or screens that aren't here.
 >
@@ -16,7 +16,7 @@
 
 ## 0. The 10-Second Pitch
 
-> **BrandOS is the workspace where founders and designers build, manage,
+> **BrandingOS is the workspace where founders and designers build, manage,
 > and ship a brand — from logo to colors to a delivered guidelines PDF.
 > One brand or fifty. Calm enough for a first-timer, deep enough for a
 > power user.**
@@ -64,7 +64,7 @@ Design for these eight humans. Every screen must serve at least one of them.
 
 ## 3. The Three Scopes — Information Architecture
 
-BrandOS has exactly **three scopes**. Every screen belongs to one.
+BrandingOS has exactly **three scopes**. Every screen belongs to one.
 
 ```
 ┌────────────────────────────────────────────────────┐
@@ -204,7 +204,7 @@ seriously — it determines whether the product feels premium or generic.
 
 | Reference | Take from it | Don't take from it |
 |---|---|---|
-| **Linear** | Information density, command palette, list rhythm, keyboard-first | Their dark-mode-first aesthetic — BrandOS is light-mode-first |
+| **Linear** | Information density, command palette, list rhythm, keyboard-first | Their dark-mode-first aesthetic — BrandingOS is light-mode-first |
 | **Vercel dashboard** | Restraint, type, generous spacing | Their grey-on-white-only palette — we need warmth |
 | **Stripe Dashboard** | Tabular precision, calm color, financial-grade trust | Their density on data-heavy screens |
 | **Notion** | Forgiving inline editing, content-first hierarchy | Their toolbar-first chrome |
@@ -215,7 +215,7 @@ seriously — it determines whether the product feels premium or generic.
 ### 4.4 Anti-references — explicit "do not"
 
 - **Generic shadcn-default look** — `Card className="p-6"` everywhere is
-  what BrandOS looks like today. The redesign must feel handmade, not assembled.
+  what BrandingOS looks like today. The redesign must feel handmade, not assembled.
 - **Pastel gradient on every card** — the current screens are full of
   `from-rose-500 to-pink-600` decorative gradients. Strip them. Use color
   to *categorize*, not to decorate.
@@ -250,7 +250,7 @@ Accent hover         #111827   slate-900
 Accent foreground    #FFFFFF
 ```
 
-> The accent is **dark slate**, not blue. BrandOS is a tool for creating
+> The accent is **dark slate**, not blue. BrandingOS is a tool for creating
 > brands — it should not impose its own loud accent color. Saving a
 > primary blue for itself is what every other SaaS does. We do the
 > opposite: we let the user's brand colors be loud and ours be quiet.
@@ -535,7 +535,7 @@ secondary actions, what state to design first.
 2. `ContinueCard` — IF the user has a recently-edited brand. Big, hero, single primary "Resume" button.
 3. **Your brands** — title `h2`, then a horizontal row of up to 4 `BrandCard`s, plus a "+ New brand" tile on the right. "View all" link to `/brands`.
 4. **Activity** — title `h2`, then a vertical feed: 5 most recent edits / exports / comments. Each row: brand avatar + action + relative time.
-5. **Quick start** — title `h2`, then 3 cards: "Tour BrandOS", "Browse templates", "What is brand identity".
+5. **Quick start** — title `h2`, then 3 cards: "Tour BrandingOS", "Browse templates", "What is brand identity".
 
 **Empty state:** when no brands exist, replace #2 + #3 with a single hero
 "Let's make your first brand" panel with one CTA.
@@ -690,7 +690,7 @@ content, now editable in slides.
 **Purpose:** beautiful read-only public page.
 
 This is the screen that determines whether a freelancer or stakeholder
-takes BrandOS seriously. It must be the **best-looking screen in the
+takes BrandingOS seriously. It must be the **best-looking screen in the
 product**.
 
 **Content:**
@@ -701,7 +701,7 @@ product**.
 - Section 4: Typography (display sample + body sample, in the brand fonts).
 - Section 5: Voice ("Sounds like..." with do/don't examples).
 - Section 6: Examples gallery (asset thumbnails from the brand).
-- Footer: small "Made with BrandOS" attribution.
+- Footer: small "Made with BrandingOS" attribution.
 
 **No app chrome. No login prompt. Pure brand showcase.**
 
@@ -1006,7 +1006,7 @@ A successful redesign passes every line.
 
 ## 20. One-Line North Star
 
-> **BrandOS should feel like a tool a senior designer would willingly
+> **BrandingOS should feel like a tool a senior designer would willingly
 > show their clients — quietly confident, considered in every detail, and
 > completely out of the user's way.**
 

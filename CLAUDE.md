@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# BrandOS — Architecture Guide
+# BrandingOS — Architecture Guide
 
 ## Build & Dev Commands
 
@@ -49,7 +49,7 @@ Tests use Vitest with jsdom. Setup file: `src/test/setup.ts`. Test files: `src/*
 
 | | Main App (root) | Landing Page (`landingpage/`) |
 |---|---|---|
-| Purpose | Full BrandOS SPA | Public marketing site with early-access form |
+| Purpose | Full BrandingOS SPA | Public marketing site with early-access form |
 | Stack | Vite + React + React Router + Zustand + Supabase + Fabric.js | Vite + React (no router) + framer-motion + Supabase |
 | Port | 8080 | auto-assigned (typically 5173/5174) |
 | Deploy target | Cloudflare Pages (root dir: `.`) | Cloudflare Pages (root dir: `landingpage`) |
@@ -105,7 +105,7 @@ Notes that will save you an hour:
 
 ## UI Architecture (Phase A — 2026-05-05)
 
-BrandOS has **two brand-scoped UI experiences**:
+BrandingOS has **two brand-scoped UI experiences**:
 
 - **Studio** (canonical): `/b/:slug/...`. The active development surface.
   All new features land here. Cosmos top-segmented chrome via
@@ -164,7 +164,7 @@ in a second hop.
 
 ## UX & IA — current structure (post-redesign)
 
-BrandOS has **three scopes**: Workspace · Brand · Editor. Each scope has
+BrandingOS has **three scopes**: Workspace · Brand · Editor. Each scope has
 exactly one sidebar and one shell. See `docs/ux-redesign/ARCHITECTURE.md`.
 
 **Workspace sidebar** (`/dashboard`): Home · Brands · Templates · Learn · Settings.
@@ -231,7 +231,7 @@ never hard-code a color/weight/spacing value there.
 
 ### Phase 4 — Content Universe (shipped 2026-05-04)
 
-Phase 4 ships the BrandOS content universe in 4 sub-phases. Read
+Phase 4 ships the BrandingOS content universe in 4 sub-phases. Read
 `docs/editor/PHASE_4_SPEC.md` for the source spec.
 
 - **4.1 Templates Foundation** — `template_categories` + `templates`
@@ -1369,7 +1369,7 @@ The auth session layer was rebuilt after twenty stacked `fix(auth)` patches
   everyone else with `email_address_invalid`. Logo PNGs for e-mails are in the
   public Storage bucket `email-assets`. Templates are versioned under
   `supabase/templates/auth/` and pushed with `scripts/push-auth-templates.mjs`.
-- **The product name is "BrandingOS"** (renamed from BrandOS/Brand OS in all
+- **The product name is "BrandingOS"** (renamed from BrandingOS/BrandingOS in all
   user-facing strings 2026-08-18; localStorage keys stay `brandos:*`).
 - **Password reset:** `sessionStore.recovery` is set by `PASSWORD_RECOVERY`;
   the reset page is valid when that flag is set or the link carried a recovery
