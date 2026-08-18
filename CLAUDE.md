@@ -1026,14 +1026,33 @@ items rendered as unstyled run-on text until the scope prefix was removed.
 - `design_<brandId>` — legacy design editor autosave (Fabric JSON)
 - `brandos:guideline-theme:<brandId>` — Guideline theme preset pick
 - `brandos:editor-shortcuts-dismissed` — editor shortcuts hint dismissal
-- `brandos-theme` — workspace light/dark (scoped to `[data-workspace]`;
-  the app-level next-themes provider is separate and defaults light —
-  the legacy editor mirrors `brandos-theme` into it on mount)
+- `brandos-theme` — light/dark, and the ONLY theme key. It is `next-themes`'
+  `storageKey` as well as what `[data-workspace] data-theme` reads, via
+  `shared/theme/useWorkspaceTheme.ts`. (Before 2026-08-18 these were two
+  independent systems with two keys that could disagree, and the legacy editor
+  mirrored one into the other on mount — restoring light on unmount.)
 - `brandos:design:<brandId>:<designId>` — LocalDesignStorage body; when it overflows the ~5 MB quota (AI images as data URIs) the value is the marker `{"__idb":1}` and the body lives in IndexedDB `brandos-editor/kv` under the same key
 - `brandos:ai-image:prefs` — Generate panel prefs (model, count, on-brand/raw)
-- `brandos.ai-image.anon-session` — anon session id for ai-generate-image rate limiting
+- `brandos.ai.anon-session` — anon session id for the Anthropic proxy's rate limiting
 - `brandos:dev-bypass` — dev auth bypass flag
 - `editor-tutorial-<slug>` — editor welcome tutorial seen
+
+**User PREFERENCES are a different thing from the keys above, and they now sync.**
+`brandos:preferences` is the write-through mirror of `public.user_preferences`
+(migration 030), owned by `IUserPreferencesService`. Reads stay synchronous from
+the mirror — zustand `persist` and `useState` initialisers cannot await — while
+the server row is the source of truth reconciled on sign-in. The six pre-030
+keys (`brandos:ui-preference`, `brandos-theme`, `brandos:inner-nav-open`,
+`brandos:ai-image:prefs`, `brandos:features-seen`, `brandos-workspace`) are
+still written by their own stores and are read ONCE to seed a user's first
+server row; they are never deleted, so rolling 030 back loses nothing. The
+two-way sync lives in `shared/preferences/preferenceBridge.ts` — add a
+preference there, not by reaching into localStorage from a component.
+
+Other genuine preference keys not listed above: `brandos:ui-preference`,
+`brandos:inner-nav-open`, `brandos:features-seen`, `brandos-workspace`,
+`brandos-onboarding-v4-theme`, `chronicle:mode`, `presentations-store`,
+`cmdk:recent`, `brandos-learn-progress`.
 
 ## Onboarding — `/onboard-brand` (old UI, V3 pipeline — 2026-08-14)
 

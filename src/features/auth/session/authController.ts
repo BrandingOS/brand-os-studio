@@ -26,6 +26,8 @@ import { useWorkspaceStore } from '@/shared/store/workspaceStore';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { reconfigureForAuth } from '@/core/boot';
 import { container } from '@/core/container/ServiceContainer';
+import { fetchDeletionState } from '@/features/auth/deletion/accountDeletion';
+import { useAccountDeletionStore } from '@/features/auth/deletion/accountDeletionStore';
 import { SERVICE_KEYS, type IUserPreferencesService } from '@/core/types/services';
 import { migrateLocalStorageToSupabase } from '@/shared/utils/localStorage-migration';
 import { toast } from 'sonner';
@@ -144,11 +146,31 @@ const hydratePreferences = async () => {
   }
 };
 
+/**
+ * Is this account scheduled for deletion?
+ *
+ * Deliberately separate from `checkAccountStatus`, which signs people out.
+ * A pending deletion must NOT sign anyone out — the grace period exists so the
+ * user can come back and cancel, and they cannot do that if signing in throws
+ * them straight out again.
+ */
+const checkDeletionState = async () => {
+  try {
+    const state = await fetchDeletionState();
+    useAccountDeletionStore
+      .getState()
+      .setState(state.available, state.available ? state.pending : null);
+  } catch (err) {
+    console.warn('[auth] deletion-state check failed:', err);
+  }
+};
+
 const runSignedInSideEffects = (userId: string) => {
   void checkPlatformRole(userId);
   void checkAccountStatus(userId);
   void updateLastSignIn(userId);
   void hydratePreferences();
+  void checkDeletionState();
   useWorkspaceStore.getState().loadAll().catch(console.error);
   // Services were just swapped to Supabase — anything loaded against the
   // Local service is stale until re-fetched.
@@ -184,6 +206,9 @@ export function becomeGuest(): void {
   if (wasAuthed) {
     useWorkspaceStore.getState().reset();
     useBrandStore.getState().loadAll().catch(console.error);
+    // The banner is app-wide, so a stale pending state would follow the next
+    // visitor on this browser into a signed-out session.
+    useAccountDeletionStore.getState().setState(false, null);
   }
   store().signOut();
 }

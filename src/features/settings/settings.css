@@ -1,0 +1,319 @@
+/* ============================================================
+ * Settings — feature-local layout.
+ *
+ * Every visual value here is a --ds-* token. This file exists because
+ * the settings pages need a "titled block with a description and a
+ * body of labelled rows", and nothing in the DS or the workspace
+ * vocabulary is that shape: `.ws-card` is a navigation LINK card
+ * (thumb / eyebrow / title / sub) built for a grid, not a form.
+ *
+ * Scoped under [data-workspace] like the rest of the Studio chrome.
+ * ============================================================ */
+
+[data-workspace] .settings-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 720px;
+}
+
+[data-workspace] .settings-section {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  padding: 20px;
+}
+
+[data-workspace] .settings-section.is-danger {
+  border-color: var(--ds-danger-border);
+  background: var(--ds-danger-bg);
+}
+
+[data-workspace] .settings-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+[data-workspace] .settings-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ds-text);
+  margin: 0;
+}
+
+[data-workspace] .settings-section.is-danger .settings-section-title {
+  color: var(--ds-danger-fg);
+}
+
+[data-workspace] .settings-section-desc {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+  margin: 0 0 16px;
+  max-width: 56ch;
+}
+
+[data-workspace] .settings-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── A labelled row: label + hint on the left, control on the right ── */
+
+[data-workspace] .settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 34px;
+}
+
+[data-workspace] .settings-row.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+[data-workspace] .settings-row-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+
+[data-workspace] .settings-row-hint {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+  margin-top: 2px;
+  max-width: 46ch;
+}
+
+[data-workspace] .settings-row-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-workspace] .settings-row + .settings-row {
+  border-top: 1px solid var(--ds-hairline);
+  padding-top: 14px;
+}
+
+/* ── Identity block: avatar + name + email ── */
+
+[data-workspace] .settings-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+[data-workspace] .settings-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--ds-radius-pill);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-workspace] .settings-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-workspace] .settings-identity-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ds-text);
+  letter-spacing: -0.01em;
+}
+
+[data-workspace] .settings-identity-email {
+  font-size: 12.5px;
+  color: var(--ds-text-secondary);
+  margin-top: 1px;
+}
+
+/* ── Two-up option tiles (the Studio / Classic picker) ── */
+
+[data-workspace] .settings-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+[data-workspace] .settings-option {
+  text-align: left;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  background: var(--ds-surface);
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color var(--ds-duration-state) var(--ds-ease),
+    background var(--ds-duration-state) var(--ds-ease);
+}
+
+[data-workspace] .settings-option:hover {
+  border-color: var(--ds-border-strong);
+  background: var(--ds-surface-hover);
+}
+
+[data-workspace] .settings-option[aria-pressed='true'] {
+  border-color: var(--ds-accent);
+  background: var(--ds-surface-hover);
+}
+
+[data-workspace] .settings-option:focus-visible {
+  outline: 3px solid var(--ds-focus-ring);
+  outline-offset: 1px;
+}
+
+[data-workspace] .settings-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+[data-workspace] .settings-option-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+[data-workspace] .settings-option-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+}
+
+/* ── Tab strip sits under the hero ── */
+
+[data-workspace] .settings-tabs {
+  margin-bottom: 28px;
+}
+
+/* ── The pending-deletion banner, fixed above everything ── */
+
+.account-deletion-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 200;
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+/* It floats over page content, so it needs to lift off it — .ds-banner is
+ * drawn for in-flow use and carries no elevation of its own. */
+.account-deletion-banner .ds-banner {
+  box-shadow: var(--ds-shadow-float);
+  background: var(--ds-surface);
+}
+
+/* ── Plan tiers ─────────────────────────────────────────────── */
+
+[data-workspace] .plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+[data-workspace] .plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  padding: 18px;
+}
+
+[data-workspace] .plan-card.is-current {
+  border-color: var(--ds-accent);
+}
+
+[data-workspace] .plan-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+[data-workspace] .plan-card-price {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+}
+
+[data-workspace] .plan-card-period {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ds-text-muted);
+}
+
+[data-workspace] .plan-card-desc {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+[data-workspace] .plan-card-features {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+
+[data-workspace] .plan-card-features li {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ds-text-secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+[data-workspace] .plan-card-features li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ds-text-muted);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+[data-workspace] .plan-card-cta {
+  margin-top: 18px;
+}
+
+[data-workspace] .plan-card-cta .ds-btn {
+  width: 100%;
+}

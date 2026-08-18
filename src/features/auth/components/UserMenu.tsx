@@ -93,9 +93,9 @@ export function UserMenu() {
           <CreditCard className="mr-2 h-4 w-4" />
           <span>Billing</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/workspace')}>
+        <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/settings/preferences')}>
           <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
+          <span>Preferences</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

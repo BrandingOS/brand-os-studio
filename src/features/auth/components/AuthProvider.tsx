@@ -2,6 +2,8 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSessionStore } from '@/shared/store/sessionStore';
 import { startAuthController, DEV_BYPASS_USER } from '../session/authController';
+import { AccountDeletionBanner } from '../deletion/AccountDeletionBanner';
+import { PreferencesBridge } from '@/shared/preferences/PreferencesBridge';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -37,6 +39,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <>
       {children}
+      {/* A pending deletion has to follow the user everywhere, not sit on a
+          settings page they may never return to — the grace period only means
+          something if the way back out is always in reach. */}
+      <AccountDeletionBanner />
+      <PreferencesBridge />
       {isDevBypassSession && (
         <div
           style={{

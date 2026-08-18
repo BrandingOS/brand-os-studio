@@ -42,6 +42,7 @@ export function WorkspaceShell({
   children: ReactNode;
 }) {
   const user = useSessionStore((s) => s.user);
+  const isAdmin = useSessionStore((s) => s.isAdmin);
   const { logout } = useAuth();
   const navigate = useNavigate();
   // Single owner of the light/dark choice — see useWorkspaceTheme.
@@ -145,6 +146,55 @@ export function WorkspaceShell({
                     <span className="ws-profile-menu-email">{user.email}</span>
                   ) : null}
                 </div>
+                {/* This menu held ONLY "Sign out", so the new UI had no route
+                    to settings at all — the pages existed and nothing could
+                    open them. These mirror what the legacy UserMenu offers. */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="ws-profile-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/settings/account');
+                  }}
+                >
+                  Account
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="ws-profile-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/settings/preferences');
+                  }}
+                >
+                  Preferences
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="ws-profile-menu-item"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/settings/plans');
+                  }}
+                >
+                  Plan &amp; billing
+                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="ws-profile-menu-item"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      navigate('/admin');
+                    }}
+                  >
+                    Admin
+                  </button>
+                )}
                 <button
                   type="button"
                   role="menuitem"

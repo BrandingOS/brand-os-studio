@@ -111,10 +111,15 @@ export default function CompleteScreen() {
                 note="Coming soon"
                 disabled
               />
+              {/* Pointed at /dashboard/settings/members, which has never been a
+                  route — it 404'd. BrandOS is single-user for now, so this
+                  takes the same honest "coming soon" shape as the entry above
+                  rather than linking somewhere that invites nobody. */}
               <NextStep
                 icon={<Users className="w-4 h-4" />}
                 label="Invite team"
-                to="/dashboard/settings/members"
+                note="Coming soon"
+                disabled
               />
             </div>
           </div>

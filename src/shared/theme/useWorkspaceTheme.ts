@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { writePreference } from '@/shared/preferences/preferenceBridge';
 
 /**
  * The one place the workspace light/dark choice lives.
@@ -70,9 +71,20 @@ export function useWorkspaceTheme(): {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  const setTheme = useCallback((next: WorkspaceTheme) => setThemeState(next), []);
+  // Persist the choice to the user's account as well as this browser, so it
+  // follows them to another device. Fire-and-forget: the local value has
+  // already been applied and a preference is never worth blocking the UI over.
+  const setTheme = useCallback((next: WorkspaceTheme) => {
+    setThemeState(next);
+    writePreference({ theme: next });
+  }, []);
   const toggleTheme = useCallback(
-    () => setThemeState((t) => (t === 'dark' ? 'light' : 'dark')),
+    () =>
+      setThemeState((t) => {
+        const next = t === 'dark' ? 'light' : 'dark';
+        writePreference({ theme: next });
+        return next;
+      }),
     [],
   );
 

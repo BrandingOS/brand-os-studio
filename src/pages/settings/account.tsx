@@ -1,173 +1,235 @@
-import { Card } from '@/shared/ui/Card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { useSessionStore } from '@/shared/store/sessionStore';
-import { useUiPreference, useSetUiPreference, type UiPreference } from '@/shared/hooks/useUiPreference';
-import { Link } from 'react-router-dom';
-import { User, Mail, Shield, AlertTriangle, Layout, Sparkles, LayoutGrid } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { DsBanner, DsButton, DsInput } from '@/shared/ds';
+import { useSessionStore } from '@/shared/store/sessionStore';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import {
+  SettingsRow,
+  SettingsSection,
+} from '@/features/settings/components/SettingsSection';
+import { SettingsSections } from '@/features/settings/components/SettingsSections';
+import {
+  changeEmail,
+  changePassword,
+  isDevBypassSession,
+  updateProfile,
+} from '@/features/auth/account/accountActions';
+import { DeleteAccountDialog } from '@/features/auth/deletion/DeleteAccountDialog';
+import { useAccountDeletionStore } from '@/features/auth/deletion/accountDeletionStore';
+import { daysUntil, formatPurgeDate } from '@/features/auth/deletion/accountDeletion';
 
+/**
+ * Account — who you are.
+ *
+ * Everything on this page writes something. The previous version was a
+ * read-only display of the session object with a permanently disabled Delete
+ * Account button, while /account-deletion publicly told users that button
+ * worked.
+ */
 export default function AccountSettingsPage() {
-  const { user } = useSessionStore();
-  const uiPreference = useUiPreference();
-  const setUiPreference = useSetUiPreference();
+  const user = useSessionStore((s) => s.user);
+  const { logout } = useAuth();
 
-  const displayName = user?.name || 'Guest';
-  const displayEmail = user?.email || 'Not signed in';
-  const currentPlan = user?.plan || 'free';
-  const initials = displayName
+  const [name, setName] = useState(user?.name ?? '');
+  const [savingName, setSavingName] = useState(false);
+
+  const [email, setEmail] = useState(user?.email ?? '');
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const deletionAvailable = useAccountDeletionStore((s) => s.available);
+  const pending = useAccountDeletionStore((s) => s.pending);
+
+  // The store is the source of truth; re-seed the fields when it changes
+  // (USER_UPDATED after a successful write, or a different user signing in).
+  useEffect(() => setName(user?.name ?? ''), [user?.name]);
+  useEffect(() => setEmail(user?.email ?? ''), [user?.email]);
+
+  const bypass = isDevBypassSession();
+
+  const onSaveName = useCallback(async () => {
+    setSavingName(true);
+    const result = await updateProfile({ name: name.trim() });
+    setSavingName(false);
+    if (!result.error) toast.success('Name updated.');
+    else toast.error('Could not update your name', { description: result.error });
+  }, [name]);
+
+  const onSaveEmail = useCallback(async () => {
+    setSavingEmail(true);
+    const result = await changeEmail(email);
+    setSavingEmail(false);
+    if (!result.error) {
+      toast.success('Check your email', {
+        description: `We sent a confirmation link to ${email}. The change takes effect once you follow it.`,
+      });
+    } else {
+      toast.error('Could not change your email', { description: result.error });
+    }
+  }, [email]);
+
+  const onSavePassword = useCallback(async () => {
+    setSavingPassword(true);
+    const result = await changePassword(current, next);
+    setSavingPassword(false);
+    if (!result.error) {
+      setCurrent('');
+      setNext('');
+      toast.success('Password updated.');
+    } else {
+      toast.error('Could not update your password', { description: result.error });
+    }
+  }, [current, next]);
+
+  const initials = (user?.name ?? 'U')
     .split(' ')
-    .map((n) => n[0])
+    .map((part) => part[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
 
-  const handleSetUiPreference = (next: UiPreference) => {
-    if (next === uiPreference) return;
-    setUiPreference(next);
-    toast.success(
-      next === 'studio' ? 'Switched to Studio.' : 'Switched to Classic.',
-      {
-        description:
-          next === 'studio'
-            ? 'New brands and brand entry points will use the Studio experience.'
-            : 'New brands and brand entry points will use the Classic experience.',
-      },
-    );
-  };
+  const nameDirty = name.trim().length > 0 && name.trim() !== (user?.name ?? '');
+  const emailDirty = email.trim().length > 0 && email.trim() !== (user?.email ?? '');
 
   return (
-    <div className="space-y-6">
-      {/* Profile Section */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Profile
-        </h2>
-        <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">
-            {initials}
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium text-lg">{displayName}</p>
-            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <Mail className="h-3.5 w-3.5" />
-              {displayEmail}
-            </p>
+    <SettingsSections>
+      {bypass && (
+        <DsBanner tone="warning">
+          You are in the dev bypass session, which has no Supabase session
+          behind it — nothing on this page can be saved.
+        </DsBanner>
+      )}
+
+      <SettingsSection
+        title="Profile"
+        description="How you appear across BrandOS."
+      >
+        <div className="settings-identity">
+          <span className="settings-avatar" aria-hidden="true">
+            {user?.avatar ? <img src={user.avatar} alt="" /> : initials}
+          </span>
+          <div>
+            <div className="settings-identity-name">{user?.name ?? 'Guest'}</div>
+            <div className="settings-identity-email">{user?.email ?? 'Not signed in'}</div>
           </div>
         </div>
-      </Card>
 
-      {/* Interface preference — Studio (canonical) vs Classic (alternate). */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
-          <Layout className="h-5 w-5" />
-          Interface
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Choose the BrandOS experience for new brand entry points. You
-          can switch back any time.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => handleSetUiPreference('studio')}
-            className={
-              'group text-left rounded-lg border p-4 transition-all ' +
-              (uiPreference === 'studio'
-                ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
-                : 'border-border hover:border-primary/50 hover:bg-muted/40')
-            }
-            aria-pressed={uiPreference === 'studio'}
+        <SettingsRow label="Display name" stacked>
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <DsInput
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              disabled={bypass}
+              style={{ flex: 1 }}
+            />
+            <DsButton
+              onClick={onSaveName}
+              disabled={!nameDirty || savingName || bypass}
+            >
+              {savingName ? 'Saving…' : 'Save'}
+            </DsButton>
+          </div>
+        </SettingsRow>
+
+        <SettingsRow
+          label="Email"
+          hint="Changing this sends a confirmation link to the new address. The change takes effect once you follow it."
+          stacked
+        >
+          <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+            <DsInput
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              disabled={bypass}
+              style={{ flex: 1 }}
+            />
+            <DsButton
+              tone="secondary"
+              onClick={onSaveEmail}
+              disabled={!emailDirty || savingEmail || bypass}
+            >
+              {savingEmail ? 'Sending…' : 'Change'}
+            </DsButton>
+          </div>
+        </SettingsRow>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Security"
+        description="Changing your password asks for the current one first, so an unattended signed-in browser cannot be used to take the account over."
+      >
+        <SettingsRow label="Current password" stacked>
+          <DsInput
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            disabled={bypass}
+          />
+        </SettingsRow>
+        <SettingsRow label="New password" stacked>
+          <DsInput
+            type="password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            autoComplete="new-password"
+            disabled={bypass}
+          />
+        </SettingsRow>
+        <SettingsRow>
+          <DsButton
+            onClick={onSavePassword}
+            disabled={!current || next.length < 6 || savingPassword || bypass}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <span className="font-medium">Studio</span>
-              </div>
-              {uiPreference === 'studio' && (
-                <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                  Active
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Minimal, monochrome chrome with a top segmented nav. Setup ·
-              Brand Kit · Guideline · Design · Tools.
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSetUiPreference('classic')}
-            className={
-              'group text-left rounded-lg border p-4 transition-all ' +
-              (uiPreference === 'classic'
-                ? 'border-primary ring-2 ring-primary/20 bg-primary/5'
-                : 'border-border hover:border-primary/50 hover:bg-muted/40')
-            }
-            aria-pressed={uiPreference === 'classic'}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <LayoutGrid className="h-4 w-4 text-primary" />
-                <span className="font-medium">Classic</span>
-              </div>
-              {uiPreference === 'classic' && (
-                <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                  Active
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Denser left-rail layout. Overview · Identity · Templates ·
-              Design · Content · Folders · Share.
-            </p>
-          </button>
-        </div>
-      </Card>
+            {savingPassword ? 'Updating…' : 'Update password'}
+          </DsButton>
+        </SettingsRow>
+        <SettingsRow
+          label="Sign out"
+          hint="Ends this session on this device."
+        >
+          <DsButton tone="tertiary" onClick={() => void logout()}>
+            Sign out
+          </DsButton>
+        </SettingsRow>
+      </SettingsSection>
 
-      {/* Current Plan Section */}
-      <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          Current Plan
-        </h2>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Badge variant="default" className="capitalize text-sm px-3 py-1">
-              {currentPlan}
-            </Badge>
-            <span className="text-sm text-muted-foreground">
-              {currentPlan === 'free' && 'Limited features'}
-              {currentPlan === 'pro' && '$19/month'}
-              {currentPlan === 'enterprise' && '$49/month'}
-            </span>
-          </div>
-          <Link to="/settings/plans">
-            <Button variant="outline" size="sm">
-              Manage Plan
-            </Button>
-          </Link>
-        </div>
-      </Card>
+      {deletionAvailable && (
+        <SettingsSection
+          title="Danger zone"
+          description="Deleting your account removes it and every brand you own. Billing records are kept for up to 7 years as required by tax law."
+          danger
+        >
+          {pending ? (
+            <SettingsRow
+              label={`Scheduled for deletion on ${formatPurgeDate(pending.purgeAfter)}`}
+              hint={`${daysUntil(pending.purgeAfter)} days left. Use the banner at the bottom of the screen to cancel.`}
+            />
+          ) : (
+            <SettingsRow
+              label="Delete this account"
+              hint="You get 7 days to change your mind. Nothing is destroyed before then."
+            >
+              <DsButton tone="danger" onClick={() => setDeleteOpen(true)} disabled={bypass}>
+                Delete account
+              </DsButton>
+            </SettingsRow>
+          )}
+        </SettingsSection>
+      )}
 
-      {/* Danger Zone */}
-      <Card className="p-6 border-destructive/30">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-destructive">
-          <AlertTriangle className="h-5 w-5" />
-          Danger Zone
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Deleting your account is permanent and cannot be undone. All your brands, assets, and
-          data will be removed.
-        </p>
-        <Button variant="destructive" disabled title="Contact support to delete your account">
-          Delete Account
-        </Button>
-        <p className="text-xs text-muted-foreground mt-2">
-          Account deletion is not yet available. Please contact support.
-        </p>
-      </Card>
-    </div>
+      <DeleteAccountDialog
+        open={deleteOpen}
+        email={user?.email ?? ''}
+        onClose={() => setDeleteOpen(false)}
+      />
+    </SettingsSections>
   );
 }

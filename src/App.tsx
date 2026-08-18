@@ -52,7 +52,6 @@ const StudioSettingsPage = lazy(() => import("./pages/b/[slug]/settings"));
 // v2 workspace shell pages (outside a brand). Simpler shell, no tabs.
 const WorkspaceHomePage = lazy(() => import("./pages/workspace/Home"));
 const WorkspaceLearnPage = lazy(() => import("./pages/workspace/Learn"));
-const WorkspaceSettingsPageV2 = lazy(() => import("./pages/workspace/Settings"));
 const WorkspaceTemplatesPageV2 = lazy(() => import("./pages/workspace/Templates"));
 // Dev-only all-features inventory page (self-gated on import.meta.env.DEV).
 const DevFeaturesPage = lazy(() => import("./pages/_dev/features"));
@@ -91,9 +90,8 @@ const SocialMediaPage = lazy(() => import("./pages/dashboard/brand/[slug]/social
 const GuidelinesHubPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines"));
 const CanvasGuidelinesPage = lazy(() => import("./pages/dashboard/brand/[slug]/guidelines/canvas"));
 const AccountSettingsPage = lazy(() => import("./pages/settings/account"));
+const PreferencesSettingsPage = lazy(() => import("./pages/settings/preferences"));
 const PlansPage = lazy(() => import("./pages/settings/plans"));
-const WorkspaceSettingsPage = lazy(() => import("./pages/settings/workspace"));
-const MembersPage = lazy(() => import("./pages/settings/members"));
 const BrandDetailPage = lazy(() => import("./pages/brand/[slug]"));
 const BrandShowcasePage = lazy(() => import("./pages/brand/[slug]/showcase"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/reset-password"));
@@ -754,9 +752,14 @@ const App = () => (
           }>
             <Route index element={<Navigate to="/settings/account" replace />} />
             <Route path="account" element={<AccountSettingsPage />} />
-            <Route path="workspace" element={<WorkspaceSettingsPage />} />
-            <Route path="members" element={<MembersPage />} />
+            <Route path="preferences" element={<PreferencesSettingsPage />} />
             <Route path="plans" element={<PlansPage />} />
+            {/* Workspace and Members were pure theatre — local useState plus a
+                success toast, writing nothing — and BrandOS is single-user for
+                now. Their URLs redirect so old bookmarks and any stale link
+                still land somewhere real. */}
+            <Route path="workspace" element={<Navigate to="/settings/preferences" replace />} />
+            <Route path="members" element={<Navigate to="/settings/account" replace />} />
           </Route>
           <Route path="/brand/:slug" element={<BrandDetailPage />} />
           <Route path="/brand/:slug/showcase" element={<BrandShowcasePage />} />

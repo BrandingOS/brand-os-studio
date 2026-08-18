@@ -1,79 +1,64 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { DashboardLayout } from '@/features/dashboard/components/DashboardLayout';
-import { User, CreditCard, Building2, Users } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { DsTabBar } from '@/shared/ds';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
+import '@/features/settings/settings.css';
 
-const SETTINGS_NAV = [
-  { label: 'Account', href: '/settings/account', icon: User },
-  { label: 'Workspace', href: '/settings/workspace', icon: Building2 },
-  { label: 'Members', href: '/settings/members', icon: Users },
-  { label: 'Plans & Billing', href: '/settings/plans', icon: CreditCard },
+/**
+ * The settings shell.
+ *
+ * `WorkspaceShellAlt` is the right chrome here: settings are workspace-scoped,
+ * not brand-scoped, so the five-tab brand nav would be wrong and there is no
+ * brand to switch. The old shell wrapped `DashboardLayout` and rolled its own
+ * 48px left rail PLUS a separate mobile pill strip; `DsTabBar` is one control
+ * that serves both, so both are gone.
+ *
+ * Three sections, matching what a single-user account actually has:
+ *   Account      — who you are
+ *   Preferences  — how the product behaves
+ *   Plan         — what you pay
+ *
+ * Workspace and Members used to be here and were pure theatre: local `useState`
+ * plus a success toast, writing nothing. They are removed rather than restyled.
+ */
+
+const TABS = [
+  { value: 'account', label: 'Account' },
+  { value: 'preferences', label: 'Preferences' },
+  { value: 'plans', label: 'Plan' },
 ];
 
 export function SettingsLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const active = useMemo(() => {
+    const seg = location.pathname.split('/')[2] ?? 'account';
+    return TABS.some((t) => t.value === seg) ? seg : 'account';
+  }, [location.pathname]);
 
   return (
-    <DashboardLayout>
-      <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
+    <WorkspaceShell>
+      <main className="ws-outlet">
+        <section className="ws-hero">
+          <span className="ws-hero-eyebrow">Workspace</span>
+          <h1 className="ws-hero-title">Settings</h1>
+          <p className="ws-hero-sub">
+            Your profile, how BrandOS behaves, and what you pay for it.
+          </p>
+        </section>
 
-        <div className="flex gap-8">
-          {/* Sidebar */}
-          <nav className="w-48 shrink-0 hidden md:block">
-            <ul className="space-y-1">
-              {SETTINGS_NAV.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.href;
-                return (
-                  <li key={item.href}>
-                    <NavLink
-                      to={item.href}
-                      className={cn(
-                        'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
-                        isActive
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-                      )}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {item.label}
-                    </NavLink>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* Mobile nav */}
-          <div className="md:hidden w-full mb-6">
-            <div className="flex gap-1 overflow-x-auto pb-2">
-              {SETTINGS_NAV.map((item) => {
-                const isActive = location.pathname === item.href;
-                return (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-colors',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground',
-                    )}
-                  >
-                    {item.label}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <Outlet />
-          </div>
+        <div className="settings-tabs">
+          <DsTabBar
+            tabs={TABS}
+            value={active}
+            onChange={(value) => navigate(`/settings/${value}`)}
+            aria-label="Settings sections"
+          />
         </div>
-      </div>
-    </DashboardLayout>
+
+        <Outlet />
+      </main>
+    </WorkspaceShell>
   );
 }
