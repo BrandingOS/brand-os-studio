@@ -17,6 +17,7 @@
     "typecheck:baseline": "node scripts/typecheck-ratchet.mjs --update",
     "deps:cycles": "npx --yes madge --circular --extensions ts,tsx src",
     "gen:tokens": "node scripts/gen-ds-tokens.mjs",
+    "auth:templates:push": "node scripts/push-auth-templates.mjs",
     "gen:tokens:check": "node scripts/gen-ds-tokens.mjs --check"
   },
   "dependencies": {

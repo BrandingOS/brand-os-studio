@@ -1,0 +1,8 @@
+{
+  "confirmation": "{{ .Token }} is your BrandingOS confirmation code",
+  "recovery": "Reset your BrandingOS password",
+  "magic_link": "Your BrandingOS sign-in link",
+  "email_change": "Confirm your new BrandingOS email",
+  "invite": "You've been invited to BrandingOS",
+  "reauthentication": "{{ .Token }} is your BrandingOS verification code"
+}

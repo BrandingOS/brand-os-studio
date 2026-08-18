@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!-- Subject: {{ .Token }} is your BrandingOS confirmation code -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>Confirm your email</title>
+<style>
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; }
+  img { border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+  table { border-collapse:collapse !important; }
+  a { color:#0e0e0e; }
+  @media only screen and (max-width:600px) {
+    .pad { padding:32px 24px !important; }
+    .h1 { font-size:22px !important; }
+    .code { font-size:27px !important; letter-spacing:.24em !important; }
+    .shell { padding:28px 14px 40px !important; }
+  }
+  @media (prefers-color-scheme:dark) {
+    .bg { background-color:#f5f4ef !important; }
+    .card { background-color:#ffffff !important; }
+    .subtle { background-color:#faf9f5 !important; }
+  }
+</style>
+</head>
+<body class="bg" bgcolor="#f5f4ef" style="margin:0;padding:0;background-color:#f5f4ef;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;color:#f5f4ef;">Your confirmation code is {{ .Token }} — it expires in 15 minutes.&#8203;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;&#8204;&nbsp;&#8205;&nbsp;</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f4ef" style="background-color:#f5f4ef;">
+  <tr>
+    <td align="center" class="shell" style="padding:40px 16px 56px;">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" style="width:520px;max-width:520px;">
+        <tr>
+          <td align="left" style="padding:0 4px 22px;">
+            <img src="https://ciojgoozobzbeglwdxcz.supabase.co/storage/v1/object/public/email-assets/brandingos-primary.png" width="168" alt="BrandingOS" style="display:block;width:168px;max-width:168px;height:auto;border:0;">
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="card" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #e6e4dd;border-radius:14px;">
+              <tr>
+                <td class="pad" align="left" style="padding:40px 36px;">
+                  <p style="margin:0 0 14px;font-size:12px;line-height:1;letter-spacing:.08em;text-transform:uppercase;color:#8a877e;font-weight:600;">Account setup</p>
+                  <h1 class="h1" style="margin:0 0 14px;font-size:24px;line-height:1.3;letter-spacing:-0.01em;font-weight:600;color:#0e0e0e;">Confirm your email</h1>
+                  <p style="margin:0 0 28px;font-size:15px;line-height:1.65;color:#55534c;">Enter this code in BrandingOS to finish setting up your account.</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="subtle" bgcolor="#faf9f5" style="background-color:#faf9f5;border:1px solid #e6e4dd;border-radius:10px;">
+                    <tr>
+                      <td align="center" class="code" style="padding:26px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;line-height:1.1;letter-spacing:.35em;text-indent:.35em;color:#0e0e0e;font-weight:600;">{{ .Token }}</td>
+                    </tr>
+                  </table>
+                  <p style="margin:22px 0 0;font-size:13px;line-height:1.7;color:#8a877e;">The code expires in 15 minutes.</p>
+                  <p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#8a877e;">If you didn&#39;t create a BrandingOS account, you can ignore this e&#8209;mail.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="left" style="padding:26px 4px 0;">
+            <p style="margin:0 0 6px;font-size:12px;line-height:1.7;color:#8a877e;">You&#39;re receiving this because an account on BrandingOS uses this address.</p>
+            <p style="margin:0;font-size:12px;line-height:1.7;color:#8a877e;">&copy; BrandingOS &middot; <a href="https://brandingos.ai" style="color:#8a877e;text-decoration:underline;">brandingos.ai</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
