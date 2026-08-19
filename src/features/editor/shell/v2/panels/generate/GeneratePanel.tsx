@@ -39,6 +39,7 @@ import { GenerationActions } from './GenerationActions';
 import { PresetsGallery } from './PresetsGallery';
 import { useGeneratePrefs } from './generatePrefs';
 import { useImageGeneration } from './useImageGeneration';
+import { inferDeliverable, type CopyDeck, type DeliverableKind } from '@/features/editor/ai/imagePrompt/artDirection';
 import { ReferenceStrip } from './ReferenceStrip';
 import { CreditsPill } from './CreditsPill';
 import { generationForPage, readAiMetadata } from './aiMetadata';
@@ -80,6 +81,10 @@ export function GeneratePanel({
   const [references, setReferences] = useState<AttachedReference[]>([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [negativePrompt, setNegativePrompt] = useState('');
+  // The words to SET in the design. Never invented on the user's behalf — an
+  // empty deck means the image carries no copy but the brand name.
+  const [copy, setCopy] = useState<CopyDeck>({});
+  const [kindChoice, setKindChoice] = useState<DeliverableKind | 'auto'>('auto');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Model / count come from persisted prefs; a hero hand-off overrides once.
@@ -114,8 +119,16 @@ export function GeneratePanel({
       brandAware: prefs.brandAware,
       caps,
       referencePaths: references.length ? references.map((r) => r.path) : undefined,
+      copy,
+      kind: kindChoice === 'auto' ? undefined : kindChoice,
     },
   });
+
+  // What will actually be built, shown before the credits are spent.
+  const deliverable = inferDeliverable(
+    prompt, copy, kindChoice === 'auto' ? undefined : kindChoice,
+  );
+  const copyCount = [copy.headline, copy.subhead, copy.cta].filter((v) => v?.trim()).length;
 
   // Pre-flight cost. The server prices the request; the panel only displays
   // it. Re-asked whenever anything that moves the price changes, so the number
@@ -195,6 +208,7 @@ export function GeneratePanel({
       );
     }
     setPrompt('');
+    setCopy({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gen.lastResult]);
 
@@ -282,6 +296,12 @@ export function GeneratePanel({
   const applyPreset = useCallback((preset: PromptPreset) => {
     setPrompt(preset.prompt.replace(/\{brand\}/g, brand?.name ?? 'your brand'));
     if (FORMAT_PRESETS.some((f) => f.id === preset.formatId)) setFormatId(preset.formatId);
+    // A preset knows whether it is a composed design or a plain picture; the
+    // old ones all read as pictures, which is how "Ad creative" produced a
+    // backdrop. Opening the copy fields for a design is the nudge that gets a
+    // real headline typed instead of an invented one generated.
+    setKindChoice(preset.kind);
+    if (preset.kind === 'design') setAdvancedOpen(true);
     setMode('image');
   }, [brand]);
 
@@ -437,18 +457,57 @@ export function GeneratePanel({
               <Settings2 className="h-3 w-3" aria-hidden />
               {advancedOpen ? 'Hide options' : 'Options'}
             </button>
+            {prompt.trim() ? (
+              <span className="text-[10px] truncate max-w-[170px]" style={{ color: 'var(--text-muted)' }} data-generate-deliverable title={deliverable.reason}>
+                {deliverable.kind === 'design'
+                  ? `Finished ${deliverable.noun}${copyCount ? ` · ${copyCount} line${copyCount > 1 ? 's' : ''} of copy` : ' · no copy'}`
+                  : 'Image only'}
+              </span>
+            ) : null}
           </div>
           {advancedOpen ? (
-            <textarea
-              value={negativePrompt}
-              onChange={(e) => setNegativePrompt(e.target.value)}
-              placeholder="What to avoid — blurry, low quality, text…"
-              rows={2}
-              disabled={busy}
-              className="w-full resize-none rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-              data-generate-negative
-            />
+            <div className="flex flex-col gap-1.5" data-generate-options>
+              {/* What is being made. The single choice that decides whether a
+                  headline and a logo belong in the frame at all. */}
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Make</span>
+                <div
+                  role="radiogroup"
+                  aria-label="What to make"
+                  data-generate-kind-group
+                  className="inline-flex items-center gap-0.5 rounded-full p-0.5"
+                  style={{ background: 'var(--surface-sunken, color-mix(in oklab, currentColor 6%, transparent))' }}
+                >
+                  <ModeButton active={kindChoice === 'auto'} disabled={busy} onClick={() => setKindChoice('auto')} icon={<Wand2 className="h-3 w-3" aria-hidden />} label="Auto" value="kind-auto" />
+                  <ModeButton active={kindChoice === 'design'} disabled={busy} onClick={() => setKindChoice('design')} icon={<Layers className="h-3 w-3" aria-hidden />} label="Finished design" value="kind-design" />
+                  <ModeButton active={kindChoice === 'image'} disabled={busy} onClick={() => setKindChoice('image')} icon={<ImageIcon className="h-3 w-3" aria-hidden />} label="Image only" value="kind-image" />
+                </div>
+              </div>
+
+              {/* The exact words. Anything typed here is set verbatim; anything
+                  left empty is NOT invented — that is the whole contract. */}
+              {deliverable.kind === 'design' ? (
+                <div className="flex flex-col gap-1 rounded-md border p-1.5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }} data-generate-copy>
+                  <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Text on the design — set exactly as you type it. Leave empty and no words are invented.
+                  </span>
+                  <CopyField label="Headline" value={copy.headline ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, headline: v }))} name="headline" />
+                  <CopyField label="Subhead" value={copy.subhead ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, subhead: v }))} name="subhead" />
+                  <CopyField label="Button" value={copy.cta ?? ''} disabled={busy} onChange={(v) => setCopy((c) => ({ ...c, cta: v }))} name="cta" />
+                </div>
+              ) : null}
+
+              <textarea
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                placeholder="What to avoid — blurry, low quality, text…"
+                rows={2}
+                disabled={busy}
+                className="w-full resize-none rounded-md border px-2 py-1 text-[11px] focus:outline-none disabled:opacity-60"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                data-generate-negative
+              />
+            </div>
           ) : null}
         </>
       ) : null}
@@ -521,6 +580,26 @@ export function GeneratePanel({
 
       {mode === 'image' && !inReview ? <PresetsGallery brand={brand} onApply={applyPreset} /> : null}
     </div>
+  );
+}
+
+function CopyField({ label, value, onChange, disabled, name }: {
+  label: string; value: string; onChange: (v: string) => void; disabled?: boolean; name: string;
+}) {
+  return (
+    <label className="flex items-center gap-1.5">
+      <span className="w-[52px] shrink-0 text-[10px]" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        placeholder="—"
+        data-generate-copy-field={name}
+        aria-label={`${label} text`}
+        className="h-6 w-full rounded border bg-transparent px-1.5 text-[11px] focus:outline-none disabled:opacity-60 placeholder:text-muted-foreground/50"
+        style={{ borderColor: 'var(--border)' }}
+      />
+    </label>
   );
 }
 

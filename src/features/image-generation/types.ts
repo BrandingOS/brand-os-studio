@@ -40,6 +40,8 @@ export interface ImageCapabilities {
   models: ImageModelAvailability[];
   /** Registry id `auto` resolves to on this deployment. */
   auto: string;
+  /** No production model is unlocked — `auto` fell back to a test model. */
+  autoDegraded?: boolean;
   pricingVersion: string;
   usdPerCredit: number;
 }

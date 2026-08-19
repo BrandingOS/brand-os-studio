@@ -23,6 +23,18 @@ export function ModelPicker({
   const active = value === AUTO_MODEL_ID ? undefined : displayFor(value);
   const autoTarget = displayFor(state.auto);
   const anyAvailable = models.some((m) => m.available);
+  const degraded = state.capabilities?.autoDegraded === true;
+
+  // The section label rides on the FIRST item of each group, so the list can
+  // stay one flat array while still reading as two clearly separated shelves.
+  let lastGroup: string | null = null;
+  const sectioned = models.map((m) => {
+    const sectionLabel = m.group !== lastGroup
+      ? (m.group === 'production' ? 'Production models' : 'Test models — lower quality')
+      : undefined;
+    lastGroup = m.group;
+    return { ...m, sectionLabel };
+  });
 
   return (
     <TallSelect
@@ -30,7 +42,11 @@ export function ModelPicker({
       icon={<Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--text-secondary)' }} aria-hidden />}
       value={value}
       valueLabel={active ? active.short : 'Auto'}
-      valueHint={active ? active.hint : autoTarget ? `Auto picks ${autoTarget.label}` : 'Picks the best available model'}
+      valueHint={active
+        ? active.hint
+        : degraded
+          ? 'No production model is enabled — Auto fell back to a test model'
+          : autoTarget ? `Auto picks ${autoTarget.label}` : 'Picks the best available model'}
       onChange={(v) => {
         if (v === AUTO_MODEL_ID) { onChange(v); return; }
         if (models.find((m) => m.id === v)?.available) onChange(v);
@@ -42,17 +58,18 @@ export function ModelPicker({
         {
           value: AUTO_MODEL_ID,
           label: autoTarget ? `Auto · ${autoTarget.label}` : 'Auto',
-          trailing: 'Recommended',
+          trailing: degraded ? 'Degraded' : 'Recommended',
           renderIcon: (cn) => <Sparkles className={cn} style={{ color: 'var(--accent)' }} aria-hidden />,
           available: anyAvailable || !state.loaded,
         },
-        ...models.map((m) => ({
+        ...sectioned.map((m) => ({
           value: m.id,
           label: m.label,
           trailing: m.available ? (m.tier === 'free' ? 'Free' : undefined) : undefined,
           renderIcon: () => null,
           available: m.available,
           unavailableHint: 'Not enabled on this deployment',
+          sectionLabel: m.sectionLabel,
         })),
       ]}
     />

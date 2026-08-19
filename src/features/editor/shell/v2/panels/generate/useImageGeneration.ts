@@ -26,6 +26,7 @@ import {
 import { cancelGeneration, type AspectRatio, type ImageModelCaps } from '@/features/image-generation';
 import { AUTO_MODEL_ID, modelLabel } from '@/features/editor/ai/imageModels';
 import { compileImagePrompt, type CompiledPrompt } from '@/features/editor/ai/imagePrompt/compileImagePrompt';
+import { hasCopy, textSection, type CopyDeck, type DeliverableKind } from '@/features/editor/ai/imagePrompt/artDirection';
 import { buildBrandReferences } from '@/features/editor/ai/imagePrompt/brandReferences';
 import { findFormat, formatLabel, ratioForSize } from './formats';
 import { appendGenerations, generationForPage, type GenerationRecord } from './aiMetadata';
@@ -41,6 +42,10 @@ export interface GenerationSettings {
   caps: ImageModelCaps;
   /** Storage paths of user-attached references. */
   referencePaths?: string[];
+  /** Exact words the user wants set. Never invented on their behalf. */
+  copy?: CopyDeck;
+  /** Finished design vs plain image. Undefined → inferred from the request. */
+  kind?: DeliverableKind;
 }
 
 interface Pending {
@@ -297,11 +302,20 @@ export function useImageGeneration(args: UseImageGenerationArgs): UseImageGenera
     try {
       const { label } = resolveTarget();
       const out = await compileFn(
-        { userPrompt: plan.original, brand, formatLabel: label, modelCaps: s.caps, refineOf },
+        {
+          userPrompt: plan.original, brand, formatLabel: label, modelCaps: s.caps, refineOf,
+          copy: s.copy, kind: s.kind,
+          userReferenceCount: s.referencePaths?.length,
+        },
         { deterministicOnly: !s.brandAware },
       );
       if (!s.brandAware) {
-        out.prompt = plan.original;
+        // Raw means "send my words, not the brand's" — it does not mean
+        // "throw away the copy I typed". Keep the exact-copy contract; drop
+        // only the brand enrichment.
+        out.prompt = hasCopy(s.copy)
+          ? `${plan.original}\n\n${textSection(out.kind, s.copy, null)}`
+          : plan.original;
         out.useLogo = false;
         out.paletteHexes = [];
         out.notes = 'Raw prompt — brand context off.';

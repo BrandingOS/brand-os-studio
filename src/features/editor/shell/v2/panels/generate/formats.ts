@@ -55,6 +55,14 @@ export function formatLabel(f: FormatPreset, resolved?: AspectRatio): string {
 /**
  * Creation intents. Each sets the prompt intent AND the shape — a preset that
  * only filled in words would leave the user to guess the rest.
+ *
+ * Rewritten 2026-08-19. Four of the eight used to ask, in so many words, for
+ * empty space: "generous negative space at the top for a headline", "clean
+ * space in the upper third for text", "room for a short line of copy",
+ * "designed to sit behind text". They were describing the BACKGROUND of a
+ * design that nobody was going to finish — which is exactly what came back.
+ * A preset now names a finished deliverable, and `kind` says whether words and
+ * a logo belong in it at all.
  */
 export interface PromptPreset {
   id: string;
@@ -63,23 +71,27 @@ export interface PromptPreset {
   prompt: string;
   formatId: string;
   intent: string;
+  /** 'design' composes type + logo; 'image' is a wordless picture. */
+  kind: 'design' | 'image';
+  /** Suggested copy, offered to the user to EDIT — never sent unedited. */
+  copyHint?: { headline?: string; cta?: string };
 }
 
 export const PROMPT_PRESETS: PromptPreset[] = [
-  { id: 'social-post',  title: 'Social post',   formatId: 'square',     intent: 'Square feed image',
-    prompt: 'A striking social post image for {brand}: bold central subject, generous negative space at the top for a headline, crisp lighting' },
-  { id: 'story',        title: 'Story',         formatId: 'vertical',   intent: 'Full-bleed vertical',
-    prompt: 'A full-bleed vertical story background for {brand}: atmospheric depth, subject low in frame, clean space in the upper third for text' },
-  { id: 'ad',           title: 'Ad creative',   formatId: 'landscape',  intent: 'Advertising still',
-    prompt: 'An advertising still for {brand}: hero product or subject sharply lit against a controlled background, premium finish, room for a short line of copy' },
-  { id: 'product',      title: 'Product shot',  formatId: 'square',     intent: 'Studio product photo',
+  { id: 'social-post',  title: 'Social post',   formatId: 'square',     intent: 'Finished square post', kind: 'design',
+    prompt: 'A finished Instagram post for {brand} — a single strong subject, the headline set large and legible over it, and the logo placed with clear space' },
+  { id: 'story',        title: 'Story',         formatId: 'vertical',   intent: 'Finished vertical story', kind: 'design',
+    prompt: 'A finished vertical story for {brand} — full-bleed imagery with the headline set boldly in the upper third and the call to action resolved at the bottom' },
+  { id: 'ad',           title: 'Ad creative',   formatId: 'landscape',  intent: 'Finished advert', kind: 'design',
+    prompt: 'A finished advert for {brand} — hero subject sharply lit, headline set alongside it in a confident type hierarchy, logo locked to one corner' },
+  { id: 'poster',       title: 'Poster',        formatId: 'portrait',   intent: 'Finished poster', kind: 'design',
+    prompt: 'A finished poster for {brand} — a bold graphic composition where type and image are one design, not an image with words dropped on top' },
+  { id: 'product',      title: 'Product shot',  formatId: 'square',     intent: 'Studio product photo', kind: 'image',
     prompt: 'Studio product photography for {brand}: single product centred on a seamless surface, soft key light with a gentle shadow, true colour, no props' },
-  { id: 'background',   title: 'Background',    formatId: 'widescreen', intent: 'Abstract backdrop',
-    prompt: 'An abstract background for {brand}: subtle gradient and grain, calm composition with no focal subject, designed to sit behind text' },
-  { id: 'illustration', title: 'Illustration',  formatId: 'square',     intent: 'Vector-feel illustration',
+  { id: 'illustration', title: 'Illustration',  formatId: 'square',     intent: 'Vector-feel illustration', kind: 'image',
     prompt: 'A flat vector-style illustration for {brand}: simple geometry, confident shapes, limited palette, even lighting, no photographic texture' },
-  { id: 'editorial',    title: 'Editorial',     formatId: 'portrait',   intent: 'Editorial photograph',
+  { id: 'editorial',    title: 'Editorial',     formatId: 'portrait',   intent: 'Editorial photograph', kind: 'image',
     prompt: 'An editorial photograph for {brand}: documentary framing, natural light, honest texture, a real moment rather than a staged pose' },
-  { id: 'pattern',      title: 'Pattern',       formatId: 'square',     intent: 'Seamless pattern',
+  { id: 'pattern',      title: 'Pattern',       formatId: 'square',     intent: 'Seamless pattern', kind: 'image',
     prompt: 'A seamless repeating pattern for {brand}: even density across the frame, no focal point, tileable, restrained palette' },
 ];

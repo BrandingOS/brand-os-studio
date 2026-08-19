@@ -1,23 +1,30 @@
-// compileImagePrompt — turn the user's words into a brand-aware image
-// prompt WITHOUT hijacking them.
+// compileImagePrompt — turn the user's words into a brand-aware ART DIRECTION
+// BRIEF, without hijacking them.
 //
-// The owner's rules (2026-08-17), which the system prompt below encodes
-// verbatim and the deterministic fallback obeys by construction:
+// The owner's rules (2026-08-17), unchanged and still binding:
 //   • preserve the user's original creative intent
 //   • use brand context to ENRICH and CONSTRAIN, never to replace
-//   • do not force every brand attribute into every generation — only
-//     the relevant brand information
-//   • do NOT add logo placement unless the user asks for a logo or the
-//     request clearly requires branding (packaging, signage, ad, business
-//     card, merch, storefront, app screen with the brand…)
-//   • do not force every brand color into every image
+//   • do not force every brand attribute into every generation
+//   • no logo unless the user asks or the subject clearly requires branding
+//   • do not force every brand colour into every image
 //   • explicit user instructions win over brand defaults
-//   • the compiled prompt is shown, editable, before generation (UI)
 //
-// Two engines behind one function:
-//   claude   — `anthropic-proxy` (haiku), strict JSON, 8 s timeout
-//   fallback — deterministic: appends a short style clause + the
-//              relevant colors; never adds the logo on its own.
+// What changed (2026-08-19), and why
+// ──────────────────────────────────
+// The model used to return a FINISHED PROMPT: one ≤120-word paragraph
+// describing a picture, under a rule that forbade text-in-image. A design tool
+// therefore asked for — and got — backgrounds.
+//
+// Now the model returns FIELDS (subject, composition, style, palette,
+// placement) and `assembleBrief` in `artDirection.ts` builds the prompt around
+// them. Everything that must not drift — the deliverable line, the exact copy,
+// the logo instruction, the safe margin, the exclusions — is written in code
+// and cannot be softened by a model having an opinion.
+//
+// Two engines behind one function, as before:
+//   claude   — `anthropic-proxy` (sonnet), strict JSON, 25 s timeout
+//   fallback — deterministic: a real brief, not a caption. Every invariant
+//              still present; only the creative middle is thinner.
 
 import { z } from 'zod';
 import type { Brand } from '@/shared/types/brand';
@@ -28,17 +35,34 @@ import {
   describeBrandForPrompt,
   type BrandImageContext,
 } from './brandImageContext';
+import {
+  assembleBrief,
+  hasCopy,
+  inferDeliverable,
+  type CopyDeck,
+  type DeliverableKind,
+  type LayoutDirection,
+  type LogoPlacement,
+} from './artDirection';
+
+export type { CopyDeck, DeliverableKind } from './artDirection';
 
 export interface CompileInput {
   userPrompt: string;
   brand: Brand | null | undefined;
-  /** Human label of the target format, e.g. "1:1 square social post". */
+  /** Human label of the target format, e.g. "1:1 Square". */
   formatLabel?: string;
   /** Style preset label chosen in the panel, if any. */
   styleLabel?: string;
   modelCaps?: ImageModelCaps;
   /** Refine flow: the user is editing an existing image. */
   refineOf?: { previousPrompt: string };
+  /** Exact words the user wants set. Never invented on their behalf. */
+  copy?: CopyDeck;
+  /** Explicit finished-design / plain-image choice; inferred when absent. */
+  kind?: DeliverableKind;
+  /** How many user reference images are attached. */
+  userReferenceCount?: number;
 }
 
 export interface CompiledPrompt {
@@ -52,21 +76,28 @@ export interface CompiledPrompt {
   notes: string;
   source: 'claude' | 'deterministic';
   original: string;
+  /** What was built, and why — surfaced in the panel. */
+  kind: DeliverableKind;
+  deliverable: string;
+  kindReason: string;
 }
 
 export interface CompileOptions {
   /** Injected for tests. Defaults to `callAnthropic`. */
   call?: typeof callAnthropic;
   timeoutMs?: number;
-  /** Force the deterministic engine (Raw+brand clause). */
+  /** Force the deterministic engine. */
   deterministicOnly?: boolean;
 }
 
-const CompiledSchema = z.object({
-  prompt: z.string().min(1),
-  negativePrompt: z.string().optional().nullable(),
-  useLogo: z.boolean(),
+const DirectionSchema = z.object({
+  subject: z.string().default(''),
+  composition: z.string().default(''),
+  style: z.string().default(''),
   paletteHexes: z.array(z.string()).default([]),
+  logoPlacement: z.string().optional().nullable(),
+  useLogo: z.boolean().default(false),
+  negativePrompt: z.string().optional().nullable(),
   notes: z.string().default(''),
 });
 
@@ -74,7 +105,17 @@ const LOGO_WORDS = /\b(logo|logomark|wordmark|brand ?mark|branding|branded|our b
 const BRANDED_SUBJECTS = /\b(packaging|package|box|bottle|can|label|signage|sign|storefront|shopfront|billboard|poster|flyer|banner|ad|advert|advertisement|business card|letterhead|merch|merchandise|t-?shirt|hoodie|tote|mug|cap|uniform|van|truck|app screen|website|landing page|mockup|mock-up|stationery|invoice|menu|brochure|social post|instagram post|story|cover|thumbnail|badge|sticker|pin)\b/i;
 const COLOR_OVERRIDE = /\b(black and white|monochrome|grayscale|greyscale|sepia|in (red|blue|green|yellow|orange|purple|pink|teal|gold|silver|pastel|neon)\b|only (red|blue|green|yellow|orange|purple|pink|teal|black|white)\b|no brand colou?rs?|without brand colou?rs?)\b/i;
 
-/** Pure heuristics — shared by the fallback and used to sanity-check Claude. */
+const PLACEMENTS: LogoPlacement[] = [
+  'top-left', 'top-right', 'top-centre', 'bottom-left', 'bottom-right', 'bottom-centre', 'centre',
+];
+
+function asPlacement(v: unknown): LogoPlacement | undefined {
+  if (typeof v !== 'string') return undefined;
+  const norm = v.toLowerCase().replace(/\s+/g, '-').replace('center', 'centre');
+  return PLACEMENTS.find((p) => p === norm);
+}
+
+/** Pure heuristics — shared by the fallback and used to sanity-check the model. */
 export function heuristics(userPrompt: string, ctx: BrandImageContext | null) {
   const wantsLogoExplicit = LOGO_WORDS.test(userPrompt);
   const brandedSubject = BRANDED_SUBJECTS.test(userPrompt);
@@ -83,49 +124,102 @@ export function heuristics(userPrompt: string, ctx: BrandImageContext | null) {
   return { wantsLogoExplicit, brandedSubject, colorOverride, useLogo };
 }
 
+/** Core brand hexes worth using, respecting a user colour direction. */
+function relevantHexes(ctx: BrandImageContext | null, colorOverride: boolean): string[] {
+  if (!ctx || colorOverride) return [];
+  const seen = new Set<string>();
+  return ctx.palette
+    .filter((p) => p.role === 'primary' || p.role === 'secondary' || p.role === 'accent')
+    .map((p) => p.hex)
+    // Uniex's secondary and accent are the same green; naming it twice reads as
+    // emphasis to a model, and it doubled the accent across the composition.
+    .filter((hex) => (seen.has(hex) ? false : (seen.add(hex), true)))
+    .slice(0, 3);
+}
+
+// ─── Deterministic engine ────────────────────────────────────────────────────
+
 export function deterministicCompile(input: CompileInput): CompiledPrompt {
   const original = input.userPrompt.trim();
   const ctx = buildBrandImageContext(input.brand);
-  if (!ctx) {
-    return { prompt: original, useLogo: false, paletteHexes: [], notes: 'No brand context.', source: 'deterministic', original };
-  }
+  const inferred = inferDeliverable(original, input.copy, input.kind);
   const h = heuristics(original, ctx);
-  const clauses: string[] = [];
-  const paletteHexes: string[] = [];
 
-  if (!h.colorOverride) {
-    // Only the accent-worthy colors — never the whole ladder.
-    const core = ctx.palette.filter((p) => p.role === 'primary' || p.role === 'secondary').slice(0, 2);
-    if (core.length) {
-      paletteHexes.push(...core.map((p) => p.hex));
-      clauses.push(`subtle accents in ${core.map((p) => p.hex).join(' and ')}`);
-    }
-  }
-  if (ctx.styleDescriptors.length) clauses.push(`${ctx.styleDescriptors.slice(0, 3).join(', ')} aesthetic`);
-  if (h.useLogo) clauses.push(`the ${ctx.name} logo shown accurately from the reference, placed naturally`);
-  if (h.brandedSubject && !h.useLogo && !ctx.hasLogo) clauses.push(`for the brand ${ctx.name}`);
-  if (input.styleLabel && input.styleLabel !== 'No style') clauses.push(input.styleLabel.toLowerCase());
-  clauses.push('high quality, coherent composition');
+  // A finished design carries the brand mark by default; a plain image does not.
+  const useLogo = !!ctx?.hasLogo
+    && (inferred.kind === 'design' ? true : h.useLogo)
+    && !/\bno logo\b|\bwithout (the )?logo\b/i.test(original);
 
-  const prompt = clauses.length ? `${original}. ${clauses.join(', ')}.` : original;
-  const notes = [
-    paletteHexes.length ? `Brand colors as accents (${paletteHexes.length}).` : (h.colorOverride ? 'Your color direction kept; brand colors not forced.' : 'No brand colors added.'),
-    h.useLogo ? 'Logo included (you asked for branding).' : 'No logo — not requested.',
-  ].join(' ');
-  return { prompt, useLogo: h.useLogo, paletteHexes, notes, source: 'deterministic', original };
+  const paletteHexes = relevantHexes(ctx, h.colorOverride);
+  const style = [
+    ctx?.styleDescriptors.slice(0, 3).join(', '),
+    input.styleLabel && input.styleLabel !== 'No style' ? input.styleLabel.toLowerCase() : '',
+    'sharp focus, considered lighting, no visual noise',
+  ].filter(Boolean).join('; ');
+
+  const direction: LayoutDirection = {
+    subject: original,
+    composition: inferred.kind === 'design'
+      ? 'Build a deliberate layout: a dominant image area, type set at a clear size hierarchy, and generous breathing space — every element aligned to a simple grid.'
+      : 'A single strong subject, framed with intent.',
+    style,
+    paletteHexes,
+    logoPlacement: 'top-left',
+    negativePrompt: undefined,
+    notes: h.colorOverride
+      ? 'Your colour direction kept; brand colours not forced.'
+      : paletteHexes.length ? `Brand colours used by role (${paletteHexes.length}).` : 'No brand colours applied.',
+  };
+
+  const { prompt, negativePrompt } = assembleBrief({
+    kind: inferred.kind,
+    userPrompt: original,
+    copy: input.copy,
+    brand: ctx,
+    formatLabel: input.formatLabel ?? 'square',
+    deliverableNoun: inferred.noun,
+    logoAttached: useLogo,
+    userReferenceCount: input.userReferenceCount,
+    direction,
+  });
+
+  return {
+    prompt,
+    negativePrompt,
+    useLogo,
+    paletteHexes,
+    notes: direction.notes,
+    source: 'deterministic',
+    original,
+    kind: inferred.kind,
+    deliverable: inferred.noun,
+    kindReason: inferred.reason,
+  };
 }
 
-const SYSTEM = `You compile IMAGE-GENERATION prompts for a brand design tool. You receive the user's request and a brand summary. Return ONLY a JSON object: {"prompt": string, "negativePrompt": string|null, "useLogo": boolean, "paletteHexes": string[], "notes": string}.
+// ─── Assisted engine ─────────────────────────────────────────────────────────
 
-Rules (binding):
-1. Preserve the user's original creative intent. The subject, scene, mood and any explicit instruction they wrote stay exactly as meant. Rewrite for clarity and richness (composition, lighting, materials, camera/style words), never for a different idea.
-2. Use brand context to ENRICH and CONSTRAIN — never to replace. Do not force every brand attribute into every image; pick only what serves THIS request.
-3. LOGO: set useLogo=true ONLY if the user asks for the logo/branding, or the subject clearly requires branding (packaging, signage, ads, business cards, merch, storefronts, mockups, brand social posts). A cat on a sofa, a landscape, a portrait, abstract art → useLogo=false and NO logo language in the prompt. If useLogo=true and a logo file exists, describe it as "the brand logo exactly as in the reference image, undistorted, placed naturally" — never invent a logo shape.
-4. COLORS: do not force every brand color. Choose 0–3 hexes that genuinely fit the scene as accents/backdrop and list them in paletteHexes; if the user gave a color direction (e.g. "black and white", "in red"), obey it and leave paletteHexes empty unless it agrees.
-5. Explicit user instructions override brand defaults, always.
-6. Keep the prompt one paragraph, ≤ 120 words, concrete, no marketing fluff, no hex codes spelled in the prompt unless the model benefits (you may say "deep navy (#0B1F3A)"). No text-in-image instructions unless the user asked for text.
-7. negativePrompt: short comma list of things to avoid for this request (or null).
-8. notes: one short sentence for the user explaining what brand context you used and what you deliberately left out.
+const SYSTEM = `You are an ART DIRECTOR briefing an image-generation model for a brand design tool. You do NOT write the final prompt — you return the creative middle of a brief, as JSON fields. Another system assembles the deliverable statement, the exact copy, the logo rule, the margins and the exclusions around your fields; do not restate them.
+
+Return ONLY this JSON object:
+{"subject": string, "composition": string, "style": string, "paletteHexes": string[], "logoPlacement": string|null, "useLogo": boolean, "negativePrompt": string|null, "notes": string}
+
+Field contracts:
+• subject — 1–2 sentences. The scene, product or concept, ENRICHED with concrete visual specifics (materials, surfaces, lighting, era, setting, mood). Preserve the user's idea exactly; add craft, never a different idea. If the user named a product, keep that product.
+• composition — 1–2 sentences of LAYOUT direction for a designer: where the focal point sits, how the type is arranged and at what relative scale, where negative space falls, the grid or alignment logic, camera angle/crop. For a finished design, say where the headline and any call to action sit. Never reserve empty space for text: if copy is listed, it is being SET in this image; if no copy is listed, the composition must be complete and balanced with no blank placeholder area. "Generous negative space for a headline" is always wrong.
+• style — 1 sentence of treatment: medium (photography / 3D / vector / collage / risograph…), lighting, texture, finish, colour grading. Be specific enough that two designers would produce the same look.
+• paletteHexes — 0–3 hexes CHOSEN FROM the brand palette you were given, in order of dominance. Pick only what genuinely serves this image. If the user gave a colour direction ("black and white", "in red"), return [].
+• useLogo — true if the brand's real logo should appear in frame. For a finished branded deliverable (post, ad, poster, packaging, signage, merch, cover) that is normally true. For a plain photograph, illustration, texture or pattern it is false. If the user said "no logo", false.
+• logoPlacement — one of: top-left, top-right, top-centre, bottom-left, bottom-right, bottom-centre, centre. Null if useLogo is false.
+• negativePrompt — a short comma list of pitfalls SPECIFIC to this request (e.g. "extra fingers, plastic-looking skin"). General rules are already handled; do not repeat them. Null if nothing specific.
+• notes — one short sentence for the user: what brand context you used and what you deliberately left out.
+
+Binding rules:
+1. The user's explicit instructions outrank every brand default and every rule below.
+2. Enrich, never replace. Do not substitute a different subject because it would photograph better.
+3. Do not force every brand attribute in. Choose what serves THIS image.
+4. NEVER invent marketing copy, slogans, prices, discounts or offers. You are not writing words for the image; another system controls the text exactly.
+5. Write for a designer, not a search engine. No keyword soup, no "8k, masterpiece, trending on artstation".
 Return JSON only. No markdown fences.`;
 
 function extractJson(text: string): unknown {
@@ -146,47 +240,89 @@ export async function compileImagePrompt(
   const fallback = deterministicCompile(input);
   if (opts.deterministicOnly || !original) return fallback;
   const ctx = buildBrandImageContext(input.brand);
-  if (!ctx) return fallback;
 
   const call = opts.call ?? callAnthropic;
-  const timeoutMs = opts.timeoutMs ?? 8000;
+  // A full art-direction JSON from sonnet lands in 10–14 s. The first cut of
+  // this used 12 s and quietly fell back to the deterministic brief on most
+  // real requests — the expensive failure mode, because the user pays for the
+  // image either way. Budget generously: the compile costs a fraction of a cent.
+  const timeoutMs = opts.timeoutMs ?? 25000;
   const h = heuristics(original, ctx);
+  const inferred = inferDeliverable(original, input.copy, input.kind);
+
+  const copyLines = hasCopy(input.copy)
+    ? [
+      'EXACT COPY THE USER SUPPLIED (another system sets these words; compose around them):',
+      input.copy?.headline ? `  headline: "${input.copy.headline}"` : '',
+      input.copy?.subhead ? `  subhead: "${input.copy.subhead}"` : '',
+      input.copy?.cta ? `  cta: "${input.copy.cta}"` : '',
+    ].filter(Boolean).join('\n')
+    : 'NO COPY SUPPLIED — nothing further will be added to this image afterwards. The composition must be COMPLETE and finished on its own; do not reserve or leave a blank area for a headline. It may carry the brand name/tagline only.';
 
   const userMsg = [
     `USER REQUEST: ${original}`,
-    input.refineOf ? `This is a REFINEMENT of an earlier image whose prompt was: "${input.refineOf.previousPrompt}". Keep what the user did not ask to change.` : '',
-    `BRAND: ${describeBrandForPrompt(ctx)}`,
-    input.formatLabel ? `FORMAT: ${input.formatLabel}` : '',
+    `DELIVERABLE: ${inferred.kind === 'design' ? `a finished ${inferred.noun}` : 'a wordless image'} at ${input.formatLabel ?? 'square'}`,
+    copyLines,
+    input.refineOf ? `REFINEMENT of an earlier image whose brief was: "${input.refineOf.previousPrompt.slice(0, 400)}". Keep everything the user did not ask to change.` : '',
+    ctx ? `BRAND: ${describeBrandForPrompt(ctx)}` : 'BRAND: none supplied.',
     input.styleLabel && input.styleLabel !== 'No style' ? `STYLE PRESET CHOSEN BY USER: ${input.styleLabel}` : '',
-    input.modelCaps ? `MODEL: text rendering ${input.modelCaps.textRendering}; accepts ${input.modelCaps.maxReferenceImages} reference images (a logo reference will be attached only if useLogo=true).` : '',
-    `HINTS: explicit logo words=${h.wantsLogoExplicit}; branded subject=${h.brandedSubject}; user color direction=${h.colorOverride}.`,
+    input.modelCaps ? `MODEL: text rendering ${input.modelCaps.textRendering}; accepts ${input.modelCaps.maxReferenceImages} reference images.` : '',
+    `HINTS: explicit logo words=${h.wantsLogoExplicit}; branded subject=${h.brandedSubject}; user colour direction=${h.colorOverride}; logo file available=${!!ctx?.hasLogo}.`,
   ].filter(Boolean).join('\n');
 
   try {
     const res = await Promise.race([
-      call({ model: 'haiku', max_tokens: 600, system: SYSTEM, messages: [{ role: 'user', content: userMsg }] }),
+      // Sonnet, not haiku: this is a craft judgement, and the cost is a
+      // rounding error beside a paid image that misses.
+      call({ model: 'sonnet', max_tokens: 1100, system: SYSTEM, messages: [{ role: 'user', content: userMsg }] }),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('compile timeout')), timeoutMs)),
     ]);
     const text = firstText(res);
     if (!text) return fallback; // proxy mock (no key) answers empty
-    const parsed = CompiledSchema.parse(extractJson(text));
-    // Guard rails the model must not cross: a logo needs a logo file, and
-    // a user color direction empties the brand palette. Claude's useLogo
-    // judgement is otherwise trusted (it saw the rules + the hints); the
-    // UI shows the Logo chip so the user can drop it in one click.
-    const useLogo = parsed.useLogo && ctx.hasLogo;
-    const known = new Set(ctx.palette.map((p) => p.hex.toUpperCase()));
+    const parsed = DirectionSchema.parse(extractJson(text));
+
+    // Guard rails the model may not cross.
+    const known = new Set((ctx?.palette ?? []).map((p) => p.hex.toUpperCase()));
     const paletteHexes = h.colorOverride
       ? []
-      : parsed.paletteHexes.map((x) => x.toUpperCase()).filter((x) => known.has(x)).slice(0, 3);
+      : Array.from(new Set(parsed.paletteHexes.map((x) => x.toUpperCase())))
+        .filter((x) => known.has(x)).slice(0, 3);
+    const saidNoLogo = /\bno logo\b|\bwithout (the )?logo\b/i.test(original);
+    const useLogo = !!ctx?.hasLogo && parsed.useLogo && !saidNoLogo;
+
+    const direction: LayoutDirection = {
+      subject: parsed.subject,
+      composition: parsed.composition,
+      style: parsed.style,
+      paletteHexes,
+      logoPlacement: asPlacement(parsed.logoPlacement),
+      negativePrompt: parsed.negativePrompt ?? undefined,
+      notes: parsed.notes.trim() || fallback.notes,
+    };
+
+    const { prompt, negativePrompt } = assembleBrief({
+      kind: inferred.kind,
+      userPrompt: original,
+      copy: input.copy,
+      brand: ctx,
+      formatLabel: input.formatLabel ?? 'square',
+      deliverableNoun: inferred.noun,
+      logoAttached: useLogo,
+      userReferenceCount: input.userReferenceCount,
+      direction,
+    });
+
     return {
-      prompt: parsed.prompt.trim(),
-      negativePrompt: parsed.negativePrompt?.trim() || undefined,
+      prompt,
+      negativePrompt,
       useLogo,
       paletteHexes,
-      notes: parsed.notes.trim() || fallback.notes,
+      notes: direction.notes,
       source: 'claude',
       original,
+      kind: inferred.kind,
+      deliverable: inferred.noun,
+      kindReason: inferred.reason,
     };
   } catch {
     return fallback;

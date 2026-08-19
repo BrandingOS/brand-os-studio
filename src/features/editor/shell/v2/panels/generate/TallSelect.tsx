@@ -15,6 +15,8 @@ export interface TallSelectItem {
   available?: boolean;
   /** Tooltip explaining why it's disabled (e.g. which key to add). */
   unavailableHint?: string;
+  /** Renders a labelled divider ABOVE this item. */
+  sectionLabel?: string;
 }
 
 export function TallSelect({
@@ -50,6 +52,15 @@ export function TallSelect({
         {items.map((it) => {
           const off = it.available === false;
           return (
+            <div key={`g-${it.value}`}>
+            {it.sectionLabel ? (
+              <div
+                className="px-2 pt-2 pb-1 text-[9.5px] font-medium uppercase tracking-[0.09em]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {it.sectionLabel}
+              </div>
+            ) : null}
             <SelectItem
               key={it.value}
               value={it.value}
@@ -82,6 +93,7 @@ export function TallSelect({
                 </span>
               </div>
             </SelectItem>
+            </div>
           );
         })}
       </SelectContent>

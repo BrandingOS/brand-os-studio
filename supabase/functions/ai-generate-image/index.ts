@@ -36,6 +36,7 @@ import {
   coerceSettings,
   findImageModel,
   isModelAvailable,
+  resolveAuto,
   resolveAutoModel,
   vendorModelFor,
   type ImageModelDef,
@@ -204,7 +205,10 @@ function modelsAction() {
         caps: m.caps,
       };
     }),
-    auto: forceMock ? 'mock:svg' : resolveAutoModel(getEnv).id,
+    auto: forceMock ? 'mock:svg' : resolveAuto(getEnv).def.id,
+    // True only when no production model is unlocked at all. The panel says so
+    // rather than letting a free model masquerade as the recommended choice.
+    autoDegraded: forceMock ? false : resolveAuto(getEnv).degraded,
     pricingVersion: PRICING_VERSION,
     usdPerCredit: USD_PER_CREDIT,
   };

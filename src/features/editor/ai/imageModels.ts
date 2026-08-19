@@ -20,20 +20,37 @@ export interface ImageModelDisplay {
   hint: string;
   /** Offered in the picker. Hidden entries still resolve for old jobs. */
   listed: boolean;
+  /**
+   * Which section of the picker it belongs to.
+   *
+   * `production` models can set legible type and reproduce a logo from a
+   * reference — the two things brand work needs. `test` models cannot do
+   * either well; they are kept because they are free and useful for trying an
+   * idea out, and they are labelled so nobody reaches for one by accident.
+   */
+  group: 'production' | 'test';
 }
 
+/** Declaration order IS picker order: production by strength, then test. */
 export const IMAGE_MODEL_DISPLAY: ImageModelDisplay[] = [
-  { id: 'google:nano-banana-pro', label: 'Nano Banana Pro', short: 'Nano+', hint: 'Highest fidelity, best with brand references', listed: true },
-  { id: 'google:nano-banana',     label: 'Nano Banana',     short: 'Nano',  hint: 'Fast, strong with references',                  listed: true },
-  { id: 'openai:gpt-image',       label: 'GPT Image',       short: 'GPT',   hint: 'Best text and logo fidelity',                    listed: true },
-  { id: 'openai:gpt-image-mini',  label: 'GPT Image Mini',  short: 'GPT-m', hint: 'Cheaper, quicker',                               listed: true },
-  { id: 'fal:flux-schnell',       label: 'Flux Schnell',    short: 'Flux+', hint: 'Very fast, no references',                       listed: true },
-  { id: 'pollinations:flux',      label: 'Flux (free)',     short: 'Flux',  hint: 'Free — no references, softer results',           listed: true },
-  { id: 'pollinations:turbo',     label: 'Flux Turbo (free)', short: 'Turbo', hint: 'Free and fastest',                             listed: true },
-  { id: 'cloudflare:flux-schnell',  label: 'Flux (Cloudflare)',   short: 'CF',   hint: 'Workers AI',      listed: false },
-  { id: 'huggingface:flux-schnell', label: 'Flux (Hugging Face)', short: 'HF',   hint: 'Inference API',   listed: false },
-  { id: 'mock:svg',                 label: 'Mock',                short: 'Mock', hint: 'No network',      listed: false },
+  { id: 'google:nano-banana-pro', label: 'Nano Banana Pro',   short: 'Nano+', hint: 'Highest fidelity — best type and logo reproduction', listed: true, group: 'production' },
+  { id: 'openai:gpt-image',       label: 'GPT Image',         short: 'GPT',   hint: 'Excellent legible text, 8 references',               listed: true, group: 'production' },
+  { id: 'google:nano-banana',     label: 'Nano Banana',       short: 'Nano',  hint: 'Faster and cheaper, still reference-aware',          listed: true, group: 'production' },
+  { id: 'openai:gpt-image-mini',  label: 'GPT Image Mini',    short: 'GPT-m', hint: 'Cheapest production option',                         listed: true, group: 'production' },
+  // Test models: no reference images, weak lettering. Fine for trying an idea,
+  // wrong for anything that has to carry a logo or a headline.
+  { id: 'fal:flux-schnell',       label: 'Flux Schnell',      short: 'Flux+', hint: 'No references, weak text — draft ideas only',        listed: true, group: 'test' },
+  { id: 'pollinations:flux',      label: 'Flux (free)',       short: 'Flux',  hint: 'Free — no references, weak text',                    listed: true, group: 'test' },
+  { id: 'pollinations:turbo',     label: 'Flux Turbo (free)', short: 'Turbo', hint: 'Free and fastest — lowest quality',                  listed: true, group: 'test' },
+  { id: 'cloudflare:flux-schnell',  label: 'Flux (Cloudflare)',   short: 'CF',   hint: 'Workers AI',      listed: false, group: 'test' },
+  { id: 'huggingface:flux-schnell', label: 'Flux (Hugging Face)', short: 'HF',   hint: 'Inference API',   listed: false, group: 'test' },
+  { id: 'mock:svg',                 label: 'Mock',                short: 'Mock', hint: 'No network',      listed: false, group: 'test' },
 ];
+
+/** Ids that cannot do brand work — used to migrate a stuck preference. */
+export function isTestModel(id: string | null | undefined): boolean {
+  return displayFor(id)?.group === 'test';
+}
 
 /** Ids older documents and callers may still carry. */
 export const LEGACY_MODEL_ALIASES: Record<string, string> = {

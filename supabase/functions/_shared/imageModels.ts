@@ -234,14 +234,27 @@ export const LEGACY_MODEL_ALIASES: Record<string, string> = {
   'pollinations:kontext': 'pollinations:flux',
 };
 
-/** Order `auto` resolves in — best brand fidelity first, free last. */
+/**
+ * Order `auto` resolves in — PRODUCTION models only, strongest first.
+ *
+ * Two models that used to sit here no longer do. `fal:flux-schnell` renders
+ * text weakly and accepts NO reference images, so it can neither set a headline
+ * nor reproduce a logo — it cannot do brand work at any price. `pollinations`
+ * is free and worse at both. Auto is the path almost every user takes; it must
+ * never quietly hand them a test model.
+ *
+ * Ranked for the job this product actually does — legible type, faithful logo
+ * reproduction from a reference, and controllable composition.
+ */
 export const AUTO_ORDER: string[] = [
   'google:nano-banana-pro',
-  'google:nano-banana',
   'openai:gpt-image',
-  'fal:flux-schnell',
-  'pollinations:flux',
+  'google:nano-banana',
+  'openai:gpt-image-mini',
 ];
+
+/** Last resort when a deployment has no production key at all. */
+export const AUTO_DEGRADED_FALLBACK = 'pollinations:flux';
 
 export function findImageModel(id: string | undefined): ImageModelDef | undefined {
   if (!id) return undefined;
@@ -259,12 +272,25 @@ export function isModelAvailable(def: ImageModelDef, getEnv: (k: string) => stri
   return !!getEnv(def.keyEnv);
 }
 
-export function resolveAutoModel(getEnv: (k: string) => string | undefined): ImageModelDef {
+/**
+ * What `auto` means on this deployment.
+ *
+ * `degraded` is true only when NOT ONE production model is unlocked — a
+ * misconfiguration, not a normal state. The flag travels to the browser so the
+ * panel can say so plainly instead of silently producing weak images.
+ */
+export function resolveAuto(
+  getEnv: (k: string) => string | undefined,
+): { def: ImageModelDef; degraded: boolean } {
   for (const id of AUTO_ORDER) {
     const def = findImageModel(id);
-    if (def && isModelAvailable(def, getEnv)) return def;
+    if (def && isModelAvailable(def, getEnv)) return { def, degraded: false };
   }
-  return findImageModel('pollinations:flux')!;
+  return { def: findImageModel(AUTO_DEGRADED_FALLBACK)!, degraded: true };
+}
+
+export function resolveAutoModel(getEnv: (k: string) => string | undefined): ImageModelDef {
+  return resolveAuto(getEnv).def;
 }
 
 export function vendorModelFor(def: ImageModelDef, getEnv: (k: string) => string | undefined): string {

@@ -72,100 +72,147 @@ describe('heuristics', () => {
   });
 });
 
-describe('deterministicCompile', () => {
-  it('keeps the original prompt first and adds only accents + style, no logo', () => {
-    const out = deterministicCompile({ userPrompt: 'a cat sleeping on a sofa', brand: fixtureBrand() });
-    expect(out.prompt.startsWith('a cat sleeping on a sofa')).toBe(true);
-    expect(out.prompt).toMatch(/#6B46FF/);
-    expect(out.prompt).not.toMatch(/logo/i);
+describe('deterministicCompile — the brief is assembled, not described', () => {
+  it('states a FINISHED deliverable and forbids a background plate', () => {
+    const out = deterministicCompile({ userPrompt: 'Instagram post for our launch', brand: fixtureBrand() });
+    expect(out.kind).toBe('design');
+    expect(out.deliverable).toBe('instagram post');
+    expect(out.prompt).toMatch(/FINISHED INSTAGRAM POST/);
+    expect(out.prompt).toMatch(/publication-ready/i);
+    expect(out.prompt).toMatch(/must NOT be an empty background/i);
+  });
+
+  it('quotes the user\'s copy verbatim and bans every other word', () => {
+    const out = deterministicCompile({
+      userPrompt: 'Instagram post for our launch',
+      brand: fixtureBrand(),
+      copy: { headline: 'Same day. Every day.', cta: 'Book a pickup' },
+    });
+    expect(out.prompt).toContain('“Same day. Every day.”');
+    expect(out.prompt).toContain('“Book a pickup”');
+    expect(out.prompt).toMatch(/do not add any other word anywhere in the frame/i);
+  });
+
+  it('invents nothing when no copy is supplied — only words the brand owns', () => {
+    const out = deterministicCompile({ userPrompt: 'A poster for our launch', brand: fixtureBrand() });
+    expect(out.prompt).toMatch(/The ONLY words permitted are the brand name “Raqm”/);
+    expect(out.prompt).toMatch(/Do not invent a headline, slogan, caption, price, percentage or label/i);
+    // …and it must not quietly reserve a blank area for copy nobody will add.
+    expect(out.prompt).toMatch(/do NOT reserve, mask or flatten any area as a/i);
+  });
+
+  it('always carries the exclusions, including the invented-discount trap', () => {
+    const out = deterministicCompile({ userPrompt: 'An ad for our product', brand: fixtureBrand() });
+    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
+    expect(out.prompt).toMatch(/discount badges, sale stickers, percentage offers/i);
+    expect(out.prompt).toMatch(/invented slogans/i);
+    expect(out.negativePrompt).toMatch(/discount badges/i);
+  });
+
+  it('a plain photograph stays a wordless image — no text, no logo', () => {
+    const out = deterministicCompile({ userPrompt: 'a photo of a cat on a sofa', brand: fixtureBrand() });
+    expect(out.kind).toBe('image');
     expect(out.useLogo).toBe(false);
-    expect(out.paletteHexes).toEqual(['#6B46FF', '#0B0B12']);
-    expect(out.source).toBe('deterministic');
-    expect(out.original).toBe('a cat sleeping on a sofa');
+    expect(out.prompt).toMatch(/TEXT — none/);
+    expect(out.prompt).toMatch(/LOGO — none/);
+    expect(out.prompt).toMatch(/any text, lettering, numerals or signage/i);
   });
-  it('drops brand colors when the user gave a color direction', () => {
-    const out = deterministicCompile({ userPrompt: 'a portrait, black and white', brand: fixtureBrand() });
+
+  it('drops brand colours when the user gave a colour direction', () => {
+    const out = deterministicCompile({ userPrompt: 'a poster in black and white', brand: fixtureBrand() });
     expect(out.paletteHexes).toEqual([]);
-    expect(out.prompt).not.toMatch(/#6B46FF/);
+    expect(out.notes).toMatch(/colour direction/i);
   });
-  it('mentions the logo when asked', () => {
-    const out = deterministicCompile({ userPrompt: 'our logo on a tote bag', brand: fixtureBrand() });
-    expect(out.useLogo).toBe(true);
-    expect(out.prompt).toMatch(/Raqm logo/);
+
+  it('a finished design carries the logo by default; "no logo" is obeyed', () => {
+    expect(deterministicCompile({ userPrompt: 'Instagram post for our launch', brand: fixtureBrand() }).useLogo).toBe(true);
+    expect(deterministicCompile({ userPrompt: 'Instagram post for our launch, no logo', brand: fixtureBrand() }).useLogo).toBe(false);
   });
-  it('passes the prompt through untouched without a brand', () => {
-    const out = deterministicCompile({ userPrompt: 'hello', brand: null });
-    expect(out.prompt).toBe('hello');
+
+  it('never claims a logo the brand does not have', () => {
+    const out = deterministicCompile({ userPrompt: 'A poster for our launch', brand: fixtureBrand({ logo: undefined, logoSystem: undefined } as Partial<Brand>) });
+    expect(out.useLogo).toBe(false);
+    expect(out.prompt).toMatch(/LOGO — none/);
+  });
+
+  it('works with no brand at all', () => {
+    const out = deterministicCompile({ userPrompt: 'a red bicycle', brand: null });
+    expect(out.prompt).toContain('a red bicycle');
+    expect(out.useLogo).toBe(false);
   });
 });
 
-describe('compileImagePrompt (claude engine)', () => {
-  it('uses the model JSON and keeps only known brand hexes', async () => {
-    const call = vi.fn(async () => claudeJson({
-      prompt: 'A cat asleep on a velvet sofa, soft window light, subtle violet accents',
-      negativePrompt: 'text, watermark',
-      useLogo: false,
-      paletteHexes: ['#6b46ff', '#FF0000'],
-      notes: 'Used the primary violet as an accent; no logo — not requested.',
+describe('compileImagePrompt (assisted engine)', () => {
+  it('uses the model FIELDS and keeps only known brand hexes', async () => {
+    const call = vi.fn().mockResolvedValue(claudeJson({
+      subject: 'A matte black cup on oak',
+      composition: 'Cup low-left, headline upper right',
+      style: 'Editorial daylight photography',
+      paletteHexes: ['#6B46FF', '#FF0000'],
+      useLogo: true,
+      logoPlacement: 'bottom-right',
+      negativePrompt: 'steam',
+      notes: 'Used the primary only.',
     }));
-    const out = await compileImagePrompt({ userPrompt: 'a cat on a sofa', brand: fixtureBrand() }, { call: call as never });
-    expect(out.source).toBe('claude');
-    expect(out.prompt).toMatch(/velvet sofa/);
-    expect(out.negativePrompt).toBe('text, watermark');
-    expect(out.paletteHexes).toEqual(['#6B46FF']);
-    expect(out.useLogo).toBe(false);
-    const req = (call.mock.calls[0] as unknown[])[0] as { model: string; system: string; messages: Array<{ content: string }> };
-    expect(req.model).toBe('haiku');
-    expect(req.system).toMatch(/Preserve the user's original creative intent/);
-    expect(req.messages[0].content).toMatch(/USER REQUEST: a cat on a sofa/);
-    expect(req.messages[0].content).toMatch(/BRAND: Brand: Raqm/);
-  });
-
-  it('never keeps a logo when the brand has no logo file', async () => {
-    const call = vi.fn(async () => claudeJson({ prompt: 'x', useLogo: true, paletteHexes: [], notes: '' }));
     const out = await compileImagePrompt(
-      { userPrompt: 'our logo on a billboard', brand: fixtureBrand({ logo: undefined } as Partial<Brand>) },
-      { call: call as never },
+      { userPrompt: 'Instagram post with a coffee cup', brand: fixtureBrand(), copy: { headline: 'Brewed daily' } },
+      { call },
     );
-    expect(out.useLogo).toBe(false);
+    expect(out.source).toBe('claude');
+    // #FF0000 is not in the kit and must not survive.
+    expect(out.paletteHexes).toEqual(['#6B46FF']);
+    expect(out.prompt).toContain('A matte black cup on oak');
+    expect(out.prompt).toContain('Cup low-left, headline upper right');
+    expect(out.prompt).toContain('“Brewed daily”');
+    expect(out.prompt).toMatch(/bottom right/);
+    expect(out.negativePrompt).toMatch(/steam/);
   });
 
-  it('empties the palette when the user gave a color direction, even if the model listed hexes', async () => {
-    const call = vi.fn(async () => claudeJson({ prompt: 'x', useLogo: false, paletteHexes: ['#6B46FF'], notes: '' }));
-    const out = await compileImagePrompt({ userPrompt: 'a portrait in black and white', brand: fixtureBrand() }, { call: call as never });
+  it('the model cannot delete an invariant — exclusions and margin survive', async () => {
+    const call = vi.fn().mockResolvedValue(claudeJson({
+      subject: 'x', composition: 'y', style: 'z',
+      paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '',
+    }));
+    const out = await compileImagePrompt({ userPrompt: 'An ad for our product', brand: fixtureBrand() }, { call });
+    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
+    expect(out.prompt).toMatch(/7% safe margin/);
+    expect(out.prompt).toMatch(/discount badges/i);
+  });
+
+  it('a user colour direction empties the palette even if the model returned one', async () => {
+    const call = vi.fn().mockResolvedValue(claudeJson({
+      subject: 'x', composition: 'y', style: 'z',
+      paletteHexes: ['#6B46FF'], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '',
+    }));
+    const out = await compileImagePrompt({ userPrompt: 'a poster in black and white', brand: fixtureBrand() }, { call });
     expect(out.paletteHexes).toEqual([]);
   });
 
-  it('falls back to deterministic on empty (mock) proxy answers', async () => {
-    const call = vi.fn(async () => ({ content: [] }));
-    const out = await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: call as never });
+  it('falls back to deterministic on an empty (mock) proxy answer', async () => {
+    const call = vi.fn().mockResolvedValue({ content: [] });
+    const out = await compileImagePrompt({ userPrompt: 'a poster', brand: fixtureBrand() }, { call });
     expect(out.source).toBe('deterministic');
-    expect(out.prompt.startsWith('a cat')).toBe(true);
-  });
-
-  it('falls back on malformed JSON and on errors', async () => {
-    const bad = vi.fn(async () => ({ content: [{ type: 'text', text: 'not json at all' }] }));
-    expect((await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: bad as never })).source).toBe('deterministic');
-    const boom = vi.fn(async () => { throw new Error('boom'); });
-    expect((await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: boom as never })).source).toBe('deterministic');
+    expect(out.prompt).toMatch(/DO NOT INCLUDE/);
   });
 
   it('accepts fenced JSON', async () => {
-    const call = vi.fn(async () => ({ content: [{ type: 'text', text: '```json\n{"prompt":"fenced ok","useLogo":false,"paletteHexes":[],"notes":"n"}\n```' }] }));
-    const out = await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: call as never });
-    expect(out.prompt).toBe('fenced ok');
+    const call = vi.fn().mockResolvedValue({
+      content: [{ type: 'text', text: '```json\n' + JSON.stringify({
+        subject: 'fenced subject', composition: 'c', style: 's',
+        paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: 'ok',
+      }) + '\n```' }],
+    });
+    const out = await compileImagePrompt({ userPrompt: 'a poster', brand: fixtureBrand() }, { call });
+    expect(out.source).toBe('claude');
+    expect(out.prompt).toContain('fenced subject');
   });
 
-  it('honours the timeout', async () => {
-    const slow = vi.fn(() => new Promise(() => { /* never */ }));
-    const out = await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: slow as never, timeoutMs: 10 });
-    expect(out.source).toBe('deterministic');
-  });
-
-  it('deterministicOnly skips the model', async () => {
-    const call = vi.fn();
-    const out = await compileImagePrompt({ userPrompt: 'a cat', brand: fixtureBrand() }, { call: call as never, deterministicOnly: true });
-    expect(call).not.toHaveBeenCalled();
-    expect(out.source).toBe('deterministic');
+  it('does not silently degrade on a slow model — the timeout is generous', async () => {
+    // 12 s used to be the budget and sonnet lands at 10–14 s, so most real
+    // requests fell back to the thin brief while the user paid full price.
+    const call = vi.fn().mockImplementation(() => new Promise((r) => setTimeout(
+      () => r(claudeJson({ subject: 'late', composition: 'c', style: 's', paletteHexes: [], useLogo: false, logoPlacement: null, negativePrompt: null, notes: '' })), 50)));
+    const out = await compileImagePrompt({ userPrompt: 'a poster', brand: fixtureBrand() }, { call, timeoutMs: 5000 });
+    expect(out.source).toBe('claude');
   });
 });

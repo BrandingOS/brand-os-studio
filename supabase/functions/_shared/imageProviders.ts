@@ -187,11 +187,16 @@ const googleProvider: ImageProvider = async (req) => {
     text: req.negativePrompt ? `${req.prompt}\n\nAvoid: ${req.negativePrompt}` : req.prompt,
   });
 
+  // `imageSize` is honoured by gemini-3-pro-image-preview ("1K" | "2K" | "4K")
+  // and ignored by 2.5-flash-image. The registry already declared 2048 as a
+  // supported size for the Pro model, but nothing ever sent it — so the
+  // strongest model we route Auto to was quietly producing 1K all along.
+  const imageSize = req.size >= 2048 ? '2K' : '1K';
   const body = {
     contents: [{ role: 'user', parts }],
     generationConfig: {
       responseModalities: ['IMAGE'],
-      imageConfig: { aspectRatio: req.aspectRatio },
+      imageConfig: { aspectRatio: req.aspectRatio, imageSize },
     },
   };
 

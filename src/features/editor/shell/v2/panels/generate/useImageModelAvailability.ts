@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchImageCapabilities, type ImageCapabilities, type ImageModelAvailability, type ImageModelCaps } from '@/features/image-generation';
-import { AUTO_MODEL_ID, capsFrom, displayFor } from '@/features/editor/ai/imageModels';
+import { AUTO_MODEL_ID, IMAGE_MODEL_DISPLAY, capsFrom, displayFor } from '@/features/editor/ai/imageModels';
 
 export interface CapabilityState {
   capabilities: ImageCapabilities | null;
@@ -56,6 +56,7 @@ export interface PickerModel {
   hint: string;
   available: boolean;
   tier: 'free' | 'paid';
+  group: 'production' | 'test';
   caps: ImageModelCaps;
 }
 
@@ -67,13 +68,27 @@ export function pickerModels(state: CapabilityState, currentId: string): PickerM
       if (!d.listed && m.id !== currentId) return null;
       return {
         id: m.id, label: d.label, short: d.short, hint: d.hint,
-        available: m.available, tier: m.tier, caps: m.caps,
+        available: m.available, tier: m.tier, group: d.group, caps: m.caps,
       };
     })
     .filter((m): m is PickerModel => m !== null)
-    // Available first, then the display order the registry declares.
-    .sort((a, b) => Number(b.available) - Number(a.available));
+    // Registry order is quality order, and it must survive: sorting only by
+    // availability once let a free test model sit above GPT Image, which is
+    // how a user ends up generating brand work on a model that cannot set
+    // type. Production before test, then declaration order, then availability.
+    .sort((a, b) => {
+      const grp = Number(a.group === 'test') - Number(b.group === 'test');
+      if (grp) return grp;
+      const avail = Number(b.available) - Number(a.available);
+      if (avail) return avail;
+      return order(a.id) - order(b.id);
+    });
 }
+
+const order = (id: string) => {
+  const i = IMAGE_MODEL_DISPLAY.findIndex((m) => m.id === id);
+  return i < 0 ? 999 : i;
+};
 
 export function capsForSelection(state: CapabilityState, modelId: string): ImageModelCaps {
   return capsFrom(state.models, modelId, state.auto);

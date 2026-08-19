@@ -1063,7 +1063,7 @@
      including the click-to-copy hex target — under its right
      neighbour. !important because each swatch carries an inline
      per-index z-index for the resting wave stacking. */
-  z-index: 30 !important;
+  /* z-index: 30 !important; */
 }
 
 /* Wave — ±1 neighbor rises partially */
