@@ -1204,6 +1204,15 @@
 [data-workspace] .bk-stage[data-active="sections"] .bk-stage-layer--page2 {
   position: absolute;
   inset: 0 0 auto 0;
+  /* Out of FLOW is not out of OVERFLOW. The inactive layer stopped
+     driving the grid row, but an absolutely-positioned box still
+     extends its scroll container — so the document stayed as tall as
+     whichever layer was taller, and an item shorter than the Overview
+     left the user a screen or two of nothing to scroll through. This
+     is capped rather than clipping the stage itself, so the ACTIVE
+     layer is never constrained and its popovers can still overhang. */
+  max-height: 100%;
+  overflow: hidden;
 }
 
 /* The wipe — entire cards fade together (frame + cover + label).
@@ -2478,4 +2487,482 @@
   align-items: center;
   gap: 6px;
   margin-right: auto;
+}
+
+/* ============================================================
+ * Composed views — Strategy, Social Media System, Presentation
+ * System, Brand Board.
+ *
+ * These are not template grids. They read the brand and explain
+ * something about it, then show it applied. Everything here is
+ * feature-specific by nature (a "colour in proportion" bar is not
+ * a design-system primitive), but every visual foundation it
+ * stands on — surface, border, radius, text, motion, spacing —
+ * comes from --ds-*. No hardcoded greys, no invented radii.
+ *
+ * The nav additions (.bk-nav-*) sit with them because they belong
+ * to the same change: the sidebar is now a list of items.
+ * ============================================================ */
+
+/* ─── Sidebar: grouped item list ───────────────────────────── */
+[data-workspace] .bk-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* The first group heading sits right under the Overview row, so it
+   needs less air above it than the ones separating groups. */
+[data-workspace] .bk-nav-group:first-of-type .panel-group-label {
+  padding-top: 14px;
+}
+[data-workspace] .bk-nav-badge {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  padding: 1px 6px;
+  width: fit-content;
+}
+
+/* ─── Shared system-view scaffold ──────────────────────────── */
+[data-workspace] .bk-sys {
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+  padding-bottom: 40px;
+}
+[data-workspace] .bk-sys-band {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+[data-workspace] .bk-sys-band-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 62ch;
+}
+[data-workspace] .bk-sys-band-title {
+  font-family: "Instrument Serif", "DM Serif Display", "Playfair Display", serif;
+  font-size: 25px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-weight: 400;
+  color: var(--ds-text);
+  margin: 0;
+}
+[data-workspace] .bk-sys-band-lede {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ds-text-muted);
+  margin: 0;
+}
+
+[data-workspace] .bk-sys-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+[data-workspace] .bk-sys-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+}
+[data-workspace] .bk-sys-rule-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+[data-workspace] .bk-sys-rule-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-sys-rule-note {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .bk-sys-rule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ─── Applied examples ─────────────────────────────────────── */
+[data-workspace] .bk-sys-examples {
+  display: grid;
+  gap: 20px;
+}
+[data-workspace] .bk-sys-example {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+[data-workspace] .bk-sys-example-frame {
+  width: 100%;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-tile);
+  overflow: hidden;
+  background: var(--ds-surface);
+  position: relative;
+}
+/* The legacy renderers are written against a ~260px canonical width and
+   size themselves to their host, so the frame just has to be their host. */
+[data-workspace] .bk-sys-example-render {
+  position: absolute;
+  inset: 0;
+}
+[data-workspace] .bk-sys-example-render > * {
+  width: 100%;
+  height: 100%;
+}
+[data-workspace] .bk-sys-example-caption {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+  letter-spacing: 0.02em;
+}
+
+/* ─── Colour in proportion ─────────────────────────────────── */
+[data-workspace] .bk-sys-ratio {
+  display: flex;
+  height: 44px;
+  border-radius: var(--ds-radius-control);
+  overflow: hidden;
+  border: 1px solid var(--ds-border);
+}
+[data-workspace] .bk-sys-ratio-part {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+[data-workspace] .bk-sys-ratio-share {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+[data-workspace] .bk-sys-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .bk-sys-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+[data-workspace] .bk-sys-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--ds-border);
+  flex-shrink: 0;
+}
+[data-workspace] .bk-sys-legend-role {
+  color: var(--ds-text);
+  font-weight: 500;
+  min-width: 68px;
+}
+[data-workspace] .bk-sys-legend-name {
+  color: var(--ds-text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .bk-sys-legend-hex {
+  color: var(--ds-text-muted);
+  font-family: var(--ds-font-mono);
+  font-size: 10px;
+}
+
+/* ─── The mark on your grounds ─────────────────────────────── */
+[data-workspace] .bk-sys-grounds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 8px;
+}
+[data-workspace] .bk-sys-ground {
+  aspect-ratio: 1;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+}
+[data-workspace] .bk-sys-ground-logo {
+  width: 100%;
+  max-height: 42%;
+  object-fit: contain;
+}
+[data-workspace] .bk-sys-ground-letter {
+  font-family: "Instrument Serif", serif;
+  font-size: 24px;
+  line-height: 1;
+}
+[data-workspace] .bk-sys-ground-name {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+  text-align: center;
+}
+
+/* ─── Type specimens ───────────────────────────────────────── */
+[data-workspace] .bk-sys-type,
+[data-workspace] .bk-sys-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-workspace] .bk-sys-type-head {
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-sys-type-body {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ds-text-secondary);
+}
+[data-workspace] .bk-sys-type-meta {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .bk-sys-scale-xl {
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-sys-scale-md {
+  font-size: 19px;
+  line-height: 1.2;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-sys-scale-sm {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ds-text-secondary);
+}
+
+/* ─── Safe area ────────────────────────────────────────────── */
+[data-workspace] .bk-sys-safe {
+  aspect-ratio: 1;
+  max-width: 190px;
+  border-radius: var(--ds-radius-control);
+  background: var(--ds-surface-subtle);
+  border: 1px solid var(--ds-border);
+  padding: 8%;
+}
+[data-workspace] .bk-sys-safe-inner {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--ds-dash-strong);
+  border-radius: calc(var(--ds-radius-control) - 2px);
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--ds-text-muted);
+}
+
+/* ─── Slide roles + swatches ───────────────────────────────── */
+[data-workspace] .bk-sys-slides {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-workspace] .bk-sys-slide {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+[data-workspace] .bk-sys-slide-chip {
+  flex-shrink: 0;
+  width: 76px;
+  padding: 6px 0;
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+[data-workspace] .bk-sys-slide-note {
+  font-size: 11px;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .bk-sys-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 8px;
+}
+[data-workspace] .bk-sys-swatch {
+  border-radius: var(--ds-radius-control);
+  border: 1px solid var(--ds-border);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 70px;
+  justify-content: flex-end;
+}
+[data-workspace] .bk-sys-swatch-name {
+  font-size: 11px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-workspace] .bk-sys-swatch-hex {
+  font-size: 9px;
+  font-family: var(--ds-font-mono);
+  opacity: 0.8;
+}
+
+/* ─── Strategy ─────────────────────────────────────────────── */
+[data-workspace] .bk-strategy-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1px;
+  background: var(--ds-border);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  overflow: hidden;
+}
+[data-workspace] .bk-strategy-row {
+  background: var(--ds-surface);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+[data-workspace] .bk-strategy-term {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+}
+[data-workspace] .bk-strategy-def {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-strategy-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+[data-workspace] .bk-strategy-section {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  padding: 18px;
+}
+[data-workspace] .bk-strategy-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-strategy-section-body {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
+  white-space: pre-wrap;
+}
+
+/* ─── Brand Board embed ────────────────────────────────────── */
+[data-workspace] .bk-board-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+[data-workspace] .bk-board-open {
+  font-size: 12px;
+  color: var(--ds-text);
+  text-decoration: none;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+  padding: 6px 14px;
+  transition: background var(--ds-duration-state) var(--ds-ease),
+    border-color var(--ds-duration-state) var(--ds-ease);
+}
+[data-workspace] .bk-board-open:hover {
+  background: var(--ds-surface-hover);
+  border-color: var(--ds-border-strong);
+}
+[data-workspace] .bk-board-open:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus-ring);
+}
+[data-workspace] .bk-board-wrap {
+  width: 100%;
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-card);
+  overflow: hidden;
+  background: var(--ds-surface);
+}
+/* The stage reserves the SCALED height; the canvas inside keeps its real
+   1600x1000 box and is transformed down, so the poster's proportions —
+   which are the design — are never reflowed. */
+[data-workspace] .bk-board-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+[data-workspace] .bk-board-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* ─── Empty state ──────────────────────────────────────────── */
+[data-workspace] .bk-sys-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 72px 24px;
+  border: 1px dashed var(--ds-dash);
+  border-radius: var(--ds-radius-card);
+  text-align: center;
+}
+[data-workspace] .bk-sys-empty-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ds-text);
+}
+[data-workspace] .bk-sys-empty-sub {
+  font-size: 12px;
+  color: var(--ds-text-muted);
 }

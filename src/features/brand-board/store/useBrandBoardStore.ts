@@ -43,6 +43,8 @@ export interface BrandBoardConcept {
 export type ColorRole = 'primary' | 'secondary' | 'accent' | 'neutrals';
 
 export interface BrandBoardState {
+  /** Brand id the current draft was built from; null before any init. */
+  initializedForBrandId: string | null;
   draft: BrandBoardDraft;
   concepts: BrandBoardConcept[];
   activeConcept: number;
@@ -94,6 +96,17 @@ export interface BrandBoardState {
 
   // Init/Save
   initFromBrand: (brand: any) => void;
+  /**
+   * Init only if this brand's draft is not already loaded.
+   *
+   * `initFromBrand` is a destructive `set` — it replaces the draft AND
+   * clears undo history. That is right when the board is deliberately
+   * (re)opened on a brand, and wrong every other time: the draft lives in
+   * memory only, so a second surface mounting on the same brand would
+   * throw away edits the user has not saved back yet. Callers that merely
+   * need "a draft for this brand to exist" must use this.
+   */
+  ensureInitFromBrand: (brand: any) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +190,7 @@ function hslToHex(h: number, s: number, l: number): string {
 export const useBrandBoardStore = create<BrandBoardState>()(
   devtools(
     (set, get) => ({
+      initializedForBrandId: null,
       draft: { ...DEFAULT_DRAFT },
       concepts: [],
       activeConcept: -1,
@@ -503,6 +517,7 @@ export const useBrandBoardStore = create<BrandBoardState>()(
         const savedUi = brand?.uiStyle;
 
         set({
+          initializedForBrandId: brand?.id ?? null,
           draft: {
             colors: {
               primary: primaryColor,
@@ -529,6 +544,14 @@ export const useBrandBoardStore = create<BrandBoardState>()(
           future: [],
           darkMode: false,
         });
+      },
+
+      ensureInitFromBrand: (brand: any) => {
+        const id = brand?.id ?? null;
+        // Already holding this brand's draft — leave it exactly as it is,
+        // unsaved edits and undo history included.
+        if (id !== null && get().initializedForBrandId === id) return;
+        get().initFromBrand(brand);
       },
     }),
     { name: 'BrandBoardStore' },

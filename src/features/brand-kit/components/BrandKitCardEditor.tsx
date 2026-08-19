@@ -220,7 +220,18 @@ function templateTypeFor(target: EditorTarget): string {
 
 export type EditorTarget = {
   sectionKey: KitSectionKey;
+  /**
+   * STORAGE label — the half of `${sectionKey}::${label}` that keys saved
+   * customizations, kit items and featured-variant lists, and that
+   * `coversFor` / `variantsForCard` address data by. Never a display name.
+   */
   label: string;
+  /**
+   * What the user reads, when the catalog renames this card (Fonts →
+   * Typography, About → Strategy). Defaults to `label`; present so a
+   * rename changes headings without touching a storage key.
+   */
+  displayLabel?: string;
   /** The card's primary cover — also covers[0]. Kept as a separate
    *  field so the right-click "Download" path doesn't need to know
    *  about the picker. */

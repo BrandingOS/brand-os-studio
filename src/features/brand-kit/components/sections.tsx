@@ -9,6 +9,7 @@ import type { KitSectionKey } from './BrandKitSidebar';
 import type { EditorTarget } from './BrandKitCardEditor';
 import { variantsForCard } from '../data/legacy-mapping';
 import { getDeliverable, type DeliverableDef } from '../kit/registry';
+import type { KitEntry } from '../catalog/catalog';
 import { DeliverableCard } from './DeliverableCard';
 
 /**
@@ -253,47 +254,96 @@ function DownloadIcon() {
 
 type Origin = { x: number; y: number };
 
-type CardProps = {
+/**
+ * One card in a grid.
+ *
+ * `storageLabel` addresses the DATA — covers, templates, saved
+ * customizations, the deliverable registry. `displayLabel` is what the
+ * user reads. They are the same for most cards and deliberately differ
+ * for the few the catalog renames (Fonts → Typography, About →
+ * Strategy), which is what lets a rename cost nobody their saved work.
+ */
+export type GridItem = {
   sectionKey: KitSectionKey;
-  card: CardSpec;
-  onEdit: (sectionKey: KitSectionKey, label: string, origin?: Origin) => void;
-  /** Hover pencil — opens the card editor directly (KIT-06). When
-   *  absent the pencil falls back to the card-open behaviour. */
-  onEditAction?: (sectionKey: KitSectionKey, label: string) => void;
-  onDownload?: (sectionKey: KitSectionKey, label: string) => void;
-  onOpenMenu: (e: React.MouseEvent, sectionKey: KitSectionKey, label: string) => void;
+  storageLabel: string;
+  displayLabel: string;
 };
+
+/** Grid items for a whole section, in `SECTION_CARDS` order. */
+export function itemsForSection(sectionKey: KitSectionKey): GridItem[] {
+  const raw = SECTION_CARDS[sectionKey] ?? [];
+  const cards = sectionKey === 'brand-assets' ? raw : raw.slice(0, MAX_PER_SECTION);
+  return cards.map((c) => ({
+    sectionKey,
+    storageLabel: c.label,
+    displayLabel: c.label,
+  }));
+}
+
+/**
+ * Build the editor/drilldown target for a card.
+ *
+ * Exported because the sidebar now opens items directly and has to
+ * produce exactly the same target a card click produces — otherwise the
+ * two entry points would drift and open subtly different things.
+ */
+export function buildEditorTarget(
+  sectionKey: KitSectionKey,
+  storageLabel: string,
+  brand?: MockBrand,
+  displayLabel?: string,
+): EditorTarget {
+  const opts = coversFor(sectionKey, storageLabel);
+  return {
+    sectionKey,
+    label: storageLabel,
+    displayLabel: displayLabel ?? storageLabel,
+    cover: opts[0],
+    covers: opts,
+    templates: variantsForCard(sectionKey, storageLabel, brand),
+  };
+}
 
 function rectCenter(el: HTMLElement): Origin {
   const r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
-function BrandKitCard({ sectionKey, card, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
+type CardProps = {
+  item: GridItem;
+  onEdit: (item: GridItem, origin?: Origin) => void;
+  /** Hover pencil — opens the card editor directly (KIT-06). When
+   *  absent the pencil falls back to the card-open behaviour. */
+  onEditAction?: (item: GridItem) => void;
+  onDownload?: (item: GridItem) => void;
+  onOpenMenu: (e: React.MouseEvent, item: GridItem) => void;
+};
+
+function BrandKitCard({ item, onEdit, onEditAction, onDownload, onOpenMenu }: CardProps) {
   return (
     <figure
       className="bk-card"
-      onContextMenu={(e) => onOpenMenu(e, sectionKey, card.label)}
-      onClick={(e) => onEdit(sectionKey, card.label, rectCenter(e.currentTarget as HTMLElement))}
+      onContextMenu={(e) => onOpenMenu(e, item)}
+      onClick={(e) => onEdit(item, rectCenter(e.currentTarget as HTMLElement))}
     >
       <div className="bk-card-cover">
         <div
           className="bk-card-cover-image"
-          style={{ backgroundImage: `url(${coverFor(sectionKey, card.label)})` }}
+          style={{ backgroundImage: `url(${coverFor(item.sectionKey, item.storageLabel)})` }}
         />
         <div className="bk-card-actions">
           <button
             type="button"
             className="bk-card-action"
-            aria-label={`Edit ${card.label}`}
-            title={`Edit ${card.label}`}
+            aria-label={`Edit ${item.displayLabel}`}
+            title={`Edit ${item.displayLabel}`}
             onClick={(e) => {
               e.stopPropagation();
               // KIT-06: the pencil opens the EDITOR — before this it
               // re-fired the card-open handler, so "Edit" and "open"
               // were indistinguishable (both landed on the drilldown).
-              if (onEditAction) onEditAction(sectionKey, card.label);
-              else onEdit(sectionKey, card.label);
+              if (onEditAction) onEditAction(item);
+              else onEdit(item);
             }}
           >
             <EditIcon />
@@ -302,11 +352,11 @@ function BrandKitCard({ sectionKey, card, onEdit, onEditAction, onDownload, onOp
             <button
               type="button"
               className="bk-card-action"
-              aria-label={`Download ${card.label}`}
-              title={`Download ${card.label}`}
+              aria-label={`Download ${item.displayLabel}`}
+              title={`Download ${item.displayLabel}`}
               onClick={(e) => {
                 e.stopPropagation();
-                onDownload(sectionKey, card.label);
+                onDownload(item);
               }}
             >
               <DownloadIcon />
@@ -314,7 +364,7 @@ function BrandKitCard({ sectionKey, card, onEdit, onEditAction, onDownload, onOp
           )}
         </div>
       </div>
-      <figcaption className="bk-card-label">{card.label}</figcaption>
+      <figcaption className="bk-card-label">{item.displayLabel}</figcaption>
     </figure>
   );
 }
@@ -334,8 +384,8 @@ export type KitGridProps = {
   onDownloadItem: (def: DeliverableDef, itemId: string) => void;
 };
 
-type GridProps = {
-  sectionKey: KitSectionKey;
+type CardGridProps = {
+  items: GridItem[];
   /** Bubble the click up to the page so it can swap to the in-page
    *  drilldown view (a full grid of variants for the picked card)
    *  rather than opening the old modal. The optional origin is the
@@ -352,12 +402,22 @@ type GridProps = {
   kit?: KitGridProps;
 };
 
-export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard, brand, kit }: GridProps) {
-  // brand-assets has up to 6 cards (one per asset category) and we
-  // want each rendered, so don't apply the per-section cap.
-  const raw = SECTION_CARDS[sectionKey] ?? [];
-  const cards = sectionKey === 'brand-assets' ? raw : raw.slice(0, MAX_PER_SECTION);
-
+/**
+ * The shared card grid.
+ *
+ * `SectionGrid` (section-shaped, used by the lifecycle page) and
+ * `EntryGrid` (catalog-shaped, used by the canonical Brand Kit) are both
+ * thin wrappers over this, so the two pages can never disagree about how
+ * a card behaves — only about which cards there are.
+ */
+export function CardGrid({
+  items,
+  onPickCard,
+  onEditCard,
+  onDownloadCard,
+  brand,
+  kit,
+}: CardGridProps) {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
 
   // Keep the card visually raised (actions visible) while its menu is open,
@@ -369,27 +429,21 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
     setCtxMenu(null);
   }, []);
 
-  const targetFor = useCallback((key: KitSectionKey, label: string): EditorTarget => {
-    const opts = coversFor(key, label);
-    const templates = variantsForCard(key, label, brand);
-    return {
-      sectionKey: key,
-      label,
-      cover: opts[0],
-      covers: opts,
-      templates,
-    };
-  }, [brand]);
+  const targetFor = useCallback(
+    (item: GridItem): EditorTarget =>
+      buildEditorTarget(item.sectionKey, item.storageLabel, brand, item.displayLabel),
+    [brand],
+  );
 
   const handleCardClick = useCallback(
-    (key: KitSectionKey, label: string, origin?: Origin) => {
-      onPickCard(targetFor(key, label), origin);
+    (item: GridItem, origin?: Origin) => {
+      onPickCard(targetFor(item), origin);
     },
     [onPickCard, targetFor],
   );
 
   const openMenu = useCallback(
-    (e: React.MouseEvent, key: KitSectionKey, label: string) => {
+    (e: React.MouseEvent, item: GridItem) => {
       e.preventDefault();
       e.stopPropagation();
       const anchor = (e.currentTarget as HTMLElement).closest('.bk-card') as HTMLElement | null;
@@ -399,23 +453,23 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
       ctxAnchorRef.current = anchor;
       anchor?.classList.add('is-ctx-active');
 
-      const items: ContextMenuState['items'] = [];
+      const menuItems: ContextMenuState['items'] = [];
       if (onEditCard) {
-        items.push({
+        menuItems.push({
           label: 'Edit',
-          onSelect: () => onEditCard(targetFor(key, label)),
+          onSelect: () => onEditCard(targetFor(item)),
           icon: <EditIcon />,
         });
       }
       if (onDownloadCard) {
-        items.push({
+        menuItems.push({
           label: 'Download',
-          onSelect: () => onDownloadCard(targetFor(key, label)),
+          onSelect: () => onDownloadCard(targetFor(item)),
           icon: <DownloadIcon />,
         });
       }
-      if (items.length === 0) return;
-      setCtxMenu({ x: e.clientX, y: e.clientY, items });
+      if (menuItems.length === 0) return;
+      setCtxMenu({ x: e.clientX, y: e.clientY, items: menuItems });
     },
     [onDownloadCard, onEditCard, targetFor],
   );
@@ -423,12 +477,12 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
   return (
     <>
       <div className="bk-grid">
-        {cards.map((card) => {
-          const def = kit && brand ? getDeliverable(sectionKey, card.label) : undefined;
+        {items.map((item) => {
+          const def = kit && brand ? getDeliverable(item.sectionKey, item.storageLabel) : undefined;
           if (def && kit && brand) {
             return (
               <DeliverableCard
-                key={card.label}
+                key={item.storageLabel}
                 def={def}
                 brand={brand}
                 sourceBrand={kit.sourceBrand}
@@ -444,28 +498,23 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
             );
           }
           return (
-          <BrandKitCard
-            key={card.label}
-            sectionKey={sectionKey}
-            card={card}
-            onEdit={handleCardClick}
-            onEditAction={
-              onEditCard
-                ? (k, l) => {
-                    // Preselect the first variant so the editor opens
-                    // with a live preview instead of the cover image.
-                    const target = targetFor(k, l);
-                    onEditCard({ ...target, template: target.templates?.[0] });
-                  }
-                : undefined
-            }
-            onDownload={
-              onDownloadCard
-                ? (k, l) => onDownloadCard(targetFor(k, l))
-                : undefined
-            }
-            onOpenMenu={openMenu}
-          />
+            <BrandKitCard
+              key={item.storageLabel}
+              item={item}
+              onEdit={handleCardClick}
+              onEditAction={
+                onEditCard
+                  ? (it) => {
+                      // Preselect the first variant so the editor opens
+                      // with a live preview instead of the cover image.
+                      const target = targetFor(it);
+                      onEditCard({ ...target, template: target.templates?.[0] });
+                    }
+                  : undefined
+              }
+              onDownload={onDownloadCard ? (it) => onDownloadCard(targetFor(it)) : undefined}
+              onOpenMenu={openMenu}
+            />
           );
         })}
       </div>
@@ -478,5 +527,31 @@ export function SectionGrid({ sectionKey, onPickCard, onEditCard, onDownloadCard
         />
       )}
     </>
+  );
+}
+
+/** Section-shaped grid — every card in one storage section. Used by the
+ *  lifecycle page at /b/:slug/brand-kit-next, whose IA is unchanged. */
+export function SectionGrid({
+  sectionKey,
+  ...rest
+}: Omit<CardGridProps, 'items'> & { sectionKey: KitSectionKey }) {
+  return <CardGrid items={itemsForSection(sectionKey)} {...rest} />;
+}
+
+/** Catalog-shaped grid — the cards a viewer may see in one kit group. */
+export function EntryGrid({
+  entries,
+  ...rest
+}: Omit<CardGridProps, 'items'> & { entries: ReadonlyArray<KitEntry> }) {
+  return (
+    <CardGrid
+      items={entries.map((e) => ({
+        sectionKey: e.sectionKey,
+        storageLabel: e.storageLabel,
+        displayLabel: e.label,
+      }))}
+      {...rest}
+    />
   );
 }

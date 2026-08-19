@@ -24,7 +24,7 @@ export default function BrandBoardPage() {
   const updateBrand = useBrandStore((s) => s.update);
 
   const draft = useBrandBoardStore((s) => s.draft);
-  const initFromBrand = useBrandBoardStore((s) => s.initFromBrand);
+  const ensureInitFromBrand = useBrandBoardStore((s) => s.ensureInitFromBrand);
   const shuffleAll = useBrandBoardStore((s) => s.shuffleAll);
 
   // Load brand on mount
@@ -32,10 +32,14 @@ export default function BrandBoardPage() {
     if (slug) loadBySlug(slug);
   }, [slug, loadBySlug]);
 
-  // Init draft from brand
+  // Init draft from brand — but only when the store isn't already holding
+  // this brand's draft. The draft lives in memory only, so a plain
+  // `initFromBrand` here discarded whatever the user had done on the Brand
+  // Kit's embedded board on the way to this editor. Switching brands still
+  // re-inits, because the id changes.
   useEffect(() => {
-    if (brand) initFromBrand(brand);
-  }, [brand?.id]);
+    if (brand) ensureInitFromBrand(brand);
+  }, [brand?.id, ensureInitFromBrand]);
 
   // Keyboard shortcuts: SPACE = shuffle all, C/T/U = shuffle colors/typography/UI.
   // Ignored while the user is typing in a form control.

@@ -17,13 +17,20 @@ import type { BrandColor, MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from './renderers';
-import {
-  BrandKitSidebar,
-  KIT_SECTIONS,
-  type KitSectionKey,
-} from './components/BrandKitSidebar';
+import { type KitSectionKey } from './components/BrandKitSidebar';
+import { KitSidebar } from './components/KitSidebar';
 import { KitSection } from './components/KitSection';
-import { SectionGrid, sectionCardLabels } from './components/sections';
+import { EntryGrid, buildEditorTarget } from './components/sections';
+import {
+  getEntryFor,
+  visibleGroups,
+  type KitEntry,
+} from './catalog/catalog';
+import { useKitViewer } from './catalog/useKitViewer';
+import { StrategyView } from './systems/StrategyView';
+import { SocialSystemView } from './systems/SocialSystemView';
+import { PresentationSystemView } from './systems/PresentationSystemView';
+import { BrandBoardView } from './systems/BrandBoardView';
 import {
   BrandKitCardEditor,
   type EditorTarget,
@@ -173,16 +180,6 @@ import '@flaticon/flaticon-uicons/css/bold/rounded.css';
 import '@flaticon/flaticon-uicons/css/solid/rounded.css';
 import './brand-kit.css';
 
-const SECTION_LABELS: Record<KitSectionKey, string> = {
-  'brand-assets': 'Brand Assets',
-  stationery: 'Stationery',
-  social: 'Social Media',
-  web: 'Web',
-  'brand-guides': 'Brand Guides',
-  presentations: 'Presentations',
-  animations: 'Animations',
-};
-
 /**
  * BrandKitCosmosPage — single-scroll Brand Kit at /b/:slug/brand-kit.
  *
@@ -226,7 +223,10 @@ export function BrandKitCosmosPage({
    *  cover for every tile. */
   sourceBrand?: Brand;
 }) {
-  const [activeKey, setActiveKey] = useState<KitSectionKey>('brand-assets');
+  // Which capabilities this viewer may see. Nothing here can be granted
+  // from the address bar — see `catalog/useKitViewer`.
+  const viewer = useKitViewer();
+  const groups = useMemo(() => visibleGroups(viewer), [viewer]);
   // Page 2's content target. Once set on the first click, page 2
   // stays mounted in the DOM forever — only the target's content
   // (covers + label) updates on subsequent clicks. Mounting page 2
@@ -535,13 +535,24 @@ export function BrandKitCosmosPage({
   // Section-level download (the small icon in each section header).
   // Brand Assets → the full kit bundle; template sections → a zip with
   // one rasterized PNG per card (its first variant).
-  const handleDownloadSection = useCallback(
-    async (sectionKey: KitSectionKey, sectionName: string) => {
+  /**
+   * Bundle a whole group.
+   *
+   * Driven by the ENTRIES the group actually shows, not by the storage
+   * section's full card list — otherwise a group would quietly export
+   * things the viewer cannot see, and (for a group whose items were
+   * regrouped) miss things they can. Composed items have no variant to
+   * rasterise and are skipped; a group made only of those offers no
+   * download at all (see the render).
+   */
+  const handleDownloadGroup = useCallback(
+    async (entries: ReadonlyArray<KitEntry>, groupName: string) => {
       const b = effectiveBrand;
       const slug = slugifyName(b.name);
-      const id = toast.loading(`Preparing ${sectionName} download…`);
+      const id = toast.loading(`Preparing ${groupName} download…`);
       try {
-        if (sectionKey === 'brand-assets') {
+        // Brand Assets has a real, purpose-built bundle already.
+        if (entries.every((e) => e.sectionKey === 'brand-assets')) {
           await downloadKitZip(b);
           toast.success('Brand assets exported', { id });
           return;
@@ -553,29 +564,30 @@ export function BrandKitCosmosPage({
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         let added = 0;
-        for (const label of sectionCardLabels(sectionKey)) {
-          const tpl = variantsForCard(sectionKey, label, b)[0];
+        for (const entry of entries) {
+          if (entry.view !== 'variants') continue;
+          const tpl = variantsForCard(entry.sectionKey, entry.storageLabel, b)[0];
           if (!tpl) continue;
-          const aspect = PICKER_ASPECT_BY_LABEL[label] ?? 1.6;
+          const aspect = PICKER_ASPECT_BY_LABEL[entry.storageLabel] ?? 1.6;
           const blob = await snapshotTemplatePng(
             renderTemplateDesign(tpl, sourceBrand, b),
             260,
             aspect,
           );
           if (blob) {
-            zip.file(`${slugifyName(label)}.png`, blob);
+            zip.file(`${slugifyName(entry.label)}.png`, blob);
             added += 1;
           }
         }
         if (added === 0) {
-          toast.error(`Nothing to export for ${sectionName} yet`, { id });
+          toast.error(`Nothing to export for ${groupName} yet`, { id });
           return;
         }
         triggerBlobDownload(
           await zip.generateAsync({ type: 'blob' }),
-          `${slug}-${slugifyName(sectionName)}.zip`,
+          `${slug}-${slugifyName(groupName)}.zip`,
         );
-        toast.success(`${sectionName} exported`, { id });
+        toast.success(`${groupName} exported`, { id });
       } catch (err) {
         toast.error('Download failed', {
           id,
@@ -623,7 +635,6 @@ export function BrandKitCosmosPage({
     [brand.icons, suggestedIcons],
   );
 
-  const sectionRefs = useRef<Partial<Record<KitSectionKey, HTMLElement | null>>>({});
   // Captured at click time on the trigger element (a card or the
   // Back button). Read by the post-mount useLayoutEffect to assign
   // each tile a distance-based animation-delay so the fade ripples
@@ -639,27 +650,6 @@ export function BrandKitCosmosPage({
   // radiates from the button. Stays null for browser/mouse-driven
   // pops where we have no origin point.
   const pendingExitOriginRef = useRef<Origin | null>(null);
-
-  const setRef = (key: KitSectionKey) => (el: HTMLElement | null) => {
-    sectionRefs.current[key] = el;
-  };
-
-  const handleJump = useCallback((key: KitSectionKey) => {
-    setActiveKey(key);
-    originRef.current = null;
-    // If we were inside the drilldown, pop the history entry pushed
-    // on enter so the back stack stays balanced — the popstate
-    // listener has already been unregistered by the view change, so
-    // no exit transition runs (we want the sidebar's instant jump,
-    // not the radial wipe).
-    const wasDrilldown = view === 'drilldown';
-    setView('sections');
-    if (wasDrilldown) window.history.back();
-    requestAnimationFrame(() => {
-      const el = sectionRefs.current[key];
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, [view]);
 
   // anchor: drilldown-anchor-v1 — user-approved baseline (2026-04-27).
   // Don't change handlePickCard / exitDrilldown / wipe useLayoutEffect
@@ -680,7 +670,6 @@ export function BrandKitCosmosPage({
       } else {
         originRef.current = null;
       }
-      setActiveKey(target.sectionKey);
       // Two-phase commit so the CSS opacity transition has a prior
       // state to interpolate from on every click. Without this the
       // first-click fade silently no-ops because the browser only
@@ -788,37 +777,65 @@ export function BrandKitCosmosPage({
     return () => window.removeEventListener('popstate', onPop);
   }, [view, editorTarget, exitDrilldown]);
 
-  const completion = useMemo(() => {
-    const identity = brand.logos.length > 0 && brand.colors.core.length > 0;
-    const completed = identity ? KIT_SECTIONS.length : 0;
-    return { completed, total: KIT_SECTIONS.length };
-  }, [brand]);
+  /**
+   * The item page 2 is CURRENTLY BUILT FROM, resolved from the drilldown
+   * target's storage key. Derived rather than stored so the heading and
+   * the body can never disagree about which item they are showing.
+   *
+   * Deliberately not gated on `view`: page 2 is populated a frame before
+   * the view flips (the two-phase commit the enter transition needs), and
+   * a composed item whose body waited for that frame would flash the
+   * variants grid on the way in.
+   */
+  const targetEntry: KitEntry | null = useMemo(
+    () =>
+      drilldownTarget
+        ? getEntryFor(drilldownTarget.sectionKey, drilldownTarget.label) ?? null
+        : null,
+    [drilldownTarget],
+  );
 
-  // Scroll-spy: only meaningful in the sections-list view, since
-  // drilldown is a single section. Re-attach when leaving drilldown.
-  useEffect(() => {
-    if (view === 'drilldown') return;
-    const sections: Array<{ key: KitSectionKey; el: HTMLElement }> = KIT_SECTIONS.map((s) => {
-      const el = sectionRefs.current[s.key];
-      return el ? { key: s.key, el } : null;
-    }).filter(Boolean) as Array<{ key: KitSectionKey; el: HTMLElement }>;
-    if (sections.length === 0) return;
+  /**
+   * The item the user is actually looking at — what the sidebar
+   * highlights. This one IS gated on `view`, because exiting deliberately
+   * leaves `drilldownTarget` mounted for the fade-out, and a highlighted
+   * row on the Overview would be a lie.
+   */
+  const openEntry: KitEntry | null = view === 'drilldown' ? targetEntry : null;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible.length === 0) return;
-        const top = visible[0];
-        const match = sections.find((s) => s.el === top.target);
-        if (match) setActiveKey(match.key);
-      },
-      { rootMargin: '-80px 0px -55% 0px', threshold: 0 },
-    );
-    sections.forEach((s) => observer.observe(s.el));
-    return () => observer.disconnect();
-  }, [view]);
+  /**
+   * Open an item from the sidebar.
+   *
+   * This is the navigation change. From the Overview it runs the normal
+   * enter transition. From INSIDE another item it swaps the content in
+   * place — no exit, no re-enter, no history push, no scroll to top —
+   * so going from Business Card to Invoice is one click rather than a
+   * round trip out through the board. The approved enter/exit transition
+   * is untouched; it simply is not what switching between two open items
+   * uses, because there is nothing to transition away from.
+   */
+  const handleSelectEntry = useCallback(
+    (entry: KitEntry) => {
+      const target = buildEditorTarget(
+        entry.sectionKey,
+        entry.storageLabel,
+        effectiveBrand,
+        entry.label,
+      );
+      if (view === 'drilldown') {
+        originRef.current = null;
+        setDrilldownTarget(target);
+        return;
+      }
+      handlePickCard(target);
+    },
+    [view, effectiveBrand, handlePickCard],
+  );
+
+  /** Back to the whole kit. Runs the approved exit transition. */
+  const handleSelectOverview = useCallback(() => {
+    if (view === 'drilldown') requestExitDrilldown();
+  }, [view, requestExitDrilldown]);
 
   // Radial wipe — runs synchronously after every view change but
   // BEFORE the browser paints, so the CSS opacity transition fires
@@ -884,28 +901,35 @@ export function BrandKitCosmosPage({
       }
     >
       <div className="shell">
-        <BrandKitSidebar
+        <KitSidebar
           brand={effectiveBrand}
-          activeKey={activeKey}
-          completed={completion.completed}
-          total={completion.total}
-          onJump={handleJump}
+          groups={groups}
+          activeKey={openEntry?.key ?? null}
+          onSelectOverview={handleSelectOverview}
+          onSelectEntry={handleSelectEntry}
         />
         <div className="board-wrap bk-cosmos-board">
           <div ref={stageRef} className="bk-stage" data-active={view}>
-            {/* Page 1 — sections list. Always mounted, always
-                visible (modulo the per-tile wipe). */}
+            {/* Page 1 — the Overview. One band per catalog group, each
+                holding only the items this viewer may see. Always
+                mounted, always visible (modulo the per-tile wipe). */}
             <div className="bk-stage-layer bk-stage-layer--page1">
-              {KIT_SECTIONS.map((s) => (
+              {groups.map((group) => (
                 <KitSection
-                  key={s.key}
-                  dataKey={s.key}
-                  title={s.name}
-                  sectionRef={setRef(s.key)}
-                  onDownload={() => handleDownloadSection(s.key, s.name)}
+                  key={group.id}
+                  dataKey={group.id}
+                  title={group.label}
+                  onDownload={
+                    // A group of composed views has nothing to rasterise
+                    // — offering Download there only ever produced
+                    // "nothing to export".
+                    group.entries.some((e) => e.view === 'variants')
+                      ? () => handleDownloadGroup(group.entries, group.label)
+                      : undefined
+                  }
                 >
-                  <SectionGrid
-                    sectionKey={s.key}
+                  <EntryGrid
+                    entries={group.entries}
                     brand={effectiveBrand}
                     onPickCard={handlePickCard}
                     onEditCard={(t) => setEditorTarget(t)}
@@ -922,6 +946,7 @@ export function BrandKitCosmosPage({
               <div className="bk-stage-layer bk-stage-layer--page2">
                 <BrandKitDrilldown
                   target={drilldownTarget}
+                  entry={targetEntry}
                   sourceBrand={sourceBrand}
                   mockBrand={effectiveBrand}
                   onBack={requestExitDrilldown}
@@ -1184,6 +1209,9 @@ export function BrandKitCosmosPage({
 
 type DrilldownProps = {
   target: EditorTarget;
+  /** The catalog entry being shown. Decides the heading the user reads
+   *  and which view paints — a variants grid, or a composed one. */
+  entry?: KitEntry | null;
   sourceBrand?: Brand;
   /** Setup-shaped brand data — required for brand-asset variants
    *  whose renderers live in a MockBrand world. */
@@ -1238,6 +1266,7 @@ type DrilldownProps = {
  */
 function BrandKitDrilldown({
   target,
+  entry,
   sourceBrand,
   mockBrand,
   onBack,
@@ -1291,6 +1320,31 @@ function BrandKitDrilldown({
     target.templates,
   ]);
   const hasTemplates = templates.length > 0;
+
+  /**
+   * Composed views.
+   *
+   * Most items are a grid of variants and always were. Four are not:
+   * Strategy reads Setup's answers, the two Systems explain the brand and
+   * then show it applied, and the Brand Board is a single poster. Each is
+   * a body — the drilldown's own head (Back, title, download) is shared,
+   * so opening one of these feels exactly like opening any other item.
+   */
+  const composed = (() => {
+    if (!entry || !mockBrand) return null;
+    switch (entry.view) {
+      case 'strategy':
+        return <StrategyView brand={mockBrand} />;
+      case 'social-system':
+        return <SocialSystemView brand={mockBrand} sourceBrand={sourceBrand} />;
+      case 'presentation-system':
+        return <PresentationSystemView brand={mockBrand} sourceBrand={sourceBrand} />;
+      case 'brand-board':
+        return <BrandBoardView brand={sourceBrand} />;
+      default:
+        return null;
+    }
+  })();
 
   // Weight-popover state for the Icons drilldown's Edit button. Anchor
   // ref drives popover positioning; outside-click + Escape dismiss it.
@@ -1414,13 +1468,15 @@ function BrandKitDrilldown({
               const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
               onBack({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
             }}
-            aria-label={`Back to ${SECTION_LABELS[target.sectionKey]}`}
-            title={`Back to ${SECTION_LABELS[target.sectionKey]}`}
+            aria-label="Back to the Brand Kit overview"
+            title="Back to the Brand Kit overview"
           >
             <BackArrow />
             <span>Back</span>
           </button>
-          <h1 className="bk-drilldown-title">{target.label}</h1>
+          <h1 className="bk-drilldown-title">
+            {entry?.label ?? target.displayLabel ?? target.label}
+          </h1>
         </div>
         <div className="bk-drilldown-actions">
           {isIcons && onAddIcon && (
@@ -1589,12 +1645,13 @@ function BrandKitDrilldown({
               )}
             </div>
           )}
+          {!composed && (
           <button
             type="button"
             className="section-add section-download"
             onClick={onDownload}
-            aria-label={`Download ${target.label}`}
-            title={`Download ${target.label}`}
+            aria-label={`Download ${entry?.label ?? target.label}`}
+            title={`Download ${entry?.label ?? target.label}`}
           >
             <svg
               width="15"
@@ -1612,8 +1669,10 @@ function BrandKitDrilldown({
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
           </button>
+          )}
         </div>
       </div>
+      {composed ?? (
       <div
         className="bk-drilldown-grid"
         style={
@@ -1690,6 +1749,7 @@ function BrandKitDrilldown({
           })
         )}
       </div>
+      )}
     </div>
   );
 }
