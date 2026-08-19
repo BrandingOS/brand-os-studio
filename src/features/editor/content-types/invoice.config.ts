@@ -31,4 +31,5 @@ export const invoiceConfig: ContentTypeConfig = {
   // Financial documents: line items, totals, tax columns, page numbers
   // — reflowing breaks legal/regulatory layout requirements. Fixed.
   resizeStrategy: 'fixed',
+  renderer: 'template-instance',
 };

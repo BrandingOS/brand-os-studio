@@ -54,15 +54,18 @@ export function listContentTypes(): ContentTypeConfig[] {
 
 /**
  * Validate every registered config at module load. Surfaces a
- * malformed config as an import error rather than at runtime.
+ * malformed config as an import error rather than at runtime. Apply
+ * schema defaults (like renderer: 'fabric') to existing configs.
  */
-for (const cfg of Object.values(CONTENT_TYPES)) {
-  ContentTypeConfigSchema.parse(cfg);
+for (const key in CONTENT_TYPES) {
+  CONTENT_TYPES[key] = ContentTypeConfigSchema.parse(CONTENT_TYPES[key]);
 }
 
 export type { ContentTypeConfig } from './types';
 export {
   ContentTypeConfigSchema,
+  DesignRendererIdSchema,
+  type DesignRendererId,
   type ExportFormat,
   type PageModel,
   type DimensionPreset,

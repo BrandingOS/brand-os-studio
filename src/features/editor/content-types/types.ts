@@ -39,6 +39,22 @@ export type PageModel = z.infer<typeof PageModelSchema>;
 export const ResizeStrategySchema = z.enum(['fixed', 'reflowable', 'ai-reflowable']);
 export type ResizeStrategy = z.infer<typeof ResizeStrategySchema>;
 
+/**
+ * Which surface paints and edits documents of this content type.
+ *
+ *   • 'fabric'            — the layer canvas. Every type that existed
+ *                           before renderers were pluggable.
+ *   • 'template-instance' — a Brand Kit master design painted by its own
+ *                           React renderer, edited through its content
+ *                           model. No layers.
+ *
+ * Adding a renderer means adding a member here and registering the trio
+ * in `src/features/editor/renderers/index.ts` — never a change to the
+ * Design shell.
+ */
+export const DesignRendererIdSchema = z.enum(['fabric', 'template-instance']);
+export type DesignRendererId = z.infer<typeof DesignRendererIdSchema>;
+
 export const DimensionPresetSchema = z.object({
   label: z.string().min(1),
   width: z.number().int().positive(),
@@ -74,5 +90,6 @@ export const ContentTypeConfigSchema = z.object({
   supportsMasterPages: z.boolean(),
   /** Phase 6 — Resize Variants. See ResizeStrategySchema for semantics. */
   resizeStrategy: ResizeStrategySchema,
+  renderer: DesignRendererIdSchema.default('fabric'),
 });
 export type ContentTypeConfig = z.infer<typeof ContentTypeConfigSchema>;

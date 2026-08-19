@@ -121,3 +121,35 @@ describe('content-type configs', () => {
     expect(listContentTypes().length).toBe(Object.keys(CONTENT_TYPES).length);
   });
 });
+
+describe('renderer capability', () => {
+  it('defaults to fabric when a config omits it', () => {
+    const parsed = ContentTypeConfigSchema.parse({
+      id: 'x', label: 'X', icon: 'Square', pageModel: 'single',
+      defaultDimensions: { width: 100, height: 100 },
+      panels: { layers: true, properties: true, pageNavigator: false, assets: true, masterPages: false },
+      exportFormats: ['png'], defaultExportFormat: 'png',
+      supportsBrandKit: false, supportsMasterPages: false, resizeStrategy: 'fixed',
+    });
+    expect(parsed.renderer).toBe('fabric');
+  });
+
+  it('rejects an unknown renderer', () => {
+    expect(() =>
+      ContentTypeConfigSchema.parse({
+        id: 'x', label: 'X', icon: 'Square', pageModel: 'single',
+        defaultDimensions: { width: 100, height: 100 },
+        panels: { layers: true, properties: true, pageNavigator: false, assets: true, masterPages: false },
+        exportFormats: ['png'], defaultExportFormat: 'png',
+        supportsBrandKit: false, supportsMasterPages: false, resizeStrategy: 'fixed',
+        renderer: 'webgl',
+      }),
+    ).toThrow();
+  });
+
+  it('marks invoice as template-instance and leaves every other type on fabric', () => {
+    expect(getContentTypeConfig('invoice').renderer).toBe('template-instance');
+    expect(getContentTypeConfig('presentation').renderer).toBe('fabric');
+    expect(getContentTypeConfig('social-post').renderer).toBe('fabric');
+  });
+});
