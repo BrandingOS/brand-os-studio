@@ -593,13 +593,18 @@ Expected: FAIL — `body` is stripped, so `doc.body` is `undefined` in the first
 
 - [ ] **Step 7: Add `body` to the document schema**
 
-In `src/features/editor/schema/index.ts`, above `BrandOSDocumentSchema`:
+In `src/features/editor/schema/index.ts`, above `BrandOSDocumentSchema`.
+
+**Import the LEAF module, not the barrel.** `@/features/brandkit/content`
+re-exports `Bind.tsx`, so importing the barrel here would pull React and JSX
+into the document schema's module graph — a schema that is parsed in plain
+node contexts and by every test that touches a document.
 
 ```ts
 import {
   DeliverableContentSchema,
   TemplateDesignPicksSchema,
-} from '@/features/brandkit/content';
+} from '@/features/brandkit/content/schema';
 
 /**
  * The document's payload, for renderers whose documents are not pages of
@@ -1585,8 +1590,10 @@ describe('TemplateInstanceProperties', () => {
 
   it('shows totals computed from the line items, with no input to type one', () => {
     render(<TemplateInstanceProperties adapter={adapter} />);
-    // 2400 + 3800 + 1200 + 900 = 8300, +5% tax = 8715
-    expect(screen.getByText('$8,715.00')).toBeTruthy();
+    // 2400 + 3800 + 1200 + 900 = 8300, +5% default tax = 8715.
+    // `formatMoney` drops decimals on whole amounts — "$8,715", not
+    // "$8,715.00". See compute.ts.
+    expect(screen.getByText('$8,715')).toBeTruthy();
   });
 
   it('opens the control for whatever the artwork selected', () => {
