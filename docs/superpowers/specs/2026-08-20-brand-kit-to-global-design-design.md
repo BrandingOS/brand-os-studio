@@ -6,9 +6,15 @@
 
 ## 1. The decision
 
-Brand Kit stops being an editing surface. It becomes what its name says: the
-canonical brand system — assets, strategy, systems, master templates, layout
-variants, previews.
+Brand Kit stops being an editing surface **for creative deliverables and
+templates**. It becomes what its name says: the canonical brand system — assets,
+strategy, systems, master templates, layout variants, previews.
+
+The rule is scoped, and the scope is load-bearing. **Core brand-definition data —
+Logos, Colours, Typography, Strategy — continues to be managed in its proper
+Brand Kit / Setup context**, with the editors it already has. Defining what the
+brand *is* was never canvas work and is not being moved into a canvas editor.
+What moves is the authoring of deliverables made *from* that brand.
 
 All creative editing of deliverables moves to the **global Design environment**,
 already reachable at `/b/:slug/design/:designId`. Two actions bridge the two:
@@ -206,19 +212,68 @@ shade ladders and the type scale are brand-definition work, not deliverable
 authoring, and they belong here. The "all editing happens in Design" rule is
 about creative deliverables and working files.
 
-## 7. Master template storage
+## 7. Master templates and instances
+
+### 7.1 Storage
 
 A master is **a Design object with `isTemplate: true`**, stored through
 `IDesignStorage` like any other. One storage model, and `DesignSummary` already
-carries `isTemplate`, `familyId` and `sourceTemplateId` to link instances back to
-the master they came from.
+carries `isTemplate`, `familyId` and `sourceTemplateId`.
 
 Template-authoring mode is therefore a property of the opened object, not a
 second editor: `isTemplate` drives a guard that a master saves back as the
 canonical template and is not a place for client content.
 
 Brand Kit's job is to know which Design id is the master for a given
-deliverable + variant, and to seed one on first use.
+deliverable + variant, and to seed one lazily on first use.
+
+### 7.2 Instantiation is a snapshot, not a link
+
+**`Use Template` copies. It does not subscribe.**
+
+```
+master Design (isTemplate: true)
+    │  Use Template  ── deep copy of body → new Design
+    ▼
+instance Design (isTemplate: false, sourceTemplateId: <masterId>)
+```
+
+`sourceTemplateId` records **provenance only**: which master this came from, for
+attribution, filtering and analytics. It is not a live reference and nothing
+resolves through it at load time.
+
+The invariant that follows, stated so no future change quietly breaks it:
+
+> **Editing a master must never alter an existing working Design.**
+
+A user's filled-in client invoice cannot be reshaped under them because someone
+tuned the brand's master a month later. The copy is taken at instantiation and
+the instance owns it from that moment.
+
+This has a cost worth naming: an improved master does not reach designs already
+created from it. That is the correct trade — a working file's stability outranks
+propagating template changes into it. If "refresh from template" is ever wanted,
+it must be an explicit, user-invoked, previewable action on the instance, never
+an implicit resolve. It is not in scope here.
+
+Brand *values* are a separate axis and keep their existing behaviour: a design
+holds `SlotRef`s that resolve against the brand, so re-applying a brand kit is an
+explicit action (`applyBrandToDocument`) and is unaffected by this rule.
+
+### 7.3 Template Designs are not working files
+
+Masters live in the same store as instances, which means they must be kept out of
+the surfaces built for working files, and protected from actions meant for them.
+
+- **Excluded from Recent Designs and the My Designs library by default.**
+  Listing filters on `isTemplate`. A master surfaces in Brand Kit, where it
+  belongs, not amongst a user's work.
+- **Protected from destructive actions.** Deleting a master is not offered
+  alongside ordinary design deletion; where it is possible at all it requires an
+  explicit confirmation naming what it affects, consistent with the brand-write
+  confirmation rule the Guideline builder already follows.
+- **Duplicate on a master produces an instance**, not a second master —
+  duplicating a master is what `Use Template` already means.
 
 ## 8. Explicitly not built
 
@@ -257,15 +312,21 @@ Per the repo's three-layer requirement:
 ## 10. Success criterion
 
 After this slice, adding **Business Card** — the agreed second validation case —
-must be:
+must require **family-specific work only**: its content type registration and
+capability configuration, its renderer, and its template bindings.
 
-1. one `ContentTypeConfig` entry (or a `renderer` field on the existing one),
-2. `<Bind>` calls in its renderers,
-3. the Brand Kit card's two actions pointed at it.
+The criterion is architectural, not tied to any particular binding mechanism.
+Adding a family must NOT require:
 
-If it requires touching the Design shell, the adapter split, or inventing another
-architecture, this design failed and the abstraction needs revisiting before the
-third family.
+- changing the shared Design shell,
+- changing the adapter architecture or the `DocumentAdapter` /
+  `LayerEditingAdapter` split,
+- changing routing or the Design object model,
+- inventing another editor model, a second editing surface, or a parallel
+  storage path.
+
+If any of those is needed, this design failed and the abstraction must be
+revisited before a third family is added — not worked around.
 
 ## 11. Risks
 
