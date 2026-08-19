@@ -40,6 +40,12 @@ interface GuidelineDocState {
   get: (brandId: string) => GuidelineDoc | undefined;
   build: (brand: Brand) => GuidelineDoc;
   discard: (brandId: string) => void;
+  /**
+   * Put a whole document back. This is the undo/redo write path — it restores
+   * a snapshot verbatim, so unlike every other action here it must NOT stamp
+   * `updatedAt`, or replaying a snapshot would change it.
+   */
+  replace: (brandId: string, doc: GuidelineDoc) => void;
 
   insertPage: (brandId: string, type: string, index: number) => GuidelinePage | undefined;
   duplicatePage: (brandId: string, pageId: string) => GuidelinePage | undefined;
@@ -94,6 +100,9 @@ export const useGuidelineDocStore = create<GuidelineDocState>()(
         set((state) => ({ docs: { ...state.docs, [brand.id]: doc } }));
         return doc;
       },
+
+      replace: (brandId, doc) =>
+        set((state) => ({ docs: { ...state.docs, [brandId]: doc } })),
 
       discard: (brandId) =>
         set((state) => {

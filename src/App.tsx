@@ -7,6 +7,7 @@ import { AuthProvider } from "@/features/auth/components/AuthProvider";
 import { ThemeProvider, useTheme } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
 import { repairStorageOnBoot } from "@/shared/utils/storageCompaction";
+import { startHistoryKeyboard } from "@/shared/history";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { FeatureErrorBoundary } from "@/components/FeatureErrorBoundary";
 import { PageSpinner } from "@/components/PageSpinner";
@@ -311,6 +312,19 @@ function StorageRepair() {
   return null;
 }
 
+/**
+ * The one keyboard handler for ⌘Z / ⌘⇧Z (and Ctrl+Y).
+ *
+ * Mounted at the root so undo means the same thing everywhere, but it is a
+ * no-op until a surface registers an `UndoScope` — which is what lets it land
+ * beside the eight ad-hoc ⌘Z listeners that already exist without changing any
+ * of their behaviour. See `src/shared/history/`.
+ */
+function HistoryKeyboard() {
+  useEffect(() => startHistoryKeyboard(), []);
+  return null;
+}
+
 function ThemeToggleBridge() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   useEffect(() => {
@@ -346,6 +360,7 @@ const App = () => (
     disableTransitionOnChange
   >
   <StorageRepair />
+  <HistoryKeyboard />
   <ThemeToggleBridge />
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>

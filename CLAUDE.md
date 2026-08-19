@@ -932,30 +932,53 @@ Rules that bind:
 
 ## Guideline — the Brand Guidelines builder (rebuilt 2026-08-19)
 
-**One route, one surface: `/b/:slug/guideline`.** It is a BUILDER, not a
-landing and not a deck viewer. Before there is a guideline the page is nearly
-empty with one action — **Build Brand Guidelines** — which writes a complete
-30-page brand book from the brand's own logo, palette, typography, imagery,
-motion and voice. After that it is a vertical document with a floating rail
-and a floating sidebar beside it, in `WorkspaceShell` like every Studio tab.
+**One route, one surface: `/b/:slug/guideline`.** A BUILDER, not a landing and
+not a deck viewer. Before there is a guideline the page is nearly empty with one
+action — **Build Brand Guidelines** — which writes a complete 30-page brand book
+from the brand's own logo, palette, typography, imagery, motion and voice. After
+that it is a vertical document with a rail and a panel beside it.
 
-There is deliberately no separate fullscreen editor, no template gallery and
-no blank-document path. `/b/:slug/guideline/:templateId` and
-`/b/:slug/brand-guides` both redirect here.
+`/b/:slug/guideline/:templateId` and `/b/:slug/brand-guides` both redirect here.
+There is deliberately no separate fullscreen editor, no template gallery and no
+blank-document path.
 
-**Layout.** Grid: rail (64px) · sidebar (306px, collapsible) · document. Both
-panels are `position: sticky` and the DOCUMENT scrolls with the page under the
-Studio top bar — an inner scroll container would have to hard-code the top
-bar's height, which is padding plus content. The rail has three entries:
-Content · Brand · Add page.
+**The chrome is the Studio's, not this feature's.** This is the rule the first
+version of the builder broke, and the reason it was reworked:
 
-**State lives in three places, and the split is load-bearing:**
+| Need | Use | Not |
+|---|---|---|
+| app rail | **`DsRail`** — separate 43px cards, icon over label, charcoal active border, `value: null` closes the panel | a `gl-rail` container card with items inside it |
+| page grid | **`.shell`** (+ `.gl-shell`, which only adds the rail column) | a bespoke grid |
+| the panel | **`.panel` / `.panel-top` / `.panel-heading` / `.panel-list`** | a `gl-sidebar` card |
+| a panel row | **`.panel-item > .panel-item-body > .panel-item-thumb + .panel-item-meta`** | a bespoke row |
+| a group heading | **`.panel-group-label`** | a bespoke heading |
+| top-bar actions | `WorkspaceShell`'s `rightActions` | anything else |
+
+The feature-local CSS that remains is the guideline DOCUMENT — page cards, the
+insert affordance, the empty state — plus a small form vocabulary
+(`.gl-field`, `.gl-tool`) the house style has no equivalent for. Before adding
+anything to `guideline.css`, check `workspace.css` and `@/shared/ds` first.
+
+**The panel is compact by rule.** It shows values, controls and actions. It does
+not restate which page you selected, print the page's position, describe what
+the page is for, or hint under every field. If you selected a page you already
+know which page it is.
+
+**The Brand panel is a real entry point into the brand system**, not four text
+fields: the brand's own sections (Logo · Colours · Typography · Iconography ·
+Voice & Tone · Strategy · Website) with the brand's real values, and editing
+goes through the editors Setup already owns — `ColorPickerHSV`,
+`StrategyEditorModal`, `EmbeddedTypescaleDialog`. Nothing here reimplements a
+brand control that exists.
+
+**State lives in four places, and the split is load-bearing:**
 
 | what | where | why |
 |---|---|---|
-| the page list + guideline-scoped brand overrides | `model/guidelineDocStore.ts` (localStorage, per brand) | kilobytes, and it must be readable SYNCHRONOUSLY — it decides empty-state vs builder on first paint |
+| page list + guideline-scoped brand values | `model/guidelineDocStore.ts` (localStorage, per brand) | kilobytes, and it must be readable SYNCHRONOUSLY — it decides empty-state vs builder on first paint |
 | a page's edited HTML | IndexedDB via `builder/useGuidelineSnapshots.ts` | megabytes; keyed so pre-builder edits still load |
-| selection, scroll, open panel | component state | session-scoped; persisting a selection is noise |
+| undo/redo over the document | `builder/useGuidelineHistory.ts` on `@/shared/history` | session-scoped; see the history section below |
+| selection, scroll, open panel | component state | persisting a selection is noise |
 
 **Rules that bind:**
 
@@ -973,37 +996,86 @@ Content · Brand · Add page.
   saves on a click, fatal here because the builder autosaves. Legacy
   outer-canvas snapshots still render, and a browser test pins that.
 - **Editing a brand value in the guideline does NOT touch the brand.**
-  `model/document.ts`'s `GuidelineOverrides` holds the guideline's own
-  primary/secondary colour and heading/body typeface; `applyGuidelineOverrides`
-  merges them for rendering only. Pushing one onto the brand is a separate,
-  confirmed action that names both values and what it affects. Override keys
-  must stay exactly the brand fields the renderers read — an override the pages
-  ignore reads as a broken control.
-- **The confirmation renders in `GuidelineBuilder`, never in a panel.**
-  `.gl-sidebar` is `position: sticky`, which creates a stacking context, so a
-  modal scrim mounted inside it paints under the document.
+  `GuidelineOverrides` holds the guideline's own primary/secondary colour and
+  heading/body typeface; `applyGuidelineOverrides` merges them for rendering
+  only. Override keys must stay exactly the brand fields the renderers read.
+- **Every brand write goes through `model/brandWrites.ts`**, which is the Setup
+  chain: `brandToMockBrand` → mutate → `mockBrandToPatch(next, brand)` →
+  `useBrandStore.update`. `mockBrandToPatch` diffs a WHOLE MockBrand, so a
+  hand-built partial emits destructive diffs — an empty `colors.core` wipes
+  `primaryColor` and the neutrals. `editBrand()` removes that hazard by
+  construction: the draft always starts from `brandToMockBrand`.
+- **No brand write happens without a confirmation** that names what it affects.
+  The panel raises a `BrandChange`; `GuidelineBuilder` confirms and applies it.
+- **Modals and confirmations render in `GuidelineBuilder`, never in a panel.**
+  `.panel` is `position: sticky`, which creates a stacking context, so a scrim
+  mounted inside it paints under the document.
 - **Adding a page type = one entry in `model/pageLibrary.tsx`.** The renderers
   are NOT ours — they live in the legacy `features/guidelines/` family
-  (`pages/templates/{TemplatePages,FancyPages,FancyPages2}`), which is the
-  strongest guideline artwork in the repo. This is a catalogue over them.
-  Multiple layouts per type is the obvious next step and is deliberately not
-  built: a `variant` field on the instance plus a `variants` map here, with no
-  change to the document, the store or any panel.
-- **Chapter numbers are derived from order**, never stored — moving a chapter
-  renumbers it. The outline numbers every row by document position, dividers
-  included.
-- Only the SELECTED page is wrapped in the inline editor; the rest render
-  inert, and pages far from the viewport are deferred until first approach.
+  (`pages/templates/*`), which is the strongest guideline artwork in the repo.
+  Multiple layouts per type lands as a `variant` field on the instance plus a
+  `variants` map here; deliberately not built.
+- **Chapter numbers are derived from order**, never stored. The outline numbers
+  every row by document position, dividers included.
+- Only the SELECTED page is wrapped in the inline editor; pages far from the
+  viewport are deferred until first approach.
 - Tests: `__tests__/{document,guidelineDocStore,effectiveBrand}.test.ts` and
   `__tests__/guidelineBuilder.browser.test.tsx`.
 
-**Not built, and known:** export and present. The retired deck editor had both
-via `EditorWorkspace`; the builder does not, because its export path is coupled
-to that component's own DOM refs. A guideline you cannot hand to anyone is
-half a product — this is the next thing to add, over `shared/editor/exportCapture.ts`.
+**Not built, and known:** export and present (the retired deck editor had both
+through `EditorWorkspace`, whose export is coupled to its own DOM refs); a
+guideline published as a public web page; motion sections. None of these is
+blocked by the current architecture — pages are data plus a renderer, so a
+second renderer target is additive.
 
-The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen**
-and unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
+The legacy canvas editor at `/b/:slug/guidelines/canvas` is still **frozen** and
+unlinked. It keeps its local-brand fallback (see the uuid gotcha below).
+
+## Undo / redo — `src/shared/history/` (2026-08-19)
+
+**Do not add a tenth undo stack.** There were nine — a Fabric ring buffer, three
+Fabric-JSON stacks, an IndexedDB HTML snapshot store, two contentEditable
+`innerHTML` stacks and two hand-rolled `past`/`future` pairs in zustand stores —
+with eight `window` keydown listeners between them and four different policies
+on whether ⌘Z fires while the user is typing.
+
+`shared/history` does not replace them. Those systems store genuinely different
+things with genuinely different flush semantics, and three live inside the
+`stable/editable-export-v1` freeze. What is now shared is the part that should
+never have been duplicated: **which stack the user is in, what the keyboard
+does, and what the UI shows.**
+
+- **`HistoryRing<T>`** — moved here from `features/editor/adapter/` because
+  `shared/*` may not import `features/*`. The old path re-exports it, so
+  `FabricAdapter` is untouched. Ring buffer with two tiers (`commit` immediate,
+  `snapshot` debounced), labels, and redo invalidation.
+- **`createStoreHistory({read, write})`** — undo for a plain piece of state.
+  `transaction(label, fn)` records ONE entry for a compound edit and absorbs
+  nesting. **The baseline is captured at construction**, so the state must exist
+  when you create it — a lazy baseline records the state as it was after the
+  first mutation and silently costs the user their first undo.
+- **`UndoScope` + `useUndoScope(scope)`** — a surface registers while mounted.
+  The most recently registered scope wins, which matches how these surfaces
+  nest. `useUndoState()` drives toolbar buttons.
+- **`startHistoryKeyboard()`** — mounted once in `App.tsx`. ⌘Z / ⌘⇧Z / Ctrl+Z /
+  Ctrl+⇧Z / Ctrl+Y. **It is a no-op when no scope is registered**, which is what
+  lets it live beside the eight pre-existing ⌘Z listeners without changing any
+  of their behaviour. It skips text-entry targets unless the scope sets
+  `ownsTextInput` — inside an `<input>` the browser's own undo is what the user
+  expects, and stealing it is the fastest way to make undo infuriating.
+- **Not persisted.** History has broken this app once already:
+  `shared/editor/historyStore.ts` grew to 1.5 MB of a 5 MB localStorage budget
+  and brands silently stopped saving.
+
+Two things are deliberately OUTSIDE any undo stack, and the reasons generalise:
+a **confirmed global brand change** (an awaited remote write that can fail, can
+fall back to a second code path in production, and repaints every other surface
+— the confirmation is the safeguard), and **inline contentEditable text edits**
+(the browser's own undo is correct there).
+
+Adopting it for an existing surface is one `useUndoScope` call — `FabricAdapter`
+already satisfies the shape (`undo`/`redo`/`canUndo`/`canRedo` plus
+`batch(label, fn)`). Tests: `shared/history/*.test.ts` (41).
 
 ## Canonical brand model — storage round-trip gotcha
 

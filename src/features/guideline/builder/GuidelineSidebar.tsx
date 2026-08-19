@@ -1,40 +1,49 @@
 /**
- * The floating sidebar shell.
+ * The floating panel, in the house style.
  *
- * Presentational on purpose: a header (optional back arrow, title, close) and
- * a scrolling body. Which panel goes inside is the builder's decision, so the
- * back-to-outline behaviour and the panel list stay in one place instead of
- * being split across a shell and its contents.
+ * `.panel` / `.panel-top` / `.panel-heading` / `.panel-list` are the Studio's
+ * sidebar vocabulary — Setup, Brand Kit and Tools all render exactly this
+ * markup, and `.panel` already brings the sticky positioning, the viewport
+ * height cap and the scroll behaviour. An earlier version of this file
+ * reinvented all of that under a `gl-` prefix; this one owns nothing but the
+ * header row, because the header row is the only part the house style has no
+ * component for.
  */
 import { ChevronLeft, X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { DsEyebrow } from '@/shared/ds';
 
 export function GuidelineSidebar({
+  eyebrow,
   title,
   onBack,
   onClose,
   children,
 }: {
+  eyebrow: string;
   title: string;
-  /** Present only for drill-downs — the page editor inside the outline. */
+  /** Present only for a drill-down — the page editor inside the outline. */
   onBack?: () => void;
   onClose: () => void;
   children: ReactNode;
 }) {
   return (
-    <aside className="gl-sidebar" aria-label={title}>
-      <header className="gl-sidebar-head">
+    <aside className="panel" aria-label={title}>
+      <div className="panel-top gl-panel-top">
         {onBack && (
           <button type="button" className="gl-icon-btn" onClick={onBack} aria-label="Back to outline">
             <ChevronLeft size={16} strokeWidth={1.8} aria-hidden />
           </button>
         )}
-        <h2 className="gl-sidebar-title">{title}</h2>
+        <div className="panel-heading gl-panel-heading">
+          <DsEyebrow>{eyebrow}</DsEyebrow>
+          <h1 className="panel-heading-title">{title}</h1>
+        </div>
         <button type="button" className="gl-icon-btn" onClick={onClose} aria-label="Close panel">
           <X size={16} strokeWidth={1.8} aria-hidden />
         </button>
-      </header>
-      <div className="gl-sidebar-body">{children}</div>
+      </div>
+      {children}
     </aside>
   );
 }

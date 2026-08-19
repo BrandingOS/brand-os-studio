@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HistoryRing } from './historyRing';
+import { HistoryRing } from './HistoryRing';
 
 describe('HistoryRing', () => {
   beforeEach(() => {

@@ -1,77 +1,77 @@
 /**
  * The Brand Guidelines builder — /b/:slug/guideline.
  *
- * A vertical document, not a canvas. Pages are read the way the finished PDF is
- * read: top to bottom, one column, real size. There is no infinite plane, no
- * horizontal slide flipping and no zoom, because a brand book has an order and
- * scrolling is how people move through one.
+ * A vertical document, not a canvas. Pages are read the way the finished PDF
+ * is read: top to bottom, one column, real size. No infinite plane, no
+ * horizontal slide flipping — a brand book has an order, and scrolling is how
+ * people move through one.
  *
- * Three regions:
- *   rail     — Content · Brand · Add page. Always visible.
- *   sidebar  — the active panel, collapsible. Drills into a page when one is
- *              selected, and comes back out.
- *   document — the pages.
+ * The chrome is the Studio's, not this feature's. `WorkspaceShell` +
+ * `.shell` + `.panel` + `DsRail` are what Setup, Brand Kit and Tools already
+ * render; the only structural thing this file adds is a third grid column for
+ * the rail, because those pages have a sidebar and no rail.
  *
- * Where state lives, and why it is split three ways:
- *   the page LIST and the guideline's brand overrides → `useGuidelineDocStore`
- *     (small, synchronous, per brand — it decides empty-state vs builder on
- *      first paint, so it cannot be async)
- *   a page's EDITED HTML → IndexedDB via `useGuidelineSnapshots`
+ * State lives in four places, and the split is load-bearing:
+ *   the page list + guideline-scoped brand values → `useGuidelineDocStore`
+ *     (small, synchronous — it decides empty-state vs builder on first paint)
+ *   a page's edited HTML → IndexedDB via `useGuidelineSnapshots`
  *     (large, and keyed so edits made before this page existed still load)
- *   selection, scroll position, which panel is open → component state
- *     (session-scoped; persisting a selection would be noise)
+ *   undo/redo over the document → `useGuidelineHistory` on `@/shared/history`
+ *   selection, scroll, which panel is open → component state
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { LayoutList, Palette, Plus, Redo2, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { DsConfirmDialog } from '@/shared/ds';
+import { DsConfirmDialog, DsRail, type DsRailItem } from '@/shared/ds';
 import { getLayoutById } from '@/shared/editor';
-import { useBrandStore } from '@/shared/store/brandStore';
+import { useUndoScope, useUndoState } from '@/shared/history';
+import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import type { Brand } from '@/shared/types/brand';
+import { StrategyEditorModal, type StrategyEditTarget } from '@/features/setup/components/StrategyEditorModal';
+import { EmbeddedTypescaleDialog } from '@/features/tools/typescale/EmbeddedTypescaleDialog';
+import { STRATEGY_CARDS, contentOf, selectionOf, type StrategyCard } from '@/features/setup/data/strategyCards';
+import type { MockBrand } from '@/features/setup/data/mockBrand';
 import { pageDisplayName, sectionIndexes as computeSectionIndexes } from '../model/document';
 import type { GuidelineOverrides } from '../model/document';
-import {
-  applyGuidelineOverrides, brandPatchFor, brandValueFor, OVERRIDE_LABEL,
-} from '../model/effectiveBrand';
+import { BRAND_SECTION_LABEL, type BrandSection } from '../model/brandSections';
+import { applyGuidelineOverrides } from '../model/effectiveBrand';
+import { brandView, editBrand, type BrandChange } from '../model/brandWrites';
 import { guidelineEditorKey, useGuidelineDocStore } from '../model/guidelineDocStore';
 import { GuidelineEmptyState } from './GuidelineEmptyState';
 import { GuidelinePageCard } from './GuidelinePageCard';
-import { GuidelineRail, type RailMode } from './GuidelineRail';
 import { GuidelineSidebar } from './GuidelineSidebar';
 import { AddPagePanel } from './panels/AddPagePanel';
 import { BrandPanel } from './panels/BrandPanel';
 import { ContentPanel } from './panels/ContentPanel';
 import { PagePanel } from './panels/PagePanel';
+import { useGuidelineHistory } from './useGuidelineHistory';
 import { useGuidelineSnapshots } from './useGuidelineSnapshots';
 import '../guideline.css';
 
 /**
  * One chrome layout for every page.
  *
- * At MVP each page type has exactly one design, and that includes its header
- * and footer. Exposing a layout switcher would be a choice with no consequence
- * the user asked for — and `EditorWorkspace` already owns that control for
- * decks that want it.
+ * At MVP each page type has exactly one design, header and footer included.
+ * A layout switcher would be a choice with no consequence the user asked for.
  */
 const PAGE_LAYOUT = getLayoutById('hyperhyve');
 
-const PANEL_TITLES: Record<RailMode, string> = {
-  content: 'Content',
-  brand: 'Brand',
-  add: 'Add page',
-};
+export type RailMode = 'content' | 'brand' | 'add';
+
+const RAIL_ITEMS: DsRailItem[] = [
+  { value: 'content', label: 'Content', icon: <LayoutList size={17} strokeWidth={1.8} aria-hidden /> },
+  { value: 'brand', label: 'Brand', icon: <Palette size={17} strokeWidth={1.8} aria-hidden /> },
+  { value: 'add', label: 'Add', icon: <Plus size={17} strokeWidth={1.8} aria-hidden /> },
+];
 
 export function GuidelineBuilder({ brand, slug }: { brand: Brand; slug: string }) {
   const doc = useGuidelineDocStore((s) => s.docs[brand.id]);
   const build = useGuidelineDocStore((s) => s.build);
-
   const [building, setBuilding] = useState(false);
 
   const onBuild = useCallback(() => {
     setBuilding(true);
-    // Synchronous in practice; the flag exists so the button cannot be
-    // double-fired and so a future server-backed build has somewhere to land.
     try {
       build(brand);
       toast.success('Brand guidelines built');
@@ -82,9 +82,9 @@ export function GuidelineBuilder({ brand, slug }: { brand: Brand; slug: string }
 
   if (!doc) {
     return (
-      <div className="gl-builder is-empty">
+      <WorkspaceShell>
         <GuidelineEmptyState brand={brand} slug={slug} onBuild={onBuild} building={building} />
-      </div>
+      </WorkspaceShell>
     );
   }
 
@@ -93,8 +93,6 @@ export function GuidelineBuilder({ brand, slug }: { brand: Brand; slug: string }
 
 function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
   const doc = useGuidelineDocStore((s) => s.docs[brand.id])!;
-  // Actions only — the document itself is subscribed above. `getState()` keeps
-  // this out of the render-subscription path; the action references are stable.
   const store = useGuidelineDocStore.getState();
 
   const editorKey = guidelineEditorKey(brand.id);
@@ -103,30 +101,38 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
   const [mode, setMode] = useState<RailMode | null>('content');
   const [selectedId, setSelectedId] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | undefined>();
+  const [brandSection, setBrandSection] = useState<BrandSection | null>(null);
   const [insertAt, setInsertAt] = useState<number | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [confirmRebuild, setConfirmRebuild] = useState(false);
-  // Pushing a guideline value onto the brand is confirmed HERE rather than in
-  // the Brand panel: `.gl-sidebar` is sticky, which creates a stacking context,
-  // and a modal scrim inside it paints under the document instead of over it.
-  const [confirmBrandKey, setConfirmBrandKey] = useState<keyof GuidelineOverrides | null>(null);
-  const [applyingToBrand, setApplyingToBrand] = useState(false);
-  const updateBrand = useBrandStore((s) => s.update);
+  const [brandChange, setBrandChange] = useState<BrandChange | null>(null);
+  const [applyingBrand, setApplyingBrand] = useState(false);
+  const [strategyTarget, setStrategyTarget] = useState<StrategyEditTarget | null>(null);
+  const [typeEditorOpen, setTypeEditorOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const pages = doc.pages;
-  // Documents written before `overrides` existed have none; memoized so the
-  // fallback object does not re-key every consumer on each render.
   const overrides = useMemo(() => doc.overrides ?? {}, [doc.overrides]);
   const sectionIndexes = useMemo(() => computeSectionIndexes(pages), [pages]);
 
-  // The pages render from the brand PLUS this guideline's own overrides. The
-  // real brand is passed separately to the Brand panel, which needs to compare
-  // the two.
+  const pageName = useCallback(
+    (id: string) => {
+      const page = useGuidelineDocStore.getState().get(brand.id)?.pages.find((p) => p.id === id);
+      return page ? pageDisplayName(page) : 'page';
+    },
+    [brand.id],
+  );
+
+  const { actions, scope } = useGuidelineHistory(brand.id, pageName);
+  useUndoScope(scope);
+
+  // Pages render from the brand PLUS this guideline's own values. The real
+  // brand is passed separately to the Brand panel, which compares the two.
   const effectiveBrand = useMemo(
     () => applyGuidelineOverrides(brand, overrides),
     [brand, overrides],
   );
+  const view = useMemo(() => brandView(brand), [brand]);
 
   const editedIds = useMemo(() => new Set(Object.keys(snapshots)), [snapshots]);
   const selectedIndex = selectedId ? pages.findIndex((p) => p.id === selectedId) : -1;
@@ -136,8 +142,7 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
     // rAF so a page that has just been inserted exists in the DOM first.
     requestAnimationFrame(() => {
       document.getElementById(`gl-page-${pageId}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
+        behavior: 'smooth', block: 'start',
       });
     });
   }, []);
@@ -149,12 +154,9 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
   }, [scrollToPage]);
 
   // Which page is filling the viewport — highlights the outline while the user
-  // scrolls, with no selection involved.
-  //
-  // The viewport is the scroll container: the document scrolls with the page
-  // under the Studio top bar, and the rail and sidebar are sticky beside it.
-  // The negative top margin discounts the band the top bar covers, so a page
-  // hidden behind the chrome does not count as the one being read.
+  // scrolls, with no selection involved. The viewport is the scroll container:
+  // the document scrolls under the Studio top bar, and the negative top margin
+  // discounts the band that bar covers.
   useEffect(() => {
     const root = scrollRef.current;
     if (!root || typeof IntersectionObserver === 'undefined') return;
@@ -169,9 +171,7 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
         }
         let best: string | undefined;
         let bestRatio = 0;
-        ratios.forEach((ratio, id) => {
-          if (ratio > bestRatio) { bestRatio = ratio; best = id; }
-        });
+        ratios.forEach((ratio, id) => { if (ratio > bestRatio) { bestRatio = ratio; best = id; } });
         if (best) setActiveId(best);
       },
       { rootMargin: '-90px 0px 0px 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
@@ -180,15 +180,17 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
     return () => observer.disconnect();
   }, [pages]);
 
-  const onRail = useCallback((next: RailMode) => {
-    setMode((current) => (current === next ? null : next));
+  // `DsRail` owns toggle-to-close and hands back null for it.
+  const onRail = useCallback((next: RailMode | null) => {
+    setMode(next);
+    if (next === null) return;
     if (next === 'add') {
-      // Default insertion point: right after whatever the user is looking at.
       const anchor = selectedId ?? activeId;
       const at = anchor ? pages.findIndex((p) => p.id === anchor) : -1;
       setInsertAt(at >= 0 ? at + 1 : pages.length);
     }
     if (next !== 'content') setSelectedId(undefined);
+    if (next !== 'brand') setBrandSection(null);
   }, [selectedId, activeId, pages]);
 
   const openInsert = useCallback((index: number) => {
@@ -199,22 +201,21 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
 
   const addPage = useCallback((typeId: string) => {
     const at = insertAt ?? pages.length;
-    const page = store.insertPage(brand.id, typeId, at);
+    const page = actions.insertPage(typeId, at);
     if (!page) return;
     setInsertAt(at + 1);
     selectPage(page.id);
-  }, [insertAt, pages.length, store, brand.id, selectPage]);
+  }, [insertAt, pages.length, actions, selectPage]);
 
   const removePage = useCallback(async (pageId: string) => {
-    store.removePage(brand.id, pageId);
-    // Delete the page's edits too. Leaving them would silently resurrect old
-    // content if a page of the same type were added back later — the first
-    // instance of a type reuses the type id.
+    actions.removePage(pageId);
+    // Delete the page's edits too — leaving them would resurrect old content
+    // if a page of the same type were added back, since the first instance of
+    // a type reuses the type id.
     await reset(pageId);
     setSelectedId(undefined);
     setConfirmRemove(null);
-    toast.success('Page removed');
-  }, [store, brand.id, reset]);
+  }, [actions, reset]);
 
   const rebuild = useCallback(() => {
     store.build(brand);
@@ -223,30 +224,48 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
     toast.success('Rebuilt from the brand');
   }, [store, brand]);
 
-  const setOverride = useCallback(
-    (key: keyof GuidelineOverrides, value: string | undefined) =>
-      store.setOverride(brand.id, key, value),
-    [store, brand.id],
-  );
-
-  const applyToBrand = useCallback(async (key: keyof GuidelineOverrides) => {
-    const value = overrides[key];
-    if (!value) return;
-    setApplyingToBrand(true);
+  const applyBrandChange = useCallback(async () => {
+    if (!brandChange) return;
+    setApplyingBrand(true);
     try {
-      await updateBrand(brand.id, brandPatchFor(brand, key, value));
-      // The brand holds this value now, so the override has nothing left to
-      // say — leaving it would mark two identical values as different forever.
-      store.setOverride(brand.id, key, undefined);
-      toast.success(`${OVERRIDE_LABEL[key]} updated on ${brand.name}`);
+      await brandChange.apply();
+      toast.success(`${brand.name} updated`);
     } catch (err) {
       console.error('[guideline] brand update failed', err);
       toast.error('Could not update the brand — your guideline is unchanged.');
     } finally {
-      setApplyingToBrand(false);
-      setConfirmBrandKey(null);
+      setApplyingBrand(false);
+      setBrandChange(null);
     }
-  }, [overrides, updateBrand, brand, store]);
+  }, [brandChange, brand.name]);
+
+  const onEditStrategy = useCallback((card: StrategyCard) => {
+    setStrategyTarget({
+      card,
+      selected: selectionOf(card, view.strategy),
+      text: contentOf(card, view.strategy),
+    });
+  }, [view.strategy]);
+
+  const onSaveStrategy = useCallback((next: { key: StrategyCard['key']; value: string | string[] }) => {
+    const card = STRATEGY_CARDS.find((c) => c.key === next.key);
+    setStrategyTarget(null);
+    setBrandChange(editBrand(
+      brand,
+      {
+        title: `Update ${brand.name}’s ${(card?.name ?? next.key).toLowerCase()}?`,
+        detail: (
+          <>This is brand strategy, so it changes the brand itself. Anything that
+          reads it — this guideline, generated copy, the brand kit — picks up the
+          new answer.</>
+        ),
+      },
+      (draft): MockBrand => ({
+        ...draft,
+        strategy: { ...draft.strategy, [next.key]: next.value } as MockBrand['strategy'],
+      }),
+    ));
+  }, [brand]);
 
   const insertLabel = useMemo(() => {
     const at = insertAt ?? pages.length;
@@ -255,106 +274,119 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
     return `page ${at} · ${pageDisplayName(pages[at - 1])}`;
   }, [insertAt, pages]);
 
-  const panelTitle = mode === 'content' && selectedPage
-    ? pageDisplayName(selectedPage)
-    : mode ? PANEL_TITLES[mode] : '';
+  const panel = resolvePanel({ mode, selectedPage, brandSection });
 
   return (
-    <div className="gl-builder" data-sidebar={mode ? 'open' : 'closed'}>
-      <GuidelineRail active={mode ?? undefined} onChange={onRail} />
+    <WorkspaceShell rightActions={<UndoRedo />}>
+      <div className="shell gl-shell" data-sidebar={mode ? 'open' : 'closed'}>
+        <DsRail
+          items={RAIL_ITEMS}
+          value={mode}
+          onChange={(next) => onRail(next as RailMode | null)}
+          aria-label="Guideline tools"
+        />
 
-      {mode && (
-        <GuidelineSidebar
-          title={panelTitle}
-          onBack={mode === 'content' && selectedPage ? () => setSelectedId(undefined) : undefined}
-          onClose={() => setMode(null)}
-        >
-          {mode === 'content' && selectedPage && (
-            <PagePanel
-              page={selectedPage}
-              brand={effectiveBrand}
-              index={selectedIndex}
-              total={pages.length}
-              isEdited={editedIds.has(selectedPage.id)}
-              onChange={(patch) => store.updatePage(brand.id, selectedPage.id, patch)}
-              onMove={(delta) => { store.movePage(brand.id, selectedPage.id, delta); scrollToPage(selectedPage.id); }}
-              onDuplicate={() => {
-                const copy = store.duplicatePage(brand.id, selectedPage.id);
-                if (copy) selectPage(copy.id);
-              }}
-              onReset={async () => { await reset(selectedPage.id); toast.success('Page reset to the template'); }}
-              onRemove={() => setConfirmRemove(selectedPage.id)}
-              onOpenBrand={() => { setSelectedId(undefined); setMode('brand'); }}
-            />
-          )}
-
-          {mode === 'content' && !selectedPage && (
-            <ContentPanel
-              pages={pages}
-              selectedId={selectedId}
-              activeId={activeId}
-              editedIds={editedIds}
-              onSelect={selectPage}
-            />
-          )}
-
-          {mode === 'brand' && (
-            <BrandPanel
-              brand={brand}
-              slug={slug}
-              overrides={overrides}
-              onSetOverride={setOverride}
-              onRequestApply={setConfirmBrandKey}
-            />
-          )}
-
-          {mode === 'add' && <AddPagePanel insertAfterLabel={insertLabel} onAdd={addPage} />}
-        </GuidelineSidebar>
-      )}
-
-      <div className="gl-doc-scroll" ref={scrollRef}>
-        <header className="gl-doc-head">
-          <div>
-            <span className="gl-doc-eyebrow">Brand Guidelines</span>
-            <h1 className="gl-doc-title">{brand.name}</h1>
-          </div>
-          <div className="gl-doc-meta">
-            <span>{pages.length} pages</span>
-            <span className="gl-doc-dot" />
-            <SaveIndicator state={saveState} loaded={loaded} />
-            <span className="gl-doc-dot" />
-            <button type="button" className="gl-link-btn" onClick={() => setConfirmRebuild(true)}>
-              Rebuild
-            </button>
-          </div>
-        </header>
-
-        <div className="gl-doc">
-          {pages.map((page, index) => (
-            <div key={page.id} className="gl-doc-slot">
-              <InsertBar index={index} onInsert={openInsert} />
-              <GuidelinePageCard
-                page={page}
-                index={index}
-                total={pages.length}
-                sectionIndex={sectionIndexes[page.id] ?? 0}
+        {mode && (
+          <GuidelineSidebar
+            eyebrow={panel.eyebrow}
+            title={panel.title}
+            onBack={panel.onBack === 'page' ? () => setSelectedId(undefined)
+              : panel.onBack === 'brand' ? () => setBrandSection(null)
+              : undefined}
+            onClose={() => setMode(null)}
+          >
+            {mode === 'content' && selectedPage && (
+              <PagePanel
+                page={selectedPage}
                 brand={effectiveBrand}
-                layout={PAGE_LAYOUT}
-                snapshot={loaded ? snapshots[page.id] : undefined}
-                selected={page.id === selectedId}
-                onSelect={() => selectPage(page.id)}
-                onEdit={queue}
-                onFlush={saveNow}
+                index={selectedIndex}
+                total={pages.length}
+                isEdited={editedIds.has(selectedPage.id)}
+                onChange={(patch) => actions.updatePage(selectedPage.id, patch)}
+                onMove={(delta) => { actions.movePage(selectedPage.id, delta); scrollToPage(selectedPage.id); }}
+                onDuplicate={() => {
+                  const copy = actions.duplicatePage(selectedPage.id);
+                  if (copy) selectPage(copy.id);
+                }}
+                onReset={async () => { await reset(selectedPage.id); toast.success('Page reset to the template'); }}
+                onRemove={() => setConfirmRemove(selectedPage.id)}
+                onOpenBrand={() => { setSelectedId(undefined); setMode('brand'); }}
               />
-            </div>
-          ))}
-          <InsertBar index={pages.length} onInsert={openInsert} last />
-        </div>
+            )}
 
-        <footer className="gl-doc-foot">
-          Pages are filled in from this brand. Change what they draw from in{' '}
-          <Link to={`/b/${slug}/setup`}>Setup</Link>.
-        </footer>
+            {mode === 'content' && !selectedPage && (
+              <ContentPanel
+                pages={pages}
+                selectedId={selectedId}
+                activeId={activeId}
+                editedIds={editedIds}
+                onSelect={selectPage}
+              />
+            )}
+
+            {mode === 'brand' && (
+              <BrandPanel
+                brand={brand}
+                view={view}
+                slug={slug}
+                overrides={overrides}
+                section={brandSection}
+                onSection={setBrandSection}
+                onSetOverride={actions.setOverride}
+                onRequestBrandChange={setBrandChange}
+                onEditStrategy={onEditStrategy}
+                onOpenTypeEditor={() => setTypeEditorOpen(true)}
+              />
+            )}
+
+            {mode === 'add' && <AddPagePanel insertAfterLabel={insertLabel} onAdd={addPage} />}
+          </GuidelineSidebar>
+        )}
+
+        <div className="gl-doc-scroll" ref={scrollRef}>
+          <header className="gl-doc-head">
+            <div>
+              <span className="gl-doc-eyebrow">Brand Guidelines</span>
+              <h1 className="gl-doc-title">{brand.name}</h1>
+            </div>
+            <div className="gl-doc-meta">
+              <span>{pages.length} pages</span>
+              <span className="gl-doc-dot" />
+              <SaveIndicator state={saveState} loaded={loaded} />
+              <span className="gl-doc-dot" />
+              <button type="button" className="gl-link-btn" onClick={() => setConfirmRebuild(true)}>
+                Rebuild
+              </button>
+            </div>
+          </header>
+
+          <div className="gl-doc">
+            {pages.map((page, index) => (
+              <div key={page.id} className="gl-doc-slot">
+                <InsertBar index={index} onInsert={openInsert} />
+                <GuidelinePageCard
+                  page={page}
+                  index={index}
+                  total={pages.length}
+                  sectionIndex={sectionIndexes[page.id] ?? 0}
+                  brand={effectiveBrand}
+                  layout={PAGE_LAYOUT}
+                  snapshot={loaded ? snapshots[page.id] : undefined}
+                  selected={page.id === selectedId}
+                  onSelect={() => selectPage(page.id)}
+                  onEdit={queue}
+                  onFlush={saveNow}
+                />
+              </div>
+            ))}
+            <InsertBar index={pages.length} onInsert={openInsert} last />
+          </div>
+
+          <footer className="gl-doc-foot">
+            Pages are filled in from this brand. Change what they draw from in{' '}
+            <Link to={`/b/${slug}/setup`}>Setup</Link>.
+          </footer>
+        </div>
       </div>
 
       <DsConfirmDialog
@@ -367,23 +399,13 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
       />
 
       <DsConfirmDialog
-        open={confirmBrandKey !== null}
-        title={confirmBrandKey ? `Update ${brand.name}’s ${OVERRIDE_LABEL[confirmBrandKey].toLowerCase()}?` : ''}
-        description={
-          confirmBrandKey ? (
-            <>
-              This changes the brand itself, not just this guideline. Every
-              design, template, export and page that uses{' '}
-              {OVERRIDE_LABEL[confirmBrandKey].toLowerCase()} will pick up{' '}
-              <strong>{overrides[confirmBrandKey]}</strong> in place of{' '}
-              <strong>{brandValueFor(brand, confirmBrandKey) ?? 'nothing'}</strong>.
-            </>
-          ) : ''
-        }
-        confirmLabel={applyingToBrand ? 'Updating…' : 'Update the brand'}
-        cancelLabel="Keep it to this guideline"
-        onConfirm={() => confirmBrandKey && applyToBrand(confirmBrandKey)}
-        onCancel={() => setConfirmBrandKey(null)}
+        open={brandChange !== null}
+        title={brandChange?.title ?? ''}
+        description={brandChange?.detail ?? ''}
+        confirmLabel={applyingBrand ? 'Updating…' : 'Update the brand'}
+        cancelLabel="Cancel"
+        onConfirm={applyBrandChange}
+        onCancel={() => setBrandChange(null)}
       />
 
       <DsConfirmDialog
@@ -394,6 +416,59 @@ function BuiltGuideline({ brand, slug }: { brand: Brand; slug: string }) {
         onConfirm={rebuild}
         onCancel={() => setConfirmRebuild(false)}
       />
+
+      {/* Setup's own editors, mounted at the shell rather than in the panel:
+          `.panel` is sticky, which creates a stacking context, so a scrim
+          inside it paints under the document. */}
+      <StrategyEditorModal target={strategyTarget} onClose={() => setStrategyTarget(null)} onSave={onSaveStrategy} />
+      <EmbeddedTypescaleDialog brandId={brand.id} open={typeEditorOpen} onOpenChange={setTypeEditorOpen} />
+    </WorkspaceShell>
+  );
+}
+
+/** What the sidebar header says, and whether it has a way back. */
+function resolvePanel({
+  mode, selectedPage, brandSection,
+}: {
+  mode: RailMode | null;
+  selectedPage: { id: string; type: string; title?: string } | undefined;
+  brandSection: BrandSection | null;
+}): { eyebrow: string; title: string; onBack?: 'page' | 'brand' } {
+  if (mode === 'content' && selectedPage) {
+    return { eyebrow: 'Page', title: pageDisplayName(selectedPage), onBack: 'page' };
+  }
+  if (mode === 'brand' && brandSection) {
+    return { eyebrow: 'Brand', title: BRAND_SECTION_LABEL[brandSection], onBack: 'brand' };
+  }
+  if (mode === 'brand') return { eyebrow: 'Guideline', title: 'Brand' };
+  if (mode === 'add') return { eyebrow: 'Guideline', title: 'Add page' };
+  return { eyebrow: 'Guideline', title: 'Content' };
+}
+
+function UndoRedo() {
+  const { canUndo, canRedo, undo, redo, undoLabel, redoLabel } = useUndoState();
+  return (
+    <div className="gl-undo-group">
+      <button
+        type="button"
+        className="gl-icon-btn"
+        onClick={undo}
+        disabled={!canUndo}
+        title={undoLabel ? `Undo ${undoLabel}` : 'Undo'}
+        aria-label="Undo"
+      >
+        <Undo2 size={16} strokeWidth={1.8} aria-hidden />
+      </button>
+      <button
+        type="button"
+        className="gl-icon-btn"
+        onClick={redo}
+        disabled={!canRedo}
+        title={redoLabel ? `Redo ${redoLabel}` : 'Redo'}
+        aria-label="Redo"
+      >
+        <Redo2 size={16} strokeWidth={1.8} aria-hidden />
+      </button>
     </div>
   );
 }

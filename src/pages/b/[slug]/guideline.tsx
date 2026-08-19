@@ -7,13 +7,12 @@ import '@/features/guideline/guideline.css';
 /**
  * Brand-scoped Guideline tab at /b/:slug/guideline.
  *
- * In the Studio shell rather than fullscreen, unlike the design canvas: a
- * guideline is a document about the brand, so switching brands mid-edit is a
- * real thing to want, and the tab bar is how that happens. The builder's own
- * rail and sidebar sit beside the document, under that chrome.
+ * A thin brand resolver, the same shape as `pages/b/[slug]/setup.tsx`: the
+ * feature mounts its own `WorkspaceShell` because it contributes top-bar
+ * actions (undo/redo), and the page has nothing to add.
  *
- * `key={slug}` force-remounts on a brand switch — the builder holds selection
- * and scroll state that means nothing for a different brand.
+ * `key={slug}` force-remounts on a brand switch — the builder holds selection,
+ * scroll and undo state that means nothing for a different brand.
  */
 export default function BrandGuidelineTabPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -41,9 +40,5 @@ export default function BrandGuidelineTabPage() {
     );
   }
 
-  return (
-    <WorkspaceShell>
-      <GuidelineBuilder key={slug} brand={brand} slug={slug ?? ''} />
-    </WorkspaceShell>
-  );
+  return <GuidelineBuilder key={slug} brand={brand} slug={slug ?? ''} />;
 }
