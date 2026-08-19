@@ -1,12 +1,23 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import { Bind } from '../content/Bind';
+import { defaultPersonContent, type PersonContent } from '../content/kinds';
 
 /**
  * Email-signature extensions — 30 designs. Each tile shows an email
  * signature block as it would appear at the bottom of a Gmail-style
  * message. Clean horizontal compositions with name/title/contact.
  */
-interface Props { brand: Brand; templateIndex: number }
+interface Props {
+  brand: Brand;
+  templateIndex: number;
+  /**
+   * The same `person` content the business cards use — these designs
+   * hardcode the identical five fields, so one kind serves both and an
+   * edit made on one surface means the same thing on the other.
+   */
+  content?: PersonContent;
+}
 
 function MailFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -31,21 +42,29 @@ function MailFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function WebEmailSignatureExtendedRenderer({ brand, templateIndex }: Props) {
+export function WebEmailSignatureExtendedRenderer({ brand, templateIndex, content }: Props) {
   const p = brand.primaryColor;
   const init = brand.name.charAt(0).toUpperCase();
+  const c = { ...defaultPersonContent(brand), ...content };
+  // Bound fragments, so a design reads as its own composition rather than
+  // a wall of props. Each one is a region the editor can select.
+  const Name = <Bind path="fullName" value={c.fullName} fit="shrink" />;
+  const Title = <Bind path="jobTitle" value={c.jobTitle} />;
+  const Email = <Bind path="email" value={c.email} />;
+  const Phone = <Bind path="phone" value={c.phone} />;
+  const Site = <Bind path="website" value={c.website} />;
 
   const sigs = [
     // 0 — Classic
-    (<div className="flex items-start gap-2"><div className="w-[18px] h-[18px] rounded flex items-center justify-center text-white text-[8px] font-bold" style={{backgroundColor:p}}>{init}</div><div><div className="text-[5px] font-bold text-gray-900">Jane Smith</div><div className="text-[4px]" style={{color:p}}>Vice President · {brand.name}</div><div className="text-[3.5px] text-gray-500 mt-0.5">jane@{brand.name.toLowerCase()}.com · +1 234 56789</div></div></div>),
+    (<div className="flex items-start gap-2"><div className="w-[18px] h-[18px] rounded flex items-center justify-center text-white text-[8px] font-bold" style={{backgroundColor:p}}>{init}</div><div><div className="text-[5px] font-bold text-gray-900">{Name}</div><div className="text-[4px]" style={{color:p}}>{Title} · {brand.name}</div><div className="text-[3.5px] text-gray-500 mt-0.5 flex gap-1 min-w-0">{Email}<span>·</span>{Phone}</div></div></div>),
     // 1 — Bordered Left
-    (<div className="flex items-start gap-2 pl-2 border-l-2" style={{borderColor:p}}><div><div className="text-[5px] font-bold text-gray-900">Jane Smith</div><div className="text-[4px] text-gray-500">VP · {brand.name}</div><div className="text-[3.5px] mt-0.5" style={{color:p}}>{brand.name.toLowerCase()}.com</div></div></div>),
+    (<div className="flex items-start gap-2 pl-2 border-l-2" style={{borderColor:p}}><div><div className="text-[5px] font-bold text-gray-900">{Name}</div><div className="text-[4px] text-gray-500">{Title} · {brand.name}</div><div className="text-[3.5px] mt-0.5" style={{color:p}}>{Site}</div></div></div>),
     // 2 — Logo + Name
-    (<div className="flex items-center gap-2"><BrandLogo brand={brand} size="xs" /><div><div className="text-[5px] font-bold">Jane Smith</div><div className="text-[3.5px] text-gray-500">jane@{brand.name.toLowerCase()}.com</div></div></div>),
+    (<div className="flex items-center gap-2"><BrandLogo brand={brand} size="xs" /><div className="min-w-0"><div className="text-[5px] font-bold">{Name}</div><div className="text-[3.5px] text-gray-500">{Email}</div></div></div>),
     // 3 — Stacked
-    (<div className="text-[3.5px] leading-[1.5]"><div className="font-bold text-[5px] text-gray-900">Jane Smith</div><div style={{color:p}}>Vice President</div><div className="text-gray-500">{brand.name} · jane@{brand.name.toLowerCase()}.com</div></div>),
+    (<div className="text-[3.5px] leading-[1.5]"><div className="font-bold text-[5px] text-gray-900">{Name}</div><div style={{color:p}}>{Title}</div><div className="text-gray-500 flex gap-1 min-w-0"><span className="shrink-0">{brand.name}</span><span>·</span>{Email}</div></div>),
     // 4 — Right-aligned
-    (<div className="text-right text-[3.5px]"><div className="font-bold text-[5px]">— Jane</div><div style={{color:p}}>{brand.name}</div></div>),
+    (<div className="text-right text-[3.5px]"><div className="font-bold text-[5px]">— {Name}</div><div style={{color:p}}>{brand.name}</div></div>),
     // 5 — Mono
     (<div className="font-mono text-[3.5px] leading-[1.5]"><div className="font-bold text-[5px]" style={{color:p}}>JANE.SMITH</div><div className="text-gray-700">VP / {brand.name.toUpperCase()}</div><div className="text-gray-500">jane@{brand.name.toLowerCase()}.com</div></div>),
     // 6 — Brand Strip

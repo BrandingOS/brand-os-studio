@@ -12,6 +12,7 @@
  * card label for direct right-click edits.
  */
 import type { TemplateOverrides } from '../types';
+import type { DeliverableContent } from '../content/kinds';
 
 export type SavedCardCustomization = {
   overrides: TemplateOverrides;
@@ -21,6 +22,23 @@ export type SavedCardCustomization = {
   logoId: string | null;
   logoColor: string | null;
   fontId: string | null;
+  /**
+   * Structured content for deliverables that have a content kind —
+   * a person block, a letter, an invoice with its line items.
+   *
+   * ADDITIVE and optional, on purpose. Every customization saved before
+   * this field existed still loads, and a deliverable with no content
+   * kind still saves nothing here; `overrides` remains what it always
+   * was for those. Reading goes through `hydrateContent`, which fills
+   * anything a stored value predates, so the shape can keep growing
+   * without a migration or a lost edit.
+   *
+   * This is stored as real nested data — `lineItems` is an array of
+   * objects and stays one. It is deliberately NOT flattened back into
+   * `TemplateOverrides` on save; that bag cannot express it, which is
+   * the whole reason this field exists.
+   */
+  content?: DeliverableContent;
   savedAt: string;
 };
 

@@ -1,5 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
+import { Bind } from '../content/Bind';
+import { defaultLetterContent, type LetterContent } from '../content/kinds';
 
 /**
  * Letterhead designs — distinct from business cards. Shows a
@@ -19,6 +21,8 @@ import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 interface Props {
   brand: Brand;
   templateIndex: number;
+  /** Structured letter content. Absent → the brand-derived defaults. */
+  content?: LetterContent;
 }
 
 function PageFrame({ children }: { children: React.ReactNode }) {
@@ -36,7 +40,7 @@ function PageFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-function bodyLines(rows: number, color = '#D4D2CB') {
+function bodyLines(rows: number, color = '#D4D2CB', startW = 85) {
   return Array.from({ length: rows }).map((_, i) => (
     <div
       key={i}
@@ -44,14 +48,38 @@ function bodyLines(rows: number, color = '#D4D2CB') {
       style={{
         height: '2px',
         background: color,
-        width: `${85 - (i % 4) * 8}%`,
+        width: `${startW - (i % 4) * 8}%`,
       }}
     />
   ));
 }
 
-export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
+export function LetterheadExtendedRenderer({ brand, templateIndex, content }: Props) {
   const p = brand.primaryColor;
+  const c = content ?? defaultLetterContent(brand);
+
+  /**
+   * The body of the letter.
+   *
+   * Every design in this family draws grey rules where copy goes, and
+   * they all reach them through one function — so binding THAT gives the
+   * whole family a real, editable body in one move rather than a hundred.
+   * An empty body keeps the rules, because a blank letterhead should look
+   * like a blank letterhead and not like a hole.
+   */
+  const body = (rows: number, color?: string, startW?: number) =>
+    c.body.trim().length > 0 ? (
+      <Bind
+        path="body"
+        value={c.body}
+        fit="wrap"
+        multiline
+        className="block text-[3.5px] leading-[1.7] whitespace-pre-wrap"
+        style={{ color: color ?? '#4B5563' }}
+      />
+    ) : (
+      bodyLines(rows, color, startW)
+    );
 
   const designs = [
     // 0 — Header Bar. Solid brand-color header band; logo + brand
@@ -60,14 +88,14 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
       <PageFrame>
         <div className="absolute inset-x-0 top-0 h-[14%] flex items-center justify-between px-[6%]" style={{ backgroundColor: p }}>
           <BrandLogo brand={brand} size="xs" color="#ffffff" />
-          <span className="text-white text-[4.5px] uppercase tracking-[0.22em]">{brand.name}</span>
+          <span className="text-white text-[4.5px] uppercase tracking-[0.22em] max-w-[60%]"><Bind path="senderName" value={c.senderName} /></span>
         </div>
         <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px]">
-          {bodyLines(14)}
+          {body(14)}
         </div>
-        <div className="absolute inset-x-[8%] bottom-[5%] flex justify-between text-[3.5px] uppercase tracking-[0.18em] text-gray-500">
-          <span>{brand.name.toLowerCase()}.com</span>
-          <span>+1 234 56789</span>
+        <div className="absolute inset-x-[8%] bottom-[5%] flex justify-between gap-2 text-[3.5px] uppercase tracking-[0.18em] text-gray-500">
+          <span className="min-w-0"><Bind path="website" value={c.website} /></span>
+          <span className="min-w-0"><Bind path="phone" value={c.phone} /></span>
         </div>
       </PageFrame>
     ),
@@ -82,7 +110,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         </div>
         <div className="absolute left-[16%] right-[6%] top-[10%]">
           <div className="text-[6px] font-serif font-semibold text-gray-900">Dear {brand.name},</div>
-          <div className="space-y-[2.5px] mt-[6%]">{bodyLines(16)}</div>
+          <div className="space-y-[2.5px] mt-[6%]">{body(16)}</div>
         </div>
       </PageFrame>
     ),
@@ -98,7 +126,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[34%] space-y-[2.5px]">{bodyLines(14)}</div>
+        <div className="absolute inset-x-[8%] top-[34%] space-y-[2.5px]">{body(14)}</div>
         <div className="absolute right-[8%] bottom-[8%] text-right">
           <div className="text-[5px] font-serif italic text-gray-700">— Jane Smith</div>
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-0.5" style={{ color: p }}>Vice President</div>
@@ -114,7 +142,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="w-full h-[1.5px] mt-[4%]" style={{ backgroundColor: p }} />
         </div>
-        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px]">{bodyLines(18)}</div>
+        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px]">{body(18)}</div>
         <div className="absolute inset-x-[8%] bottom-[6%] flex items-center gap-[6px] text-[3px] uppercase tracking-[0.22em] text-gray-500">
           <span>{brand.name}</span><span style={{ color: p }}>·</span><span>{brand.name.toLowerCase()}.com</span>
         </div>
@@ -131,7 +159,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <div className="text-[8px] font-serif font-semibold text-gray-900">{brand.name}</div>
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">Internal · 2026</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[32%] space-y-[2.5px]">{bodyLines(15)}</div>
+        <div className="absolute inset-x-[8%] top-[32%] space-y-[2.5px]">{body(15)}</div>
         <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] text-gray-500">cc: jane@{brand.name.toLowerCase()}.com</div>
       </PageFrame>
     ),
@@ -142,12 +170,16 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
       <PageFrame>
         <div className="absolute inset-x-[8%] top-[10%]">
           <BrandLogo brand={brand} size="xs" />
-          <div className="text-[5px] font-serif font-semibold text-gray-900 mt-[2%]">Hello,</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(14)}</div>
+          <div className="text-[5px] font-serif font-semibold text-gray-900 mt-[2%]"><Bind path="recipient" value={c.recipient} placeholder="Hello," fit="shrink" /></div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(14)}</div>
         </div>
         <div className="absolute inset-x-0 bottom-0 h-[18%] flex flex-col justify-center px-[6%] text-white" style={{ backgroundColor: p }}>
-          <div className="text-[4.5px] uppercase tracking-[0.22em]">{brand.name}</div>
-          <div className="text-[3.5px] mt-1 opacity-90">jane@{brand.name.toLowerCase()}.com · +1 234 56789 · {brand.name.toLowerCase()}.com</div>
+          <div className="text-[4.5px] uppercase tracking-[0.22em]"><Bind path="senderName" value={c.senderName} /></div>
+          <div className="text-[3.5px] mt-1 opacity-90 flex gap-1 min-w-0">
+            <Bind path="phone" value={c.phone} />
+            <span>·</span>
+            <Bind path="website" value={c.website} />
+          </div>
         </div>
       </PageFrame>
     ),
@@ -163,7 +195,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <span>{brand.name}</span>
           <span>{brand.name.toLowerCase()}.com</span>
         </div>
-        <div className="absolute inset-x-[10%] top-[20%] space-y-[2.5px] z-10 relative">{bodyLines(16)}</div>
+        <div className="absolute inset-x-[10%] top-[20%] space-y-[2.5px] z-10 relative">{body(16)}</div>
       </PageFrame>
     ),
 
@@ -176,7 +208,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" color="#ffffff" />
           <div className="text-white text-[3.5px] uppercase tracking-[0.22em] mt-0.5">{brand.name}</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{bodyLines(15)}</div>
+        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{body(15)}</div>
         <div className="absolute right-[8%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— jane@{brand.name.toLowerCase()}.com</div>
       </PageFrame>
     ),
@@ -192,7 +224,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">Archive · 2026</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px] relative z-10">{bodyLines(14)}</div>
+        <div className="absolute inset-x-[8%] top-[20%] space-y-[2.5px] relative z-10">{body(14)}</div>
       </PageFrame>
     ),
 
@@ -214,7 +246,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         </div>
         <div className="absolute right-[6%] top-[8%] w-[58%]">
           <div className="text-[6px] font-serif font-semibold text-gray-900">Quarterly Update</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(18)}</div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(18)}</div>
         </div>
       </PageFrame>
     ),
@@ -228,7 +260,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" color="#ffffff" />
           <div className="text-[3.5px] uppercase tracking-[0.22em]">Memo · 2026</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[40%] space-y-[2.5px]">{bodyLines(15)}</div>
+        <div className="absolute inset-x-[8%] top-[40%] space-y-[2.5px]">{body(15)}</div>
         <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
           <span>{brand.name}</span><span>{brand.name.toLowerCase()}.com</span>
         </div>
@@ -258,7 +290,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         </div>
         <div className="absolute left-[18%] right-[8%] top-[10%]">
           <div className="text-[5px] uppercase tracking-[0.22em] text-gray-500">{brand.name} · Memo</div>
-          <div className="space-y-[2.5px] mt-[6%]">{bodyLines(16)}</div>
+          <div className="space-y-[2.5px] mt-[6%]">{body(16)}</div>
         </div>
         <div className="absolute right-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— Jane Smith</div>
       </PageFrame>
@@ -273,7 +305,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <div className="text-[6px] font-serif italic text-gray-800 leading-[1.4]">A short, quiet message that sets the tone for everything that follows.</div>
           <div className="text-[3.5px] uppercase tracking-[0.22em] mt-2 text-gray-500" style={{ color: p }}>— {brand.name}</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{bodyLines(13)}</div>
+        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{body(13)}</div>
         <div className="absolute inset-x-[8%] bottom-[5%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
           <span>{brand.name.toLowerCase()}.com</span><span>+1 234 56789</span>
         </div>
@@ -293,7 +325,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{bodyLines(17)}</div>
+        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{body(17)}</div>
       </PageFrame>
     ),
 
@@ -305,7 +337,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute left-[6%] top-[8%]">
           <BrandLogo brand={brand} size="xs" />
         </div>
-        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px]">{bodyLines(16)}</div>
+        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px]">{body(16)}</div>
         <div className="absolute right-[8%] bottom-[6%] text-right text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— jane@{brand.name.toLowerCase()}.com</div>
       </PageFrame>
     ),
@@ -321,7 +353,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute inset-x-0 top-[12%] h-[1px]" style={{ backgroundColor: p }} />
         <div className="absolute inset-x-[8%] top-[18%]">
           <div className="text-[6px] font-serif font-semibold text-gray-900">Letter of Introduction</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(15)}</div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(15)}</div>
         </div>
       </PageFrame>
     ),
@@ -337,7 +369,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         </div>
         <div className="absolute right-[8%] bottom-[18%] text-right">
           <div className="text-[6px] font-serif font-semibold text-gray-900">Greetings,</div>
-          <div className="space-y-[2.5px] mt-[4%] text-right" style={{ width: '60%', marginLeft: 'auto' }}>{bodyLines(8)}</div>
+          <div className="space-y-[2.5px] mt-[4%] text-right" style={{ width: '60%', marginLeft: 'auto' }}>{body(8)}</div>
         </div>
         <div className="absolute inset-x-[8%] bottom-[5%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 flex justify-between">
           <span>— Jane Smith</span><span>{brand.name.toLowerCase()}.com</span>
@@ -354,7 +386,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <div className="text-[3.5px] uppercase tracking-[0.32em] mt-1 text-gray-500">a brand · est. 2026</div>
           <div className="w-full h-[1px] mt-2" style={{ backgroundColor: p }} />
         </div>
-        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{bodyLines(16)}</div>
+        <div className="absolute inset-x-[8%] top-[26%] space-y-[2.5px]">{body(16)}</div>
         <div className="absolute inset-x-[8%] bottom-[5%] text-center text-[3.5px] uppercase tracking-[0.22em] text-gray-500">+1 234 56789 · jane@{brand.name.toLowerCase()}.com · {brand.name.toLowerCase()}.com</div>
       </PageFrame>
     ),
@@ -368,7 +400,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">Chapter</div>
         </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px] z-10 relative">{bodyLines(15)}</div>
+        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px] z-10 relative">{body(15)}</div>
       </PageFrame>
     ),
 
@@ -379,7 +411,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute inset-x-[8%] top-[8%]">
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500">{brand.name} Studio</div>
           <div className="text-[6px] font-serif font-semibold text-gray-900 mt-1">A Note,</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(13)}</div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(13)}</div>
         </div>
         <div className="absolute inset-x-0 bottom-0 h-[28%] flex flex-col justify-center px-[8%] text-white" style={{ backgroundColor: p }}>
           <BrandLogo brand={brand} size="xs" color="#ffffff" />
@@ -399,7 +431,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <div><span style={{ color: p }}>DATE</span>   · 27 · 04 · 2026</div>
           <div className="w-full border-t border-dashed mt-2" style={{ borderColor: p }} />
         </div>
-        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px] font-mono">{bodyLines(15, '#C8C5BA')}</div>
+        <div className="absolute inset-x-[8%] top-[28%] space-y-[2.5px] font-mono">{body(15, '#C8C5BA')}</div>
         <div className="absolute right-[8%] bottom-[6%] text-[3.5px] font-mono text-gray-500">— END OF MEMO —</div>
       </PageFrame>
     ),
@@ -415,7 +447,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute left-[6%] top-[8%]">
           <div className="text-[6px] font-serif font-semibold text-gray-900">Hello {brand.name}</div>
         </div>
-        <div className="absolute inset-x-[6%] right-[14%] top-[20%] space-y-[2.5px]">{bodyLines(17)}</div>
+        <div className="absolute inset-x-[6%] right-[14%] top-[20%] space-y-[2.5px]">{body(17)}</div>
       </PageFrame>
     ),
 
@@ -430,7 +462,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute left-[6%] top-[8%]">
           <BrandLogo brand={brand} size="xs" />
         </div>
-        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{bodyLines(15)}</div>
+        <div className="absolute inset-x-[8%] top-[30%] space-y-[2.5px]">{body(15)}</div>
       </PageFrame>
     ),
 
@@ -444,7 +476,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           </div>
           <div className="text-[10px] font-serif font-semibold text-gray-900 mt-2">{brand.name}</div>
         </div>
-        <div className="absolute inset-x-[10%] top-[30%] space-y-[2.5px]">{bodyLines(16)}</div>
+        <div className="absolute inset-x-[10%] top-[30%] space-y-[2.5px]">{body(16)}</div>
         <div className="absolute inset-x-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500 text-center">{brand.name.toLowerCase()}.com</div>
       </PageFrame>
     ),
@@ -459,7 +491,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute left-[20%] right-[8%] top-[10%]">
           <div className="text-[5px] uppercase tracking-[0.22em] text-gray-500">Folio · 014</div>
           <div className="text-[6px] font-serif font-semibold text-gray-900 mt-0.5">An open letter</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(15)}</div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(15)}</div>
         </div>
       </PageFrame>
     ),
@@ -471,7 +503,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
         <div className="absolute inset-x-[8%] top-[8%]">
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[6px] font-serif font-semibold text-gray-900 mt-2">A Quick Note</div>
-          <div className="space-y-[2.5px] mt-[4%]">{bodyLines(16)}</div>
+          <div className="space-y-[2.5px] mt-[4%]">{body(16)}</div>
         </div>
         <div className="absolute inset-x-0 bottom-0 h-[6%] flex items-center justify-between px-[8%] text-white text-[3px] uppercase tracking-[0.32em]" style={{ backgroundColor: p }}>
           <span>{brand.name}</span><span>jane@{brand.name.toLowerCase()}.com</span><span>+1 234 56789</span>
@@ -488,7 +520,7 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <div className="text-[5px] uppercase tracking-[0.32em] mt-2" style={{ color: p }}>{brand.name}</div>
         </div>
         <div className="absolute inset-x-0 bottom-0 h-1/2 flex flex-col justify-center px-[8%]" style={{ backgroundColor: p }}>
-          <div className="space-y-[2.5px]">{bodyLines(12, 'rgba(255,255,255,0.4)')}</div>
+          <div className="space-y-[2.5px]">{body(12, 'rgba(255,255,255,0.4)')}</div>
           <div className="text-white text-[3.5px] uppercase tracking-[0.22em] mt-2 opacity-90">— jane@{brand.name.toLowerCase()}.com</div>
         </div>
       </PageFrame>
@@ -517,8 +549,8 @@ export function LetterheadExtendedRenderer({ brand, templateIndex }: Props) {
           <BrandLogo brand={brand} size="xs" />
           <div className="text-[3.5px] uppercase tracking-[0.22em] text-gray-500 mt-1">{brand.name}</div>
         </div>
-        <div className="absolute left-[28%] top-[18%] right-[8%] space-y-[2.5px]">{bodyLines(8)}</div>
-        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{bodyLines(12)}</div>
+        <div className="absolute left-[28%] top-[18%] right-[8%] space-y-[2.5px]">{body(8)}</div>
+        <div className="absolute inset-x-[8%] top-[44%] space-y-[2.5px]">{body(12)}</div>
         <div className="absolute right-[8%] bottom-[6%] text-[3.5px] uppercase tracking-[0.22em] text-gray-500">— Jane Smith</div>
       </PageFrame>
     ),

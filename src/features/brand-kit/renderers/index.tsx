@@ -1,7 +1,8 @@
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import type { MockBrand } from '@/features/setup/data/mockBrand';
-import type { BusinessCardContent } from '../types';
+import type { DeliverableContent } from '../content/kinds';
+import { isPerson, isLetter, isInvoice } from '../content/kinds';
 import { renderTemplateDesign as renderLegacyTemplate } from '@/features/brandkit/components/TemplateCard';
 import {
   BrandAssetLogoRenderer,
@@ -62,11 +63,21 @@ export function renderCosmosTemplate(
   template: BrandKitTemplate,
   brand: Brand,
   mockBrand?: MockBrand,
-  /** Optional prop-driven content per template type. Currently
-   *  consumed only by the business-card renderers — replaces the
-   *  fragile DOM-walker text substitution path. */
-  content?: { businessCard?: Partial<BusinessCardContent> },
+  /**
+   * Structured content for families that have a content kind.
+   *
+   * Passed straight down as props — this replaces the DOM-walker text
+   * substitution the editor used to run over rendered output, which is
+   * what made an edited artifact collide with itself. Absent (the
+   * drilldown grid, every offscreen export, any family not yet
+   * retrofitted) the renderer paints its brand-derived defaults, exactly
+   * as before.
+   */
+  content?: DeliverableContent,
 ) {
+  const person = content && isPerson(content) ? content : undefined;
+  const letter = content && isLetter(content) ? content : undefined;
+  const invoice = content && isInvoice(content) ? content : undefined;
   const extMatch = template.id.match(/-ext-(\d+)$/);
   if (extMatch) {
     const idx = parseInt(extMatch[1], 10) - 1;
@@ -99,7 +110,7 @@ export function renderCosmosTemplate(
             <BusinessCardExtended2Renderer
               brand={brand}
               templateIndex={idx - 18}
-              content={content?.businessCard}
+              content={person}
             />
           );
         }
@@ -107,7 +118,7 @@ export function renderCosmosTemplate(
           <BusinessCardExtendedRenderer
             brand={brand}
             templateIndex={idx}
-            content={content?.businessCard}
+            content={person}
           />
         );
       case 'mockups':
@@ -118,7 +129,7 @@ export function renderCosmosTemplate(
         if (idx >= 22) {
           return <InvoicesExtended2Renderer brand={brand} templateIndex={idx - 22} />;
         }
-        return <InvoicesExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <InvoicesExtendedRenderer brand={brand} templateIndex={idx} content={invoice} />;
       case 'profile-icons':
         // Wave 1: 12 legacy + 18 ext = 30 total. ext-1..18 → idx 0-17
         // Wave 2: ext-19..118 → idx 0-99 in Extended2
@@ -137,7 +148,13 @@ export function renderCosmosTemplate(
       case 'website' as BrandKitTemplate['type']:
         return <WebWebsiteExtendedRenderer brand={brand} templateIndex={idx} />;
       case 'email-sig' as BrandKitTemplate['type']:
-        return <WebEmailSignatureExtendedRenderer brand={brand} templateIndex={idx} />;
+        return (
+          <WebEmailSignatureExtendedRenderer
+            brand={brand}
+            templateIndex={idx}
+            content={person}
+          />
+        );
       case 'landing' as BrandKitTemplate['type']:
         return <WebLandingPageExtendedRenderer brand={brand} templateIndex={idx} />;
       case 'mockup-mug' as BrandKitTemplate['type']:
@@ -193,9 +210,15 @@ export function renderCosmosTemplate(
         // Wave 1: ext-1..30 → idx 0-29 → LetterheadExtendedRenderer
         // Wave 2: ext-31..130 → idx 0-99 → LetterheadExtended2Renderer
         if (idx >= 30) {
-          return <LetterheadExtended2Renderer brand={brand} templateIndex={idx - 30} />;
+          return (
+            <LetterheadExtended2Renderer
+              brand={brand}
+              templateIndex={idx - 30}
+              content={letter}
+            />
+          );
         }
-        return <LetterheadExtendedRenderer brand={brand} templateIndex={idx} />;
+        return <LetterheadExtendedRenderer brand={brand} templateIndex={idx} content={letter} />;
       case 'envelope' as BrandKitTemplate['type']:
         if (idx >= 30) {
           return <EnvelopeExtended2Renderer brand={brand} templateIndex={idx - 30} />;

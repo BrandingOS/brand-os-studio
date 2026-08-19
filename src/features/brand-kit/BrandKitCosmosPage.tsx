@@ -53,6 +53,7 @@ import {
 } from './data/colorPaletteExport';
 import { downloadIconsBundle, type IconExportEntry } from './data/iconExport';
 import { downloadFontsBundle } from './data/fontExport';
+import { contentForTemplate, loadBrandCustomizations } from './data/savedContent';
 import {
   cardCustomizationKey,
   loadCardCustomization,
@@ -510,8 +511,13 @@ export function BrandKitCosmosPage({
               return;
             }
             const aspect = PICKER_ASPECT_BY_LABEL[t.label] ?? 1.6;
+            // Export what the user SAVED, not the brand defaults. The
+            // editor's own Download snapshots the live DOM; every other
+            // export path rasterises the renderer offscreen and has to be
+            // handed the content explicitly.
+            const saved = loadBrandCustomizations(customizationBrandId);
             const blob = await snapshotTemplatePng(
-              renderTemplateDesign(tpl, sourceBrand, b),
+              renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
               260,
               aspect,
             );
@@ -563,6 +569,7 @@ export function BrandKitCosmosPage({
         }
         const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
+        const saved = loadBrandCustomizations(customizationBrandId);
         let added = 0;
         for (const entry of entries) {
           if (entry.view !== 'variants') continue;
@@ -570,7 +577,7 @@ export function BrandKitCosmosPage({
           if (!tpl) continue;
           const aspect = PICKER_ASPECT_BY_LABEL[entry.storageLabel] ?? 1.6;
           const blob = await snapshotTemplatePng(
-            renderTemplateDesign(tpl, sourceBrand, b),
+            renderTemplateDesign(tpl, sourceBrand, b, contentForTemplate(saved, tpl, b)),
             260,
             aspect,
           );

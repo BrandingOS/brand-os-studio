@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -13,6 +14,21 @@ import type { MockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
 import type { BrandKitTemplate } from '@/features/brandkit/types';
 import { renderCosmosTemplate as renderTemplateDesign } from '../renderers';
+import {
+  BindProvider,
+  contentKindForTemplateType,
+  coerceToPathType,
+  defaultContentFor,
+  hydrateContent,
+  setAtPath,
+  type ContentKind,
+  type DeliverableContent,
+} from '../content';
+import { ContentPanel } from './quick-edit/ContentPanel';
+// The editor portals to document.body and is mounted from more than one
+// page, so it brings its own styles rather than relying on whichever page
+// happened to import them first.
+import '../brand-kit.css';
 import { toast } from 'sonner';
 import { recolorLogoSvg, contrastRatio } from '../data/recolorLogo';
 import { FLATICON_RR_NAMES } from '../data/flaticonNames';
@@ -320,6 +336,17 @@ export function BrandKitCardEditor({
   // mouseleave returns the type scale to its default rendering.
   const [hoveredFontWeight, setHoveredFontWeight] = useState<number | null>(null);
   const [overrides, setOverrides] = useState<TemplateOverrides>({});
+  /**
+   * Structured content for deliverables that have a content kind.
+   *
+   * This — not `overrides` — is what the retrofitted renderers paint
+   * from, what the contextual panel edits, and what gets saved. `null`
+   * for a deliverable with no kind yet, which keeps every un-retrofitted
+   * family on exactly the behaviour it has today.
+   */
+  const [content, setContent] = useState<DeliverableContent | null>(null);
+  /** Which bound region on the artifact is selected, if any. */
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   // Markers detected in the rendered preview by LivePreviewFrame.
   // The Customize panel only shows fields whose marker actually
   // appears in this design, so the right-side controls match what's
@@ -338,11 +365,35 @@ export function BrandKitCardEditor({
     [target],
   );
   const editorFields = useMemo(() => contentFieldsForType(templateType), [templateType]);
+  /** The content model this deliverable has, or null if it has none yet. */
+  const contentKind: ContentKind | null = useMemo(
+    () => contentKindForTemplateType(templateType),
+    [templateType],
+  );
+
+  /**
+   * Which card the editor is currently loaded for.
+   *
+   * The seeding effect below must run when a NEW CARD opens and at no
+   * other time. It cannot express that through its dependency array,
+   * because `brand` is rebuilt by `brandToMockBrand(brand)` inline on
+   * every render of the route component — so a parent re-rendering for
+   * any reason at all handed this effect a new object, it re-ran, and it
+   * threw away whatever the user had typed. Keying on the card's own
+   * identity makes the reset mean what it says.
+   */
+  const loadedCardRef = useRef<string | null>(null);
 
   // Reset selection + content overrides whenever a new card opens so
   // state from the previous card doesn't bleed into this one.
   useEffect(() => {
-    if (!target) return;
+    if (!target) {
+      loadedCardRef.current = null;
+      return;
+    }
+    const cardKey = `${target.sectionKey}::${target.label}::${target.template?.id ?? ''}`;
+    if (loadedCardRef.current === cardKey) return;
+    loadedCardRef.current = cardKey;
     setSelectedCover(target.cover);
     setSelectedColor(brand.colors.core[0]?.hex ?? null);
     setSelectedSecondaryColor(
@@ -368,7 +419,12 @@ export function BrandKitCardEditor({
       setSelectedIconWeight('rr');
     }
     setHoveredFontWeight(null);
+    setSelectedPath(null);
     setOverrides(defaultOverridesForType(templateType, brand));
+    // Structured content: the saved value when there is one, hydrated so
+    // anything it predates is filled in rather than rendering blank.
+    const kind = contentKindForTemplateType(templateType);
+    setContent(kind ? defaultContentFor(kind, brand) : null);
     // Re-apply the saved customization for this card, when one exists
     // (KIT-01). Saved ids are validated against the current brand so a
     // deleted logo/font falls back to the defaults seeded above.
@@ -384,6 +440,25 @@ export function BrandKitCardEditor({
       if (saved.logoColor) setSelectedLogoColor(saved.logoColor);
       if (saved.fontId && brand.fonts.some((f) => f.id === saved.fontId)) {
         setSelectedFontId(saved.fontId);
+      }
+      if (kind) {
+        if (saved.content) {
+          setContent(hydrateContent(kind, brand, saved.content));
+        } else if (kind === 'person') {
+          // A card saved before the content model existed kept its person
+          // in the flat overrides. Read it forward so nobody's saved name
+          // disappears the day the model arrives.
+          setContent(
+            hydrateContent(kind, brand, {
+              kind: 'person',
+              fullName: saved.overrides.title,
+              jobTitle: saved.overrides.subtitle,
+              email: saved.overrides.email,
+              phone: saved.overrides.phone,
+              website: saved.overrides.website,
+            }),
+          );
+        }
       }
     }
   }, [target, brand, templateType, initialCustomization]);
@@ -473,6 +548,21 @@ export function BrandKitCardEditor({
     return pairs;
   }, [markerTable, overrides]);
 
+  /**
+   * A bound region on the artifact was committed.
+   *
+   * The text arrives as text — a caret has no idea it is a price — so the
+   * model coerces it against whatever the field already holds. This is
+   * the ONLY way artifact edits reach data; nothing reads the rendered
+   * DOM, and nothing substitutes strings into it.
+   */
+  const commitBoundValue = useCallback(
+    (path: string, text: string) => {
+      setContent((prev) => (prev ? (setAtPath(prev, path, coerceToPathType(prev, path, text)) as DeliverableContent) : prev));
+    },
+    [],
+  );
+
   if (!target) return null;
 
   const allColors = [...brand.colors.core, ...brand.colors.accent, ...brand.colors.grey];
@@ -486,9 +576,14 @@ export function BrandKitCardEditor({
   // KIT ITEMS declare which control groups apply via the registry (a
   // favicon has no typography rail). Non-kit edits — the original
   // brand-kit page — keep every group, the pre-registry behavior.
-  const deliverableDef = target.kit
-    ? getDeliverable(target.sectionKey, target.label)
-    : undefined;
+  // Which brand rails this deliverable actually supports.
+  //
+  // The registry has always declared this and the canonical page never
+  // consulted it — `target.kit` is only set on the lifecycle page, so
+  // every other card rendered every rail whether or not it reached the
+  // renderer. That is why an Invoice offered a Typography picker it
+  // could not apply.
+  const deliverableDef = getDeliverable(target.sectionKey, target.label);
   const hasGroup = (g: ControlGroupId) =>
     !deliverableDef || deliverableDef.controlGroups.includes(g);
   const isIconAsset = templateType === 'brand-asset-icon';
@@ -818,21 +913,15 @@ export function BrandKitCardEditor({
   // for this type, so typing is reliable (no compounding, no
   // accidental whole-string deletion).
   const isBusinessCard = templateType === 'business-cards';
-  const businessCardContent: Partial<BusinessCardContent> | undefined = isBusinessCard
-    ? {
-        fullName: overrides.title,
-        jobTitle: overrides.subtitle,
-        email: overrides.email,
-        phone: overrides.phone,
-        website: overrides.website,
-      }
-    : undefined;
-  const renderContent = businessCardContent
-    ? { businessCard: businessCardContent }
-    : undefined;
+  // Structured content goes to the renderer as PROPS. There is no
+  // overrides→content mapping left here: the content model is the single
+  // source of truth, and `overrides` only still exists for the families
+  // that have no content kind yet.
   const livePreview = previewBrand && target.template
-    ? renderTemplateDesign(target.template, previewBrand, brand, renderContent)
+    ? renderTemplateDesign(target.template, previewBrand, brand, content ?? undefined)
     : null;
+  /** A deliverable that paints from content edits IN PLACE. */
+  const isQuickEditable = Boolean(contentKind && content && livePreview);
   const previewAspect = aspectForType(templateType);
 
   // Only show Content fields whose marker text actually appears in
@@ -981,20 +1070,32 @@ export function BrandKitCardEditor({
             className="bk-editor-preview-card bk-editor-preview-card--live"
             aria-label={`${target.label} preview`}
           >
-            <LivePreviewFrame
-              // Business-card designs are prop-driven now — pass an
-              // empty replacements list so the legacy DOM walker
-              // doesn't fight the renderer for ownership of the text.
-              replacements={isBusinessCard ? EMPTY_REPLACEMENTS : previewReplacements}
-              markerTable={markerTable}
-              onMarkers={setPresentMarkers}
-              aspect={previewAspect}
-              fontFamily={isBrandAsset ? null : selectedFontFamily}
-              showLogo={overrides.showLogo !== false}
-              logoSrc={isBrandAsset ? null : previewLogoSrc}
+            <BindProvider
+              value={{
+                selectedPath,
+                onSelect: setSelectedPath,
+                onCommit: commitBoundValue,
+              }}
             >
-              {livePreview}
-            </LivePreviewFrame>
+              <LivePreviewFrame
+                // A deliverable with a content model paints from PROPS, so
+                // the legacy DOM walker is switched off for it entirely —
+                // two owners of the same text is what made an edited
+                // artifact collide with itself.
+                replacements={
+                  isQuickEditable || isBusinessCard ? EMPTY_REPLACEMENTS : previewReplacements
+                }
+                markerTable={markerTable}
+                onMarkers={setPresentMarkers}
+                aspect={previewAspect}
+                fontFamily={isBrandAsset ? null : selectedFontFamily}
+                showLogo={overrides.showLogo !== false}
+                logoSrc={isBrandAsset ? null : previewLogoSrc}
+                onBackgroundClick={() => setSelectedPath(null)}
+              >
+                {livePreview}
+              </LivePreviewFrame>
+            </BindProvider>
           </section>
         ) : (
           <section
@@ -1020,7 +1121,20 @@ export function BrandKitCardEditor({
             </button>
           </header>
           <div className="bk-editor-rail-body">
-            {visibleFields.length > 0 && (
+            {contentKind && content && (
+              <ContentPanel
+                kind={contentKind}
+                content={content}
+                onChange={setContent}
+                selectedPath={selectedPath}
+                onSelect={setSelectedPath}
+                onResetContent={() => {
+                  setSelectedPath(null);
+                  setContent(defaultContentFor(contentKind, brand));
+                }}
+              />
+            )}
+            {!contentKind && visibleFields.length > 0 && (
               <RailGroup
                 title="Content"
                 hint="Type-specific text shown on this artifact."
@@ -1184,7 +1298,11 @@ export function BrandKitCardEditor({
                   <span>Download shades</span>
                 </button>
               </RailGroup>
-            ) : (
+            ) : livePreview ? null : (
+              // The cover is the card's THUMBNAIL in the grid, not
+              // anything on the artifact. Offering it beside a live
+              // artifact was the clearest sign the panel was generic:
+              // it changed something the user could not see from here.
               <RailGroup title="Image" hint="Pick the cover for this card.">
                 <div className="bk-editor-covers">
                   {target.covers.map((src) => {
@@ -1346,6 +1464,8 @@ export function BrandKitCardEditor({
                   setSelectedLogoColor(brand.colors.core[0]?.hex ?? '#0F1216');
                   setSelectedFontId(brand.fonts[0]?.id ?? null);
                   setOverrides(defaultOverridesForType(templateType, brand));
+                  setSelectedPath(null);
+                  if (contentKind) setContent(defaultContentFor(contentKind, brand));
                 }}
                 title="Reset to brand defaults"
               >
@@ -1401,6 +1521,11 @@ export function BrandKitCardEditor({
                   logoId: selectedLogoId,
                   logoColor: selectedLogoColor,
                   fontId: selectedFontId,
+                  // Saved as real nested data — an invoice's line items go
+                  // in as an array of objects and come back as one. It is
+                  // deliberately NOT flattened into `overrides`, which
+                  // cannot express it.
+                  ...(content ? { content } : {}),
                   savedAt: new Date().toISOString(),
                 });
               }}
@@ -1448,6 +1573,7 @@ function LivePreviewFrame({
   fontFamily,
   showLogo,
   logoSrc,
+  onBackgroundClick,
   children,
 }: {
   replacements: Array<[string, string]>;
@@ -1473,6 +1599,8 @@ function LivePreviewFrame({
    *  `filter` (used to recolor PNG logos via brightness/invert) is
    *  also cleared, since the URI is already the right color. */
   logoSrc: string | null;
+  /** Clicking the artifact anywhere but a bound region clears selection. */
+  onBackgroundClick?: () => void;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -1548,7 +1676,7 @@ function LivePreviewFrame({
   });
 
   return (
-    <div ref={ref} className="bk-editor-preview-frame">
+    <div ref={ref} className="bk-editor-preview-frame" onClick={onBackgroundClick}>
       <ScalingStage aspect={aspect} fontFamily={fontFamily} hideLogo={!showLogo}>
         {children}
       </ScalingStage>

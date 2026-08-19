@@ -1,6 +1,7 @@
 import type { Brand } from '@/shared/types/brand';
 import { BrandLogo } from '@/features/brandkit/components/renderers/BrandLogo';
 import { type BusinessCardContent, deriveBusinessCardContent } from '../types';
+import { Bind } from '../content/Bind';
 
 /**
  * Extended business-card designs for the cosmos Brand Kit.
@@ -51,6 +52,23 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
   const p = brand.primaryColor;
   const s = brand.secondaryColor || '#0F1216';
   const c = deriveBusinessCardContent(brand, content);
+  // Bound fragments. The designs were already prop-driven — this adds the
+  // editor contract on top, so each piece of identity is a region the
+  // user can click on the card itself.
+  //
+  // `firstName` and `initials` are NOT bound, deliberately. They are
+  // derived from the full name, so binding them would mean committing
+  // "JS" as the person's whole name the moment someone tidied up a
+  // monogram. They still update the instant the name does, because they
+  // are recomputed from it; the name itself is edited on the card
+  // wherever it appears in full, or in the panel.
+  const Name = <Bind path="fullName" value={c.fullName} fit="shrink" />;
+  const First = <>{c.firstName}</>;
+  const Initials = <>{c.initials}</>;
+  const Title = <Bind path="jobTitle" value={c.jobTitle} />;
+  const Email = <Bind path="email" value={c.email} />;
+  const Phone = <Bind path="phone" value={c.phone} />;
+  const Site = <Bind path="website" value={c.website} />;
   const designs = [
     // 0 — Editorial Index. Oversized ordinal in the corner, name
     // stacked editorial-style on the right; the brand mark lives
@@ -84,19 +102,19 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               className="text-[8px] font-serif italic"
               style={{ color: p }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
             <div className="text-[14px] font-serif font-semibold text-gray-900 leading-[1.05] mt-0.5">
-              {c.firstName}
+              {First}
               <br />
               {c.lastName || ''}
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] text-gray-600">
-            <div>{c.email}</div>
-            <div>{c.phone}</div>
+            <div>{Email}</div>
+            <div>{Phone}</div>
             <div className="font-medium" style={{ color: p }}>
-              {c.website}
+              {Site}
             </div>
           </div>
         </div>
@@ -128,16 +146,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div>
             <div className="text-[10px] font-semibold text-gray-900 tracking-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div className="text-[6px] mt-0.5" style={{ color: p }}>
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] text-gray-700">
-            <div>{c.phone}</div>
-            <div>{c.email}</div>
-            <div>{c.website}</div>
+            <div>{Phone}</div>
+            <div>{Email}</div>
+            <div>{Site}</div>
           </div>
         </div>
       </div>
@@ -167,7 +185,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               className="text-[18px] font-extrabold leading-[0.92] tracking-tight"
               style={{ fontStretch: 'condensed' }}
             >
-              {c.firstName}
+              {First}
             </div>
             <div className="text-[18px] font-extrabold leading-[0.92] tracking-tight">
               {c.lastName || ''}
@@ -181,8 +199,8 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.16em]">
             <div className="space-y-[1px] text-white/70">
-              <div>{c.email}</div>
-              <div>{c.phone}</div>
+              <div>{Email}</div>
+              <div>{Phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" color="#ffffff" />
           </div>
@@ -217,21 +235,21 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div>
             <div className="text-[10px] font-semibold text-gray-900 leading-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div
               className="text-[5.5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
             <div className="space-y-[1px]">
-              <div>{c.email}</div>
-              <div>{c.website}</div>
+              <div>{Email}</div>
+              <div>{Site}</div>
             </div>
-            <div className="text-right">{c.phone}</div>
+            <div className="text-right">{Phone}</div>
           </div>
         </div>
       </div>
@@ -261,16 +279,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div>
             <div className="text-[4.5px] uppercase tracking-[0.16em] opacity-70">
-              {c.jobTitle} · Operations
+              {Title} · Operations
             </div>
             <div className="text-[14px] font-bold leading-[1.02] mt-1">
-              {c.fullName}
+              {Name}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px]">
             <div className="space-y-[1px]">
-              <div>{c.email}</div>
-              <div className="opacity-70">{c.phone}</div>
+              <div>{Email}</div>
+              <div className="opacity-70">{Phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" />
           </div>
@@ -311,18 +329,18 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               Holder
             </div>
             <div className="font-serif text-[13px] leading-tight font-semibold text-gray-900">
-              {c.fullName}
+              {Name}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.18em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>{c.email}</div>
-            <div>{c.phone}</div>
+            <div>{Email}</div>
+            <div>{Phone}</div>
           </div>
         </div>
       </div>
@@ -359,13 +377,13 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
         </div>
         <div className="absolute right-[6%] bottom-[10%] bg-white/95 backdrop-blur-sm rounded-md px-2 py-1 text-right">
           <div className="text-[7px] font-bold text-gray-900 leading-tight">
-            {c.fullName}
+            {Name}
           </div>
           <div className="text-[4px]" style={{ color: p }}>
             VP · {brand.name}
           </div>
           <div className="text-[3.5px] text-gray-600 mt-0.5">
-            {c.email}
+            {Email}
           </div>
         </div>
       </div>
@@ -414,7 +432,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
                 {!isToday ? i + 1 : ''}
                 {isToday && (
                   <div className="text-center leading-tight">
-                    <div className="text-[4px] font-bold">{c.initials}</div>
+                    <div className="text-[4px] font-bold">{Initials}</div>
                   </div>
                 )}
               </div>
@@ -422,12 +440,12 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           })}
         </div>
         <div className="absolute right-[6%] bottom-[6%] text-right">
-          <div className="text-[7px] font-bold text-gray-900">{c.fullName}</div>
+          <div className="text-[7px] font-bold text-gray-900">{Name}</div>
           <div className="text-[4px]" style={{ color: p }}>
-            {c.jobTitle}
+            {Title}
           </div>
           <div className="text-[3.5px] text-gray-600 mt-0.5">
-            {c.email}
+            {Email}
           </div>
         </div>
       </div>
@@ -469,16 +487,16 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="text-center">
             <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div className="text-[5px] uppercase tracking-[0.22em] text-gray-600 mt-0.5">
-              {c.jobTitle} — Ops
+              {Title} — Ops
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
             <div className="space-y-[1px]">
-              <div>{c.phone}</div>
-              <div>{c.email}</div>
+              <div>{Phone}</div>
+              <div>{Email}</div>
             </div>
             <BrandLogo brand={brand} size="xs" />
           </div>
@@ -505,15 +523,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="ml-[8%] mb-[4%]">
             <div className="text-[12px] font-bold leading-tight text-white">
-              {c.firstName}
+              {First}
               <br />
               {c.lastName || ''}
             </div>
             <div className="text-[5px] uppercase tracking-[0.18em] text-white/80 mt-1">
-              {c.jobTitle}
+              {Title}
             </div>
             <div className="text-[4px] text-white/70 mt-1">
-              {c.email} · {c.phone}
+              {Email} · {Phone}
             </div>
           </div>
         </div>
@@ -540,15 +558,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="text-center text-white">
             <div className="text-[14px] font-bold leading-none tracking-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div className="text-[5.5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700">
-            <div>{c.email}</div>
-            <div>{c.phone}</div>
+            <div>{Email}</div>
+            <div>{Phone}</div>
           </div>
         </div>
       </div>
@@ -584,7 +602,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               className="text-[14px] font-bold leading-[1.02] uppercase tracking-tight"
               style={{ textShadow: `0 0 8px ${p}` }}
             >
-              {c.firstName}_{c.lastName || c.firstName}
+              {First}_{c.lastName || c.firstName}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.2em] mt-1"
@@ -594,9 +612,9 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
             </div>
           </div>
           <div className="space-y-[1px] text-[4.5px] uppercase tracking-[0.16em] opacity-80">
-            <div>&gt; {c.email}</div>
-            <div>&gt; {c.phone}</div>
-            <div>&gt; {c.website}</div>
+            <div>&gt; {Email}</div>
+            <div>&gt; {Phone}</div>
+            <div>&gt; {Site}</div>
           </div>
         </div>
       </div>
@@ -631,19 +649,19 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               {brand.name} · Studio
             </div>
             <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight mt-1">
-              {c.fullName}
+              {Name}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.2em] mt-0.5"
               style={{ color: p, filter: 'brightness(0.6)' }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-white">
             <div className="space-y-[1px]">
-              <div>{c.email}</div>
-              <div>{c.phone}</div>
+              <div>{Email}</div>
+              <div>{Phone}</div>
             </div>
             <BrandLogo brand={brand} size="xs" color="#ffffff" />
           </div>
@@ -666,7 +684,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           <div className="bg-white flex items-end p-[8%]">
             <div>
               <div className="text-[10px] font-bold text-gray-900 leading-tight">
-                {c.firstName}
+                {First}
               </div>
               <div className="text-[10px] font-bold text-gray-900 leading-tight">
                 {c.lastName || ''}
@@ -682,7 +700,7 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
                 className="text-[5px] uppercase tracking-[0.18em] font-semibold mt-0.5"
                 style={{ color: p }}
               >
-                {c.jobTitle}
+                {Title}
               </div>
             </div>
           </div>
@@ -691,11 +709,11 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
             style={{ backgroundColor: '#FFFFFF', borderTop: `2px solid ${p}` }}
           >
             <div className="space-y-[1px]">
-              <div className="font-medium">{c.email}</div>
-              <div>{c.phone}</div>
+              <div className="font-medium">{Email}</div>
+              <div>{Phone}</div>
             </div>
             <div className="text-right" style={{ color: p }}>
-              {c.website}
+              {Site}
             </div>
           </div>
         </div>
@@ -728,18 +746,18 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="self-end text-right">
             <div className="text-[12px] font-serif font-semibold text-gray-900 leading-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.22em] mt-0.5 font-medium"
               style={{ color: p }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="self-end text-right text-[4.5px] text-gray-700">
-            <div>{c.email}</div>
-            <div>{c.phone}</div>
+            <div>{Email}</div>
+            <div>{Phone}</div>
           </div>
         </div>
       </div>
@@ -773,22 +791,22 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
             </div>
             <div>
               <div className="text-[10px] font-serif font-semibold text-gray-900 leading-tight">
-                {c.fullName}
+                {Name}
               </div>
               <div
                 className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
                 style={{ color: p }}
               >
-                {c.jobTitle}
+                {Title}
               </div>
               <div className="text-[4.5px] text-gray-600 mt-1">
-                {c.email}
+                {Email}
               </div>
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] uppercase tracking-[0.18em] text-gray-600">
             <span>Sealed · 2026</span>
-            <span>{c.website}</span>
+            <span>{Site}</span>
           </div>
         </div>
       </div>
@@ -816,22 +834,22 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
           </div>
           <div className="text-center mt-[-6%]">
             <div className="text-[12px] font-bold text-gray-900 leading-tight">
-              {c.fullName}
+              {Name}
             </div>
             <div
               className="text-[5px] uppercase tracking-[0.22em] mt-0.5"
               style={{ color: p, filter: 'brightness(0.6)' }}
             >
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-white">
             <div className="space-y-[1px]">
-              <div>{c.email}</div>
-              <div>{c.phone}</div>
+              <div>{Email}</div>
+              <div>{Phone}</div>
             </div>
             <div className="text-right opacity-90">
-              {c.website}
+              {Site}
             </div>
           </div>
         </div>
@@ -869,15 +887,15 @@ export function BusinessCardExtendedRenderer({ brand, templateIndex, content }: 
               {brand.name}
             </div>
             <div className="text-[14px] font-serif italic font-semibold leading-none">
-              {c.fullName}
+              {Name}
             </div>
             <div className="text-[5px] uppercase tracking-[0.22em] mt-1 opacity-90">
-              {c.jobTitle}
+              {Title}
             </div>
           </div>
           <div className="flex items-end justify-between text-[4.5px] text-gray-700 font-serif">
-            <div>{c.email}</div>
-            <div>{c.phone}</div>
+            <div>{Email}</div>
+            <div>{Phone}</div>
           </div>
         </div>
       </div>
