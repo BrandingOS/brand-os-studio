@@ -768,6 +768,15 @@ export function Editor({
                   onActivePageChange={(id) => adapter.setActivePage(id)}
                 />
               ) : renderer.Properties ? (
+                // Scroll containment ONLY — not the panel's card chrome.
+                // `renderer.Properties` supplies its own look (ContentPanel's
+                // `.bk-qe-*` styles travel with the panel itself, see
+                // `content.css`); duplicating EditorSecondaryPanel's
+                // background/border/radius/shadow here would be a second,
+                // hand-copied properties shell that silently drifts from the
+                // original. `.bk-qe-panel` has no scroll/height cap of its
+                // own though, so something still has to keep a tall invoice
+                // (many line items) from overflowing the viewport.
                 <div
                   data-editor-panel-properties
                   className="flex flex-col"
@@ -776,11 +785,6 @@ export function Editor({
                     maxHeight: 'calc(100vh - 96px)',
                     overflowY: 'auto',
                     overflowX: 'hidden',
-                    padding: 16,
-                    background: 'var(--surface-elevated)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 12,
-                    boxShadow: 'var(--shadow-sm)',
                   }}
                 >
                   <renderer.Properties adapter={adapter} brand={brand} />

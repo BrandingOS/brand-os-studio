@@ -8,6 +8,11 @@ import {
   type ReactNode,
 } from 'react';
 import type { ContentPath } from './paths';
+// The `.bk-bind*` rules this component's classNames rely on — moved
+// here (2026-08-20) from `brand-kit.css` so they travel with `<Bind>`
+// into every consumer, not just the Brand Kit pages that happened to
+// import that stylesheet. See content.css's own header for why.
+import './content.css';
 
 /**
  * `<Bind>` — the contract between a renderer and the editor.
