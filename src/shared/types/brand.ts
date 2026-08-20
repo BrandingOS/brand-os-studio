@@ -75,6 +75,16 @@ export interface Brand {
   // ─── Legacy fields (read-only from v3 onward) ──────────────────────
   // Kept for back-compat with existing consumers; new writes should target
   // the v3 fields above. Derived getters may populate these at read time.
+  /**
+   * This brand was given to the account as the demo (migration 033).
+   *
+   * Presentation only — a badge on the dashboard card, and a way to find these
+   * rows later. NOTHING may branch on it to change behaviour: a demo brand is
+   * an ordinary brand, and the moment it stops behaving like one it stops
+   * showing the user what the product actually does.
+   */
+  isDemo?: boolean;
+
   /** @deprecated use logoSystem.primary via useBrandLogo('primary') */
   logo?: string;
   /** @deprecated use logoSystem */

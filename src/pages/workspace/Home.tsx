@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { DsButton, DsEyebrow } from '@/shared/ds';
+import { BrandMark, DsButton, DsEyebrow } from '@/shared/ds';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShellAlt';
 import { useBrandStore } from '@/shared/store/brandStore';
 import { useSessionStore } from '@/shared/store/sessionStore';
@@ -143,7 +143,13 @@ function BrandCard({
       <div className="ws-brand-card-body">
         <div>
           <ProjectName brand={brand} className="ws-brand-card-title" />
-          <p className="ws-brand-card-sub">{formatRelative(brand.updatedAt)}</p>
+          <p className="ws-brand-card-sub">
+            {/* The demo brand says so, and says nothing else. It behaves
+                exactly like a real brand — the badge is there so the user
+                knows they may delete it, not to mark it as lesser. */}
+            {brand.isDemo && <span className="ws-brand-card-demo">Demo</span>}
+            {formatRelative(brand.updatedAt)}
+          </p>
         </div>
         <div className="ws-brand-card-foot">
           <span>Open</span>
@@ -432,22 +438,57 @@ export default function WorkspaceHome() {
           <DsEyebrow style={{ marginBottom: 4 }}>Workspace</DsEyebrow>
           <h1 className="ws-hero-title">Your brands</h1>
           <p className="ws-hero-sub">
-            {count === 0
-              ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
-              : `${count} brand${count === 1 ? '' : 's'} · ${sentenceLower(formatRelative(lastEdit))}`}
+            {count > 0
+              ? `${count} brand${count === 1 ? '' : 's'} · ${sentenceLower(formatRelative(lastEdit))}`
+              : isAuthenticated
+                ? 'Everything starts with a brand. Create one to build your identity, templates, and designs.'
+                : 'Everything starts with a brand — and we give you one to explore.'}
           </p>
         </section>
 
         {count === 0 ? (
+          /*
+           * Two empty states, because a guest and a signed-in user are empty
+           * for different reasons.
+           *
+           * A signed-in account is only ever empty here if it deleted what it
+           * was given (migration 033 hands every new account a demo brand), so
+           * the ask is simply to make one. A GUEST has nothing because the demo
+           * brand is something an account receives — seed brands used to be
+           * listed here, but they cannot be deleted, which made them the wrong
+           * answer. So the guest gets told what signing up actually gets them.
+           */
           <div className="ws-empty" role="region" aria-label="No brands yet">
-            <h2 className="ws-empty-title">No brands yet — create your first</h2>
-            <p className="ws-empty-sub">
-              Set the colors, type, and voice once. Every template and design you
-              make after will inherit from it.
-            </p>
-            <DsButton tone="primary" arrow onClick={() => navigate('/onboard-brand')}>
-              Create a brand
-            </DsButton>
+            {isAuthenticated ? (
+              <>
+                <h2 className="ws-empty-title">No brands yet — create your first</h2>
+                <p className="ws-empty-sub">
+                  Set the colors, type, and voice once. Every template and design you
+                  make after will inherit from it.
+                </p>
+                <DsButton tone="primary" arrow onClick={() => navigate('/onboard-brand')}>
+                  Create a brand
+                </DsButton>
+              </>
+            ) : (
+              <>
+                <BrandMark size={44} className="ws-empty-mark" />
+                <h2 className="ws-empty-title">Start with a brand on us</h2>
+                <p className="ws-empty-sub">
+                  Create a free account and we'll set you up with a demo brand —
+                  logos, colours, type, guidelines and a kit — so you can see how
+                  everything works before putting your own brand in.
+                </p>
+                <div className="ws-empty-actions">
+                  <DsButton tone="primary" arrow onClick={() => navigate('/signup')}>
+                    Create account
+                  </DsButton>
+                  <DsButton tone="tertiary" onClick={() => navigate('/onboard-brand')}>
+                    Start from scratch
+                  </DsButton>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <>

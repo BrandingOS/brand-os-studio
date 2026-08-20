@@ -229,6 +229,34 @@ function architectureMapPlugin(): Plugin {
   };
 }
 
+/**
+ * Builds the marketing landing (landingpage/) into the same dist/ as the
+ * app, so one deploy serves the landing at `/` and the SPA everywhere
+ * else. See scripts/build-landing.mjs for the layout and the reason the
+ * landing stays a separate document.
+ *
+ * It hangs off the BUILD rather than an npm script because the hosting
+ * project's build command is configured outside this repo — anything
+ * that runs `vite build` gets the landing.
+ */
+function landingPagePlugin(): Plugin {
+  return {
+    name: "landing-page-build",
+    apply: "build",
+    async closeBundle() {
+      if (process.env.SKIP_LANDING_BUILD === "1") {
+        this.warn("SKIP_LANDING_BUILD=1 — dist/ is a plain SPA build, `/` is not the landing.");
+        return;
+      }
+      const { execFileSync } = await import("node:child_process");
+      execFileSync(process.execPath, [path.resolve(__dirname, "scripts/build-landing.mjs")], {
+        cwd: __dirname,
+        stdio: "inherit",
+      });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -239,6 +267,7 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     dsTokensApplyPlugin(),
     architectureMapPlugin(),
+    landingPagePlugin(),
   ].filter(Boolean),
   resolve: {
     alias: {

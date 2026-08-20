@@ -353,6 +353,7 @@ export class SupabaseBrandsService implements IBrandsService {
       // and the per-browser copy only answers for brands whose card the
       // database had nowhere to put (pre-031).
       workspaceCard: data.workspace_card || rememberedWorkspaceCard(data.id) || undefined,
+      isDemo: data.is_demo || undefined,
       isPublic: data.is_public || false,
       publicUrl: data.public_url || undefined,
       customDomain: data.custom_domain || undefined,
