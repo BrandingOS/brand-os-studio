@@ -21,6 +21,7 @@ import { DELIVERABLES } from '../kit/registry';
 import { contentKindForTemplateType, defaultContentFor } from '@/features/brandkit/content/kinds';
 import { mockBrand } from '@/features/setup/data/mockBrand';
 import type { Brand } from '@/shared/types/brand';
+import type { BrandKitTemplate } from '@/features/brandkit/types';
 
 const brand = {
   id: 'skam',
@@ -80,8 +81,13 @@ describe('rendererBindsContent', () => {
   });
 
   it('refuses a family Brand Kit does not hand to Design', () => {
-    expect(rendererBindsContent({ id: 'envelope-ext-3', type: 'envelope' })).toBe(false);
-    expect(rendererBindsContent({ id: 'letterhead-ext-1', type: 'letterhead' })).toBe(false);
+    // `envelope` / `letterhead` are synthetic template types — they are
+    // not members of the legacy `BrandKitModuleType` union, which is why
+    // `renderCosmosTemplate` casts them at its own switch too.
+    const synthetic = (id: string, type: string) =>
+      ({ id, type: type as BrandKitTemplate['type'] });
+    expect(rendererBindsContent(synthetic('envelope-ext-3', 'envelope'))).toBe(false);
+    expect(rendererBindsContent(synthetic('letterhead-ext-1', 'letterhead'))).toBe(false);
   });
 
   it('refuses a missing template rather than throwing', () => {
