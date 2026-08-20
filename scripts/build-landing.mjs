@@ -52,9 +52,15 @@ const spaDocument = fs.readFileSync(indexHtml);
 
 // The landing needs its own node_modules — the Pages build only installs
 // the root project.
+//
+// `--include=dev` is load-bearing: Cloudflare builds with NODE_ENV set to
+// production, under which npm omits devDependencies — and everything that
+// BUILDS this app (vite, @vitejs/plugin-react, tailwind) is a
+// devDependency. Without the flag the install reports success with 54
+// packages and the build then dies on a missing plugin.
 if (!fs.existsSync(path.join(landingDir, 'node_modules'))) {
   console.log('[build-landing] installing landingpage dependencies…');
-  run('npm', ['ci', '--no-audit', '--no-fund'], landingDir);
+  run('npm', ['ci', '--include=dev', '--no-audit', '--no-fund'], landingDir);
 }
 console.log('[build-landing] building the landing into dist/…');
 run('npx', ['vite', 'build', '--config', 'vite.embed.config.ts'], landingDir);
