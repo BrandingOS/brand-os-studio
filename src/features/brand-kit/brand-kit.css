@@ -587,23 +587,12 @@
 .bk-editor-icon-weight.is-selected .bk-editor-icon-weight-label {
   color: #111113;
 }
-.bk-editor-preview-frame {
-  width: 100%;
-  max-width: 720px;
-  display: block;
-}
-/* Host owns the visible border-radius + drop-shadow + aspect ratio
-   (set inline by ScalingStage from the per-template aspectFor map).
-   The inner stage scales the renderer up from its native ~360px
-   canonical width so absolute pixel sizes (text-[4.5px], etc.) read
-   correctly at any preview size. */
-.bk-preview-host {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border-radius: 12px;
-  box-shadow: 0 18px 48px -16px rgba(15, 18, 22, 0.35);
-}
+/* `.bk-editor-preview-frame` / `.bk-preview-host` / `.bk-preview-stage`
+   (and the font-override / hide-logo host attributes) moved to
+   `src/shared/brand/ScalingStage.css` on 2026-08-20 — ScalingStage is a
+   shared component with consumers outside Brand Kit (the Design editor's
+   template-instance canvas), and this stylesheet only reaches Brand Kit
+   pages. See that file's header for the full story. */
 /* Offscreen mount used by templateSnapshot.tsx to rasterize a template
    for download. Mirrors the drilldown tile contract: the renderer's
    root fills the host. Kept in-flow (fixed, offscreen-left) so fonts
@@ -619,30 +608,6 @@
 .bk-snapshot-host > * {
   width: 100%;
   height: 100%;
-}
-.bk-preview-stage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: top left;
-}
-.bk-preview-stage > * {
-  width: 100%;
-  height: 100%;
-}
-/* Font override — wins over Tailwind utilities (font-mono / font-serif)
-   that individual designs apply, so swapping the typography pick is
-   truly global across the rendered preview. */
-.bk-preview-host[data-font-override],
-.bk-preview-host[data-font-override] * {
-  font-family: var(--bk-preview-font) !important;
-}
-/* Show Logo toggle — BrandLogo renders itself as <img>, so hiding
-   <img> covers the common case without per-renderer changes.
-   `visibility: hidden` keeps the layout box, so designs that
-   reserve space for the logo don't reflow. */
-.bk-preview-host[data-hide-logo] img {
-  visibility: hidden;
 }
 .bk-editor-eyebrow {
   font-size: 10.5px;

@@ -21,6 +21,12 @@
  * 260 and the renderers agree with the code.
  */
 import { useLayoutEffect, useRef, type ReactNode } from 'react';
+// The `.bk-preview-*` / `.bk-editor-preview-frame` rules this component's
+// host relies on — moved here (2026-08-20) from `brand-kit.css` so they
+// travel with `<ScalingStage>` into every consumer, not just the Brand Kit
+// pages that happened to import that stylesheet. See ScalingStage.css's
+// own header for why.
+import './ScalingStage.css';
 
 /** The width every renderer in this codebase was drawn against. */
 export const RENDERER_BASE_WIDTH = 260;

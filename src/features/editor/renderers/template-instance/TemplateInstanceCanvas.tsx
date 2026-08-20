@@ -16,6 +16,11 @@ import {
 } from '@/features/brandkit/content';
 import { ScalingStage } from '@/shared/brand/ScalingStage';
 import { brandToMockBrand } from '@/features/setup/data/brandToMockBrand';
+// `.ti-canvas` sizing — moved here (2026-08-20) alongside `.bk-preview-*`
+// from `ScalingStage.css` so this frame has real layout wherever it
+// mounts. See templateInstance.css's own header for why the size has
+// to be explicit pixels, not a percentage.
+import './templateInstance.css';
 import type { DesignCanvasProps } from '../types';
 import type { TemplateInstanceAdapter } from './TemplateInstanceAdapter';
 import { exportArtworkPng, renderArtwork, resolveAspect, resolveTemplate } from './templateArtwork';
@@ -122,10 +127,33 @@ export function TemplateInstanceCanvas({ adapter, initialDocument }: DesignCanva
   // missing key renders its default rather than a blank.
   const content = hydrateContent(body.content.kind, mockBrand, body.content);
 
+  // The frame's UNSCALED pixel size — set explicitly, in the same
+  // document-space units `Editor.tsx`'s `fitToContainer` uses to
+  // compute the zoom transform it applies to this frame's ancestor.
+  // Everything above this frame (the zoom wrap, the canvas surface) is
+  // a shrink-to-fit chain with no definite size of its own — exactly
+  // like Fabric's raw `<canvas>` before its width/height attributes are
+  // set — so without this the frame, and everything inside it, is
+  // 0×0. See templateInstance.css.
+  const page = doc.pages[0];
+
   return (
     <div
       ref={hostRef}
       className="bk-editor-preview-frame ti-canvas"
+      style={
+        page
+          ? {
+              width: page.width,
+              height: page.height,
+              // `page.background` is a `ResolvedValue` (string | number |
+              // SlotRef) generically, but `createTemplateInstanceDocument`
+              // only ever writes a literal hex string — a SlotRef would
+              // need brand resolution this frame has no reason to do.
+              background: typeof page.background === 'string' ? page.background : '#ffffff',
+            }
+          : undefined
+      }
       onClick={() => instance.setSelectedPath(null)}
     >
       <BindProvider
