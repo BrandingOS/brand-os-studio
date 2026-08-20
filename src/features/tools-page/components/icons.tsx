@@ -131,6 +131,18 @@ export function PenToolIcon({ size = 22, className }: IconProps) {
   );
 }
 
+/** Type — typescale editor. Serif "T" over a baseline. */
+export function TypeIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" {...baseProps} aria-hidden="true">
+      <path d="M4 6.5V4h16v2.5" />
+      <path d="M12 4v14" />
+      <path d="M8.5 18h7" />
+      <path d="M3 21h18" />
+    </svg>
+  );
+}
+
 /** External-link — opens in new tab. */
 export function ExternalLinkIcon({ size = 14, className }: IconProps) {
   return (

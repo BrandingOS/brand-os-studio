@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { WorkspaceShell } from '@/shared/layouts/WorkspaceShell';
 import { useBrandStore } from '@/shared/store/brandStore';
-import { EmbeddedTypescaleDialog } from '@/features/tools/typescale';
 import { mockBrand, type MockBrand } from './data/mockBrand';
 import { SetupSidebar, type SectionKey } from './components/SetupSidebar';
 import { LOGO_ROLES, SetupBoard, type SetupBoardRefs } from './components/SetupBoard';
@@ -263,7 +262,6 @@ export function SetupPage({
     }
   }, [brand.fonts]);
   const [activeKey, setActiveKey] = useState<SectionKey | null>('logo');
-  const [typescaleOpen, setTypescaleOpen] = useState(false);
   // The brand-scoped wrapper (/b/:slug/setup) threads the real Brand.id in
   // as a prop — prefer that. Only fall back to the name-match lookup when
   // the prop is absent (e.g. the workspace /setup route mounts SetupPage
@@ -1499,15 +1497,6 @@ export function SetupPage({
     <WorkspaceShell
       rightActions={
         <>
-          {resolvedBrandId && (
-            <button
-              type="button"
-              onClick={() => setTypescaleOpen(true)}
-              className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
-            >
-              Open typescale editor
-            </button>
-          )}
           {/*
             Brand Identity, replacing "Export brand".
             
@@ -1631,13 +1620,6 @@ export function SetupPage({
         onSave={handleSaveStrategy}
       />
       <PreviewModal data={preview} onClose={() => setPreview(null)} />
-      {resolvedBrandId && (
-        <EmbeddedTypescaleDialog
-          brandId={resolvedBrandId}
-          open={typescaleOpen}
-          onOpenChange={setTypescaleOpen}
-        />
-      )}
     </WorkspaceShell>
   );
 }

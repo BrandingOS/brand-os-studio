@@ -19,6 +19,7 @@ import {
   PenToolIcon,
   ShareIcon,
   ShieldCheckIcon,
+  TypeIcon,
 } from '@/features/tools-page/components/icons';
 import '@/features/tools-page/tools-page.css';
 
@@ -204,6 +205,13 @@ export default function BrandToolsTabPage() {
                 icon={PaletteIcon}
                 title="UI Color System"
                 description="Build UI tokens — surface, border, accent — from your brand palette."
+                size="compact"
+              />
+              <ToolCard
+                to={`/b/${s}/tools/typescale`}
+                icon={TypeIcon}
+                title="Typescale Editor"
+                description="Pick the type pairing and tune the scale — sizes, leading, and tracking save straight to the brand."
                 size="compact"
               />
               <ToolCard
