@@ -29,7 +29,7 @@ export function CTA() {
         <motion.h2 {...reveal} className="display-chapter mt-8 max-w-4xl">
           Every brand will need an operating system.
           <br />
-          <span className="serif-accent">We&rsquo;re building it.</span>
+          <span className="serif-accent">We built it.</span>
         </motion.h2>
 
         <motion.p

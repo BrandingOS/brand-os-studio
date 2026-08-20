@@ -34,10 +34,9 @@ type MenuCard = {
 
 const PRODUCT_MENU: MenuCard[] = [
   {
-    title: 'Product overview',
-    desc: 'One core that becomes every deliverable you ship.',
+    title: 'Brand Identity',
+    desc: 'Logo, colors, type, and voice — the one core everything reads from.',
     href: '#',
-    big: true,
   },
   {
     title: 'Brand Kit',
@@ -45,7 +44,12 @@ const PRODUCT_MENU: MenuCard[] = [
     href: '#',
   },
   {
-    title: 'Design Studio',
+    title: 'Guideline',
+    desc: 'Guidelines that live with the brand — never a stale PDF.',
+    href: '#',
+  },
+  {
+    title: 'AI Design',
     desc: 'Plan and create in one on-brand canvas.',
     href: '#',
   },
@@ -75,7 +79,7 @@ type NavEntry =
 
 /* All hrefs are placeholders until the real pages exist. */
 const NAV_ENTRIES: NavEntry[] = [
-  { id: 'product', label: 'Product', menu: PRODUCT_MENU },
+  { id: 'product', label: 'Features', menu: PRODUCT_MENU },
   { id: 'solutions', label: 'Solutions', menu: SOLUTIONS_MENU },
   { id: 'pricing', label: 'Pricing', href: '#' },
   { id: 'company', label: 'Company', href: '#' },
@@ -420,8 +424,13 @@ export function Nav() {
                       </div>
                     </div>
                   ) : (
-                    /* Layout B — equal columns */
-                    <div className="grid grid-cols-3 gap-2.5">
+                    /* Layout B — equal cards: 4 entries sit as a 2×2
+                       grid, otherwise one row of 3 columns */
+                    <div
+                      className={`grid gap-2.5 ${
+                        activeEntry.menu.length === 4 ? 'grid-cols-2' : 'grid-cols-3'
+                      }`}
+                    >
                       {activeEntry.menu.map((c) => (
                         <a
                           key={c.title}
