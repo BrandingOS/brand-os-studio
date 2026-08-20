@@ -29,7 +29,14 @@ const fixtureDoc = (): BrandOSDocument => ({
   ],
 } as BrandOSDocument);
 
-const saveDesignMock = vi.fn(async () => undefined);
+const saveDesignMock = vi.fn(
+  async (
+    _brandId: string,
+    _designId: string,
+    _data: unknown,
+    _meta?: Partial<{ isTemplate: boolean; sourceTemplateId: string }>,
+  ) => undefined,
+);
 const designStorage: IDesignStorage = {
   saveDesign: saveDesignMock,
   loadDesign: vi.fn(async () => null),
@@ -122,6 +129,37 @@ describe('EditorDuplicateDesignButton', () => {
     };
     expect(savedDoc.familyId).toBeUndefined();
     expect(savedDoc.sourceDesignId).toBeUndefined();
+  });
+
+  it('duplicating a MASTER produces a working design: isTemplate false, sourceTemplateId set, label reads "Use template"', async () => {
+    const master: BrandOSDocument = {
+      ...fixtureDoc(),
+      id: 'master-1',
+      metadata: { name: 'Invoice — Editorial Header', isTemplate: true },
+    } as BrandOSDocument;
+    const { container } = wrap(
+      <EditorDuplicateDesignButton
+        getDoc={() => master}
+        brandId="b"
+        brandSlug="raqm"
+        sourceName="Invoice — Editorial Header"
+        isTemplate
+      />,
+    );
+    const button = container.querySelector('[data-duplicate-design-button]')!;
+    expect(button.getAttribute('aria-label')).toBe('Use template');
+    fireEvent.click(button);
+    await waitFor(() => expect(saveDesignMock).toHaveBeenCalledTimes(1));
+    const args = saveDesignMock.mock.calls[0];
+    const savedDoc = args[2] as BrandOSDocument;
+    const meta = args[3] as { isTemplate?: boolean; sourceTemplateId?: string };
+    // The copy is a working design, never a second master.
+    expect(savedDoc.metadata?.isTemplate).toBe(false);
+    expect(savedDoc.metadata?.sourceTemplateId).toBe('master-1');
+    expect(meta?.isTemplate).toBe(false);
+    expect(meta?.sourceTemplateId).toBe('master-1');
+    // Fresh id — the copy is its own design, not the master itself.
+    expect(savedDoc.id).not.toBe('master-1');
   });
 
   it('falls back to "Untitled design" when no source name', async () => {

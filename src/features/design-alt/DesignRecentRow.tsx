@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
 import { Plus, FileImage, ArrowRight } from 'lucide-react';
 import type { Brand } from '@/shared/types/brand';
 import type { DesignSummary, IDesignStorage } from '@/core/types/services';
+import { excludeTemplates } from '@/shared/services/designSummary';
 
 interface Props {
   brand: Brand;
@@ -40,8 +41,11 @@ export function DesignRecentRow({ brand, designStorage }: Props) {
       try {
         const list = await designStorage.listDesigns(brand.id);
         if (cancelled) return;
+        // Brand Kit masters live in the same store as working designs
+        // but do not belong in Recent projects — see excludeTemplates.
+        const working = excludeTemplates(list);
         // Newest first by updatedAt, falling back to createdAt.
-        const sorted = [...list].sort((a, b) => {
+        const sorted = [...working].sort((a, b) => {
           const ta = (a.updatedAt || a.createdAt || '').localeCompare(
             b.updatedAt || b.createdAt || '',
           );

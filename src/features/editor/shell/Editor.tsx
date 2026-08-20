@@ -599,6 +599,7 @@ export function Editor({
                     brandId={brand.id}
                     brandSlug={brand.slug}
                     sourceName={doc.metadata?.name as string | undefined}
+                    isTemplate={doc.metadata?.isTemplate === true}
                   />
                 ) : null}
                 {brandKit ? (

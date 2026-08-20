@@ -39,6 +39,14 @@ export async function ensureMasterDesign(args: {
     content: args.seedContent,
     design: {},
   });
+  // Stamp `isTemplate` on the DOCUMENT itself too, not just the storage
+  // summary — the editor route loads the doc body via `loadDesign` (no
+  // summary attached), and it's the only signal it has for "am I looking
+  // at a master?" (drives EditorDuplicateDesignButton's Use-template
+  // behavior). The summary meta below remains the source of truth for
+  // listing/lookup; this mirrors it onto the doc for readers who only
+  // have the body.
+  doc.metadata = { ...doc.metadata, isTemplate: true };
   await args.storage.saveDesign(args.brandId, designId, doc, {
     name: args.label,
     contentType: args.contentType,

@@ -48,6 +48,17 @@ describe('ensureMasterDesign', () => {
     expect(meta?.sourceTemplateId).toBe('invoices-ext-4');
   });
 
+  it('also stamps isTemplate on the document body, not just the storage summary', async () => {
+    // The editor route loads a design via `loadDesign` (body only, no
+    // summary), so `metadata.isTemplate` on the doc itself is what lets
+    // EditorDuplicateDesignButton recognize a loaded master.
+    const { storage } = fakeStorage();
+    const saveDesignMock = storage.saveDesign as ReturnType<typeof vi.fn>;
+    await ensureMasterDesign(args(storage));
+    const [, , savedDoc] = saveDesignMock.mock.calls[0];
+    expect((savedDoc as { metadata?: { isTemplate?: boolean } }).metadata?.isTemplate).toBe(true);
+  });
+
   it('is idempotent across two calls against the same storage: same id, exactly one saveDesign', async () => {
     const { storage } = fakeStorage();
     const first = await ensureMasterDesign(args(storage));
