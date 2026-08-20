@@ -7,6 +7,7 @@
  * until they are broken.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { page } from '@vitest/browser/context';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { Brand } from '@/shared/types/brand';
@@ -418,5 +419,56 @@ describe('edits made before the builder existed', () => {
       expect(probe?.textContent).toBe('KEPT');
     });
     expect(document.querySelector('[data-page-id="cover"] .gl-page-edited')).toBeTruthy();
+  });
+});
+
+/**
+ * The rail and the panel are pinned by LAYOUT, not by a sticky offset.
+ *
+ * The bug this pins: `.gl-shell .ds-rail` was `position: sticky; top: 80px`,
+ * but a sticky grid item stretches to its whole row by default, so its box
+ * already filled its containing block and had nowhere to travel — the rail
+ * scrolled away with a thirty-page document. `.panel` escaped it only because
+ * it also sets `align-self: start`. A CSS regression here is invisible in
+ * every other test, so it is worth measuring.
+ *
+ * The viewport has to be widened first: Vitest's browser default is 414px,
+ * which is the narrow branch where the shell deliberately goes back to being
+ * one column that scrolls with the page.
+ */
+describe('the tools stay where they are', () => {
+  beforeEach(async () => { await page.viewport(1440, 900); });
+  afterEach(async () => { await page.viewport(414, 896); });
+
+  it('does not move the rail or the panel when the document scrolls', async () => {
+    await mountBuilt();
+    const scroller = document.querySelector<HTMLElement>('.gl-doc-scroll')!;
+    const rail = document.querySelector<HTMLElement>('.ds-rail')!;
+    const panel = document.querySelector<HTMLElement>('.panel')!;
+
+    // The document column owns the overflow — if it does not, nothing below
+    // this proves anything, because there was no scrolling to survive.
+    await waitFor(() => expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight));
+
+    const railTop = rail.getBoundingClientRect().top;
+    const panelTop = panel.getBoundingClientRect().top;
+    const docTop = scroller.querySelector<HTMLElement>('.gl-page')!.getBoundingClientRect().top;
+
+    scroller.scrollTop = 900;
+    await waitFor(() => expect(scroller.scrollTop).toBeGreaterThan(0));
+
+    expect(rail.getBoundingClientRect().top).toBeCloseTo(railTop, 0);
+    expect(panel.getBoundingClientRect().top).toBeCloseTo(panelTop, 0);
+    // …and the document really did move, so the two above are not both frozen
+    // for the trivial reason that nothing happened.
+    expect(scroller.querySelector<HTMLElement>('.gl-page')!.getBoundingClientRect().top)
+      .toBeLessThan(docTop);
+  });
+
+  it('leaves the page itself nothing to scroll', async () => {
+    await mountBuilt();
+    // The whole promise of the app shell: the window never moves, so the top
+    // bar, the rail and the panel cannot be scrolled off.
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight + 1);
   });
 });

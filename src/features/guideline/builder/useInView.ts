@@ -8,7 +8,18 @@
  */
 import { useEffect, useState, type RefObject } from 'react';
 
-export function useInView(ref: RefObject<Element>, rootMargin = '600px'): boolean {
+/**
+ * `root` matters more than it looks. When the page scrolls inside a container,
+ * observing against the viewport still answers correctly — but `rootMargin`
+ * expands the ROOT rect only, never a clipping ancestor's, so the lead time
+ * the margin exists to buy is silently lost and pages pop in at the edge.
+ * Passing the scroll container back gets it.
+ */
+export function useInView(
+  ref: RefObject<Element>,
+  rootMargin = '600px',
+  root?: Element | null,
+): boolean {
   const [seen, setSeen] = useState(false);
 
   useEffect(() => {
@@ -26,11 +37,11 @@ export function useInView(ref: RefObject<Element>, rootMargin = '600px'): boolea
           observer.disconnect();
         }
       },
-      { rootMargin },
+      { root: root ?? null, rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [ref, rootMargin, seen]);
+  }, [ref, rootMargin, root, seen]);
 
   return seen;
 }

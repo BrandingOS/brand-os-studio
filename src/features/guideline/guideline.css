@@ -19,22 +19,64 @@
 
 /*
  * `.shell` is the Studio's two-column page grid — sidebar + board, with its
- * own padding, min-height and ≤1100px collapse. The guideline needs a third
- * column for the rail, and that is the ONLY thing overridden here.
+ * own padding and ≤1100px collapse. The guideline takes it and changes two
+ * things: a third column for the rail, and an APP SHELL rather than a
+ * scrolling page.
+ *
+ * The app shell is the design editor's behaviour and it is the point: the
+ * rail and the panel stay exactly where they are and only the document
+ * moves. Sticky was tried first and cannot express it — a sticky GRID ITEM
+ * stretches to the whole row by default, so its box already fills its
+ * containing block and has nowhere to travel. `.panel` looked fine only
+ * because it also sets `align-self: start`; the rail did not, so it scrolled
+ * away with the document. Pinning by layout instead of by offset means
+ * neither one can drift again.
  */
+/*
+ * The height is TAKEN, not guessed. `.shell` subtracts a hard-coded 68px for
+ * the top bar and that bar actually measures ~73 — close enough for a
+ * min-height, five pixels of stray page scroll for a shell that promises none.
+ * So the workspace root becomes a column and the shell claims what is left.
+ * The `calc()` below stays as the fallback for anything without `:has()`.
+ */
+[data-workspace]:has(> .gl-shell) {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+[data-workspace]:has(> .gl-shell) .gl-shell {
+  flex: 1 1 auto;
+  height: auto;
+}
+
 [data-workspace] .gl-shell {
   --gl-rail-w: 43px;
   --gl-sidebar-w: 268px;
   grid-template-columns: var(--gl-rail-w) var(--gl-sidebar-w) minmax(0, 1fr);
+  /* An explicit 1fr row, not `auto`: an auto row grows to its tallest item,
+     so a 30-page document would size the row and the columns would scroll
+     with the window again. `minmax(0, …)` lets the items shrink below their
+     content, which is what allows the document to scroll inside its own. */
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
+  height: calc(100vh - 68px);
+  min-height: 0;
+  overflow: hidden;
 }
 [data-workspace] .gl-shell[data-sidebar='closed'] {
   grid-template-columns: var(--gl-rail-w) minmax(0, 1fr);
 }
-/* The rail sits at the same height as `.panel`, which is sticky at 80px. */
+/* Pinned by the shell. `.panel` carries sticky offsets for a scrolling page;
+   inside a fixed shell those only misplace it. */
 [data-workspace] .gl-shell .ds-rail {
-  position: sticky;
-  top: 80px;
+  align-self: start;
+}
+[data-workspace] .gl-shell .panel {
+  position: static;
+  top: auto;
+  align-self: start;
+  max-height: 100%;
 }
 
 /* ─── Panel header ──────────────────────────────────────────── */
@@ -106,6 +148,11 @@
   flex-direction: column;
   gap: 14px;
   padding: 12px 14px 16px;
+  /* `min-height: 0` is what makes the overflow real — a column flex item
+     defaults to `min-height: auto` and refuses to shrink below its content,
+     so the scroll never engages and the panel clips instead. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 [data-workspace] .gl-field {
@@ -341,11 +388,21 @@
 
 /* ─── The document ──────────────────────────────────────────── */
 
+/* The one thing on this page that scrolls. */
 [data-workspace] .gl-doc-scroll {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   max-width: 1040px;
   margin: 0 auto;
   width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+[data-workspace] .gl-doc-scroll::-webkit-scrollbar { width: 8px; }
+[data-workspace] .gl-doc-scroll::-webkit-scrollbar-thumb {
+  background: var(--ds-border-strong);
+  border-radius: 999px;
 }
 [data-workspace] .gl-doc-head {
   display: flex;
@@ -402,7 +459,10 @@
 /* ─── A page ────────────────────────────────────────────────── */
 
 [data-workspace] .gl-page {
-  scroll-margin-top: 96px;
+  /* Clearance from the top of the DOCUMENT COLUMN, which already starts below
+     the Studio top bar — the 96px this used to reserve was the height of that
+     bar, and inside the column it just parked every page a bar's-worth low. */
+  scroll-margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -608,10 +668,19 @@
  * `.shell` already collapses to one column at ≤1100px; the rail and panel need
  * to stop being sticky columns and become a strip above the document.
  */
+/*
+ * Narrow: one column, and the PAGE scrolls again. Three pinned columns need
+ * width to be worth their space; stacked, a fixed-height shell would leave the
+ * document a sliver to scroll inside.
+ */
 @media (max-width: 1100px) {
   [data-workspace] .gl-shell,
   [data-workspace] .gl-shell[data-sidebar='closed'] {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    height: auto;
+    min-height: calc(100vh - 68px);
+    overflow: visible;
   }
   [data-workspace] .gl-shell .ds-rail {
     position: static;
@@ -620,5 +689,17 @@
   [data-workspace] .gl-shell .panel {
     position: static;
     max-height: 46vh;
+  }
+  [data-workspace]:has(> .gl-shell) {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  [data-workspace] .gl-doc-scroll {
+    height: auto;
+    overflow-y: visible;
+  }
+  [data-workspace] .gl-page {
+    scroll-margin-top: 96px;
   }
 }
